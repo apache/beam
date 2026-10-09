@@ -103,4 +103,14 @@ public class SparkTimerInternalsTest {
 
     assertNull(timerInternals.getNextProcessingTimer());
   }
+
+  @Test
+  public void testForWatermarksAdvancesFromLowToHigh() {
+    SparkTimerInternals timerInternals =
+        SparkTimerInternals.forWatermarks(new Instant(1000), new Instant(2000));
+    assertEquals(new Instant(1000), timerInternals.currentInputWatermarkTime());
+
+    timerInternals.advanceWatermark();
+    assertEquals(new Instant(2000), timerInternals.currentInputWatermarkTime());
+  }
 }
