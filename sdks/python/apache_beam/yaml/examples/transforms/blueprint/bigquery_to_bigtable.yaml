@@ -1,0 +1,64 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This is an example of a Beam YAML pipeline that reads from BigQuery
+# and writes to Cloud Bigtable.
+
+pipeline:
+  type: chain
+  transforms:
+    # Step 1: Reading data from BigQuery
+    - type: ReadFromBigQuery
+      name: ReadFromBigQuery
+      config:
+        table: "apache-beam-testing.shipment.shipments"
+    # Step 2: Convert BigQuery rows to Bigtable SetCell mutations
+    - type: MapToFields
+      name: ConvertToBigTableMutations
+      config:
+        language: python
+        fields:
+          key:
+            callable: |
+              def to_key_bytes(row):
+                return bytes(row.shipment_id, 'utf-8')
+          type: "'SetCell'"
+          family_name: "'shipment'"
+          column_qualifier:
+            callable: |
+              def to_qualifier_bytes(row):
+                return b'customer_id'
+          value:
+            callable: |
+              def to_value_bytes(row):
+                return bytes(row.customer_id, 'utf-8')
+          timestamp_micros: -1
+    # Step 3: Write records out to Cloud Bigtable
+    - type: WriteToBigTable
+      name: WriteToBigTable
+      config:
+        project: "apache-beam-testing"
+        instance: "shipment-test"
+        table: "shipments"
+
+# Expected:
+#  Row(key=b'S1', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C1', timestamp_micros=-1)
+#  Row(key=b'S2', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C2', timestamp_micros=-1)
+#  Row(key=b'S3', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C1', timestamp_micros=-1)
+#  Row(key=b'S4', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C4', timestamp_micros=-1)
+#  Row(key=b'S5', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C5', timestamp_micros=-1)
+#  Row(key=b'S6', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C4', timestamp_micros=-1)

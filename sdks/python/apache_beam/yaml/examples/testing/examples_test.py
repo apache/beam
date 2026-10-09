@@ -683,7 +683,8 @@ def _kafka_test_preprocessor(
     'test_wordCountImport_yaml',
     'test_wordCountInheritance_yaml',
     'test_iceberg_to_alloydb_yaml',
-    'test_bigquery_write_yaml'
+    'test_bigquery_write_yaml',
+    'test_bigquery_to_bigtable_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -847,6 +848,44 @@ def _spanner_io_read_test_preprocessor(
                 for column in element if column in columns
             } for element in elements]
         transform['config']['elements'] = elements
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_bigquery_to_bigtable_yaml'])
+def _bigquery_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from BigQuery.
+
+  This preprocessor replaces any ReadFromBigQuery transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  BigQuery tables.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromBigQuery transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromBigQuery':
+        config = transform['config']
+        dataset, table = config['table'].split('.')[-2:]
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            'BigQuery', str(dataset), str(table))]
 
   return test_spec
 
@@ -1329,6 +1368,7 @@ INPUT_TABLES = {
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
+    ('BigQuery', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Jdbc', 'shipment', 'shipments'): input_data.shipments_data(),
     ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
