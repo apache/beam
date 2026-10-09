@@ -22,6 +22,24 @@
 ## Tools
 
 - [Python installer](#python-installer)
+- [Stale GCS test bucket cleaner](#stale-gcs-test-bucket-cleaner)
+
+### Stale GCS test bucket cleaner
+
+`stale_gcs_buckets_cleaner.py` deletes buckets in the `apache-beam-testing`
+project whose names match `apache-beam-temp-bucket-<UUID>` and are older than
+24 hours. These buckets are created by `GcsUtil` integration tests and can be
+left behind when a test is interrupted before teardown. The cleaner removes
+objects from eligible buckets before deleting them.
+
+The cleaner performs a dry run by default:
+
+```bash
+python3 stale_gcs_buckets_cleaner.py
+```
+
+The scheduled `Clean Up GCP Resources` workflow runs the cleaner through the
+`removeStaleGcsBuckets` Gradle task, which passes the explicit `--delete` flag.
 
 ### Python installer
 
