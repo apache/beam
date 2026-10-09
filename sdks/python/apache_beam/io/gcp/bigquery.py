@@ -1640,12 +1640,6 @@ class BigQueryWriteFn(DoFn):
         minimum_logging_frequency_msec
     ) = self.streaming_api_logging_frequency_sec * 1000
 
-    self._backoff_calculator = iter(
-        retry.FuzzedExponentialIntervals(
-            initial_delay_secs=0.2,
-            num_retries=self._max_retries,
-            max_delay_secs=1500))
-
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
@@ -1824,6 +1818,12 @@ class BigQueryWriteFn(DoFn):
     else:
       insert_ids = [r[1] for r in rows_and_insert_ids]
 
+    backoff_calculator = iter(
+        retry.FuzzedExponentialIntervals(
+            initial_delay_secs=0.2,
+            num_retries=self._max_retries,
+            max_delay_secs=1500))
+
     while True:
       start = time.time()
       passed, errors = self.bigquery_wrapper.insert_rows(
@@ -1840,7 +1840,7 @@ class BigQueryWriteFn(DoFn):
           rows[entry['index']], entry["errors"], window_values[entry['index']])
                      for entry in errors]
       failed_insert_ids = [insert_ids[entry['index']] for entry in errors]
-      retry_backoff = next(self._backoff_calculator, None)
+      retry_backoff = next(backoff_calculator, None)
 
       # If retry_backoff is None, then we will not retry and must log.
       should_retry = any(
