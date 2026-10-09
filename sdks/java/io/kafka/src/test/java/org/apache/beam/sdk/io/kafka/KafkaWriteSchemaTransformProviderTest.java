@@ -273,7 +273,16 @@ public class KafkaWriteSchemaTransformProviderTest {
             "topic: topic_4\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "format: RAW\n"
-                + "with_gcp_adc: true");
+                + "with_gcp_adc: true",
+            "topic: topic_5\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: AVRO\n"
+                + "schema:\n"
+                + "  type: record\n"
+                + "  name: my_record\n"
+                + "  fields:\n"
+                + "    - name: str\n"
+                + "      type: string");
 
     for (String config : configs) {
       // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand

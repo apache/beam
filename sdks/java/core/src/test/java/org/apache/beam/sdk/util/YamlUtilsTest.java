@@ -288,4 +288,38 @@ public class YamlUtilsTest {
     org.junit.Assert.assertNotNull(yaml);
     org.junit.Assert.assertTrue(yaml.contains("string_key"));
   }
+
+  @Test
+  public void testMapAndListToStringField() {
+    Schema schema =
+        Schema.builder().addStringField("map_field").addStringField("list_field").build();
+
+    String yaml =
+        "map_field:\n"
+            + "  key: value\n"
+            + "  nested:\n"
+            + "    foo: 123\n"
+            + "list_field:\n"
+            + "  - a\n"
+            + "  - b\n";
+
+    Row row = YamlUtils.toBeamRow(yaml, schema);
+    assertEquals("{\"key\":\"value\",\"nested\":{\"foo\":123}}", row.getString("map_field"));
+    assertEquals("[\"a\",\"b\"]", row.getString("list_field"));
+  }
+
+  @Test
+  public void testMapAndListToStringFieldWithCamelCase() {
+    Schema schema = Schema.builder().addStringField("mapField").addStringField("listField").build();
+
+    Map<String, Object> map = new java.util.HashMap<>();
+    Map<String, Object> nestedMap = new java.util.HashMap<>();
+    nestedMap.put("key", "value");
+    map.put("map_field", nestedMap);
+    map.put("list_field", Arrays.asList("a", "b"));
+
+    Row row = YamlUtils.toBeamRow(map, schema, true);
+    assertEquals("{\"key\":\"value\"}", row.getString("mapField"));
+    assertEquals("[\"a\",\"b\"]", row.getString("listField"));
+  }
 }
