@@ -1,0 +1,64 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+        exportJavadoc: false,
+        automaticModuleName: 'org.apache.beam.examples.adk',
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: Examples :: Java :: ADK"
+ext.summary = "Apache Beam SDK examples for ADK."
+
+dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation project(":sdks:java:extensions:google-cloud-platform-core")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ":sdks:java:io:google-cloud-platform")
+    implementation project(path: ":runners:google-cloud-dataflow-java")
+    testImplementation library.java.google_cloud_pubsub
+    //runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    runtimeOnly library.java.opentelemetry_exporter_otlp
+    runtimeOnly library.java.opentelemetry_extension_autoconfigure
+    runtimeOnly project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+    // Google Cloud Spanner
+    implementation library.java.google_cloud_spanner
+
+    // OpenTelemetry
+    implementation library.java.opentelemetry_api
+    implementation library.java.opentelemetry_sdk
+
+    // ADK Dependencies
+    implementation "com.google.adk:google-adk:1.6.0"
+   // implementation "com.google.genai:google-genai:0.1.1"
+
+    implementation library.java.joda_time
+    implementation library.java.slf4j_api
+    implementation library.java.slf4j_simple
+}
+
+task execute (type:JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "org.apache.beam.examples.adk.AmlPipeline"
+}
