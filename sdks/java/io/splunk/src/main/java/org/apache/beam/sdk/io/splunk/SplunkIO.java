@@ -166,7 +166,8 @@ public class SplunkIO {
       // Return a PCollection<SplunkWriteError>
       return input
           .apply("Create KV pairs", CreateKeys.of(parallelism()))
-          .apply("Write Splunk events", ParDo.of(writer));
+          .apply("Write Splunk events", ParDo.of(writer))
+          .setCoder(SplunkWriteErrorCoder.of());
     }
 
     /** A builder for creating {@link Write} objects. */
