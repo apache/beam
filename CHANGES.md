@@ -99,6 +99,7 @@
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
 * (Python) `Duration` built from float seconds now rounds to the nearest microsecond instead of truncating, which could lose a microsecond ([#40263](https://github.com/apache/beam/issues/40263)).
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
+* (Java) ParquetIO now uses the schema passed to `read()`/`readFiles()` as the Avro reader schema and matches file columns to its fields by name. Reading files that predate a newly added field no longer fails with `ArrayIndexOutOfBoundsException`, and a schema that omits some of the file's columns no longer returns values from the wrong column ([#27234](https://github.com/apache/beam/issues/27234)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
