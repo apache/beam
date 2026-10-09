@@ -2408,6 +2408,24 @@ class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       yield model.predict(example)
 
 
+class IncrementingFakeModelHandler(base.ModelHandler[int,
+                                                     int,
+                                                     FakeIncrementingModel]):
+  def load_model(self):
+    return FakeIncrementingModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeIncrementingModel,
+      inference_args=None) -> Iterable[int]:
+    for _ in batch:
+      yield model.predict(0)
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 2, 'max_batch_size': 2}
+
+
 def try_import_model_manager():
   try:
     # pylint: disable=unused-import
@@ -2478,6 +2496,78 @@ class ModelManagerTest(unittest.TestCase):
         actual = pcoll | base.RunInference(
             OOMFakeModelHandler(), use_model_manager=True)
         assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_shared_model_wrapper_all_models_with_model_manager(self):
+    from apache_beam.ml.inference.model_manager import ModelManager
+    mm = ModelManager()
+    try:
+      tag = 'test_tag'
+      instance = mm.acquire_model(tag, lambda: 'fake_model_instance')
+      mm.release_model(tag, instance)
+      wrapper = base._SharedModelWrapper(mm, tag, lambda: 'fake_model_instance')
+      self.assertEqual(wrapper.all_models(), ['fake_model_instance'])
+      wrapper.force_reset()
+      self.assertEqual(wrapper.all_models(), [])
+    finally:
+      mm.shutdown()
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_with_model_manager_and_model_metadata_pcoll_reuses_model(
+      self):
+    with TestPipeline('FnApiRunner') as pipeline:
+      model_metadata = pipeline | 'ModelMetadata' >> beam.Create(
+          [base.ModelMetadata(model_id='model_v2', model_name='v2')])
+      actual = (
+          pipeline
+          | 'start' >> beam.Create([0, 0, 0, 0])
+          | base.RunInference(
+              IncrementingFakeModelHandler(),
+              use_model_manager=True,
+              model_metadata_pcoll=model_metadata))
+      # Since the model is reused across the 2 batches (4 elements total),
+      # FakeIncrementingModel increments from 1 to 4 instead of resetting to 1
+      # on the second batch.
+      assert_that(actual, equal_to([1, 2, 3, 4]), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_dofn_model_update_acquires_and_releases_matching_tag(
+      self):
+    dofn = base._RunInferenceDoFn(
+        model_handler=IncrementingFakeModelHandler(),
+        clock=FakeClock(),
+        metrics_namespace='test',
+        load_model_at_runtime=False,
+        model_tag='initial_tag',
+        use_model_manager=True)
+    dofn.setup()
+
+    # 1. Before any update, batches use 'initial_tag' and reuse the same model
+    self.assertEqual(dofn.process([0, 0], None, None), [1, 2])
+    self.assertEqual(dofn.process([0, 0], None, None), [3, 4])
+    self.assertEqual(
+        len(dofn._model.all_models()), 1, 'Expected 1 model for initial_tag')
+
+    # 2. Update to 'model_v1' via side input metadata
+    meta_v1 = base.ModelMetadata(model_id='model_v1', model_name='v1')
+    self.assertEqual(dofn.process([0, 0], None, meta_v1), [1, 2])
+    # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
+    self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
+    self.assertEqual(dofn._cur_tag, 'model_v1')
+    self.assertEqual(
+        len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
+
+    # 3. Update to 'model_v2' via side input metadata
+    meta_v2 = base.ModelMetadata(model_id='model_v2', model_name='v2')
+    self.assertEqual(dofn.process([0, 0], None, meta_v2), [1, 2])
+    # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
+    self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
+    self.assertEqual(dofn._cur_tag, 'model_v2')
+    self.assertEqual(
+        len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
 
 
 if __name__ == '__main__':
