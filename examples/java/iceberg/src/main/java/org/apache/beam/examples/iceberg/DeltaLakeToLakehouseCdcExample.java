@@ -15,27 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples;
+package org.apache.beam.examples.iceberg;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.channels.Channels;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcUtils.LakehouseTableSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -55,16 +44,16 @@ import org.slf4j.LoggerFactory;
 /**
  * An Apache Beam Java example pipeline that reads Change Data Feed (CDC) records from a Delta Lake
  * table on Google Cloud Storage (GCS) and applies those row-level changes (`INSERT`,
- * `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`) to a Google Cloud Platform (GCP) Lakehouse (BigLake
- * Metastore Iceberg REST Catalog) table using Beam's {@link Managed} I/O connectors.
+ * `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`) to a Google Cloud Platform (GCP) Lakehouse table (via
+ * the Lakehouse runtime catalog's Iceberg REST API) using Beam's {@link Managed} I/O connectors.
  *
  * <h2>Overview</h2>
  *
  * <p>This pipeline performs the following steps:
  *
  * <ol>
- *   <li><b>Validates Delta Lake Change Data Feed (CDF):</b> Inspects the input Delta Lake table's
- *       transaction log ({@code _delta_log/*.json}) to verify that the table property {@code
+ *   <li><b>Validates Delta Lake Change Data Feed (CDF):</b> Uses the Delta Kernel API to read the
+ *       latest snapshot of the input Delta Lake table and verify that the table property {@code
  *       delta.enableChangeDataFeed = true} is enabled, failing fast with an error if it is not.
  *   <li><b>Reads Delta Lake CDC Data:</b> Uses {@code Managed.read(Managed.DELTA_LAKE_CDC)} to read
  *       change events over either a commit version range ({@code --startVersion} / {@code
@@ -72,9 +61,9 @@ import org.slf4j.LoggerFactory;
  *       --endTimestamp}). Standard GCS Hadoop filesystem properties and Delta CDC metadata columns
  *       are configured by default.
  *   <li><b>Writes CDC Data to GCP Lakehouse:</b> Uses {@code Managed.write(Managed.ICEBERG)} in
- *       {@code merge-on-read} mode against the BigLake Iceberg REST catalog to apply inserts,
- *       updates, and deletes ordered by {@code _commit_version}. Standard BigLake REST catalog and
- *       Iceberg CDC sink properties are configured by default.
+ *       {@code merge-on-read} mode against the Lakehouse Iceberg REST catalog to apply inserts,
+ *       updates, and deletes ordered by {@code _commit_version}. Standard Lakehouse REST catalog
+ *       and Iceberg CDC sink properties are configured by default.
  * </ol>
  *
  * <h2>Prerequisites</h2>
@@ -91,13 +80,13 @@ import org.slf4j.LoggerFactory;
  * SET TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true');
  * }</pre>
  *   <li><b>Target GCP Lakehouse (Iceberg V2) Table:</b> Must be an Iceberg format-version 2 table
- *       registered in BigLake Metastore REST Catalog. Its schema must match the source Delta Lake
+ *       registered in the Lakehouse runtime catalog. Its schema must match the source Delta Lake
  *       table's columns. If the Iceberg table does not declare identifier (primary-key) fields in
  *       its table schema, pass {@code --equalityColumns=<col1,col2>} to specify the primary-key
  *       columns used for equality deletes.
  *   <li><b>GCP Authentication:</b> Set {@code GOOGLE_APPLICATION_CREDENTIALS} to a service account
  *       key JSON file (or configure Application Default Credentials) with permissions to access the
- *       GCS buckets, BigLake Metastore ({@code roles/biglake.admin}), and Dataflow.
+ *       GCS buckets, Lakehouse runtime catalog ({@code roles/biglake.admin}), and Dataflow.
  * </ul>
  *
  * <h2>Running the Example on Dataflow Portable Runner (Example Default)</h2>
@@ -114,8 +103,8 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
  *
- * ./gradlew :examples:java:execute \
- *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
+ * ./gradlew :examples:java:iceberg:execute \
+ *   -PmainClass=org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
  *     --project=my-gcp-project \
  *     --region=us-central1 \
@@ -132,8 +121,8 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
  *
- * ./gradlew :examples:java:execute \
- *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
+ * ./gradlew :examples:java:iceberg:execute \
+ *   -PmainClass=org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
  *     --project=my-gcp-project \
  *     --region=us-central1 \
@@ -186,8 +175,8 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
  *
- * ./gradlew :examples:java:execute \
- *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
+ * ./gradlew :examples:java:iceberg:execute \
+ *   -PmainClass=org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
  *     --usePortableRunner=false \
  *     --project=my-gcp-project \
@@ -209,8 +198,8 @@ public class DeltaLakeToLakehouseCdcExample {
 
   public static final String COMMIT_VERSION_COLUMN = "_commit_version";
 
-  /** Default BigLake Iceberg REST Catalog endpoint URI. */
-  public static final String DEFAULT_BIGLAKE_CATALOG_URI =
+  /** Default Lakehouse Iceberg REST Catalog endpoint URI. */
+  public static final String DEFAULT_LAKEHOUSE_CATALOG_URI =
       "https://biglake.googleapis.com/iceberg/v1/restcatalog";
 
   /**
@@ -236,7 +225,7 @@ public class DeltaLakeToLakehouseCdcExample {
     void setDeltaTable(String value);
 
     @Description(
-        "Target GCP Lakehouse Iceberg table identifier. Accepts either a 4-part BigLake table "
+        "Target GCP Lakehouse Iceberg table identifier. Accepts either a 4-part Lakehouse table "
             + "identifier '<project>.<warehouse_bucket>.<namespace>.<table>' "
             + "(e.g. 'my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table'), "
             + "a 3-part identifier '<warehouse_bucket>.<namespace>.<table>', or a 2-part Iceberg "
@@ -275,7 +264,7 @@ public class DeltaLakeToLakehouseCdcExample {
     void setEndTimestamp(@Nullable String value);
 
     @Description(
-        "GCS warehouse location for the GCP Lakehouse BigLake catalog (e.g. 'gs://my-warehouse-bucket'). "
+        "GCS warehouse location for the GCP Lakehouse catalog (e.g. 'gs://my-warehouse-bucket'). "
             + "Optional when --lakehouseTable is specified as a 3-part or 4-part identifier containing "
             + "the warehouse bucket name.")
     @Nullable String getWarehouse();
@@ -317,214 +306,30 @@ public class DeltaLakeToLakehouseCdcExample {
     void setCatalogName(String value);
 
     @Description(
-        "BigLake Iceberg REST Catalog endpoint URI. Defaults to "
-            + DEFAULT_BIGLAKE_CATALOG_URI
+        "Lakehouse Iceberg REST Catalog endpoint URI. Defaults to "
+            + DEFAULT_LAKEHOUSE_CATALOG_URI
             + ".")
-    @Default.String(DEFAULT_BIGLAKE_CATALOG_URI)
+    @Default.String(DEFAULT_LAKEHOUSE_CATALOG_URI)
     String getCatalogUri();
 
     void setCatalogUri(String value);
   }
 
-  /** Parsed GCP Lakehouse table coordinates (`project`, `warehouse`, and `namespace.table`). */
-  @VisibleForTesting
-  static final class LakehouseTableSpec {
-    final String project;
-    final String warehouse;
-    final String tableId;
-
-    LakehouseTableSpec(String project, String warehouse, String tableId) {
-      this.project = project;
-      this.warehouse = warehouse;
-      this.tableId = tableId;
-    }
-  }
-
   /**
-   * Resolves the GCP project, GCS warehouse URI, and 2-part Iceberg {@code namespace.table}
-   * identifier from {@link Options}.
+   * Builds the Hadoop configuration used to access the Delta Lake table on GCS, both by the Delta
+   * Lake CDC source and when verifying that Change Data Feed is enabled on the table.
    */
-  @VisibleForTesting
-  static LakehouseTableSpec resolveLakehouseTableSpec(Options options) {
-    String rawTable = options.getLakehouseTable();
-    if (rawTable == null || rawTable.trim().isEmpty()) {
-      throw new IllegalArgumentException("--lakehouseTable must not be empty.");
-    }
-    List<String> parts = Arrays.asList(rawTable.trim().split("\\."));
-    @Nullable String project = options.getProject();
-    @Nullable String warehouse = options.getWarehouse();
-    String tableId;
-
-    if (parts.size() == 4) {
-      project = parts.get(0);
-      if (warehouse == null || warehouse.trim().isEmpty()) {
-        warehouse = "gs://" + parts.get(1);
-      }
-      tableId = parts.get(2) + "." + parts.get(3);
-    } else if (parts.size() == 3) {
-      if (warehouse == null || warehouse.trim().isEmpty()) {
-        warehouse = "gs://" + parts.get(0);
-      }
-      tableId = parts.get(1) + "." + parts.get(2);
-    } else if (parts.size() == 2) {
-      tableId = rawTable.trim();
-    } else {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid --lakehouseTable '%s'. Expected '<project>.<warehouse_bucket>.<namespace>.<table>', "
-                  + "'<warehouse_bucket>.<namespace>.<table>', or '<namespace>.<table>'.",
-              rawTable));
-    }
-
-    if (project == null || project.trim().isEmpty()) {
-      throw new IllegalArgumentException(
-          "GCP project must be specified via --project or as the first component of a 4-part "
-              + "--lakehouseTable identifier.");
-    }
-    if (warehouse == null || warehouse.trim().isEmpty()) {
-      throw new IllegalArgumentException(
-          "Lakehouse warehouse bucket must be specified via --warehouse or as part of a 3-part / "
-              + "4-part --lakehouseTable identifier.");
-    }
-    String normalizedWarehouse =
-        warehouse.startsWith("gs://") ? warehouse : "gs://" + warehouse.trim();
-
-    return new LakehouseTableSpec(project.trim(), normalizedWarehouse, tableId);
-  }
-
-  /**
-   * Validates that either a commit version range or a timestamp range (and not a mix of both) is
-   * configured on {@link Options}.
-   */
-  @VisibleForTesting
-  static void validateRangeOptions(Options options) {
-    @Nullable Long startVersion = options.getStartVersion();
-    @Nullable Long endVersion = options.getEndVersion();
-    @Nullable String startTimestamp = options.getStartTimestamp();
-    @Nullable String endTimestamp = options.getEndTimestamp();
-
-    boolean hasStartVersion = startVersion != null;
-    boolean hasEndVersion = endVersion != null;
-    boolean hasStartTimestamp = startTimestamp != null && !startTimestamp.trim().isEmpty();
-    boolean hasEndTimestamp = endTimestamp != null && !endTimestamp.trim().isEmpty();
-
-    if (!hasStartVersion && !hasStartTimestamp) {
-      throw new IllegalArgumentException(
-          "Either --startVersion or --startTimestamp must be provided to read Delta Lake CDC data.");
-    }
-    if (hasStartVersion && hasStartTimestamp) {
-      throw new IllegalArgumentException(
-          "Cannot set both --startVersion and --startTimestamp; specify either a version range or "
-              + "a timestamp range.");
-    }
-    if (hasEndVersion && hasEndTimestamp) {
-      throw new IllegalArgumentException(
-          "Cannot set both --endVersion and --endTimestamp; specify either a version range or "
-              + "a timestamp range.");
-    }
-    if (hasStartVersion && hasEndTimestamp) {
-      throw new IllegalArgumentException(
-          "Cannot mix --startVersion with --endTimestamp; use --endVersion instead.");
-    }
-    if (hasStartTimestamp && hasEndVersion) {
-      throw new IllegalArgumentException(
-          "Cannot mix --startTimestamp with --endVersion; use --endTimestamp instead.");
-    }
-    if (startVersion != null && endVersion != null && startVersion > endVersion) {
-      throw new IllegalArgumentException(
-          String.format(
-              "--startVersion (%d) must be less than or equal to --endVersion (%d).",
-              startVersion, endVersion));
-    }
-  }
-
-  /**
-   * Verifies that the input Delta Lake table has {@code delta.enableChangeDataFeed = true} set in
-   * its latest transaction log metadata.
-   *
-   * @throws IllegalArgumentException if no Delta Lake commit logs exist at {@code deltaTablePath}
-   * @throws IllegalStateException if {@code delta.enableChangeDataFeed = true} is not enabled
-   */
-  @VisibleForTesting
-  static void verifyChangeDataFeedEnabled(String deltaTablePath) throws IOException {
-    String normalizedPath = deltaTablePath.trim().replaceAll("/+$", "");
-    String logPattern = normalizedPath + "/_delta_log/*.json";
-
-    MatchResult matchResult = FileSystems.match(logPattern);
-    if (matchResult.status() != MatchResult.Status.OK || matchResult.metadata().isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "No Delta Lake transaction log files found matching '%s'. Verify that '%s' is a "
-                  + "valid Delta Lake table.",
-              logPattern, deltaTablePath));
-    }
-
-    List<MatchResult.Metadata> logFiles = new ArrayList<>(matchResult.metadata());
-    logFiles.sort(
-        Comparator.comparing((MatchResult.Metadata m) -> m.resourceId().toString()).reversed());
-
-    ObjectMapper mapper = new ObjectMapper();
-    for (MatchResult.Metadata metadata : logFiles) {
-      try (BufferedReader reader =
-          new BufferedReader(
-              new InputStreamReader(
-                  Channels.newInputStream(FileSystems.open(metadata.resourceId())),
-                  StandardCharsets.UTF_8))) {
-        @Nullable String latestCdfPropertyInFile = null;
-        boolean foundMetaDataInFile = false;
-        @Nullable String line;
-        while ((line = reader.readLine()) != null) {
-          if (!line.contains("\"metaData\"")) {
-            continue;
-          }
-          JsonNode root = mapper.readTree(line);
-          JsonNode metaDataNode = root.get("metaData");
-          if (metaDataNode != null && metaDataNode.isObject()) {
-            foundMetaDataInFile = true;
-            JsonNode configNode = metaDataNode.get("configuration");
-            if (configNode != null && configNode.isObject()) {
-              JsonNode cdfNode = configNode.get("delta.enableChangeDataFeed");
-              latestCdfPropertyInFile = cdfNode != null ? cdfNode.asText() : null;
-            } else {
-              latestCdfPropertyInFile = null;
-            }
-          }
-        }
-        if (foundMetaDataInFile) {
-          if ("true".equalsIgnoreCase(latestCdfPropertyInFile)) {
-            LOG.info(
-                "Verified 'delta.enableChangeDataFeed = true' on Delta Lake table '{}' (from {}).",
-                deltaTablePath,
-                metadata.resourceId());
-            return;
-          }
-          throw new IllegalStateException(
-              String.format(
-                  "Delta Lake table '%s' does not have 'delta.enableChangeDataFeed = true' enabled "
-                      + "(found '%s' in %s). Enable Change Data Feed on the table before running "
-                      + "this pipeline.",
-                  deltaTablePath, latestCdfPropertyInFile, metadata.resourceId()));
-        }
-      }
-    }
-
-    throw new IllegalStateException(
-        String.format(
-            "Could not find 'metaData' action in Delta Lake commit logs under '%s' to verify "
-                + "'delta.enableChangeDataFeed = true'.",
-            logPattern));
+  private static Map<String, String> buildGcsHadoopConfig(String project) {
+    return ImmutableMap.of(
+        "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+        "fs.gs.auth.type", "APPLICATION_DEFAULT",
+        "fs.gs.project.id", project);
   }
 
   /** Builds the {@code Managed.read(Managed.DELTA_LAKE_CDC)} configuration map. */
   @VisibleForTesting
   static Map<String, Object> buildDeltaCdcReadConfig(Options options, String project) {
-    Map<String, String> hadoopConfig =
-        ImmutableMap.of(
-            "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
-            "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
-            "fs.gs.auth.type", "APPLICATION_DEFAULT",
-            "fs.gs.project.id", project);
-
     Map<String, Object> readConfig = new HashMap<>();
     readConfig.put("table", options.getDeltaTable());
     @Nullable Long startVersion = options.getStartVersion();
@@ -548,7 +353,7 @@ public class DeltaLakeToLakehouseCdcExample {
         options.getUsePortableRunner()
             ? ImmutableList.of(CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN)
             : ImmutableList.of(COMMIT_VERSION_COLUMN));
-    readConfig.put("hadoop_config", hadoopConfig);
+    readConfig.put("hadoop_config", buildGcsHadoopConfig(project));
     return readConfig;
   }
 
@@ -590,9 +395,9 @@ public class DeltaLakeToLakehouseCdcExample {
     return writeConfig;
   }
 
-  public static void runDeltaLakeToLakehouseCdc(Options options) throws IOException {
-    validateRangeOptions(options);
-    LakehouseTableSpec tableSpec = resolveLakehouseTableSpec(options);
+  public static void runDeltaLakeToLakehouseCdc(Options options) {
+    DeltaLakeToLakehouseCdcUtils.validateRangeOptions(options);
+    LakehouseTableSpec tableSpec = DeltaLakeToLakehouseCdcUtils.resolveLakehouseTableSpec(options);
     if (options.getProject() == null || options.getProject().trim().isEmpty()) {
       options.setProject(tableSpec.project);
     }
@@ -603,9 +408,9 @@ public class DeltaLakeToLakehouseCdcExample {
       ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     }
 
-    // Initialize Beam FileSystems with pipeline options and verify Change Data Feed is enabled.
-    FileSystems.setDefaultPipelineOptions(options);
-    verifyChangeDataFeedEnabled(options.getDeltaTable());
+    // Verify that Change Data Feed is enabled on the source Delta Lake table.
+    DeltaLakeToLakehouseCdcUtils.verifyChangeDataFeedEnabled(
+        options.getDeltaTable(), buildGcsHadoopConfig(tableSpec.project));
 
     Map<String, Object> readConfig = buildDeltaCdcReadConfig(options, tableSpec.project);
     Map<String, Object> writeConfig = buildLakehouseCdcWriteConfig(options, tableSpec);
@@ -636,7 +441,7 @@ public class DeltaLakeToLakehouseCdcExample {
     }
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     runDeltaLakeToLakehouseCdc(options);
   }

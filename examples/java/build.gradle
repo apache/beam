@@ -56,7 +56,6 @@ dependencies {
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:ml")
-  implementation project(":sdks:java:managed")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.google_api_client
@@ -111,44 +110,6 @@ dependencies {
   // Add dependency if requested on command line for runner
   if (project.hasProperty("runnerDependency")) {
     runtimeOnly project(path: project.getProperty("runnerDependency"))
-  }
-
-  def javaVer = (project.findProperty('testJavaVersion') ?: JavaVersion.current().majorVersion) as int
-  def isDeltaLakeCdcExecute = project.findProperty('mainClass')?.toString()?.contains('DeltaLakeToLakehouseCdcExample')
-  if (isDeltaLakeCdcExecute && javaVer >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
-    runtimeOnly project(":sdks:java:io:iceberg")
-    runtimeOnly(project(":sdks:java:io:delta")) {
-      exclude group: "org.apache.hadoop", module: "hadoop-aws"
-    }
-    runtimeOnly "org.yaml:snakeyaml:2.0"
-  }
-}
-
-def activeJavaVer = (project.findProperty('testJavaVersion') ?: JavaVersion.current().majorVersion) as int
-def isDeltaLakeCdcExecute = project.findProperty('mainClass')?.toString()?.contains('DeltaLakeToLakehouseCdcExample')
-if (isDeltaLakeCdcExecute && activeJavaVer >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
-  configurations.all {
-    if (canBeResolved) {
-      attributes {
-        attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, activeJavaVer)
-      }
-    }
-    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j2-impl"
-    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j-impl"
-    exclude group: "org.slf4j", module: "slf4j-reload4j"
-    resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
-    resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.16.0'
-    resolutionStrategy.force 'org.apache.parquet:parquet-hadoop:1.16.0'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-client-api:3.3.6'
-    resolutionStrategy.force 'org.apache.hadoop:hadoop-client-runtime:3.3.6'
-    resolutionStrategy.force library.java.bigdataoss_gcs_connector
-    resolutionStrategy.force library.java.bigdataoss_util_hadoop
-    resolutionStrategy.force library.java.bigdataoss_gcsio
-    resolutionStrategy.force library.java.bigdataoss_util
   }
 }
 
