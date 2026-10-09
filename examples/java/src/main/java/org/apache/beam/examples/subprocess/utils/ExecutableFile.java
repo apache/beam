@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.subprocess.utils;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -27,13 +26,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class ExecutableFile {
+public final class ExecutableFile {
 
   String fileName;
 

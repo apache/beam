@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -292,13 +291,7 @@ public class Sample {
    *
    * @param <T> the type of the elements
    */
-  @SuppressFBWarnings(
-      value = "CT_CONSTRUCTOR_THROW",
-      justification =
-          "Pre-existing finding, not triaged yet."
-              + " Making the class final or moving the throwing code"
-              + " into a static factory method may fix it.")
-  public static class FixedSizedSampleFn<T>
+  public static final class FixedSizedSampleFn<T>
       extends CombineFn<
           T, Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>, Iterable<T>> {
     private final int sampleSize;
