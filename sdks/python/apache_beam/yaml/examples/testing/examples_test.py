@@ -683,7 +683,8 @@ def _kafka_test_preprocessor(
     'test_wordCountImport_yaml',
     'test_wordCountInheritance_yaml',
     'test_iceberg_to_alloydb_yaml',
-    'test_bigquery_write_yaml'
+    'test_bigquery_write_yaml',
+    'test_mongodb_to_bigquery_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -970,6 +971,45 @@ def __mysql_io_read_test_preprocessor(
   """
   return _db_io_read_test_processor(
       test_spec, lambda url: url.split('/')[3].split('?')[0], 'MySql')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_mongodb_to_bigquery_yaml',
+])
+def _mongodb_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from MongoDB.
+
+  This preprocessor replaces any ReadFromMongoDB transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on an active
+  MongoDB instance.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromMongoDB transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromMongoDB':
+        config = transform['config']
+        database, collection = config['database'], config['collection']
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            'MongoDB', str(database), str(collection))]
+
+  return test_spec
 
 
 def _db_io_read_test_processor(
@@ -1333,7 +1373,8 @@ INPUT_TABLES = {
     ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Oracle', 'shipment', 'shipments'): input_data.shipments_data(),
-    ('MySql', 'shipment', 'shipments'): input_data.shipments_data()
+    ('MySql', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('MongoDB', 'shipment', 'shipments'): input_data.shipments_data()
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 
