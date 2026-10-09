@@ -33,6 +33,7 @@ from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
+from apache_beam.utils import subprocess_server
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml.yaml_transform import YamlTransform
 
@@ -1002,6 +1003,11 @@ class YamlDeltaTest(unittest.TestCase):
     self.assertEqual(transform._source, "delta_cdc")
 
 
+@unittest.skipIf(
+    not os.path.exists(
+        subprocess_server.JavaJarServer.path_to_dev_beam_jar(
+            'sdks:java:io:expansion-service:shadowJar')),
+    "Requires expansion service jars.")
 class YamlKafkaTest(unittest.TestCase):
   def test_read_from_kafka_json_schema_expansion(self):
     # Regression test for https://github.com/apache/beam/issues/35186.
