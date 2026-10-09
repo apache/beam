@@ -1971,6 +1971,34 @@ class BeamModulePlugin implements Plugin<Project> {
       if ((isRelease(project) || project.hasProperty('publishing')) && configuration.publish) {
         project.apply plugin: "maven-publish"
 
+        // Ensure project dependencies in published configurations are evaluated even when
+        // org.gradle.configureondemand=true is enabled, without calling evaluationDependsOn during
+        // project evaluation (which can trigger circular evaluation between subprojects).
+        if (!project.tasks.names.contains('evaluateForPom')) {
+          project.tasks.register('evaluateForPom')
+        }
+        project.tasks.matching { it.name == 'generatePomFileForMavenJavaPublication' }.configureEach { pomTask ->
+          pomTask.dependsOn {
+            def publishedConfigurations = [
+              configuration.shadowClosure ? 'shadow' : 'implementation',
+              'provided',
+            ]
+            if (!configuration.shadowClosure) {
+              publishedConfigurations.add('runtimeOnly')
+            }
+            publishedConfigurations.collectMany { configName ->
+              project.configurations.getByName(configName).allDependencies.withType(ProjectDependency).findAll { projDep ->
+                projDep.dependencyProject.path != project.path
+              }.collect { projDep ->
+                if (!projDep.dependencyProject.tasks.names.contains('evaluateForPom')) {
+                  projDep.dependencyProject.tasks.register('evaluateForPom')
+                }
+                "${projDep.dependencyProject.path}:evaluateForPom"
+              }
+            }.unique()
+          }
+        }
+
         // plugin to support repository authentication via ~/.m2/settings.xml
         // https://github.com/mark-vieira/gradle-maven-settings-plugin/
         project.apply plugin: 'net.linguica.maven-settings'
@@ -2144,12 +2172,42 @@ class BeamModulePlugin implements Plugin<Project> {
 
                 // BOMs, declared with 'platform' or 'enforced-platform', appear in <dependencyManagement> section
                 def boms = []
+                def addedBoms = [] as Set
+                // Track emitted (groupId, artifactId, classifiers) coordinates across scopes so that
+                // configuration inheritance (e.g. runtimeOnly.extendsFrom(provided)) or duplicate
+                // declarations across configurations do not produce duplicate <dependency> nodes.
+                def addedDependencies = [] as Set
 
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
                     String category = it.getAttributes().getAttribute(Category.CATEGORY_ATTRIBUTE)
                     if (Category.ENFORCED_PLATFORM == category || Category.REGULAR_PLATFORM == category) {
-                      boms.add(it)
+                      if (addedBoms.add([it.group, it.name])) {
+                        boms.add(it)
+                      }
+                      return
+                    }
+
+                    if (it instanceof ProjectDependency) {
+                      def dependencyProject = it.getDependencyProject()
+                      if (dependencyProject.ext.has('includeInJavaBom') && !dependencyProject.ext.includeInJavaBom) {
+                        return
+                      }
+                    }
+
+                    def groupId = (it instanceof ProjectDependency)
+                        ? it.getDependencyProject().mavenGroupId
+                        : it.group
+                    def artifactId = (it instanceof ProjectDependency)
+                        ? (it.getDependencyProject().plugins.hasPlugin('base')
+                            ? it.getDependencyProject().archivesBaseName
+                            : defaultArchivesBaseName(it.getDependencyProject()))
+                        : it.name
+                    def classifiers = it.hasProperty('artifacts')
+                        ? it.artifacts.findAll { art -> art.hasProperty('classifier') && art.classifier != null }
+                            .collect { art -> art.classifier }
+                        : []
+                    if (!addedDependencies.add([groupId, artifactId, classifiers])) {
                       return
                     }
 
@@ -2163,14 +2221,14 @@ class BeamModulePlugin implements Plugin<Project> {
                     }
 
                     if (it instanceof ProjectDependency) {
-                      dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
-                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('groupId', groupId)
+                      dependencyNode.appendNode('artifactId', artifactId)
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
                       appendClassifier(it)
                     } else {
-                      dependencyNode.appendNode('groupId', it.group)
-                      dependencyNode.appendNode('artifactId', it.name)
+                      dependencyNode.appendNode('groupId', groupId)
+                      dependencyNode.appendNode('artifactId', artifactId)
                       if (it.version != null) {
                         // bom-managed artifacts do not have their versions
                         dependencyNode.appendNode('version', it.version)
@@ -2203,6 +2261,9 @@ class BeamModulePlugin implements Plugin<Project> {
                 generateDependenciesFromConfiguration(
                     configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'compile')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
+                if (!configuration.shadowClosure) {
+                  generateDependenciesFromConfiguration(configuration: 'runtimeOnly', scope: 'runtime')
+                }
 
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
