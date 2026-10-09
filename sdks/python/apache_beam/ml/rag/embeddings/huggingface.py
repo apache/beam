@@ -33,11 +33,6 @@ from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.ml.transforms.embeddings.huggingface import _SentenceTransformerModelHandler
 
 try:
-  from sentence_transformers import SentenceTransformer
-except ImportError:
-  SentenceTransformer = None
-
-try:
   from PIL import Image as PILImage
 except ImportError:
   PILImage = None  # type: ignore[assignment]
@@ -66,20 +61,15 @@ class HuggingfaceTextEmbeddings(EmbeddingsManager):
               ``model.encode()``
               (e.g. ``normalize_embeddings``).
     """
-    if not SentenceTransformer:
-      raise ImportError(
-          "sentence-transformers is required to use "
-          "HuggingfaceTextEmbeddings."
-          "Please install it with using `pip install sentence-transformers`.")
     super().__init__(type_adapter=create_text_adapter(), **kwargs)
     self.model_name = model_name
     self.max_seq_length = max_seq_length
-    self.model_class = SentenceTransformer
 
   def get_model_handler(self):
     """Returns model handler configured with RAG adapter."""
+    # model_class is not set, so that sentence-transformers is only imported
+    # when the model is loaded during pipeline execution.
     return _SentenceTransformerModelHandler(
-        model_class=self.model_class,
         max_seq_length=self.max_seq_length,
         model_name=self.model_name,
         load_model_args=self.load_model_args,
@@ -165,11 +155,6 @@ class HuggingfaceImageEmbeddings(EmbeddingsManager):
               ``model.encode()``
               (e.g. ``normalize_embeddings``).
     """
-    if not SentenceTransformer:
-      raise ImportError(
-          "sentence-transformers is required to use "
-          "HuggingfaceImageEmbeddings. "
-          "Please install it with `pip install sentence-transformers`.")
     if not PILImage:
       raise ImportError(
           "Pillow is required to use HuggingfaceImageEmbeddings. "
@@ -177,12 +162,12 @@ class HuggingfaceImageEmbeddings(EmbeddingsManager):
     super().__init__(type_adapter=_create_hf_image_adapter(), **kwargs)
     self.model_name = model_name
     self.max_seq_length = max_seq_length
-    self.model_class = SentenceTransformer
 
   def get_model_handler(self):
     """Returns model handler configured with RAG adapter."""
+    # model_class is not set, so that sentence-transformers is only imported
+    # when the model is loaded during pipeline execution.
     return _SentenceTransformerModelHandler(
-        model_class=self.model_class,
         max_seq_length=self.max_seq_length,
         model_name=self.model_name,
         load_model_args=self.load_model_args,
