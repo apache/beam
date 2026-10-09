@@ -29,6 +29,7 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -1170,6 +1171,7 @@ public class PubsubIO {
         Span span =
             checkArgumentNotNull(tracer)
                 .spanBuilder("PubSubIO.Read")
+                .setSpanKind(SpanKind.CONSUMER)
                 .setParent(context)
                 .startSpan();
         try (Scope s = span.makeCurrent()) {
@@ -1573,24 +1575,41 @@ public class PubsubIO {
         W3CTraceContextPropagator.getInstance().inject(Context.current(), attr, inject);
       }
 
+      @Setup
+      public void setup(PipelineOptions po) {
+        tracer = po.as(SdkHarnessOptions.class).getOpenTelemetry().getTracer("PubSubIO");
+      }
+
+      private transient @MonotonicNonNull Tracer tracer = null;
+
       @ProcessElement
       public void processElement(
           @Element PubsubMessage message, OutputReceiver<PubsubMessage> output) {
-        Map<String, String> attributeMap = message.getAttributeMap();
-        Map<String, String> attr =
-            attributeMap == null ? new HashMap<>() : new HashMap<>(attributeMap);
-        injectSpanContext(attr);
+        Span span =
+            checkArgumentNotNull(tracer)
+                .spanBuilder("PubSubIO.Write")
+                .setSpanKind(SpanKind.PRODUCER)
+                .setParent(Context.current())
+                .startSpan();
+        try (Scope s = span.makeCurrent()) {
+          Map<String, String> attributeMap = message.getAttributeMap();
+          Map<String, String> attr =
+              attributeMap == null ? new HashMap<>() : new HashMap<>(attributeMap);
+          injectSpanContext(attr);
 
-        // copy the message, multiple fields
-        PubsubMessage ps =
-            new PubsubMessage(
-                message.getPayload(), attr, message.getMessageId(), message.getOrderingKey());
+          // copy the message, multiple fields
+          PubsubMessage ps =
+              new PubsubMessage(
+                  message.getPayload(), attr, message.getMessageId(), message.getOrderingKey());
 
-        // topic is copied seperately, not via constructor
-        if (message.getTopic() != null) {
-          ps = ps.withTopic(message.getTopic());
+          // topic is copied seperately, not via constructor
+          if (message.getTopic() != null) {
+            ps = ps.withTopic(message.getTopic());
+          }
+          output.output(ps);
+        } finally {
+          span.end();
         }
-        output.output(ps);
       }
     }
 
