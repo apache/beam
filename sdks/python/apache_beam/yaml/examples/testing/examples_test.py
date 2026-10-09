@@ -683,7 +683,8 @@ def _kafka_test_preprocessor(
     'test_wordCountImport_yaml',
     'test_wordCountInheritance_yaml',
     'test_iceberg_to_alloydb_yaml',
-    'test_bigquery_write_yaml'
+    'test_bigquery_write_yaml',
+    'test_gcs_avro_to_cloud_bigtable_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -750,6 +751,43 @@ def _file_io_read_test_preprocessor(
             transform['type'],
             'path',
             env.input_file(file_name, INPUT_FILES[file_name]))
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_gcs_avro_to_cloud_bigtable_yaml'])
+def _avro_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Avro.
+
+  This preprocessor replaces any ReadFromAvro transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  Avro files.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromAvro transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromAvro':
+        config = transform['config']
+        file_name = config['path'].split('/')[-1]
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_FILES[file_name]
 
   return test_spec
 
@@ -1311,7 +1349,8 @@ INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
     'youtube-comments.csv': input_data.youtube_comments_csv(),
-    'system-logs.csv': input_data.system_logs_csv()
+    'system-logs.csv': input_data.system_logs_csv(),
+    'shipments.avro': input_data.shipments_data()
 }
 
 KAFKA_TOPICS = {'test-topic': input_data.kafka_messages_data()}
