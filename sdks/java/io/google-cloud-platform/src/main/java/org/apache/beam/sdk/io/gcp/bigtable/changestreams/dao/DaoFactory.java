@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -47,7 +48,7 @@ public class DaoFactory implements Serializable, AutoCloseable {
   private final String metadataTableId;
   private final String changeStreamName;
 
-  private @Nullable Duration readChangeStreamTimeout;
+  private @Nullable ValueProvider<Duration> readChangeStreamTimeout;
 
   public DaoFactory(
       BigtableConfig changeStreamConfig,
@@ -76,7 +77,8 @@ public class DaoFactory implements Serializable, AutoCloseable {
     }
   }
 
-  public void setReadChangeStreamTimeout(@Nullable Duration readChangeStreamTimeout) {
+  public void setReadChangeStreamTimeout(
+      @Nullable ValueProvider<Duration> readChangeStreamTimeout) {
     this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
@@ -117,7 +119,7 @@ public class DaoFactory implements Serializable, AutoCloseable {
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
       if (readChangeStreamTimeout != null) {
         BigtableChangeStreamAccessor.setReadChangeStreamTimeout(
-            org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.getMillis()));
+            org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.get().getMillis()));
       }
       BigtableDataClient dataClient =
           BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
