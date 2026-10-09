@@ -33,6 +33,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from typing import Optional
+from typing import TypeVar
+
+ExampleT = TypeVar('ExampleT')
+PredictionT = TypeVar('PredictionT')
 
 from openai import AsyncOpenAI
 from openai import OpenAI
@@ -40,6 +44,7 @@ from openai import OpenAI
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import SubprocessModelHandler
 from apache_beam.utils import subprocess_server
 
 try:
@@ -358,9 +363,55 @@ class _VLLMModelServer():
         self.start_server(retries - 1)
 
 
-class VLLMCompletionsModelHandler(ModelHandler[str,
-                                               PredictionResult,
-                                               _VLLMModelServer]):
+class _VLLMBaseModelHandler(SubprocessModelHandler[ExampleT,
+                                                    PredictionT,
+                                                    _VLLMModelServer]):
+  def __init__(
+      self,
+      model_name: str,
+      vllm_server_kwargs: Optional[dict[str, Optional[str]]] = None,
+      *,
+      use_dynamo: bool = False,
+      dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
+      **kwargs):
+    super().__init__(**kwargs)
+    self._model_name = model_name
+    self._vllm_server_kwargs: dict[str, Optional[str]] = ({
+        **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
+    } if use_dynamo else vllm_server_kwargs or {})
+    self._dynamo_frontend_kwargs: dict[str, Optional[str]] = {
+        **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
+    }
+    self._use_dynamo = use_dynamo
+
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    # Override the base validator so OpenAI-compatible request kwargs such as
+    # ``max_tokens`` can be passed through ``RunInference`` to the vLLM /
+    # Dynamo server.
+    pass
+
+  def share_model_across_processes(self) -> bool:
+    return True
+
+  def get_port(self, model: _VLLMModelServer) -> int:
+    return model.get_server_port()
+
+  def get_model_name(self) -> str:
+    return self._model_name
+
+  def check_connectivity(self, model: _VLLMModelServer) -> None:
+    model.check_connectivity()
+
+  def load_model(self) -> _VLLMModelServer:
+    return _VLLMModelServer(
+        self._model_name,
+        self._vllm_server_kwargs,
+        self._dynamo_frontend_kwargs,
+        self._use_dynamo)
+
+
+class VLLMCompletionsModelHandler(_VLLMBaseModelHandler[str,
+                                                         PredictionResult]):
   def __init__(
       self,
       model_name: str,
@@ -424,6 +475,10 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         values for length-aware batching buckets.
     """
     super().__init__(
+        model_name=model_name,
+        vllm_server_kwargs=vllm_server_kwargs,
+        use_dynamo=use_dynamo,
+        dynamo_frontend_kwargs=dynamo_frontend_kwargs,
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs,
@@ -431,21 +486,6 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
         batch_bucket_boundaries=batch_bucket_boundaries)
-    self._model_name = model_name
-    self._vllm_server_kwargs: dict[str, Optional[str]] = ({
-        **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
-    } if use_dynamo else vllm_server_kwargs or {})
-    self._dynamo_frontend_kwargs: dict[str, Optional[str]] = {
-        **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
-    }
-    self._use_dynamo = use_dynamo
-
-  def load_model(self) -> _VLLMModelServer:
-    return _VLLMModelServer(
-        self._model_name,
-        self._vllm_server_kwargs,
-        self._dynamo_frontend_kwargs,
-        self._use_dynamo)
 
   async def _async_run_inference(
       self,
@@ -487,19 +527,9 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     """
     return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    # Override the base validator so OpenAI-compatible request kwargs such as
-    # ``max_tokens`` can be passed through ``RunInference`` to the vLLM /
-    # Dynamo server.
-    pass
 
-  def share_model_across_processes(self) -> bool:
-    return True
-
-
-class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
-                                        PredictionResult,
-                                        _VLLMModelServer]):
+class VLLMChatModelHandler(_VLLMBaseModelHandler[Sequence[OpenAIChatMessage],
+                                                  PredictionResult]):
   def __init__(
       self,
       model_name: str,
@@ -567,6 +597,10 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         values for length-aware batching buckets.
     """
     super().__init__(
+        model_name=model_name,
+        vllm_server_kwargs=vllm_server_kwargs,
+        use_dynamo=use_dynamo,
+        dynamo_frontend_kwargs=dynamo_frontend_kwargs,
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs,
@@ -574,16 +608,8 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
         batch_bucket_boundaries=batch_bucket_boundaries)
-    self._model_name = model_name
-    self._vllm_server_kwargs: dict[str, Optional[str]] = ({
-        **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
-    } if use_dynamo else vllm_server_kwargs or {})
-    self._dynamo_frontend_kwargs: dict[str, Optional[str]] = {
-        **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
-    }
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
-    self._use_dynamo = use_dynamo
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''
@@ -596,11 +622,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
           f.write(chat_template_contents)
       self._vllm_server_kwargs['chat_template'] = local_chat_template_path
 
-    return _VLLMModelServer(
-        self._model_name,
-        self._vllm_server_kwargs,
-        self._dynamo_frontend_kwargs,
-        self._use_dynamo)
+    return super().load_model()
 
   async def _async_run_inference(
       self,
@@ -644,12 +666,3 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       An Iterable of type PredictionResult.
     """
     return asyncio.run(self._async_run_inference(batch, model, inference_args))
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    # Override the base validator so OpenAI-compatible request kwargs such as
-    # ``max_tokens`` can be passed through ``RunInference`` to the vLLM /
-    # Dynamo server.
-    pass
-
-  def share_model_across_processes(self) -> bool:
-    return True
