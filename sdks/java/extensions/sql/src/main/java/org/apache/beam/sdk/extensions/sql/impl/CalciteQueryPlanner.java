@@ -30,6 +30,8 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.rel.StageName;
+import org.apache.beam.sdk.extensions.sql.impl.rule.StageNameRule;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.CalciteConnectionConfig;
@@ -155,7 +157,9 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
         .context(Contexts.of(connection.config()))
-        .ruleSets(ruleSets.toArray(new RuleSet[0]))
+        // Wrapped here rather than in BeamRuleSets so that callers assembling their own rule set
+        // still see the rules by their own types.
+        .ruleSets(StageNameRule.wrapAll(ruleSets).toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(
@@ -211,7 +215,10 @@ public class CalciteQueryPlanner implements QueryPlanner {
                 relNode,
                 new ParameterBinder(root.rel.getCluster().getRexBuilder(), queryParameters));
       }
-      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
+      StageName.register(relNode.getCluster());
+      // Give every node a name to be composed from before any rule fuses it away.
+      relNode = StageName.backfill(relNode);
+      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits =
           relNode
               .getTraitSet()
