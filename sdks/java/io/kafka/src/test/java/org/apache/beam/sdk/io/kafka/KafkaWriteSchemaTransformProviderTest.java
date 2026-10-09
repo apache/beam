@@ -275,6 +275,7 @@ public class KafkaWriteSchemaTransformProviderTest {
                 + "format: RAW\n"
                 + "with_gcp_adc: true",
             "topic: topic_5\n"
+                + "bootstrap_servers: some bootstrap\n"
                 + "format: AVRO\n"
                 + "schema:\n"
                 + "  type: record\n"

@@ -1001,6 +1001,7 @@ class YamlDeltaTest(unittest.TestCase):
     self.assertIsInstance(transform, beam.managed.Read)
     self.assertEqual(transform._source, "delta_cdc")
 
+
 class YamlKafkaTest(unittest.TestCase):
   def test_read_from_kafka_json_schema_expansion(self):
     # Regression test for https://github.com/apache/beam/issues/35186.
