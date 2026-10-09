@@ -28,7 +28,18 @@ import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.Topic;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -47,7 +58,9 @@ import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.io.solace.write.UnboundedBatchedSolaceWriter;
 import org.apache.beam.sdk.io.solace.write.UnboundedStreamingSolaceWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -423,6 +436,7 @@ public class SolaceIO {
       Duration.standardSeconds(30);
   private static final Duration DEFAULT_ACK_DEADLINE = Duration.standardSeconds(30);
   public static final boolean DEFAULT_NACK_ON_TIMEOUT = false;
+  public static final boolean DEFAULT_ENABLE_OPENTELEMETRY_TRACING = false;
   public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
@@ -472,7 +486,8 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
             .setAckDeadline(DEFAULT_ACK_DEADLINE)
-            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT)
+            .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPENTELEMETRY_TRACING));
   }
 
   /**
@@ -503,7 +518,8 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
             .setAckDeadline(DEFAULT_ACK_DEADLINE)
-            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT)
+            .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPENTELEMETRY_TRACING));
   }
 
   /**
@@ -706,6 +722,16 @@ public class SolaceIO {
       return this;
     }
 
+    /**
+     * Optional, default: false. Enables OpenTelemetry distributed tracing by extracting the W3C
+     * trace context from incoming {@link Solace.Record#getUserProperties()} and creating a consumer
+     * span around downstream processing.
+     */
+    public Read<T> withEnableOpenTelemetryTracing() {
+      configurationBuilder.setEnableOpenTelemetryTracing(true);
+      return this;
+    }
+
     @AutoValue
     abstract static class Configuration<T> {
 
@@ -733,9 +759,12 @@ public class SolaceIO {
 
       abstract boolean getNackOnTimeout();
 
+      abstract boolean getEnableOpenTelemetryTracing();
+
       public static <T> Builder<T> builder() {
         Builder<T> builder =
-            new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
+            new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>()
+                .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPENTELEMETRY_TRACING);
         return builder;
       }
 
@@ -767,6 +796,8 @@ public class SolaceIO {
 
         abstract Builder<T> setNackOnTimeout(boolean nackOnTimeout);
 
+        abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
+
         abstract Configuration<T> build();
       }
     }
@@ -793,20 +824,32 @@ public class SolaceIO {
 
       Coder<T> coder = inferCoder(input.getPipeline(), configuration.getTypeDescriptor());
 
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(
-              new UnboundedSolaceSource<>(
-                  initializedQueue,
-                  sempClientFactory,
-                  sessionServiceFactory,
-                  configuration.getMaxNumConnections(),
-                  configuration.getDeduplicateRecords(),
-                  coder,
-                  configuration.getTimestampFn(),
-                  configuration.getWatermarkIdleDurationThreshold(),
-                  configuration.getParseFn(),
-                  configuration.getAckDeadline(),
-                  configuration.getNackOnTimeout())));
+      PCollection<T> output =
+          input.apply(
+              org.apache.beam.sdk.io.Read.from(
+                  new UnboundedSolaceSource<>(
+                      initializedQueue,
+                      sempClientFactory,
+                      sessionServiceFactory,
+                      configuration.getMaxNumConnections(),
+                      configuration.getDeduplicateRecords(),
+                      coder,
+                      configuration.getTimestampFn(),
+                      configuration.getWatermarkIdleDurationThreshold(),
+                      configuration.getParseFn(),
+                      configuration.getAckDeadline(),
+                      configuration.getNackOnTimeout())));
+
+      if (configuration.getEnableOpenTelemetryTracing()) {
+        output =
+            output
+                .apply(
+                    "Extract OpenTelemetry context from Header",
+                    ParDo.of(new OpenTelemetryHeaderConsumer<>()))
+                .setCoder(coder);
+      }
+
+      return output;
     }
 
     @VisibleForTesting
@@ -867,6 +910,118 @@ public class SolaceIO {
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
+      }
+    }
+  }
+
+  @VisibleForTesting
+  static class OpenTelemetryHeaderConsumer<T> extends DoFn<T, T> {
+    private transient @Nullable Tracer tracer;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      OpenTelemetry openTelemetry = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      tracer = openTelemetry.getTracer("SolaceIO");
+    }
+
+    private static final TextMapGetter<Record> HEADER_GETTER =
+        new TextMapGetter<Record>() {
+          @Override
+          public Iterable<String> keys(Record carrier) {
+            return carrier.getUserProperties().keySet();
+          }
+
+          @Override
+          public @Nullable String get(@Nullable Record carrier, String key) {
+            if (carrier == null) {
+              return null;
+            }
+            Solace.UserPropertyValue direct = carrier.getUserProperties().get(key);
+            if (direct != null && direct.getString() != null) {
+              return direct.getString();
+            }
+            for (Map.Entry<String, Solace.UserPropertyValue> entry :
+                carrier.getUserProperties().entrySet()) {
+              if (entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue().getString();
+              }
+            }
+            return null;
+          }
+        };
+
+    @ProcessElement
+    public void processElement(@Element T element, OutputReceiver<T> receiver) {
+      Tracer currentTracer = this.tracer;
+      if (currentTracer == null) {
+        receiver.output(element);
+        return;
+      }
+
+      Context context = Context.current();
+      if (element instanceof Record) {
+        context =
+            W3CTraceContextPropagator.getInstance()
+                .extract(context, (Record) element, HEADER_GETTER);
+      }
+      Span span =
+          currentTracer
+              .spanBuilder("SolaceIO.Read")
+              .setSpanKind(SpanKind.CONSUMER)
+              .setParent(context)
+              .startSpan();
+      try (Scope scope = span.makeCurrent()) {
+        receiver.output(element);
+      } finally {
+        span.end();
+      }
+    }
+  }
+
+  @VisibleForTesting
+  static class OpenTelemetryHeaderPropagator extends DoFn<Record, Record> {
+    private transient @Nullable Tracer tracer;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      OpenTelemetry openTelemetry = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      tracer = openTelemetry.getTracer("SolaceIO");
+    }
+
+    private static final TextMapSetter<Record> HEADER_SETTER =
+        new TextMapSetter<Record>() {
+          @Override
+          public void set(@Nullable Record carrier, String key, String value) {
+            if (carrier != null && value != null) {
+              carrier.getUserProperties().put(key, Solace.UserPropertyValue.of(value));
+            }
+          }
+        };
+
+    @ProcessElement
+    public void processElement(@Element Record element, OutputReceiver<Record> receiver) {
+      Tracer currentTracer = this.tracer;
+      if (currentTracer == null) {
+        receiver.output(element);
+        return;
+      }
+
+      Span span =
+          currentTracer
+              .spanBuilder("SolaceIO.Write")
+              .setSpanKind(SpanKind.PRODUCER)
+              .setParent(Context.current())
+              .startSpan();
+      try (Scope scope = span.makeCurrent()) {
+        Record updatedElement =
+            element.toBuilder()
+                .setUserProperties(new HashMap<>(element.getUserProperties()))
+                .build();
+        W3CTraceContextPropagator.getInstance()
+            .inject(Context.current(), updatedElement, HEADER_SETTER);
+        receiver.output(updatedElement);
+      } finally {
+        span.end();
       }
     }
   }
@@ -1061,6 +1216,15 @@ public class SolaceIO {
       return toBuilder().setErrorHandler(errorHandler).build();
     }
 
+    /**
+     * Optional, default: false. Enables OpenTelemetry distributed tracing by creating a producer
+     * span and injecting the W3C trace context into outgoing {@link
+     * Solace.Record#getUserProperties()}.
+     */
+    public Write<T> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
+    }
+
     abstract int getNumShards();
 
     abstract int getNumberOfClientsPerWorker();
@@ -1081,6 +1245,8 @@ public class SolaceIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getErrorHandler();
 
+    abstract boolean getEnableOpenTelemetryTracing();
+
     static <T> Builder<T> builder() {
       return new AutoValue_SolaceIO_Write.Builder<T>()
           .setDeliveryMode(DEFAULT_WRITER_DELIVERY_MODE)
@@ -1088,7 +1254,8 @@ public class SolaceIO {
           .setNumberOfClientsPerWorker(DEFAULT_WRITER_CLIENTS_PER_WORKER)
           .setPublishLatencyMetrics(DEFAULT_WRITER_PUBLISH_LATENCY_METRICS)
           .setDispatchMode(DEFAULT_WRITER_SUBMISSION_MODE)
-          .setWriterType(DEFAULT_WRITER_TYPE);
+          .setWriterType(DEFAULT_WRITER_TYPE)
+          .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPENTELEMETRY_TRACING);
     }
 
     abstract Builder<T> toBuilder();
@@ -1114,6 +1281,8 @@ public class SolaceIO {
       abstract Builder<T> setSessionServiceFactory(SessionServiceFactory factory);
 
       abstract Builder<T> setErrorHandler(ErrorHandler<BadRecord, ?> errorHandler);
+
+      abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Write<T> build();
     }
@@ -1145,6 +1314,12 @@ public class SolaceIO {
                   "Format records",
                   MapElements.into(TypeDescriptor.of(Solace.Record.class))
                       .via(checkNotNull(getFormatFunction())));
+
+      if (getEnableOpenTelemetryTracing()) {
+        records =
+            records.apply(
+                "Propagate OpenTelemetry Tracing", ParDo.of(new OpenTelemetryHeaderPropagator()));
+      }
 
       PCollection<Solace.Record> withGlobalWindow =
           records.apply("Global window", Window.into(new GlobalWindows()));

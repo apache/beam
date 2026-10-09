@@ -24,15 +24,28 @@ import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.Destination;
+import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.Queue;
+import com.solacesystems.jcsmp.SDTException;
+import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.Topic;
 import com.solacesystems.jcsmp.impl.ReplicationGroupMessageIdImpl;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -47,6 +60,7 @@ import org.apache.beam.sdk.io.solace.data.SolaceDataUtils.SimpleRecord;
 import org.apache.beam.sdk.io.solace.read.SolaceCheckpointMark;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -57,6 +71,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -695,5 +710,119 @@ public class SolaceIOReadTest {
                     .build())
             .withNackOnTimeout(false);
     assertFalse(readWithoutNack.configurationBuilder.build().getNackOnTimeout());
+  }
+
+  @Test
+  public void testWithEnableOpenTelemetryTracingConfiguration() {
+    Read<Record> defaultRead =
+        getDefaultRead()
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build());
+    assertFalse(defaultRead.configurationBuilder.build().getEnableOpenTelemetryTracing());
+
+    Read<Record> readWithTracing =
+        getDefaultRead()
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build())
+            .withEnableOpenTelemetryTracing();
+    assertTrue(readWithTracing.configurationBuilder.build().getEnableOpenTelemetryTracing());
+  }
+
+  @Test
+  public void testReadWithOpenTelemetryTracing() {
+    String traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+    String parentSpanId1 = "00f067aa0ba902b7";
+    String parentSpanId2 = "11f067aa0ba902b8";
+    String traceparent1 = "00-" + traceId + "-" + parentSpanId1 + "-01";
+    String traceparent2 = "00-" + traceId + "-" + parentSpanId2 + "-01";
+    String tracestate1 = "congo=t61rcWkgMzE";
+
+    InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+            .setSampler(Sampler.alwaysOn())
+            .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+            .build();
+    GlobalOpenTelemetry.resetForTest();
+    OpenTelemetrySdk openTelemetry =
+        OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).buildAndRegisterGlobal();
+    pipeline.getOptions().as(SdkHarnessOptions.class).setOpenTelemetry(openTelemetry);
+
+    try {
+      SerializableFunction<Integer, BytesXMLMessage> recordFn =
+          index -> {
+            BytesXMLMessage msg0 = SolaceDataUtils.getBytesXmlMessage("payload_test0", "450");
+            SDTMap props0 = JCSMPFactory.onlyInstance().createMap();
+            try {
+              props0.putString("traceparent", traceparent1);
+              props0.putString("tracestate", tracestate1);
+            } catch (SDTException e) {
+              throw new RuntimeException(e);
+            }
+            msg0.setProperties(props0);
+
+            BytesXMLMessage msg1 = SolaceDataUtils.getBytesXmlMessage("payload_test1", "451");
+            SDTMap props1 = JCSMPFactory.onlyInstance().createMap();
+            try {
+              props1.putString("TraceParent", traceparent2);
+            } catch (SDTException e) {
+              throw new RuntimeException(e);
+            }
+            msg1.setProperties(props1);
+
+            BytesXMLMessage msg2 = SolaceDataUtils.getBytesXmlMessage("payload_test2", "452");
+
+            List<BytesXMLMessage> messages = ImmutableList.of(msg0, msg1, msg2);
+            return getOrNull(index, messages);
+          };
+
+      SessionServiceFactory fakeSessionServiceFactory =
+          MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(3).build();
+
+      PCollection<String> messageIds =
+          pipeline
+              .apply(
+                  "Read from Solace",
+                  getDefaultRead()
+                      .withSessionServiceFactory(fakeSessionServiceFactory)
+                      .withEnableOpenTelemetryTracing())
+              .apply(MapElements.into(TypeDescriptors.strings()).via(Record::getMessageId));
+
+      PAssert.that(messageIds).containsInAnyOrder("450", "451", "452");
+      pipeline.run();
+
+      List<SpanData> spans = spanExporter.getFinishedSpanItems();
+      assertEquals(3, spans.size());
+      for (SpanData span : spans) {
+        assertEquals("SolaceIO.Read", span.getName());
+        assertEquals(SpanKind.CONSUMER, span.getKind());
+      }
+
+      Set<String> parentSpanIds =
+          spans.stream().map(SpanData::getParentSpanId).collect(Collectors.toSet());
+      assertTrue(parentSpanIds.containsAll(ImmutableSet.of(parentSpanId1, parentSpanId2)));
+
+      SpanData span1 =
+          spans.stream()
+              .filter(s -> parentSpanId1.equals(s.getParentSpanId()))
+              .findFirst()
+              .orElseThrow(AssertionError::new);
+      assertEquals(traceId, span1.getTraceId());
+      assertEquals("t61rcWkgMzE", span1.getParentSpanContext().getTraceState().get("congo"));
+
+      SpanData span2 =
+          spans.stream()
+              .filter(s -> parentSpanId2.equals(s.getParentSpanId()))
+              .findFirst()
+              .orElseThrow(AssertionError::new);
+      assertEquals(traceId, span2.getTraceId());
+    } finally {
+      tracerProvider.close();
+      GlobalOpenTelemetry.resetForTest();
+    }
   }
 }
