@@ -1,0 +1,13 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_or_create_dataset__exists",
+  "description": "get_or_create_dataset('p','d') on an existing dataset",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d",
+      "query": {}
+    }
+  ]
+}
