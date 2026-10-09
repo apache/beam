@@ -112,6 +112,11 @@
         'max_read_time_seconds': 'max_read_time_seconds'
         'with_gcp_adc': 'with_gcp_adc'
         'num_partitions': 'num_partitions'
+        'redistributed': 'redistributed'
+        'allow_duplicates': 'allow_duplicates'
+        'redistribute_num_keys': 'redistribute_num_keys'
+        'offset_deduplication': 'offset_deduplication'
+        'redistribute_by_record_key': 'redistribute_by_record_key'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
