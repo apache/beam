@@ -90,7 +90,7 @@ public class BeamBuiltinAggregations {
               .put("COUNTIF", typeName -> CountIf.combineFn())
               .build();
 
-  private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
+  private static MathContext mc = new MathContext(34, RoundingMode.HALF_UP);
 
   public static CombineFn<?, ?, ?> create(String functionName, Schema.FieldType fieldType) {
 
