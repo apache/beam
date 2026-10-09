@@ -17,23 +17,32 @@
  */
 package org.apache.beam.sdk.testing;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.MultipleFailureException;
 import org.junit.runners.model.RunnerScheduler;
+import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A JUnit 4 runner that supports concurrent execution of {@code @Test} methods within a test class,
@@ -49,9 +58,17 @@ import org.junit.runners.model.RunnerScheduler;
  *
  * <p>Classes or methods annotated with {@link SerialTest} are always executed sequentially on the
  * calling thread after draining any in-flight parallel test methods in the class.
+ *
+ * <p>Runners that merge the pipelines of concurrently running tests into one job rely on this
+ * runner in two ways: it lets each {@link TestPipeline} rule see its test instance (to recognize
+ * tests that must not be merged), and it re-executes a test once, from scratch and with merging
+ * disabled, when the runner could not reach a verdict for it from a merged job (see {@link
+ * TestPipeline.StandaloneRerunRequested}).
  */
 @Internal
 public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BeamParallelJunit4Runner.class);
 
   /**
    * Marks a test class or {@code @Test} method as requiring serial (non-parallel) execution even
@@ -108,12 +125,109 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
         });
   }
 
+  /**
+   * Hands the test instance to its {@link TestPipeline} rule(s), which inspect the instance's other
+   * rules to decide whether the test's pipeline may be merged with others. A {@code TestRule} never
+   * sees the instance itself; the runner is the only place that does.
+   */
+  @Override
+  protected Object createTest() throws Exception {
+    Object instance = super.createTest();
+    TestPipeline.attachTestInstance(instance);
+    return instance;
+  }
+
   private void awaitPendingFutures() {
     try {
       pendingFutures.join();
     } finally {
       pendingFutures = CompletableFuture.allOf();
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Re-executing a test whose pipeline was merged into a shared job without a verdict
+  // ---------------------------------------------------------------------------------------------
+  //
+  // A runner that merges several tests' pipelines into one job may be unable to tell from that job
+  // whether a given test passed (see TestPipeline.StandaloneRerunRequested). The pipeline object
+  // cannot simply be run again, so the test is executed a second time from scratch: new instance,
+  // @Before/@After, rules and all, with its TestPipeline told to insist on a job of its own. Both
+  // attempts are one test as far as JUnit is concerned; it sees a single start/finish pair.
+
+  /**
+   * Tests currently in their standalone re-execution, by {@link Description}. Keyed by description
+   * rather than thread because the test body does not necessarily run on the thread that started it
+   * (JUnit's Timeout rule, for one, evaluates it on a thread of its own). A method is never
+   * re-executed concurrently with itself, so an entry unambiguously refers to the current attempt.
+   */
+  private static final Set<Description> STANDALONE_RERUNS = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Returns {@code true} while the test described by {@code description} is being re-executed after
+   * an inconclusive merged attempt; {@link TestPipeline} consults this when its rule is applied.
+   */
+  static boolean isStandaloneRerun(Description description) {
+    return STANDALONE_RERUNS.contains(description);
+  }
+
+  /**
+   * The {@link TestPipeline.StandaloneRerunRequested} behind {@code failure}, or {@code null} if
+   * there is none. Test code and JUnit itself may wrap what {@code run()} threw ({@code
+   * assertThrows}, {@code @Test(expected)}, an {@code @After} failing alongside it), so the cause
+   * chain and {@link MultipleFailureException}'s failures are searched too.
+   */
+  @VisibleForTesting
+  static TestPipeline.@Nullable StandaloneRerunRequested standaloneRerunRequest(Throwable failure) {
+    int depth = 0;
+    for (Throwable t = failure; t != null && depth < 32; t = t.getCause(), depth++) {
+      if (t instanceof TestPipeline.StandaloneRerunRequested) {
+        return (TestPipeline.StandaloneRerunRequested) t;
+      }
+      if (t instanceof MultipleFailureException) {
+        for (Throwable each : ((MultipleFailureException) t).getFailures()) {
+          TestPipeline.StandaloneRerunRequested nested = standaloneRerunRequest(each);
+          if (nested != null) {
+            return nested;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Like {@link BlockJUnit4ClassRunner#runChild}, except that a test ending in {@link
+   * TestPipeline.StandaloneRerunRequested} is executed a second time (see above). A request raised
+   * by that second attempt is a bug in the requesting runner and is reported as the test's failure.
+   */
+  private void runChildInternal(final FrameworkMethod method, final RunNotifier notifier) {
+    final Description description = describeChild(method);
+    Statement statement =
+        new Statement() {
+          @Override
+          public void evaluate() throws Throwable {
+            try {
+              methodBlock(method).evaluate();
+            } catch (Throwable firstAttempt) {
+              TestPipeline.StandaloneRerunRequested request = standaloneRerunRequest(firstAttempt);
+              if (request == null) {
+                throw firstAttempt;
+              }
+              LOG.info(
+                  "Re-executing {} with its pipeline as a job of its own. {}",
+                  description.getDisplayName(),
+                  String.valueOf(request));
+              STANDALONE_RERUNS.add(description);
+              try {
+                methodBlock(method).evaluate();
+              } finally {
+                STANDALONE_RERUNS.remove(description);
+              }
+            }
+          }
+        };
+    runLeaf(statement, description, notifier);
   }
 
   @Override
@@ -124,7 +238,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     }
     ExecutorService executor = selectExecutor(method);
     if (executor == null) {
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     if (isClassMarkedSerial(getTestClass().getJavaClass()) || isMethodMarkedSerial(method)) {
@@ -132,13 +246,13 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       // this test
       // serially.
       awaitPendingFutures();
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     pendingFutures =
         CompletableFuture.allOf(
             pendingFutures,
-            CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
+            CompletableFuture.runAsync(() -> runChildInternal(method, notifier), executor));
   }
 
   private @Nullable ExecutorService selectExecutor(FrameworkMethod method) {
@@ -171,7 +285,21 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     return method.getAnnotation(SerialTest.class) != null;
   }
 
-  private static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
+  /** Returns {@code true} if {@code annotations} contains {@link SerialTest}. */
+  static boolean hasSerialAnnotation(Collection<Annotation> annotations) {
+    for (Annotation annotation : annotations) {
+      if (annotation.annotationType() == SerialTest.class) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if {@code clazz}, any of its superclasses, or any of its enclosing classes
+   * is annotated with {@link SerialTest}.
+   */
+  static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
     if (clazz == null || clazz == Object.class) {
       return false;
     }

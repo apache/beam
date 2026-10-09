@@ -19,26 +19,38 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
+import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
+import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.function.Predicate;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -58,17 +70,52 @@ import org.slf4j.LoggerFactory;
 })
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+  static final String MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY =
+      "beam.dataflow.maxConcurrentStandaloneJobs";
+  private static final int DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS = 12;
+
+  /**
+   * Per-JVM cap on concurrently running standalone jobs, keyed by permit count rather than held as
+   * a single memoized semaphore so that the cap, a system property set once per test JVM by Gradle,
+   * can still be changed by tests that exercise the limit without affecting earlier callers. In a
+   * real run the property never changes, so exactly one entry is ever created.
+   */
+  private static final ConcurrentHashMap<Integer, Semaphore> STANDALONE_SEMAPHORES =
+      new ConcurrentHashMap<>();
+
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
+
+  /**
+   * Backoff for job submissions rejected by the service for quota (HTTP 429). Many test JVMs share
+   * the project's job-creation quota with no coordination between them, so a rejection usually just
+   * means a brief burst; waiting it out beats failing the test. Roughly 30s, 1m, 2m, 2m, 2m (with
+   * jitter), i.e. up to five retries over about eight minutes.
+   */
+  private static final FluentBackoff SUBMISSION_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(Duration.standardSeconds(30))
+          .withMaxBackoff(Duration.standardMinutes(2))
+          .withMaxRetries(5);
 
   private final TestDataflowPipelineOptions options;
   private final DataflowClient dataflowClient;
   private final DataflowRunner runner;
+  private final DataflowTestBatchCoordinator batchCoordinator;
+  private Sleeper sleeper = Sleeper.DEFAULT;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowRunner(TestDataflowPipelineOptions options, DataflowClient client) {
+    this(options, client, DataflowTestBatchCoordinator.shared());
+  }
+
+  TestDataflowRunner(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
     this.options = options;
     this.dataflowClient = client;
     this.runner = DataflowRunner.fromOptions(options);
+    this.batchCoordinator = batchCoordinator;
   }
 
   /** Constructs a runner from the provided options. */
@@ -102,17 +149,129 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return new TestDataflowRunner(options, client);
   }
 
+  @VisibleForTesting
+  static TestDataflowRunner fromOptionsAndClient(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
+    return new TestDataflowRunner(options, client, batchCoordinator);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     return run(pipeline, runner);
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    if (batchCoordinator.isEligibleForBatching(pipeline, options)) {
+      // Eligibility implies the pipeline is a TestPipeline with a unique root name.
+      return batchCoordinator.runInBatch((TestPipeline) pipeline, options, this, runner);
+    }
+    return runStandalone(pipeline, runner);
+  }
+
+  private static Semaphore getStandaloneSemaphore() {
+    int maxJobs =
+        Math.max(
+            1,
+            Integer.getInteger(
+                MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS));
+    // Fair, so a test that has waited longest for a permit is next: with many test threads per JVM
+    // an unfair semaphore can let a test starve behind a steady stream of newer arrivals.
+    return STANDALONE_SEMAPHORES.computeIfAbsent(maxJobs, n -> new Semaphore(n, true));
+  }
+
+  @VisibleForTesting
+  void setSleeper(Sleeper sleeper) {
+    this.sleeper = sleeper;
+  }
+
+  /**
+   * Submits {@code pipeline} through {@code runner}, retrying with backoff while the service
+   * rejects the submission for quota (HTTP 429). Any other failure propagates immediately.
+   */
+  DataflowPipelineJob submit(DataflowRunner runner, Pipeline pipeline) {
+    BackOff backOff = BackOffAdapter.toGcpBackOff(SUBMISSION_BACKOFF_FACTORY.backoff());
+    while (true) {
+      try {
+        return runner.run(pipeline);
+      } catch (RuntimeException e) {
+        GoogleJsonResponseException quota = quotaRejection(e);
+        if (quota == null) {
+          throw e;
+        }
+        boolean retry;
+        try {
+          retry = BackOffUtils.next(sleeper, backOff);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
+        } catch (IOException ioe) {
+          throw e;
+        }
+        if (!retry) {
+          LOG.warn("Dataflow job submission still rejected for quota after retries; giving up.");
+          throw e;
+        }
+        LOG.warn(
+            "Dataflow job submission rejected for quota ({}); retrying.",
+            quota.getDetails() != null ? quota.getDetails().getMessage() : quota.getMessage());
+      }
+    }
+  }
+
+  /** The HTTP 429 response behind {@code t}, if that is what caused it. */
+  @VisibleForTesting
+  static @Nullable GoogleJsonResponseException quotaRejection(Throwable t) {
+    for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+      if (cause instanceof GoogleJsonResponseException
+          && ((GoogleJsonResponseException) cause).getStatusCode() == 429) {
+        return (GoogleJsonResponseException) cause;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Runs {@code pipeline} as its own Dataflow job, holding a permit from the per-JVM standalone-job
+   * limiter for its duration.
+   */
+  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
+    Semaphore semaphore = getStandaloneSemaphore();
+    boolean acquired = false;
+    try {
+      semaphore.acquire();
+      acquired = true;
+      return runStandaloneInternal(pipeline, runner);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      if (acquired) {
+        semaphore.release();
+      }
+    }
+  }
+
+  /**
+   * Fetches {@code job} with {@code JOB_VIEW_ALL}, which carries per-stage execution states and the
+   * stage-to-user-step description needed to attribute stages to batch members. Returns {@code
+   * null} if the service call fails.
+   */
+  @Nullable Job getJobWithExecutionDetails(DataflowPipelineJob job) {
+    try {
+      return dataflowClient.getJob(job.getJobId(), "JOB_VIEW_ALL");
+    } catch (IOException e) {
+      LOG.warn("Failed to get execution details for Dataflow job {}: ", job.getJobId(), e);
+      return null;
+    }
+  }
+
+  private DataflowPipelineJob runStandaloneInternal(Pipeline pipeline, DataflowRunner runner) {
     updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = options.as(TestPipelineOptions.class);
-    final DataflowPipelineJob job;
-    job = runner.run(pipeline);
+    final DataflowPipelineJob job = submit(runner, pipeline);
 
     LOG.info(
         "Running Dataflow job {} with {} expected assertions.",
@@ -203,6 +362,32 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  /**
+   * Waits up to {@code timeout} for a merged test job to terminate, feeding its log messages to
+   * {@code messageHandler}. Returns its terminal state, or {@code null} if the job did not
+   * terminate in time or the wait was interrupted.
+   *
+   * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
+   * the verdict for several tests at once, so it is never allowed to block them forever.
+   */
+  @Nullable State waitForMergedJobTermination(
+      DataflowPipelineJob job, Duration timeout, ErrorMonitorMessagesHandler messageHandler) {
+    try {
+      State state = job.waitUntilFinish(timeout, messageHandler);
+      return state != null && state.isTerminal() ? state : null;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return null;
+    }
+  }
+
+  /** An {@link ErrorMonitorMessagesHandler} for {@code job} that also logs every message. */
+  static ErrorMonitorMessagesHandler errorMonitorFor(DataflowPipelineJob job) {
+    return new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
+  }
+
   /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */
   private boolean waitForBatchJobTermination(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
@@ -259,21 +444,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return Optional.absent();
     }
 
-    int successes = 0;
-    int failures = 0;
-    for (MetricUpdate metric : metrics.getMetrics()) {
-      if (metric.getName() == null
-          || metric.getName().getContext() == null
-          || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
-        // Don't double count using the non-tentative version of the metric.
-        continue;
-      }
-      if (PAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
-        successes += ((BigDecimal) metric.getScalar()).intValue();
-      } else if (PAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
-        failures += ((BigDecimal) metric.getScalar()).intValue();
-      }
-    }
+    PAssertCounts counts = countPAssertCounters(metrics, step -> true);
+    int successes = counts.successes;
+    int failures = counts.failures;
 
     if (failures > 0) {
       LOG.info(
@@ -315,6 +488,68 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
+  /** Totals of the tentative {@link PAssert} success and failure counters reported by a job. */
+  static final class PAssertCounts {
+    final int successes;
+    final int failures;
+
+    PAssertCounts(int successes, int failures) {
+      this.successes = successes;
+      this.failures = failures;
+    }
+
+    /** Whether no assertion failed and at least {@code expectedAssertions} succeeded. */
+    boolean satisfy(int expectedAssertions) {
+      return failures == 0 && successes >= expectedAssertions;
+    }
+
+    @Override
+    public String toString() {
+      return successes + " success, " + failures + " failures";
+    }
+  }
+
+  /**
+   * Sums the {@link PAssert} success and failure counters in {@code metrics}, considering only the
+   * updates whose Dataflow step (the {@code step} entry of the metric context, or the empty string
+   * if absent) is accepted by {@code stepFilter}. Only the tentative flavour of each counter is
+   * counted so that its committed duplicate does not double count.
+   */
+  static PAssertCounts countPAssertCounters(JobMetrics metrics, Predicate<String> stepFilter) {
+    int successes = 0;
+    int failures = 0;
+    List<MetricUpdate> updates = metrics.getMetrics();
+    if (updates == null) {
+      return new PAssertCounts(successes, failures);
+    }
+    for (MetricUpdate metric : updates) {
+      MetricStructuredName name = metric.getName();
+      if (name == null) {
+        continue;
+      }
+      boolean isSuccess = PAssert.SUCCESS_COUNTER.equals(name.getName());
+      boolean isFailure = PAssert.FAILURE_COUNTER.equals(name.getName());
+      if (!isSuccess && !isFailure) {
+        continue;
+      }
+      Map<String, String> context = name.getContext();
+      if (context == null || !context.containsKey(TENTATIVE_COUNTER)) {
+        continue;
+      }
+      String step = context.get("step");
+      if (!stepFilter.test(step == null ? "" : step)) {
+        continue;
+      }
+      int value = ((BigDecimal) metric.getScalar()).intValue();
+      if (isSuccess) {
+        successes += value;
+      } else {
+        failures += value;
+      }
+    }
+    return new PAssertCounts(successes, failures);
+  }
+
   @VisibleForTesting
   @Nullable JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
@@ -336,14 +571,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    *
    * <p>Creates an error message representing the concatenation of all error messages seen.
    */
-  private static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
+  static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuilder errorMessage;
     private volatile boolean hasSeenError;
 
-    private ErrorMonitorMessagesHandler(
-        DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+    ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuilder();
@@ -374,12 +608,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private static class CancelOnError implements Callable<Void> {
+  /**
+   * Polls a job and cancels it as soon as {@code messageHandler} has seen an error. Used for
+   * streaming jobs, where a failing step retries forever instead of failing the job.
+   */
+  static class CancelOnError implements Callable<Void> {
 
     private final DataflowPipelineJob job;
     private final ErrorMonitorMessagesHandler messageHandler;
 
-    public CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
     }

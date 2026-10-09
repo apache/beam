@@ -130,6 +130,11 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_69_0
+  // TestDataflowRunner inspects TestPipeline, a JUnit TestRule, which needs JUnit at compile
+  // time (as in sdks/java/core and runners/direct-java). Users of TestDataflowRunner already have
+  // JUnit on their classpath.
+  provided library.java.junit
+  permitUnusedDeclared library.java.junit
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -239,13 +244,38 @@ def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
+// ValidatesRunner parallelism. Each test worker JVM runs ValidatesRunner tests on several threads;
+// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching, batch mode only
+// for now) many more threads are useful since most of them just contribute a member to the next
+// merged job rather than a job of their own. Tests that cannot be merged, including every test
+// of a streaming task, are still one job each, so their thread count is kept at the pre-batching
+// level to bound the number of concurrent jobs per worker JVM.
+def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
+def validatesRunnerTestBatchWindowMs = project.findProperty('testBatchWindowMs') ?: '3000'
+def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcurrentStandaloneJobs') ?: '12'
 
-def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: '6'
+def configureValidatesRunnerParallelism = { Test task, List pipelineOptions ->
+  def streaming = pipelineOptions.any { it == '--streaming' || it == '--streaming=true' }
+  def batching = validatesRunnerTestBatching == 'true' && !streaming
+  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '6')
+  def batchMaxSize = project.findProperty('testBatchMaxSize') ?: parallelThreads
+
+  task.systemProperty "beam.validatesRunner.parallelThreads", parallelThreads
+  task.systemProperty "beam.dataflow.testBatching", batching.toString()
+  task.systemProperty "beam.dataflow.testBatchMaxSize", batchMaxSize
+  task.systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
+  task.systemProperty "beam.dataflow.maxConcurrentStandaloneJobs", validatesRunnerMaxConcurrentStandaloneJobs
+  // Merged jobs tell member tests apart by their unique TestPipeline root names.
+  task.systemProperty "beamTestPipelineUniqueRootNames", batching.toString()
+}
 
 def isValidatesRunnerTestClass = { FileTreeElement element ->
   if (element.isDirectory()) {
     return true
   }
+  // Classes that reference the ValidatesRunner annotation but are not ValidatesRunner tests:
+  // BeamParallelJunit4RunnerTest's nested fixtures carry @Category(ValidatesRunner.class) to test
+  // the runner itself and must not be executed against a real service.
   if (!element.name.endsWith('.class') ||
       element.name.startsWith('ValidateRunnerXlangTest') ||
       element.name.startsWith('BeamParallelJunit4RunnerTest')) {
@@ -276,7 +306,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
-    systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
+    configureValidatesRunnerParallelism(it, pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -312,12 +342,14 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   return tasks.create(name: name, type: Test, group: "Verification") {
     dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
-    systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
+    configureValidatesRunnerParallelism(it, pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
-    maxHeapSize = '768m'
+    // Same as the legacy task: in batch mode a fork hosts up to 30 concurrent test threads plus
+    // the translation of each merged job, not just a handful of standalone pipelines.
+    maxHeapSize = '2g'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
@@ -644,8 +676,8 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
       // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideCount',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -687,7 +719,7 @@ task validatesRunnerV2Streaming {
 
       // TestStream with processing time control not supported
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
