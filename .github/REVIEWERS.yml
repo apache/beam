@@ -40,6 +40,12 @@ labels:
       - damccorm
       - kennknowles
     exclusionList: []
+  - name: Typescript
+    reviewers:
+      - Abacn
+      - derrickaw
+      - jrmccluskey
+    exclusionList: []
   - name: spanner
     reviewers:
       - nielm
