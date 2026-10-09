@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -627,18 +629,18 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
-      return readAsMap().subMap(minTimestamp, limitTimestamp).values();
+      return Iterables.concat(readAsMap().subMap(minTimestamp, limitTimestamp).values());
     }
 
     @Override
     public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
-      SortedMap<Instant, TimestampedValue<T>> sortedMap = readAsMap();
+      SortedMap<Instant, List<TimestampedValue<T>>> sortedMap = readAsMap();
       sortedMap.subMap(minTimestamp, limitTimestamp).clear();
       try {
         ListState<TimestampedValue<T>> partitionedState =
             flinkStateBackend.getPartitionedState(
                 namespace, namespaceSerializer, flinkStateDescriptor);
-        partitionedState.update(Lists.newArrayList(sortedMap.values()));
+        partitionedState.update(Lists.newArrayList(Iterables.concat(sortedMap.values())));
       } catch (Exception e) {
         throw new RuntimeException("Error adding to bag state.", e);
       }
@@ -687,10 +689,10 @@ public class FlinkStateInternals<K> implements StateInternals {
     @Override
     @Nullable
     public Iterable<TimestampedValue<T>> read() {
-      return readAsMap().values();
+      return Iterables.concat(readAsMap().values());
     }
 
-    private SortedMap<Instant, TimestampedValue<T>> readAsMap() {
+    private SortedMap<Instant, List<TimestampedValue<T>>> readAsMap() {
       Iterable<TimestampedValue<T>> listValues;
       try {
         ListState<TimestampedValue<T>> partitionedState =
@@ -701,9 +703,9 @@ public class FlinkStateInternals<K> implements StateInternals {
         throw new RuntimeException("Error reading state.", e);
       }
 
-      SortedMap<Instant, TimestampedValue<T>> sortedMap = Maps.newTreeMap();
+      SortedMap<Instant, List<TimestampedValue<T>>> sortedMap = Maps.newTreeMap();
       for (TimestampedValue<T> value : listValues) {
-        sortedMap.put(value.getTimestamp(), value);
+        sortedMap.computeIfAbsent(value.getTimestamp(), k -> new ArrayList<>()).add(value);
       }
       return sortedMap;
     }
