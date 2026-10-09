@@ -388,14 +388,14 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "  fields:\n"
                 + "    - name: bool\n"
                 + "      type: boolean",
-            "topic: topic_7\n"
+            "topic: topic_8\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "format: JSON\n"
                 + "schema:\n"
-                + "  type: object\n"
+                + "  type: \"object\"\n"
                 + "  properties:\n"
-                + "    name:\n"
-                + "      type: string");
+                + "    value: { type: \"string\" }\n"
+                + "auto_offset_reset_config: earliest");
 
     for (String config : configs) {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand

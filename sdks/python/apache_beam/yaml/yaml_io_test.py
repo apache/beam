@@ -36,6 +36,7 @@ from apache_beam.typehints import schemas as schema_utils
 from apache_beam.utils import subprocess_server
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml.yaml_transform import YamlTransform
+from apache_beam.yaml.yaml_transform import expand_pipeline
 
 try:
   import jsonschema
@@ -1016,18 +1017,25 @@ class YamlKafkaTest(unittest.TestCase):
     p = beam.Pipeline(
         options=beam.options.pipeline_options.PipelineOptions(
             pickle_library='cloudpickle'))
-    _ = p | YamlTransform(
+    expand_pipeline(
+        p,
         '''
-        type: ReadFromKafka
-        config:
-          topic: my-topic
-          bootstrap_servers: kafka:9092
-          format: JSON
-          schema:
-            type: object
-            properties:
-              name:
-                type: string
+        pipeline:
+          type: chain
+          transforms:
+            - type: ReadFromKafka
+              name: ReadFromMyTopic
+              config:
+                format: JSON
+                schema:
+                  type: "object"
+                  properties:
+                    value: { type: "string" }
+                topic: test
+                bootstrap_servers: kafka:9092
+                auto_offset_reset_config: earliest
+
+            - type: LogForTesting
         ''')
 
   def test_read_from_kafka_avro_schema_expansion(self):
