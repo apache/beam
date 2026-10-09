@@ -65,7 +65,7 @@ public class SimpleParDoFnHelpersTest {
 
   private TestDoFn doFn = new TestDoFn();
 
-  private SimpleParDoFnHelpers<String, String, GlobalWindow> helpers;
+  private SimpleParDoFnHelpers<Object, String, String, GlobalWindow> helpers;
 
   @Before
   @SuppressWarnings("unchecked")
@@ -94,7 +94,8 @@ public class SimpleParDoFnHelpersTest {
             operationContext,
             DoFnSchemaInformation.create(),
             ImmutableMap.of(),
-            runnerFactory);
+            runnerFactory,
+            k -> {});
   }
 
   @Test
@@ -117,7 +118,7 @@ public class SimpleParDoFnHelpersTest {
     helpers.finishBundle(sideInputProcessor);
 
     verify(mockRunner).finishBundle();
-    verify(sideInputProcessor).handleFinishBundle();
+    verify(sideInputProcessor).handleFinishKeyOrBundle();
     verify(doFnInstanceManager).complete(any());
   }
 

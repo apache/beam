@@ -221,11 +221,12 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
       if (hasStreamingSideInput) {
         return new StreamingSideInputDoFnRunner<>(
             basicRunner,
-            new StreamingSideInputFetcher<>(
-                sideInputViews,
-                inputCoder,
-                windowingStrategy,
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext));
+            () ->
+                new StreamingSideInputFetcher<>(
+                    sideInputViews,
+                    inputCoder,
+                    windowingStrategy,
+                    (StreamingModeExecutionContext.StreamingModeStepContext) stepContext));
       } else {
         return basicRunner;
       }
