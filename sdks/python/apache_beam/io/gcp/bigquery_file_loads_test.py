@@ -407,6 +407,86 @@ class TestPartitionFiles(unittest.TestCase):
 
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
+  @parameterized.expand([
+      ('append', BigQueryDisposition.WRITE_APPEND),
+      ('truncate', BigQueryDisposition.WRITE_TRUNCATE),
+  ])
+  def test_equivalent_destinations_keep_distinct_load_jobs(
+      self, unused_name, write_disposition):
+    destinations = [
+        'project:dataset.table', 'dataset.table', 'project.dataset.table'
+    ]
+    files = ['gs://bucket/file%d' % i for i in range(len(destinations))]
+    jobs = {}
+
+    def insert_job(request, upload=None):
+      job = request.job
+      job_id = job.jobReference.jobId
+      if job_id in jobs:
+        raise HttpError({'status': '409'},
+                        ('Already Exists: Job project:US.' + job_id).encode(),
+                        '')
+      job.status = bigquery_api.JobStatus(state='DONE')
+      jobs[job_id] = job
+      return job
+
+    client = mock.Mock()
+    client.jobs.Insert.side_effect = insert_job
+    client.jobs.Get.side_effect = lambda request: jobs[request.jobId]
+    schema = mock.Mock(return_value=_ELEMENTS_SCHEMA)
+    parameters = mock.Mock(return_value={'timePartitioning': {'type': 'DAY'}})
+    loader = bqfl.TriggerLoadJobs(
+        project='project',
+        schema=schema,
+        temporary_tables=True,
+        additional_bq_parameters=parameters,
+        test_client=client)
+    loader.start_bundle()
+
+    # File grouping keeps these equivalent destination strings separate, so
+    # each group has a partition zero containing different source files.
+    partitions = [(destination, (0, [path]))
+                  for destination, path in zip(destinations, files)]
+    for partition in partitions:
+      list(loader.process(partition, 'load', pane_info=mock.Mock(index=0)))
+    loaded = [result.value for result in loader.finish_bundle()]
+    first_ids = [job.jobId for _, job in loaded]
+    self.assertEqual(
+        'load_29b51c1b5b03c4804123fd20083029da_pane0_partition0', first_ids[0])
+
+    # Replaying the same partitions must resolve to the same jobs, without
+    # treating a different destination group's files as an already-run job.
+    loader.start_bundle()
+    for partition in partitions:
+      list(loader.process(partition, 'load', pane_info=mock.Mock(index=0)))
+    replayed = [result.value for result in loader.finish_bundle()]
+    self.assertEqual(first_ids, [job.jobId for _, job in replayed])
+    self.assertEqual([call(dest) for dest in destinations] * 2,
+                     schema.call_args_list)
+    self.assertEqual([call(dest) for dest in destinations] * 2,
+                     parameters.call_args_list)
+
+    copier = bqfl.TriggerCopyJobs(
+        project='project',
+        write_disposition=write_disposition,
+        test_client=client)
+    copier.setup()
+    copier.start_bundle()
+    copier.process(replayed, 'copy')
+    list(copier.finish_bundle())
+
+    copy_jobs = [job for job in jobs.values() if job.configuration.copy]
+    copied_files = [
+        path for job in copy_jobs
+        for path in jobs[job.configuration.copy.sourceTable.tableId].
+        configuration.load.sourceUris
+    ]
+    self.assertCountEqual(files, copied_files)
+    self.assertEqual(3, len(set(first_ids)))
+    self.assertEqual(
+        [write_disposition, 'WRITE_APPEND', 'WRITE_APPEND'],
+        [job.configuration.copy.writeDisposition for job in copy_jobs])
+
   def test_trigger_load_jobs_with_empty_files(self):
     destination = "project:dataset.table"
     empty_files = []
