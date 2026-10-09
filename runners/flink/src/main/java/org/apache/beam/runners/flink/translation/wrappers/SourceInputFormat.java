@@ -18,13 +18,15 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -36,6 +38,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -57,6 +60,10 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   private transient BoundedSource.BoundedReader<T> reader;
   private boolean inputAvailable = false;
+
+  // Set by createInputSplits on the JobManager and read by getInputSplitAssigner.
+  private transient int numTasks = 1;
+  private transient boolean lazyAssignment;
 
   private transient ReaderInvocationUtil<T, BoundedSource.BoundedReader<T>> readerInvoker;
   private transient FlinkMetricContainer metricContainer;
@@ -111,29 +118,18 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
     return null;
   }
 
-  private long getDesiredSizeBytes(int numSplits) throws Exception {
-    long totalSize = initialSource.getEstimatedSizeBytes(options);
-    long defaultSplitSize = totalSize / numSplits;
-    long maxSplitSize = 0;
-    if (options != null) {
-      maxSplitSize = options.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeMB();
-    }
-    if (initialSource instanceof FileBasedSource && maxSplitSize > 0) {
-      // Most of the time parallelism is < number of files in source.
-      // Each file becomes a unique split which commonly create skew.
-      // This limits the size of splits to reduce skew.
-      return Math.min(defaultSplitSize, maxSplitSize * 1024 * 1024);
-    } else {
-      return defaultSplitSize;
-    }
-  }
-
   @Override
   @SuppressWarnings("unchecked")
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
+    if (options == null) {
+      options = serializedOptions.get();
+    }
     try {
-      long desiredSizeBytes = getDesiredSizeBytes(numSplits);
-      List<? extends Source<T>> shards = initialSource.split(desiredSizeBytes, options);
+      long estimatedSizeBytes = initialSource.getEstimatedSizeBytes(options);
+      List<BoundedSource<T>> shards =
+          BoundedSourceSplitter.split(initialSource, options, numSplits, estimatedSizeBytes);
+      numTasks = Math.max(1, numSplits);
+      lazyAssignment = useLazyAssignment(estimatedSizeBytes, numTasks);
 
       int numShards = shards.size();
       SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
@@ -146,9 +142,57 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
     }
   }
 
+  private boolean useLazyAssignment(long estimatedSizeBytes, int parallelism) {
+    switch (BoundedSourceSplitter.assignment(options)) {
+      case LAZY:
+        return true;
+      case SIZE_BASED:
+        if (estimatedSizeBytes <= 0 || estimatedSizeBytes == Long.MAX_VALUE) {
+          return true;
+        }
+        long thresholdBytes = BoundedSourceSplitter.staticSplitThresholdBytes(options);
+        return estimatedSizeBytes / parallelism >= thresholdBytes;
+      case STATIC:
+      default:
+        return false;
+    }
+  }
+
   @Override
   public InputSplitAssigner getInputSplitAssigner(final SourceInputSplit[] sourceInputSplits) {
-    return new DefaultInputSplitAssigner(sourceInputSplits);
+    LOG.info(
+        "Using {} assignment for {} splits of source {}",
+        lazyAssignment ? "lazy" : "static",
+        sourceInputSplits.length,
+        initialSource);
+    if (lazyAssignment) {
+      return new DefaultInputSplitAssigner(sourceInputSplits);
+    }
+    return new StaticInputSplitAssigner(sourceInputSplits, numTasks);
+  }
+
+  /** Assigns split {@code i} to task {@code i % numTasks}, mirroring the DataStream enumerator. */
+  static class StaticInputSplitAssigner implements InputSplitAssigner {
+    private final Map<Integer, Deque<InputSplit>> pendingSplits = new HashMap<>();
+
+    StaticInputSplitAssigner(InputSplit[] splits, int numTasks) {
+      for (InputSplit split : splits) {
+        pendingSplits
+            .computeIfAbsent(split.getSplitNumber() % numTasks, ignored -> new ArrayDeque<>())
+            .add(split);
+      }
+    }
+
+    @Override
+    public synchronized InputSplit getNextInputSplit(String host, int taskId) {
+      Deque<InputSplit> splits = pendingSplits.get(taskId);
+      return splits == null ? null : splits.poll();
+    }
+
+    @Override
+    public synchronized void returnInputSplit(List<InputSplit> splits, int taskId) {
+      pendingSplits.computeIfAbsent(taskId, ignored -> new ArrayDeque<>()).addAll(splits);
+    }
   }
 
   @Override

@@ -167,7 +167,11 @@ public class FlinkSourceSplitEnumerator<T>
       long estimatedSizeBytes =
           FlinkSourceSplitUtils.estimateBoundedSourceSize(boundedSource, pipelineOptions);
       return FlinkSourceSplitUtils.splitBoundedSource(
-          boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
+          boundedSource,
+          pipelineOptions,
+          numSplits,
+          context.currentParallelism(),
+          estimatedSizeBytes);
     }
     if (beamSource instanceof UnboundedSource) {
       return FlinkSourceSplitUtils.splitUnboundedSource(
