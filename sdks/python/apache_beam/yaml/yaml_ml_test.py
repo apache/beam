@@ -20,6 +20,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.testing import test_utils
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
@@ -28,7 +29,7 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position, unused-import
   from apache_beam.ml.transforms import tft
 except ImportError:
-  raise unittest.SkipTest('tensorflow_transform is not installed.')
+  tft = None
 
 TRAIN_DATA = [
     beam.Row(num=0, text='And God said, Let there be light,'),
@@ -41,6 +42,7 @@ TEST_DATA = [
 ]
 
 
+@unittest.skipIf(tft is None, 'tensorflow_transform is not installed.')
 class MLTransformTest(unittest.TestCase):
   def test_ml_transform(self):
     ml_opts = beam.options.pipeline_options.PipelineOptions(
@@ -234,6 +236,42 @@ class MLTransformTest(unittest.TestCase):
           return row.id
 
         assert_that(result | beam.Map(check_row), equal_to([1, 2, 3]))
+
+
+class MLTransformJobSubmissionTest(unittest.TestCase):
+  def test_sentence_transformer_embedding_does_not_use_sentence_transformers(
+      self):
+    # sentence-transformers should only be needed when executing the pipeline
+    # (for example, on the workers), not for constructing and submitting it.
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with tempfile.TemporaryDirectory() as tempdir:
+      with test_utils.block_imports(
+          'sentence_transformers') as attempted_imports:
+        pipeline = beam.Pipeline(options=ml_opts)
+        _ = pipeline | YamlTransform(
+            f'''
+            type: chain
+            transforms:
+              - type: Create
+                config:
+                  elements:
+                    - {{id: 1, log_message: "Error in module A"}}
+              - type: MLTransform
+                config:
+                  write_artifact_location: {tempdir}
+                  transforms:
+                    - type: SentenceTransformerEmbeddings
+                      config:
+                        model_name: all-MiniLM-L6-v2
+                        columns: [log_message]
+            ''')
+        # Serializes the pipeline, as done during job submission, and
+        # deserializes it again. Deserializing fails if the pipeline references
+        # (i.e. requires) a module that can't be imported.
+        beam.Pipeline.from_runner_api(
+            pipeline.to_runner_api(), pipeline.runner, pipeline.options)
+    self.assertEqual(attempted_imports, [])
 
 
 if __name__ == '__main__':

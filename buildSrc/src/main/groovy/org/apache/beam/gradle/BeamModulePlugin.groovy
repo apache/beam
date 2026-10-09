@@ -608,7 +608,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.19.5"
+    def activemq_version = "6.2.5"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -650,7 +650,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.6"
-    def qpid_jms_client_version = "0.61.0"
+    def qpid_jms_client_version = "2.10.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
@@ -1265,15 +1265,14 @@ class BeamModulePlugin implements Plugin<Project> {
         if (System.getProperty("os.name").toLowerCase().contains("windows")) {
           systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
         }
-        // Report each test as it runs, plus a per-task summary. Gradle logs only
-        // failures by default, so a passing run prints nothing but "BUILD SUCCESSFUL"
-        // and gives no indication of which tests --tests actually selected.
-        // Test stdout/stderr stays off unless asked for, since it is noisy:
-        //   -PshowTestOutput   also forward test stdout/stderr
-        // A cached or up-to-date test task forks no JVM and prints nothing;
-        // add --no-build-cache --rerun to force real execution.
+        // Log skipped and failed tests, plus a per-task summary.
+        // Pass -PshowTestOutput to also forward test stdout/stderr.
+        // Pass -PshowTestPassed to also log passed tests.
         testLogging {
-          events 'passed', 'skipped', 'failed'
+          events 'skipped', 'failed'
+          if (project.hasProperty('showTestPassed')) {
+            events 'passed'
+          }
           exceptionFormat = 'full'
           showExceptions = true
           showCauses = true
@@ -3171,10 +3170,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.10'
+          project.pythonVersion : '3.11'
 
       // Set min/max python versions used for containers and supported versions.
-      project.ext.minPythonVersion = 10
+      project.ext.minPythonVersion = 11
       project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
@@ -3249,7 +3248,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def uvCacheDir = "${project.ext.envdir}/.uv_cache"
           project.exec {
             executable 'sh'
-            // Default uv cache is global; py310/py314 installGcpTest fight over the same lock.
+            // Default uv cache is global; py311/py314 installGcpTest fight over the same lock.
             args '-c', ". \"${project.ext.envdir}/bin/activate\" && pip install uv && uv pip install --cache-dir \"${uvCacheDir}\" --pre \"${installTargets}\""
           }
         }
@@ -3301,7 +3300,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def actualToxEnv = tox_env
           def osName = System.getProperty("os.name").toLowerCase()
           if (osName.contains("mac")) {
-            // Only append -macos for standard python environments (py39, py310, etc.)
+            // Only append -macos for standard python environments (py311, py312, etc.)
             if (tox_env.matches("py\\d+")) {
               actualToxEnv = "${tox_env}-macos"
             }
@@ -3391,7 +3390,6 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
             ':sdks:python:container:py313:docker',

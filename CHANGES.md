@@ -71,12 +71,20 @@
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
+* (Go) Pipeline-level `--resource_hints` are now forwarded to expansion services, so they apply to cross-language transforms as they do in the Java and Python SDKs. The `max_active_bundles_per_worker` hint name is now also accepted by `--resource_hints` ([#23893](https://github.com/apache/beam/issues/23893)).
+* ReadFromBigQuery now supports Lakehouse runtime catalog (BigLake metastore) tables with `method=DIRECT_READ`, using 4-part `project.catalog.namespace.table` identifiers. Previously `project:catalog.namespace.table` was silently mis-parsed and tables that report no `numBytes` failed to split (Python) ([#39597](https://github.com/apache/beam/issues/39597)).
 
 ## Breaking Changes
 
+* (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. This is an update incompatible change for streaming pipelines that use rows with `int16` or `uint16` fields ([#40151](https://github.com/apache/beam/issues/40151)).
+* (Java) JmsIO migrated to `jakarta.jms` (JMS 3.1) and ActiveMQ 6.2.5. User code implementing `JmsIO.MessageMapper`,
+  `valueMapper`, `topicNameMapper`, or providing a `ConnectionFactory` must update imports from `javax.jms.*` to
+  `jakarta.jms.*`. The module now requires Java 17 at runtime ([#38729](https://github.com/apache/beam/issues/38729)).
 * (Python) `Regex.find_all` with `group=Regex.ALL` now returns every group, as `(match, group1, group2, ...)`, instead of only group 1, and with `outputEmpty=False` it drops a match only when the whole match is empty, matching the `group=0` behavior ([#40399](https://github.com/apache/beam/pull/40399)).
 
 ## Deprecations
+
+* Support for Python 3.10 was removed following its end-of-life ([#40250](https://github.com/apache/beam/issues/40250)).
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
@@ -84,11 +92,14 @@
 
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Go) Fixed the harness leaking Data/State gRPC streams after the worker stops, and a deadlock when Send returns EOF ([#40260](https://github.com/apache/beam/issues/40260)).
+* (Go) Fixed a deadlock recreating a data channel while holding the channel lock ([#40414](https://github.com/apache/beam/issues/40414)).
 * (Java) Fixed the declared schema of the error output of the Kafka write SchemaTransform, which wrapped the error schema a second time and did not match the rows it emits ([#39760](https://github.com/apache/beam/issues/39760)).
 * (Go) Fixed pubsubio importing a `google.golang.org/genproto` package removed in recent releases, which broke builds of Go modules depending on a current `genproto` version ([#40018](https://github.com/apache/beam/issues/40018)).
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
+* (Python) `Duration` built from float seconds now rounds to the nearest microsecond instead of truncating, which could lose a microsecond ([#40263](https://github.com/apache/beam/issues/40263)).
+* (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -100,7 +111,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.77.0] - Unreleased
+# [2.77.0] - 2026-10-07
 
 ## I/Os
 
@@ -137,6 +148,7 @@
 * (Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order ([#39824](https://github.com/apache/beam/issues/39824)).
 * (Java) Fixed the Spark runner dropping the stored watermark of a streaming source with no update in a batch ([#39822](https://github.com/apache/beam/issues/39822)).
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
+* (Python) Fixed `AsyncWrapper` mixing results between keys or windows whose values or custom identifiers match, and cancelling work belonging to other windows ([#39996](https://github.com/apache/beam/pull/39996)).
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).

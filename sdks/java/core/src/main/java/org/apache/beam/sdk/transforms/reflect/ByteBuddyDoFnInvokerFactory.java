@@ -1419,7 +1419,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  private static class UserCodeMethodInvocation implements StackManipulation {
+  private static final class UserCodeMethodInvocation implements StackManipulation {
 
     private final @Nullable Integer returnVarIndex;
     private final MethodDescription targetMethod;

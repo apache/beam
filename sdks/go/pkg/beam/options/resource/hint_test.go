@@ -405,3 +405,48 @@ func TestHints_NilHints(t *testing.T) {
 		t.Errorf("nil equal test: (nil).Equal(hs) = %v, want %v", got, want)
 	}
 }
+
+func TestHints_OptionStrings(t *testing.T) {
+	tests := []struct {
+		name                string
+		hints               Hints
+		wantOpts, wantOmits []string
+	}{
+		{
+			name: "empty",
+		}, {
+			name:     "minRAM",
+			hints:    NewHints(ParseMinRAM("2GB")),
+			wantOpts: []string{"min_ram=2000000000B"},
+		}, {
+			name:  "allStandard",
+			hints: NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"), CPUCount(4), MaxActiveBundlesPerWorker(2)),
+			wantOpts: []string{
+				"accelerator=type:jeans;count1;",
+				"cpu_count=4",
+				"max_active_bundles_per_worker=2",
+				"min_ram=2000000000B",
+			},
+		}, {
+			name:      "customOmitted",
+			hints:     NewHints(CPUCount(8), customHint{}),
+			wantOpts:  []string{"cpu_count=8"},
+			wantOmits: []string{"top:secret:custom:urn"},
+		}, {
+			name:      "onlyCustom",
+			hints:     NewHints(customHint{}),
+			wantOmits: []string{"top:secret:custom:urn"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotOpts, gotOmits := test.hints.OptionStrings()
+			if !reflect.DeepEqual(gotOpts, test.wantOpts) {
+				t.Errorf("OptionStrings() opts = %v, want %v", gotOpts, test.wantOpts)
+			}
+			if !reflect.DeepEqual(gotOmits, test.wantOmits) {
+				t.Errorf("OptionStrings() omitted = %v, want %v", gotOmits, test.wantOmits)
+			}
+		})
+	}
+}

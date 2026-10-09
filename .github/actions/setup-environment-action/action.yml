@@ -50,7 +50,7 @@ runs:
       if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
+        python-version: ${{ inputs.python-version == 'default' && '3.11' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}
         cache-dependency-path: |
           sdks/python/setup.py
@@ -68,7 +68,7 @@ runs:
         PYTHON_VERSION_INPUT: ${{ inputs.python-version }}
       run: |
         if [[ "$PYTHON_VERSION_INPUT" == "default" ]]; then
-          sanitized="310"
+          sanitized="311"
         else
           sanitized=$(printf '%s' "$PYTHON_VERSION_INPUT" | tr -s '[:space:]' '-' | sed 's/^-//;s/-$//')
         fi

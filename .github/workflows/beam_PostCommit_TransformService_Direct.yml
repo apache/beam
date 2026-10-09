@@ -60,7 +60,7 @@ jobs:
     strategy:
       matrix:
         job_name: ["beam_PostCommit_TransformService_Direct"]
-        python_version: ['3.10','3.14']
+        python_version: ['3.11','3.14']
     steps:
       - uses: actions/checkout@v7
         with:
@@ -74,7 +74,7 @@ jobs:
           # (BeamModulePlugin transformServiceJavaContainerSuffix).
           java-version: '17'
           python-version: |
-            3.10
+            3.11
             ${{ matrix.python_version }}
       - name: run TransformService Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action

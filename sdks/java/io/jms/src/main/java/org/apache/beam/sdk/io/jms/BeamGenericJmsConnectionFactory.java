@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import jakarta.jms.ConnectionFactory;
 import java.io.Serializable;
-import javax.jms.ConnectionFactory;
 
 /**
  * An interface for creating custom JMS {@link ConnectionFactory} instances.

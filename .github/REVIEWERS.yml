@@ -37,6 +37,7 @@ labels:
       - Abacn
       - ahmedabu98
       - chamikaramj
+      - damccorm
       - kennknowles
     exclusionList: []
   - name: spanner
@@ -47,11 +48,6 @@ labels:
       - igorbernstein2
       - mutianf
     exclusionList: []
-  - name: kafka
-    reviewers:
-      - johnjcasey
-      - Dippatel98
-      - sjvanrossum
   - name: delta
     reviewers:
       - ahmedabu98

@@ -86,5 +86,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.io.gcp.experimental.spannerio_write_perf_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.args='${{env.beam_PerformanceTests_SpannerIO_Write_2GB_Python_Batch_test_arguments_1}}'

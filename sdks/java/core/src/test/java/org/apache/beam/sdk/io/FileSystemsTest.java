@@ -64,6 +64,37 @@ public class FileSystemsTest {
   private LocalFileSystem localFileSystem = new LocalFileSystem();
 
   @Test
+  public void testMatchSingleFileSpecExceptionChaining() throws Exception {
+    java.io.IOException rootCause = new java.io.IOException("403 Forbidden: Fake GCS Error");
+    MatchResult failedResult = MatchResult.create(MatchResult.Status.ERROR, rootCause);
+
+    // Use our fake filesystem instead of Mockito
+    FileSystem<ResourceId> fakeFileSystem = new FakeFileSystem("dummy", failedResult);
+
+    // Use reflection to temporarily override the registered filesystems
+    java.lang.reflect.Field field = FileSystems.class.getDeclaredField("SCHEME_TO_FILESYSTEM");
+    field.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    java.util.concurrent.atomic.AtomicReference<java.util.Map<String, FileSystem>> ref =
+        (java.util.concurrent.atomic.AtomicReference<java.util.Map<String, FileSystem>>)
+            field.get(null);
+
+    java.util.Map<String, FileSystem> original = ref.get();
+    try {
+      ref.set(com.google.common.collect.ImmutableMap.of("dummy", fakeFileSystem));
+
+      thrown.expect(java.io.IOException.class);
+      thrown.expectMessage("Error matching file spec dummy://fake/path: status ERROR");
+      thrown.expectCause(org.hamcrest.Matchers.is(rootCause));
+
+      FileSystems.matchSingleFileSpec("dummy://fake/path");
+    } finally {
+      // Restore the original registry so we don't break other tests
+      ref.set(original);
+    }
+  }
+
+  @Test
   public void testGetLocalFileSystem() throws Exception {
     // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20484
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
@@ -334,6 +365,61 @@ public class FileSystemsTest {
           FileSystems.matchNewDirectory(
               testCase.getValue().getKey(), testCase.getValue().getValue());
       assertEquals(expected, actual);
+    }
+  }
+
+  private static class FakeFileSystem extends FileSystem<ResourceId> {
+    private final String scheme;
+    private final MatchResult matchResult;
+
+    FakeFileSystem(String scheme, MatchResult matchResult) {
+      this.scheme = scheme;
+      this.matchResult = matchResult;
+    }
+
+    @Override
+    protected List<MatchResult> match(List<String> specs) {
+      // Return the predefined MatchResult for every spec requested
+      return specs.stream().map(spec -> matchResult).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    protected java.nio.channels.WritableByteChannel create(
+        ResourceId resourceId, org.apache.beam.sdk.io.fs.CreateOptions createOptions) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected java.nio.channels.ReadableByteChannel open(ResourceId resourceId) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected void copy(List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected void rename(
+        List<ResourceId> srcResourceIds,
+        List<ResourceId> destResourceIds,
+        org.apache.beam.sdk.io.fs.MoveOptions... moveOptions) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected void delete(java.util.Collection<ResourceId> resourceIds) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected ResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+      throw new UnsupportedOperationException("FakeFileSystem only supports match() for testing.");
+    }
+
+    @Override
+    protected String getScheme() {
+      return scheme;
     }
   }
 

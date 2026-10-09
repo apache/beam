@@ -834,7 +834,47 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
 
 
+class _UnpicklableFactory:
+  """A transform factory holding an object that cloudpickle cannot serialize.
+
+  Used to simulate provider state (e.g. lazily populated caches in the
+  process-global standard providers) that should never be pulled into the
+  pickled closure of an unrelated user transform.
+  """
+  def __init__(self):
+    from apache_beam.portability.api import beam_runner_api_pb2
+    self._descriptor = beam_runner_api_pb2.Pipeline.DESCRIPTOR
+
+  def __call__(self):
+    return beam.Map(lambda x: x)
+
+
 class ErrorHandlingTest(unittest.TestCase):
+  def test_closure_does_not_capture_unrelated_providers(self):
+    # SizeLimiter's DoFn closes over `self`. Pickling that DoFn must not drag in
+    # the YAML Scope and every provider it knows about.
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: ['a', 'b', 'biiiiig']
+            - type: SizeLimiter
+              input: Create
+              config:
+                  limit: 5
+                  error_handling:
+                    output: errors
+          output:
+            good: SizeLimiter
+            bad: SizeLimiter.errors
+          ''',
+          providers=dict(TEST_PROVIDERS, Unpicklable=_UnpicklableFactory()))
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+
   def test_error_handling_outputs(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
