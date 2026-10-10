@@ -1764,7 +1764,7 @@ bigquery_v2_messages.TableSchema` format.
   table_schema = bigquery.TableSchema()
   schema_list = [s.strip() for s in schema.split(',')]
   for field_and_type in schema_list:
-    field_name, field_type = field_and_type.split(':')
+    field_name, field_type = (s.strip() for s in field_and_type.split(':'))
     field_schema = bigquery.TableFieldSchema()
     field_schema.name = field_name
     field_schema.type = field_type
