@@ -1758,6 +1758,41 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
+  def test_model_handler_manager_increments_once_per_process(self):
+    mhs = {
+        'key1': FakeModelHandler(state=1),
+        'key2': FakeModelHandler(state=2),
+        'key3': FakeModelHandler(state=3)
+    }
+    mm = base._ModelHandlerManager(mh_map=mhs)
+    mm.increment_max_models(1, process_id=1)
+    mm.increment_max_models(1, process_id=1)
+    mm.load('key1')
+    mm.load('key2')
+    mm.load('key3')
+    self.assertEqual(['key3'], list(mm._tag_map.keys()))
+
+    mm.increment_max_models(1, process_id=2)
+    mm.load('key1')
+    self.assertEqual(['key3', 'key1'], list(mm._tag_map.keys()))
+
+  def test_keyed_model_handler_max_models_hint_with_handler_copies(self):
+    mhs = [
+        base.KeyModelMapping([k],
+                             FakeModelHandler(
+                                 state=i, multi_process_shared=True))
+        for i, k in enumerate(['a', 'b', 'c'])
+    ]
+    keyed_mh = base.KeyedModelHandler(mhs, max_models_per_worker_hint=1)
+    mm = keyed_mh.load_model()
+    # Each DoFn instance in a process deserializes its own copy of the model
+    # handler, but they all share the same _ModelHandlerManager.
+    for _ in range(5):
+      mh_copy = pickle.loads(pickle.dumps(keyed_mh))
+      mh_copy.override_metrics('test_namespace')
+      list(mh_copy.run_inference([('a', 1), ('b', 2), ('c', 3)], mm))
+    self.assertEqual(1, len(mm._tag_map))
+
   def test_run_inference_loads_different_models(self):
     mh1 = FakeModelHandler(incrementing=True, min_batch_size=3)
     with TestPipeline() as pipeline:
