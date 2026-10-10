@@ -16,6 +16,8 @@
 #
 import datetime
 import inspect
+import logging
+import multiprocessing
 import typing as t
 import unittest
 
@@ -25,6 +27,7 @@ from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
+from apache_beam.utils.windowed_value import WindowedValue
 
 try:
   import dask
@@ -38,8 +41,70 @@ except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
 
 
+def _consume_distributed_side_inputs(value, iterable, values, one):
+  ddist.get_worker()  # Assert that side inputs are consumed in a worker task.
+  return value, list(iterable), values, one
+
+
+def _run_distributed_side_input_pipeline(lazy, n_workers, threads_per_worker):
+  with ddist.LocalCluster(n_workers=n_workers,
+                          threads_per_worker=threads_per_worker,
+                          processes=False,
+                          dashboard_address=None,
+                          silence_logs=logging.ERROR) as cluster:
+    with ddist.Client(cluster):
+      args = [
+          '--dask_client_address',
+          cluster.scheduler_address,
+          '--dask_partition_size',
+          '1'
+      ]
+      if lazy:
+        args.append('--dask_lazy_side_inputs')
+      options = PipelineOptions(args)
+      with test_pipeline.TestPipeline(runner=DaskRunner(),
+                                      options=options) as p:
+        main = p | 'main' >> beam.Create([10])
+        side = p | 'side' >> beam.Create([2, 3])
+        singleton = p | 'singleton' >> beam.Create([5])
+        result = main | beam.Map(
+            _consume_distributed_side_inputs,
+            beam.pvalue.AsIter(side),
+            beam.pvalue.AsList(side),
+            beam.pvalue.AsSingleton(singleton))
+        assert_that(result, equal_to([(10, [2, 3], [2, 3], 5)]))
+      p.result.client.close()
+
+
+def _run_distributed_partition_error():
+  @dask.delayed
+  def fail():
+    raise ValueError('later partition failed')
+
+  def consume():
+    bag = db.from_delayed([dask.delayed(lambda: [1])(), fail()])
+    values = iter(
+        DaskBagWindowedIterator(
+            bag, window.GlobalWindows(), lazy_side_inputs=True))
+    assert next(values).value == 1
+    try:
+      next(values)
+    except ValueError as exc:
+      assert str(exc) == 'later partition failed'
+    else:
+      raise AssertionError('later partition error was swallowed')
+
+  with ddist.LocalCluster(n_workers=1,
+                          threads_per_worker=1,
+                          processes=False,
+                          dashboard_address=None,
+                          silence_logs=logging.ERROR) as cluster:
+    with ddist.Client(cluster) as client:
+      client.submit(consume).result(timeout=20)
+
+
 class DaskBagWindowedIteratorTest(unittest.TestCase):
-  def test_computes_partitions_as_values_are_consumed(self):
+  def test_default_materializes_bag_before_first_value(self):
     computed = []
 
     @dask.delayed
@@ -51,6 +116,22 @@ class DaskBagWindowedIteratorTest(unittest.TestCase):
     with dask.config.set(scheduler='synchronous'):
       values = iter(DaskBagWindowedIterator(bag, window.GlobalWindows()))
       self.assertEqual(next(values).value, 1)
+      self.assertCountEqual(computed, [1, 2])
+
+  def test_computes_partitions_as_values_are_consumed(self):
+    computed = []
+
+    @dask.delayed
+    def partition(number):
+      computed.append(number)
+      return [number]
+
+    bag = db.from_delayed([partition(1), partition(2)])
+    with dask.config.set(scheduler='synchronous'):
+      values = iter(
+          DaskBagWindowedIterator(
+              bag, window.GlobalWindows(), lazy_side_inputs=True))
+      self.assertEqual(next(values).value, 1)
       self.assertEqual(computed, [1])
       self.assertEqual(next(values).value, 2)
       self.assertEqual(computed, [1, 2])
@@ -61,7 +142,8 @@ class DaskBagWindowedIteratorTest(unittest.TestCase):
         dask.delayed(lambda: [])(),
         dask.delayed(lambda: [1, 2])(),
     ])
-    side_input = DaskBagWindowedIterator(bag, window.GlobalWindows())
+    side_input = DaskBagWindowedIterator(
+        bag, window.GlobalWindows(), lazy_side_inputs=True)
     with dask.config.set(scheduler='synchronous'):
       self.assertEqual([value.value for value in side_input], [1, 2])
       self.assertEqual([value.value for value in side_input], [1, 2])
@@ -76,10 +158,55 @@ class DaskBagWindowedIteratorTest(unittest.TestCase):
         failing_partition(),
     ])
     with dask.config.set(scheduler='synchronous'):
-      values = iter(DaskBagWindowedIterator(bag, window.GlobalWindows()))
+      values = iter(
+          DaskBagWindowedIterator(
+              bag, window.GlobalWindows(), lazy_side_inputs=True))
       self.assertEqual(next(values).value, 1)
       with self.assertRaisesRegex(ValueError, 'partition failed'):
         next(values)
+
+  def test_preserves_order_and_window_conversion(self):
+    existing = WindowedValue('existing', 1, (window.IntervalWindow(0, 5), ))
+    bag = db.from_sequence(
+        [window.TimestampedValue('timestamped', 7), existing, 'plain'],
+        partition_size=1)
+    with dask.config.set(scheduler='synchronous'):
+      values = list(
+          DaskBagWindowedIterator(
+              bag, window.FixedWindows(5), lazy_side_inputs=True))
+    self.assertEqual([value.value for value in values],
+                     ['timestamped', 'existing', 'plain'])
+    self.assertEqual(values[0].windows, (window.IntervalWindow(5, 10), ))
+    self.assertIs(values[1], existing)
+    self.assertEqual(values[2].windows, (window.GlobalWindow(), ))
+
+
+class DaskDistributedSideInputTest(unittest.TestCase):
+  def _run_with_watchdog(self, target, *args):
+    process = multiprocessing.get_context('spawn').Process(
+        target=target, args=args)
+    process.start()
+    process.join(timeout=45)
+    if process.is_alive():
+      process.terminate()
+      process.join(timeout=5)
+      if process.is_alive():
+        process.kill()
+        process.join()
+      self.fail('distributed side-input computation timed out')
+    self.assertEqual(process.exitcode, 0)
+
+  def test_lazy_pipeline_with_one_worker_one_thread(self):
+    self._run_with_watchdog(_run_distributed_side_input_pipeline, True, 1, 1)
+
+  def test_lazy_pipeline_with_two_workers(self):
+    self._run_with_watchdog(_run_distributed_side_input_pipeline, True, 2, 2)
+
+  def test_default_pipeline_with_one_worker_one_thread(self):
+    self._run_with_watchdog(_run_distributed_side_input_pipeline, False, 1, 1)
+
+  def test_later_partition_error_in_worker(self):
+    self._run_with_watchdog(_run_distributed_partition_error)
 
 
 class DaskOptionsTest(unittest.TestCase):
