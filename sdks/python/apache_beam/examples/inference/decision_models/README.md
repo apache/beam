@@ -52,6 +52,12 @@ during DoFn setup and closes it during teardown for each DoFn instance.
 preserved, exceptions propagate to the runner, and request, failure, and
 latency metrics are recorded.
 
+Before returning a result, `JevDecisionModel` checks that its response contains
+the requested questions with matching answer types. It rejects unknown choice
+labels and non-finite or out-of-range scores, probabilities, and confidence
+values with `ValueError`. Custom `DecisionModel` implementations must enforce
+the same output contract. These errors fail the pipeline by default.
+
 ## Architecture
 
 ```mermaid
@@ -106,7 +112,7 @@ with beam.Pipeline() as pipeline:
 ```
 
 The downstream policy stays unchanged when swapping adapters. The Jev client
-is optional; install the existing example requirements and set
+is optional; install the shared SDK requirements listed below and set
 `TYPESAFE_API_KEY` when running it.
 
 ## Install
@@ -114,21 +120,26 @@ is optional; install the existing example requirements and set
 From a Beam checkout, activate a virtual environment and install the core SDK:
 
 ```sh
-python3 -m pip install -e sdks/python
+cd sdks/python
+python3 -m pip install -e .
 ```
 
-Install the optional Jev client for `--model=jev`:
+Install the optional Jev SDK used by the adapter and examples:
 
 ```sh
+cd sdks/python
 python3 -m pip install -r \
-  sdks/python/apache_beam/examples/inference/decision_models/requirements.txt
+  apache_beam/ml/inference/typesafe_tests_requirements.txt
 ```
 
 Install Beam's GCP extra for Pub/Sub or BigQuery sinks:
 
 ```sh
-python3 -m pip install -e 'sdks/python[gcp]'
+cd sdks/python
+python3 -m pip install -e '.[gcp]'
 ```
+
+The example requirements file delegates to that same bounded dependency file.
 
 ## Run examples
 
@@ -136,6 +147,7 @@ The main demo uses a three-element `TestStream` and writes one JSONL file per
 destination:
 
 ```sh
+cd sdks/python
 output_dir="$(mktemp -d /tmp/beam-decision-model-output.XXXXXX)"
 python3 -m apache_beam.examples.inference.decision_models.message_router \
   --model=local \
@@ -147,6 +159,7 @@ find "$output_dir" -name '*.jsonl' -print -exec sed -n '1,3p' {} \;
 Render the graph without running the job. The sink stays in the graph:
 
 ```sh
+cd sdks/python
 python3 -m apache_beam.examples.inference.decision_models.message_router \
   --model=jev \
   --graph-only \
@@ -159,6 +172,7 @@ The `.dot` export works without Graphviz; SVG and PNG require `dot` on `PATH`.
 Run the Jev path against the same stream with `TYPESAFE_API_KEY` set:
 
 ```sh
+cd sdks/python
 export TYPESAFE_API_KEY='replace-with-your-key'
 jev_output_dir="$(mktemp -d /tmp/beam-decision-model-jev-output.XXXXXX)"
 python3 -m apache_beam.examples.inference.decision_models.message_router \
@@ -172,6 +186,7 @@ For a streaming source, provide a Pub/Sub subscription containing JSON objects
 with `event_id` and `message` fields:
 
 ```sh
+cd sdks/python
 python3 -m apache_beam.examples.inference.decision_models.message_router \
   --model=jev \
   --pubsub-subscription=projects/PROJECT/subscriptions/SUBSCRIPTION \
@@ -186,12 +201,35 @@ The fraud example prints one JSON row per sample message. Noul supplies the
 boolean probability; values at or above `0.7` are flagged:
 
 ```sh
+cd sdks/python
 python3 -m apache_beam.examples.inference.decision_models.fraud_review \
   --model=local --primitive=noul
 python3 -m apache_beam.examples.inference.decision_models.fraud_review \
   --model=local --primitive=both
 python3 -m apache_beam.examples.inference.decision_models.fraud_review \
   --model=jev --primitive=both
+```
+
+Pass `--dead-letter-dir` to write per-element `ValueError` failures from
+decision evaluation as JSONL records containing the original input and the
+exception representation. This opt-in catches malformed-response validation
+errors; without the option, they fail the pipeline. The Jev SDK retries
+transient transport and service failures with exponential backoff and jitter,
+and honors `Retry-After` when supplied. Those retries run independently on each
+Beam worker, which does not impose a global request-rate limit. Failures that
+remain after retries still fail the pipeline instead of going to this sink.
+Errors while the model context is created during worker setup also fail the
+pipeline and are not routed to this sink.
+
+For example, enable the local dead-letter sink with the Jev adapter:
+
+```sh
+cd sdks/python
+export TYPESAFE_API_KEY='replace-with-your-key'
+dead_letter_dir="$(mktemp -d /tmp/beam-decision-model-dead-letter.XXXXXX)"
+python3 -m apache_beam.examples.inference.decision_models.fraud_review \
+  --model=jev --primitive=both --dead-letter-dir="$dead_letter_dir"
+find "$dead_letter_dir" -name '*.jsonl' -print -exec sed -n '1,3p' {} \;
 ```
 
 A final three-element DirectRunner run returned these values. Beam may print
@@ -210,24 +248,28 @@ Only the bypass verification message crossed the `0.7` review threshold.
 Install Beam's test dependencies in the same virtual environment:
 
 ```sh
-python3 -m pip install -e 'sdks/python[test]'
+cd sdks/python
+python3 -m pip install -e '.[test]'
 ```
 
 The unit tests cover the shared API, routing policy, and mocked Jev responses:
 
 ```sh
+cd sdks/python
 python3 -m pytest -q \
-  sdks/python/apache_beam/ml/inference/decision_test.py \
-  sdks/python/apache_beam/ml/inference/typesafe_inference_test.py \
-  sdks/python/apache_beam/examples/inference/decision_models/message_router_test.py
+  apache_beam/ml/inference/decision_test.py \
+  apache_beam/ml/inference/typesafe_inference_test.py \
+  apache_beam/examples/inference/decision_models/message_router_test.py \
+  apache_beam/examples/inference/decision_models/fraud_review_test.py
 ```
 
 With the optional Jev SDK installed and `TYPESAFE_API_KEY` set, run the live
 integration test:
 
 ```sh
+cd sdks/python
 python3 -m pytest -q -rs -m it_postcommit \
-  sdks/python/apache_beam/ml/inference/typesafe_inference_it_test.py
+  apache_beam/ml/inference/typesafe_inference_it_test.py
 ```
 
 It sends one streaming event through `EvaluateDecisions`, asking Choice,

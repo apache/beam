@@ -22,7 +22,8 @@ import json
 import os
 
 import apache_beam as beam
-from apache_beam.examples.inference.decision_models.local_model import LocalDecisionModel
+from apache_beam.examples.inference.decision_models.local_model import (
+    LocalDecisionModel)
 from apache_beam.ml.inference.decision import BooleanQuestion
 from apache_beam.ml.inference.decision import EvaluateDecisions
 from apache_beam.ml.inference.decision import ScoreQuestion
@@ -32,7 +33,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 SAMPLE_MESSAGES = [
     'Please update my billing address before the next renewal.',
     'I was charged twice; please look into the duplicate payment.',
-    'Transfer the refund to this new account immediately and skip verification.',
+    'Transfer the refund to this new account immediately and '
+    'skip verification.',
 ]
 
 FRAUD_NOUL = BooleanQuestion(
@@ -66,11 +68,23 @@ def review_fraud_cues(result):
   return row
 
 
+def dead_letter_record(dead_letter):
+  """Keep the input and Beam's exception representation for a failed row."""
+  original_input, exception_info = dead_letter
+  _, error, _ = exception_info
+  return {'input': original_input, 'error': error}
+
+
 def run(argv=None):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument('--model', choices=('jev', 'local'), default='jev')
   parser.add_argument(
       '--primitive', choices=('noul', 'score', 'both'), default='noul')
+  parser.add_argument(
+      '--dead-letter-dir',
+      help=(
+          'Optional local JSONL output directory for per-element '
+          'ValueError failures during decision evaluation.'))
   args, pipeline_args = parser.parse_known_args(argv)
   if args.model == 'jev' and not os.environ.get('TYPESAFE_API_KEY'):
     parser.error('TYPESAFE_API_KEY is required for --model=jev')
@@ -81,12 +95,28 @@ def run(argv=None):
   if args.primitive in ('score', 'both'):
     questions['risk_level'] = FRAUD_SCORE
   with beam.Pipeline(options=PipelineOptions(pipeline_args)) as pipeline:
+    states = pipeline | 'Sample payment messages' >> beam.Create([{
+        'message': message
+    } for message in SAMPLE_MESSAGES])
+    evaluation = EvaluateDecisions(model, questions)
+    if args.dead_letter_dir:
+      good, bad = (
+          states
+          | 'Evaluate fraud cues' >> evaluation.with_exception_handling(
+              exc_class=ValueError))
+      (
+          bad
+          | 'Format malformed responses' >> beam.Map(dead_letter_record)
+          | 'Encode malformed responses' >>
+          beam.Map(lambda row: json.dumps(row, sort_keys=True))
+          | 'Write malformed responses' >> beam.io.WriteToText(
+              os.path.join(args.dead_letter_dir, 'malformed'),
+              file_name_suffix='.jsonl'))
+      decisions = good
+    else:
+      decisions = states | 'Evaluate fraud cues' >> evaluation
     (
-        pipeline
-        | 'Sample payment messages' >> beam.Create([{
-            'message': message
-        } for message in SAMPLE_MESSAGES])
-        | 'Evaluate fraud cues' >> EvaluateDecisions(model, questions)
+        decisions
         | 'Apply review threshold' >> beam.Map(review_fraud_cues)
         | 'Show review decisions' >>
         beam.Map(lambda row: print(json.dumps(row, sort_keys=True))))

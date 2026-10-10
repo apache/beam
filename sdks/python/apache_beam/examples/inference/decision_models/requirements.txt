@@ -16,4 +16,4 @@
 #
 
 # Optional client for apache_beam.ml.inference.typesafe_inference.
-typesafe-sdk>=0.7.1,<0.8
+-r ../../../ml/inference/typesafe_tests_requirements.txt

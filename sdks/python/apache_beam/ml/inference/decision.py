@@ -195,10 +195,24 @@ class EvaluateDecisions(beam.PTransform):
     super().__init__()
     self._model = model
     self._questions = dict(questions)
+    self._exception_handling = None
+
+  def with_exception_handling(self, **kwargs):
+    """Return successful decisions and failed states as tagged PCollections.
+
+    Uses :meth:`apache_beam.ParDo.with_exception_handling` with the supplied
+    options. The default tags are ``good`` and ``bad``; bad records contain
+    the original state and exception details. Only processing failures are
+    caught. Model setup and teardown failures still propagate to the runner.
+    """
+    self._exception_handling = kwargs
+    return self
 
   def expand(self, states):
-    return states | beam.ParDo(
-        _EvaluateDecisionsDoFn(self._model, self._questions))
+    evaluate = beam.ParDo(_EvaluateDecisionsDoFn(self._model, self._questions))
+    if self._exception_handling is not None:
+      evaluate = evaluate.with_exception_handling(**self._exception_handling)
+    return states | evaluate
 
 
 class _EvaluateDecisionsDoFn(beam.DoFn):

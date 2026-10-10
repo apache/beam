@@ -17,6 +17,8 @@
 
 """Optional TypeSafe adapter for Beam decision models."""
 
+from collections.abc import Mapping
+
 from apache_beam.ml.inference.decision import BooleanAnswer
 from apache_beam.ml.inference.decision import BooleanQuestion
 from apache_beam.ml.inference.decision import ChoiceAnswer
@@ -29,14 +31,53 @@ from apache_beam.ml.inference.decision import ScoreQuestion
 __all__ = ['JevDecisionModel']
 
 
+def _number(name, field, value, maximum=1):
+  if (isinstance(value, bool) or not isinstance(value, (int, float)) or
+      not 0 <= value <= maximum):
+    raise ValueError(
+        f'Invalid {field} for question {name!r}: '
+        f'expected a finite number in [0, {maximum}]')
+  return value
+
+
+def _probabilities(name, probabilities, keys, key_type):
+  if not isinstance(probabilities, Mapping):
+    raise ValueError(
+        f'Invalid probabilities for question {name!r}: '
+        'expected a mapping')
+  for key, probability in probabilities.items():
+    if (not isinstance(key, key_type) or isinstance(key, bool) or
+        key not in keys):
+      raise ValueError(
+          f'Invalid probability key for question {name!r}: {key!r}')
+    _number(name, 'probability', probability)
+  return dict(probabilities)
+
+
+def _confidence(name, confidence):
+  return None if confidence is None else _number(name, 'confidence', confidence)
+
+
+def _answer_type(name, answer, expected_type):
+  if not isinstance(answer, expected_type):
+    raise ValueError(
+        f'Invalid answer type for question {name!r}: '
+        f'expected {expected_type.__name__}')
+
+
 class JevDecisionModel(DecisionModel):
   """Evaluate Beam decision questions with Jev through the TypeSafe SDK.
 
-  Install ``typesafe-sdk>=0.7.1,<0.8`` on the workers and set
-  ``TYPESAFE_API_KEY`` in their environment. The client is created when Beam
+  Install the optional SDK from ``typesafe_tests_requirements.txt`` and set
+  ``TYPESAFE_API_KEY`` on the workers. The client is created when Beam
   enters the adapter context; its HTTP pool is reused until teardown.
   Choice and Score map directly to the SDK primitives. Boolean maps to Noul,
   whose ``noul`` field becomes :attr:`BooleanAnswer.probability`.
+
+  The SDK retries 429 and server errors with exponential backoff, jitter, and
+  ``Retry-After`` support. Calls and retries block the processing thread; they
+  do not coordinate rate limits across workers. Invalid answer keys, types,
+  labels, numeric ranges, or probability keys raise ``ValueError``.
 
   Args:
     model: TypeSafe model identifier, defaulting to ``jev-latest``.
@@ -63,43 +104,59 @@ class JevDecisionModel(DecisionModel):
   def evaluate(self, state, questions):
     if self.client is None:
       raise RuntimeError('Enter JevDecisionModel before evaluating questions')
-    from typesafe_sdk import Choice
-    from typesafe_sdk import Noul
-    from typesafe_sdk import Score
+    import typesafe_sdk
 
     sdk_questions = {}
     for name, question in questions.items():
       if isinstance(question, ChoiceQuestion):
-        sdk_questions[name] = Choice(
+        sdk_questions[name] = typesafe_sdk.Choice(
             instructions=question.instructions, criteria=question.criteria)
       elif isinstance(question, BooleanQuestion):
-        sdk_questions[name] = Noul(instructions=question.instructions)
+        sdk_questions[name] = typesafe_sdk.Noul(
+            instructions=question.instructions)
       elif isinstance(question, ScoreQuestion):
-        sdk_questions[name] = Score(
+        sdk_questions[name] = typesafe_sdk.Score(
             instructions=question.instructions, criteria=question.criteria)
       else:
         raise TypeError('Unsupported decision question: %r' % type(question))
 
-    response = self.client.system_one(
-        state=state, questions=sdk_questions, model=self.model)
+    try:
+      response = self.client.system_one(
+          state=state, questions=sdk_questions, model=self.model)
+    except typesafe_sdk.TypeSafeAPIResponseValidationError as error:
+      raise ValueError('Invalid Jev response') from error
+    if (not isinstance(response.answers, Mapping) or
+        response.answers.keys() != questions.keys()):
+      raise ValueError(
+          'Jev answer question names must match the requested '
+          'question names')
     answers = {}
     for name, question in questions.items():
       answer = response.answers[name]
       if isinstance(question, ChoiceQuestion):
+        _answer_type(name, answer, typesafe_sdk.ChoiceAnswer)
+        if (not isinstance(answer.choice, str) or
+            answer.choice not in question.criteria):
+          raise ValueError(
+              f'Invalid choice for question {name!r}: '
+              f'{answer.choice!r}')
         answers[name] = ChoiceAnswer(
             choice=answer.choice,
-            probabilities=dict(answer.probabilities),
-            confidence=answer.confidence)
+            probabilities=_probabilities(
+                name, answer.probabilities, question.criteria, str),
+            confidence=_confidence(name, answer.confidence))
       elif isinstance(question, BooleanQuestion):
-        answers[name] = BooleanAnswer(probability=answer.noul)
+        _answer_type(name, answer, typesafe_sdk.NoulAnswer)
+        answers[name] = BooleanAnswer(
+            probability=_number(name, 'probability', answer.noul))
       else:
+        _answer_type(name, answer, typesafe_sdk.ScoreAnswer)
         answers[name] = ScoreAnswer(
-            score=answer.score,
-            probabilities={
-                int(level): probability
-                for level, probability in answer.probabilities.items()
-            },
-            confidence=answer.confidence)
+            score=_number(
+                name, 'score', answer.score, len(question.criteria) - 1),
+            probabilities=_probabilities(
+                name, answer.probabilities, range(len(question.criteria)), int),
+            confidence=_confidence(name, answer.confidence))
     return DecisionResponse(
         answers=answers,
         model=response.model,

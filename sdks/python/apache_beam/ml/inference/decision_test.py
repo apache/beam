@@ -82,6 +82,13 @@ class _PriorityModel(DecisionModel):
         'priority-v1', 'local-priority', state, eligible, state['priority'])
 
 
+class _RejectingModel(_KeywordModel):
+  def evaluate(self, state, questions):
+    if state['id'] == 'bad':
+      raise ValueError('Invalid answer probability')
+    return super().evaluate(state, questions)
+
+
 class _SummarizeDecision(beam.DoFn):
   def process(
       self,
@@ -115,7 +122,41 @@ class _LifecycleModel(DecisionModel):
     raise AssertionError('the context returned model must evaluate')
 
 
+def _summarize_failure(
+    failure, timestamp=beam.DoFn.TimestampParam, window=beam.DoFn.WindowParam):
+  return (
+      failure[0],
+      failure[1][1],
+      timestamp.micros, (window.start.micros, window.end.micros))
+
+
 class DecisionTest(unittest.TestCase):
+  def test_dead_letter_output_preserves_failed_state_and_window(self):
+    good = {'id': 'good', 'text': 'bug in invoice', 'priority': 2}
+    bad = {'id': 'bad', 'text': 'refund request', 'priority': 0}
+    with TestPipeline() as pipeline:
+      states = (
+          pipeline
+          | beam.Create([
+              beam.window.TimestampedValue(good, 1),
+              beam.window.TimestampedValue(bad, 11),
+          ])
+          | beam.WindowInto(FixedWindows(10)))
+      decisions, failures = states | EvaluateDecisions(
+          _RejectingModel(), _QUESTIONS).with_exception_handling(
+              exc_class=ValueError)
+      assert_that(
+          decisions | beam.Map(lambda result: result.state),
+          equal_to([good]),
+          label='successful decisions')
+      assert_that(
+          failures | beam.Map(_summarize_failure),
+          equal_to([(
+              bad,
+              "ValueError('Invalid answer probability')",
+              11_000_000, (10_000_000, 20_000_000))]),
+          label='failed decisions')
+
   def test_models_share_questions_downstream_and_preserve_window_metadata(self):
     first = {'id': 'first', 'text': 'bug in invoice', 'priority': 2}
     second = {'id': 'second', 'text': 'refund request', 'priority': 0}
