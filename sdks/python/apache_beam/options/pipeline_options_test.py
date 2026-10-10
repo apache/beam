@@ -399,6 +399,34 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(result['option_foo'], True)
     self.assertEqual(result['option_bar'], True)
 
+  def test_retain_unknown_options_unary_followed_by_known_option(self):
+    # 'some_value' follows a known option, so it is not the value of the
+    # unknown option even though the two are adjacent among unknown args.
+    options = PipelineOptions(
+        ['--unknown_option', '--mock_option=mock_value', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['mock_option'], 'mock_value')
+
+  def test_retain_unknown_options_unary_followed_by_binary_known_option(self):
+    options = PipelineOptions(
+        ['--unknown_option', '--mock_option', 'mock_value', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['mock_option'], 'mock_value')
+
+  def test_retain_unknown_options_binary_after_known_option(self):
+    options = PipelineOptions(
+        ['--mock_flag', '--unknown_option', 'some_value', 'other_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+    self.assertEqual(result['mock_flag'], True)
+
+  def test_retain_unknown_options_binary_equals_followed_by_value(self):
+    options = PipelineOptions(['--unknown_option=some_value', 'other_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
   def test_retain_unknown_options_unary_single_dash_store_true(self):
     options = PipelineOptions(['-i'])
     result = options.get_all_options(retain_unknown_options=True)
