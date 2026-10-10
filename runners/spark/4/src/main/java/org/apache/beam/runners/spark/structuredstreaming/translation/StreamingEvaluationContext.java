@@ -62,9 +62,10 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   StreamingEvaluationContext(
       Collection<? extends NamedDataset<?>> leaves,
+      Collection<Dataset<?>> cachedDatasets,
       SparkSession session,
       SparkCommonPipelineOptions options) {
-    super(leaves, session);
+    super(leaves, cachedDatasets, session);
     this.options = options.as(SparkStructuredStreamingPipelineOptions.class);
   }
 
@@ -123,6 +124,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
       if (idleStopListener != null) {
         getSparkSession().streams().removeListener(idleStopListener);
       }
+      unpersistCachedDatasets();
     }
   }
 
