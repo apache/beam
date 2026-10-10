@@ -879,6 +879,37 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
             equal_to([('odd', list(range(1, 100, 2))),
                       ('even', list(range(0, 100, 2)))]))
 
+  def test_write_with_file_naming_in_subdirectories(self):
+    dir = self._new_tempdir()
+
+    def subdirectory_naming(
+        window, pane, shard_index, total_shards, compression, destination):
+      return '%s/shard-%d' % (destination, shard_index)
+
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.Create(range(100))
+          | beam.Map(str)
+          | fileio.WriteToFiles(
+              path=dir,
+              destination=lambda n: 'odd' if int(n) % 2 else 'even',
+              file_naming=subdirectory_naming))
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | fileio.MatchFiles(FileSystems.join(dir, '*', '*'))
+          | fileio.ReadMatches()
+          | beam.FlatMap(
+              lambda f: [(
+                  os.path.basename(os.path.dirname(f.metadata.path)), int(n))
+                         for n in f.read_utf8().strip().split('\n')]))
+
+      assert_that(
+          result,
+          equal_to([('odd' if n % 2 else 'even', n) for n in range(100)]))
+
   def test_write_to_different_file_types_some_spilling(self):
 
     dir = self._new_tempdir()
