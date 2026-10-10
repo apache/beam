@@ -881,18 +881,25 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
         self.path.get(),
         move_to)
 
-    try:
-      filesystems.FileSystems.mkdirs(self.path.get())
-    except IOError as e:
-      cause = repr(e)
-      if 'FileExistsError' not in cause:
-        # Usually harmless. Especially if see FileExistsError so no need to log
-        _LOGGER.debug('Fail to create dir for final destination: %s', cause)
+    final_paths = [
+        filesystems.FileSystems.join(self.path.get(), f) for f in move_to
+    ]
+
+    # The file naming may put files in subdirectories of the path, so create
+    # the directory of every final file rather than only the path itself.
+    final_dirs = {filesystems.FileSystems.split(f)[0] for f in final_paths}
+    for final_dir in sorted(final_dirs):
+      try:
+        filesystems.FileSystems.mkdirs(final_dir)
+      except IOError as e:
+        cause = repr(e)
+        if 'FileExistsError' not in cause:
+          # Usually harmless. Especially if see FileExistsError so no need
+          # to log
+          _LOGGER.debug('Fail to create dir for final destination: %s', cause)
 
     try:
-      filesystems.FileSystems.rename(
-          move_from,
-          [filesystems.FileSystems.join(self.path.get(), f) for f in move_to])
+      filesystems.FileSystems.rename(move_from, final_paths)
     except BeamIOError:
       # This error is not serious, because it may happen on a retry of the
       # bundle. We simply log it.
