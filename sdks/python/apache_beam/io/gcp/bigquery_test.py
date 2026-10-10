@@ -973,6 +973,21 @@ class TestWriteToBigQuery(unittest.TestCase):
         beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
     self.assertEqual(expected_dict_schema, dict_schema)
 
+  def test_string_schema_parsing_ignores_whitespace_around_colon(self):
+    schema = 's: STRING, n :INTEGER,  f : FLOAT '
+    expected_dict_schema = {
+        'fields': [{
+            'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'
+        }, {
+            'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'
+        }, {
+            'name': 'f', 'type': 'FLOAT', 'mode': 'NULLABLE'
+        }]
+    }
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
   def test_table_schema_parsing(self):
     string_field = bigquery.TableFieldSchema(
         name='s', type='STRING', mode='NULLABLE')
