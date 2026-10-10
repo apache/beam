@@ -19,8 +19,10 @@
 
 # pytype: skip-file
 
+import importlib
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -93,6 +95,35 @@ class TestUtilsTest(unittest.TestCase):
     topic.name = 'test_topic'
     utils.cleanup_topics(pub_client, [topic])
     pub_client.delete_topic.assert_called_with(topic=topic.name)
+
+
+class BlockImportsTest(unittest.TestCase):
+  def test_block_imports_blocks_and_records_imports(self):
+    with utils.block_imports('colorsys') as attempted_imports:
+      with self.assertRaises(ImportError):
+        importlib.import_module('colorsys')
+    self.assertEqual(attempted_imports, ['colorsys'])
+    # The module can be imported again after exiting the context.
+    importlib.import_module('colorsys')
+
+  def test_block_imports_hides_and_restores_imported_modules(self):
+    wsgiref_util = importlib.import_module('wsgiref.util')
+    wsgiref = sys.modules['wsgiref']
+    with utils.block_imports('wsgiref') as attempted_imports:
+      self.assertNotIn('wsgiref', sys.modules)
+      self.assertNotIn('wsgiref.util', sys.modules)
+      with self.assertRaises(ImportError):
+        importlib.import_module('wsgiref.util')
+    # Importing a submodule first imports its parent package.
+    self.assertEqual(attempted_imports, ['wsgiref'])
+    self.assertIs(sys.modules['wsgiref'], wsgiref)
+    self.assertIs(sys.modules['wsgiref.util'], wsgiref_util)
+
+  def test_block_imports_only_blocks_given_packages(self):
+    with utils.block_imports('wsgi', 'colorsys.foo') as attempted_imports:
+      importlib.import_module('wsgiref')
+      importlib.import_module('colorsys')
+    self.assertEqual(attempted_imports, [])
 
 
 class LCGeneratorTest(unittest.TestCase):

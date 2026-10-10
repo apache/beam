@@ -53,7 +53,7 @@ import scala.Tuple2;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+final class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
 

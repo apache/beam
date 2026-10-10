@@ -608,6 +608,9 @@ if __name__ == '__main__':
           'p310_ml_test': [
             'datatable',
           ] + ml_base + qdrant_dependency,
+          'p311_ml_test': [
+            'datatable',
+          ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
           ] + ml_base + qdrant_dependency,
@@ -690,7 +693,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
           'Programming Language :: Python :: 3.13',

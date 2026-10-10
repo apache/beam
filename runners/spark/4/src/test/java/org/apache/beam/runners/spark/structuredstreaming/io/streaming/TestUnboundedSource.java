@@ -56,6 +56,7 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
 
   private static final ConcurrentMap<String, List<Integer>> FINALIZED = new ConcurrentHashMap<>();
   private static final ConcurrentMap<String, AtomicInteger> CREATED = new ConcurrentHashMap<>();
+  private static final ConcurrentMap<String, Integer> EXTENDED = new ConcurrentHashMap<>();
 
   private final String tag;
   private final int shard;
@@ -64,6 +65,10 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
 
   public TestUnboundedSource(String tag, int shards, int count) {
     this(tag, -1, shards, count / shards);
+  }
+
+  public static void extend(String tag, int count) {
+    EXTENDED.put(tag, count);
   }
 
   private TestUnboundedSource(String tag, int shard, int shards, int perShard) {
@@ -114,6 +119,7 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
   public static void forget(String tag) {
     FINALIZED.keySet().removeIf(key -> key.startsWith(tag + "/"));
     CREATED.remove(tag);
+    EXTENDED.remove(tag);
   }
 
   private static String key(String tag, int shard) {
@@ -205,9 +211,14 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
       return advance();
     }
 
+    private int limit() {
+      Integer extended = EXTENDED.get(source.tag);
+      return extended != null ? extended / source.shards : source.perShard;
+    }
+
     @Override
     public boolean advance() {
-      if (next < source.perShard) {
+      if (next < limit()) {
         current = next++;
         return true;
       }
@@ -227,8 +238,7 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
       if (current < 0) {
         throw new NoSuchElementException();
       }
-      return new Instant(
-          BASE_MILLIS + (source.shard * source.perShard + current) * INTERVAL_MILLIS);
+      return new Instant(BASE_MILLIS + (source.shard * limit() + current) * INTERVAL_MILLIS);
     }
 
     @Override

@@ -21,6 +21,7 @@ import os
 from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 
@@ -33,12 +34,27 @@ from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
-try:
+# sentence-transformers is intentionally not imported at module import time.
+# It is only needed for loading the model when the pipeline is executed (for
+# example, on the workers) and should not be required for constructing and
+# submitting pipelines.
+if TYPE_CHECKING:
   from sentence_transformers import SentenceTransformer
-except ImportError:
-  SentenceTransformer = None
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _import_sentence_transformer() -> Callable:
+  """Returns sentence_transformers.SentenceTransformer, importing it lazily."""
+  try:
+    from sentence_transformers import SentenceTransformer
+  except ImportError as e:
+    raise ImportError(
+        "sentence-transformers is required to load SentenceTransformer "
+        "models, e.g. for SentenceTransformerEmbeddings. Please install it "
+        "using `pip install sentence-transformers` in the environment where "
+        "the pipeline is executed (for example, on the workers).") from e
+  return SentenceTransformer
 
 
 # TODO: https://github.com/apache/beam/issues/29621
@@ -52,7 +68,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
   def __init__(
       self,
       model_name: str,
-      model_class: Callable,
+      model_class: Optional[Callable] = None,
       load_model_args: Optional[dict] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
@@ -61,6 +77,9 @@ class _SentenceTransformerModelHandler(ModelHandler):
       **kwargs):
     self._max_seq_length = max_seq_length
     self.model_name = model_name
+    # If not set, sentence_transformers.SentenceTransformer is used. It is
+    # imported in load_model(), i.e. only when the pipeline is executed, so that
+    # sentence-transformers is not required for job submission.
     self._model_class = model_class
     self._load_model_args = load_model_args
     self._min_batch_size = min_batch_size
@@ -68,23 +87,25 @@ class _SentenceTransformerModelHandler(ModelHandler):
     self._large_model = large_model
     self._kwargs = kwargs
 
-    if not SentenceTransformer:
-      raise ImportError(
-          "sentence-transformers is required to use "
-          "SentenceTransformerEmbeddings."
-          "Please install it with using `pip install sentence-transformers`.")
-
   def run_inference(
       self,
       batch: Sequence[str],
-      model: SentenceTransformer,
+      model: 'SentenceTransformer',
       inference_args: Optional[dict[str, Any]] = None,
   ):
     inference_args = inference_args or {}
     return model.encode(batch, **inference_args)
 
   def load_model(self):
-    model = self._model_class(self.model_name, **self._load_model_args)
+    model_class = self._model_class
+    # Checking callable() instead of None also covers artifacts written by
+    # Beam 2.77.0 and earlier, which stored a reference to the
+    # SentenceTransformer class. jsonpickle restores such a reference as a
+    # non-callable placeholder if sentence-transformers was not installed when
+    # the artifacts were read (for example, during job submission).
+    if not callable(model_class):
+      model_class = _import_sentence_transformer()
+    model = model_class(self.model_name, **(self._load_model_args or {}))
     if self._max_seq_length:
       model.max_seq_length = self._max_seq_length
     return model
@@ -139,8 +160,9 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     self.image_model = image_model
 
   def get_model_handler(self):
+    # model_class is not set, so that sentence-transformers is only imported
+    # when the model is loaded during pipeline execution.
     return _SentenceTransformerModelHandler(
-        model_class=SentenceTransformer,
         max_seq_length=self.max_seq_length,
         model_name=self.model_name,
         load_model_args=self.load_model_args,

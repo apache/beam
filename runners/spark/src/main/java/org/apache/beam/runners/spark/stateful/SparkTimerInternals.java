@@ -54,6 +54,11 @@ public class SparkTimerInternals implements TimerInternals {
     this.synchronizedProcessingTime = synchronizedProcessingTime;
   }
 
+  /** Build a {@link TimerInternals} initialized with a given watermark. */
+  public static SparkTimerInternals forWatermark(Instant watermark) {
+    return new SparkTimerInternals(watermark, watermark, new Instant(0));
+  }
+
   /** Build the {@link TimerInternals} according to the feeding streams. */
   public static SparkTimerInternals forStreamFromSources(
       List<Integer> sourceIds, Map<Integer, SparkWatermarks> watermarks) {

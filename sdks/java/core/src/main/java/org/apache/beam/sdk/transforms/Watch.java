@@ -881,7 +881,7 @@ public class Watch {
 
   @UnboundedPerElement
   @VisibleForTesting
-  protected static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
+  protected static final class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, List<TimestampedValue<OutputT>>>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
     private final Coder<OutputT> outputCoder;

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"runtime"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc"
 )
 
 const extraData = 2
@@ -680,6 +682,190 @@ func TestDataWriter_Close(t *testing.T) {
 	if err := tw.Close(); err == nil || !strings.Contains(err.Error(), "timerWriter[") {
 		t.Fatalf("timer Close = %v, want timerWriter attribution", err)
 	}
+// Production Open against closeInstruction.
+// Flush holds ch.mu inside client.Send.
+// Close takes m.mu and waits on ch.mu.
+// Then the stream fails.
+func TestDataChannelTerminate_recreate(t *testing.T) {
+	hs := newHoldDataServer()
+	lis := newStallListener(t)
+	gs := grpc.NewServer()
+	fnpb.RegisterBeamFnDataServer(gs, hs)
+	go gs.Serve(lis)
+	defer func() {
+		lis.fail()
+		gs.Stop()
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &DataChannelManager{}
+	s := NewScopedDataManager(m, "inst1")
+	w, err := s.OpenWrite(ctx, exec.StreamID{Port: exec.Port{URL: lis.Addr().String()}, PtransformID: "pt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-hs.entered
+	lis.stall()
+
+	flushDone := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 4e6)
+		for {
+			if _, err := w.Write(buf); err != nil {
+				flushDone <- err
+				return
+			}
+			if _, err := w.Write([]byte{1}); err != nil {
+				flushDone <- err
+				return
+			}
+		}
+	}()
+	select {
+	case err := <-flushDone:
+		t.Fatalf("flush returned before Close: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- s.Close() }()
+	time.Sleep(200 * time.Millisecond)
+	lis.fail()
+
+	timeout := time.After(3 * time.Second)
+	gotFlush, gotClose := false, false
+	for !gotFlush || !gotClose {
+		select {
+		case <-flushDone:
+			gotFlush = true
+		case <-closeDone:
+			gotClose = true
+		case <-timeout:
+			t.Fatal("recreate and closeInstruction deadlocked")
+		}
+	}
+}
+
+// After a stream fails, the next Open must dial a new channel.
+// It must not return the channel whose stream is already dead.
+func TestDataChannelOpen_skipsFailedChannel(t *testing.T) {
+	hs := newHoldDataServer()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gs := grpc.NewServer()
+	fnpb.RegisterBeamFnDataServer(gs, hs)
+	go gs.Serve(lis)
+	defer gs.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &DataChannelManager{}
+	port := exec.Port{URL: lis.Addr().String()}
+	ch1, err := m.Open(ctx, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-hs.entered
+	ch1.mu.Lock()
+	ch1.terminateStreamOnError(io.EOF)
+	ch1.mu.Unlock()
+
+	ch2, err := m.Open(ctx, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch2 == ch1 {
+		t.Fatal("Open returned a failed channel")
+	}
+}
+
+type holdDataServer struct {
+	fnpb.UnimplementedBeamFnDataServer
+	entered chan struct{}
+	once    sync.Once
+}
+
+func newHoldDataServer() *holdDataServer {
+	return &holdDataServer{entered: make(chan struct{})}
+}
+
+func (s *holdDataServer) Data(stream fnpb.BeamFnData_DataServer) error {
+	s.once.Do(func() { close(s.entered) })
+	<-stream.Context().Done()
+	return stream.Context().Err()
+}
+
+type stallListener struct {
+	net.Listener
+	mu    sync.Mutex
+	conns []*stallConn
+}
+
+func newStallListener(t *testing.T) *stallListener {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &stallListener{Listener: l}
+}
+
+func (l *stallListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	if tc, ok := c.(*net.TCPConn); ok {
+		_ = tc.SetReadBuffer(2048)
+		_ = tc.SetWriteBuffer(2048)
+	}
+	sc := &stallConn{Conn: c, closed: make(chan struct{})}
+	l.mu.Lock()
+	l.conns = append(l.conns, sc)
+	l.mu.Unlock()
+	return sc, nil
+}
+
+func (l *stallListener) stall() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, c := range l.conns {
+		c.stalled.Store(true)
+	}
+}
+
+func (l *stallListener) fail() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, c := range l.conns {
+		c.fail()
+	}
+}
+
+type stallConn struct {
+	net.Conn
+	stalled atomic.Bool
+	once    sync.Once
+	closed  chan struct{}
+}
+
+func (c *stallConn) Read(p []byte) (int, error) {
+	if c.stalled.Load() {
+		<-c.closed
+		return 0, io.EOF
+	}
+	return c.Conn.Read(p)
+}
+
+func (c *stallConn) fail() {
+	c.stalled.Store(true)
+	c.once.Do(func() {
+		_ = c.Conn.Close()
+		close(c.closed)
+	})
 }
 
 type noopDataClient struct {
