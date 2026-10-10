@@ -89,11 +89,11 @@ class DaskBagWindowedIterator:
   window_fn: WindowFn
 
   def __iter__(self):
-    # FIXME(cisaacstern): list() is likely inefficient, since it presumably
-    # materializes the full result before iterating over it. doing this for
-    # now as a proof-of-concept. can we can generate results incrementally?
-    for result in list(self.bag):
-      yield get_windowed_value(result, self.window_fn)
+    # Computing one partition at a time bounds the local memory used by an
+    # iterable side input to the size of a partition, instead of the full bag.
+    for partition in self.bag.to_delayed():
+      for result in partition.compute():
+        yield get_windowed_value(result, self.window_fn)
 
 
 @dataclasses.dataclass

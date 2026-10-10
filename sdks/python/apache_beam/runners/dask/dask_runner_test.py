@@ -28,12 +28,58 @@ from apache_beam.transforms import window
 
 try:
   import dask
+  import dask.bag as db
   import dask.distributed as ddist
 
   from apache_beam.runners.dask.dask_runner import DaskOptions  # pylint: disable=ungrouped-imports
   from apache_beam.runners.dask.dask_runner import DaskRunner  # pylint: disable=ungrouped-imports
+  from apache_beam.runners.dask.transform_evaluator import DaskBagWindowedIterator  # pylint: disable=ungrouped-imports
 except (ImportError, ModuleNotFoundError):
   raise unittest.SkipTest('Dask must be installed to run tests.')
+
+
+class DaskBagWindowedIteratorTest(unittest.TestCase):
+  def test_computes_partitions_as_values_are_consumed(self):
+    computed = []
+
+    @dask.delayed
+    def partition(number):
+      computed.append(number)
+      return [number]
+
+    bag = db.from_delayed([partition(1), partition(2)])
+    with dask.config.set(scheduler='synchronous'):
+      values = iter(DaskBagWindowedIterator(bag, window.GlobalWindows()))
+      self.assertEqual(next(values).value, 1)
+      self.assertEqual(computed, [1])
+      self.assertEqual(next(values).value, 2)
+      self.assertEqual(computed, [1, 2])
+      self.assertRaises(StopIteration, next, values)
+
+  def test_empty_partitions_and_repeated_consumption(self):
+    bag = db.from_delayed([
+        dask.delayed(lambda: [])(),
+        dask.delayed(lambda: [1, 2])(),
+    ])
+    side_input = DaskBagWindowedIterator(bag, window.GlobalWindows())
+    with dask.config.set(scheduler='synchronous'):
+      self.assertEqual([value.value for value in side_input], [1, 2])
+      self.assertEqual([value.value for value in side_input], [1, 2])
+
+  def test_partition_error_is_raised_when_reached(self):
+    @dask.delayed
+    def failing_partition():
+      raise ValueError('partition failed')
+
+    bag = db.from_delayed([
+        dask.delayed(lambda: [1])(),
+        failing_partition(),
+    ])
+    with dask.config.set(scheduler='synchronous'):
+      values = iter(DaskBagWindowedIterator(bag, window.GlobalWindows()))
+      self.assertEqual(next(values).value, 1)
+      with self.assertRaisesRegex(ValueError, 'partition failed'):
+        next(values)
 
 
 class DaskOptionsTest(unittest.TestCase):
