@@ -534,36 +534,35 @@ class PipelineOptions(HasDisplayData):
           parser.add_argument(arg, **kwargs)
         seen.add(arg)
 
-      i = 0
-      while i < len(unknown_args):
+      # Whether an unknown flag takes a value is decided by the argument that
+      # follows it in self._flags rather than in unknown_args. Known arguments
+      # are not in unknown_args, so the argument after an unknown flag in
+      # unknown_args may be a stray value that followed a known argument, e.g.
+      # 'bar' in ['--unknown_flag', '--known_flag=foo', 'bar'].
+      unknown_flags = set(unknown_args)
+      for i, arg in enumerate(self._flags):
         # End of argument parsing.
-        if unknown_args[i] == '--':
+        if arg == '--':
           break
+        if not arg.startswith('-') or arg not in unknown_flags:
+          continue
+        followed_by_value = (
+            i + 1 < len(self._flags) and not self._flags[i + 1].startswith('-'))
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
-        if not unknown_args[i].startswith('-'):
-          i += 1
-          continue
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
-          split = unknown_args[i].split('=', 1)
-          if len(split) == 1:
-            add_new_arg(unknown_args[i], action='store_true')
-          else:
-            add_new_arg(split[0], type=str)
-          i += 1
-        elif unknown_args[i].startswith('--'):
-          add_new_arg(unknown_args[i], type=str)
-          i += 2
+        if '=' in arg:
+          add_new_arg(arg.split('=', 1)[0], type=str)
+        elif not followed_by_value:
+          add_new_arg(arg, action='store_true')
+        elif arg.startswith('--'):
+          add_new_arg(arg, type=str)
         else:
           # skip all binary flags used with '-' and not '--'.
           # ex: using -f instead of --f (or --flexrs_goal) will prevent
           # argument validation before job submission and can be incorrectly
           # submitted to job.
           _LOGGER.warning(
-              "Discarding flag %s, single dash flags are not allowed.",
-              unknown_args[i])
-          i += 2
-          continue
+              "Discarding flag %s, single dash flags are not allowed.", arg)
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args and not current_only:
