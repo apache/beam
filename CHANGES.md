@@ -89,7 +89,7 @@
 
 ## Bugfixes
 
-* (Python) AsyncWrapper waits for its active background work before closing the wrapped DoFn's resources during teardown.
+* (Python) AsyncWrapper waits for its active background work before closing the wrapped DoFn's resources during teardown ([#40507](https://github.com/apache/beam/pull/40507)).
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Go) Fixed the harness leaking Data/State gRPC streams after the worker stops, and a deadlock when Send returns EOF ([#40260](https://github.com/apache/beam/issues/40260)).
 * (Go) Fixed a deadlock recreating a data channel while holding the channel lock ([#40414](https://github.com/apache/beam/issues/40414)).
