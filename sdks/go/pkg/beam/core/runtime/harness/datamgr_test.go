@@ -682,6 +682,8 @@ func TestDataWriter_Close(t *testing.T) {
 	if err := tw.Close(); err == nil || !strings.Contains(err.Error(), "timerWriter[") {
 		t.Fatalf("timer Close = %v, want timerWriter attribution", err)
 	}
+}
+
 // Production Open against closeInstruction.
 // Flush holds ch.mu inside client.Send.
 // Close takes m.mu and waits on ch.mu.
