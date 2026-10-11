@@ -20,7 +20,7 @@ on:
     - cron: '50 5 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -52,25 +52,19 @@ jobs:
   beam_LoadTests_Python_Combine_Dataflow_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Load Tests Python Combine Dataflow Streaming'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 720
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     strategy:
       matrix:
         job_name: ["beam_LoadTests_Python_Combine_Dataflow_Streaming"]
-        job_phrase: ["Run Load Tests Python Combine Dataflow Streaming"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -94,7 +88,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_1 }} --job_name=load-tests-python-dataflow-streaming-combine-1-${{env.NOW_UTC}}' \
       - name: run 2GB Fanout 4 test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -103,7 +97,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_2 }} --job_name=load-tests-python-dataflow-streaming-combine-4-${{env.NOW_UTC}}' \
       - name: run 2GB Fanout 8 test
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -112,5 +106,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Streaming_test_arguments_3 }} --job_name=load-tests-python-dataflow-streaming-combine-5-${{env.NOW_UTC}}'

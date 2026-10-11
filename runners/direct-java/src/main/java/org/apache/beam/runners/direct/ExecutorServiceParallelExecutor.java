@@ -60,9 +60,6 @@ import org.slf4j.LoggerFactory;
  * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and {@link
  * EvaluationContext} to execute a {@link Pipeline}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
         BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
@@ -122,7 +119,7 @@ final class ExecutorServiceParallelExecutor
         CacheBuilder.newBuilder()
             .weakValues()
             .removalListener(shutdownExecutorServiceListener())
-            .build(serialTransformExecutorServiceCacheLoader());
+            .build(serialTransformExecutorServiceCacheLoader(executorService));
 
     this.visibleUpdates = new QueueMessageReceiver();
 
@@ -130,8 +127,8 @@ final class ExecutorServiceParallelExecutor
     executorFactory = new DirectTransformExecutor.Factory(context, registry, transformEnforcements);
   }
 
-  private CacheLoader<StepAndKey, TransformExecutorService>
-      serialTransformExecutorServiceCacheLoader() {
+  private static CacheLoader<StepAndKey, TransformExecutorService>
+      serialTransformExecutorServiceCacheLoader(ExecutorService executorService) {
     return new CacheLoader<StepAndKey, TransformExecutorService>() {
       @Override
       public TransformExecutorService load(StepAndKey stepAndKey) throws Exception {
@@ -140,7 +137,8 @@ final class ExecutorServiceParallelExecutor
     };
   }
 
-  private RemovalListener<StepAndKey, TransformExecutorService> shutdownExecutorServiceListener() {
+  private static RemovalListener<StepAndKey, TransformExecutorService>
+      shutdownExecutorServiceListener() {
     return notification -> {
       TransformExecutorService service = notification.getValue();
       if (service != null) {
@@ -168,10 +166,11 @@ final class ExecutorServiceParallelExecutor
         throw UserCodeException.wrap(e);
       } finally {
         //  Metrics emitted initial split are reported along with the first bundle
-        if (pending.peek() != null) {
+        CommittedBundle<?> firstPending = pending.peek();
+        if (firstPending != null) {
           evaluationContext
               .getMetrics()
-              .commitPhysical(pending.peek(), metricsContainer.getCumulative());
+              .commitPhysical(firstPending, metricsContainer.getCumulative());
         }
       }
       pendingRootBundles.put(root, pending);
@@ -224,7 +223,8 @@ final class ExecutorServiceParallelExecutor
       final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
 
-    if (isKeyed(bundle.getPCollection())) {
+    @Nullable PCollection<T> pcollection = bundle.getPCollection();
+    if (pcollection != null && isKeyed(pcollection)) {
       final StepAndKey stepAndKey = StepAndKey.of(transform, bundle.getKey());
       // This executor will remain reachable until it has executed all scheduled transforms.
       // The TransformExecutors keep a strong reference to the Executor, the ExecutorService keeps
@@ -248,7 +248,7 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) throws Exception {
+  public @Nullable State waitUntilFinish(Duration duration) throws Exception {
     Instant completionTime;
     if (duration.equals(Duration.ZERO)) {
       completionTime = new Instant(Long.MAX_VALUE);
@@ -259,7 +259,7 @@ final class ExecutorServiceParallelExecutor
     while (Instant.now().isBefore(completionTime)) {
       // Get an update; don't block forever if another thread has handled it. The call to poll will
       // wait the entire timeout; this call primarily exists to relinquish any core.
-      VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
+      @Nullable VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
 
       if (update == null && pipelineState.get().isTerminal()) {
         // state and updates have seperate locks so it is possible for an update
@@ -300,7 +300,8 @@ final class ExecutorServiceParallelExecutor
   }
 
   private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
-    return update.getNewState() != null && update.getNewState().isTerminal();
+    State newState = update.getNewState();
+    return newState != null && newState.isTerminal();
   }
 
   @Override
@@ -348,7 +349,7 @@ final class ExecutorServiceParallelExecutor
     } catch (final Exception e) {
       errors.add(e);
     }
-    IllegalStateException exception = null;
+    @Nullable IllegalStateException exception = null;
     try {
       if (!errors.isEmpty()) {
         exception =
@@ -393,12 +394,12 @@ final class ExecutorServiceParallelExecutor
       return new VisibleExecutorUpdate(State.CANCELLED, null);
     }
 
-    private VisibleExecutorUpdate(State newState, @Nullable Throwable exception) {
+    private VisibleExecutorUpdate(@Nullable State newState, @Nullable Throwable exception) {
       this.thrown = Optional.ofNullable(exception);
       this.newState = newState;
     }
 
-    State getNewState() {
+    @Nullable State getNewState() {
       return newState;
     }
   }

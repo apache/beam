@@ -73,6 +73,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -106,7 +107,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
@@ -633,7 +633,7 @@ public class TextIOReadTest {
   }
 
   /** Tests for some basic operations in {@link TextIO.Read}. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
@@ -1171,6 +1171,9 @@ public class TextIOReadTest {
 
     @Test
     @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+    // The watch terminates after 3s without new output; running concurrently with other pipelines
+    // in this JVM can stall the in-pipeline writer long enough to truncate the results.
+    @BeamParallelJunit4Runner.SerialTest
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
       basePath.toFile().mkdir();
@@ -1202,7 +1205,7 @@ public class TextIOReadTest {
   }
 
   /** Tests for TextSource class. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TextSourceTest {
     @Rule public transient TestPipeline pipeline = TestPipeline.create();
 

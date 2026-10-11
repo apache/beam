@@ -35,3 +35,5 @@
   description: Runs on <a  target="_blank" href="https://hazelcast.com/">Hazelcast Jet</a>.
 - name: { text: "Twister2Runner:", link: /documentation/runners/twister2/ }
   description: Runs on <a target="_blank" href="https://twister2.org/">Twister2</a>.
+- name: { text: "FlareRunner:", link: /documentation/runners/flaredb/ }
+  description: Runs on <a target="_blank" href="https://github.com/flare-db/flare-db">FlareDB</a>.

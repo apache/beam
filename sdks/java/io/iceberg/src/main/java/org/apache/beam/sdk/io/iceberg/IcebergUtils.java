@@ -36,6 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
@@ -84,6 +85,7 @@ public class IcebergUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
           .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
+          .put(EnumerationType.IDENTIFIER, Types.StringType.get())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(
@@ -389,7 +391,14 @@ public class IcebergUtils {
         rec.setField(name, getIcebergTimestampValue(val, ts.shouldAdjustToUTC()));
         break;
       case STRING:
-        Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
+        Object beamValue = value.getValue(name);
+        if (beamValue instanceof EnumerationType.Value) { // EnumerationType
+          EnumerationType enumType =
+              value.getSchema().getField(name).getType().getLogicalType(EnumerationType.class);
+          rec.setField(name, enumType.toString((EnumerationType.Value) beamValue));
+        } else { // FieldType.STRING, or a String-backed PassThroughLogicalType
+          Optional.ofNullable((String) beamValue).ifPresent(v -> rec.setField(name, v));
+        }
         break;
       case UUID:
         Optional.ofNullable(value.getBytes(name))

@@ -24,7 +24,6 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.io.IOException;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -48,7 +47,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
   private final boolean autoSchemaUpdates;
-  private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
+  private final boolean useSchemaUpdatingTableRow;
   private static final TableSchemaCache SCHEMA_CACHE =
       new TableSchemaCache(Duration.standardSeconds(1));
 
@@ -64,7 +63,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
       boolean autoSchemaUpdates,
-      Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions) {
+      boolean useSchemaUpdatingTableRow) {
     super(inner);
     this.formatFunction = formatFunction;
     this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
@@ -72,7 +71,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.autoSchemaUpdates = autoSchemaUpdates;
-    this.schemaUpdateOptions = schemaUpdateOptions;
+    this.useSchemaUpdatingTableRow = useSchemaUpdatingTableRow;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {
@@ -94,7 +93,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
           }
         };
 
-    return schemaUpdateOptions.isEmpty()
+    return !useSchemaUpdatingTableRow
         ? getConverter.apply(getSchema(destination))
         : new SchemaUpgradingTableRowConverter(
             getConverter, options, datasetService, writeStreamService);
@@ -153,7 +152,14 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       SCHEMA_CACHE.refreshSchema(
           delegate.get().tableReference, datasetService, writeStreamService, bigQueryOptions);
       // Recycle the internal MessageConverter so that we pick up the new schema from the cache.
+      // TODO: only do this if the schema has changed.
       this.delegate.set(getConverter.apply(null));
+    }
+
+    @Override
+    public void updateSchema(com.google.cloud.bigquery.storage.v1.TableSchema schema) {
+      TableSchema modelTableSchema = TableRowToStorageApiProto.protoSchemaToTableSchema(schema);
+      this.delegate.set(getConverter.apply(modelTableSchema));
     }
 
     @Override
@@ -181,6 +187,15 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
         // If the table already exists, then try and fetch the schema from the existing
         // table.
         localTableSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        if (localTableSchema == null && createDisposition != CreateDisposition.CREATE_NEVER) {
+          localTableSchema = getSchema(destination);
+          if (localTableSchema != null) {
+            localTableSchema =
+                MoreObjects.firstNonNull(
+                    SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema),
+                    localTableSchema);
+          }
+        }
         if (localTableSchema == null) {
           if (createDisposition == CreateDisposition.CREATE_NEVER) {
             throw new RuntimeException(
@@ -283,6 +298,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               changeType,
               changeSequenceNum,
               collectedExceptions);
+
+      if (unknownFields != null && unknownFields.isEmpty()) {
+        unknownFields = null;
+      }
+
       return StorageApiWritePayload.of(
           msg == null ? new byte[0] : msg.toByteArray(),
           unknownFields,

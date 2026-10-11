@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -34,10 +35,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SyntheticStep}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class SyntheticStepTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final transient TestPipeline p = TestPipeline.create();

@@ -94,6 +94,11 @@ def sickbayTests = [
         'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata',
 ]
 
+// One pipeline per JVM at a time, Spark runner metrics and the SparkContext are JVM wide.
+tasks.withType(Test).configureEach {
+  systemProperty "beam.validatesRunner.parallelThreads", "1"
+}
+
 def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests, boolean structuredStreaming = false) {
   def pipelineOptions = []
   if (structuredStreaming) {

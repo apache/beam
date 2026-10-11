@@ -570,6 +570,46 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
+  public void testDeleteTableNotFoundSucceeds() throws IOException, InterruptedException {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    TableReference tableRef =
+        new TableReference()
+            .setProjectId("projectId")
+            .setDatasetId("datasetId")
+            .setTableId("tableId");
+
+    datasetService.deleteTable(tableRef);
+
+    // exactly one response is prepared, so a retry of the 404 would trip the Verify inside the mock
+    // request. the assertion is therefore both "did not throw" and "did not retry"
+    verifyAllResponsesAreRead();
+  }
+
+  @Test
+  public void testDeleteDatasetNotFoundSucceeds() throws IOException, InterruptedException {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    datasetService.deleteDataset("projectId", "datasetId");
+
+    verifyAllResponsesAreRead();
+  }
+
+  @Test
   public void testIsTableEmptySucceeds() throws Exception {
     TableReference tableRef =
         new TableReference()
@@ -1521,6 +1561,104 @@ public class BigQueryServicesImplTest {
     expectedLogs.verifyError("No rows present in the request error likely caused by");
 
     verifyWriteMetricWasSet("project", "dataset", "table", " no rows present in the request. ", 1);
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} logs and includes suggested remedy when the
+   * BigQuery API is reported as not enabled for the project.
+   */
+  @Test
+  public void testInsertBigQueryNotEnabledErrorLog() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(400);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  toStream(
+                      errorWithReasonAndStatus(
+                          "The project project has not enabled BigQuery.", 400)));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                dataService.insertAll(
+                    ref,
+                    rows,
+                    null,
+                    BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+                    TEST_BACKOFF,
+                    new MockSleeper(),
+                    InsertRetryPolicy.alwaysRetry(),
+                    null,
+                    null,
+                    false,
+                    false,
+                    false,
+                    null));
+
+    assertThat(e.getCause().getMessage(), containsString("has not enabled BigQuery."));
+    assertThat(
+        e.getCause().getMessage(),
+        containsString(
+            "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)"));
+
+    verifyAllResponsesAreRead();
+    expectedLogs.verifyError(
+        "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)");
+
+    verifyWriteMetricWasSet(
+        "project", "dataset", "table", "the project project has not enabled bigquery.", 1);
+  }
+
+  /**
+   * Tests that {@link BigQueryServicesImpl#executeWithRetries} fails fast without retrying and
+   * includes both the BigQuery error and suggested remedy when the BigQuery API is reported as not
+   * enabled for the project.
+   */
+  @Test
+  public void testExecuteWithRetriesBigQueryNotEnabled() throws Exception {
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(400);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  toStream(
+                      errorWithReasonAndStatus(
+                          "The project projectId has not enabled BigQuery.", 400)));
+        });
+
+    IOException e =
+        assertThrows(
+            IOException.class,
+            () ->
+                BigQueryServicesImpl.executeWithRetries(
+                    bigquery.tables().get("projectId", "datasetId", "tableId"),
+                    "Unable to get table: tableId, aborting after 9 retries.",
+                    new MockSleeper(),
+                    BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+                    BigQueryServicesImpl.ALWAYS_RETRY));
+
+    assertThat(e.getMessage(), containsString("The project projectId has not enabled BigQuery."));
+    assertThat(
+        e.getMessage(),
+        containsString(
+            "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)"));
+    assertFalse(e.getMessage().contains("aborting after 9 retries."));
+
+    verifyAllResponsesAreRead();
+    expectedLogs.verifyError(
+        "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)");
   }
 
   /**
