@@ -25,6 +25,7 @@ import threading
 import uuid
 from collections.abc import AsyncIterable
 from collections.abc import Iterable
+from concurrent.futures import CancelledError
 from concurrent.futures import ThreadPoolExecutor
 from math import floor
 from threading import RLock
@@ -194,6 +195,8 @@ class AsyncWrapper(beam.DoFn):
 
   def setup(self):
     """Forwards to the wrapped dofn's setup method."""
+    self._pending_futures = set()
+    self._pending_async_tasks = set()
     self._sync_fn.setup()
     with AsyncWrapper._lock:
       if self._use_asyncio and AsyncWrapper._event_loop_thread is None:
@@ -209,8 +212,24 @@ class AsyncWrapper(beam.DoFn):
         AsyncWrapper._items_in_buffer[self._uuid] = 0
 
   def teardown(self):
-    """Forwards to the wrapped dofn's teardown method."""
+    """Waits for this instance's work before tearing down the wrapped dofn."""
+    if self._use_asyncio:
+      asyncio.run_coroutine_threadsafe(
+          self._wait_for_async_tasks(), AsyncWrapper._event_loop).result()
+    else:
+      with AsyncWrapper._lock:
+        pending_futures = list(self._pending_futures)
+      for future in pending_futures:
+        try:
+          future.exception()
+        except CancelledError:
+          pass
     self._sync_fn.teardown()
+
+  async def _wait_for_async_tasks(self):
+    # Run on the loop after previously submitted work. Await the actual tasks,
+    # because cancelling their concurrent futures can precede coroutine cleanup.
+    await asyncio.gather(*self._pending_async_tasks, return_exceptions=True)
 
   def sync_fn_process(self, element, *args, **kwargs):
     """Makes the call to the wrapped dofn's start_bundle, process
@@ -279,14 +298,20 @@ class AsyncWrapper(beam.DoFn):
         return list(result)
       return [result]
 
-    self._sync_fn.start_bundle()
-    process_result = await _collect(
-        self._sync_fn.process(element, *args, **kwargs))
-    bundle_result = await _collect(self._sync_fn.finish_bundle())
-    return process_result + bundle_result
+    task = asyncio.current_task()
+    self._pending_async_tasks.add(task)
+    try:
+      self._sync_fn.start_bundle()
+      process_result = await _collect(
+          self._sync_fn.process(element, *args, **kwargs))
+      bundle_result = await _collect(self._sync_fn.finish_bundle())
+      return process_result + bundle_result
+    finally:
+      self._pending_async_tasks.discard(task)
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
+      self._pending_futures.discard(future)
       if self._uuid in AsyncWrapper._items_in_buffer:
         AsyncWrapper._items_in_buffer[self._uuid] -= 1
 
@@ -333,6 +358,7 @@ class AsyncWrapper(beam.DoFn):
               AsyncWrapper.initialize_pool(self._parallelism)).submit(
                   lambda: self.sync_fn_process(element, *args, **kwargs),
               )
+          self._pending_futures.add(result)
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element_id] = (
             element, result)
