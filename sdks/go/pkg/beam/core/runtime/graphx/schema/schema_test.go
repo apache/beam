@@ -1116,7 +1116,7 @@ func TestToType_UnregisteredTopLevelLogicalType(t *testing.T) {
 				t.Run(name, func(t *testing.T) {
 					opts, want := test.opts, storage
 					if nillable {
-						opts, want = append(append([]*pipepb.Option{}, opts...), optGoNillable()), reflect.PtrTo(storage)
+						opts, want = append(append([]*pipepb.Option{}, opts...), optGoNillable()), reflect.PointerTo(storage)
 					}
 					s := &pipepb.Schema{Id: "unregistered-" + name, Options: opts, Fields: fields}
 					got, err := reg.ToType(s)
