@@ -61,7 +61,7 @@ jobs:
     strategy:
       matrix:
         job_name: ["beam_PostCommit_XVR_Flink"]
-        python_version: ['3.10','3.14']
+        python_version: ['3.11','3.14']
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,7 +81,7 @@ jobs:
           gradle-command: :runners:flink:${{ env.FlinkVersion }}:job-server:validatesCrossLanguageRunner
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
-            -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
+            -PskipNonPythonTask=${{ (matrix.python_version == '3.11' && true) || false }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}

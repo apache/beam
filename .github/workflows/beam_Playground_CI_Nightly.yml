@@ -81,7 +81,7 @@ jobs:
         if: ${{ matrix.sdk == 'python' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:container:py310:docker -Pdocker-tag=nightly -Pdocker-pull-licences=true
+          gradle-command: :sdks:python:container:py311:docker -Pdocker-tag=nightly -Pdocker-pull-licences=true
       - name: Build SDK container
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

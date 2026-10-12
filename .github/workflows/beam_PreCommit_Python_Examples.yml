@@ -63,7 +63,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ['beam_PreCommit_Python_Examples']
-        python_version: ['3.10','3.14']
+        python_version: ['3.11','3.14']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request' ||

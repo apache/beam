@@ -32,7 +32,6 @@ from pymilvus import SearchResult
 from pymilvus.exceptions import MilvusException
 
 from apache_beam.ml.rag.types import EmbeddableItem
-from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
 from apache_beam.ml.rag.utils import MilvusHelpers
 from apache_beam.ml.rag.utils import retry_with_backoff
@@ -96,9 +95,6 @@ class VectorSearchMetrics(Enum):
 
 class MilvusBaseRanker:
   """Base class for ranking algorithms in Milvus hybrid search strategy."""
-  def __int__(self):
-    return
-
   def dict(self):
     return {}
 
@@ -588,6 +584,6 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     return self._batching_kwargs
 
 
-def join_fn(left: Embedding, right: dict[str, Any]) -> Embedding:
+def join_fn(left: EmbeddableItem, right: dict[str, Any]) -> EmbeddableItem:
   left.metadata['enrichment_data'] = right
   return left

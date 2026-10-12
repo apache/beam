@@ -23,7 +23,7 @@ pluginManagement {
     val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
     if (useMirror) {
-        logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+        logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
     }
 
     repositories {

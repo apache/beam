@@ -754,6 +754,58 @@ class TestReadFromBigQuery(unittest.TestCase):
         Lineage.query(p.result.metrics(), Lineage.SOURCE),
         set(["bigquery:project.dataset.table"]))
 
+  @parameterized.expand([
+      # Tables without storage statistics (e.g. Lakehouse runtime catalog
+      # tables) let the Storage Read API pick the stream count.
+      param(num_bytes=None, expected_max_stream_count=0),
+      param(
+          num_bytes=5,
+          expected_max_stream_count=beam_bq._CustomBigQueryStorageSource.
+          MIN_SPLIT_COUNT),
+  ])
+  def test_direct_read_split_stream_count(
+      self, num_bytes, expected_max_stream_count):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()), \
+        mock.patch.object(bq_storage.BigQueryReadClient,
+                          'create_read_session') as mock_create_session:
+      mock_create_session.return_value = mock.Mock(streams=[])
+      source = beam_bq._CustomBigQueryStorageSource(
+          method=ReadFromBigQuery.Method.DIRECT_READ,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), num_bytes)
+      self.assertEqual(list(source.split(desired_bundle_size=1 << 20)), [])
+
+    _, kwargs = mock_create_session.call_args
+    self.assertEqual(kwargs['max_stream_count'], expected_max_stream_count)
+    self.assertEqual(
+        kwargs['read_session'].table,
+        'projects/project/datasets/catalog.namespace/tables/table')
+
+  @parameterized.expand([
+      # A table without storage statistics has an unknown size, not a size
+      # of zero.
+      param(num_bytes=None, expected_size=None),
+      param(num_bytes=5, expected_size=5),
+  ])
+  def test_export_estimate_size(self, num_bytes, expected_size):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()):
+      source = beam_bq._CustomBigQuerySource(
+          method=ReadFromBigQuery.Method.EXPORT,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), expected_size)
+
   def test_read_all_lineage(self):
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
@@ -2283,6 +2335,110 @@ def test_with_batched_input_splits_large_batch(self):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
+  def _retry_test_writer(self, responses, **kwargs):
+    client = mock.Mock()
+    client.insert_rows_json.side_effect = responses
+    fn = beam_bq.BigQueryWriteFn(
+        batch_size=1,
+        create_disposition=beam_bq.BigQueryDisposition.CREATE_NEVER,
+        write_disposition=beam_bq.BigQueryDisposition.WRITE_APPEND,
+        with_batched_input=True,
+        test_client=client,
+        **kwargs)
+    fn.start_bundle()
+    return fn, client
+
+  def _process_retry_batch(
+      self, fn, month, destination='project-id:dataset_id.table_id'):
+    return fn.process(
+        (destination, [({
+            'month': month
+        }, 'insertid%d' % month)]),
+        window_value=beam.transforms.window.GlobalWindows.windowed_value(None))
+
+  @parameterized.expand([
+      ('same_destination', 'project-id:dataset_id.table_id'),
+      ('different_destination', 'project-id:dataset_id.other_table'),
+  ])
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_successful_batches_do_not_consume_retries(
+      self, unused_name, destination, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([[], errors, []], max_retries=1)
+
+    self.assertEqual([], self._process_retry_batch(fn, 1))
+    self.assertEqual([], self._process_retry_batch(fn, 2, destination))
+
+    self.assertEqual([[{
+        'month': 1
+    }], [{
+        'month': 2
+    }], [{
+        'month': 2
+    }]],
+                     [
+                         call.kwargs['json_rows']
+                         for call in client.insert_rows_json.call_args_list
+                     ])
+    self.assertEqual([['insertid1'], ['insertid2'], ['insertid2']],
+                     [
+                         call.kwargs['row_ids']
+                         for call in client.insert_rows_json.call_args_list
+                     ])
+    sleep.assert_called_once()
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_exhausted_batch_does_not_consume_next_batch_retries(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer(
+        [errors, errors, errors, []], max_retries=1)
+
+    failed = self._process_retry_batch(fn, 1)
+    self.assertEqual([('project-id:dataset_id.table_id', {
+        'month': 1
+    })],
+                     [
+                         output.value.value for output in failed
+                         if output.tag == beam_bq.BigQueryWriteFn.FAILED_ROWS
+                     ])
+    self.assertEqual([], self._process_retry_batch(fn, 2))
+    self.assertEqual(4, client.insert_rows_json.call_count)
+    self.assertEqual(2, sleep.call_count)
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_successful_batches_do_not_increase_retry_backoff(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([[]] * 20 + [errors, errors, []])
+
+    for month in range(21):
+      self.assertEqual([], self._process_retry_batch(fn, month))
+
+    self.assertEqual(23, client.insert_rows_json.call_count)
+    self.assertEqual(2, sleep.call_count)
+    first_delay = sleep.call_args_list[0].args[0]
+    second_delay = sleep.call_args_list[1].args[0]
+    self.assertGreaterEqual(first_delay, 0.1)
+    self.assertLessEqual(first_delay, 0.2)
+    self.assertGreaterEqual(second_delay, 0.2)
+    self.assertLessEqual(second_delay, 0.4)
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_zero_retries_attempts_each_batch_once(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([errors, []], max_retries=0)
+
+    failed = self._process_retry_batch(fn, 1)
+    self.assertEqual([('project-id:dataset_id.table_id', {
+        'month': 1
+    })],
+                     [
+                         output.value.value for output in failed
+                         if output.tag == beam_bq.BigQueryWriteFn.FAILED_ROWS
+                     ])
+    self.assertEqual([], self._process_retry_batch(fn, 2))
+    self.assertEqual(2, client.insert_rows_json.call_count)
+    sleep.assert_not_called()
+
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(

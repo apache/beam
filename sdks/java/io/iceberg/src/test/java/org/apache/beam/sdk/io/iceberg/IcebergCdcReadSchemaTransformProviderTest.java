@@ -23,6 +23,10 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +73,16 @@ public class IcebergCdcReadSchemaTransformProviderTest {
               Types.NestedField.optional(2, "data", Types.StringType.get()),
               Types.NestedField.optional(3, "category", Types.StringType.get()),
               Types.NestedField.required(4, "event_micros", Types.LongType.get())),
+          ImmutableSet.of(1));
+
+  private static final org.apache.iceberg.Schema TEMPORAL_SCHEMA =
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.optional(2, "d", Types.DateType.get()),
+              Types.NestedField.optional(3, "t", Types.TimeType.get()),
+              Types.NestedField.optional(4, "ts", Types.TimestampType.withoutZone()),
+              Types.NestedField.optional(5, "tstz", Types.TimestampType.withZone())),
           ImmutableSet.of(1));
 
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
@@ -270,6 +284,63 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     PAssert.that(output).containsInAnyOrder(expectedRows);
 
     testPipeline.run();
+  }
+
+  @Test
+  public void testManagedReadWithTemporalFilter() throws Exception {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    TableIdentifier tableId = TableIdentifier.parse(identifier);
+
+    Table table = warehouse.createTable(tableId, TEMPORAL_SCHEMA);
+    LocalDate date = LocalDate.parse("2026-01-02");
+    LocalTime time = LocalTime.parse("11:00:00");
+    LocalDateTime ts = LocalDateTime.parse("2026-01-01T13:00:00");
+    // rows 2-5 each fail exactly one predicate
+    List<Record> records =
+        ImmutableList.of(
+            temporalRecord(1L, date, time, ts, ts),
+            temporalRecord(2L, date.minusDays(2), time, ts, ts),
+            temporalRecord(3L, date, time.minusHours(1), ts, ts),
+            temporalRecord(4L, date, time, ts.minusHours(2), ts),
+            temporalRecord(5L, date, time, ts, ts.minusHours(2)));
+    table
+        .newFastAppend()
+        .appendFile(warehouse.writeRecords("cdc-temporal.parquet", table.schema(), records))
+        .commit();
+
+    Map<String, String> properties = new HashMap<>();
+    properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    properties.put("warehouse", warehouse.location);
+
+    Map<String, Object> configMap = new HashMap<>();
+    configMap.put("table", identifier);
+    configMap.put("catalog_name", "test-name");
+    configMap.put("catalog_properties", properties);
+    configMap.put("from_snapshot", table.currentSnapshot().snapshotId());
+    configMap.put("to_snapshot", table.currentSnapshot().snapshotId());
+    configMap.put(
+        "filter",
+        "d > DATE '2026-01-01' AND t > TIME '10:30:00' "
+            + "AND ts > TIMESTAMP '2026-01-01 12:00:00' "
+            + "AND tstz > TIMESTAMP '2026-01-01 12:00:00'");
+
+    Schema schema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+    PCollection<Row> output =
+        testPipeline
+            .apply(Managed.read(Managed.ICEBERG_CDC).withConfig(configMap))
+            .getSinglePCollection();
+
+    PAssert.that(output)
+        .containsInAnyOrder(IcebergUtils.icebergRecordToBeamRow(schema, records.get(0)));
+
+    testPipeline.run();
+  }
+
+  private static Record temporalRecord(
+      long id, LocalDate d, LocalTime t, LocalDateTime ts, LocalDateTime tstz) {
+    return TestFixtures.createRecord(
+        TEMPORAL_SCHEMA,
+        ImmutableMap.of("id", id, "d", d, "t", t, "ts", ts, "tstz", tstz.atOffset(ZoneOffset.UTC)));
   }
 
   private static Record record(long id, String data, String category, long eventMicros) {

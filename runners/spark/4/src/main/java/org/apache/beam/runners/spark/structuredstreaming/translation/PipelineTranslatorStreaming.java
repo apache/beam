@@ -21,8 +21,12 @@ import java.util.Collection;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorCommon;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ReadUnboundedTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StatefulParDoStreamingTranslator;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,8 +34,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.SparkSession;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -46,6 +53,18 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
 
   @SuppressWarnings("rawtypes")
   private static final TransformTranslator READ_UNBOUNDED = new ReadUnboundedTranslator<>();
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static final TransformTranslator STATEFUL_PAR_DO =
+      new StatefulParDoStreamingTranslator<Object, Object, Object>() {
+        @Override
+        protected void translate(
+            ParDo.MultiOutput<KV<Object, Object>, Object> transform, Context cxt) {
+          PCollection<?> input = (PCollection<?>) cxt.getInput();
+          checkNotMergingWindows(input.getWindowingStrategy());
+          super.translate(transform, cxt);
+        }
+      };
 
   private static final String NOT_SUPPORTED =
       " is not supported by the Spark 4 streaming runner yet, see"
@@ -83,10 +102,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
     if (transform instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) transform;
       DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
-      if (signature.usesState() || signature.usesTimers()) {
-        throw new UnsupportedOperationException(
-            "Stateful ParDo (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
-      }
       if (!parDo.getSideInputs().isEmpty()) {
         throw new UnsupportedOperationException(
             "ParDo with side inputs (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
@@ -98,9 +113,51 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
                 + ")"
                 + NOT_SUPPORTED);
       }
+      if (signature.processElement().requiresTimeSortedInput()) {
+        throw new UnsupportedOperationException(
+            "@RequiresTimeSortedInput (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
+      }
+      if (signature.onWindowExpiration() != null) {
+        throw new UnsupportedOperationException(
+            "@OnWindowExpiration (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
+      }
+      checkNoProcessingTimeTimers(parDo.getFn(), signature);
+
+      if (signature.usesState() || signature.usesTimers()) {
+        return STATEFUL_PAR_DO;
+      }
     }
 
     return super.getTransformTranslator(transform);
+  }
+
+  private static void checkNoProcessingTimeTimers(DoFn<?, ?> doFn, DoFnSignature signature) {
+    for (DoFnSignature.TimerDeclaration timer : signature.timerDeclarations().values()) {
+      TimerSpec spec = DoFnSignatures.getTimerSpecOrThrow(timer, doFn);
+      if (spec.getTimeDomain() != TimeDomain.EVENT_TIME) {
+        throw new UnsupportedOperationException(
+            spec.getTimeDomain() + " timer @TimerId(\"" + timer.id() + "\")" + NOT_SUPPORTED);
+      }
+    }
+    for (DoFnSignature.TimerFamilyDeclaration family :
+        signature.timerFamilyDeclarations().values()) {
+      TimerSpec spec = DoFnSignatures.getTimerFamilySpecOrThrow(family, doFn);
+      if (spec.getTimeDomain() != TimeDomain.EVENT_TIME) {
+        throw new UnsupportedOperationException(
+            spec.getTimeDomain()
+                + " timer family @TimerFamily(\""
+                + family.id()
+                + "\")"
+                + NOT_SUPPORTED);
+      }
+    }
+  }
+
+  private static void checkNotMergingWindows(WindowingStrategy<?, ?> windowingStrategy) {
+    if (windowingStrategy.needsMerge()) {
+      throw new UnsupportedOperationException(
+          "Stateful ParDo over merging windows" + NOT_SUPPORTED);
+    }
   }
 
   @Override

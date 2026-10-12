@@ -30,6 +30,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,6 +40,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -60,7 +64,8 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   @Rule public transient TemporaryFolder temp = new TemporaryFolder();
 
   private PCollection<KV<String, Integer>> kv(String tag) throws Exception {
-    SparkStructuredStreamingPipelineOptions o = StreamingTestUtils.streamingOptions(temp);
+    SparkStructuredStreamingPipelineOptions o =
+        StreamingTestUtils.streamingOptions(temp.newFolder(tag).getAbsolutePath());
     return Pipeline.create(o)
         .apply(Read.from(new TestUnboundedSource(tag, 1, 1)))
         .apply(Window.into(FixedWindows.of(Duration.millis(1))))
@@ -70,7 +75,9 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   private static void assertUnsupported(Pipeline pipeline, String expected) {
     Throwable thrown = assertThrows(Exception.class, () -> StreamingTestUtils.run(pipeline));
     for (Throwable t = thrown; t != null; t = t.getCause()) {
-      if (t instanceof UnsupportedOperationException && t.getMessage().contains(expected)) {
+      if (t instanceof UnsupportedOperationException
+          && t.getMessage().contains(expected)
+          && t.getMessage().contains("36841")) {
         return;
       }
     }
@@ -105,8 +112,36 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   }
 
   @Test
-  public void rejectsStatefulParDo() throws Exception {
-    assertUnsupported(kv("s").apply(ParDo.of(new StatefulDoFn())).getPipeline(), "Stateful ParDo");
+  public void rejectsUnsupportedStatefulFeatures() throws Exception {
+    Object[][] cases = {
+      {kv("pt").apply(ParDo.of(new ProcessingTimeTimerDoFn())).getPipeline(), "PROCESSING_TIME"},
+      {
+        kv("spt").apply(ParDo.of(new SyncProcessingTimeTimerDoFn())).getPipeline(),
+        "SYNCHRONIZED_PROCESSING_TIME"
+      },
+      {
+        kv("ptf").apply(ParDo.of(new ProcessingTimeTimerFamilyDoFn())).getPipeline(),
+        "PROCESSING_TIME"
+      },
+      {
+        kv("owe").apply(ParDo.of(new OnWindowExpirationDoFn())).getPipeline(), "@OnWindowExpiration"
+      },
+      {
+        kv("rts").apply(ParDo.of(new RequiresTimeSortedInputDoFn())).getPipeline(),
+        "@RequiresTimeSortedInput"
+      },
+      {
+        kv("mw")
+            .apply(Window.into(Sessions.withGapDuration(Duration.millis(10))))
+            .apply(ParDo.of(new StatefulDoFn()))
+            .getPipeline(),
+        "merging windows"
+      }
+    };
+
+    for (Object[] testCase : cases) {
+      assertUnsupported((Pipeline) testCase[0], (String) testCase[1]);
+    }
   }
 
   @Test
@@ -136,6 +171,60 @@ public class PipelineTranslatorStreamingTest implements Serializable {
     @DoFn.StateId("state")
     final StateSpec<?> spec = StateSpecs.value(VarIntCoder.of());
 
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static final class ProcessingTimeTimerDoFn extends DoFn<KV<String, Integer>, Integer> {
+    @TimerId("pt")
+    final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @ProcessElement
+    public void process() {}
+
+    @OnTimer("pt")
+    public void onTimer() {}
+  }
+
+  private static final class SyncProcessingTimeTimerDoFn
+      extends DoFn<KV<String, Integer>, Integer> {
+    @TimerId("spt")
+    final TimerSpec timer = TimerSpecs.timer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+
+    @ProcessElement
+    public void process() {}
+
+    @OnTimer("spt")
+    public void onTimer() {}
+  }
+
+  private static final class ProcessingTimeTimerFamilyDoFn
+      extends DoFn<KV<String, Integer>, Integer> {
+    @TimerFamily("ptf")
+    @SuppressWarnings("unused") // Reflected by DoFnSignatures
+    final TimerSpec timer = TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
+
+    @ProcessElement
+    public void process() {}
+
+    @OnTimerFamily("ptf")
+    public void onTimer() {}
+  }
+
+  private static final class OnWindowExpirationDoFn extends DoFn<KV<String, Integer>, Integer> {
+    @DoFn.StateId("state")
+    final StateSpec<?> spec = StateSpecs.value(VarIntCoder.of());
+
+    @ProcessElement
+    public void process() {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
+  }
+
+  private static final class RequiresTimeSortedInputDoFn
+      extends DoFn<KV<String, Integer>, Integer> {
+    @RequiresTimeSortedInput
     @ProcessElement
     public void process() {}
   }

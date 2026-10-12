@@ -218,6 +218,11 @@ test {
   if(project.hasProperty("rerun-tests")) { 	outputs.upToDateWhen {false} }
 }
 
+// One pipeline per JVM at a time, Spark runner metrics and the SparkContext are JVM wide.
+tasks.withType(Test).configureEach {
+  systemProperty "beam.validatesRunner.parallelThreads", "1"
+}
+
 class SparkComponents {
   List<String> components
 }

@@ -225,6 +225,11 @@ public abstract class StateInternalsTest {
     assertThat(later.read(), hasItems("C", "D"));
     assertFalse(later.contains("A").read());
 
+    value.remove("B");
+    value.remove("C");
+    value.remove("D");
+    assertTrue(value.isEmpty().read());
+
     // clear
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
@@ -388,6 +393,11 @@ public abstract class StateInternalsTest {
 
     // isEmpty
     assertFalse(value.isEmpty().read());
+
+    value.remove("B");
+    value.remove("D");
+    value.remove("E");
+    assertTrue(value.isEmpty().read());
 
     // clear
     value.clear();

@@ -110,6 +110,13 @@
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
         'max_read_time_seconds': 'max_read_time_seconds'
+        'with_gcp_adc': 'with_gcp_adc'
+        'num_partitions': 'num_partitions'
+        'redistributed': 'redistributed'
+        'allow_duplicates': 'allow_duplicates'
+        'redistribute_num_keys': 'redistribute_num_keys'
+        'offset_deduplication': 'offset_deduplication'
+        'redistribute_by_record_key': 'redistribute_by_record_key'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
@@ -119,6 +126,7 @@
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
         'schema': 'schema'
+        'with_gcp_adc': 'with_gcp_adc'
     underlying_provider:
       type: beamJar
       transforms:
@@ -273,7 +281,7 @@
       config:
         gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
         classpath:
-          - 'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25'
+          - 'com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25'
           - 'org.json:json:20251224'
 
 
