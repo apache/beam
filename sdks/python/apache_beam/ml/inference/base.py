@@ -1950,6 +1950,9 @@ class _SharedModelWrapper():
 
   def all_models(self):
     if self.use_model_manager:
+      # TODO(https://github.com/apache/beam/issues/40539): Support multi-model
+      # KeyedModelHandler with ModelManager (e.g. resolving proxies for
+      # update_model_paths).
       return self.models.all_models(self.model_tag)
     return self.models
 
