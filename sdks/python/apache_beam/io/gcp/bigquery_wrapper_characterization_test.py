@@ -606,10 +606,9 @@ class StreamingInsertCharacterizationTest(_CharacterizationBase):
     # INTENDED: per-row errors are returned as-is with ok=False.
     self.assertEqual(outcome['result'], (False, insert_errors))
     self.assertEqual(outcome['http_attempts'], 1)
-    # INCIDENTAL (bug): ServiceCallMetric.call() is given the error dict,
-    # which it cannot convert, so the status label is the string 'None'
-    # (one per failed row), not the row's reason.
-    self.assertEqual(_request_count_metrics('t'), {'None': 2})
+    # INTENDED: one metric per failed row, labelled with the reason of the
+    # row's first error (fixed in #40356; previously the label was 'None').
+    self.assertEqual(_request_count_metrics('t'), {'invalid': 1, 'stopped': 1})
 
   def test_s10_connection_error_twice_then_ok(self):
     outcome = self.insert([
