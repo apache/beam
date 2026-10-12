@@ -43,24 +43,19 @@ class Client(object):
   def __init__(self, options):
     assert boto3 is not None, 'Missing boto3 requirement'
     if isinstance(options, pipeline_options.PipelineOptions):
-      s3_options = options.view_as(pipeline_options.S3Options)
-      access_key_id = s3_options.s3_access_key_id
-      secret_access_key = s3_options.s3_secret_access_key
-      session_token = s3_options.s3_session_token
-      endpoint_url = s3_options.s3_endpoint_url
-      use_ssl = not s3_options.s3_disable_ssl
-      region_name = s3_options.s3_region_name
-      api_version = s3_options.s3_api_version
-      verify = s3_options.s3_verify
+      aws_options = options.view_as(pipeline_options.AwsOptions)
     else:
-      access_key_id = options.get('s3_access_key_id')
-      secret_access_key = options.get('s3_secret_access_key')
-      session_token = options.get('s3_session_token')
-      endpoint_url = options.get('s3_endpoint_url')
-      use_ssl = not options.get('s3_disable_ssl', False)
-      region_name = options.get('s3_region_name')
-      api_version = options.get('s3_api_version')
-      verify = options.get('s3_verify')
+      # A plain dict of option names (aws_* or the deprecated s3_*) to values.
+      aws_options = pipeline_options.AwsOptions(flags=[], **options)
+
+    access_key_id = aws_options.aws_access_key_id
+    secret_access_key = aws_options.aws_secret_access_key
+    session_token = aws_options.aws_session_token
+    endpoint_url = aws_options.aws_endpoint_url
+    use_ssl = not aws_options.aws_disable_ssl
+    region_name = aws_options.aws_region_name
+    api_version = aws_options.aws_api_version
+    verify = aws_options.aws_verify
 
     session = boto3.session.Session()
     self.client = session.client(
