@@ -54,6 +54,7 @@ import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
@@ -64,7 +65,12 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
@@ -89,10 +95,12 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -106,6 +114,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -420,6 +429,288 @@ public class WriteFilesTest {
 
     checkFileContents(
         getBaseOutputFilename(), elements, Optional.absent(), !write.getWindowedWrites(), null);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteAllBundlesLarge() throws IOException {
+    runDirectWriteTestStream(1L);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteAllBundlesSmall() throws IOException {
+    runDirectWriteTestStream(Long.MAX_VALUE);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteUnshardedViaExperiment() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    // Two 10-element bundles (~100 bytes each), one 8-element bundle (~88 bytes), and one
+    // 2-element bundle (~22 bytes, < 50) so both direct and auto-sharded paths run.
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 28), String.class))
+            .addElements(elements.get(28), elements.get(29))
+            .advanceWatermarkToInfinity();
+
+    ExperimentalOptions.addExperiment(
+        p.getOptions().as(ExperimentalOptions.class),
+        WriteFiles.DIRECT_WRITE_THRESHOLD_EXPERIMENT + "=50");
+
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
+    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteExperimentIgnoredWithExplicitNumShards() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    ExperimentalOptions.addExperiment(
+        p.getOptions().as(ExperimentalOptions.class),
+        WriteFiles.DIRECT_WRITE_THRESHOLD_EXPERIMENT + "=1");
+
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withNumShards(3);
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteNonDefaultTriggerLargeBundles() throws IOException {
+    runDirectWriteNonDefaultTrigger(1L);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteNonDefaultTriggerSmallBundles() throws IOException {
+    runDirectWriteNonDefaultTrigger(Long.MAX_VALUE);
+  }
+
+  private void runDirectWriteNonDefaultTrigger(long thresholdBytes) throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    FilenamePolicy paneAwarePolicy =
+        new PaneAwarePerWindowFiles(
+            getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
+            "simple");
+
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(SimpleSink.makeSimpleSink(getBaseOutputDirectory(), paneAwarePolicy))
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(thresholdBytes);
+    p.apply(testStream)
+        .apply(
+            Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(1)))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertDirectWriteMetrics(result, thresholdBytes);
+  }
+
+  private static class SideInputDestinations extends DynamicDestinations<String, String, String> {
+    private final ResourceId baseOutputDirectory;
+    private final PCollectionView<String> sideInputView;
+
+    SideInputDestinations(ResourceId baseOutputDirectory, PCollectionView<String> sideInputView) {
+      this.baseOutputDirectory = baseOutputDirectory;
+      this.sideInputView = sideInputView;
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return Collections.singletonList(sideInputView);
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return record;
+    }
+
+    @Override
+    public String getDestination(String element) {
+      return sideInput(sideInputView);
+    }
+
+    @Override
+    public String getDefaultDestination() {
+      return "file";
+    }
+
+    @Override
+    public FilenamePolicy getFilenamePolicy(String destination) {
+      return new PerWindowFiles(
+          baseOutputDirectory.resolve(destination, StandardResolveOptions.RESOLVE_FILE), "simple");
+    }
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteDisabledWithSideInputs() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    PCollectionView<String> sideInputView =
+        p.apply("SideInput", Create.of("file")).apply(View.asSingleton());
+    SideInputDestinations destinations =
+        new SideInputDestinations(getBaseOutputDirectory(), sideInputView);
+    SimpleSink<String> sink =
+        new SimpleSink<>(getBaseOutputDirectory(), destinations, Compression.UNCOMPRESSED);
+
+    WriteFiles<String, String, String> write =
+        WriteFiles.to(sink).withWindowedWrites().withNumShards(3).withDirectWriteByteThreshold(1L);
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
+  private void runDirectWriteTestStream(long thresholdBytes) throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(thresholdBytes);
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    // Shard count is not fixed on the direct-write path, so don't check it.
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertDirectWriteMetrics(result, thresholdBytes);
+  }
+
+  private static void assertDirectWriteMetrics(PipelineResult result, long thresholdBytes) {
+    long directBundles = counterValue(result, "directWriteBundles");
+    long groupedBundles = counterValue(result, "groupedWriteBundles");
+    if (thresholdBytes == 1L) {
+      assertThat(directBundles, Matchers.greaterThan(0L));
+    } else if (thresholdBytes == Long.MAX_VALUE) {
+      assertEquals(0L, directBundles);
+      assertThat(groupedBundles, Matchers.greaterThan(0L));
+    }
+  }
+
+  private static long counterValue(PipelineResult result, String name) {
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(WriteFiles.class, name))
+                    .build());
+    long total = 0;
+    for (MetricResult<Long> counter : metrics.getCounters()) {
+      total += counter.getAttempted();
+    }
+    return total;
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -1106,6 +1397,50 @@ public class WriteFilesTest {
       return baseFilename
           .getCurrentDirectory()
           .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+    }
+  }
+
+  private static class PaneAwarePerWindowFiles extends FilenamePolicy {
+    private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinuteSecondMillis();
+    private final ResourceId baseFilename;
+    private final String suffix;
+
+    public PaneAwarePerWindowFiles(ResourceId baseFilename, String suffix) {
+      this.baseFilename = baseFilename;
+      this.suffix = suffix;
+    }
+
+    @Override
+    public ResourceId windowedFilename(
+        int shardNumber,
+        int numShards,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputFileHints outputFileHints) {
+      DecimalFormat df = new DecimalFormat("0000");
+      IntervalWindow intervalWindow = (IntervalWindow) window;
+      String prefix =
+          baseFilename.isDirectory() ? "" : firstNonNull(baseFilename.getFilename(), "");
+      String filename =
+          String.format(
+              "%s%s-%s-pane-%d-%s-of-%s%s%s",
+              prefix,
+              FORMATTER.print(intervalWindow.start()),
+              FORMATTER.print(intervalWindow.end()),
+              paneInfo.getIndex(),
+              df.format(shardNumber),
+              df.format(numShards),
+              outputFileHints.getSuggestedFilenameSuffix(),
+              suffix);
+      return baseFilename
+          .getCurrentDirectory()
+          .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+    }
+
+    @Override
+    public @Nullable ResourceId unwindowedFilename(
+        int shardNumber, int numShards, OutputFileHints outputFileHints) {
+      throw new UnsupportedOperationException();
     }
   }
 

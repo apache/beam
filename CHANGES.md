@@ -73,6 +73,7 @@
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
 * (Go) Pipeline-level `--resource_hints` are now forwarded to expansion services, so they apply to cross-language transforms as they do in the Java and Python SDKs. The `max_active_bundles_per_worker` hint name is now also accepted by `--resource_hints` ([#23893](https://github.com/apache/beam/issues/23893)).
 * ReadFromBigQuery now supports Lakehouse runtime catalog (BigLake metastore) tables with `method=DIRECT_READ`, using 4-part `project.catalog.namespace.table` identifiers. Previously `project:catalog.namespace.table` was silently mis-parsed and tables that report no `numBytes` failed to split (Python) ([#39597](https://github.com/apache/beam/issues/39597)).
+* (Java) `TextIO`, `FileIO`, and `WriteFiles`: streaming writes can skip the shuffle for large bundles by writing them directly to temp files (`withDirectWriteByteThreshold` or experiment `streaming_file_direct_write_threshold_bytes`). Off by default ([#40533](https://github.com/apache/beam/issues/40533)).
 
 ## Breaking Changes
 
