@@ -17,10 +17,12 @@
 
 """Tests for option handling in the boto3 S3 client."""
 
+import json
 import unittest
 from unittest import mock
 
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils.secret import RawSecret
 
 try:
   import boto3  # pylint: disable=unused-import
@@ -33,6 +35,7 @@ except ImportError:
 @unittest.skipIf(boto3_client is None, 'boto3 is not installed')
 class Boto3ClientOptionsTest(unittest.TestCase):
   def setUp(self):
+    boto3_client._fetch_secret.cache_clear()
     patcher = mock.patch('boto3.session.Session')
     self.mock_session = patcher.start().return_value
     self.addCleanup(patcher.stop)
@@ -111,7 +114,96 @@ class Boto3ClientOptionsTest(unittest.TestCase):
     kwargs = self._client_kwargs()
     self.assertIsNone(kwargs['aws_access_key_id'])
     self.assertIsNone(kwargs['aws_secret_access_key'])
+    self.assertIsNone(kwargs['aws_session_token'])
     self.assertTrue(kwargs['use_ssl'])
+
+  @mock.patch('apache_beam.utils.secret.Secret.from_json')
+  def test_credentials_parsed_by_secret_manager(self, mock_from_json):
+    key_id_spec = json.dumps({'name': 'key-id', 'project': 'p'})
+    secret_key_spec = json.dumps({'name': 'secret-key', 'project': 'p'})
+    token_spec = json.dumps({'name': 'token', 'project': 'p'})
+    resolved = {
+        key_id_spec: 'AKIDEXAMPLE',
+        secret_key_spec: 'SECRETEXAMPLE',
+        token_spec: 'TOKEN',
+    }
+    mock_from_json.side_effect = lambda spec, manager: RawSecret(resolved[spec])
+
+    boto3_client.Client(
+        PipelineOptions([
+            '--aws_credentials_secret_manager=GoogleCloudSecretManager',
+            f'--aws_access_key_id={key_id_spec}',
+            f'--aws_secret_access_key={secret_key_spec}',
+            f'--aws_session_token={token_spec}',
+        ]))
+
+    kwargs = self._client_kwargs()
+    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
+    self.assertEqual(kwargs['aws_secret_access_key'], 'SECRETEXAMPLE')
+    self.assertEqual(kwargs['aws_session_token'], 'TOKEN')
+    mock_from_json.assert_has_calls([
+        mock.call(key_id_spec, 'GoogleCloudSecretManager'),
+        mock.call(secret_key_spec, 'GoogleCloudSecretManager'),
+        mock.call(token_spec, 'GoogleCloudSecretManager'),
+    ])
+
+  @mock.patch('apache_beam.utils.secret.Secret.from_json')
+  def test_secret_manager_applies_to_s3_credential_overrides(
+      self, mock_from_json):
+    resolved = {
+        'projects/p/secrets/key-id/versions/1': 'AKIDEXAMPLE',
+        'projects/p/secrets/secret-key/versions/1': 'SECRETEXAMPLE',
+    }
+    mock_from_json.side_effect = lambda spec, manager: RawSecret(resolved[spec])
+
+    boto3_client.Client({
+        'aws_credentials_secret_manager': 'GoogleCloudSecretManager',
+        's3_access_key_id': 'projects/p/secrets/key-id/versions/1',
+        's3_secret_access_key': 'projects/p/secrets/secret-key/versions/1',
+    })
+
+    kwargs = self._client_kwargs()
+    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
+    self.assertEqual(kwargs['aws_secret_access_key'], 'SECRETEXAMPLE')
+
+  @mock.patch('google.cloud.secretmanager.SecretManagerServiceClient')
+  def test_gcp_secret_manager_end_to_end(self, mock_gcp_client):
+    payloads = {
+        'projects/p/secrets/key-id/versions/latest': b'AKIDEXAMPLE',
+        'projects/p/secrets/secret-key/versions/latest': b'SECRETEXAMPLE',
+    }
+
+    def access(request):
+      response = mock.MagicMock()
+      response.payload.data = payloads[request['name']]
+      return response
+
+    mock_gcp_client.return_value.access_secret_version.side_effect = access
+
+    boto3_client.Client(
+        PipelineOptions([
+            '--aws_credentials_secret_manager=GoogleCloudSecretManager',
+            '--aws_access_key_id={"name": "key-id", "project": "p"}',
+            '--aws_secret_access_key={"name": "secret-key", "project": "p"}',
+        ]))
+
+    kwargs = self._client_kwargs()
+    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
+    self.assertEqual(kwargs['aws_secret_access_key'], 'SECRETEXAMPLE')
+
+  @mock.patch('apache_beam.utils.secret.Secret.from_json')
+  def test_parsed_secrets_are_cached(self, mock_from_json):
+    mock_from_json.side_effect = lambda spec, manager: RawSecret('value')
+    options = PipelineOptions([
+        '--aws_credentials_secret_manager=GoogleCloudSecretManager',
+        '--aws_access_key_id=projects/p/secrets/key-id/versions/1',
+        '--aws_secret_access_key=projects/p/secrets/secret-key/versions/1',
+    ])
+
+    boto3_client.Client(options)
+    boto3_client.Client(options)
+
+    self.assertEqual(mock_from_json.call_count, 2)
 
 
 if __name__ == '__main__':

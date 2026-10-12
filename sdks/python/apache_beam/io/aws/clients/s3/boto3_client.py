@@ -17,9 +17,12 @@
 
 # pytype: skip-file
 
+import functools
+
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 from apache_beam.utils import retry
+from apache_beam.utils.secret import Secret
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -34,6 +37,26 @@ def get_http_error_code(exc):
   if hasattr(exc, 'response'):
     return exc.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
   return None
+
+
+# S3IO (and therefore Client) is created for almost every filesystem
+# operation, so cache parsed secrets per process to avoid calling the secret
+# manager each time. Note that a rotated secret is only picked up by new
+# worker processes.
+@functools.lru_cache(maxsize=32)
+def _fetch_secret(spec, secret_manager):
+  return Secret.from_json(spec, secret_manager).get_str()
+
+
+def _parse_credential(value, secret_manager):
+  """Parses a credential option with Secret.from_json.
+
+  With no secret_manager, Secret.from_json returns the value itself (as a
+  RawSecret), so plain credentials keep working.
+  """
+  if not value:
+    return value
+  return _fetch_secret(value, secret_manager)
 
 
 class Client(object):
@@ -55,6 +78,9 @@ class Client(object):
       s3_options = pipeline_options.S3Options(flags=[], **options)
 
     settings = aws_options.get_client_settings(s3_options)
+    secret_manager = aws_options.aws_credentials_secret_manager
+    for name in ('access_key_id', 'secret_access_key', 'session_token'):
+      settings[name] = _parse_credential(settings[name], secret_manager)
 
     session = boto3.session.Session()
     self.client = session.client(

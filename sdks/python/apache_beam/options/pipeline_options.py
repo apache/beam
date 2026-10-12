@@ -2426,15 +2426,36 @@ class AwsOptions(PipelineOptions):
     parser.add_argument(
         '--aws_access_key_id',
         default=None,
-        help='The access key ID to use when creating AWS clients.')
+        help=(
+            'The access key ID to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
     parser.add_argument(
         '--aws_secret_access_key',
         default=None,
-        help='The secret access key to use when creating AWS clients.')
+        help=(
+            'The secret access key to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
     parser.add_argument(
         '--aws_session_token',
         default=None,
-        help='The session token to use when creating AWS clients.')
+        help=(
+            'The session token to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
+    parser.add_argument(
+        '--aws_credentials_secret_manager',
+        default=None,
+        help=(
+            'Secret manager used to parse --aws_access_key_id, '
+            '--aws_secret_access_key and --aws_session_token (and their '
+            'service-specific overrides, e.g. --s3_access_key_id) as secret '
+            'specs (a JSON string or plain text), e.g. '
+            'GoogleCloudSecretManager. For example: '
+            '--aws_credentials_secret_manager=GoogleCloudSecretManager '
+            '--aws_secret_access_key=\'{"name": "my-key", "project": "p"}\'. '
+            'If not set, these options are used as raw credentials.'))
     parser.add_argument(
         '--aws_endpoint_url',
         default=None,
