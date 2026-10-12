@@ -51,7 +51,6 @@ import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -161,14 +160,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
   public static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
       Duration.standardSeconds(5);
-
-  /**
-   * Experiment name for the byte threshold above which a streaming bundle is written directly to
-   * temporary files.
-   */
-  @Internal
-  public static final String DIRECT_WRITE_THRESHOLD_EXPERIMENT =
-      "streaming_file_direct_write_threshold_bytes";
 
   static final int UNKNOWN_SHARDNUM = -1;
   static final int DUMMY_SHARDNUM = 0;
@@ -477,52 +468,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * existing grouped path so output files stay large. Shard numbers are assigned at finalization,
    * which may override {@link #withNumShards(int)} (the number of files per window can differ from
    * the configured number of shards).
-   *
-   * <p>Can also be set via the {@link #DIRECT_WRITE_THRESHOLD_EXPERIMENT} pipeline experiment.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withDirectWriteByteThreshold(
       long thresholdBytes) {
     checkArgument(thresholdBytes > 0, "thresholdBytes must be positive, got %s", thresholdBytes);
     return toBuilder().setDirectWriteByteThreshold(thresholdBytes).build();
-  }
-
-  /**
-   * Returns the direct write threshold set via {@link #withDirectWriteByteThreshold(long)}, else
-   * the value of the {@link #DIRECT_WRITE_THRESHOLD_EXPERIMENT} experiment in {@code options} when
-   * no explicit shard count is configured, else {@code null}.
-   */
-  @Internal
-  public @Nullable Long resolveDirectWriteThreshold(PipelineOptions options) {
-    if (getDirectWriteByteThreshold() != null) {
-      return getDirectWriteByteThreshold();
-    }
-    if (getComputeNumShards() != null || getNumShardsProvider() != null) {
-      return null;
-    }
-    String fromExperiment =
-        ExperimentalOptions.getExperimentValue(options, DIRECT_WRITE_THRESHOLD_EXPERIMENT);
-    if (fromExperiment == null) {
-      return null;
-    }
-    final long threshold;
-    try {
-      threshold = Long.parseLong(fromExperiment);
-    } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(
-          "Experiment "
-              + DIRECT_WRITE_THRESHOLD_EXPERIMENT
-              + " must be a positive integer, got: "
-              + fromExperiment,
-          e);
-    }
-    if (threshold <= 0) {
-      throw new IllegalArgumentException(
-          "Experiment "
-              + DIRECT_WRITE_THRESHOLD_EXPERIMENT
-              + " must be a positive integer, got: "
-              + fromExperiment);
-    }
-    return threshold;
   }
 
   public WriteFiles<UserT, DestinationT, OutputT> withSideInputs(
@@ -663,7 +613,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         (getComputeNumShards() == null) ? null : input.apply(getComputeNumShards());
 
     boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
-    Long directWriteThreshold = resolveDirectWriteThreshold(input.getPipeline().getOptions());
+    Long directWriteThreshold = getDirectWriteByteThreshold();
     if (directWriteThreshold != null
         && getSideInputs().isEmpty()
         && input.isBounded() == IsBounded.UNBOUNDED) {
@@ -1360,10 +1310,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Buffers each bundle's records until their encoded size reaches {@code thresholdBytes}. Bundles
    * that reach it are written directly to temporary files. Records of smaller bundles, and records
    * that would exceed the per-bundle writer limit, are emitted to {@code smallBundlesTag} at the
-   * end of the bundle for the sharded {@link GroupByKey} path.
-   *
-   * <p>Adapted from the IcebergIO bundle lifter (apache/beam#36720), but buffers at most {@code
-   * thresholdBytes} rather than the whole bundle.
+   * end of the bundle for the grouped path.
    */
   private class DirectWriteLargeBundlesFn extends DoFn<UserT, FileResult<DestinationT>> {
     private final TupleTag<UserT> smallBundlesTag;

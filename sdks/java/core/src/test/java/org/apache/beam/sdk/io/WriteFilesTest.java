@@ -70,7 +70,6 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
@@ -445,7 +444,7 @@ public class WriteFilesTest {
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
-  public void testDirectWriteUnshardedViaExperiment() throws IOException {
+  public void testDirectWriteUnshardedMixedBundles() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
@@ -466,12 +465,11 @@ public class WriteFilesTest {
             .addElements(elements.get(28), elements.get(29))
             .advanceWatermarkToInfinity();
 
-    ExperimentalOptions.addExperiment(
-        p.getOptions().as(ExperimentalOptions.class),
-        WriteFiles.DIRECT_WRITE_THRESHOLD_EXPERIMENT + "=50");
-
     WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withRunnerDeterminedSharding()
+            .withDirectWriteByteThreshold(50L);
     p.apply(testStream)
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
         .apply(write)
@@ -482,43 +480,6 @@ public class WriteFilesTest {
     checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
     assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
     assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
-  }
-
-  @Test
-  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
-  public void testDirectWriteExperimentIgnoredWithExplicitNumShards() throws IOException {
-    List<String> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add("number: " + i);
-    }
-    Instant startInstant = new Instant(0L);
-    TestStream<String> testStream =
-        TestStream.create(StringUtf8Coder.of())
-            .advanceWatermarkTo(startInstant)
-            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
-            .addElements(
-                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
-            .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
-            .advanceWatermarkToInfinity();
-
-    ExperimentalOptions.addExperiment(
-        p.getOptions().as(ExperimentalOptions.class),
-        WriteFiles.DIRECT_WRITE_THRESHOLD_EXPERIMENT + "=1");
-
-    WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withNumShards(3);
-    p.apply(testStream)
-        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
-        .apply(write)
-        .getPerDestinationOutputFilenames()
-        .apply(new VerifyFilesExist<>());
-    PipelineResult result = p.run();
-
-    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
   }
 
   @Test

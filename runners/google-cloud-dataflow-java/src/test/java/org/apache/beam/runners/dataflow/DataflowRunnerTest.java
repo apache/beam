@@ -2154,16 +2154,16 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testStreamingWriteDirectWriteThresholdExperiment() {
+  public void testStreamingWriteWithDirectWriteByteThreshold() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    ExperimentalOptions.addExperiment(
-        options.as(ExperimentalOptions.class), "streaming_file_direct_write_threshold_bytes=1000");
 
     TestPipeline p = TestPipeline.fromOptions(options);
     StreamingShardedWriteFactory<Object, Void, Object> factory =
         new StreamingShardedWriteFactory<>(p.getOptions());
     WriteFiles<Object, Void, Object> original =
-        WriteFiles.to(new TestSink(tmpFolder.toString())).withRunnerDeterminedSharding();
+        WriteFiles.to(new TestSink(tmpFolder.toString()))
+            .withRunnerDeterminedSharding()
+            .withDirectWriteByteThreshold(1000L);
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
@@ -2207,43 +2207,6 @@ public class DataflowRunnerTest implements Serializable {
             factory.getReplacementTransform(originalApplication).getTransform();
 
     assertNull(replacement.getDirectWriteByteThreshold());
-  }
-
-  @Test
-  public void testStreamingWriteDirectWriteThresholdInvalidExperiment() {
-    for (String badValue : ImmutableList.of("abc", "0", "-1")) {
-      PipelineOptions options = TestPipeline.testingPipelineOptions();
-      ExperimentalOptions.addExperiment(
-          options.as(ExperimentalOptions.class),
-          "streaming_file_direct_write_threshold_bytes=" + badValue);
-
-      TestPipeline p = TestPipeline.fromOptions(options);
-      StreamingShardedWriteFactory<Object, Void, Object> factory =
-          new StreamingShardedWriteFactory<>(p.getOptions());
-      WriteFiles<Object, Void, Object> original =
-          WriteFiles.to(new TestSink(tmpFolder.toString())).withRunnerDeterminedSharding();
-      PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-      AppliedPTransform<
-              PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
-          originalApplication =
-              AppliedPTransform.of(
-                  "writefiles",
-                  PValues.expandInput(objs),
-                  Collections.emptyMap(),
-                  original,
-                  ResourceHints.create(),
-                  p);
-
-      IllegalArgumentException thrown =
-          assertThrows(
-              IllegalArgumentException.class,
-              () -> factory.getReplacementTransform(originalApplication));
-      assertThat(
-          thrown.getMessage(),
-          containsString(
-              "Experiment streaming_file_direct_write_threshold_bytes must be a positive integer, got: "
-                  + badValue));
-    }
   }
 
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {

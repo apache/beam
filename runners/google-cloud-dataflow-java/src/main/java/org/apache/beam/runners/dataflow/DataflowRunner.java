@@ -2708,13 +2708,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * Returns the direct write threshold set on the original {@link WriteFiles}, else the value of
-     * the {@link WriteFiles#DIRECT_WRITE_THRESHOLD_EXPERIMENT} experiment, else {@code null}.
+     * Returns the direct write threshold set on the original {@link WriteFiles}, else {@code null}.
      */
     private @Nullable Long getDirectWriteThreshold(AppliedPTransform<?, ?, ?> transform) {
       Object original = transform.getTransform();
       if (original instanceof WriteFiles) {
-        return ((WriteFiles<?, ?, ?>) original).resolveDirectWriteThreshold(options);
+        return ((WriteFiles<?, ?, ?>) original).getDirectWriteByteThreshold();
       }
       return null;
     }
