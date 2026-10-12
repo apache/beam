@@ -79,7 +79,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ['beam_PreCommit_Portable_Python']
-        python_version: ['3.10', '3.14']
+        python_version: ['3.11', '3.14']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request' ||
@@ -97,7 +97,7 @@ jobs:
           java-version: default
           python-version: |
             ${{ matrix.python_version }}
-            3.10
+            3.11
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |

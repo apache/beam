@@ -1163,7 +1163,7 @@ def temp_ibm_mq_server():
 
     yield {
         'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
-        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'USERNAME': 'app',
         'PASSWORD': 'admin123',
         'SOURCE_QUEUE': 'DEV.QUEUE.1',

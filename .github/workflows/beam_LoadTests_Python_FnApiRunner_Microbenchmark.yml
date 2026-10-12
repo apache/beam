@@ -83,5 +83,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.microbenchmarks_test \
             -Prunner=DirectRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_FnApiRunner_Microbenchmark_test_arguments_1 }}'

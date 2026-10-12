@@ -84,7 +84,7 @@ exclude = [
     "**/portability/api/**/*.py",
     "**/portability/api/__init__.py",
 ]
-target-version = "py310"
+target-version = "py311"
 src = ["apache_beam"]
 line-length = 120
 
@@ -179,7 +179,7 @@ known-first-party = ["apache_beam"]
 
 [tool.pyrefly]
 project-includes = ["apache_beam"]
-python-version = "3.10.0"
+python-version = "3.11.0"
 ignore-missing-imports = ["*"]
 untyped-def-behavior = "skip-and-infer-return-any"
 

@@ -342,7 +342,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromkinesis">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetokinesis">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -435,7 +439,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromjms">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetojms">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -719,7 +727,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromsnowflake">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetosnowflake">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -744,7 +756,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <br>
-      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspanner">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetospanner">write</a>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspanner">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetospanner">write</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspannercdc">read CDC</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -1039,7 +1051,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromfirestore">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetofirestore">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -1343,7 +1359,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <br>
-      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdelta">read</a>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdelta">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdeltacdc">read CDC</a>
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
