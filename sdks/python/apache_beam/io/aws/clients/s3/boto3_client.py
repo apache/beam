@@ -17,12 +17,10 @@
 
 # pytype: skip-file
 
-import functools
-
+from apache_beam.io.aws.clients import client_options
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 from apache_beam.utils import retry
-from apache_beam.utils.secret import Secret
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -39,26 +37,6 @@ def get_http_error_code(exc):
   return None
 
 
-# S3IO (and therefore Client) is created for almost every filesystem
-# operation, so cache parsed secrets per process to avoid calling the secret
-# manager each time. Note that a rotated secret is only picked up by new
-# worker processes.
-@functools.lru_cache(maxsize=32)
-def _fetch_secret(spec, secret_manager):
-  return Secret.from_json(spec, secret_manager).get_str()
-
-
-def _parse_credential(value, secret_manager):
-  """Parses a credential option with Secret.from_json.
-
-  With no secret_manager, Secret.from_json returns the value itself (as a
-  RawSecret), so plain credentials keep working.
-  """
-  if not value:
-    return value
-  return _fetch_secret(value, secret_manager)
-
-
 class Client(object):
   """
   Wrapper for boto3 library
@@ -70,29 +48,15 @@ class Client(object):
         values. --s3_* options override the --aws_* defaults for S3.
     """
     assert boto3 is not None, 'Missing boto3 requirement'
-    if isinstance(options, pipeline_options.PipelineOptions):
-      aws_options = options.view_as(pipeline_options.AwsOptions)
-      s3_options = options.view_as(pipeline_options.S3Options)
-    else:
-      aws_options = pipeline_options.AwsOptions(flags=[], **options)
-      s3_options = pipeline_options.S3Options(flags=[], **options)
-
-    settings = aws_options.get_client_settings(s3_options)
-    secret_manager = aws_options.aws_credentials_secret_manager
-    for name in ('access_key_id', 'secret_access_key', 'session_token'):
-      settings[name] = _parse_credential(settings[name], secret_manager)
+    s3_options = client_options.view_options(
+        options, pipeline_options.S3Options)
 
     session = boto3.session.Session()
     self.client = session.client(
         service_name='s3',
-        region_name=settings['region_name'],
         api_version=s3_options.s3_api_version,
-        use_ssl=not settings['disable_ssl'],
-        verify=settings['verify'],
-        endpoint_url=settings['endpoint_url'],
-        aws_access_key_id=settings['access_key_id'],
-        aws_secret_access_key=settings['secret_access_key'],
-        aws_session_token=settings['session_token'])
+        **client_options.get_client_kwargs(
+            options, pipeline_options.S3Options))
 
     self._download_request = None
     self._download_stream = None

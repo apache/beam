@@ -27,6 +27,7 @@ from apache_beam.utils.secret import RawSecret
 try:
   import boto3  # pylint: disable=unused-import
 
+  from apache_beam.io.aws.clients import client_options
   from apache_beam.io.aws.clients.s3 import boto3_client
 except ImportError:
   boto3_client = None
@@ -35,7 +36,7 @@ except ImportError:
 @unittest.skipIf(boto3_client is None, 'boto3 is not installed')
 class Boto3ClientOptionsTest(unittest.TestCase):
   def setUp(self):
-    boto3_client._fetch_secret.cache_clear()
+    client_options._fetch_secret.cache_clear()
     patcher = mock.patch('boto3.session.Session')
     self.mock_session = patcher.start().return_value
     self.addCleanup(patcher.stop)
