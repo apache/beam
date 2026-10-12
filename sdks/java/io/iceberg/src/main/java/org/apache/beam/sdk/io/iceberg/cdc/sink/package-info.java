@@ -57,9 +57,7 @@
  *       the table has too many concurrent writers, and the sink will not make progress past the
  *       failing window (commits are strictly ordered).
  *   <li><b>heartbeatCommits</b>: empty token-refresh commits emitted while a destination is idle
- *       (only if {@code withTokenHeartbeat} is configured). Each one is a real snapshot. With
- *       heartbeat enabled prefer cancel-and-resubmit over drain: the self-re-arming processing-time
- *       timer can keep a drain from completing.
+ *       (only if {@code withTokenHeartbeat} is configured). Each one is a real snapshot.
  * </ul>
  *
  * <h3>Safety tripwires</h3>
