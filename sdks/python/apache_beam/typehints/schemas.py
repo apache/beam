@@ -71,6 +71,7 @@ any backwards-compatibility guarantee.
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import dataclasses
 import datetime
 import decimal
 import logging
@@ -666,7 +667,13 @@ class SchemaTranslation(object):
     if schema.id in self.schema_registry.by_id:
       user_type = self.schema_registry.by_id[schema.id][0]
     else:
-      user_type = NamedTuple(type_name, subfields)
+      if any(name.startswith('_') for name, _ in subfields):
+        # NamedTuple rejects field names with a leading underscore, like the
+        # CDC metadata column _change_type.
+        user_type = dataclasses.make_dataclass(
+            type_name, subfields, frozen=True)
+      else:
+        user_type = NamedTuple(type_name, subfields)
 
       # Define a reduce function, otherwise these types can't be pickled
       # (See BEAM-9574)
@@ -685,7 +692,11 @@ class SchemaTranslation(object):
 
 def _named_tuple_reduce_method(serialized_schema):
   def __reduce__(self):
-    return _hydrate_namedtuple_instance, (serialized_schema, tuple(self))
+    if dataclasses.is_dataclass(self):
+      values = tuple(getattr(self, f.name) for f in dataclasses.fields(self))
+    else:
+      values = tuple(self)
+    return _hydrate_namedtuple_instance, (serialized_schema, values)
 
   return __reduce__
 

@@ -157,7 +157,6 @@ class OrderedCommitFn extends DoFn<KV<String, WindowedCommit>, KV<String, Snapsh
     this.pendingSpec = StateSpecs.bag(CommitDeltas.windowedCommitCoder());
   }
 
-  @RequiresStableInput
   @ProcessElement
   public void process(
       @Element KV<String, WindowedCommit> element,
@@ -222,7 +221,6 @@ class OrderedCommitFn extends DoFn<KV<String, WindowedCommit>, KV<String, Snapsh
             + "continuation.");
   }
 
-  @RequiresStableInput
   @OnTimer("commit")
   public void onCommit(
       OnTimerContext c,

@@ -1279,6 +1279,40 @@ def temp_delta_cdc_table():
     yield temp_dir
 
 
+@contextlib.contextmanager
+def temp_delta_cdc_table_with_updates():
+  try:
+    from deltalake import DeltaTable
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  # The CDC sink needs a non-null key.
+  schema = pa.schema([
+      pa.field("id", pa.int64(), nullable=False),
+      pa.field("item", pa.string()),
+      pa.field("qty", pa.int64()),
+  ])
+
+  def orders(*rows):
+    return pa.Table.from_pylist([dict(zip(schema.names, row)) for row in rows],
+                                schema=schema)
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0: three new orders.
+    write_deltalake(
+        temp_dir,
+        orders((1, "apple", 3), (2, "pear", 5), (3, "plum", 2)),
+        configuration={"delta.enableChangeDataFeed": "true"})
+    # Versions 1 to 3: update order 1, delete order 2, add order 4.
+    table = DeltaTable(temp_dir)
+    table.update(updates={"qty": "4"}, predicate="id = 1")
+    table.delete("id = 2")
+    write_deltalake(temp_dir, orders((4, "kiwi", 1)), mode="append")
+
+    yield temp_dir
+
+
 def replace_recursive(spec, vars):
   """Recursively replaces string placeholders in a spec with values from vars.
 

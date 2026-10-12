@@ -282,6 +282,24 @@ class RowCoderTest(unittest.TestCase):
     for test_case in test_cases:
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
+  def test_row_coder_underscore_field_name(self):
+    # NamedTuple rejects a leading underscore, as in the CDC metadata column
+    # _change_type.
+    schema = schema_pb2.Schema(
+        id="underscore_field_name",
+        fields=[
+            schema_pb2.Field(
+                name="id",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT64)),
+            schema_pb2.Field(
+                name="_change_type",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+        ])
+    coder = RowCoder(schema)
+    row = named_tuple_from_schema(schema)(1, "INSERT")
+    self.assertEqual(row, coder.decode(coder.encode(row)))
+    self.assertEqual(row, pickler.loads(pickler.dumps(row)))
+
   @unittest.skip(
       "https://github.com/apache/beam/issues/19696 - Overflow behavior in "
       "VarIntCoder is currently inconsistent")
