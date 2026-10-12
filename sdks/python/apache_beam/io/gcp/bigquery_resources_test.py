@@ -137,6 +137,96 @@ PARSE_CASES = [
         'test_dataset',
         'test_project', ('test_project', 'test_dataset', 'test_table'),
         _SAME),
+    (
+        'master_fq_dot',
+        'project.dataset.table',
+        None,
+        None, ('project', 'dataset', 'table'),
+        _SAME),
+    (
+        'master_fq_dot_dashes',
+        'my-project.my_dataset.table',
+        None,
+        None, ('my-project', 'my_dataset', 'table'),
+        _SAME),
+    # Lakehouse runtime catalog tables: composite 'catalog.namespace' dataset.
+    (
+        'master_lakehouse_dot',
+        'project.catalog.namespace.table',
+        None,
+        None, ('project', 'catalog.namespace', 'table'),
+        _SAME),
+    (
+        'master_lakehouse_colon',
+        'project:catalog.namespace.table',
+        None,
+        None, ('project', 'catalog.namespace', 'table'),
+        _SAME),
+    (
+        'master_lakehouse_decorator',
+        'my-project.my-catalog.ns.events$20240101',
+        None,
+        None, ('my-project', 'my-catalog.ns', 'events$20240101'),
+        _SAME),
+    (
+        'master_domain_scoped_dot',
+        'example.com:proj.dataset.table',
+        None,
+        None, ('example.com:proj', 'dataset', 'table'),
+        _SAME),
+    (
+        'master_domain_scoped_colon',
+        'example.com:proj:dataset.table',
+        None,
+        None, ('example.com:proj', 'dataset', 'table'),
+        _SAME),
+    (
+        'master_domain_scoped_lakehouse_dot',
+        'example.com:proj.catalog.namespace.table',
+        None,
+        None, ('example.com:proj', 'catalog.namespace', 'table'),
+        _SAME),
+    (
+        'master_domain_scoped_lakehouse_colon',
+        'example.com:proj:catalog.namespace.table',
+        None,
+        None, ('example.com:proj', 'catalog.namespace', 'table'),
+        _SAME),
+    # A composite dataset id needs an explicit project.
+    (
+        'master_composite_requires_project',
+        'my_catalog.namespace.test_table',
+        None,
+        None,
+        ERR,
+        _SAME),
+    ('master_invalid_three_colons', 'a:b:c:d.table', None, None, ERR, _SAME),
+    ('master_invalid_empty_dataset', 'project:.table', None, None, ERR, _SAME),
+    ('master_invalid_no_table', 'project:dataset', None, None, ERR, _SAME),
+    (
+        'master_invalid_upper_case',
+        'MyProject.MyDataset.table',
+        None,
+        None,
+        ERR,
+        _SAME),
+    (
+        'master_invalid_digit_leading',
+        '1project.dataset.table',
+        None,
+        None,
+        ERR,
+        _SAME),
+    (
+        'master_invalid_short_project',
+        'c.namespace.table',
+        None,
+        None,
+        ERR,
+        _SAME),
+    ('master_invalid_leading_dot', '.dataset.table', None, None, ERR, _SAME),
+    ('master_invalid_double_dot', 'project..table', None, None, ERR, _SAME),
+    ('master_invalid_many_parts', 'a.b.c.d.e.f.g', None, None, ERR, _SAME),
     # Additional cases.
     (
         'fq_dot',
@@ -199,13 +289,19 @@ PARSE_CASES = [
     ('dataset_only', 'project:dataset', None, None, ERR, _SAME),
     ('empty', '', None, None, ERR, _SAME),
     ('trailing_dot', 'project:dataset.', None, None, ERR, _SAME),
-    ('dash_in_dataset', 'project:data-set.table', None, None, ERR, _SAME),
-    # An extra component is absorbed by the domain-scoped project prefix.
+    # Dashes and dots are allowed in dataset ids since #40225 (Lakehouse).
+    (
+        'dash_in_dataset',
+        'project:data-set.table',
+        None,
+        None, ('project', 'data-set', 'table'),
+        _SAME),
+    # An extra segment becomes part of a composite dataset id.
     (
         'extra_component',
         'project:dataset.table.extra',
         None,
-        None, ('project:dataset', 'table', 'extra'),
+        None, ('project', 'dataset.table', 'extra'),
         _SAME),
     (
         'unicode_precomposed',
@@ -312,7 +408,9 @@ class TableRefParseTest(unittest.TestCase):
       TableRef.parse('t')
     self.assertEqual(
         str(ctx.exception),
-        'Expected a table reference (PROJECT:DATASET.TABLE or DATASET.TABLE) '
+        'Expected a table reference (PROJECT:DATASET.TABLE, '
+        'PROJECT.DATASET.TABLE, DATASET.TABLE, '
+        'PROJECT:CATALOG.NAMESPACE.TABLE or PROJECT.CATALOG.NAMESPACE.TABLE) '
         'instead of t.')
 
   def test_parse_rejects_non_str(self):
@@ -697,9 +795,30 @@ class ToDatasetRefTest(unittest.TestCase):
     self.assertEqual(to_dataset_ref('d', project='p'), DatasetRef('p', 'd'))
     self.assertEqual(
         to_dataset_ref('proj:d', project='other'), DatasetRef('proj', 'd'))
-    for bad in ('', 'proj:d.t', 'Proj:d', 'd-d'):
+    self.assertEqual(to_dataset_ref('d-d'), DatasetRef(None, 'd-d'))
+    for bad in ('', 'Proj:d', 'a:b:c:d', 'proj:', '.d', 'p.d'):
       with self.assertRaises(ValueError):
         to_dataset_ref(bad)
+
+  def test_str_composite_dataset(self):
+    # Same rules as the dataset part of a table spec: a composite Lakehouse
+    # 'catalog.namespace' dataset needs an explicit project.
+    for spec, expected in (
+        ('proj.catalog.ns', DatasetRef('proj', 'catalog.ns')),
+        ('proj:catalog.ns', DatasetRef('proj', 'catalog.ns')),
+        ('example.com:proj.catalog.ns',
+         DatasetRef('example.com:proj', 'catalog.ns')),
+        ('example.com:proj:catalog.ns',
+         DatasetRef('example.com:proj', 'catalog.ns')),
+    ):
+      self.assertEqual(to_dataset_ref(spec), expected)
+      # Consistent with the dataset part of the equivalent table spec.
+      table = TableRef.parse(spec + '.t')
+      self.assertEqual(to_dataset_ref(spec), table.dataset())
+    # Without a project the first segment is read as the project.
+    self.assertEqual(to_dataset_ref('catalog.ns'), DatasetRef('catalog', 'ns'))
+    with self.assertRaises(ValueError):
+      to_dataset_ref('c.namespace')
 
   def test_rest_dict(self):
     self.assertEqual(

@@ -68,23 +68,33 @@ SchemaDict = dict[str, Any]
 # Patterns are copied from bigquery_tools.parse_table_reference so that
 # TableRef.parse has the same behavior for string inputs.
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
-_DATASET_PATTERN = r'\w{1,1024}'
+# Dots are allowed because Lakehouse runtime catalog tables are addressed with
+# a composite 'catalog.namespace' dataset id.
+_DATASET_PATTERN = r'[-\w.]{1,1024}'
 _TABLE_PATTERN_REGEX = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 # Used when the third-party `regex` module is not installed. Stdlib `re` has no
 # Unicode property classes, so this accepts `\w` letters, digits and `_`,
 # whitespace, `-` and `$`. Unlike the `regex` pattern it rejects combining
 # marks (\p{M}) and non-ASCII dashes and connectors.
 _TABLE_PATTERN_FALLBACK = r'[\w\s\-$]{1,1024}'
+# A single segment of a project id (no dots or colons).
+_PROJECT_NAME_SEGMENT_PATTERN = r'[-a-z0-9]*[a-z0-9]'
 
 _TABLE_SPEC_ERROR = (
-    'Expected a table reference (PROJECT:DATASET.TABLE or '
-    'DATASET.TABLE) instead of %s.')
+    'Expected a table reference (PROJECT:DATASET.TABLE, '
+    'PROJECT.DATASET.TABLE, DATASET.TABLE, '
+    'PROJECT:CATALOG.NAMESPACE.TABLE or PROJECT.CATALOG.NAMESPACE.TABLE) '
+    'instead of %s.')
 _DATASET_SPEC_ERROR = (
-    'Expected a dataset reference (PROJECT:DATASET or DATASET) instead of %s.')
+    'Expected a dataset reference (PROJECT:DATASET, PROJECT.DATASET, DATASET, '
+    'PROJECT:CATALOG.NAMESPACE or PROJECT.CATALOG.NAMESPACE) instead of %s.')
 
 
 def _compile_patterns(use_regex):
-  """Returns the compiled full table-spec pattern.
+  """Returns the compiled pattern that validates a full table spec.
+
+  The pattern only checks the character set. Segments are assigned by
+  :func:`_split_table_spec`.
 
   Args:
     use_regex: If True, compile with the third-party `regex` module and the
@@ -105,6 +115,75 @@ def _compile_patterns(use_regex):
 _TABLE_SPEC_RE = _compile_patterns(regex is not None)
 _DATASET_SPEC_RE = re.compile(
     f'((?P<project>{_PROJECT_PATTERN})[:\\.])?(?P<dataset>{_DATASET_PATTERN})')
+_PROJECT_RE = re.compile(_PROJECT_PATTERN)
+_PROJECT_NAME_SEGMENT_RE = re.compile(_PROJECT_NAME_SEGMENT_PATTERN)
+
+
+def _split_project_and_dataset(qualified, error):
+  """Splits 'PROJECT:DATASET', 'PROJECT.DATASET' or 'DATASET'.
+
+  Mirrors the prefix handling of master's ``bigquery_tools._split_table_spec``
+  (and ``BigQueryHelpers.parseTableSpec`` in the Java SDK). A dataset id may be
+  a composite 'catalog.namespace', so in the purely dotted form the first
+  segment is always the project, and a project is required for composite
+  dataset ids.
+
+  Args:
+    qualified: The spec without the table segment.
+    error: The ValueError to raise if the spec is invalid.
+
+  Returns:
+    A (project or None, dataset) tuple.
+  """
+  colon_count = qualified.count(':')
+  if colon_count == 0:
+    # 'd', 'p.d', 'p.catalog.ns'.
+    first_dot = qualified.find('.')
+    if first_dot < 0:
+      return None, qualified
+    project = qualified[:first_dot]
+    dataset = qualified[first_dot + 1:]
+    if not _PROJECT_RE.fullmatch(project) or not dataset:
+      raise error
+    return project, dataset
+
+  if colon_count == 1:
+    # 'p:d', 'p:catalog.ns', 'example.com:proj.ds'. If the part before the
+    # colon is dotted it is the domain half of a legacy domain-scoped project
+    # id; the first segment after the colon completes the project and any
+    # remaining segments are the (possibly composite) dataset.
+    colon = qualified.find(':')
+    project = qualified[:colon]
+    dataset = qualified[colon + 1:]
+    first_dot = dataset.find('.')
+    if (first_dot >= 0 and first_dot < len(dataset) - 1 and '.' in project and
+        _PROJECT_NAME_SEGMENT_RE.fullmatch(dataset[:first_dot])):
+      project = project + ':' + dataset[:first_dot]
+      dataset = dataset[first_dot + 1:]
+    return project, dataset
+
+  if colon_count == 2:
+    # The last colon terminates a domain-scoped project id spelled with its
+    # own colon: 'example.com:proj:ds' or 'example.com:proj:catalog.ns'.
+    last_colon = qualified.rfind(':')
+    return qualified[:last_colon], qualified[last_colon + 1:]
+
+  # Project ids contain at most one colon, so more than two is never valid.
+  raise error
+
+
+def _split_table_spec(spec):
+  """Splits a full table spec into (project or None, dataset, table).
+
+  Same behavior as master's ``bigquery_tools._split_table_spec``.
+  """
+  error = ValueError(_TABLE_SPEC_ERROR % spec)
+  if not _TABLE_SPEC_RE.fullmatch(spec):
+    raise error
+  # Table ids cannot contain '.', so the table is always the last segment.
+  last_dot = spec.rfind('.')
+  project, dataset = _split_project_and_dataset(spec[:last_dot], error)
+  return project, dataset, spec[last_dot + 1:]
 
 
 def _check_str(cls_name, name, value, optional=False):
@@ -201,7 +280,11 @@ class TableRef:
       spec: If ``dataset`` is None, a full table spec:
         ``'DATASET.TABLE'``, ``'PROJECT:DATASET.TABLE'`` or
         ``'PROJECT.DATASET.TABLE'``, optionally with a ``$`` partition
-        decorator. Otherwise the table ID alone, which is not validated.
+        decorator. Lakehouse runtime catalog tables use
+        ``'PROJECT.CATALOG.NAMESPACE.TABLE'`` or
+        ``'PROJECT:CATALOG.NAMESPACE.TABLE'``, which parse to a composite
+        ``'CATALOG.NAMESPACE'`` dataset id; the project is required for these.
+        Otherwise the table ID alone, which is not validated.
       dataset: The dataset ID, or None if ``spec`` is a full table spec.
       project: The project ID. Only used when ``dataset`` is given; when
         ``spec`` is a full table spec it is ignored (use :meth:`resolve`).
@@ -216,13 +299,11 @@ class TableRef:
           '(callables, ValueProviders) must be resolved first.' % (spec, ))
     if dataset is not None:
       return cls(project=project, dataset_id=dataset, table_id=spec)
-    match = _TABLE_SPEC_RE.fullmatch(spec)
-    if not match:
-      raise ValueError(_TABLE_SPEC_ERROR % spec)
+    parsed_project, parsed_dataset, parsed_table = _split_table_spec(spec)
     return cls(
-        project=match.group('project'),
-        dataset_id=match.group('dataset'),
-        table_id=match.group('table'))
+        project=parsed_project,
+        dataset_id=parsed_dataset,
+        table_id=parsed_table)
 
   @classmethod
   def from_api_repr(cls, value: dict[str, Any]) -> 'TableRef':
@@ -366,12 +447,13 @@ def _deferred_error(kind, value):
 
 
 def _parse_dataset_spec(spec, project):
-  match = _DATASET_SPEC_RE.fullmatch(spec)
-  if not match:
-    raise ValueError(_DATASET_SPEC_ERROR % spec)
-  return DatasetRef(
-      project=match.group('project') or project,
-      dataset_id=match.group('dataset'))
+  # Same project/dataset rules as the prefix of a table spec, so composite
+  # 'catalog.namespace' dataset ids need an explicit project.
+  error = ValueError(_DATASET_SPEC_ERROR % spec)
+  if not _DATASET_SPEC_RE.fullmatch(spec):
+    raise error
+  parsed_project, dataset = _split_project_and_dataset(spec, error)
+  return DatasetRef(project=parsed_project or project, dataset_id=dataset)
 
 
 def to_table_ref(
@@ -413,7 +495,9 @@ def to_dataset_ref(value, project: Optional[str] = None) -> DatasetRef:
   """Converts a dataset reference input into a DatasetRef.
 
   Accepts a DatasetRef, a ``'PROJECT:DATASET'``, ``'PROJECT.DATASET'`` or
-  ``'DATASET'`` string, a REST ``{'projectId'?, 'datasetId'}`` dict, a
+  ``'DATASET'`` string (a composite Lakehouse ``'CATALOG.NAMESPACE'`` dataset
+  needs the project: ``'PROJECT.CATALOG.NAMESPACE'``), a REST
+  ``{'projectId'?, 'datasetId'}`` dict, a
   ``google.cloud.bigquery`` DatasetReference, Dataset or DatasetListItem, or a
   legacy apitools DatasetReference (deprecated). ``project`` is only used for
   strings that do not name a project.
