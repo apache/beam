@@ -148,7 +148,7 @@ class TestModelManager(unittest.TestCase):
     self.manager.release_model(model_name, instance)
 
     # Force delete all models
-    self.manager._force_reset()
+    self.manager.force_reset()
 
     # Verify that the MultiProcessShared instance is deleted
     # and the counter is reseted
@@ -327,7 +327,7 @@ class TestModelManager(unittest.TestCase):
       self.manager.release_model(model_name, instance)
       instance = self.manager.acquire_model(model_name, dummy_loader)
     except RuntimeError:
-      self.manager._force_reset()
+      self.manager.force_reset()
       self.assertTrue(len(self.manager._models[model_name]) == 0)
       self.assertEqual(self.manager._total_active_jobs, 0)
       self.assertEqual(self.manager._pending_reservations, 0.0)
@@ -397,7 +397,7 @@ class TestModelManager(unittest.TestCase):
     # Max is still 2 from earlier in the test run
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
-    self.manager._force_reset()
+    self.manager.force_reset()
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
   def test_single_model_convergence_with_fluctuations(self):
