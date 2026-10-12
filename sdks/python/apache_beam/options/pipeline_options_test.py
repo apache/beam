@@ -28,12 +28,14 @@ import hamcrest as hc
 import mock
 from parameterized import parameterized
 
+from apache_beam.options.pipeline_options import AwsOptions
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import S3Options
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
@@ -1119,6 +1121,58 @@ class CompatVersionTest(unittest.TestCase):
     self.assertFalse(
         options_no_compat.is_compat_version_prior_to("1.0.0"),
         msg="Should return False when update_compatibility_version is not set")
+
+
+class AwsOptionsTest(unittest.TestCase):
+  def test_aws_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+        '--aws_disable_ssl',
+    ]).view_as(AwsOptions)
+    self.assertEqual(options.aws_access_key_id, 'key')
+    self.assertEqual(options.aws_region_name, 'us-east-1')
+    self.assertTrue(options.aws_disable_ssl)
+    self.assertIsNone(options.aws_endpoint_url)
+
+  def test_aws_options_fall_back_to_deprecated_s3_flags(self):
+    options = PipelineOptions([
+        '--s3_access_key_id=key',
+        '--s3_region_name=us-west-2',
+        '--s3_disable_ssl',
+    ]).view_as(AwsOptions)
+    self.assertEqual(options.aws_access_key_id, 'key')
+    self.assertEqual(options.aws_region_name, 'us-west-2')
+    self.assertTrue(options.aws_disable_ssl)
+
+  def test_aws_flags_take_precedence_over_s3_flags(self):
+    options = PipelineOptions([
+        '--s3_region_name=us-west-2',
+        '--aws_region_name=us-east-1',
+    ]).view_as(AwsOptions)
+    self.assertEqual(options.aws_region_name, 'us-east-1')
+
+  def test_aws_options_fall_back_to_deprecated_s3_kwargs(self):
+    options = PipelineOptions(s3_endpoint_url='http://localhost:4566')
+    self.assertEqual(
+        options.view_as(AwsOptions).aws_endpoint_url, 'http://localhost:4566')
+
+  def test_s3_options_delegate_to_aws_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--s3_region_name=us-west-2',
+    ]).view_as(S3Options)
+    self.assertIsInstance(options, AwsOptions)
+    self.assertEqual(options.s3_access_key_id, 'key')
+    self.assertEqual(options.s3_region_name, 'us-west-2')
+    self.assertEqual(options.aws_region_name, 'us-west-2')
+    self.assertFalse(options.s3_disable_ssl)
+
+  def test_options_are_registered_once(self):
+    all_options = PipelineOptions(['--aws_region_name=us-east-1'
+                                   ]).get_all_options()
+    self.assertEqual(all_options['aws_region_name'], 'us-east-1')
+    self.assertIn('s3_region_name', all_options)
 
 
 if __name__ == '__main__':
