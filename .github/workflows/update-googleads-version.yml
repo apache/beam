@@ -37,18 +37,18 @@ jobs:
     name: Upgrade Google Ads
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up JDK 21
-        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           validate-wrappers: false
 
@@ -76,7 +76,7 @@ jobs:
             echo "current_api=${CURRENT_API}"
             echo "latest_version=${LATEST_VER}"
             echo "latest_api=${LATEST_API}"
-            if [[ "$CURRENT_VER" != "$LATEST_VER" || "$CURRENT_API" != "$LATEST_API" ]]; then
+            if (( LATEST_API > CURRENT_API )); then
               echo "should_upgrade=true"
             else
               echo "should_upgrade=false"
@@ -94,16 +94,14 @@ jobs:
           sed -i "s/google-ads:${CURRENT_VER}/google-ads:${LATEST_VER}/g" sdks/java/io/google-ads/build.gradle
           sed -i "s/google-ads-stubs-v${CURRENT_API}:${CURRENT_VER}/google-ads-stubs-v${LATEST_API}:${LATEST_VER}/g" sdks/java/io/google-ads/build.gradle
 
-          if [[ "$CURRENT_API" != "$LATEST_API" ]]; then
-            PKG_DIR="sdks/java/io/google-ads/src/main/java/org/apache/beam/sdk/io/googleads"
-            git mv "${PKG_DIR}/GoogleAdsV${CURRENT_API}.java" "${PKG_DIR}/GoogleAdsV${LATEST_API}.java"
-            find sdks/java/io/google-ads/src -name "*.java" -exec sed -i \
-              -e "s/GoogleAdsV${CURRENT_API}/GoogleAdsV${LATEST_API}/g" \
-              -e "s/com\.google\.ads\.googleads\.v${CURRENT_API}\./com.google.ads.googleads.v${LATEST_API}./g" \
-              -e "s/getVersion${CURRENT_API}()/getVersion${LATEST_API}()/g" \
-              -e "s/GOOGLE_ADS_SERVICE_STUB_V${CURRENT_API}/GOOGLE_ADS_SERVICE_STUB_V${LATEST_API}/g" \
-              -e "s/Google Ads API v${CURRENT_API}/Google Ads API v${LATEST_API}/g" {} +
-          fi
+          PKG_DIR="sdks/java/io/google-ads/src/main/java/org/apache/beam/sdk/io/googleads"
+          git mv "${PKG_DIR}/GoogleAdsV${CURRENT_API}.java" "${PKG_DIR}/GoogleAdsV${LATEST_API}.java"
+          find sdks/java/io/google-ads/src -name "*.java" -exec sed -i \
+            -e "s/GoogleAdsV${CURRENT_API}/GoogleAdsV${LATEST_API}/g" \
+            -e "s/com\.google\.ads\.googleads\.v${CURRENT_API}\./com.google.ads.googleads.v${LATEST_API}./g" \
+            -e "s/getVersion${CURRENT_API}()/getVersion${LATEST_API}()/g" \
+            -e "s/GOOGLE_ADS_SERVICE_STUB_V${CURRENT_API}/GOOGLE_ADS_SERVICE_STUB_V${LATEST_API}/g" \
+            -e "s/Google Ads API v${CURRENT_API}/Google Ads API v${LATEST_API}/g" {} +
 
           ./gradlew :sdks:java:io:google-ads:spotlessApply :sdks:java:io:google-ads:build
 
@@ -135,7 +133,7 @@ jobs:
             gh auth setup-git
             git push origin "$branchName" --quiet
 
-            PR_BODY="This PR was created by automation. It upgrades \`com.google.api-ads:google-ads\` from **${CURRENT_VER}** (API **v${CURRENT_API}**) to **${LATEST_VER}** (API **v${LATEST_API}**).
+            PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from **${CURRENT_VER}** (API **v${CURRENT_API}**) to **${LATEST_VER}** (API **v${LATEST_API}**).
 
           Please review the changes and merge if all tests pass."
 
