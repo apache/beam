@@ -89,6 +89,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed `WriteToFiles` failing to write files when `file_naming` places them in a subdirectory of `path`, since only `path` itself was created before the move ([#21313](https://github.com/apache/beam/issues/21313)).
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Go) Fixed the harness leaking Data/State gRPC streams after the worker stops, and a deadlock when Send returns EOF ([#40260](https://github.com/apache/beam/issues/40260)).
 * (Go) Fixed a deadlock recreating a data channel while holding the channel lock ([#40414](https://github.com/apache/beam/issues/40414)).

@@ -879,6 +879,30 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
             equal_to([('odd', list(range(1, 100, 2))),
                       ('even', list(range(0, 100, 2)))]))
 
+  def test_write_to_nested_directory_destination(self):
+    dir = self._new_tempdir()
+
+    def nested_file_naming(window, pane, shard_index, total_shards, *args):
+      return FileSystems.join('subdir', 'test_file_%s' % shard_index)
+
+    with TestPipeline() as p:
+      _ = (
+          p
+          | "Create" >> beam.Create(range(10))
+          | beam.Map(lambda x: str(x))
+          | fileio.WriteToFiles(
+              path=dir, sink=fileio.TextSink, file_naming=nested_file_naming))
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | fileio.MatchFiles(FileSystems.join(dir, 'subdir', '*'))
+          | fileio.ReadMatches()
+          | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n'))
+          | beam.Map(int))
+
+      assert_that(result, equal_to(list(range(10))))
+
   def test_write_to_different_file_types_some_spilling(self):
 
     dir = self._new_tempdir()
