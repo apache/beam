@@ -2456,8 +2456,8 @@ class AwsOptions(PipelineOptions):
             'By default, SSL is used.'))
 
   def get_client_settings(
-      self, service_options: Optional['PipelineOptions'] = None
-  ) -> dict[str, Any]:
+      self,
+      service_options: Optional['PipelineOptions'] = None) -> dict[str, Any]:
     """Returns the effective client settings for an AWS service.
 
     Starts from the ``--aws_*`` defaults and applies the overrides set in
