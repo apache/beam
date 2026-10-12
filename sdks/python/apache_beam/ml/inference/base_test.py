@@ -2435,9 +2435,15 @@ def try_import_model_manager():
     return False
 
 
+@pytest.mark.no_xdist
 class ModelManagerTest(unittest.TestCase):
   """Tests for RunInference with Model Manager integration."""
   def tearDown(self):
+    if multi_process_shared._process_level_singleton_manager.has_singleton(
+        'model_manager'):
+      multi_process_shared.MultiProcessShared(
+          lambda: None, tag='model_manager',
+          always_proxy=True).acquire().force_reset()
     for p in multiprocessing.active_children():
       p.terminate()
       p.join()
@@ -2544,30 +2550,32 @@ class ModelManagerTest(unittest.TestCase):
         model_tag='initial_tag',
         use_model_manager=True)
     dofn.setup()
+    try:
+      # 1. Before any update, batches use 'initial_tag' and reuse the same model
+      self.assertEqual(dofn.process([0, 0], None, None), [1, 2])
+      self.assertEqual(dofn.process([0, 0], None, None), [3, 4])
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for initial_tag')
 
-    # 1. Before any update, batches use 'initial_tag' and reuse the same model
-    self.assertEqual(dofn.process([0, 0], None, None), [1, 2])
-    self.assertEqual(dofn.process([0, 0], None, None), [3, 4])
-    self.assertEqual(
-        len(dofn._model.all_models()), 1, 'Expected 1 model for initial_tag')
+      # 2. Update to 'model_v1' via side input metadata
+      meta_v1 = base.ModelMetadata(model_id='model_v1', model_name='v1')
+      self.assertEqual(dofn.process([0, 0], None, meta_v1), [1, 2])
+      # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
+      self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
+      self.assertEqual(dofn._cur_tag, 'model_v1')
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
 
-    # 2. Update to 'model_v1' via side input metadata
-    meta_v1 = base.ModelMetadata(model_id='model_v1', model_name='v1')
-    self.assertEqual(dofn.process([0, 0], None, meta_v1), [1, 2])
-    # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
-    self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
-    self.assertEqual(dofn._cur_tag, 'model_v1')
-    self.assertEqual(
-        len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
-
-    # 3. Update to 'model_v2' via side input metadata
-    meta_v2 = base.ModelMetadata(model_id='model_v2', model_name='v2')
-    self.assertEqual(dofn.process([0, 0], None, meta_v2), [1, 2])
-    # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
-    self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
-    self.assertEqual(dofn._cur_tag, 'model_v2')
-    self.assertEqual(
-        len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
+      # 3. Update to 'model_v2' via side input metadata
+      meta_v2 = base.ModelMetadata(model_id='model_v2', model_name='v2')
+      self.assertEqual(dofn.process([0, 0], None, meta_v2), [1, 2])
+      # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
+      self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
+      self.assertEqual(dofn._cur_tag, 'model_v2')
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
+    finally:
+      dofn._model.force_reset()
 
 
 if __name__ == '__main__':
