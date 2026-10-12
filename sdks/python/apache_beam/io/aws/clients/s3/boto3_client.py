@@ -55,8 +55,7 @@ class Client(object):
     self.client = session.client(
         service_name='s3',
         api_version=s3_options.s3_api_version,
-        **client_options.get_client_kwargs(
-            options, pipeline_options.S3Options))
+        **client_options.get_client_kwargs(options, pipeline_options.S3Options))
 
     self._download_request = None
     self._download_stream = None
