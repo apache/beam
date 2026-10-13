@@ -25,11 +25,11 @@
     * [Wordcount](#wordcount)
     * [Transforms](#transforms)
         * [Aggregation](#aggregation)
-        * [Blueprints](#blueprints)
         * [Element-wise](#element-wise)
         * [IO](#io)
         * [Jinja](#jinja)
         * [ML](#ml)
+        * [Pipelines](#pipelines)
 
 <!-- TOC -->
 
@@ -88,11 +88,6 @@ YAML framework.
 
 These examples leverage the built-in `Combine` transform for performing simple
 aggregations including sum, mean, count, etc.
-
-### Blueprints
-
-These examples leverage DF or other existing templates and convert them to yaml
-blueprints.
 
 ### Element-wise
 
@@ -277,3 +272,9 @@ Examples that include ML-specific transforms such as `RunInference` and
 
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).
+
+
+### Pipelines
+
+These examples leverage DF or other existing templates and convert them to yaml
+pipelines.
