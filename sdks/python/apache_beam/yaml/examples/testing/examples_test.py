@@ -829,7 +829,7 @@ def _spanner_io_read_test_preprocessor(
       if transform.get('type', '').startswith('ReadFromSpanner'):
         config = transform['config']
         instance, database = config['instance_id'], config['database_id']
-        if table := config.get('table', None) is None:
+        if (table := config.get('table')) is None:
           table = config.get('query', '').split('FROM')[-1].strip()
         transform['type'] = 'Create'
         transform['config'] = {
