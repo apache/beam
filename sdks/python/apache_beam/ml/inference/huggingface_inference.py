@@ -17,6 +17,9 @@
 
 # pytype: skip-file
 
+# Support forward references
+from __future__ import annotations
+
 import logging
 import sys
 from collections import defaultdict
@@ -24,21 +27,27 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
 from enum import Enum
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
 from typing import Union
 
-import tensorflow as tf
-import torch
-from transformers import AutoModel
-from transformers import Pipeline
-from transformers import TFAutoModel
-from transformers import pipeline
-
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.pytorch_inference import _convert_to_device
+
+# tensorflow, torch and transformers are intentionally not imported at module
+# import time. They are only needed for loading models and running inference
+# when the pipeline is executed (for example, on the workers), and should not
+# be required for constructing and submitting pipelines.
+# Following imports are kept for lint but not actually imported by Python
+# during execution.
+if TYPE_CHECKING:
+  import tensorflow as tf
+  import torch
+  from transformers import AutoModel
+  from transformers import Pipeline
+  from transformers import TFAutoModel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,8 +59,10 @@ __all__ = [
 
 TensorInferenceFn = Callable[
     [
-        Sequence[Union[torch.Tensor, tf.Tensor]],
-        Union[AutoModel, TFAutoModel],
+        # Type aliases are evaluated at import time, so framework types are
+        # quoted (as forward references) to avoid importing them.
+        Sequence[Union['torch.Tensor', 'tf.Tensor']],
+        Union['AutoModel', 'TFAutoModel'],
         str,
         Optional[dict[str, Any]],
         Optional[str],
@@ -60,8 +71,8 @@ TensorInferenceFn = Callable[
 ]
 
 KeyedTensorInferenceFn = Callable[[
-    Sequence[dict[str, Union[torch.Tensor, tf.Tensor]]],
-    Union[AutoModel, TFAutoModel],
+    Sequence[dict[str, Union['torch.Tensor', 'tf.Tensor']]],
+    Union['AutoModel', 'TFAutoModel'],
     str,
     Optional[dict[str, Any]],
     Optional[str]
@@ -69,7 +80,7 @@ KeyedTensorInferenceFn = Callable[[
                                   Iterable[PredictionResult]]
 
 PipelineInferenceFn = Callable[
-    [Sequence[str], Pipeline, Optional[dict[str, Any]]],
+    [Sequence[str], 'Pipeline', Optional[dict[str, Any]]],
     Iterable[PredictionResult]]
 
 
@@ -135,6 +146,7 @@ def no_gpu_available_warning():
 
 
 def is_gpu_available_torch():
+  import torch
   if torch.cuda.is_available():
     return True
   else:
@@ -143,17 +155,40 @@ def is_gpu_available_torch():
 
 
 def get_device_torch(device):
+  import torch
   if device == "GPU" and is_gpu_available_torch():
     return torch.device("cuda")
   return torch.device("cpu")
 
 
 def is_gpu_available_tensorflow(device):
+  import tensorflow as tf
   gpu_devices = tf.config.list_physical_devices(device)
   if len(gpu_devices) == 0:
     no_gpu_available_warning()
     return False
   return True
+
+
+def _is_tensorflow_tensor(value) -> bool:
+  # A TensorFlow tensor can only exist if tensorflow was already imported.
+  # Checking sys.modules, instead of importing tensorflow, avoids requiring
+  # tensorflow to be installed (and the cost of importing it) for PyTorch.
+  tensor_type = getattr(sys.modules.get('tensorflow'), 'Tensor', None)
+  return tensor_type is not None and isinstance(value, tensor_type)
+
+
+def _import_transformers_pipeline() -> Callable[..., Pipeline]:
+  """Returns transformers.pipeline, importing it lazily."""
+  try:
+    from transformers import pipeline
+  except ImportError as e:
+    raise ImportError(
+        'transformers is required to load Hugging Face pipelines, e.g. for '
+        'HuggingFacePipelineModelHandler. Please install it using '
+        '`pip install transformers` in the environment where the pipeline is '
+        'executed (for example, on the workers).') from e
+  return pipeline
 
 
 def _validate_constructor_args_hf_pipeline(task, model):
@@ -170,6 +205,9 @@ def _run_inference_torch_keyed_tensor(
     device,
     inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  import torch
+
+  from apache_beam.ml.inference.pytorch_inference import _convert_to_device
   device = get_device_torch(device)
   key_to_tensor_list = defaultdict(list)
   # torch.no_grad() mitigates GPU memory issues
@@ -193,6 +231,7 @@ def _run_inference_tensorflow_keyed_tensor(
     device,
     inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  import tensorflow as tf
   if device == "GPU":
     is_gpu_available_tensorflow(device)
   key_to_tensor_list = defaultdict(list)
@@ -207,12 +246,13 @@ def _run_inference_tensorflow_keyed_tensor(
   return utils._convert_to_result(batch, predictions, model_id)
 
 
-class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
-                                                           Union[tf.Tensor,
-                                                                 torch.Tensor]],
-                                                      PredictionResult,
-                                                      Union[AutoModel,
-                                                            TFAutoModel]]):
+# Unlike annotations, generic base class arguments are evaluated when the class
+# is defined, so framework types are quoted (as forward references) to avoid
+# importing them. Type checkers resolve them via the TYPE_CHECKING imports.
+class HuggingFaceModelHandlerKeyedTensor(
+    ModelHandler[dict[str, Union['tf.Tensor', 'torch.Tensor']],
+                 PredictionResult,
+                 Union['AutoModel', 'TFAutoModel']]):
   def __init__(
       self,
       model_uri: str,
@@ -305,6 +345,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[dict[str,
         self._model_uri, **self._model_config_args)
     if self._framework == 'pt':
       if self._device == "GPU" and is_gpu_available_torch():
+        import torch
         model.to(torch.device("cuda"))
       if callable(getattr(model, 'requires_grad_', None)):
         model.requires_grad_(False)
@@ -377,6 +418,9 @@ def _default_inference_fn_torch(
     device,
     inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  import torch
+
+  from apache_beam.ml.inference.pytorch_inference import _convert_to_device
   device = get_device_torch(device)
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
@@ -393,6 +437,7 @@ def _default_inference_fn_tensorflow(
     device,
     inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
+  import tensorflow as tf
   if device == "GPU":
     is_gpu_available_tensorflow(device)
   batched_tensors = tf.stack(batch, axis=0)
@@ -400,10 +445,11 @@ def _default_inference_fn_tensorflow(
   return utils._convert_to_result(batch, predictions, model_id)
 
 
-class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
+class HuggingFaceModelHandlerTensor(ModelHandler[Union['tf.Tensor',
+                                                       'torch.Tensor'],
                                                  PredictionResult,
-                                                 Union[AutoModel,
-                                                       TFAutoModel]]):
+                                                 Union['AutoModel',
+                                                       'TFAutoModel']]):
   def __init__(
       self,
       model_uri: str,
@@ -525,13 +571,14 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     """
     inference_args = {} if not inference_args else inference_args
     if not self._framework:
-      if isinstance(batch[0], tf.Tensor):
+      if _is_tensorflow_tensor(batch[0]):
         self._framework = "tf"
       else:
         self._framework = "pt"
 
     if (self._framework == "pt" and self._device == "GPU" and
         is_gpu_available_torch()):
+      import torch
       model.to(torch.device("cuda"))
 
     if self._inference_fn:
@@ -576,7 +623,7 @@ def _default_pipeline_inference_fn(
 
 class HuggingFacePipelineModelHandler(ModelHandler[str,
                                                    PredictionResult,
-                                                   Pipeline]):
+                                                   'Pipeline']):
   def __init__(
       self,
       task: Union[str, PipelineTask] = "",
@@ -619,9 +666,11 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
       device (str): the device (`"CPU"` or `"GPU"`) on which you wish to run
         the pipeline. Defaults to GPU. If GPU is not available then it falls
-        back to CPU. You can also use advanced option like `device_map` with
-        key-value pair as you would do in the usual Hugging Face pipeline using
-        `load_pipeline_args`. Ex: load_pipeline_args={'device_map':auto}).
+        back to CPU. Whether a GPU is available is determined when the model
+        is loaded, i.e. on the workers that execute the pipeline. You can also
+        use advanced option like `device_map` with key-value pair as you would
+        do in the usual Hugging Face pipeline using `load_pipeline_args`.
+        Ex: load_pipeline_args={'device_map':auto}).
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (dict[str, Any]): keyword arguments to provide load
@@ -647,7 +696,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         before loading the model.
 
     **Supported Versions:** HuggingFacePipelineModelHandler supports
-    transformers>=4.18.0.
+    transformers>=4.18.0. transformers and torch are only needed in the
+    environment where the pipeline is executed (for example, on the workers),
+    not for constructing and submitting the pipeline.
     """
     super().__init__(
         min_batch_size=min_batch_size,
@@ -681,14 +732,9 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     if 'device' not in self._load_pipeline_args:
       if current_device == 'CPU':
         self._load_pipeline_args['device'] = 'cpu'
-      else:
-        if is_gpu_available_torch():
-          self._load_pipeline_args['device'] = 'cuda:0'
-        else:
-          _LOGGER.warning(
-              "HuggingFaceModelHandler specified a 'GPU' device, "
-              "but GPUs are not available. Switching to CPU.")
-          self._load_pipeline_args['device'] = 'cpu'
+      # Otherwise, a GPU is used if one is available. This is determined in
+      # load_model(), i.e. on the workers that execute the pipeline, instead of
+      # on the machine that constructs and submits the pipeline.
     else:
       if current_device:
         raise ValueError(
@@ -697,8 +743,12 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
 
   def load_model(self):
     """Loads and initializes the pipeline for processing."""
-    return pipeline(
-        task=self._task, model=self._model, **self._load_pipeline_args)
+    pipeline = _import_transformers_pipeline()
+    load_pipeline_args = dict(self._load_pipeline_args)
+    if 'device' not in load_pipeline_args:
+      load_pipeline_args['device'] = (
+          'cuda:0' if is_gpu_available_torch() else 'cpu')
+    return pipeline(task=self._task, model=self._model, **load_pipeline_args)
 
   def run_inference(
       self,

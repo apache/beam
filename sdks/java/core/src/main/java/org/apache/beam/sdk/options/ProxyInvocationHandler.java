@@ -53,6 +53,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -163,6 +164,26 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
   private final ImmutableMap<String, JsonNode> jsonOptions;
 
+  /**
+   * Names of the entries in {@link #jsonOptions} that were lazily bound defaults, rather than
+   * explicitly set values, on the instance that was serialized. Only populated when that instance
+   * was serialized with {@link #SERIALIZE_DEFAULTS_ATTRIBUTE}; otherwise empty, in which case every
+   * entry of {@link #jsonOptions} is treated as explicitly set.
+   */
+  private final ImmutableSet<String> jsonDefaults;
+
+  /**
+   * Jackson serialization attribute which, when set to {@code true} on the {@link
+   * com.fasterxml.jackson.databind.ObjectWriter}, makes {@link Serializer} additionally record
+   * which serialized values were lazily bound defaults, so that {@link #explicitlySetProperties()}
+   * on the deserialized instance can tell them apart from explicitly set values. Off by default so
+   * that the serialized form seen by runners and workers is unchanged.
+   */
+  static final String SERIALIZE_DEFAULTS_ATTRIBUTE =
+      "org.apache.beam.sdk.options.ProxyInvocationHandler.serializeDefaults";
+
+  private static final String DEFAULTS_FIELD = "defaults";
+
   ProxyInvocationHandler(Map<String, Object> options) {
     this(bindOptions(options), Maps.newHashMap(), 0);
   }
@@ -178,8 +199,17 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
   private ProxyInvocationHandler(
       Map<String, BoundValue> options, Map<String, JsonNode> jsonOptions, int revision) {
+    this(options, jsonOptions, ImmutableSet.of(), revision);
+  }
+
+  private ProxyInvocationHandler(
+      Map<String, BoundValue> options,
+      Map<String, JsonNode> jsonOptions,
+      Set<String> jsonDefaults,
+      int revision) {
     this.options = new ConcurrentHashMap<>(options);
     this.jsonOptions = ImmutableMap.copyOf(jsonOptions);
+    this.jsonDefaults = ImmutableSet.copyOf(jsonDefaults);
     this.revision = new AtomicInteger(revision);
     this.computedProperties =
         new ComputedProperties(
@@ -247,6 +277,34 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
   public String getOptionName(Method method) {
     return computedProperties.gettersToPropertyNames.get(method.getName());
+  }
+
+  /**
+   * Returns the names of the properties that have been explicitly set, either through a setter or
+   * by construction from arguments or JSON, as opposed to defaults that were lazily bound by a
+   * getter.
+   *
+   * <p>Properties present in the JSON this instance was deserialized from are counted as explicitly
+   * set unless that JSON was produced with {@link #SERIALIZE_DEFAULTS_ATTRIBUTE} and marked them as
+   * defaults; without that marker the serialized form does not record whether a value was a default
+   * on the instance that was serialized.
+   */
+  Set<String> explicitlySetProperties() {
+    Set<String> result = new HashSet<>();
+    for (String name : Sets.union(jsonOptions.keySet(), options.keySet())) {
+      if (isExplicitlySet(name)) {
+        result.add(name);
+      }
+    }
+    return result;
+  }
+
+  private boolean isExplicitlySet(String name) {
+    BoundValue bound = options.get(name);
+    if (bound != null && !bound.isDefault()) {
+      return true;
+    }
+    return jsonOptions.containsKey(name) && !jsonDefaults.contains(name);
   }
 
   private void writeObject(java.io.ObjectOutputStream stream) throws IOException {
@@ -810,6 +868,16 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       jgen.writeObject(serializedDisplayData);
 
       jgen.writeNumberField("revision", handler.revision.get());
+      if (Boolean.TRUE.equals(provider.getAttribute(SERIALIZE_DEFAULTS_ATTRIBUTE))) {
+        Set<String> defaults = new TreeSet<>();
+        for (String name : serializableOptions.keySet()) {
+          if (!handler.isExplicitlySet(name)) {
+            defaults.add(name);
+          }
+        }
+        jgen.writeFieldName(DEFAULTS_FIELD);
+        jgen.writeObject(defaults);
+      }
       jgen.writeEndObject();
     }
 
@@ -909,8 +977,18 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         }
       }
       int revision = objectNode.hasNonNull("revision") ? objectNode.get("revision").asInt() : 0;
+      Set<String> defaults = new HashSet<>();
+      JsonNode defaultsNode = objectNode.get(DEFAULTS_FIELD);
+      if (defaultsNode != null && defaultsNode.isArray()) {
+        for (JsonNode name : defaultsNode) {
+          if (name.isTextual() && fields.containsKey(name.asText())) {
+            defaults.add(name.asText());
+          }
+        }
+      }
       PipelineOptions options =
-          new ProxyInvocationHandler(Maps.newHashMap(), fields, revision).as(PipelineOptions.class);
+          new ProxyInvocationHandler(Maps.newHashMap(), fields, defaults, revision)
+              .as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;
     }
