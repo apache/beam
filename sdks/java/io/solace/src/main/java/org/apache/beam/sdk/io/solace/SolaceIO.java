@@ -841,6 +841,10 @@ public class SolaceIO {
                       configuration.getNackOnTimeout())));
 
       if (configuration.getEnableOpenTelemetryTracing()) {
+        checkArgument(
+            TypeDescriptor.of(Solace.Record.class).isSupertypeOf(configuration.getTypeDescriptor()),
+            "SolaceIO.Read: withEnableOpenTelemetryTracing() requires Solace.Record output "
+                + "(SolaceIO.read()); user properties are not available after a custom parseFn.");
         output =
             output
                 .apply(

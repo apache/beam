@@ -733,6 +733,28 @@ public class SolaceIOReadTest {
   }
 
   @Test
+  public void testReadWithOpenTelemetryTracingRejectsCustomType() {
+    Read<SimpleRecord> read =
+        SolaceIO.read(
+                TypeDescriptor.of(SimpleRecord.class),
+                input ->
+                    new SimpleRecord(
+                        new String(input.getBytes(), StandardCharsets.UTF_8),
+                        input.getApplicationMessageId()),
+                input -> Instant.ofEpochMilli(1708100477061L))
+            .from(Solace.Queue.fromName("queue"))
+            .withSempClientFactory(MockSempClientFactory.getDefaultMock())
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build())
+            .withEnableOpenTelemetryTracing();
+
+    assertThrows(
+        IllegalArgumentException.class, () -> read.expand(PBegin.in(TestPipeline.create())));
+  }
+
+  @Test
   public void testReadWithOpenTelemetryTracing() {
     String traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
     String parentSpanId1 = "00f067aa0ba902b7";
