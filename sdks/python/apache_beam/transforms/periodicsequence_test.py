@@ -19,11 +19,11 @@
 
 # pytype: skip-file
 
-import inspect
 import logging
 import random
 import time
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -130,20 +130,18 @@ class PeriodicImpulseTest(unittest.TestCase):
       assert_that(actual, equal_to(k))
 
   def test_default_start(self):
-    default_parameters = inspect.signature(PeriodicImpulse.__init__).parameters
-    it = default_parameters["start_timestamp"].default
+    # The default start_timestamp is the time the transform is created, not
+    # the time this module was imported.
+    it = Timestamp(seconds=1)
     duration = 1
     et = it + duration
     interval = 0.5
 
-    # Check default `stop_timestamp` is the same type `start_timestamp`
-    is_same_type = isinstance(
-        it, type(default_parameters["stop_timestamp"].default))
-    error = "'start_timestamp' and 'stop_timestamp' have different type"
-    assert is_same_type, error
+    with mock.patch.object(Timestamp, 'now', return_value=it):
+      impulse = PeriodicImpulse(stop_timestamp=et, fire_interval=interval)
 
     with TestPipeline() as p:
-      result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
+      result = p | 'PeriodicImpulse' >> impulse
 
       k = [it + x * interval for x in range(0, int(duration / interval))]
       self.assertEqual(result.is_bounded, False)

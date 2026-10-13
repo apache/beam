@@ -392,7 +392,7 @@ class MatchContinuously(beam.PTransform):
       file_pattern,
       interval=360.0,
       has_deduplication=True,
-      start_timestamp=Timestamp.now(),
+      start_timestamp=None,
       stop_timestamp=MAX_TIMESTAMP,
       match_updated_files=False,
       apply_windowing=False,
@@ -404,7 +404,8 @@ class MatchContinuously(beam.PTransform):
       file_pattern: The file path to read from.
       interval: Interval at which to check for files in seconds.
       has_deduplication: Whether files already read are discarded or not.
-      start_timestamp: Timestamp for start file checking.
+      start_timestamp: Timestamp for start file checking. Defaults to the time
+        the transform is created.
       stop_timestamp: Timestamp after which no more files will be checked.
       match_updated_files: (When has_deduplication is set to True) whether match
         file with timestamp changes.
@@ -421,7 +422,8 @@ class MatchContinuously(beam.PTransform):
     self.file_pattern = file_pattern
     self.interval = interval
     self.has_deduplication = has_deduplication
-    self.start_ts = start_timestamp
+    self.start_ts = (
+        start_timestamp if start_timestamp is not None else Timestamp.now())
     self.stop_ts = stop_timestamp
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing

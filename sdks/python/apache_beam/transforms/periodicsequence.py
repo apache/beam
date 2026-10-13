@@ -292,14 +292,15 @@ class PeriodicImpulse(PTransform):
 
   def __init__(
       self,
-      start_timestamp: TimestampTypes = Timestamp.now(),
+      start_timestamp: Optional[TimestampTypes] = None,
       stop_timestamp: TimestampTypes = MAX_TIMESTAMP,
       fire_interval: float = 360.0,
       apply_windowing: bool = False,
       data: Optional[Sequence[Any]] = None,
       rebase: RebaseMode = RebaseMode.REBASE_NONE):
     '''
-    :param start_timestamp: Timestamp for first element.
+    :param start_timestamp: Timestamp for first element. Defaults to the time
+      the transform is created.
     :param stop_timestamp: Timestamp at or after which no elements will be
       output.
     :param fire_interval: Interval in seconds at which to output elements.
@@ -333,7 +334,8 @@ class PeriodicImpulse(PTransform):
       execution time. See `RebaseMode` for more details. Defaults to
       `REBASE_NONE`.
     '''
-    self.start_ts = start_timestamp
+    self.start_ts = (
+        start_timestamp if start_timestamp is not None else Timestamp.now())
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
     self.apply_windowing = apply_windowing

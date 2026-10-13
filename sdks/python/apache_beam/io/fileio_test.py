@@ -27,6 +27,7 @@ import os
 import unittest
 import uuid
 import warnings
+from unittest import mock
 
 import pytest
 from hamcrest.library.text import stringmatches
@@ -386,6 +387,28 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
           | beam.Map(_create_extra_file))
 
       assert_that(match_continiously, equal_to(files))
+
+  def test_default_start_timestamp(self):
+    # The default start_timestamp is the time the transform is created, not
+    # the time the module was imported.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    file = self._create_temp_file(dir=tempdir)
+    interval = 0.2
+    start = Timestamp(seconds=1)
+    stop = start + interval + 0.1
+
+    with mock.patch.object(Timestamp, 'now', return_value=start):
+      match = fileio.MatchContinuously(
+          file_pattern=FileSystems.join(tempdir, '*'),
+          interval=interval,
+          has_deduplication=False,
+          stop_timestamp=stop)
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p | match | beam.Map(lambda metadata: metadata.path))
+
+      assert_that(match_continiously, equal_to([file, file]))
 
   def test_match_updated_files(self):
     files = []
