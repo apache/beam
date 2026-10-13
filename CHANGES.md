@@ -75,6 +75,8 @@
 * ReadFromBigQuery now supports Lakehouse runtime catalog (BigLake metastore) tables with `method=DIRECT_READ`, using 4-part `project.catalog.namespace.table` identifiers. Previously `project:catalog.namespace.table` was silently mis-parsed and tables that report no `numBytes` failed to split (Python) ([#39597](https://github.com/apache/beam/issues/39597)).
 * (Java) `TextIO`, `FileIO`, and `WriteFiles`: streaming writes can skip the shuffle for large bundles by writing them directly to temp files (`withDirectWriteByteThreshold` or experiment `streaming_file_direct_write_threshold_bytes`). Off by default ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Added `AwsOptions` with `--aws_*` pipeline options (e.g. `--aws_access_key_id`, `--aws_region_name`, `--aws_endpoint_url`) for configuring AWS service clients such as S3 ([#40528](https://github.com/apache/beam/issues/40528)).
+* (Python) Added `AwsOptions` with `--aws_*` pipeline options (e.g. `--aws_access_key_id`, `--aws_region_name`, `--aws_endpoint_url`) that set defaults for all AWS service clients. The existing `--s3_*` options in `S3Options` override these defaults for the S3 client only ([#40528](https://github.com/apache/beam/issues/40528)).
+* (Python) Added `--aws_credentials_secret_manager` so AWS credentials (`--aws_access_key_id`, `--aws_secret_access_key`, `--aws_session_token` and their `--s3_*` overrides) can be secret specs resolved through a secret manager such as `GoogleCloudSecretManager`, instead of plain-text values ([#40528](https://github.com/apache/beam/issues/40528)).
 
 ## Breaking Changes
 
@@ -87,7 +89,6 @@
 ## Deprecations
 
 * Support for Python 3.10 was removed following its end-of-life ([#40250](https://github.com/apache/beam/issues/40250)).
-* (Python) `S3Options` and its `--s3_*` pipeline options are deprecated in favor of `AwsOptions` and the equivalent `--aws_*` options. The `--s3_*` options still work and are used when the corresponding `--aws_*` option is not set ([#40528](https://github.com/apache/beam/issues/40528)).
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
@@ -106,6 +107,7 @@
 * (Python) `Duration` built from float seconds now rounds to the nearest microsecond instead of truncating, which could lose a microsecond ([#40263](https://github.com/apache/beam/issues/40263)).
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
+* (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

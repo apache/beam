@@ -53,7 +53,7 @@ on:
             managed_io_docs_pr: "no"}
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   publish_java_artifacts:
