@@ -82,6 +82,7 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.secret import AwsSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
 from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import Secret
@@ -94,6 +95,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    'AwsSecret',
     'BatchElements',
     'CoGroupByKey',
     'Distinct',

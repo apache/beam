@@ -32,7 +32,14 @@ from typing import Union
 
 from apache_beam.options.pipeline_options import AwsOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils.secret import _SECRET_CLASSES
 from apache_beam.utils.secret import Secret
+
+# Secret manager names that resolve to AwsSecret. AWS credentials cannot be
+# stored there, because the credentials are needed to access it.
+_AWS_SECRET_MANAGERS = frozenset(
+    name for name, secret_cls in _SECRET_CLASSES.items()
+    if secret_cls == 'AwsSecret')
 
 # Client settings (see AwsOptions.get_client_settings) that hold credentials.
 CREDENTIAL_SETTINGS = frozenset(
@@ -127,6 +134,12 @@ def _parse_credential(value: Optional[str],
   """
   if not value:
     return value
+  if (secret_manager and
+      secret_manager.strip().lower() in _AWS_SECRET_MANAGERS):
+    raise ValueError(
+        '--aws_credentials_secret_manager cannot be AWS Secrets Manager, '
+        'because the AWS credentials are needed to access it. Store the '
+        'credentials in another secret manager, e.g. GoogleCloudSecretManager.')
   return _fetch_secret(value, secret_manager)
 
 
