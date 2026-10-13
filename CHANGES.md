@@ -82,6 +82,7 @@
   `valueMapper`, `topicNameMapper`, or providing a `ConnectionFactory` must update imports from `javax.jms.*` to
   `jakarta.jms.*`. The module now requires Java 17 at runtime ([#38729](https://github.com/apache/beam/issues/38729)).
 * (Python) `Regex.find_all` with `group=Regex.ALL` now returns every group, as `(match, group1, group2, ...)`, instead of only group 1, and with `outputEmpty=False` it drops a match only when the whole match is empty, matching the `group=0` behavior ([#40399](https://github.com/apache/beam/pull/40399)).
+* (Python) `Regex.all_matches` now returns every group of the regex, instead of failing with a `TypeError` when the regex has no groups and dropping nested or unmatched trailing groups ([#40562](https://github.com/apache/beam/issues/40562)).
 
 ## Deprecations
 
