@@ -107,7 +107,7 @@ jobs:
 
       - name: Install gh cli
         if: steps.check_ads.outputs.should_upgrade == 'true'
-        uses: ./.github/actions/setup-gh-cli-linux
+        uses: $/.github/actions/setup-gh-cli-linux
 
       - name: Set git config
         if: steps.check_ads.outputs.should_upgrade == 'true'
