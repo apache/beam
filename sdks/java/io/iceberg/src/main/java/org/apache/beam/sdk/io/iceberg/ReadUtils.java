@@ -41,6 +41,7 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.EncryptedInputFile;
+import org.apache.iceberg.encryption.NativeEncryptionInputFile;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.hadoop.HadoopInputFile;
@@ -49,9 +50,11 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
+import org.apache.iceberg.util.ByteBuffers;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
+import org.apache.parquet.crypto.FileDecryptionProperties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper class for source operations. */
@@ -79,6 +82,28 @@ public class ReadUtils {
         task.residual());
   }
 
+  /**
+   * Returns the file a Parquet reader should actually open for {@code decrypted}, the result of
+   * {@link org.apache.iceberg.encryption.EncryptionManager#decrypt}.
+   */
+  public static InputFile parquetInputFile(InputFile decrypted) {
+    return decrypted instanceof NativeEncryptionInputFile
+        ? ((NativeEncryptionInputFile) decrypted).encryptedInputFile()
+        : decrypted;
+  }
+
+  /** Returns the Parquet decryption properties, or null if the file is not encrypted. */
+  public static @Nullable FileDecryptionProperties parquetDecryption(InputFile decrypted) {
+    if (!(decrypted instanceof NativeEncryptionInputFile)) {
+      return null;
+    }
+    NativeEncryptionInputFile nativeFile = (NativeEncryptionInputFile) decrypted;
+    return FileDecryptionProperties.builder()
+        .withFooterKey(ByteBuffers.toByteArray(nativeFile.keyMetadata().encryptionKey()))
+        .withAADPrefix(ByteBuffers.toByteArray(nativeFile.keyMetadata().aadPrefix()))
+        .build();
+  }
+
   public static CloseableIterable<Record> createReader(
       Table table,
       IcebergScanConfig scanConfig,
@@ -91,7 +116,10 @@ public class ReadUtils {
       Expression residual) {
     EncryptedInputFile encryptedInput =
         EncryptedFiles.encryptedInput(table.io().newInputFile(file.location()), file.keyMetadata());
-    InputFile inputFile = table.encryption().decrypt(encryptedInput);
+    InputFile decrypted = table.encryption().decrypt(encryptedInput);
+    InputFile inputFile = parquetInputFile(decrypted);
+    @Nullable FileDecryptionProperties decryptionProperties = parquetDecryption(decrypted);
+
     Map<Integer, ?> idToConstants = PartitionUtils.constantsMap(spec, file, fileSequenceNumber);
 
     ParquetReadOptions.Builder optionsBuilder;
@@ -109,6 +137,9 @@ public class ReadUtils {
         optionsBuilder
             .withRange(start, start + length)
             .withMaxAllocationInBytes(MAX_FILE_BUFFER_SIZE);
+    if (decryptionProperties != null) {
+      optionsBuilder = optionsBuilder.withDecryption(decryptionProperties);
+    }
 
     @Nullable String nameMapping = table.properties().get(TableProperties.DEFAULT_NAME_MAPPING);
     NameMapping mapping =
