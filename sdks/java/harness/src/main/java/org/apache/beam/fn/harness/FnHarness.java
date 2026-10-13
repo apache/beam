@@ -437,6 +437,9 @@ public class FnHarness {
         beamFnStatusClient.close();
       }
       processBundleHandler.shutdown();
+      beamFnDataMultiplexer.close();
+      beamFnStateGrpcClientCache.close();
+      channel.shutdown();
     } catch (Exception e) {
       LOG.error("Shutting down harness due to exception", e);
       e.printStackTrace();
