@@ -82,9 +82,9 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.secret import Secret
-from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import Secret
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 
@@ -1204,7 +1204,7 @@ class _SortAndBatchElementsDoFn(DoFn):
       # Check if adding this element would exceed limits
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         # Emit current batch
@@ -1301,7 +1301,7 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
 
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
@@ -1978,7 +1978,12 @@ class LogElements(PTransform):
     def format_timestamp(self, timestamp):
       if self.use_epoch_time:
         return timestamp.seconds()
-      return timestamp.to_rfc3339()
+      try:
+        return timestamp.to_rfc3339()
+      except OverflowError:
+        # MIN_TIMESTAMP and the global window bounds are outside the datetime
+        # range.
+        return str(timestamp)
 
     def process(
         self,
@@ -2214,28 +2219,29 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[list[str], list[tuple[str, str]]])
+  @typehints.with_output_types(Union[list[str], list[tuple[str, ...]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
     Returns the matches if a portion of the line matches the Regex. By default,
     list of group 0 will return with empty items. To get all groups, pass the
     `Regex.ALL` flag in the `group` parameter which returns all the groups in
-    the tuple format.
+    the tuple format. When using `Regex.ALL`, each item is formatted as a
+    tuple: `(match, group1, group2, ...)`.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
       group: (optional) name of the group, it can be integer or a string value.
-      outputEmpty: (optional) Should empty be output. True to output empties
-        and false if not.
+      outputEmpty: (optional) Whether to allow matches with empty groups.
+        If false, these outputs will be silently dropped.
     """
     regex = Regex._regex_compile(regex)
 
     def _process(element):
       matches = regex.finditer(element)
       if group == Regex.ALL:
-        yield [(m.group(), m.groups()[0]) for m in matches
-               if outputEmpty or m.groups()[0]]
+        yield [(m.group(), *m.groups()) for m in matches
+               if outputEmpty or m.group()]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
 

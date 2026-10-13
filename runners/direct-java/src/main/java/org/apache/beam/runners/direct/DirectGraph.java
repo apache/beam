@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMu
  * Methods for interacting with the underlying structure of a {@link Pipeline} that is being
  * executed with the {@link DirectRunner}.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
+@SuppressWarnings({"keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue> {
   private final Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers;
   private final Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters;
@@ -68,7 +70,7 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
   @Override
   public AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
     if (produced instanceof PCollection) {
-      return producers.get(produced);
+      return checkStateNotNull(producers.get(produced), "No producer for %s", produced);
     } else if (produced instanceof PCollectionView) {
       return getWriter((PCollectionView<?>) produced);
     }
@@ -96,7 +98,7 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
   }
 
   private AppliedPTransform<?, ?, ?> getWriter(PCollectionView<?> view) {
-    return viewWriters.get(view);
+    return checkStateNotNull(viewWriters.get(view), "No writer for %s", view);
   }
 
   @Override
@@ -119,6 +121,6 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
   }
 
   String getStepName(AppliedPTransform<?, ?, ?> step) {
-    return stepNames.get(step);
+    return checkStateNotNull(stepNames.get(step), "No step name for %s", step);
   }
 }

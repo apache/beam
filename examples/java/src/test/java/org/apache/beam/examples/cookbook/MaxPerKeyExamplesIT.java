@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.BackOff;
@@ -42,7 +43,7 @@ import org.junit.runners.JUnit4;
 public class MaxPerKeyExamplesIT {
   private MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
-  private final String outputDatasetId = "max_per_key_examples" + timestamp;
+  private final String outputDatasetId = TEMP_DATASET_PREFIX + "maxperkey_" + timestamp;
   private final String outputTable = "max_per_key_examples_table";
   private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;

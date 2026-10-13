@@ -40,11 +40,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -85,6 +85,7 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
+import org.apache.iceberg.MetricsModes;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
@@ -103,11 +104,10 @@ import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
-import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.parquet.hadoop.metadata.FileMetaData;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -123,7 +123,8 @@ import org.slf4j.LoggerFactory;
  * and committed as snapshots.
  *
  * <p>Outputs: {@code snapshots} (one row per commit), {@code errors} (one row per file that could
- * not be registered: {@code file}, {@code error}).
+ * not be registered: {@code file}, {@code error}), and {@code dry_run_report} when a dry run is
+ * configured.
  *
  * <p><b>Schema evolution.</b> With a {@link SchemaEvolutionConfig} whose options are set, a
  * pre-pass reads every Parquet footer, classifies the change each distinct file schema needs on the
@@ -135,7 +136,9 @@ import org.slf4j.LoggerFactory;
  * {@code errors} (see {@link SchemaEvolutionConfig.IncompatibleSchemaHandling}). The per-file
  * checks read Parquet footers: an ORC or Avro file, or a pinned column the footer has no null count
  * for, cannot be verified and goes to {@code errors} unless {@link
- * SchemaEvolutionConfig.UnverifiableFileHandling#ACCEPT} registers it on trust. Schema evolution
+ * SchemaEvolutionConfig.UnverifiableFileHandling#ACCEPT} registers it on trust. When the table does
+ * not exist, the pre-pass creates it from the union of the file schemas; if no readable Parquet
+ * schema can seed it, nothing is created and every file goes to {@code errors}. Schema evolution
  * currently requires bounded input; unbounded input with options set is rejected at construction.
  *
  * <pre>{@code
@@ -154,6 +157,10 @@ import org.slf4j.LoggerFactory;
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   static final String OUTPUT_TAG = "snapshots";
   static final String ERROR_TAG = "errors";
+
+  /** Only present with {@link SchemaEvolutionConfig#getDryRun()}. */
+  static final String DRY_RUN_TAG = "dry_run_report";
+
   private static final Duration DEFAULT_TRIGGER_INTERVAL = Duration.standardMinutes(10);
   private static final Counter numManifestFilesAdded =
       counter(AddFiles.class, "numManifestFilesAdded");
@@ -260,7 +267,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     PCollection<String> paths = input;
     if (evolution.isEnabled()) {
-      paths = gateOnSchemaCommit(input);
+      // one commit per window, and for bounded input the window is the whole input
+      PCollection<String> windowed =
+          input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(windowed);
+      CommitSchemaUnion.Settings settings =
+          new CommitSchemaUnion.Settings(
+              evolution,
+              evolution.incompatibleSchemaHandlingFor(input.isBounded()),
+              new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
+      if (evolution.getDryRun()) {
+        return report(schemas, settings);
+      }
+      PCollection<Long> committed = commitSchema(schemas, settings);
+      paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
     }
 
     PCollectionTuple dataFiles =
@@ -320,39 +340,49 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
   }
 
-  /**
-   * Holds every path until the schema commit has landed. The pre-pass window is the unit of commit,
-   * and for bounded input that unit is the whole input: paths are rewindowed into the global window
-   * first, so one commit covers everything and the Wait.on signal lines up with the main input
-   * whatever windowing the caller applied upstream.
-   */
-  private PCollection<String> gateOnSchemaCommit(PCollection<String> input) {
-    PCollection<String> windowed =
-        input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(partitionFields, sortFields, tableProps);
-    // unset handling follows the mode (fail the job in batch, route in streaming); the pre-pass
-    // only runs on bounded input, see expand
-    IncompatibleSchemaHandling onIncompatible =
-        evolution.incompatibleSchemaHandlingFor(input.isBounded());
-    PCollection<Long> signal =
-        windowed
-            .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema()))
-            .setCoder(CollectDistinctSchemas.groupCoder())
+  private PCollection<List<CollectDistinctSchemas.SchemaGroup>> distinctSchemas(
+      PCollection<String> windowed) {
+    return windowed
+        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution)))
+        .setCoder(CollectDistinctSchemas.groupCoder())
+        .apply(
+            "CollectDistinctSchemas",
+            Combine.globally(new CollectDistinctSchemas()).withoutDefaults());
+  }
+
+  /** Commits the plan for the window's schemas once; the signal releases the gated paths. */
+  private PCollection<Long> commitSchema(
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    return schemas.apply(
+        "CommitSchemaOnce",
+        ParDo.of(new CommitSchemaOnce(catalogConfig, tableIdentifier, settings, committer)));
+  }
+
+  /** Reports the plan for the window's schemas instead; nothing is committed or registered. */
+  private PCollectionRowTuple report(
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    PCollection<Row> report =
+        schemas
             .apply(
-                "CollectDistinctSchemas",
-                Combine.globally(new CollectDistinctSchemas()).withoutDefaults())
-            .apply(
-                "CommitSchemaOnce",
-                ParDo.of(
-                    new CommitSchemaOnce(
-                        catalogConfig,
-                        tableIdentifier,
-                        evolution,
-                        onIncompatible,
-                        creation,
-                        committer)));
-    return windowed.apply("WaitForSchemaCommit", Wait.on(signal));
+                "DryRunReport",
+                ParDo.of(new DryRunReport(catalogConfig, tableIdentifier, settings)))
+            .setRowSchema(DryRunReport.REPORT_SCHEMA);
+
+    PCollection<Row> emptySnapshots =
+        schemas
+            .getPipeline()
+            .apply("NoSnapshots", Create.empty(RowCoder.of(SnapshotInfo.getSchema())))
+            .setRowSchema(SnapshotInfo.getSchema());
+    PCollection<Row> emptyErrors =
+        schemas
+            .getPipeline()
+            .apply("NoErrors", Create.empty(RowCoder.of(ERROR_SCHEMA)))
+            .setRowSchema(ERROR_SCHEMA);
+    return PCollectionRowTuple.of(OUTPUT_TAG, emptySnapshots)
+        .and(ERROR_TAG, emptyErrors)
+        .and(DRY_RUN_TAG, report);
   }
 
   /** Test hook: how the schema pre-pass commits its transaction. */
@@ -394,6 +424,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final SchemaEvolutionConfig evolution;
     private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
+    private transient volatile boolean tableMissing;
     private transient @MonotonicNonNull Set<String> warned;
     private final AtomicBoolean refreshedThisBundle = new AtomicBoolean();
 
@@ -440,7 +471,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
     static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
     static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
+    static final String FIELD_ID_ERROR =
+        "The file's Parquet field ids do not match the table's, and readers resolve its columns"
+            + " by those ids: ";
     static final String PINNED_COLUMN_ERROR = "Pinned required column ";
+    static final String MISSING_TABLE_ERROR =
+        "Table does not exist and the schema pre-pass could not create it (no readable Parquet"
+            + " schema seeded it, or every file schema was refused): ";
     static final String UNCHECKED_FORMAT_ERROR =
         "Schema evolution is enabled but coverage and pin checks support only Parquet;"
             + " refusing to register an unchecked file of format ";
@@ -598,6 +635,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
         // per-file error rows here would silently drop in-flight files on a transient blip.
         // Only conditions that are properties of the file go to the error output.
+        if (tableMissing) {
+          return errorResult(
+              filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
+        }
         if (table == null) {
           synchronized (this) {
             if (table == null) {
@@ -605,6 +646,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 table = getOrCreateTable(filePath, format);
               } catch (FileNotFoundException e) {
                 return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+              } catch (NoSuchTableException e) {
+                tableMissing = true;
+                return errorResult(
+                    filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
               }
             }
           }
@@ -641,6 +686,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           return errorResult(filePath, verdict.error, timestamp, window, paneInfo);
         }
 
+        // What readers resolve a file without field ids with, so its metrics and partition agree
+        // with what they read.
+        NameMapping mapping =
+            NameMappingUtils.forReaders(
+                table.schema(),
+                NameMappingUtils.parseOrNull(
+                    table.properties().get(TableProperties.DEFAULT_NAME_MAPPING)));
+        ParquetFieldIds.@Nullable Resolved resolvedFooter = null;
+        if (parquetFooter != null) {
+          try {
+            resolvedFooter = ParquetFieldIds.resolve(parquetFooter, table, mapping);
+          } catch (ParquetFieldIds.ConflictException e) {
+            return errorResult(
+                filePath, FIELD_ID_ERROR + e.getMessage(), timestamp, window, paneInfo);
+          }
+        }
+
         InputFile inputFile = table.io().newInputFile(filePath);
 
         Metrics metrics;
@@ -650,39 +712,51 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   inputFile,
                   format,
                   MetricsConfig.forTable(table),
-                  MappingUtil.create(table.schema()),
-                  parquetFooter);
+                  mapping,
+                  table.schema(),
+                  resolvedFooter);
         } catch (Exception e) {
           return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
         }
 
         // Figure out which partition this DataFile should go to
-        String partitionPath;
-        if (table.spec().isUnpartitioned()) {
-          partitionPath = "";
-        } else if (!Strings.isNullOrEmpty(prefix)) {
+        String partitionPath = "";
+        @Nullable PartitionKey partitionFromMetrics = null;
+        boolean partitioned = table.spec().isPartitioned();
+        if (partitioned && !Strings.isNullOrEmpty(prefix)) {
           // option 1: use directory structure to determine partition
           // Note: we don't validate the DataFile content here
           partitionPath = getPartitionFromFilePath(filePath);
-        } else {
+        } else if (partitioned) {
           try {
             // option 2: examine DataFile min/max statistics to determine partition
-            partitionPath = getPartitionFromMetrics(metrics, inputFile, table, parquetFooter);
+            partitionFromMetrics =
+                getPartitionFromMetrics(metrics, inputFile, table, mapping, resolvedFooter);
           } catch (UnknownPartitionException e) {
             return errorResult(
                 filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
+          } catch (RuntimeException e) {
+            // e.g. a bound that does not decode as the table's type: one error row, not a failed
+            // bundle
+            return errorResult(
+                filePath, UNKNOWN_PARTITION_ERROR + errorMessage(e), timestamp, window, paneInfo);
           }
         }
 
         try {
-          DataFile df =
+          DataFiles.Builder builder =
               DataFiles.builder(table.spec())
                   .withPath(filePath)
                   .withFormat(format)
                   .withMetrics(metrics)
-                  .withFileSizeInBytes(inputFile.getLength())
-                  .withPartitionPath(partitionPath)
-                  .build();
+                  .withFileSizeInBytes(inputFile.getLength());
+          if (partitionFromMetrics != null) {
+            // Set as values: a path string cannot carry a null ("flag=null" parses as false).
+            builder = builder.withPartition(partitionFromMetrics);
+          } else {
+            builder = builder.withPartitionPath(partitionPath);
+          }
+          DataFile df = builder.build();
           return new ProcessResult(
               SerializableDataFile.from(df, table.spec()),
               null,
@@ -835,6 +909,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       try {
         return catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
+        if (evolution.isEnabled()) {
+          // the pre-pass is the only creator then, and it has already declined
+          throw e;
+        }
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
@@ -895,37 +973,49 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
      * partition may lead to it being incorrectly ignored by downstream queries.
      */
-    static String getPartitionFromMetrics(
-        Metrics metrics, InputFile inputFile, Table table, @Nullable ParquetMetadata preReadFooter)
+    static PartitionKey getPartitionFromMetrics(
+        Metrics metrics,
+        InputFile inputFile,
+        Table table,
+        NameMapping mapping,
+        ParquetFieldIds.@Nullable Resolved footer)
         throws UnknownPartitionException {
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
-      Metrics partitionMetrics;
-      // Check if metrics already includes partition columns (configured by table properties):
-      if (metrics.lowerBounds().keySet().containsAll(sourceIds)
-          && metrics.upperBounds().keySet().containsAll(sourceIds)) {
-        partitionMetrics = metrics;
+      // Iceberg looks metrics modes up by the file's column names, which differ from the table's
+      // after a rename.
+      List<String> metricsNames = new ArrayList<>();
+      if (footer != null) {
+        metricsNames = footer.columnNames(sourceIds);
       } else {
-        // Otherwise, recollect metrics and ensure it includes all partition fields.
-        // Note: we don't attach these additional metrics to the DataFile because we can't assume
-        // that's in the user's best interest.
-        // Some tables are very wide and users may not want to store excessive metadata.
-        List<String> sourceNames =
-            fields.stream()
-                .map(pf -> table.schema().findColumnName(pf.sourceId()))
-                .collect(Collectors.toList());
-        Map<String, String> configProps =
-            sourceNames.stream()
-                .collect(Collectors.toMap(s -> "write.metadata.metrics.column." + s, s -> "full"));
-        MetricsConfig configWithPartitionFields = MetricsConfig.fromProperties(configProps);
+        for (int sourceId : sourceIds) {
+          metricsNames.add(table.schema().findColumnName(sourceId));
+        }
+      }
+      // The table's metrics are reused only when they hold every partition column's exact bounds.
+      // Truncated bounds (under Iceberg's default, truncate(16), a 23-character value is stored as
+      // two different 16-character bounds) and nanos bounds rounded outward work for pruning but
+      // cannot name the partition. Recollected metrics are not attached to the DataFile.
+      Metrics partitionMetrics;
+      if (orEmpty(metrics.lowerBounds()).keySet().containsAll(sourceIds)
+          && orEmpty(metrics.upperBounds()).keySet().containsAll(sourceIds)
+          && fullMetrics(table, metricsNames)
+          && (footer == null || !BoundAdjustment.roundsBounds(footer, table.schema(), sourceIds))) {
+        partitionMetrics = metrics;
+      } else if (footer != null) {
+        partitionMetrics =
+            BoundAdjustment.partitionMetrics(
+                footer, table.schema(), fullMetricsFor(metricsNames), mapping);
+      } else {
         partitionMetrics =
             getFileMetrics(
                 inputFile,
                 inferFormat(inputFile.location()),
-                configWithPartitionFields,
-                MappingUtil.create(table.schema()),
-                preReadFooter);
+                fullMetricsFor(metricsNames),
+                mapping,
+                table.schema(),
+                null);
       }
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
@@ -939,10 +1029,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // Make a best effort estimate by comparing the lower and upper transformed values.
         // If the transformed values are equal, assume that the DataFile's data safely
         // aligns with the same partition.
-        ByteBuffer lowerBytes = partitionMetrics.lowerBounds().get(field.sourceId());
-        ByteBuffer upperBytes = partitionMetrics.upperBounds().get(field.sourceId());
+        ByteBuffer lowerBytes = orEmpty(partitionMetrics.lowerBounds()).get(field.sourceId());
+        ByteBuffer upperBytes = orEmpty(partitionMetrics.upperBounds()).get(field.sourceId());
         if (lowerBytes == null && upperBytes == null) {
-          continue;
+          // No bounds. The null partition is right only when every value is known to be null;
+          // otherwise the partition is unknowable and must not be guessed.
+          if (allValuesNull(partitionMetrics, field.sourceId())
+              || lacksColumn(footer, field.sourceId())) {
+            continue;
+          }
+          throw new UnknownPartitionException(
+              "No column bounds for partition source column "
+                  + table.schema().findColumnName(field.sourceId())
+                  + " (statistics are missing, or are not collected for its type, e.g. INT96, or"
+                  + " for this file format); set a location prefix to partition by path instead");
         } else if (lowerBytes == null || upperBytes == null) {
           throw new UnknownPartitionException(
               "Only one of the min/max was was null, for field "
@@ -957,11 +1057,91 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           throw new UnknownPartitionException(
               "Min and max transformed values were not equal, for column: " + field.name());
         }
+        // Bounds ignore nulls, and a null row belongs to the null partition.
+        if (lowerTransformedValue != null && hasNulls(partitionMetrics, field.sourceId())) {
+          throw new UnknownPartitionException(
+              "Column has both null and non-null values, which belong to different partitions: "
+                  + table.schema().findColumnName(field.sourceId()));
+        }
 
         pk.set(i, lowerTransformedValue);
       }
 
-      return pk.toPath();
+      return pk;
+    }
+
+    /**
+     * Full metrics for the named columns and none for the rest: another column whose bounds cannot
+     * be collected must not fail the inference.
+     */
+    private static MetricsConfig fullMetricsFor(List<String> columnNames) {
+      Map<String, String> props = new HashMap<>();
+      props.put(TableProperties.DEFAULT_WRITE_METRICS_MODE, "none");
+      for (String columnName : columnNames) {
+        props.put(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + columnName, "full");
+      }
+      return MetricsConfig.fromProperties(props);
+    }
+
+    private static boolean fullMetrics(Table table, List<String> metricsNames) {
+      MetricsConfig config = MetricsConfig.forTable(table);
+      for (String name : metricsNames) {
+        if (!(config.columnMode(name) instanceof MetricsModes.Full)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    /** Avro metrics carry null bound maps. */
+    private static Map<Integer, ByteBuffer> orEmpty(@Nullable Map<Integer, ByteBuffer> bounds) {
+      if (bounds == null) {
+        return Collections.emptyMap();
+      }
+      return bounds;
+    }
+
+    /** True when the file is empty or the column's null count equals its value count. */
+    private static boolean allValuesNull(Metrics metrics, int fieldId) {
+      Long records = metrics.recordCount();
+      if (records != null && records == 0) {
+        return true;
+      }
+      Map<Integer, Long> valueCounts = metrics.valueCounts();
+      Map<Integer, Long> nullCounts = metrics.nullValueCounts();
+      if (valueCounts == null || nullCounts == null) {
+        return false;
+      }
+      Long valueCount = valueCounts.get(fieldId);
+      Long nullCount = nullCounts.get(fieldId);
+      return valueCount != null && nullCount != null && valueCount.equals(nullCount);
+    }
+
+    private static boolean hasNulls(Metrics metrics, int fieldId) {
+      Map<Integer, Long> nullCounts = metrics.nullValueCounts();
+      if (nullCounts == null) {
+        return false;
+      }
+      Long nullCount = nullCounts.get(fieldId);
+      return nullCount != null && nullCount > 0;
+    }
+
+    /**
+     * True when a Parquet file does not contain the column at all, e.g. it was written before the
+     * column existed. Every row then reads as null. Unknown for other formats.
+     */
+    private static boolean lacksColumn(ParquetFieldIds.@Nullable Resolved footer, int fieldId) {
+      if (footer == null) {
+        return false;
+      }
+      // A partition source is a leaf column, so the file's leaf columns are enough.
+      for (ColumnDescriptor column : footer.footer().getFileMetaData().getSchema().getColumns()) {
+        org.apache.parquet.schema.Type.ID id = column.getPrimitiveType().getId();
+        if (id != null && id.intValue() == fieldId) {
+          return false;
+        }
+      }
+      return true;
     }
   }
 
@@ -1059,7 +1239,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private static void ensureNameMappingPresent(Table table) {
       // Forces name-based resolution: zero-copy files typically don't carry
       // field ids, so any schema column missing from the mapping is unreadable
-      // in registered files.
+      // in registered files. Registration resolves files with
+      // NameMappingUtils.forReaders, which must agree with what this stores.
       @Nullable NameMapping existing =
           NameMappingUtils.parseOrNull(
               table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
@@ -1157,21 +1338,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   @SuppressWarnings("argument")
-  public static Metrics getFileMetrics(
+  static Metrics getFileMetrics(
       InputFile file,
       FileFormat format,
       MetricsConfig config,
       NameMapping mapping,
-      @Nullable ParquetMetadata preReadFooter) {
+      org.apache.iceberg.Schema tableSchema,
+      ParquetFieldIds.@Nullable Resolved parquetFooter) {
     switch (format) {
       case PARQUET:
-        ParquetMetadata footer =
-            checkStateNotNull(preReadFooter, "Parquet metrics require the pre-read footer");
-        MessageType originalMessageType = footer.getFileMetaData().getSchema();
-        if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
-          footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
-        }
-        return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        return BoundAdjustment.footerMetrics(
+            checkStateNotNull(parquetFooter, "Parquet metrics require the resolved footer"),
+            tableSchema,
+            config,
+            mapping);
       case ORC:
         return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
@@ -1202,16 +1382,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     } else {
       throw new UnknownFormatException();
     }
-  }
-
-  static ParquetMetadata getFooterWithTypeIds(
-      MessageType originalMessageType, ParquetMetadata footer, NameMapping mapping) {
-    originalMessageType = ParquetSchemaUtil.applyNameMapping(originalMessageType, mapping);
-    FileMetaData oldFileMeta = footer.getFileMetaData();
-    FileMetaData newFileMeta =
-        new FileMetaData(
-            originalMessageType, oldFileMeta.getKeyValueMetaData(), oldFileMeta.getCreatedBy());
-    return new ParquetMetadata(newFileMeta, footer.getBlocks());
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

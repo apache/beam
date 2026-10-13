@@ -32,8 +32,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
-  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   if not GCS_INSTALLED:
     raise unittest.SkipTest('GCP dependencies are not installed')
 except ImportError:

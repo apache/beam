@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
@@ -252,19 +253,24 @@ public abstract class TableMetadataDriver
 
   @Override
   public PCollection<KV<String, @Nullable SerializableTableSpec>> expand(PCollection<Row> input) {
+    boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
+
+    Duration customInterval = getRefreshInterval();
+    Duration interval =
+        checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
+
     PCollection<String> tableIds =
         input
-            .apply("ExtractTableIds", ParDo.of(new ExtractTableIdsDoFn(getDynamicDestinations())))
+            .apply(
+                "ExtractTableIds",
+                ParDo.of(
+                    new ExtractTableIdsDoFn(
+                        getDynamicDestinations(), isStreaming ? interval : null)))
             .setCoder(StringUtf8Coder.of())
             .apply("MetadataGlobalWindow", Window.into(new GlobalWindows()));
 
-    boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
-
     PCollection<String> distinctTableIds;
     if (isStreaming) {
-      Duration customInterval = getRefreshInterval();
-      Duration interval =
-          checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
       distinctTableIds =
           tableIds.apply(
               "DeduplicateTableIds", Deduplicate.<String>values().withDuration(interval));
@@ -323,10 +329,61 @@ public abstract class TableMetadataDriver
   }
 
   static class ExtractTableIdsDoFn extends DoFn<Row, String> {
+    private static final int DEFAULT_LOCAL_CACHE_MAX_SIZE = 10_000;
+
+    private static volatile @Nullable Clock globalTestClock;
+
     private final DynamicDestinations dynamicDestinations;
+    private final @Nullable Duration refreshInterval;
+    private transient @Nullable Clock clock;
+    private transient @Nullable LinkedHashMap<String, Long> lastEmittedCache;
 
     ExtractTableIdsDoFn(DynamicDestinations dynamicDestinations) {
+      this(dynamicDestinations, null);
+    }
+
+    ExtractTableIdsDoFn(
+        DynamicDestinations dynamicDestinations, @Nullable Duration refreshInterval) {
       this.dynamicDestinations = dynamicDestinations;
+      this.refreshInterval = refreshInterval;
+    }
+
+    @VisibleForTesting
+    void setClock(@Nullable Clock clock) {
+      this.clock = clock;
+    }
+
+    @VisibleForTesting
+    static void setGlobalTestClock(@Nullable Clock clock) {
+      globalTestClock = clock;
+    }
+
+    @Setup
+    public void setup() {
+      initCache();
+    }
+
+    private void initCache() {
+      if (lastEmittedCache == null && refreshInterval != null) {
+        this.lastEmittedCache =
+            new LinkedHashMap<String, Long>(16, 0.75f, true) {
+              @Override
+              protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
+                return size() > DEFAULT_LOCAL_CACHE_MAX_SIZE;
+              }
+            };
+      }
+    }
+
+    private long getNow() {
+      if (clock != null) {
+        return clock.currentTimeMillis();
+      }
+      Clock global = globalTestClock;
+      if (global != null) {
+        return global.currentTimeMillis();
+      }
+      return System.currentTimeMillis();
     }
 
     @ProcessElement
@@ -340,7 +397,19 @@ public abstract class TableMetadataDriver
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
       if (tableIdentifier != null && !tableIdentifier.trim().isEmpty()) {
-        out.output(tableIdentifier.trim());
+        Map<String, Long> cache = lastEmittedCache;
+        Duration interval = refreshInterval;
+        if (cache != null && interval != null) {
+          long now = getNow();
+          Long lastEmitted = cache.get(tableIdentifier);
+          long minInterval = Math.max(1L, interval.getMillis() / 2);
+          if (lastEmitted == null || (now - lastEmitted) >= minInterval) {
+            cache.put(tableIdentifier, now);
+            out.output(tableIdentifier);
+          }
+        } else {
+          out.output(tableIdentifier);
+        }
       }
     }
   }

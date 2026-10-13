@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.api.client.googleapis.services.AbstractGoogleClient;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
@@ -25,13 +27,11 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * These options configure debug settings for Google API clients created within the Apache Beam SDK.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
    * This option enables tracing of API calls to Google services used within the Apache Beam SDK.
@@ -67,7 +67,7 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
      * given client type.
      */
     public GoogleApiTracer addTraceFor(AbstractGoogleClient client, String traceDestination) {
-      put(client.getClass().getCanonicalName(), traceDestination);
+      put(checkArgumentNotNull(client.getClass().getCanonicalName()), traceDestination);
       return this;
     }
 
@@ -77,14 +77,15 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
      */
     public GoogleApiTracer addTraceFor(
         AbstractGoogleClientRequest<?> request, String traceDestination) {
-      put(request.getClass().getCanonicalName(), traceDestination);
+      put(checkArgumentNotNull(request.getClass().getCanonicalName()), traceDestination);
       return this;
     }
 
     @Override
     public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
+      @Nullable String requestClassName = request.getClass().getCanonicalName();
       for (Map.Entry<String, String> entry : this.entrySet()) {
-        if (request.getClass().getCanonicalName().contains(entry.getKey())) {
+        if (requestClassName != null && requestClassName.contains(entry.getKey())) {
           request.set("$trace", entry.getValue());
         }
       }

@@ -289,7 +289,7 @@ public enum Compression {
       throws IOException;
 
   /** Concatenates all {@link ZipInputStream}s contained within the zip file. */
-  private static class FullZipInputStream extends InputStream {
+  private static final class FullZipInputStream extends InputStream {
     private ZipInputStream zipInputStream;
     private ZipEntry currentEntry;
 

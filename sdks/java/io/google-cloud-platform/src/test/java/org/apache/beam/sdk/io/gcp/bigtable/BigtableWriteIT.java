@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -79,7 +80,9 @@ public class BigtableWriteIT implements Serializable {
   private static BigtableDataClient client;
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
-      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC")));
+      String.format(
+          "BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL-%s",
+          LocalDateTime.now(ZoneId.of("UTC")), UUID.randomUUID().toString().substring(0, 8));
 
   private String project;
 

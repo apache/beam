@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 /**
  * {@link TableProvider} for {@link BigtableTable}.
  *
- * <p>A sample of BigTable table is:
+ * <p>A sample of Bigtable table is:
  *
  * <pre>{@code
  *   CREATE EXTERNAL TABLE beamTable(

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -25,15 +27,13 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * A {@link BundleFactory} where a created {@link UncommittedBundle} clones all elements added to it
  * using the coder of the {@link PCollection}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class CloningBundleFactory implements BundleFactory {
   private static final CloningBundleFactory INSTANCE = new CloningBundleFactory();
 
@@ -70,11 +70,12 @@ class CloningBundleFactory implements BundleFactory {
 
     private CloningBundle(UncommittedBundle<T> underlying) {
       this.underlying = underlying;
-      this.coder = underlying.getPCollection().getCoder();
+      // CloningBundle only wraps non-root bundles, whose PCollection is always present.
+      this.coder = checkStateNotNull(underlying.getPCollection()).getCoder();
     }
 
     @Override
-    public PCollection<T> getPCollection() {
+    public @Nullable PCollection<T> getPCollection() {
       return underlying.getPCollection();
     }
 

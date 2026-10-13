@@ -90,7 +90,7 @@ public class BigtableWriteSchemaTransformProvider
         + "This transform requires the Google Cloud project ID, Bigtable instance ID, and table ID.\n"
         + "The input PCollection should be schema-compliant mutations or keyed rows.\n"
         + "Example usage:\n"
-        + "  - type: WriteToBigtable\n"
+        + "  - type: WriteToBigTable\n"
         + "    input: input\n"
         + "    config:\n"
         + "      project: \"my-gcp-project\"\n"

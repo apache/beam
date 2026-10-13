@@ -21,7 +21,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -39,12 +38,16 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a stateful DoFn that buffers elements that triggered table schema update. Once the table
@@ -58,6 +61,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     extends DoFn<
         KV<ShardedKey<DestinationT>, @Nullable ElementT>,
         KV<DestinationT, StorageApiWritePayload>> {
+  private static final Logger LOG = LoggerFactory.getLogger(SchemaUpdateHoldingFn.class);
   private static final Duration POLL_DURATION = Duration.standardSeconds(1);
 
   @StateId("bufferedElements")
@@ -73,6 +77,17 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
   private final TimerSpec pollTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
   private final ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn;
+
+  private transient @Nullable Cache<BoundedWindow, Instant> drainDeadlines = null;
+
+  private Cache<BoundedWindow, Instant> getDrainDeadlines() {
+    Cache<BoundedWindow, Instant> cache = drainDeadlines;
+    if (cache == null) {
+      cache = CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(30)).build();
+      drainDeadlines = cache;
+    }
+    return cache;
+  }
 
   public SchemaUpdateHoldingFn(
       Coder<ElementT> elementCoder,
@@ -140,7 +155,12 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
     } else {
       // This means that the table schema was recently updated. Try to flush the pending elements.
       if (tryFlushBuffer(
-          element.getKey().getKey(), context.getPipelineOptions(), bag, minBufferedTimestamp, o)) {
+          element.getKey().getKey(),
+          context.getPipelineOptions(),
+          bag,
+          minBufferedTimestamp,
+          o,
+          true)) {
         // Nothing left in buffer. clear timer.
         pollTimer.clear();
         timerTs.clear();
@@ -165,6 +185,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
 
   @OnTimer("pollTimer")
   public void onPollTimer(
+      OnTimerContext context,
       @Key ShardedKey<DestinationT> key,
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
@@ -174,7 +195,9 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
-    if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {
+    convertMessagesDoFn.getDynamicDestinations().setSideInputAccessorFromOnTimerContext(context);
+
+    if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o, true)) {
       timerTs.clear();
     } else {
       // We still have buffered elements. Make sure that the polling timer keeps looping.
@@ -188,24 +211,58 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
 
   @OnWindowExpiration
   public void onWindowExpiration(
+      OnWindowExpirationContext context,
       @Key ShardedKey<DestinationT> key,
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
+      BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
+    minBufferedTimestamp.readLater();
+    bag.readLater();
+    if (Iterables.isEmpty(bag.read())) {
+      return;
+    }
+
+    convertMessagesDoFn
+        .getDynamicDestinations()
+        .setSideInputAccessorFromOnWindowExpirationContext(context);
+
+    java.time.Duration waitTime =
+        java.time.Duration.ofMillis(
+            pipelineOptions
+                .as(BigQueryOptions.class)
+                .getStorageApiMismatchDrainRetryTimeMilliSec());
+    // Shared across every key in this window; see drainDeadlines.
+    // TODO: This needs to use the internal clock instead Instant.now(), as the row deadlines are
+    // based on the
+    // internal clock. Add support for accessing the internal clock in OnWindowExpiration.
+    Instant drainDeadline =
+        getDrainDeadlines()
+            .get(window, () -> Instant.now().plus(Duration.millis(waitTime.toMillis())));
+    LOG.info(
+        "Draining buffered schema-mismatched rows for destination {}, waiting until {} for schema update.",
+        key.getKey(),
+        drainDeadline);
+
     // This can happen on test completion or drain. We can't set any more timers in window
     // expiration, so we just have to loop until the schema is updated.
     BackOff backoff =
-        new ExponentialBackOff.Builder()
-            .setMaxElapsedTimeMillis((int) TimeUnit.SECONDS.toMillis(10))
-            .build();
+        new ExponentialBackOff.Builder().setMaxElapsedTimeMillis((int) waitTime.toMillis()).build();
     do {
-      if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {
+      if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o, true)) {
         return;
       }
-    } while (BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
-    throw new RuntimeException("Failed to flush elements on window expiration!");
+    } while (Instant.now().isBefore(drainDeadline)
+        && BackOffUtils.next(com.google.api.client.util.Sleeper.DEFAULT, backoff));
+
+    // Drain deadline expired: route any remaining buffered elements that still cannot be converted
+    // to the dead-letter collection (failedWritesTag).
+    LOG.warn(
+        "Timed out waiting for table schema update during drain for destination {}; routing remaining buffered rows to failed-rows collection.",
+        key.getKey());
+    tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o, false);
   }
 
   // Returns true if the buffer is completely flushed.
@@ -214,7 +271,8 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
-      MultiOutputReceiver o)
+      MultiOutputReceiver o,
+      boolean collectSchemaErrors)
       throws Exception {
     // Force an update of the MessageConverter schema.
     StorageApiDynamicDestinations.MessageConverter<ElementT> messageConverter =
@@ -236,8 +294,13 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
             bag.read(),
             e -> TimestampedValue.of(KV.of(destination, e.getValue()), e.getTimestamp()));
 
+    // if collectSchemaErrors==false, convertMessagesDoFn should route failed row conversion to the
+    // failed-row
+    // PCollection.
     TableRowToStorageApiProto.ErrorCollector errorCollector =
-        UpgradeTableSchema.newErrorCollector();
+        collectSchemaErrors
+            ? UpgradeTableSchema.newErrorCollector()
+            : TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT;
     Iterable<TimestampedValue<KV<DestinationT, ElementT>>> unProcessed =
         convertMessagesDoFn.handleProcessElements(
             messageConverter, kvBagElements, o, errorCollector);

@@ -358,11 +358,11 @@ public class QueryChangeStreamAction {
         "[{}] change stream completed successfully up to {}", token, changeStreamQueryEndTimestamp);
 
     if (!stopAfterQuerySucceeds) {
-      // Records stopped being returned for the query due to our artificial query end timestamp but
-      // we want to continue processing the partition, resuming from changeStreamQueryEndTimestamp.
-      if (!tracker.tryClaim(changeStreamQueryEndTimestamp)) {
-        return ProcessContinuation.stop();
-      }
+      // Leave the tracker at the last claimed position (record or heartbeat)
+      // instead of advancing to the query end timestamp.
+      // This works around spanner backend issue where some child partition records
+      // were not sent. In other cases since heartbeating is regular the last
+      // received timestamp will not be far behind the query end timestamp.
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
           updateWatermarkCallback(

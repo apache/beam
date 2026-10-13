@@ -96,7 +96,7 @@ public class BigtableReadSchemaTransformProvider
         + "The transform requires the project ID, instance ID, and table ID parameters.\n"
         + "Optionally, the output can be flattened or nested rows.\n"
         + "Example usage:\n"
-        + "  - type: ReadFromBigtable\n"
+        + "  - type: ReadFromBigTable\n"
         + "    config:\n"
         + "      project: \"my-gcp-project\"\n"
         + "      instance: \"my-bigtable-instance\"\n"
@@ -149,7 +149,7 @@ public class BigtableReadSchemaTransformProvider
 
       public abstract Builder setProjectId(String projectId);
 
-      public abstract Builder setFlatten(Boolean flatten);
+      public abstract Builder setFlatten(@Nullable Boolean flatten);
 
       /** Builds a {@link BigtableReadSchemaTransformConfiguration} instance. */
       public abstract BigtableReadSchemaTransformConfiguration build();

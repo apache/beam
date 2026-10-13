@@ -109,6 +109,7 @@ async function assignToNextReviewer(
         labels: existingLabels,
       })
     );
+    await github.requestPrReviewers(pullNumber, [chosenReviewer]);
 
     // Set next action to reviewer
     await github.nextActionReviewers(pullNumber, existingLabels);
@@ -232,6 +233,10 @@ async function assignReviewerSet(
     commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
       labels: existingLabels,
     })
+  );
+  await github.requestPrReviewers(
+    pullNumber,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   github.nextActionReviewers(pullNumber, existingLabels);

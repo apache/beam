@@ -69,20 +69,17 @@ public class CommitterMetricsTest {
         .build();
   }
 
-  // Counts, records, and bytes cover both file kinds; only equality deletes count as delete
-  // records.
+  // The summary keeps both file lists for the per-file metrics.
   @Test
-  public void summarizesCountsRecordsAndBytes() {
-    CommitSummary summary =
-        CommitSummary.of(
-            ImmutableList.of(dataFile(SPEC_0, 10, 100), dataFile(SPEC_0, 20, 200)),
-            ImmutableList.of(deleteFile(SPEC_0, true, 4, 40), deleteFile(SPEC_0, false, 7, 70)));
+  public void keepsFilesAndFlagsEqualityDeletes() {
+    ImmutableList<DataFile> dataFiles =
+        ImmutableList.of(dataFile(SPEC_0, 10, 100), dataFile(SPEC_0, 20, 200));
+    ImmutableList<DeleteFile> deleteFiles =
+        ImmutableList.of(deleteFile(SPEC_0, true, 4, 40), deleteFile(SPEC_0, false, 7, 70));
+    CommitSummary summary = CommitSummary.of(dataFiles, deleteFiles);
 
-    assertThat(summary.dataFileCount, equalTo(2L));
-    assertThat(summary.deleteFileCount, equalTo(2L));
-    assertThat(summary.dataRecords, equalTo(30L));
-    assertThat(summary.equalityDeleteRecords, equalTo(4L));
-    assertThat(summary.bytes, equalTo(410L));
+    assertThat(summary.dataFiles, equalTo(dataFiles));
+    assertThat(summary.deleteFiles, equalTo(deleteFiles));
     assertThat(summary.hasEqualityDeletes, equalTo(true));
   }
 
@@ -92,9 +89,7 @@ public class CommitterMetricsTest {
     CommitSummary summary =
         CommitSummary.of(ImmutableList.of(), ImmutableList.of(deleteFile(SPEC_0, false, 7, 70)));
 
-    assertThat(summary.equalityDeleteRecords, equalTo(0L));
     assertThat(summary.hasEqualityDeletes, equalTo(false));
-    assertThat(summary.bytes, equalTo(70L));
   }
 
   // The first spec id comes from the data files when there are any, and every spec id is collected.
@@ -116,8 +111,8 @@ public class CommitterMetricsTest {
   public void emptyWindowHasNoSpec() {
     CommitSummary summary = CommitSummary.of(ImmutableList.of(), ImmutableList.of());
 
-    assertThat(summary.dataFileCount, equalTo(0L));
-    assertThat(summary.bytes, equalTo(0L));
+    assertThat(summary.dataFiles, empty());
+    assertThat(summary.deleteFiles, empty());
     assertThat(summary.firstSpecId, nullValue());
     assertThat(summary.specIds, empty());
   }

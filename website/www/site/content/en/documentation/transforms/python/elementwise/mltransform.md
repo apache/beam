@@ -55,7 +55,7 @@ MLTransform(transforms=transforms, write_artifact_location=write_artifact_locati
 The transforms passed to `MLTransform` are applied sequentially on the dataset. `MLTransform` expects a dictionary and returns a transformed row object with NumPy arrays.
 ## Examples
 
-The following examples demonstrate how to to create pipelines that use `MLTransform` to preprocess data.
+The following examples demonstrate how to create pipelines that use `MLTransform` to preprocess data.
 
 `MLTransform` can do a full pass on the dataset, which is useful when you need to transform a single element only after analyzing the entire dataset.
 The first two examples require a full pass over the dataset to complete the data transformation.

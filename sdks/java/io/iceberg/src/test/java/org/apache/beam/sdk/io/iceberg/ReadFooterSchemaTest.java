@@ -253,7 +253,7 @@ public class ReadFooterSchemaTest {
   private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))
-        .apply(ParDo.of(new ReadFooterSchema()))
+        .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled())))
         .setCoder(CollectDistinctSchemas.groupCoder());
   }
 

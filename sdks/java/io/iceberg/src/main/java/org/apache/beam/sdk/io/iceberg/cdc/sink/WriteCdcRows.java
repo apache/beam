@@ -29,6 +29,7 @@ import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergWriteResult;
 import org.apache.beam.sdk.io.iceberg.SnapshotInfo;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -184,7 +185,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
   public static WriteCdcRows of(IcebergCatalogConfig catalogConfig) {
     return new AutoValue_WriteCdcRows.Builder()
         .setCatalogConfig(catalogConfig)
-        .setSequenceNumberColumn(CdcWriteConfig.DEFAULT_SEQUENCE_NUMBER_COLUMN)
+        .setSequenceNumberColumn(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
         .setNumShards(CdcWriteConfig.DEFAULT_NUM_SHARDS)
         .setSorterMemoryMB(CdcWriteConfig.DEFAULT_SORTER_MEMORY_MB)
         .setUpsert(false)
@@ -223,7 +224,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * The column holding the per-primary-key monotonic sequence number used to order a single key's
    * changes. Must be declared as a non-nullable {@code INT64} in the input schema. The column is
    * stripped from the written rows. Defaults to {@value
-   * CdcWriteConfig#DEFAULT_SEQUENCE_NUMBER_COLUMN}.
+   * IcebergCdcMetadataColumns#COMMIT_SNAPSHOT_SEQUENCE_NUMBER}.
    */
   public WriteCdcRows withSequenceNumberColumn(String column) {
     return toBuilder().setSequenceNumberColumn(column).build();
@@ -304,8 +305,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * token-bearing snapshot stays recent and is less likely to be lost to {@code expire_snapshots}
    * before the sink resumes. Disabled by default, and ignored for bounded (batch) input.
    *
-   * <p>With heartbeat enabled prefer cancel-and-resubmit over drain: the self-re-arming
-   * processing-time timer can keep a drain from completing.
+   * <p>With heartbeat enabled, stop the pipeline with cancel, not drain.
    */
   public WriteCdcRows withTokenHeartbeat(Duration interval) {
     Preconditions.checkArgument(
