@@ -16,8 +16,7 @@
 # limitations under the License.
 
 # This is an example of a Beam YAML pipeline that reads from GCS Avro files
-# and writes to Cloud Bigtable.  This matches the Dataflow Template located
-# here - https://cloud.google.com/dataflow/docs/guides/templates/provided/avro-to-cloud-bigtable
+# and writes to Cloud Bigtable.
 
 pipeline:
   type: chain
