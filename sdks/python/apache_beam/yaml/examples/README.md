@@ -25,7 +25,7 @@
     * [Wordcount](#wordcount)
     * [Transforms](#transforms)
         * [Aggregation](#aggregation)
-        * [Blueprints](#blueprints)
+        * [Pipelines](#pipelines)
         * [Element-wise](#element-wise)
         * [IO](#io)
         * [Jinja](#jinja)
@@ -89,10 +89,10 @@ YAML framework.
 These examples leverage the built-in `Combine` transform for performing simple
 aggregations including sum, mean, count, etc.
 
-### Blueprints
+### Pipelines
 
 These examples leverage DF or other existing templates and convert them to yaml
-blueprints.
+pipelines.
 
 ### Element-wise
 

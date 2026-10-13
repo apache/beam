@@ -1381,9 +1381,6 @@ YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
-BlueprintTest = YamlExamplesTestSuite(
-    'BlueprintExamplesTest',
-    os.path.join(YAML_DOCS_DIR, '../transforms/blueprint/*.yaml')).run()
 ElementWiseTest = YamlExamplesTestSuite(
     'ElementwiseExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
@@ -1398,6 +1395,9 @@ IOTest = YamlExamplesTestSuite(
 MLTest = YamlExamplesTestSuite(
     'MLExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/ml/**/*.yaml')).run()
+PipelinesTest = YamlExamplesTestSuite(
+    'PipelinesExamplesTest',
+    os.path.join(YAML_DOCS_DIR, '../transforms/pipelines/*.yaml')).run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
