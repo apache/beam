@@ -29,9 +29,11 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -91,6 +93,7 @@ import org.apache.parquet.io.RecordReader;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,6 +116,12 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>As {@link Read} is based on {@link FileIO}, it supports any filesystem (hdfs, ...).
+ *
+ * <p>ParquetIO uses the schema passed to {@link #read(Schema)} or {@link #readFiles(Schema)} as the
+ * Avro reader schema and matches file columns to its fields by name or alias. This lets you read
+ * files written with an older version of the schema: a field the file lacks gets its default value,
+ * and a top-level column the schema lacks is not read. With {@link Read#withProjection(Schema,
+ * Schema)}, the encoder schema takes this role.
  *
  * <p>When using schemas created via reflection, it may be useful to generate {@link GenericRecord}
  * instances rather than instances of the class associated with the schema. {@link Read} and {@link
@@ -554,7 +563,7 @@ public class ParquetIO {
       checkArgument(!isGenericRecordOutput(), "Parse can't be used for reading as GenericRecord.");
 
       return input
-          .apply(ParDo.of(new SplitReadFn<>(null, null, getParseFn(), getConfiguration())))
+          .apply(ParDo.of(new SplitReadFn<>(null, null, null, getParseFn(), getConfiguration())))
           .setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
     }
 
@@ -697,9 +706,18 @@ public class ParquetIO {
                   new SplitReadFn<>(
                       getAvroDataModel(),
                       getProjectionSchema(),
+                      getOutputSchema(),
                       GenericRecordPassthroughFn.create(),
                       getConfiguration())))
           .setCoder(getCollectionCoder());
+    }
+
+    /**
+     * Returns the schema of the output records. It is used both as the Avro reader schema, so that
+     * file records are resolved against it, and as the schema of the output coder.
+     */
+    private Schema getOutputSchema() {
+      return getProjectionSchema() != null ? getEncoderSchema() : getSchema();
     }
 
     @Override
@@ -727,7 +745,7 @@ public class ParquetIO {
      * AvroCoder} when not using Beam schema.
      */
     private Coder<GenericRecord> getCollectionCoder() {
-      Schema coderSchema = getProjectionSchema() != null ? getEncoderSchema() : getSchema();
+      Schema coderSchema = getOutputSchema();
 
       return getInferBeamSchema() ? AvroUtils.schemaCoder(coderSchema) : AvroCoder.of(coderSchema);
     }
@@ -736,8 +754,11 @@ public class ParquetIO {
     static final class SplitReadFn<T> extends DoFn<ReadableFile, T> {
       private final Class<? extends GenericData> modelClass;
       private final String requestSchemaString;
+      private final String readSchemaString;
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
       private static final long SPLIT_LIMIT = 64000000;
+      // Same key as the private AvroReadSupport.AVRO_READ_SCHEMA.
+      private static final String AVRO_READ_SCHEMA = "parquet.avro.read.schema";
 
       private @Nullable final SerializableConfiguration configuration;
 
@@ -746,11 +767,13 @@ public class ParquetIO {
       SplitReadFn(
           GenericData model,
           Schema requestSchema,
+          Schema readSchema,
           SerializableFunction<GenericRecord, T> parseFn,
           @Nullable SerializableConfiguration configuration) {
 
         this.modelClass = model != null ? model.getClass() : null;
         this.requestSchemaString = requestSchema != null ? requestSchema.toString() : null;
+        this.readSchemaString = readSchema != null ? readSchema.toString() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function can't be null");
         this.configuration = configuration;
       }
@@ -780,6 +803,11 @@ public class ParquetIO {
           AvroReadSupport.setRequestedProjection(
               conf, new Schema.Parser().parse(requestSchemaString));
         }
+        // Resolve file records against the output schema, unless the user already set a read schema
+        // through the configuration.
+        if (readSchemaString != null && conf.get(AVRO_READ_SCHEMA) == null) {
+          AvroReadSupport.setAvroReadSchema(conf, new Schema.Parser().parse(readSchemaString));
+        }
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         try (ParquetFileReader reader =
             ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options)) {
@@ -794,6 +822,14 @@ public class ParquetIO {
                       hadoopConf,
                       Maps.transformValues(fileMetadata, ImmutableSet::of),
                       fileSchema));
+          String avroReadSchema = hadoopConf.get(AVRO_READ_SCHEMA);
+          if (avroReadSchema != null
+              && hadoopConf.get(AvroReadSupport.AVRO_REQUESTED_PROJECTION) == null) {
+            readContext =
+                new ReadSupport.ReadContext(
+                    pruneToReadSchema(fileSchema, new Schema.Parser().parse(avroReadSchema)),
+                    readContext.getReadSupportMetadata());
+          }
           ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
 
           RecordMaterializer<GenericRecord> recordConverter =
@@ -875,6 +911,31 @@ public class ParquetIO {
           conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
         }
         return conf;
+      }
+
+      /**
+       * Drops the top-level columns of {@code fileSchema} that have no matching field (by name or
+       * alias) in {@code readSchema}. The Avro record converter fails on columns missing from the
+       * read schema, so without this a read schema with fewer fields than the file could not be
+       * used. Returns {@code fileSchema} unchanged if no columns would remain.
+       */
+      @VisibleForTesting
+      static MessageType pruneToReadSchema(MessageType fileSchema, Schema readSchema) {
+        Set<String> names = new HashSet<>();
+        for (Schema.Field field : readSchema.getFields()) {
+          names.add(field.name());
+          names.addAll(field.aliases());
+        }
+        List<Type> fields = new ArrayList<>();
+        for (Type field : fileSchema.getFields()) {
+          if (names.contains(field.getName())) {
+            fields.add(field);
+          }
+        }
+        if (fields.isEmpty() || fields.size() == fileSchema.getFieldCount()) {
+          return fileSchema;
+        }
+        return new MessageType(fileSchema.getName(), fields);
       }
 
       @GetInitialRestriction
