@@ -154,22 +154,14 @@ def initDbTablesIfNeeded():
           REVOKE ALL ON TABLES FROM PUBLIC, kubeproxyuser_ro;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public
           GRANT SELECT ON TABLES TO kubeproxyuser_ro;
-        BEGIN
+        IF EXISTS (
+            SELECT FROM pg_catalog.pg_roles WHERE rolname = 'cloudsqlsuperuser')
+        THEN
           REVOKE cloudsqlsuperuser FROM kubeproxyuser_ro;
-        EXCEPTION WHEN OTHERS THEN
-          NULL;
-        END;
-        BEGIN
-          ALTER ROLE kubeproxyuser_ro
-            NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
-        EXCEPTION WHEN OTHERS THEN
-          NULL;
-        END;
-        BEGIN
-          ALTER ROLE kubeproxyuser_ro SET default_transaction_read_only = on;
-        EXCEPTION WHEN OTHERS THEN
-          NULL;
-        END;
+        END IF;
+        ALTER ROLE kubeproxyuser_ro
+          NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
+        ALTER ROLE kubeproxyuser_ro SET default_transaction_read_only = on;
       END IF;
     END
     $$;
