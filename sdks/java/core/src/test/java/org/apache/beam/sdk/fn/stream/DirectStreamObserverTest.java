@@ -57,7 +57,7 @@ public class DirectStreamObserverTest {
     AdvancingPhaser phaser = new AdvancingPhaser(1);
     final AtomicBoolean isCriticalSectionShared = new AtomicBoolean();
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
+        new DirectStreamObserver<String>(
             phaser,
             TestStreams.withOnNext(
                     (String t) -> {
@@ -101,7 +101,7 @@ public class DirectStreamObserverTest {
     AdvancingPhaser phaser = new AdvancingPhaser(1);
     final AtomicBoolean elementsAllowed = new AtomicBoolean();
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
+        new DirectStreamObserver<String>(
             phaser,
             TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
                 .withIsReady(elementsAllowed::get)
@@ -137,7 +137,7 @@ public class DirectStreamObserverTest {
     AdvancingPhaser phaser = new AdvancingPhaser(1);
     final AtomicBoolean elementsAllowed = new AtomicBoolean();
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
+        new DirectStreamObserver<String>(
             phaser,
             TestStreams.withOnNext(
                     (String t) -> {
@@ -191,7 +191,7 @@ public class DirectStreamObserverTest {
     // Note that we never advance the phaser in this test.
     final AtomicBoolean elementsAllowed = new AtomicBoolean();
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
+        new DirectStreamObserver<String>(
             new AdvancingPhaser(1),
             TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
                 .withIsReady(elementsAllowed::get)
@@ -237,7 +237,7 @@ public class DirectStreamObserverTest {
             .build();
 
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(new AdvancingPhaser(1), bucketingObserver, 10);
+        new DirectStreamObserver<String>(new AdvancingPhaser(1), bucketingObserver, 10);
 
     List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
     List<Future<String>> results = new ArrayList<>();
@@ -274,7 +274,7 @@ public class DirectStreamObserverTest {
     final AtomicInteger index = new AtomicInteger();
     ArrayListMultimap<Integer, String> values = ArrayListMultimap.create();
     final DirectStreamObserver<String> streamObserver =
-        new DirectStreamObserver<>(
+        new DirectStreamObserver<String>(
             new AdvancingPhaser(1),
             TestStreams.withOnNext((String t) -> assertTrue(values.put(index.get(), t)))
                 .withIsReady(
@@ -313,5 +313,32 @@ public class DirectStreamObserverTest {
       assertEquals(prefixesIndex[prefix], suffix);
       prefixesIndex[prefix] += 1;
     }
+  }
+
+  @Test
+  public void testStalledPollHandlerInvokedWhenStalled() throws Exception {
+    AdvancingPhaser phaser = new AdvancingPhaser(1);
+    final AtomicBoolean isReady = new AtomicBoolean(false);
+    final AtomicInteger stallCount = new AtomicInteger(0);
+    StalledPollHandler handler = stallCount::incrementAndGet;
+
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            phaser,
+            TestStreams.withOnNext((String t) -> {}).withIsReady(isReady::get).build(),
+            handler);
+
+    Future<?> future = executor.submit(() -> streamObserver.onNext("test"));
+
+    while (stallCount.get() == 0) {
+      Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+    }
+    assertTrue(stallCount.get() >= 1);
+
+    isReady.set(true);
+    phaser.arrive();
+
+    future.get(5, TimeUnit.SECONDS);
+    streamObserver.onCompleted();
   }
 }

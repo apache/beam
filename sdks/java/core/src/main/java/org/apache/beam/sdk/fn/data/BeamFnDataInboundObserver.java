@@ -66,7 +66,18 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final Map<String, EndpointStatus<DataEndpoint<?>>> transformIdToDataEndpoint;
   private final Map<String, Map<String, EndpointStatus<TimerEndpoint<?>>>>
       transformIdToTimerFamilyIdToTimerEndpoint;
-  private final CancellableQueue<BeamFnApi.Elements> queue;
+
+  static class ElementWithCallback {
+    final BeamFnApi.Elements elements;
+    final Runnable callback;
+
+    ElementWithCallback(BeamFnApi.Elements elements, Runnable callback) {
+      this.elements = elements;
+      this.callback = callback;
+    }
+  }
+
+  private final CancellableQueue<ElementWithCallback> queue;
 
   // We use a custom exception for closing to avoid the expense of stack trace generation.
   @SuppressWarnings("StaticAssignmentOfThrowable")
@@ -107,7 +118,16 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
 
   @Override
   public void accept(BeamFnApi.Elements elements) throws Exception {
-    queue.put(elements);
+    acceptWithCallback(elements, () -> {});
+  }
+
+  public void acceptWithCallback(BeamFnApi.Elements elements, Runnable callback) throws Exception {
+    queue.put(new ElementWithCallback(elements, callback));
+  }
+
+  public boolean tryAcceptWithCallback(BeamFnApi.Elements elements, Runnable callback)
+      throws Exception {
+    return queue.tryPut(new ElementWithCallback(elements, callback));
   }
 
   @Override
@@ -117,7 +137,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
 
   @Override
   public void close() throws Exception {
-    queue.cancel(CloseException.INSTANCE);
+    queue.cancel(CloseException.INSTANCE, wrapper -> wrapper.callback.run());
   }
 
   public boolean isConsumingReceivedData() {
@@ -177,19 +197,23 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         // collection.
         Iterator<Elements.Data> dataIterator;
         Iterator<Elements.Timers> timersIterator;
+        ElementWithCallback wrapper;
         {
-          BeamFnApi.Elements elements = queue.take();
+          wrapper = queue.take();
+          BeamFnApi.Elements elements = wrapper.elements;
           dataIterator = createDiscardingIterator(elements.getDataList());
           timersIterator = createDiscardingIterator(elements.getTimersList());
         }
         // The SDK is no longer blocked on receiving more data from the Runner.
         consumingReceivedData.set(true);
-        if (multiplexElements(dataIterator, timersIterator)) {
+        boolean isDone = multiplexElements(dataIterator, timersIterator);
+        wrapper.callback.run();
+        if (isDone) {
           return;
         }
       }
     } catch (Exception e) {
-      queue.cancel(e);
+      queue.cancel(e, wrapper -> wrapper.callback.run());
       throw e;
     } finally {
       consumingReceivedData.set(false);

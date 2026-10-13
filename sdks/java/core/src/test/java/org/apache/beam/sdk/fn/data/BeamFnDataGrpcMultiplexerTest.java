@@ -19,23 +19,42 @@ package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.StringContains.containsString;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.fn.stream.StalledPollHandler;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
@@ -362,5 +381,468 @@ public class BeamFnDataGrpcMultiplexerTest {
     assertThat(
         Iterables.getOnlyElement(errorWasReturned).getMessage(),
         containsString("Multiplexer hanging up"));
+  }
+
+  @Test
+  public void testFlowControlManualRequestAndStalledPoll() {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    @SuppressWarnings("unchecked")
+    ClientCallStreamObserver<BeamFnApi.Elements> mockCallStream =
+        mock(ClientCallStreamObserver.class);
+
+    @SuppressWarnings("unchecked")
+    ClientResponseObserver<BeamFnApi.Elements, BeamFnApi.Elements> clientResponseObserver =
+        (ClientResponseObserver<BeamFnApi.Elements, BeamFnApi.Elements>)
+            multiplexer.getInboundObserver();
+
+    clientResponseObserver.beforeStart(mockCallStream);
+    verify(mockCallStream).disableAutoRequestWithInitial(16);
+
+    // Call onStalledPoll directly on multiplexer
+    multiplexer.onStalledPoll();
+    verify(mockCallStream, times(1)).request(1);
+
+    // Call onStalledPoll on InboundObserver
+    StalledPollHandler stalledPollHandler = (StalledPollHandler) multiplexer.getInboundObserver();
+    stalledPollHandler.onStalledPoll();
+    verify(mockCallStream, times(2)).request(1);
+
+    // inFlightInbound started at 16, incremented twice to 18.
+    // requestInbound decrements inFlightInbound.
+    // When decremented below 16 (STEADY_STATE_INBOUND_WINDOW), it requests more.
+    multiplexer.requestInbound(1); // inFlight becomes 17 (>= 16, no request)
+    verify(mockCallStream, times(2)).request(1);
+
+    multiplexer.requestInbound(1); // inFlight becomes 16 (>= 16, no request)
+    verify(mockCallStream, times(2)).request(1);
+
+    multiplexer.requestInbound(1); // inFlight becomes 15 (< 16, requests 1 and inFlight becomes 16)
+    verify(mockCallStream, times(3)).request(1);
+  }
+
+  @Test
+  public void testEmptyElementsHandled() {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    // Should not throw and should safely exit
+    multiplexer.getInboundObserver().onNext(BeamFnApi.Elements.getDefaultInstance());
+  }
+
+  @Test
+  public void testReceiverHolderBuffersBeforeConsumerRegisteredAndDrains() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "unregistered_instruction";
+    BeamFnApi.Elements elements =
+        BeamFnApi.Elements.newBuilder()
+            .addData(
+                BeamFnApi.Elements.Data.newBuilder()
+                    .setInstructionId(instructionId)
+                    .setTransformId("t1")
+                    .setData(ByteString.copyFromUtf8("hello")))
+            .build();
+
+    // Send elements before consumer is registered - should buffer and not block
+    multiplexer.getInboundObserver().onNext(elements);
+
+    // Now register a generic receiver
+    List<BeamFnApi.Elements> received = new ArrayList<>();
+    multiplexer.registerConsumer(
+        instructionId,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void accept(BeamFnApi.Elements input) {
+            received.add(input);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        });
+
+    assertThat(received, Matchers.contains(elements));
+
+    // Registering twice throws IllegalArgumentException wrapped in RuntimeException
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                multiplexer.registerConsumer(
+                    instructionId,
+                    new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                      @Override
+                      public void accept(BeamFnApi.Elements input) {}
+
+                      @Override
+                      public void flush() {}
+
+                      @Override
+                      public void close() {}
+                    }));
+    assertThat(e.getCause(), Matchers.instanceOf(IllegalArgumentException.class));
+  }
+
+  @Test
+  public void testReceiverHolderBuffersAndDrainsWithBeamFnDataInboundObserver() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "inbound_obs_instruction";
+    Coder<WindowedValue<String>> coder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    coder.encode(WindowedValues.valueInGlobalWindow("payload"), out);
+
+    BeamFnApi.Elements elements =
+        BeamFnApi.Elements.newBuilder()
+            .addData(
+                BeamFnApi.Elements.Data.newBuilder()
+                    .setInstructionId(instructionId)
+                    .setTransformId("t1")
+                    .setData(out.toByteString()))
+            .build();
+    BeamFnApi.Elements terminal =
+        BeamFnApi.Elements.newBuilder()
+            .addData(
+                BeamFnApi.Elements.Data.newBuilder()
+                    .setInstructionId(instructionId)
+                    .setTransformId("t1")
+                    .setIsLast(true))
+            .build();
+
+    // Buffer elements before registration
+    multiplexer.getInboundObserver().onNext(elements);
+
+    List<WindowedValue<String>> receivedValues = new ArrayList<>();
+    BeamFnDataInboundObserver inboundObserver =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(DataEndpoint.create("t1", coder, receivedValues::add)),
+            Collections.emptyList());
+
+    multiplexer.registerConsumer(instructionId, inboundObserver);
+    multiplexer.getInboundObserver().onNext(terminal);
+
+    inboundObserver.awaitCompletion();
+    assertThat(receivedValues, Matchers.contains(WindowedValues.valueInGlobalWindow("payload")));
+  }
+
+  @Test
+  public void testUnregisterConsumerNotRegisteredThrows() {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "unregistered_instruction";
+    // Send data to create ReceiverHolder in receivers without registering consumer
+    multiplexer
+        .getInboundObserver()
+        .onNext(
+            BeamFnApi.Elements.newBuilder()
+                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+                .build());
+
+    assertThrows(
+        IllegalArgumentException.class, () -> multiplexer.unregisterConsumer(instructionId));
+  }
+
+  @Test
+  public void testPoisonInstructionId() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "poison_instruction";
+    AtomicBoolean closed = new AtomicBoolean();
+
+    multiplexer.registerConsumer(
+        instructionId,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void accept(BeamFnApi.Elements input) {}
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {
+            closed.set(true);
+          }
+        });
+
+    multiplexer.poisonInstructionId(instructionId);
+    assertTrue(closed.get());
+
+    // Registering consumer for poisoned instruction fails
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            multiplexer.registerConsumer(
+                instructionId,
+                new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                  @Override
+                  public void accept(BeamFnApi.Elements input) {}
+
+                  @Override
+                  public void flush() {}
+
+                  @Override
+                  public void close() {}
+                }));
+
+    // Subsequent elements for poisoned instruction are dropped
+    multiplexer
+        .getInboundObserver()
+        .onNext(
+            BeamFnApi.Elements.newBuilder()
+                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+                .build());
+  }
+
+  @Test
+  public void testPoisonInstructionIdWhenPendingElements() {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "pending_poison_instruction";
+    // Buffer elements
+    multiplexer
+        .getInboundObserver()
+        .onNext(
+            BeamFnApi.Elements.newBuilder()
+                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+                .build());
+
+    // Poison while pending
+    multiplexer.poisonInstructionId(instructionId);
+
+    // Registering now throws
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            multiplexer.registerConsumer(
+                instructionId,
+                new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                  @Override
+                  public void accept(BeamFnApi.Elements input) {}
+
+                  @Override
+                  public void flush() {}
+
+                  @Override
+                  public void close() {}
+                }));
+  }
+
+  @Test
+  public void testToString() {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String str = multiplexer.toString();
+    assertThat(str, containsString("apiServiceDescriptor"));
+    assertThat(str, containsString("consumers"));
+  }
+
+  @Test
+  public void testConsumerAcceptThrowsExceptionPoisonsInstruction() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "throw_instruction";
+    AtomicBoolean closed = new AtomicBoolean();
+
+    multiplexer.registerConsumer(
+        instructionId,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            throw new RuntimeException("Accept failure");
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {
+            closed.set(true);
+          }
+        });
+
+    multiplexer
+        .getInboundObserver()
+        .onNext(
+            BeamFnApi.Elements.newBuilder()
+                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+                .build());
+
+    assertTrue(closed.get());
+  }
+
+  @Test
+  public void testBeamFnDataInboundObserverBufferingWhenFull() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver ->
+                TestStreams.withOnNext((BeamFnApi.Elements val) -> {})
+                    .withOnError(err -> {})
+                    .build());
+
+    String instructionId = "full_queue_instruction";
+    BeamFnDataInboundObserver mockInbound = mock(BeamFnDataInboundObserver.class);
+    when(mockInbound.tryAcceptWithCallback(any(), any())).thenReturn(false).thenReturn(true);
+
+    multiplexer.registerConsumer(instructionId, mockInbound);
+
+    BeamFnApi.Elements elements =
+        BeamFnApi.Elements.newBuilder()
+            .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+            .build();
+
+    // First call returns false -> added to pending
+    multiplexer.getInboundObserver().onNext(elements);
+
+    // Closing drains / clears pending
+    multiplexer.close();
+  }
+
+  @Test
+  public void testBeamFnDataInboundObserverDrainPendingExceptionHandled() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+
+    String instructionId = "drain_exception_instruction";
+    BeamFnApi.Elements elements =
+        BeamFnApi.Elements.newBuilder()
+            .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+            .build();
+
+    // Buffer elements first
+    multiplexer.getInboundObserver().onNext(elements);
+
+    BeamFnDataInboundObserver mockInbound = mock(BeamFnDataInboundObserver.class);
+    when(mockInbound.tryAcceptWithCallback(any(), any()))
+        .thenThrow(new RuntimeException("queue error"));
+
+    // Registering calls drainPending(), which catches the exception and removes from pending
+    multiplexer.registerConsumer(instructionId, mockInbound);
+  }
+
+  /**
+   * The gRPC thread delivers data for one bundle while the bundle thread drains the pending buffer
+   * from its callbacks, and the consumer registers in the middle of the stream. Every element must
+   * arrive once and in order.
+   */
+  @Test(timeout = 60_000)
+  public void testConcurrentHandoffKeepsOrder() throws Exception {
+    int numElements = 3_000;
+    for (int run = 0; run < 3; run++) {
+      BeamFnDataGrpcMultiplexer multiplexer =
+          new BeamFnDataGrpcMultiplexer(
+              DESCRIPTOR,
+              OutboundObserverFactory.clientDirect(),
+              inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+      String instructionId = "concurrent_" + run;
+      Coder<WindowedValue<String>> coder =
+          WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+
+      List<String> received = new ArrayList<>();
+      BeamFnDataInboundObserver observer =
+          BeamFnDataInboundObserver.forConsumers(
+              Collections.singletonList(
+                  DataEndpoint.create(
+                      "t1",
+                      coder,
+                      value -> {
+                        received.add(value.getValue());
+                        if (received.size() % 50 == 0) {
+                          // A slow consumer lets the bundle queue fill, so elements wait in the
+                          // pending buffer and the bundle thread drains them.
+                          Thread.sleep(1);
+                        }
+                      })),
+              Collections.emptyList());
+
+      CountDownLatch halfway = new CountDownLatch(1);
+      Future<?> grpcThread =
+          executor.submit(
+              () -> {
+                for (int i = 0; i < numElements; i++) {
+                  ByteStringOutputStream out = new ByteStringOutputStream();
+                  coder.encode(WindowedValues.valueInGlobalWindow(Integer.toString(i)), out);
+                  multiplexer
+                      .getInboundObserver()
+                      .onNext(
+                          BeamFnApi.Elements.newBuilder()
+                              .addData(
+                                  BeamFnApi.Elements.Data.newBuilder()
+                                      .setInstructionId(instructionId)
+                                      .setTransformId("t1")
+                                      .setData(out.toByteString()))
+                              .build());
+                  if (i == 200) {
+                    halfway.countDown();
+                  }
+                }
+                multiplexer
+                    .getInboundObserver()
+                    .onNext(
+                        BeamFnApi.Elements.newBuilder()
+                            .addData(
+                                BeamFnApi.Elements.Data.newBuilder()
+                                    .setInstructionId(instructionId)
+                                    .setTransformId("t1")
+                                    .setIsLast(true))
+                            .build());
+                return null;
+              });
+
+      halfway.await();
+      multiplexer.registerConsumer(instructionId, observer);
+      observer.awaitCompletion();
+      grpcThread.get();
+
+      List<String> expected = new ArrayList<>();
+      for (int i = 0; i < numElements; i++) {
+        expected.add(Integer.toString(i));
+      }
+      assertEquals(expected, received);
+      multiplexer.unregisterConsumer(instructionId);
+    }
   }
 }
