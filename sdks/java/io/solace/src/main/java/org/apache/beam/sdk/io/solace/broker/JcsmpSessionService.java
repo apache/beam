@@ -32,8 +32,9 @@ import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -57,8 +58,7 @@ public abstract class JcsmpSessionService extends SessionService {
   @Nullable private transient JCSMPSession jcsmpSession;
   @Nullable private transient MessageReceiver messageReceiver;
   @Nullable private transient MessageProducer messageProducer;
-  private final java.util.Queue<PublishResult> publishedResultsQueue =
-      new ConcurrentLinkedQueue<>();
+  private final BlockingQueue<PublishResult> publishedResultsQueue = new LinkedBlockingQueue<>();
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   public static JcsmpSessionService create(JCSMPProperties jcsmpProperties, @Nullable Queue queue) {
@@ -113,7 +113,7 @@ public abstract class JcsmpSessionService extends SessionService {
   }
 
   @Override
-  public java.util.Queue<PublishResult> getPublishedResultsQueue() {
+  public BlockingQueue<PublishResult> getPublishedResultsQueue() {
     return publishedResultsQueue;
   }
 

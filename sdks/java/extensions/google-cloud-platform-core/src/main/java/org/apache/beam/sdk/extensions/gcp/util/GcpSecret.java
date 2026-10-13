@@ -108,6 +108,8 @@ public class GcpSecret extends Secret {
     try {
       Class<?> clazz = Class.forName("com.google.cloud.ServiceOptions");
       java.lang.reflect.Method method = clazz.getMethod("getDefaultProjectId");
+      // getDefaultProjectId is static, so passing a null receiver to Method.invoke is correct;
+      // the checker's stub for Method.invoke conservatively requires a non-null receiver.
       @SuppressWarnings("nullness")
       Object result = method.invoke(null);
       if (result != null && !Strings.isNullOrEmpty(result.toString())) {

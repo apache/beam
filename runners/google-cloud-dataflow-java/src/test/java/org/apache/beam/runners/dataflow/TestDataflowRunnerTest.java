@@ -49,7 +49,9 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -68,13 +70,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link TestDataflowRunner}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private DataflowClient mockClient;
@@ -94,12 +95,31 @@ public class TestDataflowRunnerTest {
     options.setGcpCredential(new TestCredential());
     options.setRunner(TestDataflowRunner.class);
     options.setPathValidatorClass(NoopPathValidator.class);
+    FileSystems.setDefaultPipelineOptions(options);
   }
 
   @Test
   public void testToString() {
     assertEquals(
         "TestDataflowRunner#TestAppName", TestDataflowRunner.fromOptions(options).toString());
+  }
+
+  @Test
+  public void testFromOptionsUsesSharedStagingLocationUnderTempRoot() {
+    options.setJobName("test-job-1");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-1/output/results", options.getTempLocation());
+    assertEquals("gs://test/test-job-1/output/results", options.getGcpTempLocation());
+    assertEquals("gs://test/staging/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsPreservesExplicitStagingLocation() {
+    options.setJobName("test-job-2");
+    options.setStagingLocation("gs://custom-bucket/custom-staging/");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-2/output/results", options.getTempLocation());
+    assertEquals("gs://custom-bucket/custom-staging/", options.getStagingLocation());
   }
 
   @Test

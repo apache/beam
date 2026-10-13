@@ -43,6 +43,11 @@ final class Pins {
     return dotted.contains(dottedPath);
   }
 
+  /** Whether {@code dottedPath} is pinned or has a pin somewhere below it. */
+  boolean isPinnedOrAncestorOfPin(String dottedPath) {
+    return isPinned(dottedPath) || pinnedColumnBeneath(dottedPath) != null;
+  }
+
   /**
    * Returns the pinned column strictly below {@code dottedPath} (the lexicographically first when
    * several are), or null when there is none. Columns below a pin, or beside it, have none.

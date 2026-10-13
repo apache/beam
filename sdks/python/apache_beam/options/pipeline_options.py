@@ -51,6 +51,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'AwsOptions',
     'S3Options'
 ]
 
@@ -812,6 +813,11 @@ class StreamingOptions(PipelineOptions):
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
+    parser.add_argument(
+        '--desired_num_unbounded_source_splits',
+        type=int,
+        default=0,
+        help='The desired number of initial splits for UnboundedSources.')
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -1205,12 +1211,34 @@ class GoogleCloudOptions(PipelineOptions):
         'Entries are key value pairs separated by = '
         '(e.g. --gcs_custom_audit_entry key=value) or a JSON string '
         '(e.g. --gcs_custom_audit_entries=\'{ "user": "test", "id": "12" }\').')
+    parser.add_argument(
+        '--gcs_read_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when reading from GCS. A '
+        'larger buffer reduces the number of requests sent to GCS at the '
+        'cost of more memory per reader. When unset, the GCS client in Beam '
+        'uses its default buffer size (16 MiB).')
+    parser.add_argument(
+        '--gcs_write_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when writing to GCS. Must be '
+        'a multiple of 256 KiB, since writes are performed as resumable '
+        'uploads. A larger buffer reduces the number of requests sent to GCS '
+        'at the cost of more memory per writer. When unset, the GCS client '
+        'in Beam uses its default buffer size (16 MiB).')
 
   def _create_default_gcs_bucket(self):
     try:
       from apache_beam.io.gcp import gcsio
     except ImportError:
       _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
+    if not gcsio.GCS_INSTALLED:
+      _LOGGER.warning(
+          'Unable to create default GCS bucket because GCP dependencies are '
+          'not installed.')
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
@@ -1229,6 +1257,11 @@ class GoogleCloudOptions(PipelineOptions):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
+      if not gcsio.GCS_INSTALLED:
+        _LOGGER.warning(
+            'Unable to check soft delete policy because GCP dependencies are '
+            'not installed.')
+        return
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
@@ -1303,6 +1336,24 @@ class GoogleCloudOptions(PipelineOptions):
       errors.extend(
           validator.validate_repeatable_argument_passed_as_list(
               self, 'dataflow_service_options'))
+
+    if (self.gcs_read_buffer_size_bytes is not None and
+        self.gcs_read_buffer_size_bytes <= 0):
+      errors.append(
+          '--gcs_read_buffer_size_bytes must be a positive number of bytes, '
+          'got %s.' % self.gcs_read_buffer_size_bytes)
+
+    if self.gcs_write_buffer_size_bytes is not None:
+      # GCS resumable uploads require the chunk size to be a multiple of
+      # 256 KiB. Checking here avoids a failure deep inside the GCS client
+      # on the first flush.
+      write_buffer_size_multiple = 256 * 1024
+      if (self.gcs_write_buffer_size_bytes <= 0 or
+          self.gcs_write_buffer_size_bytes % write_buffer_size_multiple != 0):
+        errors.append(
+            '--gcs_write_buffer_size_bytes must be a positive multiple of '
+            '%d bytes, got %s.' %
+            (write_buffer_size_multiple, self.gcs_write_buffer_size_bytes))
 
     return errors
 
@@ -1581,10 +1632,15 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'The time limit (in minutes) for any PTransform to finish '
-            'processing a single element. If exceeded, the SDK worker '
-            'process self-terminates and processing may be restarted '
-            'by a runner.'))
+            'The time limit (in minutes) for any fused stage to finish '
+            'processing a single bundle. A fused stage may include '
+            'multiple consecutive PTransforms. It will also include the '
+            'IO steps used to populate data in the stage (this may be '
+            'a pipeline-level IO or an internal read like reading from a '
+            'Reshuffle or GroupByKey). Exact stage boundaries are determined '
+            'by the pipeline runner. If the timeout is exceeded, the SDK '
+            'worker process self-terminates and processing may be restarted '
+            'by a runner. All in-progress work in this bundle will be lost'))
 
   def validate(self, validator):
     errors = []
@@ -2343,42 +2399,144 @@ class OptionsContext(object):
     return options
 
 
-class S3Options(PipelineOptions):
+# Client settings shared by all AWS clients. Each is configured in AwsOptions as
+# --aws_<setting>, and can be overridden for one service by a service options
+# class (see AwsOptions.get_client_settings), e.g. --s3_<setting> in S3Options.
+_AWS_CLIENT_SETTINGS = (
+    'access_key_id',
+    'secret_access_key',
+    'session_token',
+    'endpoint_url',
+    'region_name',
+    'verify',
+    'disable_ssl',
+)
+
+
+class AwsOptions(PipelineOptions):
+  """Default options for creating AWS service clients.
+
+  These settings apply to every AWS client Beam creates. A service options
+  class can override any of them for its own client, e.g. ``--s3_endpoint_url``
+  in :class:`S3Options` overrides ``--aws_endpoint_url`` for S3 only. Use
+  :meth:`get_client_settings` to get the effective settings for a service.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
-    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--aws_access_key_id',
+        default=None,
+        help='The access key ID to use when creating AWS clients.')
+    parser.add_argument(
+        '--aws_secret_access_key',
+        default=None,
+        help='The secret access key to use when creating AWS clients.')
+    parser.add_argument(
+        '--aws_session_token',
+        default=None,
+        help='The session token to use when creating AWS clients.')
+    parser.add_argument(
+        '--aws_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed AWS clients.')
+    parser.add_argument(
+        '--aws_region_name',
+        default=None,
+        help='The name of the region associated with the AWS clients.')
+    parser.add_argument(
+        '--aws_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the AWS clients.')
+    parser.add_argument(
+        '--aws_disable_ssl',
+        default=False,
+        action='store_true',
+        help=(
+            'Whether or not to use SSL with the AWS clients. '
+            'By default, SSL is used.'))
+
+  def get_client_settings(
+      self,
+      service_options: Optional['PipelineOptions'] = None) -> dict[str, Any]:
+    """Returns the effective client settings for an AWS service.
+
+    Starts from the ``--aws_*`` defaults and applies the overrides set in
+    ``service_options``. A service options class opts in by defining
+    ``AWS_CLIENT_SETTINGS_PREFIX`` (e.g. ``'s3'``) and options named
+    ``<prefix>_<setting>`` for the settings it can override (e.g.
+    ``s3_endpoint_url``). An override applies when it is set (not None/False).
+
+    Args:
+      service_options: Optional options view for a specific service, e.g.
+        ``options.view_as(S3Options)``.
+
+    Returns:
+      A dict keyed by setting name (``access_key_id``, ``secret_access_key``,
+      ``session_token``, ``endpoint_url``, ``region_name``, ``verify``,
+      ``disable_ssl``).
+    """
+    settings = {
+        name: getattr(self, 'aws_' + name)
+        for name in _AWS_CLIENT_SETTINGS
+    }
+    prefix = getattr(service_options, 'AWS_CLIENT_SETTINGS_PREFIX', None)
+    if prefix:
+      for name in _AWS_CLIENT_SETTINGS:
+        override = getattr(service_options, '%s_%s' % (prefix, name), None)
+        if override:
+          settings[name] = override
+    return settings
+
+
+class S3Options(PipelineOptions):
+  """Options for the S3 client.
+
+  ``--s3_api_version`` is S3-specific. The other options override the
+  corresponding ``--aws_*`` default in :class:`AwsOptions` for S3 only, e.g. to
+  point S3 at an S3-compatible endpoint while other AWS clients use the
+  defaults.
+  """
+  AWS_CLIENT_SETTINGS_PREFIX = 's3'
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--s3_access_key_id',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The access key ID for the S3 client. Overrides '
+        '--aws_access_key_id.')
     parser.add_argument(
         '--s3_secret_access_key',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The secret access key for the S3 client. Overrides '
+        '--aws_secret_access_key.')
     parser.add_argument(
         '--s3_session_token',
         default=None,
-        help='The session token to use when creating the s3 client.')
+        help='The session token for the S3 client. Overrides '
+        '--aws_session_token.')
     parser.add_argument(
         '--s3_endpoint_url',
         default=None,
-        help='The complete URL to use for the constructed s3 client.')
+        help='The complete URL to use for the S3 client. Overrides '
+        '--aws_endpoint_url.')
     parser.add_argument(
         '--s3_region_name',
         default=None,
-        help='The name of the region associated with the s3 client.')
-    parser.add_argument(
-        '--s3_api_version',
-        default=None,
-        help='The API version to use with the s3 client.')
+        help='The name of the region associated with the S3 client. '
+        'Overrides --aws_region_name.')
     parser.add_argument(
         '--s3_verify',
         default=None,
-        help='Whether or not to verify SSL certificates with the s3 client.')
+        help='Whether or not to verify SSL certificates with the S3 client. '
+        'Overrides --aws_verify.')
     parser.add_argument(
         '--s3_disable_ssl',
         default=False,
         action='store_true',
-        help=(
-            'Whether or not to use SSL with the s3 client. '
-            'By default, SSL is used.'))
+        help='Disable SSL for the S3 client, even if --aws_disable_ssl is not '
+        'set.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the S3 client.')

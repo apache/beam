@@ -25,6 +25,7 @@ import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
@@ -124,25 +126,31 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
           WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
       InputStream data = message.getData().newInput();
       InputStream metadata = message.getMetadata().newInput();
-      Collection<? extends BoundedWindow> windows =
-          WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-      PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-      /**
-       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
-       * drain happened upstream
-       */
+      Collection<? extends BoundedWindow> windows;
+      PaneInfo paneInfo;
       CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
       ValueKind valueKind = ValueKind.INSERT;
       Context openTelemetryContext = null;
-      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
-        BeamFnApi.Elements.ElementMetadata elementMetadata =
-            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
-        drainingValueFromUpstream =
-            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
-                ? CausedByDrain.CAUSED_BY_DRAIN
-                : CausedByDrain.NORMAL;
-        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
-        openTelemetryContext = WindmillOpenTelemetryContextPropagator.read(elementMetadata);
+      if (message.getMetadata().isEmpty()) {
+        windows = Collections.singletonList(GlobalWindow.INSTANCE);
+        paneInfo = PaneInfo.NO_FIRING;
+      } else {
+        windows = WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
+        paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+        /**
+         * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced
+         * by drain happened upstream
+         */
+        if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+          BeamFnApi.Elements.ElementMetadata elementMetadata =
+              WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+          drainingValueFromUpstream =
+              elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                  ? CausedByDrain.CAUSED_BY_DRAIN
+                  : CausedByDrain.NORMAL;
+          valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+          openTelemetryContext = WindmillOpenTelemetryContextPropagator.read(elementMetadata);
+        }
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;

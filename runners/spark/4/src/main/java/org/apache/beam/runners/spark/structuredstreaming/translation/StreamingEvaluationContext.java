@@ -56,10 +56,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   private final SparkStructuredStreamingPipelineOptions options;
 
-  // Guards queries and stopped.
+  // Guards queries and the stopped flag.
   private final Object lock = new Object();
   private final List<StreamingQuery> queries = new ArrayList<>();
-  private boolean stopped = false;
 
   StreamingEvaluationContext(
       Collection<? extends NamedDataset<?>> leaves,
@@ -92,7 +91,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
           continue;
         }
         synchronized (lock) {
-          if (stopped) {
+          if (isStopped()) {
             break;
           }
         }
@@ -105,7 +104,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
         boolean alreadyStopped;
         synchronized (lock) {
           queries.add(query);
-          alreadyStopped = stopped;
+          alreadyStopped = isStopped();
         }
         if (alreadyStopped) {
           stopQuery(query);
@@ -134,10 +133,10 @@ public class StreamingEvaluationContext extends EvaluationContext {
   public void stop() {
     List<StreamingQuery> toStop;
     synchronized (lock) {
-      if (stopped) {
+      if (isStopped()) {
         return;
       }
-      stopped = true;
+      super.stop();
       toStop = new ArrayList<>(queries);
     }
     for (StreamingQuery query : toStop) {

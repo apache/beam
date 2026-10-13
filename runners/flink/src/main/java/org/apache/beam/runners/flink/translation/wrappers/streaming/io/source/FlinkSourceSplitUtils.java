@@ -25,10 +25,14 @@ import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Shared Beam source sizing and splitting helpers. */
 final class FlinkSourceSplitUtils {
   static final long MEBIBYTE = 1024L * 1024L;
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceSplitUtils.class);
 
   private FlinkSourceSplitUtils() {}
 
@@ -45,13 +49,25 @@ final class FlinkSourceSplitUtils {
       throws Exception {
     long desiredSizeBytes =
         getDesiredSizeBytes(boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
-    return toFlinkSplits(boundedSource.split(desiredSizeBytes, pipelineOptions));
+    List<? extends BoundedSource<T>> splits =
+        boundedSource.split(desiredSizeBytes, pipelineOptions);
+    LOG.info(
+        "Split bounded source {} in {} splits (estimated size {} bytes, "
+            + "desired split size {} bytes)",
+        boundedSource,
+        splits.size(),
+        estimatedSizeBytes,
+        desiredSizeBytes);
+    return toFlinkSplits(splits);
   }
 
   static <T> ArrayList<FlinkSourceSplit<T>> splitUnboundedSource(
       UnboundedSource<T, ?> unboundedSource, PipelineOptions pipelineOptions, int numSplits)
       throws Exception {
-    return toFlinkSplits(unboundedSource.split(numSplits, pipelineOptions));
+    List<? extends UnboundedSource<T, ?>> splits =
+        unboundedSource.split(numSplits, pipelineOptions);
+    LOG.info("Split source {} to {} splits", unboundedSource, splits);
+    return toFlinkSplits(splits);
   }
 
   static long getDesiredSizeBytes(

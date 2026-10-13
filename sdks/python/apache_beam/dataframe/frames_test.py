@@ -2190,6 +2190,14 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
+  def test_agg_list_with_count_and_size(self):
+    s = pd.Series([1.0, None, 3.0, 4.0])
+    self._run_test(lambda s: s.agg(['count']), s)
+    self._run_test(lambda s: s.agg(['count', 'size', 'mean']), s)
+
+    df = pd.DataFrame({'A': [1.0, None, 3.0, 4.0], 'B': [2, 3, 5, 7]})
+    self._run_test(lambda df: df.agg(['count', 'mean']), df)
+
   @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):
     self._run_test(

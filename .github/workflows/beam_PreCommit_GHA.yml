@@ -20,16 +20,14 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['.github/**/*.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*' ]
     paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json']
-  issue_comment:
-    types: [created]
   schedule:
   - cron: '0 */6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -47,7 +45,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -57,29 +55,23 @@ env:
 
 jobs:
   beam_PreCommit_GHA:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     runs-on: [self-hosted, ubuntu-24.04, small]
     strategy:
       matrix:
         job_name: [beam_PreCommit_GHA]
-        job_phrase: [Run GHA PreCommit]
     timeout-minutes: 30
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run GHA PreCommit'
+      github.event_name == 'workflow_dispatch'
     steps:
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
     - name: Setup repository
       uses: ./.github/actions/setup-action
-      with:
-        comment_phrase: ${{ matrix.job_phrase }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     - name: Check for gsutil references
       run: |
         echo "Checking codebase for gsutil..."
@@ -106,7 +98,7 @@ jobs:
     - name: Validate GHA Allowlist
       uses: apache/infrastructure-actions/allowlist-check@main # zizmor: ignore[unpinned-uses]
     - name: Run zizmor
-      uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
+      uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
       with:
         advanced-security: true
     - name: run GHA PreCommit script

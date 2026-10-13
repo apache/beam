@@ -25,8 +25,8 @@ import mock
 
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability.kafka_streams_runner import KafkaStreamsJarJobServer
-from apache_beam.utils import subprocess_server
 from apache_beam.runners.portability.kafka_streams_runner import KafkaStreamsRunner
+from apache_beam.utils import subprocess_server
 
 
 class KafkaStreamsTestPipelineOptions(pipeline_options.PipelineOptions):

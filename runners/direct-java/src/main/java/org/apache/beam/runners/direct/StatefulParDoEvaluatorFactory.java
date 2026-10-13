@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.NavigableSet;
@@ -47,8 +49,7 @@ import org.joda.time.Instant;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
 
@@ -104,7 +105,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator =
         delegateFactory.createEvaluator(
             (AppliedPTransform) application,
-            (PCollection) inputBundle.getPCollection(),
+            (PCollection) checkStateNotNull(inputBundle.getPCollection()),
             inputBundle.getKey(),
             application.getTransform().getSideInputs(),
             application.getTransform().getMainOutputTag(),
@@ -176,7 +177,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         NavigableSet<TimerData> earlierTimers =
             timerInternals.getModifiedTimersOrdered(timerData.getDomain()).headSet(timerData, true);
         while (!earlierTimers.isEmpty()) {
-          TimerData insertedTimer = earlierTimers.pollFirst();
+          TimerData insertedTimer = checkStateNotNull(earlierTimers.pollFirst());
           if (timerModified(insertedTimer)) {
             continue;
           }
@@ -237,17 +238,21 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         clearWatermarkHold(timerData);
       }
 
-      CopyOnAccessInMemoryStateInternals state;
+      @Nullable CopyOnAccessInMemoryStateInternals delegateState = delegateResult.getState();
+      @Nullable CopyOnAccessInMemoryStateInternals state;
       Instant watermarkHold;
 
-      if (isTimerDeclared && delegateResult.getState() != null) { // For both State and Timer Holds
-        state = delegateResult.getState();
-        watermarkHold = stepContext.commitState().getEarliestWatermarkHold();
+      if (isTimerDeclared && delegateState != null) { // For both State and Timer Holds
+        state = delegateState;
+        watermarkHold = checkStateNotNull(stepContext.commitState()).getEarliestWatermarkHold();
       } else if (isTimerDeclared) { // For only Timer holds
-        state = stepContext.commitState();
-        watermarkHold = state.getEarliestWatermarkHold();
+        // A declared timer accessed state via setWatermarkHold, so commitState is non-null.
+        CopyOnAccessInMemoryStateInternals committedState =
+            checkStateNotNull(stepContext.commitState());
+        state = committedState;
+        watermarkHold = committedState.getEarliestWatermarkHold();
       } else { // For only State ( non Timer ) holds
-        state = delegateResult.getState();
+        state = delegateState;
         watermarkHold = delegateResult.getWatermarkHold();
       }
 

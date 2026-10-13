@@ -50,6 +50,21 @@ class PickleCoderTest(unittest.TestCase):
     self.assertNotEqual(coders.Base64PickleCoder(), coders.PickleCoder())
     self.assertNotEqual(coders.Base64PickleCoder(), object())
 
+  def test_as_deterministic_coder(self):
+    # PickleCoder.as_deterministic_coder used to construct FastPrimitivesCoder
+    # with a requires_deterministic kwarg that constructor never accepted,
+    # raising TypeError on every call (see coders.FastPrimitivesCoder).
+    v = ('a' * 10, 'b' * 90)
+    deterministic = coders.PickleCoder().as_deterministic_coder('label')
+    self.assertTrue(deterministic.is_deterministic())
+    self.assertEqual(v, deterministic.decode(deterministic.encode(v)))
+
+    memoizing_deterministic = coders._MemoizingPickleCoder(
+    ).as_deterministic_coder('label')
+    self.assertTrue(memoizing_deterministic.is_deterministic())
+    self.assertEqual(
+        v, memoizing_deterministic.decode(memoizing_deterministic.encode(v)))
+
 
 class CodersTest(unittest.TestCase):
   def test_str_utf8_coder(self):

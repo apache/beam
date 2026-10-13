@@ -41,7 +41,7 @@ class S3FileSystem(FileSystem):
     """Initializes a connection to S3.
 
     Connection configuration is done by passing pipeline options.
-    See :class:`~apache_beam.options.pipeline_options.S3Options`.
+    See :class:`~apache_beam.options.pipeline_options.AwsOptions`.
     """
     super().__init__(pipeline_options)
     self._options = pipeline_options

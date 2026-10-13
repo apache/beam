@@ -30,8 +30,8 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 LOOKS_TO_DOWNLOAD = [
     ("30", ["18", "50", "92", "49", "91"]),    # BigQueryIO_Read
     ("31", ["19", "52", "88", "51", "87"]),    # BigQueryIO_Write
-    ("32", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
-    ("33", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
+    ("32", ["20", "60", "104", "59", "103"]),  # BigtableIO_Read
+    ("33", ["21", "70", "116", "69", "115"]),  # BigtableIO_Write
     ("34", ["22", "56", "96", "55", "95"]),    # TextIO_Read
     ("35", ["23", "64", "110", "63", "109"]),  # TextIO_Write
     ("113", ["386", "388", "390", "392", "394"]),    # IcebergIO_Read

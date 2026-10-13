@@ -19,6 +19,9 @@
 name: LabelPrs
 on: [pull_request_target]
 permissions: read-all
+concurrency:
+  group: pr-bot-labels-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
 jobs:
   label:
     runs-on: ubuntu-latest

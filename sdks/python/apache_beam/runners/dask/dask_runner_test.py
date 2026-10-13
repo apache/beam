@@ -125,6 +125,41 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       pcoll = p | beam.Create(list(range(1, 11))) | beam.Map(double)
       assert_that(pcoll, equal_to(list(range(2, 21, 2))))
 
+  def test_pardo_finish_bundle_outputs(self):
+    class BufferElements(beam.DoFn):
+      def start_bundle(self):
+        self.elements = []
+
+      def process(self, element):
+        self.elements.append(element)
+        return []
+
+      def finish_bundle(self):
+        for element in self.elements:
+          yield window.WindowedValue(element, 0, [window.GlobalWindow()])
+
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1, 2, 3]) | beam.ParDo(BufferElements())
+      assert_that(pcoll, equal_to([1, 2, 3]))
+
+  def test_pardo_process_and_finish_bundle_outputs(self):
+    class EmitAtProcessAndFinish(beam.DoFn):
+      def start_bundle(self):
+        self.elements = []
+
+      def process(self, element):
+        self.elements.append(element)
+        yield element
+
+      def finish_bundle(self):
+        for element in self.elements:
+          yield window.WindowedValue(-element, 0, [window.GlobalWindow()])
+
+    with self.pipeline as p:
+      pcoll = (
+          p | beam.Create([1, 2, 3]) | beam.ParDo(EmitAtProcessAndFinish()))
+      assert_that(pcoll, equal_to([1, 2, 3, -1, -2, -3]))
+
   def test_create_map_and_groupby(self):
     def double(x):
       return x * 2, x

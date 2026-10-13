@@ -554,6 +554,9 @@ public class TableRowToStorageApiProto {
         hashCodes.add(tableSchemaHash(name, tableFieldSchema.getFieldsList()));
       }
     }
+    if (hashCodes.isEmpty()) {
+      return SCHEMA_HASH_FUNCTION.hashInt(0);
+    }
     return Hashing.combineOrdered(hashCodes);
   }
 
@@ -1094,7 +1097,7 @@ public class TableRowToStorageApiProto {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
       if (descriptor == null) {
-        // This only happens if we are recursively finding unknwon field names. We don't support
+        // This only happens if we are recursively finding unknown field names. We don't support
         // this for list cells
         // (all we have is field position in that case) so just bail out.
         return null;
@@ -1143,6 +1146,8 @@ public class TableRowToStorageApiProto {
                   return null;
                 }
                 TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
+                // TODO(reuvenlax): We should probably assume a List instead of a TableRow if the
+                // field is repeated.
                 @Nullable TableRow nested =
                     (TableRow) localUnknownFields.getF().get(finalIndex).getV();
                 if (nested == null) {
@@ -1197,6 +1202,7 @@ public class TableRowToStorageApiProto {
       if (!collectedExceptions.isEmpty()) {
         return null;
       }
+
       try {
         return builder.build();
       } catch (Exception e) {
@@ -1467,6 +1473,31 @@ public class TableRowToStorageApiProto {
       // nothing to do here
       return tableRowProto;
     }
+    try {
+      return mergeNewFields(
+          tableRowProto,
+          wrapDescriptorProto(descriptorProto),
+          TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false),
+          schemaInformation,
+          unknownFields,
+          ignoreUnknownValues);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static ByteString mergeNewFields(
+      ByteString tableRowProto,
+      Descriptor descriptor,
+      Descriptor descriptorIgnoreRequired,
+      SchemaInformation schemaInformation,
+      TableRow unknownFields,
+      boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    if (unknownFields == null || unknownFields.isEmpty()) {
+      // nothing to do here
+      return tableRowProto;
+    }
     // check if unknownFields contains repeated struct, merge
     boolean hasRepeatedStruct =
         unknownFields.entrySet().stream()
@@ -1476,13 +1507,6 @@ public class TableRowToStorageApiProto {
                         && !((List<?>) entry.getValue()).isEmpty()
                         && ((List<?>) entry.getValue()).get(0) instanceof TableRow);
     if (!hasRepeatedStruct) {
-      Descriptor descriptorIgnoreRequired = null;
-      try {
-        descriptorIgnoreRequired =
-            TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false);
-      } catch (DescriptorValidationException e) {
-        throw new RuntimeException(e);
-      }
       ByteString unknownFieldsProto =
           Preconditions.checkArgumentNotNull(
                   messageFromTableRow(
@@ -1499,13 +1523,7 @@ public class TableRowToStorageApiProto {
       return tableRowProto.concat(unknownFieldsProto);
     }
 
-    DynamicMessage message = null;
-    Descriptor descriptor = null;
-    try {
-      descriptor = wrapDescriptorProto(descriptorProto);
-    } catch (DescriptorValidationException e) {
-      throw new RuntimeException(e);
-    }
+    DynamicMessage message;
     try {
       message = DynamicMessage.parseFrom(descriptor, tableRowProto);
     } catch (InvalidProtocolBufferException e) {

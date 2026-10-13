@@ -2081,8 +2081,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         allow_nonparallel_final = True
         if _is_associative(base_func):
           agg_func = func
+        elif isinstance(func, list):
+          # Post-aggregate with sum, but keep the original label (e.g. 'count')
+          # in the result's index.
+          agg_func = {base_func: 'sum'}
         else:
-          agg_func = ['sum'] if isinstance(func, list) else 'sum'
+          agg_func = 'sum'
       else:
         intermediate = self._expr
         allow_nonparallel_final = None  # i.e. don't change the value

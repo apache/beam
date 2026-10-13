@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for BigTable service."""
+"""Unit tests for Bigtable service."""
 
 import logging
 import string
