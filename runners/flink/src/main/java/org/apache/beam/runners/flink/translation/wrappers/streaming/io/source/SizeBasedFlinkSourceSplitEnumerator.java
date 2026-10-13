@@ -131,11 +131,6 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
     ArrayList<FlinkSourceSplit<T>> splits =
         FlinkSourceSplitUtils.splitBoundedSource(
             boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
-    LOG.info(
-        "Split bounded source {} into {} splits using {} assignment",
-        boundedSource,
-        splits.size(),
-        selectedMode);
     return new FlinkSourceEnumeratorState<>(selectedMode, splits);
   }
 

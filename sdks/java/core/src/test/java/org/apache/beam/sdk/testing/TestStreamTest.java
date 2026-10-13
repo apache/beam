@@ -73,10 +73,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")

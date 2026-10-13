@@ -26,6 +26,8 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,6 +48,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MemoryMonitorTest {
+
+  private static final MemoryMonitor.HeapDumper FAKE_HEAP_DUMPER =
+      destination ->
+          Files.write(destination.toPath(), "fake heap dump".getBytes(StandardCharsets.UTF_8));
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -120,6 +126,7 @@ public class MemoryMonitorTest {
   public void heapDumpTwice() throws Exception {
     MemoryMonitor monitor =
         MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, false);
+    monitor.heapDumper = FAKE_HEAP_DUMPER;
     File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
@@ -137,6 +144,7 @@ public class MemoryMonitorTest {
     MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, false);
+    monitor.heapDumper = FAKE_HEAP_DUMPER;
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -156,6 +164,7 @@ public class MemoryMonitorTest {
     MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, true);
+    monitor.heapDumper = FAKE_HEAP_DUMPER;
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -178,6 +187,7 @@ public class MemoryMonitorTest {
   public void uploadFileDisabled() throws Exception {
     MemoryMonitor monitor =
         MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, false);
+    monitor.heapDumper = FAKE_HEAP_DUMPER;
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -306,6 +316,7 @@ public class MemoryMonitorTest {
             PipelineOptionsFactory.fromArgs(
                     "--enableHeapDumps", "--remoteHeapDumpLocation=" + remoteFolder)
                 .create());
+    m.heapDumper = FAKE_HEAP_DUMPER;
     assertTrue(m.canDumpHeap);
     assertEquals(subfolder, m.localDumpFolder);
     assertEquals(remoteFolder.toString(), m.uploadFilePath);

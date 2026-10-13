@@ -159,7 +159,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)
             .withSideInputTableCache()
-            .withPollingBuckets(1);
+            .withTableCachePollingBuckets(1);
 
     input.apply("WriteToTable", applyDistribution(write));
     PipelineResult result = testPipeline.run();
@@ -251,7 +251,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
         IcebergIO.writeRows(catalogConfig)
             .to(dynamicDestinations)
             .withSideInputTableCache()
-            .withPollingBuckets(1);
+            .withTableCachePollingBuckets(1);
 
     input.apply("WriteDynamic", applyDistribution(write));
     PipelineResult result = testPipeline.run();
@@ -352,8 +352,8 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
         IcebergIO.writeRows(catalogConfig)
             .to(dynamicDestinations)
             .withSideInputTableCache()
-            .withMaximumCacheSize(2)
-            .withPollingBuckets(1);
+            .withMaximumTableCacheSize(2)
+            .withTableCachePollingBuckets(1);
 
     input.apply("WriteWithSampleCap", applyDistribution(write));
     PipelineResult result = testPipeline.run();
@@ -397,8 +397,8 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .to(tableId)
             .withSideInputTableCache()
             .withTriggeringFrequency(Duration.standardSeconds(1))
-            .withTableRefreshInterval(Duration.standardSeconds(2))
-            .withPollingBuckets(1);
+            .withTableCacheRefreshInterval(Duration.standardSeconds(2))
+            .withTableCachePollingBuckets(1);
 
     input.apply("StreamingWrite", applyDistribution(write));
     PipelineResult result = testPipeline.run();
@@ -467,8 +467,8 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .to(tableId)
             .withSideInputTableCache()
             .withTriggeringFrequency(Duration.standardSeconds(1))
-            .withTableRefreshInterval(Duration.standardSeconds(1))
-            .withPollingBuckets(1);
+            .withTableCacheRefreshInterval(Duration.standardSeconds(1))
+            .withTableCachePollingBuckets(1);
 
     input.apply("StreamingWriteEvolved", write);
     PipelineResult result = testPipeline.run();
@@ -522,16 +522,16 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     TableIdentifier tableId = TableIdentifier.of("default_side_input", "validation_table");
     IcebergIO.WriteRows write = IcebergIO.writeRows(catalogConfig).to(tableId);
 
-    assertThrows(IllegalArgumentException.class, () -> write.withMaximumCacheSize(0));
-    assertThrows(IllegalArgumentException.class, () -> write.withMaximumCacheSize(-1));
+    assertThrows(IllegalArgumentException.class, () -> write.withMaximumTableCacheSize(0));
+    assertThrows(IllegalArgumentException.class, () -> write.withMaximumTableCacheSize(-1));
 
     assertThrows(
-        IllegalArgumentException.class, () -> write.withTableRefreshInterval(Duration.ZERO));
+        IllegalArgumentException.class, () -> write.withTableCacheRefreshInterval(Duration.ZERO));
 
-    assertThrows(IllegalArgumentException.class, () -> write.withPollingBuckets(0));
-    assertThrows(IllegalArgumentException.class, () -> write.withPollingBuckets(-1));
+    assertThrows(IllegalArgumentException.class, () -> write.withTableCachePollingBuckets(0));
+    assertThrows(IllegalArgumentException.class, () -> write.withTableCachePollingBuckets(-1));
 
-    // Unbounded streaming pipeline with maximumCacheSize must fail at expand
+    // Unbounded streaming pipeline with maximumTableCacheSize must fail at expand
     Pipeline p = Pipeline.create();
     Schema schema = Schema.builder().addInt64Field("id").build();
     TestStream<Row> testStream =
@@ -543,18 +543,18 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
 
     // Sub-options specified without withSideInputTableCache() must fail at expand
     IcebergIO.WriteRows writeWithMaxCacheOnly =
-        IcebergIO.writeRows(catalogConfig).to(tableId).withMaximumCacheSize(5);
+        IcebergIO.writeRows(catalogConfig).to(tableId).withMaximumTableCacheSize(5);
     assertThrows(IllegalArgumentException.class, () -> streamInput.apply(writeWithMaxCacheOnly));
 
     IcebergIO.WriteRows writeWithRefreshIntervalOnly =
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)
-            .withTableRefreshInterval(Duration.standardMinutes(1));
+            .withTableCacheRefreshInterval(Duration.standardMinutes(1));
     assertThrows(
         IllegalArgumentException.class, () -> streamInput.apply(writeWithRefreshIntervalOnly));
 
     IcebergIO.WriteRows writeWithPollingBucketsOnly =
-        IcebergIO.writeRows(catalogConfig).to(tableId).withPollingBuckets(2);
+        IcebergIO.writeRows(catalogConfig).to(tableId).withTableCachePollingBuckets(2);
     assertThrows(
         IllegalArgumentException.class, () -> streamInput.apply(writeWithPollingBucketsOnly));
 
@@ -562,7 +562,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)
             .withSideInputTableCache()
-            .withMaximumCacheSize(5);
+            .withMaximumTableCacheSize(5);
 
     assertThrows(IllegalArgumentException.class, () -> streamInput.apply(streamWrite));
   }
@@ -574,9 +574,9 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)
             .withSideInputTableCache()
-            .withMaximumCacheSize(100)
-            .withTableRefreshInterval(Duration.standardMinutes(10))
-            .withPollingBuckets(3);
+            .withMaximumTableCacheSize(100)
+            .withTableCacheRefreshInterval(Duration.standardMinutes(10))
+            .withTableCachePollingBuckets(3);
 
     DisplayData displayData = DisplayData.from(write);
     Map<String, String> items = new HashMap<>();
@@ -584,10 +584,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
       items.put(item.getKey(), item.getValue() != null ? item.getValue().toString() : "");
     }
 
-    assertEquals("true", items.get("usingSideInputTableCache"));
-    assertEquals("100", items.get("maximumCacheSize"));
-    assertEquals("600000", items.get("tableRefreshInterval"));
-    assertEquals("3", items.get("pollingBuckets"));
+    assertEquals("true", items.get("useSideInputTableCache"));
+    assertEquals("100", items.get("maximumTableCacheSize"));
+    assertEquals("600000", items.get("tableCacheRefreshInterval"));
+    assertEquals("3", items.get("tableCachePollingBuckets"));
   }
 
   private static class EvolveSpecMidExecutionDoFn extends DoFn<Row, Row> {

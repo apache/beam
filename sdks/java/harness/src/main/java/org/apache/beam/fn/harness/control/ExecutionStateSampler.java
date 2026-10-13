@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +64,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Monitors the execution of one or more execution threads. */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class ExecutionStateSampler {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);

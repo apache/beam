@@ -34,6 +34,7 @@ locals {
             "githubWebhookServer.service.type" = "NodePort"
             "githubWebhookServer.ingress.annotations.kubernetes\\.io/ingress\\.global-static-ip-name" = var.deploy_webhook != "false" ? data.google_compute_global_address.actions-runner-ip[0].name : "not-configured"
             "githubWebhookServer.ingress.annotations.networking\\.gke\\.io/managed-certificates" = "managed-cert"
+            "githubWebhookServer.ingress.annotations.networking\\.gke\\.io/v1beta1\\.FrontendConfig" = "arc-webhook-frontend-config"
             "githubWebhookServer.ingress.annotations.kubernetes\\.io/ingress\\.class" = "gce"
         }
 }

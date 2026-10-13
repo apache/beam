@@ -49,8 +49,11 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
@@ -220,6 +223,39 @@ public class ReadTest implements Serializable {
           !watermark.isAfter(interceptedWatermark.get(i)));
       watermark = interceptedWatermark.get(i);
     }
+  }
+
+  @Test
+  public void testUnboundedSdfSplitRestrictionDesiredNumSplits() throws Exception {
+    List<Integer> recordedDesiredNumSplits = new ArrayList<>();
+    CustomUnboundedSource source =
+        new CustomUnboundedSource() {
+          @Override
+          public List<? extends UnboundedSource<String, NoOpCheckpointMark>> split(
+              int desiredNumSplits, PipelineOptions options) {
+            recordedDesiredNumSplits.add(desiredNumSplits);
+            return Collections.singletonList(this);
+          }
+        };
+
+    Read.UnboundedSourceAsSDFWrapperFn<String, NoOpCheckpointMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(null);
+    Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<String, NoOpCheckpointMark>
+        restriction = wrapperFn.initialRestriction(source);
+    TestOutputReceiver<
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<
+                String, NoOpCheckpointMark>>
+        receiver = new TestOutputReceiver<>();
+
+    PipelineOptions defaultOptions = PipelineOptionsFactory.create();
+    wrapperFn.splitRestriction(restriction, receiver, defaultOptions);
+    assertEquals(Collections.singletonList(20), recordedDesiredNumSplits);
+
+    recordedDesiredNumSplits.clear();
+    PipelineOptions customOptions = PipelineOptionsFactory.create();
+    customOptions.as(StreamingOptions.class).setDesiredNumUnboundedSourceSplits(5);
+    wrapperFn.splitRestriction(restriction, receiver, customOptions);
+    assertEquals(Collections.singletonList(5), recordedDesiredNumSplits);
   }
 
   private <T extends Serializable & Consumer<Instant>>
