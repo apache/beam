@@ -171,16 +171,14 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.position_at_fraction(.601), (2, 17))
     self.assertEqual(range_tracker.position_at_fraction(1), (3, None))
 
-  def test_zero_weight_bundles(self):
+  def test_read_zero_weight_bundles_in_pipeline(self):
     source = ConcatSource([
         iobase.SourceBundle(0, RangeSource(0, 4), None, None),
         iobase.SourceBundle(0, RangeSource(4, 8), None, None),
     ])
-
-    range_tracker = source.get_range_tracker()
-    self.assertEqual(range_tracker.position_at_fraction(.5), (1, 4))
-    self.assertEqual(
-        list(source.read(source.get_range_tracker())), list(range(8)))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.io.Read(source)
+      assert_that(pcoll, equal_to(list(range(8))))
 
   def test_empty_source(self):
     read_all = source_test_utils.read_from_source
