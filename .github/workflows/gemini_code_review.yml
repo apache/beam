@@ -54,7 +54,6 @@ jobs:
         id: gemini_review
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
           GEMINI_FORCE_FILE_STORAGE: 'true'
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
@@ -80,19 +79,15 @@ jobs:
             "tools": {
               "core": [
                 "web_fetch",
-                "run_shell_command(gh pr)",
-                "run_shell_command(gh api)",
                 "run_shell_command(curl)"
               ]
             }
           }
           EOF
 
-          cat << EOF > prompt.txt
+          cat << 'EOF' > prompt_template.txt
           You are an autonomous Apache Beam code review agent running on the Gemini Enterprise Agent Platform.
-          Review Pull Request: ${PR_URL}
-
-          Use \`gh pr view ${PR_URL}\` and \`gh pr diff ${PR_URL}\` to inspect the pull request metadata and diff.
+          Review Pull Request: __PR_URL__
 
           Respond with ONLY a single valid JSON object matching this exact schema (no markdown prose outside the JSON):
           {
@@ -109,6 +104,7 @@ jobs:
             ]
           }
           EOF
+          sed "s|__PR_URL__|${PR_URL}|g" prompt_template.txt > prompt.txt
 
           npx --yes @google/gemini-cli@latest \
             --yolo \
@@ -141,7 +137,7 @@ jobs:
             }
 
             let parsed;
-            const fencedMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/i);
+            const fencedMatch = rawResponse.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
             const candidateJson = fencedMatch ? fencedMatch[1].trim() : rawResponse;
             try {
               parsed = JSON.parse(candidateJson);
@@ -149,7 +145,11 @@ jobs:
               const firstBrace = rawResponse.indexOf('{');
               const lastBrace = rawResponse.lastIndexOf('}');
               if (firstBrace !== -1 && lastBrace > firstBrace) {
-                parsed = JSON.parse(rawResponse.slice(firstBrace, lastBrace + 1));
+                try {
+                  parsed = JSON.parse(rawResponse.slice(firstBrace, lastBrace + 1));
+                } catch {
+                  parsed = { summary: rawResponse, comments: [] };
+                }
               } else {
                 parsed = { summary: rawResponse, comments: [] };
               }
@@ -158,7 +158,7 @@ jobs:
             const inlineComments = [];
             if (Array.isArray(parsed.comments)) {
               for (const item of parsed.comments) {
-                if (!item || !item.path || !item.body || !Number.isInteger(Number(item.line))) {
+                if (!item || !item.path || !item.body || !Number.isInteger(Number(item.line)) || Number(item.line) <= 0) {
                   continue;
                 }
                 const side = item.side === 'LEFT' ? 'LEFT' : 'RIGHT';
