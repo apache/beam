@@ -21,6 +21,8 @@ import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
@@ -29,6 +31,19 @@ import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 public abstract class MockProducer implements MessageProducer {
+  private static final List<Record> PUBLISHED_RECORDS =
+      Collections.synchronizedList(new ArrayList<>());
+
+  public static List<Record> getPublishedRecords() {
+    synchronized (PUBLISHED_RECORDS) {
+      return new ArrayList<>(PUBLISHED_RECORDS);
+    }
+  }
+
+  public static void clearPublishedRecords() {
+    PUBLISHED_RECORDS.clear();
+  }
+
   final PublishResultHandler handler;
 
   public MockProducer(PublishResultHandler handler) {
@@ -67,6 +82,7 @@ public abstract class MockProducer implements MessageProducer {
         Destination topicOrQueue,
         boolean useCorrelationKeyLatency,
         DeliveryMode deliveryMode) {
+      PUBLISHED_RECORDS.add(msg);
       if (useCorrelationKeyLatency) {
         handler.responseReceivedEx(
             Solace.PublishResult.builder()
