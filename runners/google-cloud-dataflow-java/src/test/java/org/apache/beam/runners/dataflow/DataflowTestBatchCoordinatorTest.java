@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.ComponentTransform;
 import com.google.api.services.dataflow.model.ExecutionStageState;
 import com.google.api.services.dataflow.model.ExecutionStageSummary;
@@ -46,11 +47,13 @@ import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.PipelineDescription;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,6 +79,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -95,6 +99,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
@@ -462,6 +467,62 @@ public class DataflowTestBatchCoordinatorTest {
     TestDataflowPipelineOptions set = createTestOptions("App");
     set.as(DataflowPipelineWorkerPoolOptions.class).setNumWorkers(0);
     assertNotEquals(base, DataflowTestBatchCoordinator.compatibilityKey(set));
+  }
+
+  @Test
+  public void testCompatibilityKeyHandlesStructuredValuesAcrossTestPipelineRoundTrip()
+      throws Exception {
+    // An explicitly set map: its content is part of the key, its insertion order is not.
+    TestDataflowPipelineOptions ab = createTestOptions("App");
+    Map<String, String> labelsAb = new LinkedHashMap<>();
+    labelsAb.put("team", "beam");
+    labelsAb.put("tier", "test");
+    ab.setLabels(labelsAb);
+    TestDataflowPipelineOptions ba = createTestOptions("App");
+    Map<String, String> labelsBa = new LinkedHashMap<>();
+    labelsBa.put("tier", "test");
+    labelsBa.put("team", "beam");
+    ba.setLabels(labelsBa);
+    TestDataflowPipelineOptions other = createTestOptions("App");
+    other.setLabels(ImmutableMap.of("team", "beam", "tier", "prod"));
+    String keyAb = DataflowTestBatchCoordinator.compatibilityKey(ab);
+    assertEquals(keyAb, DataflowTestBatchCoordinator.compatibilityKey(ba));
+    assertNotEquals(keyAb, DataflowTestBatchCoordinator.compatibilityKey(other));
+
+    // Lists are compared in order: this errs on the side of splitting a batch.
+    TestDataflowPipelineOptions xy = createTestOptions("App");
+    xy.setExperiments(ImmutableList.of("x", "y"));
+    TestDataflowPipelineOptions yx = createTestOptions("App");
+    yx.setExperiments(ImmutableList.of("y", "x"));
+    assertNotEquals(
+        DataflowTestBatchCoordinator.compatibilityKey(xy),
+        DataflowTestBatchCoordinator.compatibilityKey(yx));
+
+    // A structured default merely read by a getter stays out of the key, and an explicitly set
+    // structured value stays in it, also on the JSON copy TestPipeline.run hands the runner.
+    TestDataflowPipelineOptions untouched = createTestOptions("App");
+    String base = DataflowTestBatchCoordinator.compatibilityKey(untouched);
+    TestDataflowPipelineOptions read = createTestOptions("App");
+    assertNotNull(read.as(GcpOptions.class).getGcpOauthScopes());
+    assertEquals(base, DataflowTestBatchCoordinator.compatibilityKey(read));
+    assertEquals(base, DataflowTestBatchCoordinator.compatibilityKey(testPipelineCopy(read)));
+    assertEquals(keyAb, DataflowTestBatchCoordinator.compatibilityKey(testPipelineCopy(ab)));
+    assertEquals(keyAb, DataflowTestBatchCoordinator.compatibilityKey(testPipelineCopy(ba)));
+    assertNotEquals(keyAb, DataflowTestBatchCoordinator.compatibilityKey(testPipelineCopy(other)));
+  }
+
+  /** The JSON round trip {@code TestPipeline.run(PipelineOptions)} performs before running. */
+  private static TestDataflowPipelineOptions testPipelineCopy(PipelineOptions options)
+      throws IOException {
+    ObjectMapper mapper =
+        new ObjectMapper()
+            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    byte[] json =
+        mapper
+            .writer()
+            .withAttribute(PipelineOptionsFactory.SERIALIZE_DEFAULTS_ATTRIBUTE, true)
+            .writeValueAsBytes(options);
+    return mapper.readValue(json, PipelineOptions.class).as(TestDataflowPipelineOptions.class);
   }
 
   @Test
