@@ -91,9 +91,9 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Dependencies</h3>
  *
- * <p>User may work with any of the supported Debezium Connectors above mentioned
+ * <p>User may work with any of the supported Debezium Connectors above-mentioned
  *
- * <p>See <a href="https://debezium.io/documentation/reference/1.3/connectors/index.html">Debezium
+ * <p>See <a href="https://debezium.io/documentation/reference/3.5/connectors/index.html">Debezium
  * Connectors</a> for more info.
  */
 @SuppressWarnings({"nullness"})
