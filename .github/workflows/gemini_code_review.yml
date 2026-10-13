@@ -45,13 +45,6 @@ jobs:
       pull-requests: write
 
     steps:
-      # Pin checkout to master so untrusted code or .gemini configs from forks are never checked out.
-      - name: Checkout base branch
-        uses: actions/checkout@v7
-        with:
-          ref: 'master'
-          persist-credentials: false
-
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -61,6 +54,7 @@ jobs:
         id: gemini_review
         shell: bash
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
           GEMINI_FORCE_FILE_STORAGE: 'true'
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
@@ -78,15 +72,16 @@ jobs:
           cat << 'EOF' > .gemini/settings.json
           {
             "model": {
-              "maxSessionTurns": 15
+              "maxSessionTurns": 10
+            },
+            "experimental": {
+              "directWebFetch": true
             },
             "tools": {
               "core": [
                 "web_fetch",
-                "read_file",
-                "grep_search",
-                "glob",
-                "list_directory"
+                "run_shell_command(gh pr view)",
+                "run_shell_command(gh pr diff)"
               ]
             }
           }
@@ -113,6 +108,7 @@ jobs:
           EOF
 
           npx --yes @google/gemini-cli@latest \
+            --debug \
             --yolo \
             --model "${GEMINI_MODEL}" \
             --prompt "$(cat prompt.txt)" \
