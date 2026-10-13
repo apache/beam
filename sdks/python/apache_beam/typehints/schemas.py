@@ -111,7 +111,6 @@ try:
 except ImportError:
   from typing_extensions import Buffer
 
-
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
 _PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
 _PYTHON_ANY_FIELD_PAYLOAD = "payload"
