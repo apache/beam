@@ -16,6 +16,9 @@
 name: Gemini Enterprise Code Review
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/gemini_code_review.yml'
   pull_request_target:
     types: [opened, reopened, ready_for_review]
   workflow_dispatch:
@@ -34,7 +37,7 @@ concurrency:
 jobs:
   gemini-review:
     name: Gemini Enterprise PR Review
-    if: github.repository == 'apache/beam' && !github.event.pull_request.draft
+    if: github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 15
     permissions:
