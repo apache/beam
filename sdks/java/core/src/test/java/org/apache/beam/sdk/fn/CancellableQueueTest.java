@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -28,11 +29,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.junit.Rule;
 import org.junit.Test;
@@ -246,5 +250,109 @@ public class CancellableQueueTest {
     System.gc();
     assertTrue(weakReference1.get() == null);
     assertTrue(weakReference2.get() == null);
+  }
+
+  @Test
+  public void testTryPut() throws Exception {
+    CancellableQueue<String> queue = new CancellableQueue<>(2);
+    assertTrue(queue.tryPut("A"));
+    assertTrue(queue.tryPut("B"));
+    assertFalse(queue.tryPut("C"));
+
+    assertEquals("A", queue.take());
+    assertTrue(queue.tryPut("C"));
+    assertEquals("B", queue.take());
+    assertEquals("C", queue.take());
+  }
+
+  @Test
+  public void testTryPutThrowsWhenCancelled() {
+    CancellableQueue<String> queue = new CancellableQueue<>(2);
+    queue.cancel(new Exception("Cancelled"));
+    assertThrows(Exception.class, () -> queue.tryPut("A"));
+  }
+
+  @Test
+  public void testCancelWithOnDrop() throws Exception {
+    CancellableQueue<String> queue = new CancellableQueue<>(5);
+    queue.put("A");
+    queue.put("B");
+    queue.put("C");
+
+    List<String> dropped = new ArrayList<>();
+    queue.cancel(new Exception("Cancelled"), dropped::add);
+
+    assertEquals(3, dropped.size());
+    assertEquals("A", dropped.get(0));
+    assertEquals("B", dropped.get(1));
+    assertEquals("C", dropped.get(2));
+    assertThrows(Exception.class, queue::take);
+  }
+
+  @Test(timeout = 10_000)
+  public void testOnDropRunsWithoutQueueLock() throws Exception {
+    CancellableQueue<String> queue = new CancellableQueue<>(5);
+    queue.put("A");
+    List<Boolean> otherThreadGotLock = new ArrayList<>();
+    queue.cancel(
+        new Exception("Cancelled"),
+        dropped -> {
+          // Another thread must be able to take the queue lock while onDrop runs.
+          Future<?> other = executor.submit(() -> queue.tryPut("B"));
+          try {
+            other.get(5, TimeUnit.SECONDS);
+          } catch (ExecutionException e) {
+            // tryPut takes the lock and then throws the cancellation exception.
+            otherThreadGotLock.add(true);
+          } catch (Exception e) {
+            otherThreadGotLock.add(false);
+          }
+        });
+    assertEquals(ImmutableList.of(true), otherThreadGotLock);
+  }
+
+  /**
+   * A producer holds its own lock while it calls {@link CancellableQueue#tryPut}, and a consumer
+   * cancels the queue with an {@code onDrop} that takes the producer's lock. This is how {@code
+   * BeamFnDataGrpcMultiplexer} and {@code BeamFnDataInboundObserver} use the queue.
+   */
+  @Test(timeout = 30_000)
+  public void testCancelWithOnDropDoesNotDeadlockWithLockedProducer() throws Exception {
+    for (int run = 0; run < 200; run++) {
+      CancellableQueue<String> queue = new CancellableQueue<>(1);
+      Object producerLock = new Object();
+      queue.put("A");
+      CountDownLatch start = new CountDownLatch(1);
+      Future<?> producer =
+          executor.submit(
+              () -> {
+                start.await();
+                while (true) {
+                  synchronized (producerLock) {
+                    try {
+                      queue.tryPut("B");
+                    } catch (Exception cancelled) {
+                      return null;
+                    }
+                  }
+                }
+              });
+      Future<?> canceller =
+          executor.submit(
+              () -> {
+                start.await();
+                queue.cancel(
+                    new Exception("Cancelled"),
+                    dropped -> {
+                      synchronized (producerLock) {
+                        // The producer's lock is free once the producer waits for the queue.
+                      }
+                    });
+                return null;
+              });
+      start.countDown();
+      canceller.get(5, TimeUnit.SECONDS);
+      producer.get(5, TimeUnit.SECONDS);
+    }
   }
 }
