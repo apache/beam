@@ -33,9 +33,11 @@ from apache_beam.testing.test_utils import patch_retry
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import bigquery
+  from google.cloud.exceptions import InternalServerError
   from google.cloud.exceptions import NotFound
 except ImportError:
   bigquery = None
+  InternalServerError = None
   NotFound = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -88,13 +90,44 @@ class BigqueryMatcherTest(unittest.TestCase):
 
   def test_bigquery_matcher_query_error_retry(self, mock_bigquery):
     mock_query = mock_bigquery.return_value.query
+    mock_query.side_effect = InternalServerError('internal')
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project', 'mock_query', 'mock_checksum')
+    with self.assertRaises(InternalServerError):
+      hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+  def test_bigquery_matcher_not_found_without_timeout(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.query
     mock_query.side_effect = NotFound('table not found')
 
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project', 'mock_query', 'mock_checksum')
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
-    self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+    self.assertEqual(1, mock_query.call_count)
+
+  def test_bigquery_matcher_not_found_retries_until_visible(
+      self, mock_bigquery):
+    mock_query_result = [mock.Mock(), mock.Mock(), mock.Mock()]
+    mock_query_result[0].values.return_value = []
+    mock_query_result[1].values.return_value = None
+    mock_query_result[2].values.return_value = None
+    ready = mock.Mock()
+    ready.result.return_value = mock_query_result
+
+    mock_query = mock_bigquery.return_value.query
+    mock_query.side_effect = [NotFound('table not found'), ready]
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project',
+        'mock_query',
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8',
+        timeout_secs=5,
+    )
+    hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(2, mock_query.call_count)
 
   def test_bigquery_matcher_query_error_checksum(self, mock_bigquery):
     empty_query_result = []
@@ -169,7 +202,32 @@ class BigqueryFullResultStreamingMatcherTest(unittest.TestCase):
 
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
-    with self.assertRaises(TimeoutError):  # noqa: F821
+    with self.assertRaises(TimeoutError):
+      matcher._get_query_result()
+
+  def test_get_query_result_retries_missing_table(self, mock_bigquery):
+    rows = []
+    for value in (1, 2, 3):
+      row = mock.Mock()
+      row.values.return_value = (value, )
+      rows.append(row)
+    ready = mock.Mock()
+    ready.result.return_value = rows
+    mock_query = mock_bigquery.return_value.query
+    mock_query.side_effect = [NotFound('table not found'), ready]
+
+    matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
+        'some-project', 'some-query', [(1, ), (2, ), (3, )], timeout=5)
+    self.assertEqual([(1, ), (2, ), (3, )], matcher._get_query_result())
+    self.assertEqual(2, mock_query.call_count)
+
+  def test_get_query_result_missing_table_timeout(self, mock_bigquery):
+    mock_query = mock_bigquery.return_value.query
+    mock_query.side_effect = NotFound('table not found')
+
+    matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
+        'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
+    with self.assertRaises(TimeoutError):
       matcher._get_query_result()
 
 
