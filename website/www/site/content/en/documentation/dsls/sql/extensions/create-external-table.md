@@ -655,7 +655,7 @@ TBLPROPERTIES '{"format: "Excel"}'
 *   `LOCATION`: The path to the file for Read Mode. The prefix for Write Mode.
 *   `TBLPROPERTIES`:
     *   `format`: Optional. Allows you to specify the CSV Format, which controls
-        the field delimeter, quote character, record separator, and other properties.
+        the field delimiter, quote character, record separator, and other properties.
         See the following table:
 
 <div class="table-container-wrapper">

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinationsHelpers.DelegatingDynamicDestinations<T, DestinationT> {
   public interface MessageConverter<T> {
-    com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
+    TableSchema getTableSchema();
 
     DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) throws Exception;
 
@@ -42,6 +43,8 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     TableRow toFailsafeTableRow(T element);
 
     void updateSchemaFromTable() throws IOException, InterruptedException;
+
+    default void updateSchema(TableSchema schema) {}
   }
 
   StorageApiDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
@@ -59,5 +62,18 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     super.setSideInputAccessorFromProcessContext(context);
     inner.setSideInputAccessorFromProcessContext(context);
+  }
+
+  @Override
+  void setSideInputAccessorFromOnTimerContext(DoFn<?, ?>.OnTimerContext context) {
+    super.setSideInputAccessorFromOnTimerContext(context);
+    inner.setSideInputAccessorFromOnTimerContext(context);
+  }
+
+  @Override
+  void setSideInputAccessorFromOnWindowExpirationContext(
+      DoFn<?, ?>.OnWindowExpirationContext context) {
+    super.setSideInputAccessorFromOnWindowExpirationContext(context);
+    inner.setSideInputAccessorFromOnWindowExpirationContext(context);
   }
 }

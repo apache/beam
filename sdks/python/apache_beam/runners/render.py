@@ -75,6 +75,8 @@ from apache_beam.runners.portability.fn_api_runner import translations
 
 try:
   from apache_beam.io.gcp import gcsio
+  if not gcsio.GCS_INSTALLED:
+    gcsio = None  # type: ignore
 except ImportError:
   gcsio = None  # type: ignore
 

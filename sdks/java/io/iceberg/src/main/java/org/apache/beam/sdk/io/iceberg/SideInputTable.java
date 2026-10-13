@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.ExpireSnapshots;
@@ -61,6 +62,7 @@ import org.apache.iceberg.encryption.KeyManagementClient;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.LocationProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A lightweight adapter that implements {@link Table} backed by a {@link SerializableTableSpec}.
@@ -80,14 +82,23 @@ public class SideInputTable implements Table {
   private final SerializableTableSpec spec;
   private final EncryptionManager encryptionManager;
   private final LocationProvider locationProvider;
+  private final @Nullable Configuration hadoopConf;
 
   public SideInputTable(SerializableTableSpec spec) {
-    this(spec, Collections.emptyMap());
+    this(spec, Collections.emptyMap(), null);
   }
 
   public SideInputTable(SerializableTableSpec spec, Map<String, String> catalogProperties) {
+    this(spec, catalogProperties, null);
+  }
+
+  public SideInputTable(
+      SerializableTableSpec spec,
+      Map<String, String> catalogProperties,
+      @Nullable Configuration hadoopConf) {
     this.spec = checkNotNull(spec, "spec must not be null");
     checkNotNull(catalogProperties, "catalogProperties must not be null");
+    this.hadoopConf = hadoopConf;
     this.locationProvider =
         LocationProviders.locationsFor(spec.getLocation(), spec.getProperties());
 
@@ -102,10 +113,27 @@ public class SideInputTable implements Table {
   }
 
   public SideInputTable(SerializableTableSpec spec, EncryptionManager encryptionManager) {
+    this(spec, encryptionManager, null);
+  }
+
+  public SideInputTable(
+      SerializableTableSpec spec,
+      EncryptionManager encryptionManager,
+      @Nullable Configuration hadoopConf) {
     this.spec = checkNotNull(spec, "spec must not be null");
     this.encryptionManager = checkNotNull(encryptionManager, "encryptionManager must not be null");
     this.locationProvider =
         LocationProviders.locationsFor(spec.getLocation(), spec.getProperties());
+    this.hadoopConf = hadoopConf;
+  }
+
+  public SideInputTable(SerializableTableSpec spec, IcebergCatalogConfig catalogConfig) {
+    this(
+        spec,
+        checkNotNull(catalogConfig, "catalogConfig must not be null").getCatalogProperties() != null
+            ? catalogConfig.getCatalogProperties()
+            : Collections.emptyMap(),
+        catalogConfig.getHadoopConfiguration());
   }
 
   public SerializableTableSpec getTableSpec() {
@@ -164,7 +192,7 @@ public class SideInputTable implements Table {
 
   @Override
   public FileIO io() {
-    return spec.getFileIO();
+    return spec.getFileIO(hadoopConf);
   }
 
   @Override
@@ -363,6 +391,7 @@ public class SideInputTable implements Table {
     return MoreObjects.toStringHelper(this)
         .add("spec", spec)
         .add("encryptionManager", encryptionManager)
+        .add("hadoopConf", hadoopConf)
         .toString();
   }
 }

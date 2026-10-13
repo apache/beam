@@ -216,10 +216,10 @@ public class TextIOIT {
     if (gatherGcsPerformanceMetrics) {
       metricSuppliers.add(
           reader -> {
-            MetricsReader actualReader =
-                reader.withNamespace("org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
-            long numRenames = actualReader.getCounterMetric("num_renames");
-            long renameTimeMsec = actualReader.getCounterMetric("rename_time_msec");
+            // Namespace and names are defined by GcsUtil.METRIC_NAMESPACE / GcsFileSystem.
+            MetricsReader actualReader = reader.withNamespace("Gcs");
+            long numRenames = actualReader.getCounterMetric("gcs_op_rename_count");
+            long renameTimeMsec = actualReader.getCounterMetric("gcs_op_rename_msec");
             double remamePerSec =
                 (numRenames < 0 || renameTimeMsec < 0) ? -1 : numRenames / (renameTimeMsec / 1e3);
             return NamedTestResult.create(uuid, timestamp, "rename_per_sec", remamePerSec);

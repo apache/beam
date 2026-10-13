@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
@@ -51,10 +52,9 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link AutoValueSchema}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);

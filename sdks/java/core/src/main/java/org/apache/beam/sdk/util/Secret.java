@@ -21,8 +21,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +41,119 @@ import org.slf4j.LoggerFactory;
  * should be able to return a valid byte array representing the secret.
  */
 public abstract class Secret implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(Secret.class);
+
+  private static final Set<String> SUPPORTED_TYPES;
+  private static final Map<String, SecretRegistrar.SecretFactory> SECRET_FACTORIES;
+
+  static {
+    TreeSet<String> supportedTypes = new TreeSet<>();
+    Map<String, SecretRegistrar.SecretFactory> factories;
+    try {
+      factories =
+          loadSecretFactories(
+              ReflectHelpers.loadServicesOrdered(SecretRegistrar.class), supportedTypes);
+    } catch (Throwable t) {
+      // Top-level fail-safe: guarantee that static class initialization of Secret never fails
+      // due to unforeseen classloader or registrar errors.
+      LOG.error("Unexpected error loading SecretRegistrars; secret factories may be incomplete", t);
+      factories = Collections.emptyMap();
+    }
+    SECRET_FACTORIES = factories;
+    SUPPORTED_TYPES = Collections.unmodifiableSet(supportedTypes);
+  }
+
+  /**
+   * Loads factories from the provided registrars into an immutable map.
+   *
+   * <p>Applies defensive checks:
+   *
+   * <ul>
+   *   <li>Sandboxes each registrar with a per-registrar try-catch so a rogue or broken registrar
+   *       cannot crash discovery.
+   *   <li>Guards against {@code null} return values from {@link
+   *       SecretRegistrar#getSecretFactories()}, {@code null} map entries, {@code null} or empty
+   *       keys, and {@code null} factory values.
+   *   <li>Applies a "first-wins with warning" strategy on duplicate keys to prevent classpath leaks
+   *       (such as duplicate test registrars) from throwing exceptions and breaking pipelines.
+   * </ul>
+   */
+  @VisibleForTesting
+  static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories(
+      @Nullable Iterable<SecretRegistrar> registrars) {
+    return loadSecretFactories(registrars, new TreeSet<>());
+  }
+
+  @VisibleForTesting
+  static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories(
+      @Nullable Iterable<SecretRegistrar> registrars, Set<String> supportedTypes) {
+    Map<String, SecretRegistrar.SecretFactory> factories = new HashMap<>();
+    if (registrars == null) {
+      return Collections.emptyMap();
+    }
+
+    for (SecretRegistrar registrar : registrars) {
+      if (registrar == null) {
+        continue;
+      }
+      try {
+        Map<String, SecretRegistrar.SecretFactory> registrarFactories =
+            registrar.getSecretFactories();
+        if (registrarFactories == null) {
+          LOG.warn(
+              "SecretRegistrar '{}' returned null from getSecretFactories(); ignoring",
+              registrar.getClass().getName());
+          continue;
+        }
+
+        for (Map.Entry<String, SecretRegistrar.SecretFactory> entry :
+            registrarFactories.entrySet()) {
+          if (entry == null) {
+            continue;
+          }
+          String rawKey = entry.getKey();
+          if (rawKey == null || rawKey.trim().isEmpty()) {
+            LOG.warn(
+                "SecretRegistrar '{}' registered a factory with a null or empty key; ignoring",
+                registrar.getClass().getName());
+            continue;
+          }
+          SecretRegistrar.SecretFactory factory = entry.getValue();
+          if (factory == null) {
+            LOG.warn(
+                "SecretRegistrar '{}' registered a null SecretFactory for key '{}'; ignoring",
+                registrar.getClass().getName(),
+                rawKey);
+            continue;
+          }
+
+          String canonicalKey = rawKey.trim();
+          String key = canonicalKey.toLowerCase();
+          SecretRegistrar.SecretFactory existing = factories.get(key);
+          if (existing != null) {
+            // First-wins strategy with warning: do not throw to prevent leaked test or duplicate
+            // registrars on the classpath from crashing pipeline execution.
+            LOG.warn(
+                "Duplicate SecretFactory for secret manager name '{}': already registered by '{}', "
+                    + "ignoring duplicate from '{}'",
+                key,
+                existing.getClass().getName(),
+                factory.getClass().getName());
+          } else {
+            factories.put(key, factory);
+            supportedTypes.add(canonicalKey);
+          }
+        }
+      } catch (Throwable t) {
+        LOG.warn(
+            "Failed to load secret factories from SecretRegistrar '{}'; skipping",
+            registrar.getClass().getName(),
+            t);
+      }
+    }
+    return ImmutableMap.copyOf(factories);
+  }
+
   private transient byte @Nullable [] cachedSecretBytes = null;
 
   /**
@@ -104,28 +223,21 @@ public abstract class Secret implements Serializable {
     }
 
     String secretType = rawType.toLowerCase();
-    String secretManager;
-    switch (secretType) {
-      case "gcpsecret":
-        secretManager = "GoogleCloudSecretManager";
-        break;
-      case "gcphsmgeneratedsecret":
-        secretManager = "GoogleCloudHsmGeneratedSecretManager";
-        break;
-      default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid secret type %s, currently only GcpSecret and GcpHsmGeneratedSecret are supported",
-                secretType));
+    SecretRegistrar.SecretFactory factory = SECRET_FACTORIES.get(secretType);
+    if (factory == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid secret type %s, currently supported types: %s", rawType, SUPPORTED_TYPES));
     }
 
     try {
-      ObjectMapper mapper = new ObjectMapper();
-      String jsonSpec = mapper.writeValueAsString(paramMap);
-      return fromJson(jsonSpec, secretManager);
+      return factory.createSecret(paramMap);
     } catch (Exception e) {
       if (e instanceof IllegalArgumentException) {
         throw (IllegalArgumentException) e;
+      }
+      if (e instanceof NullPointerException) {
+        throw (NullPointerException) e;
       }
       throw new RuntimeException("Failed to parse secret option", e);
     }
@@ -139,7 +251,6 @@ public abstract class Secret implements Serializable {
    * @return An instance of Secret.
    */
   public static Secret fromJson(@Nullable String spec, @Nullable String secretManager) {
-    Logger logger = LoggerFactory.getLogger(Secret.class);
     String smManager = secretManager != null ? secretManager.trim() : null;
     if (smManager != null && smManager.isEmpty()) {
       smManager = null;
@@ -152,38 +263,23 @@ public abstract class Secret implements Serializable {
         mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
         specMap = mapper.readValue(spec, new TypeReference<Map<String, String>>() {});
       } catch (Exception e) {
-        logger.debug("Failed to parse secret spec as JSON map", e);
+        LOG.debug("Failed to parse secret spec as JSON map", e);
       }
     }
 
     if (smManager != null) {
-      switch (smManager.toLowerCase()) {
-        case "googlecloudsecretmanager":
-        case "gcpsecret":
-          if (specMap != null) {
-            return GcpSecret.fromMap(specMap);
-          } else if (spec != null) {
-            return new GcpSecret(spec);
-          } else {
-            throw new IllegalArgumentException("Invalid spec for GcpSecret");
-          }
-        case "googlecloudhsmgeneratedsecretmanager":
-        case "gcphsmgeneratedsecret":
-          if (specMap != null) {
-            return GcpHsmGeneratedSecret.fromMap(specMap);
-          } else {
-            throw new IllegalArgumentException("Invalid spec for GcpHsmGeneratedSecret");
-          }
-        default:
-          throw new IllegalArgumentException(
-              String.format(
-                  "Unsupported secret manager: '%s'. Currently supported options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'.",
-                  smManager));
+      SecretRegistrar.SecretFactory factory = SECRET_FACTORIES.get(smManager.toLowerCase());
+      if (factory != null) {
+        return factory.createSecret(specMap != null ? specMap : Collections.emptyMap());
       }
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported secret manager: '%s'. Currently supported options: %s.",
+              smManager, SUPPORTED_TYPES));
     }
 
     if (specMap != null) {
-      logger.warn(
+      LOG.warn(
           "The 'spec' parameter appears to be a JSON specification, but 'secret_manager' is not set. Defaulting to Raw.");
     }
 

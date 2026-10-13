@@ -55,7 +55,7 @@ import scala.Tuple2;
 /**
  * Translator for a stateful {@link ParDo.MultiOutput}, or one requiring time sorted input.
  *
- * <p>Selected by {@link PipelineTranslatorBatch} in place of {@link ParDoTranslatorBatch} when the
+ * <p>Selected by {@link PipelineTranslatorCommon} in place of {@link ParDoTranslatorBatch} when the
  * {@link DoFn} uses state, uses timers, or is annotated with {@link DoFn.RequiresTimeSortedInput};
  * see {@link #appliesTo}.
  *

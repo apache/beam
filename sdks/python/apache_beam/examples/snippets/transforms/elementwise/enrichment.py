@@ -46,7 +46,7 @@ def enrichment_with_bigtable():
     _ = (
         p
         | "Create" >> beam.Create(data)
-        | "Enrich W/ BigTable" >> Enrichment(bigtable_handler)
+        | "Enrich W/ Bigtable" >> Enrichment(bigtable_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_bigtable]
 
