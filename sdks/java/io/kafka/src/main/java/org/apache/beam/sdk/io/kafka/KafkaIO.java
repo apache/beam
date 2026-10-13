@@ -27,6 +27,7 @@ import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -142,6 +143,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
@@ -2251,7 +2253,7 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderConsumer<K, V>
       extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
-    @Nullable Tracer tracer = null;
+    private transient @MonotonicNonNull Tracer tracer = null;
 
     @Setup
     public void setup(PipelineOptions options) {
@@ -2304,6 +2306,7 @@ public class KafkaIO {
       Span span =
           Preconditions.checkArgumentNotNull(tracer)
               .spanBuilder("KafkaIO.Read")
+              .setSpanKind(SpanKind.CONSUMER)
               .setParent(context)
               .startSpan();
       try (Scope ignored = span.makeCurrent()) {
@@ -2316,6 +2319,18 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderPropagator<K, V>
       extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
+    transient @MonotonicNonNull Tracer tracer = null;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      // inject tracer via options
+      io.opentelemetry.api.OpenTelemetry openTelemetry =
+          options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      if (openTelemetry != null) {
+        tracer = openTelemetry.getTracer("KafkaIO");
+      }
+    }
+
     ProducerRecord<K, V> injectTraceContext(ProducerRecord<K, V> message) {
       org.apache.kafka.common.header.internals.RecordHeaders headers =
           new org.apache.kafka.common.header.internals.RecordHeaders(message.headers());
@@ -2340,7 +2355,17 @@ public class KafkaIO {
     @ProcessElement
     public void processElement(
         @Element ProducerRecord<K, V> element, OutputReceiver<ProducerRecord<K, V>> receiver) {
-      receiver.output(injectTraceContext(element));
+      Span span =
+          Preconditions.checkArgumentNotNull(tracer)
+              .spanBuilder("KafkaIO.Write")
+              .setSpanKind(SpanKind.PRODUCER)
+              .setParent(Context.current())
+              .startSpan();
+      try (Scope ignored = span.makeCurrent()) {
+        receiver.output(injectTraceContext(element));
+      } finally {
+        span.end();
+      }
     }
   }
 
