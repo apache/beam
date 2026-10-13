@@ -1602,7 +1602,7 @@ public class PubsubIO {
               new PubsubMessage(
                   message.getPayload(), attr, message.getMessageId(), message.getOrderingKey());
 
-          // topic is copied seperately, not via constructor
+          // topic is copied separately, not via constructor
           if (message.getTopic() != null) {
             ps = ps.withTopic(message.getTopic());
           }

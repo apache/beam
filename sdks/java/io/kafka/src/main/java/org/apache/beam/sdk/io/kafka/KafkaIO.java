@@ -143,6 +143,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
@@ -2252,7 +2253,7 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderConsumer<K, V>
       extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
-    @Nullable Tracer tracer = null;
+    private transient @MonotonicNonNull Tracer tracer = null;
 
     @Setup
     public void setup(PipelineOptions options) {
@@ -2318,7 +2319,7 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderPropagator<K, V>
       extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
-    transient @Nullable Tracer tracer = null;
+    transient @MonotonicNonNull Tracer tracer = null;
 
     @Setup
     public void setup(PipelineOptions options) {
