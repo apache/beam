@@ -671,7 +671,10 @@ class SchemaTranslation(object):
         # NamedTuple rejects field names with a leading underscore, like the
         # CDC metadata column _change_type.
         user_type = dataclasses.make_dataclass(
-            type_name, subfields, frozen=True)
+            type_name,
+            subfields,
+            namespace={'_asdict': _dataclass_asdict},
+            frozen=True)
       else:
         user_type = NamedTuple(type_name, subfields)
 
@@ -688,6 +691,11 @@ class SchemaTranslation(object):
       coders.registry.register_coder(user_type, coders.RowCoder)
 
     return user_type
+
+
+def _dataclass_asdict(self):
+  # Matches NamedTuple._asdict, so code written for NamedTuple rows still works.
+  return {f.name: getattr(self, f.name) for f in dataclasses.fields(self)}
 
 
 def _named_tuple_reduce_method(serialized_schema):

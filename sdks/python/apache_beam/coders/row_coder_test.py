@@ -299,6 +299,7 @@ class RowCoderTest(unittest.TestCase):
     row = named_tuple_from_schema(schema)(1, "INSERT")
     self.assertEqual(row, coder.decode(coder.encode(row)))
     self.assertEqual(row, pickler.loads(pickler.dumps(row)))
+    self.assertEqual({"id": 1, "_change_type": "INSERT"}, row._asdict())
 
   @unittest.skip(
       "https://github.com/apache/beam/issues/19696 - Overflow behavior in "
