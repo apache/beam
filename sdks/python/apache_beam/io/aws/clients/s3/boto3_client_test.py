@@ -206,6 +206,32 @@ class Boto3ClientOptionsTest(unittest.TestCase):
 
     self.assertEqual(mock_from_json.call_count, 2)
 
+  def test_connection_setting_overrides(self):
+    kwargs = client_options.get_client_kwargs(
+        PipelineOptions([
+            '--aws_access_key_id=AKIDEXAMPLE',
+            '--aws_region_name=us-east-1',
+            '--s3_region_name=us-east-2',
+        ]),
+        overrides={
+            'region_name': 'us-west-2',
+            'endpoint_url': 'http://localhost:4566',
+            'disable_ssl': 'true',
+            'verify': None,
+        })
+    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
+    self.assertEqual(kwargs['region_name'], 'us-west-2')
+    self.assertEqual(kwargs['endpoint_url'], 'http://localhost:4566')
+    self.assertFalse(kwargs['use_ssl'])
+
+    for bad in (
+        {'access_key_id': 'x'},
+        {'unknown_setting': 'x'},
+        {'disable_ssl': 'maybe'},
+    ):
+      with self.assertRaises(ValueError):
+        client_options.parse_connection_settings(bad)
+
 
 if __name__ == '__main__':
   unittest.main()

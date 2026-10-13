@@ -17,8 +17,8 @@
 
 """Builds boto3 client arguments from :class:`AwsOptions`.
 
-Shared by the S3 filesystem client and :class:`AwsSecret` so that every boto3
-client created by Beam uses the same credentials and connection settings.
+Shared across AWS service clients (e.g. the S3 filesystem client) so that every
+boto3 client created by Beam uses the same credentials and connection settings.
 """
 
 # pytype: skip-file
