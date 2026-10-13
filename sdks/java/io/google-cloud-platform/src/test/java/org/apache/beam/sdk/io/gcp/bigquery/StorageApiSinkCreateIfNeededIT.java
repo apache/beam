@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.CONNECTION_ID;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.STORAGE_URI;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -71,7 +72,7 @@ public class StorageApiSinkCreateIfNeededIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_create_tables_" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "storageapi_" + System.nanoTime();
   private static final String TEST_CONNECTION_ID =
       "projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete";
   private static final String TEST_STORAGE_URI =

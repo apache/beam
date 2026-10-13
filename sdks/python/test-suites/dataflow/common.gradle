@@ -597,6 +597,34 @@ task anthropicInferenceTest {
     }
 }
 
+// OpenAI RunInference IT tests
+task openaiInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/openai_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "OpenAITests-df-py${pythonVersionSuffix}",
+          "collect": "openai_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
   doLast {
@@ -669,7 +697,7 @@ project.tasks.register("inferencePostCommitIT") {
 }
 
 // The base NVIDIA image used for TensorRT contains Python 3.12, so the TensorRT
-// suite belongs here rather than in the py310 suite above.
+// suite belongs here rather than in the py311 suite above.
 project.tasks.register("inferencePostCommitITPy312") {
   dependsOn = [
   'tensorRTtests',

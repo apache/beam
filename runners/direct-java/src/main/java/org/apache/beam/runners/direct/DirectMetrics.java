@@ -47,12 +47,10 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Implementation of {@link MetricResults} for the Direct Runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class DirectMetrics extends MetricResults {
 
   private interface MetricAggregation<UpdateT, ResultT> {
@@ -69,7 +67,7 @@ class DirectMetrics extends MetricResults {
    * @param <UpdateT> The type of raw data received and aggregated across updates.
    * @param <ResultT> The type of result extracted from the data.
    */
-  private static class DirectMetric<UpdateT, ResultT> {
+  private static class DirectMetric<UpdateT extends @NonNull Object, ResultT> {
     private final MetricAggregation<UpdateT, ResultT> aggregation;
 
     private final Executor executor;
@@ -326,10 +324,10 @@ class DirectMetrics extends MetricResults {
   }
 
   private <ResultT> void maybeExtractResult(
-      MetricsFilter filter,
+      @Nullable MetricsFilter filter,
       ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
-    if (MetricFiltering.matches(filter, entry.getKey())) {
+    if (filter == null || MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(
           MetricResult.create(
               entry.getKey(),

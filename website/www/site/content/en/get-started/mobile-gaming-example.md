@@ -60,7 +60,7 @@ Because some of our example pipelines use data files (like logs from the game se
 
 For pipelines that read unbounded game data from an unbounded source, the data source sets the intrinsic [timestamp](/documentation/programming-guide/#element-timestamps) for each PCollection element to the appropriate event time.
 
-The Mobile Gaming example pipelines vary in complexity, from simple batch analysis to more complex pipelines that can perform real-time analysis and abuse detection. This section walks you through each example and demonstrates how to use Beam features like windowing and triggers to expand your pipeline's capabilites.
+The Mobile Gaming example pipelines vary in complexity, from simple batch analysis to more complex pipelines that can perform real-time analysis and abuse detection. This section walks you through each example and demonstrates how to use Beam features like windowing and triggers to expand your pipeline's capabilities.
 
 ## UserScore: Basic Score Processing in Batch
 

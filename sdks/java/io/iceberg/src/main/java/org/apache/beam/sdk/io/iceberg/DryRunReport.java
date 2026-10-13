@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * allowed. Unreadable files always go to the error output in a real run; unchecked (ORC, Avro)
  * files count separately even when {@code unchecked_registered} says ACCEPT registers them. Pin
  * evidence is per file (the footer's null counts), so a pin violation or an unproven pin is not
- * predicted here.
+ * predicted here, nor is a file whose Parquet field ids disagree with the table.
  */
 class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
   private static final Logger LOG = LoggerFactory.getLogger(DryRunReport.class);

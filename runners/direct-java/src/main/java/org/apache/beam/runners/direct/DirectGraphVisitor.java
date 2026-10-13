@@ -47,9 +47,6 @@ import org.slf4j.LoggerFactory;
  * {@link Pipeline}. This is used to schedule consuming {@link PTransform PTransforms} to consume
  * input after the upstream transform has produced and committed output.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
 
@@ -119,12 +116,11 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         allConsumers.put(value, appliedTransform);
       }
     }
-    if (node.getTransform() instanceof ParDo.MultiOutput) {
-      consumedViews.addAll(
-          ((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs().values());
-    } else if (node.getTransform() instanceof WriteView) {
-      viewWriters.put(
-          ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));
+    PTransform<?, ?> transform = node.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      consumedViews.addAll(((ParDo.MultiOutput<?, ?>) transform).getSideInputs().values());
+    } else if (transform instanceof WriteView) {
+      viewWriters.put(((WriteView) transform).getView(), node.toAppliedPTransform(getPipeline()));
     }
   }
 
