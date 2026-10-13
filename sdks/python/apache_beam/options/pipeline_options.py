@@ -51,6 +51,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'AwsOptions',
     'S3Options'
 ]
 
@@ -2398,42 +2399,111 @@ class OptionsContext(object):
     return options
 
 
-class S3Options(PipelineOptions):
+# Deprecated S3Options option names, mapped to the AwsOptions options that
+# replace them.
+_DEPRECATED_S3_TO_AWS_OPTIONS = {
+    's3_access_key_id': 'aws_access_key_id',
+    's3_secret_access_key': 'aws_secret_access_key',
+    's3_session_token': 'aws_session_token',
+    's3_endpoint_url': 'aws_endpoint_url',
+    's3_region_name': 'aws_region_name',
+    's3_api_version': 'aws_api_version',
+    's3_verify': 'aws_verify',
+    's3_disable_ssl': 'aws_disable_ssl',
+}
+_AWS_TO_DEPRECATED_S3_OPTIONS = {
+    aws: s3
+    for s3, aws in _DEPRECATED_S3_TO_AWS_OPTIONS.items()
+}
+
+
+class AwsOptions(PipelineOptions):
+  """Options used to create AWS service clients, e.g. for S3.
+
+  The deprecated ``--s3_*`` flags from :class:`S3Options` are still accepted.
+  Each ``aws_*`` option falls back to its ``s3_*`` counterpart when it is not
+  set.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
-    # These options are passed to the S3 IO Client
     parser.add_argument(
-        '--s3_access_key_id',
+        '--aws_access_key_id',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The access key ID to use when creating AWS clients.')
     parser.add_argument(
-        '--s3_secret_access_key',
+        '--aws_secret_access_key',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The secret access key to use when creating AWS clients.')
     parser.add_argument(
-        '--s3_session_token',
+        '--aws_session_token',
         default=None,
-        help='The session token to use when creating the s3 client.')
+        help='The session token to use when creating AWS clients.')
     parser.add_argument(
-        '--s3_endpoint_url',
+        '--aws_endpoint_url',
         default=None,
-        help='The complete URL to use for the constructed s3 client.')
+        help='The complete URL to use for the constructed AWS client.')
     parser.add_argument(
-        '--s3_region_name',
+        '--aws_region_name',
         default=None,
-        help='The name of the region associated with the s3 client.')
+        help='The name of the region associated with the AWS client.')
     parser.add_argument(
-        '--s3_api_version',
+        '--aws_api_version',
         default=None,
-        help='The API version to use with the s3 client.')
+        help='The API version to use with the AWS client.')
     parser.add_argument(
-        '--s3_verify',
+        '--aws_verify',
         default=None,
-        help='Whether or not to verify SSL certificates with the s3 client.')
+        help='Whether or not to verify SSL certificates with the AWS client.')
     parser.add_argument(
-        '--s3_disable_ssl',
+        '--aws_disable_ssl',
         default=False,
         action='store_true',
         help=(
-            'Whether or not to use SSL with the s3 client. '
+            'Whether or not to use SSL with the AWS client. '
             'By default, SSL is used.'))
+
+    # Deprecated S3Options flags, kept for backward compatibility. They are
+    # registered here (not on S3Options) so that both flag sets are parsed by
+    # every AwsOptions view and are never registered twice.
+    for s3_name, aws_name in _DEPRECATED_S3_TO_AWS_OPTIONS.items():
+      if s3_name == 's3_disable_ssl':
+        kwargs = {'default': False, 'action': 'store_true'}
+      else:
+        kwargs = {'default': None}
+      parser.add_argument(
+          '--' + s3_name,
+          help='Deprecated, use --%s instead.' % aws_name,
+          **kwargs)
+
+  def __getattr__(self, name):
+    value = super().__getattr__(name)
+    s3_name = _AWS_TO_DEPRECATED_S3_OPTIONS.get(name)
+    if s3_name and not value:
+      s3_value = self._all_options.get(s3_name)
+      if s3_value:
+        logger.log_first_n(
+            logging.WARN,
+            '--%s is deprecated, use --%s instead.' % (s3_name, name),
+            key='message')
+        return s3_value
+    return value
+
+
+class S3Options(AwsOptions):
+  """Deprecated, use :class:`AwsOptions` instead.
+
+  The ``s3_*`` attributes delegate to the corresponding ``aws_*`` options, so
+  both the old and new flags are honored.
+  """
+  def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
+    logger.log_first_n(
+        logging.WARN,
+        'S3Options is deprecated, use AwsOptions instead.',
+        key='message')
+    super().__init__(flags, **kwargs)
+
+  def __getattr__(self, name):
+    aws_name = _DEPRECATED_S3_TO_AWS_OPTIONS.get(name)
+    if aws_name:
+      return getattr(self, aws_name)
+    return super().__getattr__(name)

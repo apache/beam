@@ -373,7 +373,12 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "bootstrap_servers: some bootstrap\n"
                 + "format: RAW\n"
                 + "with_gcp_adc: true\n"
-                + "num_partitions: 3");
+                + "num_partitions: 3\n"
+                + "redistributed: true\n"
+                + "redistribute_num_keys: 10\n"
+                + "allow_duplicates: false\n"
+                + "offset_deduplication: true\n"
+                + "redistribute_by_record_key: true");
 
     for (String config : configs) {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
@@ -417,6 +422,44 @@ public class KafkaReadSchemaTransformProviderTest {
     assertTrue(
         readWithPartitions.get().getTopics() == null
             || readWithPartitions.get().getTopics().isEmpty());
+  }
+
+  @Test
+  public void testBuildTransformWithRedistribute() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    SchemaTransform validTransform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("RAW")
+                .setRedistributed(true)
+                .setRedistributeNumKeys(10)
+                .setAllowDuplicates(false)
+                .setOffsetDeduplication(true)
+                .setRedistributeByRecordKey(true)
+                .build());
+    validTransform.expand(PCollectionRowTuple.empty(Pipeline.create()));
+
+    SchemaTransform invalidTransform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("RAW")
+                .setRedistributeNumKeys(10)
+                .build());
+    assertThrows(
+        IllegalStateException.class,
+        () -> invalidTransform.expand(PCollectionRowTuple.empty(Pipeline.create())));
   }
 
   // This test verifies that the schema for KafkaReadSchemaTransformConfiguration is correctly
