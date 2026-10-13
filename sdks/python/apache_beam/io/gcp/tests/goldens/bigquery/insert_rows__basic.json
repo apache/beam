@@ -1,0 +1,32 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_rows__basic",
+  "description": "insert_rows('p','d','t', rows, insert_ids=[...])",
+  "requests": [
+    {
+      "body": {
+        "ignoreUnknownValues": false,
+        "rows": [
+          {
+            "insertId": "id1",
+            "json": {
+              "a": 1,
+              "b": "x"
+            }
+          },
+          {
+            "insertId": "id2",
+            "json": {
+              "a": 2,
+              "b": "y"
+            }
+          }
+        ],
+        "skipInvalidRows": false
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/insertAll",
+      "query": {}
+    }
+  ]
+}

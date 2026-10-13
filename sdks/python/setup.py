@@ -409,6 +409,7 @@ if __name__ == '__main__':
               '*/*.h',
               '*/*/*.h',
               'testing/data/*.yaml',
+              'io/gcp/tests/goldens/bigquery/*.json',
               'yaml/*.yaml',
               'yaml/docs/*.md',
               *get_portability_package_data()

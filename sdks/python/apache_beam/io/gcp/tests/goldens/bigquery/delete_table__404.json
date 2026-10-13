@@ -1,0 +1,13 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "delete_table__404",
+  "description": "_delete_table('p','d','t') on a missing table: 404 swallowed",
+  "requests": [
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    }
+  ]
+}
