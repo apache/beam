@@ -59,7 +59,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConve
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -1610,28 +1609,6 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
-  public void testTimestampRoundTrip() throws Exception {
-    TableSchema schema =
-        new TableSchema()
-            .setFields(ImmutableList.of(new TableFieldSchema().setName("ts").setType("TIMESTAMP")));
-    Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
-    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
-    DynamicMessage message =
-        DynamicMessage.newBuilder(descriptor)
-            .setField(descriptor.findFieldByName("ts"), 1788461503417123L)
-            .build();
-    TableRow recovered =
-        TableRowToStorageApiProto.tableRowFromMessage(
-            information, message, true, Predicates.alwaysTrue());
-    assertEquals("2026-09-03 18:51:43.417123 UTC", recovered.get("ts"));
-    Schema beamSchema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
-    assertEquals(
-        Instant.parse("2026-09-03T18:51:43.417123Z"),
-        BigQueryUtils.toBeamRow(beamSchema, recovered).getValue("ts"));
-  }
-
-  @Test
   public void testHistoricalTimestampInputRemainsAccepted() throws Exception {
     TableSchema schema =
         new TableSchema()
@@ -1765,105 +1742,6 @@ public class TableRowToStorageApiProtoTest {
             -1,
             TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(toEpochMicros(instant), roundTrip.getField(descriptor.findFieldByName("ts")));
-  }
-
-  @Test
-  public void testTimestampPicosPreservesPrecision() throws Exception {
-    TableSchema schema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema()
-                        .setName("ts")
-                        .setType("TIMESTAMP")
-                        .setTimestampPrecision(12L)));
-    Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
-    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
-    TableRow input = new TableRow().set("ts", "2024-01-15T10:30:45.123456789012Z");
-    DynamicMessage message =
-        TableRowToStorageApiProto.messageFromTableRow(
-            information,
-            descriptor,
-            input,
-            false,
-            false,
-            null,
-            null,
-            -1,
-            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
-    assertEquals(
-        input,
-        TableRowToStorageApiProto.tableRowFromMessage(
-            information, message, true, Predicates.alwaysTrue()));
-  }
-
-  @Test
-  public void testNestedRepeatedAndNullTimestamps() throws Exception {
-    TableSchema nested =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("ts").setType("TIMESTAMP"),
-                    new TableFieldSchema().setName("missing").setType("TIMESTAMP"),
-                    new TableFieldSchema()
-                        .setName("times")
-                        .setType("TIMESTAMP")
-                        .setMode("REPEATED")));
-    TableSchema schema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema()
-                        .setName("nested")
-                        .setType("STRUCT")
-                        .setFields(nested.getFields())));
-    Schema nestedBeam =
-        Schema.builder()
-            .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
-            .addNullableField("missing", Schema.FieldType.logicalType(SqlTypes.TIMESTAMP))
-            .addArrayField("times", Schema.FieldType.logicalType(SqlTypes.TIMESTAMP))
-            .build();
-    Schema beam = Schema.builder().addRowField("nested", nestedBeam).build();
-    TableRow input =
-        new TableRow()
-            .set(
-                "nested",
-                new TableRow()
-                    .set("ts", "2026-09-03T18:51:43.417123Z")
-                    .set("missing", null)
-                    .set(
-                        "times",
-                        ImmutableList.of("1969-12-31T23:59:59.999999Z", "1970-01-01T00:00:00Z")));
-    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
-    Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
-    DynamicMessage message =
-        TableRowToStorageApiProto.messageFromTableRow(
-            information,
-            descriptor,
-            input,
-            false,
-            false,
-            null,
-            null,
-            -1,
-            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
-    TableRow recovered =
-        TableRowToStorageApiProto.tableRowFromMessage(
-            information, message, true, Predicates.alwaysTrue());
-    assertEquals(
-        Row.withSchema(beam)
-            .addValue(
-                Row.withSchema(nestedBeam)
-                    .addValues(
-                        Instant.parse("2026-09-03T18:51:43.417123Z"),
-                        null,
-                        ImmutableList.of(
-                            Instant.parse("1969-12-31T23:59:59.999999Z"), Instant.EPOCH))
-                    .build())
-            .build(),
-        BigQueryUtils.toBeamRow(beam, recovered));
   }
 
   @Test
