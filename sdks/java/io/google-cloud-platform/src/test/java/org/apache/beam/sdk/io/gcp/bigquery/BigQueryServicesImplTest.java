@@ -570,6 +570,46 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
+  public void testDeleteTableNotFoundSucceeds() throws IOException, InterruptedException {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    TableReference tableRef =
+        new TableReference()
+            .setProjectId("projectId")
+            .setDatasetId("datasetId")
+            .setTableId("tableId");
+
+    datasetService.deleteTable(tableRef);
+
+    // exactly one response is prepared, so a retry of the 404 would trip the Verify inside the mock
+    // request. the assertion is therefore both "did not throw" and "did not retry"
+    verifyAllResponsesAreRead();
+  }
+
+  @Test
+  public void testDeleteDatasetNotFoundSucceeds() throws IOException, InterruptedException {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(404);
+        });
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    datasetService.deleteDataset("projectId", "datasetId");
+
+    verifyAllResponsesAreRead();
+  }
+
+  @Test
   public void testIsTableEmptySucceeds() throws Exception {
     TableReference tableRef =
         new TableReference()

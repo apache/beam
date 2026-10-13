@@ -14,12 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+import importlib.util
 import os
 import shutil
+import sys
 import tempfile
+import types
 import unittest
 import uuid
 
+import jsonpickle
 import numpy as np
 import pytest
 from parameterized import parameterized
@@ -28,6 +33,8 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.ml.transforms.embeddings import huggingface
+from apache_beam.testing import test_utils
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -328,6 +335,141 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
             | "MLTransform" >> MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
+
+
+class _FakeSentenceTransformer:
+  """A stand-in for sentence_transformers.SentenceTransformer."""
+  def __init__(self, model_name, **kwargs):
+    self.model_name = model_name
+    self.kwargs = kwargs
+    self.max_seq_length = None
+
+
+@contextlib.contextmanager
+def _fake_sentence_transformers_module():
+  """Replaces the sentence_transformers module with a fake one."""
+  fake_module = types.ModuleType('sentence_transformers')
+  fake_module.SentenceTransformer = _FakeSentenceTransformer
+  # Also hides the real sentence_transformers modules, if already imported, and
+  # restores them afterwards.
+  with test_utils.block_imports('sentence_transformers'):
+    sys.modules['sentence_transformers'] = fake_module
+    try:
+      yield
+    finally:
+      del sys.modules['sentence_transformers']
+
+
+def _serialize_and_deserialize(pipeline):
+  """Serializes the pipeline, as done during job submission, and deserializes
+  it again. Deserializing fails if the pipeline references (i.e. requires) a
+  module that can't be imported."""
+  return beam.Pipeline.from_runner_api(
+      pipeline.to_runner_api(), pipeline.runner, pipeline.options)
+
+
+class SentenceTransformerJobSubmissionTest(unittest.TestCase):
+  """Tests that sentence-transformers is only used when executing pipelines.
+
+  sentence-transformers (and its heavy dependencies, like torch) should only be
+  needed for loading the model when the pipeline is executed (for example, on
+  the workers), but not for constructing and submitting the pipeline. These
+  tests don't require sentence-transformers to be installed.
+  """
+  def setUp(self):
+    self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def _apply_ml_transform(self, pipeline, ml_transform):
+    _ = (
+        pipeline
+        | beam.Create([{
+            test_query_column: test_query
+        }])
+        | ml_transform)
+
+  def test_importing_module_does_not_import_sentence_transformers(self):
+    # Executes the module in a new module object, i.e. without replacing the
+    # already imported module.
+    spec = importlib.util.find_spec(huggingface.__name__)
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      spec.loader.exec_module(importlib.util.module_from_spec(spec))
+    self.assertEqual(attempted_imports, [])
+
+  @parameterized.expand([('text_model', False), ('image_model', True)])
+  def test_job_submission_does_not_use_sentence_transformers(
+      self, unused_name, image_model):
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      embedding_config = huggingface.SentenceTransformerEmbeddings(
+          model_name=DEFAULT_MODEL_NAME,
+          columns=[test_query_column],
+          image_model=image_model)
+      pipeline = beam.Pipeline()
+      self._apply_ml_transform(
+          pipeline,
+          MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+      _serialize_and_deserialize(pipeline)
+    self.assertEqual(attempted_imports, [])
+
+  def test_reading_artifacts_does_not_use_sentence_transformers(self):
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      embedding_config = huggingface.SentenceTransformerEmbeddings(
+          model_name=DEFAULT_MODEL_NAME, columns=[test_query_column])
+      # Artifacts are written when constructing the pipeline.
+      self._apply_ml_transform(
+          beam.Pipeline(),
+          MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+      pipeline = beam.Pipeline()
+      self._apply_ml_transform(
+          pipeline, MLTransform(read_artifact_location=self.artifact_location))
+      _serialize_and_deserialize(pipeline)
+    self.assertEqual(attempted_imports, [])
+
+  def test_loading_model_requires_sentence_transformers(self):
+    model_handler = huggingface.SentenceTransformerEmbeddings(
+        model_name=DEFAULT_MODEL_NAME,
+        columns=[test_query_column]).get_model_handler()
+    with test_utils.block_imports('sentence_transformers'):
+      with self.assertRaisesRegex(ImportError,
+                                  'sentence-transformers is required'):
+        model_handler.load_model()
+
+  def test_loading_model_uses_sentence_transformers(self):
+    model_handler = huggingface.SentenceTransformerEmbeddings(
+        model_name=DEFAULT_MODEL_NAME,
+        columns=[test_query_column],
+        max_seq_length=128,
+        load_model_args={
+            'device': 'cpu'
+        }).get_model_handler()
+    with _fake_sentence_transformers_module():
+      model = model_handler.load_model()
+    self.assertIsInstance(model, _FakeSentenceTransformer)
+    self.assertEqual(model.model_name, DEFAULT_MODEL_NAME)
+    self.assertEqual(model.kwargs, {'device': 'cpu'})
+    self.assertEqual(model.max_seq_length, 128)
+
+  def test_loading_model_from_artifacts_written_by_older_versions(self):
+    model_handler = huggingface.SentenceTransformerEmbeddings(
+        model_name=DEFAULT_MODEL_NAME,
+        columns=[test_query_column]).get_model_handler()
+    # Beam 2.77.0 and earlier stored a reference to the SentenceTransformer
+    # class in the artifacts. This is how jsonpickle restores the reference if
+    # sentence-transformers is not installed when reading the artifacts.
+    with test_utils.block_imports('sentence_transformers'):
+      model_handler._model_class = jsonpickle.decode(
+          '{"py/type": '
+          '"sentence_transformers.SentenceTransformer.SentenceTransformer"}')
+    with _fake_sentence_transformers_module():
+      model = model_handler.load_model()
+    self.assertIsInstance(model, _FakeSentenceTransformer)
+    self.assertEqual(model.model_name, DEFAULT_MODEL_NAME)
 
 
 @unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')

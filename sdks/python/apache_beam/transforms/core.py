@@ -1856,7 +1856,9 @@ class ParDo(PTransformWithSideInputs):
   def _get_key_and_window_coder(self, named_inputs):
     if named_inputs is None or not self._signature.is_stateful_dofn():
       return None, None
-    main_input = list(set(named_inputs.keys()) - set(self.side_inputs))[0]
+    main_input = [
+        tag for tag in named_inputs if not tag.startswith(SIDE_INPUT_PREFIX)
+    ][0]
     input_pcoll = named_inputs[main_input]
     kv_type_hint = input_pcoll.element_type
     if kv_type_hint and kv_type_hint != typehints.Any:

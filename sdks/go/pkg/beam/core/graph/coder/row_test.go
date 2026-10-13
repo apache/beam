@@ -905,3 +905,43 @@ func TestRowHeader_TrailingZeroBytes(t *testing.T) {
 	}
 
 }
+
+// TestReflectionRowCoderGeneration_Int16BigEndian checks that int16 and uint16
+// fields use the 2 byte big endian encoding of the INT16 schema type.
+func TestReflectionRowCoderGeneration_Int16BigEndian(t *testing.T) {
+	type row struct {
+		A int16
+		B uint16
+		C int16
+	}
+	want := row{A: 999, B: 65535, C: -2}
+	wantBytes := []byte{
+		0x03, 0x00, // 3 fields, no nils.
+		0x03, 0xe7, // A
+		0xff, 0xff, // B
+		0xff, 0xfe, // C
+	}
+	rt := reflect.TypeOf(want)
+	enc, err := RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	var buf bytes.Buffer
+	if err := enc(want, &buf); err != nil {
+		t.Fatalf("enc(%v) = %v, want nil error", want, err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, wantBytes) {
+		t.Fatalf("enc(%v) = %v, want %v", want, got, wantBytes)
+	}
+	dec, err := RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	got, err := dec(bytes.NewBuffer(wantBytes))
+	if err != nil {
+		t.Fatalf("dec(%v) = %v, want nil error", wantBytes, err)
+	}
+	if d := cmp.Diff(want, got); d != "" {
+		t.Fatalf("dec(enc(%v)) = %v\ndiff (-want, +got): %v", want, got, d)
+	}
+}

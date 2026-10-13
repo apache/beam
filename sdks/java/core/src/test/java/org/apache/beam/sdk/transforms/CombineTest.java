@@ -53,6 +53,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -94,7 +95,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link Combine} transforms. */
 public class CombineTest implements Serializable {
@@ -649,7 +649,7 @@ public class CombineTest implements Serializable {
   }
 
   /** Tests validating basic Combine transform scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
@@ -984,7 +984,7 @@ public class CombineTest implements Serializable {
   }
 
   /** Tests validating CombineWithContext behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class CombineWithContextTests extends SharedTestBase {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})
@@ -1056,7 +1056,7 @@ public class CombineTest implements Serializable {
   }
 
   /** Tests validating windowing behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class})
@@ -1460,7 +1460,7 @@ public class CombineTest implements Serializable {
   }
 
   /** Tests validating accumulation scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class AccumulationTests extends SharedTestBase {
     @Test
     @Category({ValidatesRunner.class, UsesSideInputs.class})

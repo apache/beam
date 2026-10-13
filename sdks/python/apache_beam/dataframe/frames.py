@@ -2081,8 +2081,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         allow_nonparallel_final = True
         if _is_associative(base_func):
           agg_func = func
+        elif isinstance(func, list):
+          # Post-aggregate with sum, but keep the original label (e.g. 'count')
+          # in the result's index.
+          agg_func = {base_func: 'sum'}
         else:
-          agg_func = ['sum'] if isinstance(func, list) else 'sum'
+          agg_func = 'sum'
       else:
         intermediate = self._expr
         allow_nonparallel_final = None  # i.e. don't change the value
@@ -2341,11 +2345,18 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           reason="order-sensitive")
 
     if bins is not None:
+      # pandas can't compute bins for the empty proxy, so make the proxy from
+      # a single element of the same type.
+      proxy = self._expr.proxy()
+      proxy = pd.Series([0], dtype=proxy.dtype, name=proxy.name).value_counts(
+          normalize=normalize, bins=bins, dropna=dropna)[:0]
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'value_counts',
               lambda s: s.value_counts(
-                  normalize=normalize, bins=bins, dropna=dropna)[self._expr],
+                  normalize=normalize, bins=bins, dropna=dropna),
+              [self._expr],
+              proxy=proxy,
               requires_partition_by=partitionings.Singleton(
                   reason=(
                       "value_counts with bin specified requires collecting "

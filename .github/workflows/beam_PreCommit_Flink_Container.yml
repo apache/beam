@@ -16,7 +16,7 @@
 name: PreCommit Flink Container
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - 'model/**'
       - 'sdks/python/apache_beam/runners/portability/**'
@@ -76,8 +76,8 @@ env:
   JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink_job_server:latest-flink2.2
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
   DOCKER_REGISTRY: gcr.io
-  DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request_target' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
-  PYTHON_VERSION: '3.10'
+  DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
+  PYTHON_VERSION: '3.11'
   PYTHON_SDK_IMAGE_TAG: latest
 
 jobs:
@@ -86,41 +86,35 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      github.event_name == 'pull_request_target' ||
-      github.event.comment.body == 'Run Flink Container PreCommit'
+      github.event_name == 'pull_request'
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 90
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     strategy:
       matrix:
         job_name: ["beam_PreCommit_Flink_Container"]
-        job_phrase: ["Run Flink Container PreCommit"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
       - name: GCloud Docker credential helper
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }}
       - name: Set PYTHON_SDK_IMAGE_TAG unique variable based on timestamp
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: echo "PYTHON_SDK_IMAGE_TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_ENV
       - name: Build and push to registry
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:container:py310:docker
+          gradle-command: :sdks:python:container:py311:docker
           arguments: |
             -PpythonVersion=${{ env.PYTHON_VERSION }} \
             -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
@@ -182,6 +176,6 @@ jobs:
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
 
       - name: Cleanup Python SDK Container
-        if: ${{ always() && github.event_name == 'pull_request_target' }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
         run: |
           gcloud container images delete ${DOCKER_REPOSITORY_ROOT}/beam_python${{ env.PYTHON_VERSION }}_sdk:${{ env.PYTHON_SDK_IMAGE_TAG }} --force-delete-tags --quiet
