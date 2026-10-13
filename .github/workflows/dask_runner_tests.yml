@@ -98,7 +98,7 @@ jobs:
           python -m pip install pytest-cov==3.0.0
           python -m pytest -q apache_beam/runners/dask/dask_runner_test.py \
             -k 'DaskBagWindowedIteratorTest or DaskOptionsTest' \
-            --cov=apache_beam.runners.dask --cov-report=xml:coverage.xml
+            --cov=apache_beam/runners/dask --cov-report=xml:coverage.xml
       - name: Upload Dask Python coverage
         if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v7
