@@ -32,6 +32,11 @@ try:
 except ImportError:
   boto3_client = None
 
+try:
+  from google.cloud import secretmanager  # pylint: disable=unused-import
+except ImportError:
+  secretmanager = None
+
 
 @unittest.skipIf(boto3_client is None, 'boto3 is not installed')
 class Boto3ClientOptionsTest(unittest.TestCase):
@@ -167,6 +172,7 @@ class Boto3ClientOptionsTest(unittest.TestCase):
     self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
     self.assertEqual(kwargs['aws_secret_access_key'], 'SECRETEXAMPLE')
 
+  @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')
   @mock.patch('google.cloud.secretmanager.SecretManagerServiceClient')
   def test_gcp_secret_manager_end_to_end(self, mock_gcp_client):
     payloads = {

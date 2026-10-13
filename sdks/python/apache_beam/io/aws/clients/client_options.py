@@ -114,11 +114,12 @@ def view_options(
 # manager each time. Note that a rotated secret is only picked up by new
 # worker processes.
 @functools.lru_cache(maxsize=32)
-def _fetch_secret(spec, secret_manager):
+def _fetch_secret(spec: str, secret_manager: Optional[str]) -> str:
   return Secret.from_json(spec, secret_manager).get_str()
 
 
-def _parse_credential(value, secret_manager):
+def _parse_credential(value: Optional[str],
+                      secret_manager: Optional[str]) -> Optional[str]:
   """Parses a credential option with Secret.from_json.
 
   With no secret_manager, Secret.from_json returns the value itself (as a
