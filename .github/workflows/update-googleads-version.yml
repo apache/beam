@@ -124,7 +124,7 @@ jobs:
           LATEST_VER: ${{ steps.check_ads.outputs.latest_version }}
           LATEST_API: ${{ steps.check_ads.outputs.latest_api }}
         run: |
-          branchName="upgrade_google_ads_${LATEST_VER//./_}_v${LATEST_API}"
+          branchName="upgrade_google_ads_from_v${CURRENT_API}_to_v${LATEST_API}"
           git checkout -b "$branchName"
           git add sdks/java/io/google-ads/build.gradle sdks/java/io/google-ads/src
           if ! git diff --cached --quiet; then
@@ -133,7 +133,7 @@ jobs:
             gh auth setup-git
             git push origin "$branchName" --quiet
 
-            PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from **${CURRENT_VER}** (API **v${CURRENT_API}**) to **${LATEST_VER}** (API **v${LATEST_API}**).
+            PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from API **v${CURRENT_API}** to API **v${LATEST_API}**.
 
           Please review the changes and merge if all tests pass."
 
