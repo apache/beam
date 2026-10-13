@@ -36,7 +36,7 @@ Supported destination sinks:
 
 - File system
 - [Google Cloud BigQuery](https://cloud.google.com/bigquery)
-- [Cloud BigTable](https://cloud.google.com/bigtable)
+- [Cloud Bigtable](https://cloud.google.com/bigtable)
 
 Supported data schema format:
 
@@ -122,13 +122,13 @@ To execute this pipeline, specify the parameters:
         - **bigQueryTableName**: Cloud BigQuery table name to write into
         - **tempLocation**: Folder in a Google Cloud Storage bucket, which is needed for
           BigQuery to handle data writing
-    - Cloud BigTable
-        - **bigTableProjectId**: Id of the project where the Cloud BigTable instance to write into
+    - Cloud Bigtable
+        - **bigTableProjectId**: Id of the project where the Cloud Bigtable instance to write into
           is located
-        - **bigTableInstanceId**: Id of the Cloud BigTable instance to write into
-        - **bigTableTableId**: Id of the Cloud BigTable table to write into
-        - **bigTableKeyColumnName**: Column name to use as a key in Cloud BigTable
-        - **bigTableColumnFamilyName**: Column family name to use in Cloud BigTable
+        - **bigTableInstanceId**: Id of the Cloud Bigtable instance to write into
+        - **bigTableTableId**: Id of the Cloud Bigtable table to write into
+        - **bigTableKeyColumnName**: Column name to use as a key in Cloud Bigtable
+        - **bigTableColumnFamilyName**: Column family name to use in Cloud Bigtable
 - RPC server parameters
     - **rpcUri**: URI for the API calls to RPC server
     - **batchSize**: Size of the batch to send to RPC server per request

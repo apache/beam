@@ -80,6 +80,21 @@ public abstract class IcebergCatalogConfig implements Serializable {
     return CATALOG_CACHE.computeIfAbsent(this, IcebergCatalogConfig::buildCatalog);
   }
 
+  /**
+   * Constructs and returns a new {@link Configuration} populated with properties from {@link
+   * #getConfigProperties()}.
+   */
+  public Configuration getHadoopConfiguration() {
+    Configuration config = new Configuration();
+    Map<String, String> confProps = getConfigProperties();
+    if (confProps != null) {
+      for (Map.Entry<String, String> prop : confProps.entrySet()) {
+        config.set(prop.getKey(), prop.getValue());
+      }
+    }
+    return config;
+  }
+
   private static Catalog buildCatalog(IcebergCatalogConfig catalogConfig) {
     String catalogName = catalogConfig.getCatalogName();
     if (catalogName == null) {
@@ -89,14 +104,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
     if (catalogProps == null) {
       catalogProps = Maps.newHashMap();
     }
-    Map<String, String> confProps = catalogConfig.getConfigProperties();
-    if (confProps == null) {
-      confProps = Maps.newHashMap();
-    }
-    Configuration config = new Configuration();
-    for (Map.Entry<String, String> prop : confProps.entrySet()) {
-      config.set(prop.getKey(), prop.getValue());
-    }
+    Configuration config = catalogConfig.getHadoopConfiguration();
     return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
   }
 

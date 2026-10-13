@@ -92,7 +92,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         doFn);
 
     // Stateful, timer using and time sorted DoFns are routed to StatefulParDoTranslatorBatch by
-    // PipelineTranslatorBatch#getTransformTranslator. Reaching here with one means dispatch is
+    // PipelineTranslatorCommon#getTransformTranslator. Reaching here with one means dispatch is
     // broken, not that the feature is unsupported.
     checkState(
         !StatefulParDoTranslatorBatch.appliesTo(transform),

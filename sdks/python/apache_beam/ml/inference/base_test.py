@@ -16,6 +16,7 @@
 #
 
 """Tests for apache_beam.ml.base."""
+import gc
 import math
 import multiprocessing
 import os
@@ -26,6 +27,7 @@ import tempfile
 import time
 import unittest
 import unittest.mock
+import uuid
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -118,6 +120,22 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def batch_elements_kwargs(self):
     return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
+_LOAD_COUNTS: dict[str, int] = {}
+
+
+class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
+  """Counts load_model() calls per key in the module-level _LOAD_COUNTS."""
+  def __init__(self, key: str):
+    self._key = key
+
+  def load_model(self):
+    _LOAD_COUNTS[self._key] = _LOAD_COUNTS.get(self._key, 0) + 1
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -1836,6 +1854,35 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     self.assertTrue(ms.is_valid_tag('tag1_reload_2'))
     self.assertTrue(ms.is_valid_tag('tag2_reload_2'))
+
+  def test_load_model_status_returns_same_status_per_tag(self):
+    tag = 'tag1' + uuid.uuid4().hex
+    status = base.load_model_status(tag, False)
+    self.assertIs(status, base.load_model_status(tag, False))
+    self.assertIsNot(status, base.load_model_status(tag + '_other', False))
+
+    self.assertTrue(status.is_valid_tag('model'))
+    base.load_model_status(tag, False).try_mark_current_model_invalid(0)
+    self.assertFalse(base.load_model_status(tag, False).is_valid_tag('model'))
+
+  def test_new_dofn_instances_reuse_previously_loaded_models(self):
+    # Runners may recreate DoFn instances, e.g. when the SDK
+    # harness evicts an idle bundle processor.
+    model_tag = 'tag2' + uuid.uuid4().hex
+    handler = LoadCountingModelHandler(model_tag)
+    dofn = base._RunInferenceDoFn(
+        handler, clock=FakeClock(), metrics_namespace=None, model_tag=model_tag)
+    serialized_dofn = pickle.dumps(dofn)
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+    del dofn_instance
+    gc.collect()
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+
+    self.assertEqual(1, _LOAD_COUNTS[model_tag])
 
   def test_model_status_provides_valid_garbage_collection(self):
     ms = base._ModelStatus(True)

@@ -33,7 +33,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login}}'
   cancel-in-progress: true
 
 env:
@@ -50,7 +50,7 @@ jobs:
     env:
       EVENT_NAME: ${{ github.event_name }}
       # Keep in sync with py_version matrix value below - if changed, change that as well.
-      PY_VERSIONS_FULL: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+      PY_VERSIONS_FULL: "cp311-* cp312-* cp313-* cp314-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -238,7 +238,7 @@ jobs:
           {"os": "ubuntu-24.04", "runner": "ubuntu-22.04", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
-        py_version: ["cp310-", "cp311-", "cp312-", "cp313-", "cp314-"]
+        py_version: ["cp311-", "cp312-", "cp313-", "cp314-"]
     steps:
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v8
@@ -255,7 +255,7 @@ jobs:
       uses: actions/setup-python@v7
       with:
         python-version: '3.11'
-    - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+    - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -57,9 +59,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "keyfor",
-  "nullness"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+  "keyfor"
+})
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
@@ -145,7 +146,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       unprocessedElements = ImmutableList.builder();
 
       Coder<V> valueCoder =
-          application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
+          application
+              .getTransform()
+              .getValueCoder(checkStateNotNull(inputBundle.getPCollection()).getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToLateness =
           Metrics.counter(
@@ -190,8 +193,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult<KeyedWorkItem<K, V>> finishBundle() throws Exception {
-      // State is initialized within the constructor. It can never be null.
-      CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
+      // processElement always accesses state internals, so commitState is non-null here.
+      CopyOnAccessInMemoryStateInternals state = checkStateNotNull(stepContext.commitState());
       return StepTransformResult.<KeyedWorkItem<K, V>>withHold(
               application, state.getEarliestWatermarkHold())
           .withState(state)
@@ -226,7 +229,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                           + "window: {} since it is too far behind inputWatermark: {}",
                       DirectGroupAlsoByWindow.class.getSimpleName(),
                       input.getTimestamp(),
-                      key,
+                      String.valueOf(key),
                       window,
                       timerInternals.currentInputWatermarkTime());
                 }

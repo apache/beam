@@ -1529,7 +1529,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     }
   }
 
-  class FlinkTimerInternals implements TimerInternals {
+  final class FlinkTimerInternals implements TimerInternals {
 
     private static final String PENDING_TIMERS_STATE_NAME = "pending-timers";
 

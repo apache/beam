@@ -187,6 +187,8 @@ public class BeamFnStateGrpcClientCache {
         }
         if (value.getError().isEmpty()) {
           responseFuture.complete(value);
+        } else if (value.getErrorReason() == StateResponse.ErrorReason.CANCELLED) {
+          responseFuture.completeExceptionally(new WorkCancelledException(value.getError()));
         } else {
           responseFuture.completeExceptionally(new IllegalStateException(value.getError()));
         }

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel;
 import org.apache.beam.sdk.options.SdkHarnessOptions.SdkHarnessLogLevelOverrides;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.ExpectedLogs.LogSaver;
 import org.apache.beam.sdk.testing.PAssert;
@@ -49,10 +50,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests that validate the SDK harness is configured correctly for a runner. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class SdkHarnessEnvironmentTest {
 
   @Rule public final TestPipeline p = TestPipeline.create();

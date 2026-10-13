@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper for Sink that reports bytes buffered (or written) to {@link DataflowExecutionContext}.
@@ -63,6 +64,11 @@ public class SizeReportingSinkWrapper<T> extends Sink<T> {
       long size = underlyingWriter.add(value);
       executionContext.reportBytesSinked(size);
       return size;
+    }
+
+    @Override
+    public void finishKey(@Nullable Object key) throws IOException {
+      underlyingWriter.finishKey(key);
     }
 
     @Override

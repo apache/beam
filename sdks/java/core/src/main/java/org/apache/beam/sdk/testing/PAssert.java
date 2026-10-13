@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -121,10 +122,12 @@ public class PAssert {
   private static final Counter failureCounter =
       Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
 
-  private static int assertCount = 0;
+  // Atomic so that PAssert transforms constructed concurrently (e.g. by tests running under
+  // BeamParallelJunit4Runner) never receive duplicate names within a pipeline.
+  private static final AtomicInteger assertCount = new AtomicInteger(0);
 
   private static String nextAssertionName() {
-    return "PAssert$" + assertCount++;
+    return "PAssert$" + assertCount.getAndIncrement();
   }
 
   // Do not instantiate.
@@ -786,7 +789,7 @@ public class PAssert {
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
-          "PAssert$" + assertCount++,
+          nextAssertionName(),
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -940,7 +943,7 @@ public class PAssert {
     public PCollectionSingletonIterableAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + assertCount++,
+          nextAssertionName(),
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -1034,7 +1037,7 @@ public class PAssert {
     @Override
     public PCollectionSingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + assertCount++,
+          nextAssertionName(),
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -1173,7 +1176,7 @@ public class PAssert {
       actual
           .getPipeline()
           .apply(
-              "PAssert$" + assertCount++,
+              nextAssertionName(),
               new OneSideInputAssert<>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
                   rewindowActuals.windowDummy(),
@@ -1277,7 +1280,8 @@ public class PAssert {
    * A partially applied {@link AssertRelation}, where one value is provided along with a coder to
    * serialize/deserialize them.
    */
-  private static class CheckRelationAgainstExpected<T> implements SerializableFunction<T, Void> {
+  private static final class CheckRelationAgainstExpected<T>
+      implements SerializableFunction<T, Void> {
     private final AssertRelation<T, T> relation;
     private final byte[] encodedExpected;
     private final Coder<T> coder;

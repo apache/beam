@@ -37,6 +37,7 @@ labels:
       - Abacn
       - ahmedabu98
       - chamikaramj
+      - damccorm
       - kennknowles
     exclusionList: []
   - name: spanner
@@ -47,16 +48,26 @@ labels:
       - igorbernstein2
       - mutianf
     exclusionList: []
-  - name: kafka
+  - name: delta
     reviewers:
-      - johnjcasey
-      - Dippatel98
-      - sjvanrossum
+      - ahmedabu98
+      - chamikaramj
+    exclusionList: []
+  - name: iceberg
+    reviewers:
+      - ahmedabu98
+      - chamikaramj
+    exclusionList: []
+  - name: yaml
+    reviewers:
+      - chamikaramj
+      - derrickaw
   - name: Build
     reviewers:
       - Abacn
+      - Amar3tto
       - damccorm
-      - liferoad
+      - derrickaw
     exclusionList: []
   - name: website
     reviewers:

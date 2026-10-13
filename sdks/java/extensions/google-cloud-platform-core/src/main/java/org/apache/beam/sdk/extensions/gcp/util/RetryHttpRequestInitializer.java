@@ -45,9 +45,6 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Also can take an HttpResponseInterceptor to be applied to the responses.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final Logger LOG = LoggerFactory.getLogger(RetryHttpRequestInitializer.class);
@@ -198,9 +195,10 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     }
   }
 
-  private final HttpResponseInterceptor responseInterceptor; // response Interceptor to use
+  private final @Nullable HttpResponseInterceptor
+      responseInterceptor; // response Interceptor to use
 
-  private CustomHttpErrors customHttpErrors = null;
+  private @Nullable CustomHttpErrors customHttpErrors = null;
 
   private final NanoClock nanoClock; // used for testing
 
@@ -208,7 +206,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
 
-  private Map<String, String> httpHeaders = null;
+  private @Nullable Map<String, String> httpHeaders = null;
 
   public RetryHttpRequestInitializer() {
     this(Collections.emptyList());
@@ -242,7 +240,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
       NanoClock nanoClock,
       Sleeper sleeper,
       Collection<Integer> additionalIgnoredResponseCodes,
-      HttpResponseInterceptor responseInterceptor) {
+      @Nullable HttpResponseInterceptor responseInterceptor) {
     this.nanoClock = nanoClock;
     this.sleeper = sleeper;
     this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
@@ -273,8 +271,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(loggingHttpBackOffHandler);
     request.setIOExceptionHandler(loggingHttpBackOffHandler);
 
-    if (this.httpHeaders != null) {
-      request.getHeaders().putAll(this.httpHeaders);
+    @Nullable Map<String, String> localHttpHeaders = this.httpHeaders;
+    if (localHttpHeaders != null) {
+      request.getHeaders().putAll(localHttpHeaders);
     }
 
     // Set response initializer

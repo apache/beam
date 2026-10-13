@@ -36,7 +36,8 @@ pipeline:
         handler_config:
           project: "apache-beam-testing"
           table_name: "apache-beam-testing.ALL_TEST.customers"
-          row_restriction_template: "customer_id = 1001 or customer_id = 1003"
+          # Use placeholder format string so values from 'fields' dynamically populate the WHERE clause.
+          row_restriction_template: "customer_id = {}"
           fields: ["customer_id"]
 
     # Step 3: Map enriched values to Beam schema

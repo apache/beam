@@ -35,27 +35,43 @@ import time
 from typing import Optional
 from typing import Union
 
-from google.api_core.exceptions import Conflict
-from google.api_core.exceptions import RetryError
-from google.cloud import storage
-from google.cloud.exceptions import NotFound
-from google.cloud.exceptions import from_http_response
-from google.cloud.storage.fileio import BlobReader
-from google.cloud.storage.fileio import BlobWriter
-from google.cloud.storage.retry import DEFAULT_RETRY
-
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
-from apache_beam.io.gcp import gcsio_retry
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
+  from google.api_core.exceptions import Conflict
+  from google.api_core.exceptions import RetryError
+  from google.cloud import storage
+  from google.cloud.exceptions import NotFound
+  from google.cloud.exceptions import from_http_response
+  from google.cloud.storage.fileio import BlobReader
+  from google.cloud.storage.fileio import BlobWriter
+  from google.cloud.storage.retry import DEFAULT_RETRY
+
+  from apache_beam.io.gcp import gcsio_retry
+  GCS_INSTALLED = True
+except ImportError:
+  GCS_INSTALLED = False
+  storage = None  # type: ignore
+  BlobReader = object  # type: ignore
+  BlobWriter = object  # type: ignore
+  DEFAULT_RETRY = None  # type: ignore
 
 __all__ = ['GcsIO', 'create_storage_client']
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
+DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024 * 1024
+
+# Writes are performed as resumable uploads, which require the chunk size to be
+# a multiple of 256 KiB.
+WRITE_BUFFER_SIZE_MULTIPLE = 256 * 1024
 
 # Maximum number of operations permitted in GcsIO.copy_batch() and
 # GcsIO.delete_batch().
@@ -202,13 +218,18 @@ class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(
       self,
-      storage_client: Optional[storage.Client] = None,
+      storage_client: Optional['storage.Client'] = None,
       pipeline_options: Optional[Union[dict, PipelineOptions]] = None) -> None:
     if pipeline_options is None:
       pipeline_options = PipelineOptions()
     elif isinstance(pipeline_options, dict):
       pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
     if storage_client is None:
+      if not GCS_INSTALLED:
+        message = (
+            'GCP dependencies are not installed, and no alternative '
+            'client was provided to GcsIO.')
+        raise RuntimeError(message)
       storage_client = create_storage_client(pipeline_options)
 
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
@@ -220,9 +241,18 @@ class GcsIO(object):
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
-    self._storage_client_retry = gcsio_retry.get_retry(pipeline_options)
+    self._storage_client_retry = (
+        gcsio_retry.get_retry(pipeline_options) if GCS_INSTALLED else None)
     self._use_blob_generation = getattr(
         google_cloud_options, 'enable_gcsio_blob_generation', False)
+    self._read_buffer_size = getattr(
+        google_cloud_options, 'gcs_read_buffer_size_bytes', None)
+    if self._read_buffer_size is None:
+      self._read_buffer_size = DEFAULT_READ_BUFFER_SIZE
+    self._write_buffer_size = getattr(
+        google_cloud_options, 'gcs_write_buffer_size_bytes', None)
+    if self._write_buffer_size is None:
+      self._write_buffer_size = DEFAULT_WRITE_BUFFER_SIZE
 
   def get_project_number(self, bucket):
     if bucket not in self.bucket_to_project_number:
@@ -269,15 +299,23 @@ class GcsIO(object):
       self,
       filename,
       mode='r',
-      read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
-      mime_type='application/octet-stream'):
+      read_buffer_size=None,
+      mime_type='application/octet-stream',
+      write_buffer_size=None):
     """Open a GCS file path for reading or writing.
 
     Args:
       filename (str): GCS file path in the form ``gs://<bucket>/<object>``.
       mode (str): ``'r'`` for reading or ``'w'`` for writing.
       read_buffer_size (int): Buffer size to use during read operations.
+        Defaults to the value of the ``--gcs_read_buffer_size_bytes``
+        pipeline option, or ``DEFAULT_READ_BUFFER_SIZE`` when that option is
+        not set.
       mime_type (str): Mime type to set for write operations.
+      write_buffer_size (int): Buffer size to use during write operations.
+        Must be a multiple of 256 KiB. Defaults to the value of the
+        ``--gcs_write_buffer_size_bytes`` pipeline option, or
+        ``DEFAULT_WRITE_BUFFER_SIZE`` when that option is not set.
 
     Returns:
       GCS file object.
@@ -285,6 +323,11 @@ class GcsIO(object):
     Raises:
       ValueError: Invalid open file mode.
     """
+    if read_buffer_size is None:
+      read_buffer_size = self._read_buffer_size
+    if write_buffer_size is None:
+      write_buffer_size = self._write_buffer_size
+
     bucket_name, blob_name = parse_gcs_path(filename)
     bucket = self.client.bucket(bucket_name)
 
@@ -300,6 +343,7 @@ class GcsIO(object):
       return BeamBlobWriter(
           blob,
           mime_type,
+          chunk_size=write_buffer_size,
           enable_write_bucket_metric=self.enable_write_bucket_metric,
           retry=self._storage_client_retry)
     else:
@@ -688,6 +732,19 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
+  """A reader for GCS blobs.
+
+  Note that constructing this reader does not issue any request to GCS. Object
+  metadata is fetched lazily by the underlying ``BlobReader``, on the first
+  read or seek.
+
+  Known limitation: doubly compressed objects, i.e. those stored with both
+  "content-encoding=gzip" and "content-type=application/gzip" (or
+  "application/x-gzip"), are not supported. Detecting this up front would
+  require an extra metadata request on every open, which is too costly to do
+  unconditionally. See
+  https://github.com/googleapis/google-cloud-python/issues/18423.
+  """
   def __init__(
       self,
       blob,
@@ -700,21 +757,6 @@ class BeamBlobReader(BlobReader):
     # (https://cloud.google.com/storage/docs/transcoding).
     super().__init__(
         blob, chunk_size=chunk_size, retry=retry, raw_download=raw_download)
-    # TODO: Remove this after
-    # https://github.com/googleapis/python-storage/issues/1406 is fixed.
-    # As a workaround, we manually trigger a reload here. Otherwise, an internal
-    # call of reader.seek() will cause an exception if raw_download is set
-    # when initializing BlobReader(),
-    blob.reload()
-
-    # TODO: Currently there is a bug in GCS server side when a client requests
-    # a file with "content-encoding=gzip" and "content-type=application/gzip" or
-    # "content-type=application/x-gzip", which will lead to infinite loop.
-    # We skip the support of this type of files until the GCS bug is fixed.
-    # Internal bug id: 203845981.
-    if (blob.content_encoding == "gzip" and
-        blob.content_type in ["application/gzip", "application/x-gzip"]):
-      raise NotImplementedError("Doubly compressed files not supported.")
 
     self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
@@ -734,7 +776,7 @@ class BeamBlobWriter(BlobWriter):
       self,
       blob,
       content_type,
-      chunk_size=16 * 1024 * 1024,
+      chunk_size=DEFAULT_WRITE_BUFFER_SIZE,
       ignore_flush=True,
       enable_write_bucket_metric=False,
       retry=DEFAULT_RETRY):
