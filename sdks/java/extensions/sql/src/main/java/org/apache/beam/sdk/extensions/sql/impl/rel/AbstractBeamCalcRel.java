@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
@@ -26,10 +27,12 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.hint.RelHint;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLocalRef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 @Internal
@@ -40,7 +43,16 @@ public abstract class AbstractBeamCalcRel extends Calc implements BeamRelNode {
 
   public AbstractBeamCalcRel(
       RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
-    super(cluster, traits, input, program);
+    this(cluster, traits, ImmutableList.of(), input, program);
+  }
+
+  public AbstractBeamCalcRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      List<RelHint> hints,
+      RelNode input,
+      RexProgram program) {
+    super(cluster, traits, hints, input, program);
   }
 
   public boolean isInputSortRelAndLimitOnly() {
