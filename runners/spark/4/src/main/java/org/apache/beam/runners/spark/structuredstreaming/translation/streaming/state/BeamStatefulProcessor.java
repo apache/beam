@@ -119,13 +119,23 @@ public class BeamStatefulProcessor<K, V, OutputT>
   }
 
   private void storeWatermark(SparkTimerInternals timerInternals) {
-    checkStateNotNull(beamWatermark).update(timerInternals.currentInputWatermarkTime().getMillis());
+    ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
+    // A key without timers and state, e.g. after all its windows expired, keeps nothing in the
+    // state store, otherwise an unbounded key space grows it forever.
+    if (timerInternals.getTimers().isEmpty() && !checkStateNotNull(beamState).exists()) {
+      if (watermarkState.exists()) {
+        watermarkState.clear();
+      }
+    } else {
+      watermarkState.update(timerInternals.currentInputWatermarkTime().getMillis());
+    }
   }
 
   private SparkTimerInternals timerInternals(TimerValues timerValues) {
     ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
     // Late data is filtered against the watermark of the key's previous visit.
-    // A key seen for the first time or idle for several batches filters against an older watermark.
+    // A key seen for the first time, cleared after its last window expired or idle for several
+    // batches filters against an older watermark.
     Instant low =
         watermarkState.exists()
             ? new Instant(watermarkState.get())
