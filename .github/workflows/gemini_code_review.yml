@@ -60,7 +60,7 @@ jobs:
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
           GOOGLE_CLOUD_LOCATION: 'global'
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.1-pro-preview' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-argon' }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -72,7 +72,7 @@ jobs:
           cat << 'EOF' > .gemini/settings.json
           {
             "model": {
-              "maxSessionTurns": 10
+              "maxSessionTurns": 25
             },
             "experimental": {
               "directWebFetch": true
@@ -80,8 +80,9 @@ jobs:
             "tools": {
               "core": [
                 "web_fetch",
-                "run_shell_command(gh pr view)",
-                "run_shell_command(gh pr diff)"
+                "run_shell_command(gh pr)",
+                "run_shell_command(gh api)",
+                "run_shell_command(curl)"
               ]
             }
           }
@@ -90,6 +91,8 @@ jobs:
           cat << EOF > prompt.txt
           You are an autonomous Apache Beam code review agent running on the Gemini Enterprise Agent Platform.
           Review Pull Request: ${PR_URL}
+
+          Use \`gh pr view ${PR_URL}\` and \`gh pr diff ${PR_URL}\` to inspect the pull request metadata and diff.
 
           Respond with ONLY a single valid JSON object matching this exact schema (no markdown prose outside the JSON):
           {
@@ -108,7 +111,6 @@ jobs:
           EOF
 
           npx --yes @google/gemini-cli@latest \
-            --debug \
             --yolo \
             --model "${GEMINI_MODEL}" \
             --prompt "$(cat prompt.txt)" \
