@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
+* (Python) Added typed decision questions and the `EvaluateDecisions` transform, with an optional Jev model adapter ([#40220](https://github.com/apache/beam/pull/40220)).
 
 ## Breaking Changes
 
