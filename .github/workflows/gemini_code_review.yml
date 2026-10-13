@@ -61,6 +61,7 @@ jobs:
         id: gemini_review
         shell: bash
         env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GCP_REGION || 'us-central1' }}
