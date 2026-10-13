@@ -95,25 +95,37 @@ func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string
 	return resp.GetJobId(), nil
 }
 
+// JobError is the cause of WaitForCompletion when the job reaches FAILED.
+type JobError struct {
+	JobID     string
+	Message   string
+	MessageID string
+}
+
+func (e *JobError) Error() string { return e.Message }
+
+func jobFailedErr(jobID string, failure *JobError) error {
+	return errors.Errorf("job %v failed:\n%w", jobID, failure)
+}
+
 // WaitForCompletion monitors the given job until completion. It logs any messages
-// and state changes received.
+// and state changes received. A FAILED job wraps a *JobError.
 func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID string) error {
 	stream, err := client.GetMessageStream(ctx, &jobpb.JobMessagesRequest{JobId: jobID})
 	if err != nil {
 		return errors.Wrap(err, "failed to get job stream")
 	}
 
-	mostRecentError := "<no error received>"
+	failure := &JobError{JobID: jobID, Message: "<no error received>"}
 	var errReceived, jobFailed bool
 
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
+			if jobFailed {
+				return jobFailedErr(jobID, failure)
+			}
 			if err == io.EOF {
-				if jobFailed {
-					// Connection finished, so time to exit, produce what we have.
-					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
-				}
 				return nil
 			}
 			return err
@@ -131,7 +143,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			case jobpb.JobState_FAILED:
 				jobFailed = true
 				if errReceived {
-					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
+					return jobFailedErr(jobID, failure)
 				}
 				// Otherwise we should wait for at least one error log from the runner.
 			}
@@ -153,10 +165,11 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 
 			if resp.GetImportance() >= jobpb.JobMessage_JOB_MESSAGE_ERROR {
 				errReceived = true
-				mostRecentError = resp.GetMessageText()
+				failure.Message = resp.GetMessageText()
+				failure.MessageID = resp.GetMessageId()
 
 				if jobFailed {
-					return errors.Errorf("job %v failed:\n%w", jobID, errors.New(mostRecentError))
+					return jobFailedErr(jobID, failure)
 				}
 			}
 
