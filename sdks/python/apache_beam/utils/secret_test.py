@@ -413,12 +413,16 @@ class AwsSecretTest(unittest.TestCase):
         SecretId='my-secret', VersionId='v-12345', VersionStage='AWSCURRENT')
 
   @parameterized.expand([
-      ('api_error', {
-          'side_effect': Exception('Secret not found')
-      }, 'Secret not found'),
-      ('empty_payload', {
-          'return_value': {}
-      }, 'contains neither SecretString nor SecretBinary'),
+      (
+          'api_error', {
+              'side_effect': Exception('Secret not found')
+          },
+          'Secret not found'),
+      (
+          'empty_payload', {
+              'return_value': {}
+          },
+          'contains neither SecretString nor SecretBinary'),
   ])
   def test_fetch_failure_raises_runtime_error(self, _, behavior, message):
     self.mock_sm.get_secret_value.configure_mock(**behavior)
@@ -449,18 +453,24 @@ class AwsSecretTest(unittest.TestCase):
         })
 
   @parameterized.expand([
-      ('credential', {
-          'access_key_id': 'x'
-      }, 'Use the --aws_access_key_id pipeline option'),
+      (
+          'credential', {
+              'access_key_id': 'x'
+          },
+          'Use the --aws_access_key_id pipeline option'),
       ('alias', {
           'region': 'x'
       }, 'Invalid secret parameter region'),
-      ('option_name', {
-          'aws_region_name': 'x'
-      }, 'Invalid secret parameter aws_region_name'),
-      ('bad_bool', {
-          'disable_ssl': 'maybe'
-      }, 'Invalid boolean value for disable_ssl'),
+      (
+          'option_name', {
+              'aws_region_name': 'x'
+          },
+          'Invalid secret parameter aws_region_name'),
+      (
+          'bad_bool', {
+              'disable_ssl': 'maybe'
+          },
+          'Invalid boolean value for disable_ssl'),
   ])
   def test_invalid_spec_raises_value_error(self, _, extra, message):
     with self.assertRaisesRegex(ValueError, message):
@@ -650,8 +660,7 @@ class SecretFactoryTest(unittest.TestCase):
   def test_secret_factory_aws(self):
     spec = json.dumps({"name": "test-aws-secret", "version": "v1"})
 
-    secret_aws = Secret.from_json(
-        spec=spec, secret_manager="AwsSecretsManager")
+    secret_aws = Secret.from_json(spec=spec, secret_manager="AwsSecretsManager")
     self.assertIsInstance(secret_aws, AwsSecret)
     self.assertEqual(secret_aws._secret_id, "test-aws-secret")
     self.assertEqual(secret_aws._version_id, "v1")
