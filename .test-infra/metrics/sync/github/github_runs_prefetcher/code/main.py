@@ -468,10 +468,13 @@ def save_workflows(workflows):
         CONSTRAINT fk_workflow FOREIGN KEY(workflow_id) REFERENCES {workflows_table_name}(workflow_id))\n"""
     cursor.execute(create_workflows_table_query)
     cursor.execute(create_workflow_runs_table_query)
+    revoke_workflows_query = """
+    REVOKE ALL ON github_workflows, github_workflow_runs FROM PUBLIC, kubeproxyuser_ro;"""
     grant_workflows_query = f"""
     GRANT SELECT ON github_workflows TO kubeproxyuser_ro;"""
     grant_workflow_runs_query = f"""
     GRANT SELECT ON github_workflow_runs TO kubeproxyuser_ro;"""
+    cursor.execute(revoke_workflows_query)
     cursor.execute(grant_workflows_query)
     cursor.execute(grant_workflow_runs_query)
     insert_workflows_query = f"""
