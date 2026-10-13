@@ -352,6 +352,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   @VisibleForTesting
   /** Generate an SAS Token if the user did not provide one through pipeline options */
+  @SuppressWarnings("JavaUtilDate")
   String generateSasToken() throws IOException {
     if (!Strings.isNullOrEmpty(options.getSasToken())) {
       return options.getSasToken();

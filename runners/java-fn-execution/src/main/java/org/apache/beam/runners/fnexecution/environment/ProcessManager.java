@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -113,7 +114,7 @@ public class ProcessManager {
     } else {
       // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE
       // buffer
-      if (System.getProperty("os.name", "").startsWith("Windows")) {
+      if (IS_OS_WINDOWS) {
         outputFile = new File("nul");
       } else {
         outputFile = new File("/dev/null");
@@ -203,6 +204,14 @@ public class ProcessManager {
         }
       }
     }
+    // Reap the child process to prevent zombie accumulation. destroy()/destroyForcibly() send
+    // signals but do not call waitpid(), so the terminated process remains in the kernel process
+    // table as a zombie until waitFor() collects its exit status.
+    try {
+      process.waitFor();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Returns true if the process exists within maxWaitTimeMillis. */
@@ -249,8 +258,16 @@ public class ProcessManager {
     processes.forEach((id, process) -> process.destroy());
   }
 
-  /** Kill all remaining processes forcibly, i.e. upon JVM shutdown */
+  /** Kill all remaining processes forcibly and reap them, i.e. upon JVM shutdown. */
   private void killAllProcesses() {
-    processes.forEach((id, process) -> process.destroyForcibly());
+    processes.forEach(
+        (id, process) -> {
+          process.destroyForcibly();
+          try {
+            process.waitFor();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
   }
 }

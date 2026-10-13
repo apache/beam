@@ -941,7 +941,7 @@ public class EFOShardSubscribersPoolTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof KinesisRecordView)) {
         return false;
       }
       KinesisRecordView that = (KinesisRecordView) o;

@@ -80,32 +80,51 @@ def teamSchema = [
 ].join(",")
 
 String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+if (tables.contains(userTable)) {
+  t.run("bq rm -f -t ${dataset}.${userTable}")
+}
+if (tables.contains(teamTable)) {
+  t.run("bq rm -f -t ${dataset}.${teamTable}")
+}
 
-if (!tables.contains(userTable)) {
-  t.intent("Creating table: ${userTable}")
-  t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+int retries = 10
+boolean deleted = false
+for (int i = 0; i < retries; i++) {
+  tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+    deleted = true
+    break
+  }
+  sleep(3000)
 }
-if (!tables.contains(teamTable)) {
-  t.intent("Creating table: ${teamTable}")
-  t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+if (!deleted) {
+  t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be deleted.")
 }
+
+t.intent("Creating table: ${userTable}")
+t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+t.intent("Creating table: ${teamTable}")
+t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
 
 // Verify that the tables have been created
-tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-while (!tables.contains(userTable) || !tables.contains(teamTable)) {
-  sleep(3000)
+boolean created = false
+for (int i = 0; i < retries; i++) {
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (tables.contains(userTable) && tables.contains(teamTable)) {
+    created = true
+    break
+  }
+  sleep(3000)
+}
+if (!created) {
+  t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be created.")
 }
 println "Tables ${userTable} and ${teamTable} created successfully."
 
-def InjectorThread = Thread.start() {
-  t.run(mobileGamingCommands.createInjectorCommand())
-}
+def injectorProcess = t.runBackground(mobileGamingCommands.createInjectorCommand())
 
 jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
-def LeaderBoardThread = Thread.start() {
-  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
-}
+def leaderBoardProcess = t.runBackground(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
@@ -128,12 +147,32 @@ while ((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXE
   println "Waiting for pipeline to produce more results..."
   sleep(60000) // wait for 1 min
 }
-InjectorThread.stop()
-LeaderBoardThread.stop()
+t.stopProcess(injectorProcess)
+t.stopProcess(leaderBoardProcess)
 
 if(!isSuccess){
   t.error("FAILED: Failed running LeaderBoard on DirectRunner")
 }
 t.success("LeaderBoard successfully run on DirectRunner.")
+
+tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+if (tables.contains(userTable)) {
+  t.run("bq rm -f -t ${dataset}.${userTable}")
+}
+if (tables.contains(teamTable)) {
+  t.run("bq rm -f -t ${dataset}.${teamTable}")
+}
+deleted = false
+for (int i = 0; i < retries; i++) {
+  tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+    deleted = true
+    break
+  }
+  sleep(3000)
+}
+if (!deleted) {
+  println "Warning: Timed out waiting for tables ${userTable} / ${teamTable} to be deleted."
+}
 
 t.done()

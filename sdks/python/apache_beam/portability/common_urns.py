@@ -92,3 +92,5 @@ fixed_bytes = LogicalTypes.Enum.FIXED_BYTES
 var_bytes = LogicalTypes.Enum.VAR_BYTES
 fixed_char = LogicalTypes.Enum.FIXED_CHAR
 var_char = LogicalTypes.Enum.VAR_CHAR
+date = LogicalTypes.Enum.DATE
+timestamp = LogicalTypes.Enum.TIMESTAMP

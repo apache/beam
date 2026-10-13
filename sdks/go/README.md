@@ -93,7 +93,7 @@ $ go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<Y
 The output is a GCS file in this case:
 
 ```bash
-$ gsutil cat <YOUR_GCS_LOCATION>/output* | head
+$ gcloud storage cat <YOUR_GCS_LOCATION>/output* | head
 Blanket: 1
 blot: 1
 Kneeling: 3
@@ -109,7 +109,7 @@ Crown'd: 1
 Note that, when running at Beam HEAD, the Dataflow runner will try to use a non-existent container `gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:<Beam version>.dev`.
 To address this, you need to push your own SDK harness container image to a repository (for example, Docker Hub or Google Artifact Registry) and specify that as the
 `<YOUR_SDK_HARNESS_IMAGE_LOCATION>` parameter above.
-For example, running the following from Beam HEAD, will make the container availble at the location `<repository>/beam_go_sdk`.
+For example, running the following from Beam HEAD, will make the container available at the location `<repository>/beam_go_sdk`.
 
 ```bash
 $ ./gradlew :sdks:go:container:docker -Pdocker-repository-root=<repository>

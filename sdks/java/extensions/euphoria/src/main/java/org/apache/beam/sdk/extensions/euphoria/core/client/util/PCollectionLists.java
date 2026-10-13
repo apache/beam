@@ -22,7 +22,9 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Utilities related to {@link PCollection}s. */
-/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+/**
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Deprecated
 public class PCollectionLists {
 

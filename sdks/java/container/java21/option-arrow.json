@@ -1,0 +1,9 @@
+{
+  "name": "arrow",
+  "enabled": true,
+  "options": {
+    "java_arguments": [
+      "--add-opens=java.base/java.nio=ALL-UNNAMED"
+    ]
+  }
+}

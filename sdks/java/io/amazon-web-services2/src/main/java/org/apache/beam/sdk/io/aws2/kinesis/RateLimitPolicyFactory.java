@@ -65,12 +65,14 @@ public interface RateLimitPolicyFactory extends Serializable {
 
   class DelayIntervalRateLimiter implements RateLimitPolicy {
 
-    private static final Supplier<Duration> DEFAULT_DELAY = () -> Duration.standardSeconds(1);
+    private static Duration defaultDelay() {
+      return Duration.standardSeconds(1);
+    }
 
     private final Supplier<Duration> delay;
 
     public DelayIntervalRateLimiter() {
-      this(DEFAULT_DELAY);
+      this(DelayIntervalRateLimiter::defaultDelay);
     }
 
     public DelayIntervalRateLimiter(Supplier<Duration> delay) {

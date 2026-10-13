@@ -22,6 +22,7 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -41,6 +42,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class RabbitMqMessage implements Serializable {
 
   /**
@@ -132,6 +139,7 @@ public class RabbitMqMessage implements Serializable {
   private final @Nullable String appId;
   private final @Nullable String clusterId;
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(byte[] body) {
     this.body = body;
     routingKey = "";
@@ -151,6 +159,7 @@ public class RabbitMqMessage implements Serializable {
     clusterId = null;
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(String routingKey, GetResponse delivery) {
     this.routingKey = routingKey;
     delivery = serializableDeliveryOf(delivery);
@@ -171,6 +180,7 @@ public class RabbitMqMessage implements Serializable {
     clusterId = delivery.getProps().getClusterId();
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(
       String routingKey,
       byte[] body,
@@ -324,7 +334,9 @@ public class RabbitMqMessage implements Serializable {
           && Objects.equals(replyTo, other.replyTo)
           && Objects.equals(expiration, other.expiration)
           && Objects.equals(messageId, other.messageId)
-          && Objects.equals(timestamp, other.timestamp)
+          && Objects.equals(
+              timestamp == null ? null : timestamp.toInstant(),
+              other.timestamp == null ? null : other.timestamp.toInstant())
           && Objects.equals(type, other.type)
           && Objects.equals(userId, other.userId)
           && Objects.equals(appId, other.appId)

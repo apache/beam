@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.Compression.BZIP2;
 import static org.apache.beam.sdk.io.Compression.DEFLATE;
@@ -37,7 +37,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -73,6 +72,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -98,7 +98,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
-import org.apache.commons.lang3.SystemUtils;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -106,7 +105,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
@@ -453,10 +451,12 @@ public class TextIOReadTest {
           getTextSource(path.toString(), null, 0)
               .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
 
-      PipelineOptions options = PipelineOptionsFactory.create();
-
       // Check every possible split positions.
       for (int i = 0; i < line.length(); ++i) {
+
+        PipelineOptions options = PipelineOptionsFactory.create();
+        options.setJobName("textio-test-" + i + "-" + System.currentTimeMillis());
+
         double fraction = i * 1.0 / line.length();
         FileBasedReader<String> reader = source.createSingleFileReader(options);
 
@@ -631,7 +631,7 @@ public class TextIOReadTest {
   }
 
   /** Tests for some basic operations in {@link TextIO.Read}. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
@@ -767,13 +767,13 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadStrings() throws Exception {
-      runTestRead(LINES_ARRAY);
+      runTestRead(LINES.toArray(new String[0]));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadEmptyStrings() throws Exception {
-      runTestRead(NO_LINES_ARRAY);
+      runTestRead(NO_LINES.toArray(new String[0]));
     }
 
     @Test
@@ -1052,11 +1052,10 @@ public class TextIOReadTest {
 
     @Test
     public void testInitialSplitAutoModeGz() throws Exception {
-      // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20470
-      assumeFalse(SystemUtils.IS_OS_WINDOWS);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
-      long desiredBundleSize = 1000;
       File largeGz = writeToFile(LARGE, tempFolder, "large.gz", GZIP);
+      // Gzip output size varies across platforms, so derive a bundle size from the actual file.
+      long desiredBundleSize = largeGz.length() / 3;
       // Sanity check: file is at least 2 bundles long.
       assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
@@ -1169,6 +1168,9 @@ public class TextIOReadTest {
 
     @Test
     @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+    // The watch terminates after 3s without new output; running concurrently with other pipelines
+    // in this JVM can stall the in-pipeline writer long enough to truncate the results.
+    @BeamParallelJunit4Runner.SerialTest
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
       basePath.toFile().mkdir();
@@ -1200,7 +1202,7 @@ public class TextIOReadTest {
   }
 
   /** Tests for TextSource class. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TextSourceTest {
     @Rule public transient TestPipeline pipeline = TestPipeline.create();
 

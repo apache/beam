@@ -299,7 +299,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       examples = [numpy.array([0, 0]), numpy.array([1, 1])]
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(examples, reshuffle=False)
       actual = pcoll | RunInference(
           SklearnModelHandlerNumpy(
               model_uri=temp_file_name,
@@ -457,7 +457,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       dataframe = pandas_dataframe()
       splits = [dataframe.loc[[i]] for i in dataframe.index]
-      pcoll = pipeline | 'start' >> beam.Create(splits)
+      pcoll = pipeline | 'start' >> beam.Create(splits, reshuffle=False)
       actual = pcoll | RunInference(
           SklearnModelHandlerPandas(
               model_uri=temp_file_name,

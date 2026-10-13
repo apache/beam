@@ -78,7 +78,8 @@ public interface KafkaMetrics {
     private static final Map<String, Histogram> LATENCY_HISTOGRAMS =
         new ConcurrentHashMap<String, Histogram>();
 
-    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();;
+    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
+    ;
 
     abstract ConcurrentHashMap<MetricName, Long> perTopicPartitionBacklogs();
 
@@ -145,7 +146,7 @@ public interface KafkaMetrics {
         // Update all the latencies
         for (Duration d : topicLatencies.getValue()) {
           Preconditions.checkArgumentNotNull(topicHistogram);
-          topicHistogram.update(d.toMillis());
+          topicHistogram.update((double) d.toMillis());
         }
       }
     }

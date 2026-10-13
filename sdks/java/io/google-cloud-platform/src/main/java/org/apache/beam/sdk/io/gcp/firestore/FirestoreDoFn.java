@@ -38,11 +38,11 @@ abstract class FirestoreDoFn<InT, OutT> extends DoFn<InT, OutT> {
   @Override
   public abstract void populateDisplayData(DisplayData.Builder builder);
 
-  /** @see org.apache.beam.sdk.transforms.DoFn.Setup */
+  /** See {@link org.apache.beam.sdk.transforms.DoFn.Setup}. */
   @Setup
   public abstract void setup() throws Exception;
 
-  /** @see org.apache.beam.sdk.transforms.DoFn.StartBundle */
+  /** See {@link org.apache.beam.sdk.transforms.DoFn.StartBundle}. */
   @StartBundle
   public abstract void startBundle(DoFn<InT, OutT>.StartBundleContext context) throws Exception;
 
@@ -62,7 +62,7 @@ abstract class FirestoreDoFn<InT, OutT> extends DoFn<InT, OutT> {
     @ProcessElement
     public abstract void processElement(DoFn<InT, OutT>.ProcessContext context) throws Exception;
 
-    /** @see org.apache.beam.sdk.transforms.DoFn.FinishBundle */
+    /** See {@link org.apache.beam.sdk.transforms.DoFn.FinishBundle}. */
     @FinishBundle
     public abstract void finishBundle() throws Exception;
   }
@@ -86,7 +86,7 @@ abstract class FirestoreDoFn<InT, OutT> extends DoFn<InT, OutT> {
     public abstract void processElement(
         DoFn<InT, OutT>.ProcessContext context, BoundedWindow window) throws Exception;
 
-    /** @see org.apache.beam.sdk.transforms.DoFn.FinishBundle */
+    /** See {@link org.apache.beam.sdk.transforms.DoFn.FinishBundle}. */
     @FinishBundle
     public abstract void finishBundle(FinishBundleContext context) throws Exception;
   }

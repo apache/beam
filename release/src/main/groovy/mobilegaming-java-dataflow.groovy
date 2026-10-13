@@ -45,7 +45,7 @@ int waitTime = 15 // seconds
 def outputPath = "gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}"
 def outputFound = false
 for (int i = 0; i < retries; i++) {
-  def files = t.run("gsutil ls ${outputPath}*")
+  def files = t.run("gcloud storage ls ${outputPath}*")
   if (files?.trim()) {
     outputFound = true
     break
@@ -58,10 +58,10 @@ if (!outputFound) {
   throw new RuntimeException("No output files found for HourlyTeamScore after ${retries * waitTime} seconds.")
 }
 
-command_output_text = t.run "gsutil cat ${outputPath}* | grep user19_BananaWallaby"
+command_output_text = t.run "gcloud storage cat ${outputPath}* | grep user19_BananaWallaby"
 t.see "total_score: 231, user: user19_BananaWallaby", command_output_text
 t.success("UserScore successfully run on DataflowRunner.")
-t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}*"
+t.run "gcloud storage rm gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}*"
 
 
 /**
@@ -76,7 +76,7 @@ t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))
 outputPath = "gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}"
 outputFound = false
 for (int i = 0; i < retries; i++) {
-  def files = t.run("gsutil ls ${outputPath}*")
+  def files = t.run("gcloud storage ls ${outputPath}*")
   if (files?.trim()) {
     outputFound = true
     break
@@ -89,10 +89,10 @@ if (!outputFound) {
   throw new RuntimeException("No output files found for UserScore after ${retries * waitTime} seconds.")
 }
 
-command_output_text = t.run "gsutil cat ${outputPath}* | grep AzureBilby "
+command_output_text = t.run "gcloud storage cat ${outputPath}* | grep AzureBilby "
 t.see "total_score: 2788, team: AzureBilby", command_output_text
 t.success("HourlyTeamScore successfully run on DataflowRunner.")
-t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}*"
+t.run "gcloud storage rm gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}*"
 
 
 /**
@@ -120,37 +120,53 @@ class LeaderBoardRunner {
     ].join(",")
 
     String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+    if (tables.contains(userTable)) {
+      t.run("bq rm -f -t ${dataset}.${userTable}")
+    }
+    if (tables.contains(teamTable)) {
+      t.run("bq rm -f -t ${dataset}.${teamTable}")
+    }
+    int retries = 10
+    boolean deleted = false
+    for (int i = 0; i < retries; i++) {
+      tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+        deleted = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!deleted) {
+      t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be deleted.")
+    }
 
-    if (!tables.contains(userTable)) {
-      t.intent("Creating table: ${userTable}")
-      t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
-    }
-    if (!tables.contains(teamTable)) {
-      t.intent("Creating table: ${teamTable}")
-      t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
-    }
+    t.intent("Creating table: ${userTable}")
+    t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+    t.intent("Creating table: ${teamTable}")
+    t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
 
     // Verify that the tables have been created successfully
-    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-    while (!tables.contains(userTable) || !tables.contains(teamTable)) {
-      sleep(3000)
+    boolean created = false
+    for (int i = 0; i < retries; i++) {
       tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (tables.contains(userTable) && tables.contains(teamTable)) {
+        created = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!created) {
+      t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be created.")
     }
     println "Tables ${userTable} and ${teamTable} created successfully."
 
-    def InjectorThread = Thread.start() {
-      t.run(mobileGamingCommands.createInjectorCommand())
-    }
+    def injectorProcess = t.runBackground(mobileGamingCommands.createInjectorCommand())
 
     String jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
-    def LeaderBoardThread = Thread.start() {
-      if (useStreamingEngine) {
-        t.run(mobileGamingCommands.createPipelineCommand(
-                "LeaderBoardWithStreamingEngine", runner, jobName, "LeaderBoard"))
-      } else {
-        t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
-      }
-    }
+    def leaderBoardProcess = useStreamingEngine ?
+        t.runBackground(mobileGamingCommands.createPipelineCommand(
+                "LeaderBoardWithStreamingEngine", runner, jobName, "LeaderBoard")) :
+        t.runBackground(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 
     t.run("gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1")
 
@@ -175,8 +191,8 @@ class LeaderBoardRunner {
       println "Waiting for pipeline to produce more results..."
       sleep(60000) // wait for 1 min
     }
-    InjectorThread.stop()
-    LeaderBoardThread.stop()
+    t.stopProcess(injectorProcess)
+    t.stopProcess(leaderBoardProcess)
     t.run("""RUNNING_JOB=`gcloud dataflow jobs list | grep ${jobName} | grep Running | cut -d' ' -f1`
 if [ ! -z "\${RUNNING_JOB}" ] 
   then 
@@ -202,10 +218,17 @@ fi
 
     // It will take couple seconds to clean up tables.
     // This loop makes sure tables are completely deleted before running the pipeline
-    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-    while (tables.contains(userTable) || tables.contains(teamTable)) {
-      sleep(3000)
+    deleted = false
+    for (int i = 0; i < retries; i++) {
       tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+        deleted = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!deleted) {
+      println "Warning: Timed out waiting for tables ${userTable} / ${teamTable} to be deleted."
     }
   }
 }

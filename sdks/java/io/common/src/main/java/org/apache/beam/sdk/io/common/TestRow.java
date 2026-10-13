@@ -30,26 +30,26 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 @AutoValue
 public abstract class TestRow implements Serializable, Comparable<TestRow> {
   /** Manually create a test row. */
-  public static TestRow create(Integer id, String name) {
+  public static TestRow create(int id, String name) {
     return new AutoValue_TestRow(id, name);
   }
 
-  public abstract Integer id();
+  public abstract int id();
 
   public abstract String name();
 
   @Override
   public int compareTo(TestRow other) {
-    return id().compareTo(other.id());
+    return Integer.compare(id(), other.id());
   }
 
   /** Creates a {@link TestRow} from the seed value. */
-  public static TestRow fromSeed(Integer seed) {
+  public static TestRow fromSeed(int seed) {
     return create(seed, getNameForSeed(seed));
   }
 
   /** Returns the name field value produced from the given seed. */
-  public static String getNameForSeed(Integer seed) {
+  public static String getNameForSeed(int seed) {
     return "Testval" + seed;
   }
 

@@ -36,11 +36,6 @@ from apache_beam.transforms import PTransform
 try:
   import crcmod
 except ImportError:
-  logging.warning(
-      'crcmod package not found. This package is required if '
-      'python-snappy or google-crc32c are not installed. To ensure crcmod is '
-      'installed, install the tfrecord extra: pip install '
-      'apache-beam[tfrecord]')
   crcmod = None
 
 __all__ = ['ReadFromTFRecord', 'ReadAllFromTFRecord', 'WriteToTFRecord']

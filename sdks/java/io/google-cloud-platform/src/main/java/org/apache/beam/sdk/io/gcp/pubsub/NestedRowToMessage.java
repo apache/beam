@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_MAP_FIELD_TYPE;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
@@ -34,16 +35,17 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class NestedRowToMessage extends SimpleFunction<Row, PubsubMessage> {
   private static final long serialVersionUID = 65176815766314684L;
 
-  private final PayloadSerializer serializer;
+  private final @Nullable PayloadSerializer serializer;
   private final SerializableFunction<Row, Map<String, String>> attributesExtractor;
   private final SerializableFunction<Row, byte[]> payloadExtractor;
 
   @SuppressWarnings("methodref.receiver.bound")
-  NestedRowToMessage(PayloadSerializer serializer, Schema schema) {
+  NestedRowToMessage(@Nullable PayloadSerializer serializer, Schema schema) {
     this.serializer = serializer;
     if (schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_MAP_FIELD_TYPE)) {
       attributesExtractor = NestedRowToMessage::getAttributesFromMap;
@@ -81,7 +83,7 @@ class NestedRowToMessage extends SimpleFunction<Row, PubsubMessage> {
   }
 
   private byte[] getPayloadFromNested(Row row) {
-    return serializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));
+    return checkStateNotNull(serializer).serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));
   }
 
   @Override

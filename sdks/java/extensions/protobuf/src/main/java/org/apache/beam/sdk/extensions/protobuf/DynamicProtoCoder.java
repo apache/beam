@@ -103,6 +103,7 @@ public class DynamicProtoCoder extends ProtoCoder<DynamicMessage> {
             .build());
   }
 
+  @SuppressWarnings("EqualsGetClass")
   @Override
   public boolean equals(@Nullable Object other) {
     if (this == other) {

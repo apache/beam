@@ -52,7 +52,7 @@ class ExchangeTestPlan {
    * @param read Read semantics to use for a test
    * @param maxRecordsRead Maximum messages to be processed by Beam within a test
    * @param numRecordsToPublish Number of messages that will be published to the exchange as part of
-   *     a test. Note that this will frequently be the same value as {@code numRecordsRead} in which
+   *     a test. Note that this will frequently be the same value as {@code maxRecordsRead} in which
    *     case it's simpler to use {@link #ExchangeTestPlan(RabbitMqIO.Read, int)}, but when testing
    *     topic exchanges or exchanges where not all messages will be routed to the queue being read
    *     from, these numbers will differ.
@@ -93,7 +93,9 @@ class ExchangeTestPlan {
     return () -> DEFAULT_ROUTING_KEY;
   }
 
-  /** @return The expected parsed (String) messages read from the queue during the test. */
+  /**
+   * @return The expected parsed (String) messages read from the queue during the test.
+   */
   public List<String> expectedResults() {
     return RabbitMqTestUtils.generateRecords(numRecordsToPublish).stream()
         .map(RabbitMqTestUtils::recordToString)

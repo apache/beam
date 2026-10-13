@@ -16,12 +16,13 @@
 package life_cycle
 
 import (
-	"beam.apache.org/playground/backend/internal/emulators"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"beam.apache.org/playground/backend/internal/emulators"
 
 	"github.com/google/uuid"
 

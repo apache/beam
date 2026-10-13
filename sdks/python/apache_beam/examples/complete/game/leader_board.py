@@ -114,9 +114,7 @@ class ParseGameEventFn(beam.DoFn):
   The human-readable time string is not used here.
   """
   def __init__(self):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.DoFn.__init__(self)
+    super().__init__()
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
   def process(self, elem):
@@ -140,9 +138,8 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.field = field
 
   def expand(self, pcoll):
@@ -180,9 +177,8 @@ class WriteToBigQuery(beam.PTransform):
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
       project: Name of the Cloud project containing BigQuery table.
     """
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
@@ -210,16 +206,12 @@ class CalculateTeamScores(beam.PTransform):
   default.
   """
   def __init__(self, team_window_duration, allowed_lateness):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.team_window_duration = team_window_duration * 60
     self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
-    # NOTE: the behavior does not exactly match the Java example
-    # TODO: allowed_lateness not implemented yet in FixedWindows
-    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
         pcoll
         # We will get early (speculative) results as well as cumulative
@@ -227,8 +219,10 @@ class CalculateTeamScores(beam.PTransform):
         | 'LeaderboardTeamFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(self.team_window_duration),
             trigger=trigger.AfterWatermark(
-                trigger.AfterCount(10), trigger.AfterCount(20)),
-            accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+                early=trigger.AfterProcessingTime(5),
+                late=trigger.AfterProcessingTime(30)),
+            accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+            allowed_lateness=self.allowed_lateness_seconds)
         # Extract and sum teamname/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
 
@@ -242,22 +236,19 @@ class CalculateUserScores(beam.PTransform):
   global windowing. Get periodic updates on all users' running scores.
   """
   def __init__(self, allowed_lateness):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
-    # NOTE: the behavior does not exactly match the Java example
-    # TODO: allowed_lateness not implemented yet in FixedWindows
-    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
         pcoll
-        # Get periodic results every ten events.
+        # Get periodic results every ten seconds.
         | 'LeaderboardUserGlobalWindows' >> beam.WindowInto(
             beam.window.GlobalWindows(),
-            trigger=trigger.Repeatedly(trigger.AfterCount(10)),
-            accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(10)),
+            accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+            allowed_lateness=self.allowed_lateness_seconds)
         # Extract and sum username/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
 

@@ -29,6 +29,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import dataclasses
 import inspect
 import logging
 import sys
@@ -41,6 +42,7 @@ from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.trivial_inference import key_value_types
+from apache_beam.typehints.trivial_inference import resolve_dataclass_field_type
 from apache_beam.typehints.trivial_inference import union
 from apache_beam.typehints.typehints import Any
 from apache_beam.typehints.typehints import Dict
@@ -447,6 +449,12 @@ def _getattr(o, name):
     return Const(BoundMethod(func, o))
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
+  elif inspect.isclass(o) and dataclasses.is_dataclass(o):
+    field = o.__dataclass_fields__.get(name)
+    if field is not None:
+      return resolve_dataclass_field_type(field.type)
+    return Any
+
   else:
     return Any
 

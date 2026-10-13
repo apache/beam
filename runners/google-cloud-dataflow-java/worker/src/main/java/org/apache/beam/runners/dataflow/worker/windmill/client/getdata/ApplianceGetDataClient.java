@@ -104,7 +104,7 @@ public final class ApplianceGetDataClient implements GetDataClient {
     } catch (InterruptedException e) {
       // We don't expect this thread to be interrupted. To simplify handling, we just fall through
       // to issuing the call.
-      assert (false);
+      assert false;
       Thread.currentThread().interrupt();
     } catch (ExecutionException e) {
       // startRead is a SettableFuture so this should never occur.
@@ -137,8 +137,7 @@ public final class ApplianceGetDataClient implements GetDataClient {
       boolean hadInvalidResponse = false;
       for (Windmill.ComputationGetDataResponse computationResponse : response.getDataList()) {
         for (Windmill.KeyedGetDataResponse keyResponse : computationResponse.getDataList()) {
-          @Nullable
-          SettableFuture<Windmill.KeyedGetDataResponse> responseFuture =
+          @Nullable SettableFuture<Windmill.KeyedGetDataResponse> responseFuture =
               pendingResponses.get(
                   WindmillComputationKey.create(
                       computationResponse.getComputationId(),
@@ -185,7 +184,7 @@ public final class ApplianceGetDataClient implements GetDataClient {
     synchronized (this) {
       ReadBatch batch;
       if (activeReadThreads < MAX_ACTIVE_READS) {
-        assert (pendingReadBatches.isEmpty());
+        assert pendingReadBatches.isEmpty();
         activeReadThreads += 1;
         // fall through to below synchronized block
       } else if (pendingReadBatches.isEmpty()

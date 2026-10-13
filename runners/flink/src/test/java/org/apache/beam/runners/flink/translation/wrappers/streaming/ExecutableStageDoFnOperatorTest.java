@@ -98,6 +98,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -161,12 +162,9 @@ public class ExecutableStageDoFnOperatorTest {
 
   private final String stateId = "userState";
   private final ExecutableStagePayload stagePayloadWithUserState =
-      stagePayload
-          .toBuilder()
+      stagePayload.toBuilder()
           .setComponents(
-              stagePayload
-                  .getComponents()
-                  .toBuilder()
+              stagePayload.getComponents().toBuilder()
                   .putTransforms(
                       "transform",
                       RunnerApi.PTransform.newBuilder()
@@ -185,12 +183,9 @@ public class ExecutableStageDoFnOperatorTest {
           .build();
 
   private final ExecutableStagePayload stagePayloadWithStableInput =
-      stagePayload
-          .toBuilder()
+      stagePayload.toBuilder()
           .setComponents(
-              stagePayload
-                  .getComponents()
-                  .toBuilder()
+              stagePayload.getComponents().toBuilder()
                   .putTransforms(
                       "transform",
                       RunnerApi.PTransform.newBuilder()
@@ -534,14 +529,16 @@ public class ExecutableStageDoFnOperatorTest {
                     windowedValue.getWindows(),
                     timestamp,
                     timestamp,
-                    PaneInfo.NO_FIRING),
+                    PaneInfo.NO_FIRING,
+                    CausedByDrain.NORMAL),
                 TimerInternals.TimerData.of(
                     "",
                     TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
                     timestamp,
                     timestamp,
-                    TimeDomain.EVENT_TIME));
+                    TimeDomain.EVENT_TIME,
+                    CausedByDrain.NORMAL));
 
     timerConsumer.accept("timer", timerTarget);
     timerConsumer.accept("timer2", timerTarget2);
@@ -867,7 +864,8 @@ public class ExecutableStageDoFnOperatorTest {
             stateNamespace,
             window.maxTimestamp(),
             window.maxTimestamp(),
-            TimeDomain.EVENT_TIME);
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     operator.setTimer(
         Timer.of(
             windowedValue.getValue().getKey(),
@@ -875,7 +873,8 @@ public class ExecutableStageDoFnOperatorTest {
             windowedValue.getWindows(),
             window.maxTimestamp(),
             window.maxTimestamp(),
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL),
         userTimer2);
     assertThat(testHarness.numEventTimeTimers(), is(1));
 

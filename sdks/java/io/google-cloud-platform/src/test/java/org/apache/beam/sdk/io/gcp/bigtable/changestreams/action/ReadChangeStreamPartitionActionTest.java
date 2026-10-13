@@ -248,7 +248,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should terminate before reaching processing stream partition responses.
     verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any());
     // Should not try claim any restriction when processing CloseStream
-    verify(tracker, (never())).tryClaim(any());
+    verify(tracker, never()).tryClaim(any());
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Should not try to write any new partition to the metadata table.
@@ -274,7 +274,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should terminate before reaching processing stream partition responses.
     verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any());
     // Should not try claim any restriction when processing CloseStream
-    verify(tracker, (never())).tryClaim(any());
+    verify(tracker, never()).tryClaim(any());
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Should not try to write any new partition to the metadata table.
@@ -309,7 +309,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should terminate before reaching processing stream partition responses.
     verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any());
     // Should not try claim any restriction when processing CloseStream
-    verify(tracker, (never())).tryClaim(any());
+    verify(tracker, never()).tryClaim(any());
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Write the new partitions.
@@ -361,7 +361,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should terminate before reaching processing stream partition responses.
     verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any());
     // Should not try claim any restriction when processing CloseStream
-    verify(tracker, (never())).tryClaim(any());
+    verify(tracker, never()).tryClaim(any());
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // Write the new partitions.
@@ -407,7 +407,7 @@ public class ReadChangeStreamPartitionActionTest {
     // Should terminate before reaching processing stream partition responses.
     verify(changeStreamAction, never()).run(any(), any(), any(), any(), any(), any());
     // Should not try claim any restriction when processing CloseStream
-    verify(tracker, (never())).tryClaim(any());
+    verify(tracker, never()).tryClaim(any());
     // Should decrement the metric on termination.
     verify(metrics).decPartitionStreamCount();
     // We have to correct the partition in the tokens if we don't have new_partitions field.

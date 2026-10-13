@@ -113,6 +113,7 @@ public final class Cache {
    * does not enforce {@link Coder#verifyDeterministic} and defers to the user to determine whether
    * to enforce this given the cache implementation.
    */
+  @SuppressWarnings("NullableTypeParameter")
   static <
           RequestT,
           @Nullable ResponseT,
@@ -138,6 +139,7 @@ public final class Cache {
    * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
    * considerations when using this method to achieve cache reads.
    */
+  @SuppressWarnings("NullableTypeParameter")
   static <RequestT, @Nullable ResponseT>
       PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> readUsingRedis(
           RedisClient client,
@@ -178,6 +180,7 @@ public final class Cache {
    * href="https://redis.io/docs/get-started/faq/">Redis FAQ</a> for more information on important
    * considerations when using this method to achieve cache writes.
    */
+  @SuppressWarnings("NullableTypeParameter")
   static <RequestT, ResponseT>
       PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
           writeUsingRedis(
@@ -191,7 +194,7 @@ public final class Cache {
         KvCoder.of(requestTCoder, responseTCoder));
   }
 
-  private static class UsingRedis<RequestT, ResponseT> {
+  private static final class UsingRedis<RequestT, ResponseT> {
     private final Coder<RequestT> requestTCoder;
     private final Coder<@Nullable ResponseT> responseTCoder;
     private final RedisClient client;
@@ -217,6 +220,7 @@ public final class Cache {
     }
 
     /** Reads associated {@link RequestT} {@link ResponseT} using a {@link RedisClient}. */
+    @SuppressWarnings("NullableTypeParameter")
     static class Read<RequestT, @Nullable ResponseT>
         implements Caller<RequestT, KV<RequestT, @Nullable ResponseT>>, SetupTeardown {
 

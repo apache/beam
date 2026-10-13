@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
@@ -94,7 +93,7 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
       return false;
     }
     StaticWindows that = (StaticWindows) other;
-    return Objects.equals(this.windows.get(), that.windows.get());
+    return Iterables.elementsEqual(this.windows.get(), that.windows.get());
   }
 
   @Override

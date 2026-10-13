@@ -74,12 +74,14 @@ public class MonitoringInfoMetricName extends MetricName {
     return urn.split(":", 2)[1];
   }
 
-  /** @return the urn of this MonitoringInfo metric. */
+  /** Returns the urn of this MonitoringInfo metric. */
   public String getUrn() {
     return this.urn;
   }
 
-  /** @return The labels associated with this MonitoringInfo. */
+  /**
+   * @return The labels associated with this MonitoringInfo.
+   */
   @Override
   public Map<String, String> getLabels() {
     return this.labels;

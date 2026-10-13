@@ -244,23 +244,10 @@ a quick reference). For a more general and complete getting started guide, see
     jupyter kernelspec list
     ```
 
-*   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
-    from pre-lab jupyter notebooks.
-
-    All jupyter labextensions need nodejs
-
-    ```bash
-    # Homebrew users do
-    brew install node
-    # Or Conda users do
-    conda install -c conda-forge nodejs
-    ```
-
-    Enable ipywidgets
+*   Install ipywidgets (includes the JupyterLab widget manager as a prebuilt extension):
 
     ```bash
     pip install ipywidgets
-    jupyter labextension install @jupyter-widgets/jupyterlab-manager
     ```
 
 ### Start the notebook

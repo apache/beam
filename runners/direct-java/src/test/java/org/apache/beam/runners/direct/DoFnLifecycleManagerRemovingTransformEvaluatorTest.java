@@ -144,6 +144,6 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   private static class TestFn extends DoFn<Object, Object> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) throws Exception {}
   }
 }

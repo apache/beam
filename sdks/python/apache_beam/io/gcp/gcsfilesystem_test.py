@@ -29,9 +29,11 @@ from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
 
-# Protect against environments where apitools library is not available.
+# Protect against environments where GCP storage library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from google.cloud import storage  # pylint: disable=unused-import
+
   from apache_beam.io.gcp import gcsfilesystem
 except ImportError:
   gcsfilesystem = None  # type: ignore

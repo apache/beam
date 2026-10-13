@@ -16,7 +16,12 @@
 # limitations under the License.
 ###############################################################################
 
-FROM gcr.io/distroless/base-nossl-debian12:latest
+FROM gcr.io/distroless/base-nossl-debian12:latest AS base_image
+
+# Distroless base image has many layers. Squash into single layer
+FROM scratch
+COPY --from=base_image / /
+
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 
 ARG TARGETOS
@@ -24,8 +29,7 @@ ARG TARGETARCH
 
 ADD target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
-COPY target/LICENSE /opt/apache/beam/
-COPY target/NOTICE /opt/apache/beam/
+COPY target/LICENSE target/NOTICE /opt/apache/beam/
 
 # Add Go licenses.
 COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/

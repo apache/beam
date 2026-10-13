@@ -80,11 +80,15 @@ public interface TimerInternals {
   void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+   */
   @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+   */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 
@@ -95,8 +99,7 @@ public interface TimerInternals {
    * Returns the current timestamp in the {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} time
    * domain or {@code null} if unknown.
    */
-  @Nullable
-  Instant currentSynchronizedProcessingTime();
+  @Nullable Instant currentSynchronizedProcessingTime();
 
   /**
    * Return the current, local input watermark timestamp for this computation in the {@link
@@ -163,8 +166,7 @@ public interface TimerInternals {
    * viewed on the output of a computation remains locally late on the input of a following
    * computation.
    */
-  @Nullable
-  Instant currentOutputWatermarkTime();
+  @Nullable Instant currentOutputWatermarkTime();
 
   /** Data about a timer as represented within {@link TimerInternals}. */
   @AutoValue

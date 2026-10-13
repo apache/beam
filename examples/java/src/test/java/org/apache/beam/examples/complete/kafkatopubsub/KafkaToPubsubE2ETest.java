@@ -53,7 +53,7 @@ import org.testcontainers.utility.DockerImageName;
 /** E2E test for {@link KafkaToPubsub} pipeline. */
 public class KafkaToPubsubE2ETest {
   private static final String PUBSUB_EMULATOR_IMAGE =
-      "gcr.io/google.com/cloudsdktool/cloud-sdk:316.0.0-emulators";
+      "gcr.io/google.com/cloudsdktool/cloud-sdk:583.0.0-emulators";
   private static final String KAFKA_IMAGE_NAME = "confluentinc/cp-kafka:5.4.3";
   private static final String PUBSUB_MESSAGE = "test pubsub message";
   private static final String KAFKA_TOPIC_NAME = "messages-topic";

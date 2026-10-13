@@ -25,7 +25,7 @@ DebeziumIO is an Apache Beam connector that lets users connect their Events-Driv
 
 ### Getting Started
 
-DebeziumIO uses [Debezium Connectors v3.1](https://debezium.io/documentation/reference/3.1/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.65.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
+DebeziumIO uses [Debezium Connectors v3.5](https://debezium.io/documentation/reference/3.5/connectors/) to connect to Apache Beam. All you need to do is choose the Debezium Connector that suits your Debezium setup and pick a [Serializable Function](https://beam.apache.org/releases/javadoc/2.65.0/org/apache/beam/sdk/transforms/SerializableFunction.html), then you will be able to connect to Apache Beam and start building your own Pipelines.
 
 These connectors have been successfully tested and are known to work fine:
 *  MySQL Connector
@@ -65,7 +65,7 @@ You can also add more configuration, such as Connector-specific Properties with 
 |Method|Params|Description|
 |-|-|-|
 |`.withConnectionProperty(propName, propValue)`|_String_, _String_|Adds a custom property to the connector.|
-> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/3.1/connectors/) specific documentation.
+> **Note:** For more information on custom properties, see your [Debezium Connector](https://debezium.io/documentation/reference/3.5/connectors/) specific documentation.
 
 Example of a MySQL Debezium Connector setup:
 ```
@@ -155,18 +155,13 @@ There are two ways of initializing KSC:
 *  Restricted by number of records
 *  Restricted by amount of time (minutes)
 
-By default, DebeziumIO initializes it with the former, though user may choose the latter by setting the amount of minutes as a parameter:
-
-|Function|Param|Description|
-|-|-|-|
-|`KafkaSourceConsumerFn(connectorClass, recordMapper, maxRecords)`|_Class, SourceRecordMapper, Int_|Restrict run by number of records (Default).|
-|`KafkaSourceConsumerFn(connectorClass, recordMapper, timeToRun)`|_Class, SourceRecordMapper, Long_|Restrict run by amount of time (in minutes).|
+By default, DebeziumIO initializes it with the former, though user may choose the latter by setting the amount of minutes as a parameter for DebeziumIO.Read transform.
 
 ### Requirements and Supported versions
 
 -  JDK v17
--  Debezium Connectors v3.1
--  Apache Beam 2.66
+-  Debezium Connectors v3.5
+-  Apache Beam 2.76
 
 ## Running Unit Tests
 

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -236,7 +236,7 @@ public class KafkaCommitOffsetTest {
     }
 
     @Override
-    public synchronized void close(long timeout, TimeUnit unit) {
+    public synchronized void close(Duration timeout) {
       // Ignore closing since we're using a single consumer.
     }
   }

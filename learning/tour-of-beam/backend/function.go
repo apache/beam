@@ -87,7 +87,7 @@ func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
 		return service.GetMockClient()
 	} else {
 		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
-		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("fail to dial playground: %v", err)
 		}
@@ -213,7 +213,7 @@ func postUnitComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "{}")
+	_, _ = fmt.Fprint(w, "{}")
 }
 
 // Save user code for unit
@@ -245,7 +245,7 @@ func postUserCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "{}")
+	_, _ = fmt.Fprint(w, "{}")
 }
 
 // Delete user progress
@@ -259,5 +259,5 @@ func postDeleteProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, "{}")
+	_, _ = fmt.Fprint(w, "{}")
 }

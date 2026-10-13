@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
@@ -36,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -72,6 +73,7 @@ import org.joda.time.DateTimeFieldType;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.Instant;
+import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,26 +86,23 @@ import org.junit.runner.RunWith;
 public class AvroUtilsTest {
 
   private static final org.apache.avro.Schema NULL_SCHEMA =
-      org.apache.avro.Schema.create(Type.NULL);
-
-  private static final String VERSION_AVRO =
-      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+      org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL);
 
   private Iterable<?> randomData(org.apache.avro.Schema schema, int maxLength) throws Exception {
     Iterable<?> data;
     if (VERSION_AVRO.equals("1.8.2")) {
       data =
-          (Iterable<?>)
-              Class.forName("org.apache.avro.RandomData")
-                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
-                  .newInstance(schema, maxLength);
+          Class.forName("org.apache.avro.RandomData")
+              .asSubclass(Iterable.class)
+              .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE)
+              .newInstance(schema, maxLength);
     } else {
       data =
-          (Iterable<?>)
-              Class.forName("org.apache.avro.util.RandomData")
-                  .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
-                  // force Utf8 in random data to match with String type used in AvroUtils
-                  .newInstance(schema, maxLength, true);
+          Class.forName("org.apache.avro.util.RandomData")
+              .asSubclass(Iterable.class)
+              .getDeclaredConstructor(org.apache.avro.Schema.class, Integer.TYPE, Boolean.TYPE)
+              // force Utf8 in random data to match with String type used in AvroUtils
+              .newInstance(schema, maxLength, true);
     }
     return data;
   }
@@ -285,10 +284,20 @@ public class AvroUtilsTest {
     Iterable iterable = randomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
+    // AVRO-4139: GenericRecord.equals() throws "Can't compare maps!" for records with
+    // nested map types on Avro 1.12.0. Fall back to JSON tree comparison on that version
+    // only; keep direct equals for other versions.
+    boolean useJsonCompare = "1.12.0".equals(VERSION_AVRO);
+    ObjectMapper mapper = useJsonCompare ? new ObjectMapper() : null;
+
     for (GenericRecord record : records) {
       Row row = AvroUtils.toBeamRowStrict(record, schema);
       GenericRecord out = AvroUtils.toGenericRecord(row, avroSchema);
-      assertEquals(record, out);
+      if (useJsonCompare) {
+        assertEquals(mapper.readTree(record.toString()), mapper.readTree(out.toString()));
+      } else {
+        assertEquals(record, out);
+      }
     }
   }
 
@@ -296,40 +305,47 @@ public class AvroUtilsTest {
   public void testUnwrapNullableSchema() {
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createUnion(
-            org.apache.avro.Schema.create(Type.NULL), org.apache.avro.Schema.create(Type.STRING));
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING));
 
     AvroUtils.TypeWithNullability typeWithNullability =
         new AvroUtils.TypeWithNullability(avroSchema);
     assertTrue(typeWithNullability.nullable);
-    assertEquals(org.apache.avro.Schema.create(Type.STRING), typeWithNullability.type);
+    assertEquals(
+        org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+        typeWithNullability.type);
   }
 
   @Test
   public void testUnwrapNullableSchemaReordered() {
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createUnion(
-            org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.NULL));
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL));
 
     AvroUtils.TypeWithNullability typeWithNullability =
         new AvroUtils.TypeWithNullability(avroSchema);
     assertTrue(typeWithNullability.nullable);
-    assertEquals(org.apache.avro.Schema.create(Type.STRING), typeWithNullability.type);
+    assertEquals(
+        org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+        typeWithNullability.type);
   }
 
   @Test
   public void testUnwrapNullableSchemaToUnion() {
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createUnion(
-            org.apache.avro.Schema.create(Type.STRING),
-            org.apache.avro.Schema.create(Type.LONG),
-            org.apache.avro.Schema.create(Type.NULL));
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL));
 
     AvroUtils.TypeWithNullability typeWithNullability =
         new AvroUtils.TypeWithNullability(avroSchema);
     assertTrue(typeWithNullability.nullable);
     assertEquals(
         org.apache.avro.Schema.createUnion(
-            org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.LONG)),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG)),
         typeWithNullability.type);
   }
 
@@ -339,7 +355,8 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
+                org.apache.avro.Schema.createArray(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
             "",
             (Object) null);
 
@@ -357,7 +374,8 @@ public class AvroUtilsTest {
         new org.apache.avro.Schema.Field(
             "arrayField",
             ReflectData.makeNullable(
-                org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
+                org.apache.avro.Schema.createArray(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
             "",
             (Object) null);
 
@@ -369,10 +387,16 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", (Object) null));
+            "bool",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", org.apache.avro.Schema.create(Type.INT), "", (Object) null));
+            "int",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT),
+            "",
+            (Object) null));
     return fields;
   }
 
@@ -385,36 +409,58 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", (Object) null));
+            "bool",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", org.apache.avro.Schema.create(Type.INT), "", (Object) null));
+            "int",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "long", org.apache.avro.Schema.create(Type.LONG), "", (Object) null));
+            "long",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "float", org.apache.avro.Schema.create(Type.FLOAT), "", (Object) null));
+            "float",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "double", org.apache.avro.Schema.create(Type.DOUBLE), "", (Object) null));
+            "double",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "string", org.apache.avro.Schema.create(Type.STRING), "", (Object) null));
+            "string",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bytes", org.apache.avro.Schema.create(Type.BYTES), "", (Object) null));
+            "bytes",
+            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "decimal",
             LogicalTypes.decimal(Integer.MAX_VALUE)
-                .addToSchema(org.apache.avro.Schema.create(Type.BYTES)),
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES)),
             "",
             (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "timestampMillis",
-            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            LogicalTypes.timestampMillis()
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG)),
             "",
             (Object) null));
     fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema("row"), "", (Object) null));
@@ -489,7 +535,7 @@ public class AvroUtilsTest {
 
     LogicalType decimalType =
         LogicalTypes.decimal(Integer.MAX_VALUE)
-            .addToSchema(org.apache.avro.Schema.create(Type.BYTES))
+            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES))
             .getLogicalType();
     ByteBuffer encodedDecimal =
         new Conversions.DecimalConversion().toBytes(BIG_DECIMAL, null, decimalType);
@@ -693,21 +739,24 @@ public class AvroUtilsTest {
     fields.add(
         new org.apache.avro.Schema.Field(
             "int",
-            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT)),
             "",
             (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
-                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.BYTES))),
+                ReflectData.makeNullable(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES))),
             "",
             (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
-                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+                ReflectData.makeNullable(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
             "",
             (Object) null));
     fields.add(
@@ -766,21 +815,24 @@ public class AvroUtilsTest {
     fields.add(
         new org.apache.avro.Schema.Field(
             "int",
-            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            ReflectData.makeNullable(
+                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT)),
             "",
             (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
-                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+                ReflectData.makeNullable(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
             "",
             (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
-                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+                ReflectData.makeNullable(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
             "",
             (Object) null));
     org.apache.avro.Schema avroSchema =
@@ -813,8 +865,8 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
 
-    unionFields.add(org.apache.avro.Schema.create(Type.INT));
-    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    unionFields.add(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING));
 
     fields.add(
         new org.apache.avro.Schema.Field(
@@ -841,8 +893,8 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
 
-    unionFields.add(org.apache.avro.Schema.create(Type.INT));
-    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    unionFields.add(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING));
     fields.add(
         new org.apache.avro.Schema.Field(
             "union", org.apache.avro.Schema.createUnion(unionFields), "", (Object) null));
@@ -1026,7 +1078,9 @@ public class AvroUtilsTest {
 
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
     GenericRecord expectedRecord =
-        new GenericRecordBuilder(avroSchema).set("local_date", localDate.toEpochDay()).build();
+        new GenericRecordBuilder(avroSchema)
+            .set("local_date", (int) localDate.toEpochDay())
+            .build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
   }
@@ -1059,8 +1113,88 @@ public class AvroUtilsTest {
 
     // Alternatively, a timestamp-millis logical type can have a joda datum.
     genericRecord.put("timestampMillis", new DateTime(genericRecord.get("timestampMillis")));
-    row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
+    row = AvroUtils.toBeamRowStrict(genericRecord, null);
     assertEquals(getBeamRow(), row);
+  }
+
+  @Test
+  public void testNullableLogicalTypeGenericRecordToBeamRow() {
+    org.apache.avro.Schema decimalSchema =
+        LogicalTypes.decimal(Integer.MAX_VALUE)
+            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord(
+            "topLevelRecord",
+            null,
+            null,
+            false,
+            Lists.newArrayList(
+                new org.apache.avro.Schema.Field(
+                    "date",
+                    ReflectData.makeNullable(
+                        LogicalTypes.date()
+                            .addToSchema(
+                                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
+                    "",
+                    (Object) null),
+                new org.apache.avro.Schema.Field(
+                    "timestampMillis",
+                    ReflectData.makeNullable(
+                        LogicalTypes.timestampMillis()
+                            .addToSchema(
+                                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG))),
+                    "",
+                    (Object) null),
+                new org.apache.avro.Schema.Field(
+                    "decimal", ReflectData.makeNullable(decimalSchema), "", (Object) null)));
+
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableField("date", FieldType.DATETIME)
+            .addNullableField("timestampMillis", FieldType.DATETIME)
+            .addNullableField("decimal", FieldType.DECIMAL)
+            .build();
+    assertEquals(beamSchema, AvroUtils.toBeamSchema(avroSchema));
+
+    // Data written through a GenericData with logical type conversions registered carries the
+    // converted values (joda LocalDate/DateTime, BigDecimal) rather than the raw int/long/bytes.
+    GenericRecord converted =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", new LocalDate(1979, 3, 14))
+            .set("timestampMillis", DATE_TIME)
+            .set("decimal", BIG_DECIMAL)
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema)
+            .addValues(new DateTime(1979, 3, 14, 0, 0, DateTimeZone.UTC), DATE_TIME, BIG_DECIMAL)
+            .build(),
+        AvroUtils.toBeamRowStrict(converted, beamSchema));
+
+    // The same fields holding their unconverted avro representations.
+    GenericRecord raw =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", (int) java.time.LocalDate.of(1979, 3, 14).toEpochDay())
+            .set("timestampMillis", DATE_TIME.getMillis())
+            .set(
+                "decimal",
+                new Conversions.DecimalConversion()
+                    .toBytes(BIG_DECIMAL, decimalSchema, decimalSchema.getLogicalType()))
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema)
+            .addValues(new DateTime(1979, 3, 14, 0, 0, DateTimeZone.UTC), DATE_TIME, BIG_DECIMAL)
+            .build(),
+        AvroUtils.toBeamRowStrict(raw, beamSchema));
+
+    GenericRecord nulls =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", null)
+            .set("timestampMillis", null)
+            .set("decimal", null)
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema).addValues(null, null, null).build(),
+        AvroUtils.toBeamRowStrict(nulls, beamSchema));
   }
 
   @Test
@@ -1133,7 +1267,8 @@ public class AvroUtilsTest {
     fields.add(
         new org.apache.avro.Schema.Field(
             "timestampMicrosLT",
-            LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            LogicalTypes.timestampMicros()
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG)),
             "",
             (Object) null));
     org.apache.avro.Schema avroSchema =

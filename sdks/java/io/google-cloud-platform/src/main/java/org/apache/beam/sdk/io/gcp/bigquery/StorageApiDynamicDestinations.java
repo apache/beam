@@ -18,23 +18,33 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
+import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Base dynamicDestinations class used by the Storage API sink. */
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinationsHelpers.DelegatingDynamicDestinations<T, DestinationT> {
   public interface MessageConverter<T> {
-    com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
+    TableSchema getTableSchema();
 
     DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) throws Exception;
 
     StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception;
 
     TableRow toFailsafeTableRow(T element);
+
+    void updateSchemaFromTable() throws IOException, InterruptedException;
+
+    default void updateSchema(TableSchema schema) {}
   }
 
   StorageApiDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
@@ -42,11 +52,28 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   public abstract MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception;
+      DestinationT destination,
+      PipelineOptions options,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception;
 
   @Override
   void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     super.setSideInputAccessorFromProcessContext(context);
     inner.setSideInputAccessorFromProcessContext(context);
+  }
+
+  @Override
+  void setSideInputAccessorFromOnTimerContext(DoFn<?, ?>.OnTimerContext context) {
+    super.setSideInputAccessorFromOnTimerContext(context);
+    inner.setSideInputAccessorFromOnTimerContext(context);
+  }
+
+  @Override
+  void setSideInputAccessorFromOnWindowExpirationContext(
+      DoFn<?, ?>.OnWindowExpirationContext context) {
+    super.setSideInputAccessorFromOnWindowExpirationContext(context);
+    inner.setSideInputAccessorFromOnWindowExpirationContext(context);
   }
 }

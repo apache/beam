@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface DynamicDestinations extends Serializable {
 
@@ -34,6 +36,14 @@ public interface DynamicDestinations extends Serializable {
   String getTableStringIdentifier(ValueInSingleWindow<Row> element);
 
   static DynamicDestinations singleTable(TableIdentifier tableId, Schema inputSchema) {
-    return new OneTableDynamicDestinations(tableId, inputSchema);
+    return new OneTableDynamicDestinations(tableId, inputSchema, null, null);
+  }
+
+  static DynamicDestinations singleTable(
+      TableIdentifier tableId,
+      Schema inputSchema,
+      @Nullable List<String> partitionFields,
+      @Nullable List<String> sortFields) {
+    return new OneTableDynamicDestinations(tableId, inputSchema, partitionFields, sortFields);
   }
 }

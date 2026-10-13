@@ -479,6 +479,8 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("producer_factory_fn")
             .addNullableByteArrayField("publish_timestamp_fn")
             .addBooleanField("eos")
+            .addInt32Field("eos_trigger_num_elements")
+            .addNullableInt64Field("eos_trigger_timeout_ms")
             .addInt32Field("num_shards")
             .addNullableStringField("sink_group_id")
             .addNullableByteArrayField("consumer_factory_fn")
@@ -547,6 +549,11 @@ public class KafkaIOTranslation {
       }
 
       fieldValues.put("eos", writeRecordsTransform.isEOS());
+      org.joda.time.Duration eosTriggerTimeout = writeRecordsTransform.getEosTriggerTimeout();
+      if (eosTriggerTimeout != null) {
+        fieldValues.put("eos_trigger_timeout_ms", eosTriggerTimeout.getMillis());
+      }
+      fieldValues.put("eos_trigger_num_elements", writeRecordsTransform.getEosTriggerNumElements());
       fieldValues.put("num_shards", writeRecordsTransform.getNumShards());
 
       if (writeRecordsTransform.getSinkGroupId() != null) {

@@ -57,8 +57,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @SuppressFBWarnings(
-    value = "IS2_INCONSISTENT_SYNC",
-    justification = "Some access on purpose are left unsynchronized")
+    value = {"IS2_INCONSISTENT_SYNC", "CT_CONSTRUCTOR_THROW"},
+    justification =
+        "Some access on purpose are left unsynchronized."
+            + " Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie
@@ -276,7 +280,7 @@ public class BoundedTrieData implements Serializable {
     }
   }
 
-  /** @return true if this {@link BoundedTrieData} is empty else false. */
+  /** Returns true if this {@link BoundedTrieData} is empty else false. */
   public boolean isEmpty() {
     return (root == null || root.children.isEmpty()) && (singleton == null || singleton.isEmpty());
   }
@@ -286,7 +290,7 @@ public class BoundedTrieData implements Serializable {
     if (this == other) {
       return true;
     }
-    if (other == null || this.getClass() != other.getClass()) {
+    if (!(other instanceof BoundedTrieData)) {
       return false;
     }
     BoundedTrieData that = (BoundedTrieData) other;
@@ -315,6 +319,7 @@ public class BoundedTrieData implements Serializable {
 
     public static final String TRUNCATED_TRUE = String.valueOf(true);
     public static final String TRUNCATED_FALSE = String.valueOf(false);
+
     /**
      * A map from strings to child nodes. Each key represents a segment of a path/FQN, and the
      * corresponding value represents the subtree rooted at that segment.
@@ -590,7 +595,7 @@ public class BoundedTrieData implements Serializable {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof BoundedTrieNode)) {
         return false;
       }
       BoundedTrieNode that = (BoundedTrieNode) other;

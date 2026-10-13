@@ -136,6 +136,46 @@ class TestTableReferenceParser(unittest.TestCase):
       ('project:dataset.test- table', 'project', 'dataset', 'test- table'),
       ('project.dataset. test_table', 'project', 'dataset', ' test_table'),
       ('project.dataset.test$table', 'project', 'dataset', 'test$table'),
+      ('project.dataset.table', 'project', 'dataset', 'table'),
+      ('my-project.my_dataset.table', 'my-project', 'my_dataset', 'table'),
+      # Lakehouse runtime catalog tables: composite 'catalog.namespace'
+      # dataset id.
+      (
+          'project.catalog.namespace.table',
+          'project',
+          'catalog.namespace',
+          'table'),
+      (
+          'project:catalog.namespace.table',
+          'project',
+          'catalog.namespace',
+          'table'),
+      (
+          'my-project.my-catalog.ns.events$20240101',
+          'my-project',
+          'my-catalog.ns',
+          'events$20240101'),
+      # Domain-scoped project ids, in both spellings.
+      (
+          'example.com:proj.dataset.table',
+          'example.com:proj',
+          'dataset',
+          'table'),
+      (
+          'example.com:proj:dataset.table',
+          'example.com:proj',
+          'dataset',
+          'table'),
+      (
+          'example.com:proj.catalog.namespace.table',
+          'example.com:proj',
+          'catalog.namespace',
+          'table'),
+      (
+          'example.com:proj:catalog.namespace.table',
+          'example.com:proj',
+          'catalog.namespace',
+          'table'),
   ])
   def test_calling_with_fully_qualified_table_ref(
       self,
@@ -159,8 +199,31 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
+  def test_composite_dataset_requires_project(self):
+    # A composite 'catalog.namespace' dataset id is only recognised with an
+    # explicit project id. Without one it would be ambiguous with
+    # 'PROJECT.DATASET.TABLE', so it is rejected rather than guessed at.
+    self.assertRaises(
+        ValueError, parse_table_reference, 'my_catalog.namespace.test_table')
+
   def test_calling_with_insufficient_table_ref(self):
     table = 'test_table'
+    self.assertRaises(ValueError, parse_table_reference, table)
+
+  @parameterized.expand([
+      ('a:b:c:d.table', ),
+      ('project:.table', ),
+      ('project:dataset', ),
+      ('MyProject.MyDataset.table', ),
+      ('1project.dataset.table', ),
+      ('c.namespace.table', ),
+      ('.dataset.table', ),
+      ('project..table', ),
+      ('a.b.c.d.e.f.g', ),
+  ])
+  def test_calling_with_invalid_table_ref(self, table):
+    # The dotted specs here have a leading segment that cannot be a project
+    # id; they are rejected rather than bound as a composite dataset id.
     self.assertRaises(ValueError, parse_table_reference, table)
 
   def test_calling_with_all_arguments(self):
@@ -574,6 +637,36 @@ class TestBigQueryWrapper(unittest.TestCase):
         "my_project", "my_dataset", "my_table", "internal", 1)
     self.verify_write_call_metric(
         "my_project", "my_dataset", "my_table", "ok", 1)
+
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
+  def test_insert_rows_sets_metric_on_row_errors(self):
+    MetricsEnvironment.process_wide_container().reset()
+    client = mock.Mock()
+
+    def row_error(index, *reasons):
+      return {
+          'index': index,
+          'errors': [{
+              'reason': r, 'message': 'msg'
+          } for r in reasons],
+      }
+
+    client.insert_rows_json.return_value = [
+        row_error(0, 'invalid', 'stopped'),
+        row_error(1, 'invalid'),
+        row_error(2, 'stopped'),
+    ]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    success, errors = wrapper.insert_rows(
+        "my_project", "my_dataset", "my_table", [{'a': 1}] * 3)
+
+    self.assertFalse(success)
+    self.assertEqual(client.insert_rows_json.return_value, errors)
+    # One metric per failed row, labelled with the reason of its first error.
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "invalid", 2)
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "stopped", 1)
 
   @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
   def test_start_query_job_priority_configuration(self):
@@ -1246,6 +1339,167 @@ class TestGeographyTypeSupport(unittest.TestCase):
     result = wrapper._convert_cell_value_to_dict(complex_wkt, field)
     self.assertEqual(result, complex_wkt)
     self.assertIsInstance(result, str)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestTypeOverrides(unittest.TestCase):
+  """Tests for type_overrides parameter in BigQuery type mappings."""
+  def test_type_overrides_enables_unsupported_types(self):
+    """Test that type_overrides enables support for DATE/DATETIME/JSON."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }, {
+                       "name": "json_field", "type": "JSON", "mode": "REQUIRED"
+                   }]
+    }
+
+    # Without overrides, these types are not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
+
+    # With overrides, they work
+    type_overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+    self.assertEqual(
+        typehints, [("date_field", str), ("datetime_field", str),
+                    ("json_field", str)])
+
+  def test_type_overrides_with_custom_types(self):
+    """Test type_overrides with custom Python types."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }]
+    }
+
+    type_overrides = {"DATE": datetime.date, "DATETIME": datetime.datetime}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+    self.assertEqual(
+        typehints, [("date_field", datetime.date),
+                    ("datetime_field", datetime.datetime)])
+
+  def test_type_overrides_with_modes(self):
+    """Test that type_overrides works with NULLABLE and REPEATED modes."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "required_date", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "optional_date", "type": "DATE", "mode": "NULLABLE"
+        }, {
+            "name": "repeated_dates", "type": "DATE", "mode": "REPEATED"
+        }]
+    }
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("required_date", datetime.date),
+                ("optional_date", Optional[datetime.date]),
+                ("repeated_dates", Sequence[datetime.date])]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_mixed_with_default_types(self):
+    """Test type_overrides alongside default type mappings."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "string_field", "type": "STRING", "mode": "REQUIRED"
+        }, {
+            "name": "int_field", "type": "INTEGER", "mode": "REQUIRED"
+        }]
+    }
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("date_field", datetime.date), ("string_field", str),
+                ("int_field", np.int64)]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_with_nested_struct(self):
+    """Test that type_overrides is propagated to nested STRUCT fields."""
+    import datetime
+    schema = bigquery.TableSchema()
+
+    # Root field
+    date_field = bigquery.TableFieldSchema()
+    date_field.name = "date_field"
+    date_field.type = "DATE"
+    date_field.mode = "REQUIRED"
+
+    # Nested struct with DATE field
+    struct_field = bigquery.TableFieldSchema()
+    struct_field.name = "nested"
+    struct_field.type = "RECORD"
+    struct_field.mode = "REQUIRED"
+
+    nested_date = bigquery.TableFieldSchema()
+    nested_date.name = "nested_date"
+    nested_date.type = "DATE"
+    nested_date.mode = "REQUIRED"
+    struct_field.fields.append(nested_date)
+
+    schema.fields.append(date_field)
+    schema.fields.append(struct_field)
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    self.assertEqual(len(typehints), 2)
+    self.assertEqual(typehints[0], ("date_field", datetime.date))
+    # The nested field's DATE should also be overridden
+    nested_constraint = typehints[1][1]
+    nested_fields = nested_constraint._fields
+    self.assertEqual(nested_fields[0], ("nested_date", datetime.date))
+
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
+    schema = {
+        "fields": [{
+            "name": "geo_field", "type": "GEOGRAPHY", "mode": "REQUIRED"
+        }]
+    }
+
+    # Without overrides, GEOGRAPHY maps to str (default)
+    typehints = get_beam_typehints_from_tableschema(schema, None)
+    self.assertEqual(typehints, [("geo_field", str)])
+
+    # With overrides, we can change it
+    typehints_override = get_beam_typehints_from_tableschema(
+        schema, {"GEOGRAPHY": bytes})
+    self.assertEqual(typehints_override, [("geo_field", bytes)])
+
+  def test_type_overrides_json_to_dict(self):
+    """Test using type_overrides to map JSON to dict."""
+    schema = {"fields": [{"name": "data", "type": "JSON", "mode": "NULLABLE"}]}
+
+    # Without overrides, JSON is not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
+
+    # With overrides, can map to str
+    typehints_str = get_beam_typehints_from_tableschema(schema, {"JSON": str})
+    self.assertEqual(typehints_str, [("data", Optional[str])])
+
+    # Or map to dict
+    typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
+    self.assertEqual(typehints_dict, [("data", Optional[dict])])
 
 
 if __name__ == '__main__':

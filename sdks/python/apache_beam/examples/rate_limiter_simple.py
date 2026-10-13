@@ -29,6 +29,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import shared
 
 
+# [START RateLimiterSimplePython]
 class SampleApiDoFn(beam.DoFn):
   """A DoFn that simulates calling an external API with rate limiting."""
   def __init__(self, rls_address, domain, descriptors):
@@ -59,6 +60,9 @@ class SampleApiDoFn(beam.DoFn):
     logging.info("Processing element: %s", element)
     time.sleep(0.1)
     yield element
+
+
+# [END RateLimiterSimplePython]
 
 
 def parse_known_args(argv):

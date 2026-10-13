@@ -17,7 +17,6 @@
 
 # Intended only for internal testing.
 
-from typing import Dict
 from typing import Optional
 
 import tensorflow as tf
@@ -114,7 +113,7 @@ def save_tf_model_with_signature(
     model=None,
     preprocess_input=None,
     input_dtype=tf.float32,
-    feature_description: Optional[Dict] = None,
+    feature_description: Optional[dict] = None,
     **kwargs,
 ):
   """

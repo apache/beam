@@ -100,9 +100,9 @@ public class FileSystems {
    * <p>Implementation handles the following ambiguities of a user-provided spec:
    *
    * <ol>
-   *   <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and choose
+   *   <li>{@code specs} could be a glob or a uri. {@link #match} should be able to tell and choose
    *       efficient implementations.
-   *   <li>The user-provided {@code spec} might refer to files or directories. It is common that
+   *   <li>The user-provided {@code specs} might refer to files or directories. It is common that
    *       users that wish to indicate a directory will omit the trailing path delimiter, such as
    *       {@code "/tmp/dir"} in Linux. The {@link FileSystem} should be able to recognize a
    *       directory with the trailing path delimiter omitted, but should always return a correct
@@ -195,8 +195,17 @@ public class FileSystems {
     if (matchResult.status() == Status.NOT_FOUND) {
       throw new FileNotFoundException(String.format("File spec %s not found", spec));
     } else if (matchResult.status() != Status.OK) {
+      // PROPOSED FIX: Extract the root cause by catching it from metadata()
+      IOException rootCause = null;
+      try {
+        matchResult.metadata();
+      } catch (IOException e) {
+        rootCause = e;
+      }
+      // Chain the root cause into the new IOException
       throw new IOException(
-          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+          String.format("Error matching file spec %s: status %s", spec, matchResult.status()),
+          rootCause);
     } else {
       List<Metadata> metadata = matchResult.metadata();
       if (metadata.size() != 1) {
@@ -436,7 +445,8 @@ public class FileSystems {
     public List<ResourceId> resultSources = new ArrayList();
     public List<ResourceId> resultDestinations = new ArrayList();
     public List<ResourceId> filteredExistingSrcs = new ArrayList();
-  };
+  }
+  ;
 
   private static FilterResult filterFiles(
       FileSystem fileSystem,
@@ -578,6 +588,7 @@ public class FileSystems {
 
     // entry to set other PipelineOption determined flags
     Metrics.setDefaultPipelineOptions(options);
+    Lineage.setDefaultPipelineOptions(options);
 
     while (true) {
       KV<Long, Integer> revision = FILESYSTEM_REVISION.get();

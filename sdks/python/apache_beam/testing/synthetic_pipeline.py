@@ -42,7 +42,6 @@ import os
 import time
 from random import Random
 from typing import Optional
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -479,7 +478,8 @@ class SyntheticSource(iobase.BoundedSource):
     index = range_tracker.start_position()
     generator = get_generator(algorithm=self.gen_algo)
     while range_tracker.try_claim(index):
-      time.sleep(self._sleep_per_input_record_sec)
+      if self._sleep_per_input_record_sec > 0:
+        time.sleep(self._sleep_per_input_record_sec)
       yield self._gen_kv_pair(generator, index)
       index += 1
 
@@ -599,7 +599,8 @@ class SyntheticSDFAsSource(beam.DoFn):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
       r = get_generator(algorithm=element.get('algorithm', None), seed=cur)
-      time.sleep(element['sleep_per_input_record_sec'])
+      if element['sleep_per_input_record_sec'] > 0:
+        time.sleep(element['sleep_per_input_record_sec'])
       yield (
           r.randbytes(element['key_size']), r.randbytes(element['value_size']))
       cur += 1
@@ -911,7 +912,7 @@ class StatefulLoadGenerator(beam.PTransform):
     self.value_size = input_options['value_size']
     self.num_keys = num_keys
 
-  @typehints.with_output_types(Tuple[bytes, bytes])
+  @typehints.with_output_types(tuple[bytes, bytes])
   class GenerateKeys(beam.DoFn):
     def __init__(self, num_keys, key_size):
       self.num_keys = num_keys

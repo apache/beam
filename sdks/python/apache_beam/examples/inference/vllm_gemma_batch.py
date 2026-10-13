@@ -103,7 +103,6 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
 
   gem = opts.view_as(GemmaVLLMOptions)
   opts.view_as(SetupOptions).save_main_session = save_main_session
-
   logging.info("Pipeline starting with model path: %s", gem.model_gcs_path)
   handler = GcsVLLMCompletionsModelHandler(
       model_name=gem.model_gcs_path,

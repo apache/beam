@@ -155,7 +155,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
-          LOG.error(errorMessage);
+          LOG.error("{}", errorMessage);
           throw new WindmillRpcException(errorMessage, e);
         }
 
@@ -174,7 +174,9 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     }
   }
 
-  /** @throws IllegalStateException if called multiple times or after {@link #onCompleted()}. */
+  /**
+   * @throws IllegalStateException if called multiple times or after {@link #onCompleted()}.
+   */
   @Override
   public void onError(Throwable t) {
     isReadyNotifier.forceTermination();

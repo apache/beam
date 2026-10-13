@@ -255,7 +255,7 @@ public final class ByteKeyRange
     BigInteger interpolatedOffset =
         new BigDecimal(range).multiply(BigDecimal.valueOf(fraction)).toBigInteger();
 
-    int outputKeyLength = endKey.isEmpty() ? (paddedKeyLength - 1) : paddedKeyLength;
+    int outputKeyLength = endKey.isEmpty() ? paddedKeyLength - 1 : paddedKeyLength;
     return ByteKey.copyFrom(
         fixupHeadZeros(rangeStartInt.add(interpolatedOffset).toByteArray(), outputKeyLength));
   }
@@ -364,7 +364,7 @@ public final class ByteKeyRange
     checkArgument(
         bytePaddingNeeded >= 0, "Required bytes.length %s < length %s", bytes.length, length);
     BigInteger ret = new BigInteger(1, bytes);
-    return (bytePaddingNeeded == 0) ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
+    return bytePaddingNeeded == 0 ? ret : ret.shiftLeft(8 * bytePaddingNeeded);
   }
 
   @Override

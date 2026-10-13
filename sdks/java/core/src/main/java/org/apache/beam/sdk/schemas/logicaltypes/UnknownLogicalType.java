@@ -26,7 +26,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
  *
  * <p>Java transforms and JVM runners should take care when processing these types as they may have
  * a particular semantic meaning in the context that created them. For example, consider an
- * enumerated type backed by a primitive {@class FieldType.INT8}. A Java transform can clearly pass
+ * enumerated type backed by a primitive {@code FieldType.INT8}. A Java transform can clearly pass
  * through this value and pass it back to a context that understands it, but that transform should
  * not blindly perform arithmetic on this type.
  */

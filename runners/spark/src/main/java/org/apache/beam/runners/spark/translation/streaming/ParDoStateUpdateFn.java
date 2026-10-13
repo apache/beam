@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,6 @@ import org.apache.spark.streaming.State;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sparkproject.guava.collect.Iterators;
 import scala.Option;
 import scala.Tuple2;
 import scala.runtime.AbstractFunction3;
@@ -236,7 +236,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     final byte[] byteValue = serializedValue.get();
     @Nullable WindowedValue<ValueT> windowedValue;
     @Nullable WindowedValue<KV<KeyT, ValueT>> keyedWindowedValue;
-    Iterator<WindowedValue<KV<KeyT, ValueT>>> iterator = Iterators.emptyIterator();
+    Iterator<WindowedValue<KV<KeyT, ValueT>>> iterator = Collections.emptyIterator();
     if (byteValue.length > 0) {
       windowedValue = CoderHelpers.fromByteArray(byteValue, this.wvCoder);
       keyedWindowedValue = windowedValue.withValue(KV.of(key, windowedValue.getValue()));

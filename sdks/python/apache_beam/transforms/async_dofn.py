@@ -17,15 +17,21 @@
 
 from __future__ import absolute_import
 
+import asyncio
+import inspect
 import logging
 import random
+import threading
 import uuid
+from collections.abc import AsyncIterable
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from math import floor
 from threading import RLock
 from time import sleep
 from time import time
 from types import GeneratorType
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import TimeDomain
@@ -60,6 +66,9 @@ class AsyncWrapper(beam.DoFn):
           [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()]))
   # The below items are one per dofn (not instance) so are maps of UUID to
   # value.
+  _event_loop: Optional[asyncio.AbstractEventLoop] = None
+  _event_loop_thread: Optional[threading.Thread] = None
+  _loop_started: Optional[threading.Event] = None
   _processing_elements = {}
   _items_in_buffer = {}
   _pool = {}
@@ -78,6 +87,7 @@ class AsyncWrapper(beam.DoFn):
       timeout=1,
       max_wait_time=0.5,
       id_fn=None,
+      use_asyncio=False,
   ):
     """Wraps the sync_fn to create an asynchronous version.
 
@@ -104,6 +114,11 @@ class AsyncWrapper(beam.DoFn):
         schedule an item.  Used in testing to ensure timeouts are met.
       id_fn: A function that returns a hashable object from an element. This
         will be used to track items instead of the element's default hash.
+        Identifiers are scoped to the input key and window.
+      use_asyncio: If true, use asyncio and coroutines to process items. If
+        false, use ThreadPoolExecutor. Use asyncio when the work being done
+        is not CPU intensive and heavily waits on network or IO which can
+        benefit from higher parallelism.
     """
     self._sync_fn = sync_fn
     self._uuid = uuid.uuid4().hex
@@ -112,6 +127,7 @@ class AsyncWrapper(beam.DoFn):
     self._max_wait_time = max_wait_time
     self._timer_frequency = callback_frequency
     self._id_fn = id_fn or (lambda x: x)
+    self._use_asyncio = use_asyncio
     if max_items_to_buffer is None:
       self._max_items_to_buffer = max(parallelism * 2, 10)
     else:
@@ -127,10 +143,50 @@ class AsyncWrapper(beam.DoFn):
     return lambda: ThreadPoolExecutor(max_workers=parallelism)
 
   @staticmethod
+  def _run_event_loop():
+    """Sets up and runs the asyncio event loop in a background thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    AsyncWrapper._event_loop = loop
+    AsyncWrapper._loop_started.set()
+    loop.run_forever()
+    loop.close()
+
+  @staticmethod
   def reset_state():
-    for pool in AsyncWrapper._pool.values():
-      pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-          wait=True, cancel_futures=True)
+    event_loop_thread_to_join = None
+    with AsyncWrapper._lock:
+      if AsyncWrapper._event_loop:
+        AsyncWrapper._event_loop.call_soon_threadsafe(
+            AsyncWrapper._event_loop.stop)
+      if AsyncWrapper._event_loop_thread:
+        event_loop_thread_to_join = AsyncWrapper._event_loop_thread
+
+      AsyncWrapper._event_loop = None
+      AsyncWrapper._event_loop_thread = None
+      if AsyncWrapper._loop_started is not None:
+        AsyncWrapper._loop_started.clear()
+
+      pools = list(AsyncWrapper._pool.values())
+
+    # We must join the asyncio event loop thread outside of the lock block.
+    # If joined inside the lock, the waiting thread holds the lock while blocking,
+    # preventing active coroutines' done callbacks from acquiring the lock on the
+    # event loop thread, resulting in a deadlock.
+    if event_loop_thread_to_join:
+      event_loop_thread_to_join.join()
+
+    # We must acquire and shut down the thread pools outside of the lock block.
+    # If shutdown(wait=True) is called inside the lock, the caller blocks holding
+    # the lock, preventing active worker threads from acquiring the lock to run
+    # their done callbacks, resulting in a deadlock.
+    pools_to_shutdown = [
+        pool.acquire(AsyncWrapper.initialize_pool(1)) for pool in pools
+    ]
+
+    for pool in pools_to_shutdown:
+      pool.shutdown(wait=True, cancel_futures=True)
+
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -140,6 +196,13 @@ class AsyncWrapper(beam.DoFn):
     """Forwards to the wrapped dofn's setup method."""
     self._sync_fn.setup()
     with AsyncWrapper._lock:
+      if self._use_asyncio and AsyncWrapper._event_loop_thread is None:
+        AsyncWrapper._loop_started = threading.Event()
+        AsyncWrapper._event_loop_thread = threading.Thread(
+            target=AsyncWrapper._run_event_loop, daemon=True)
+        AsyncWrapper._event_loop_thread.start()
+        AsyncWrapper._loop_started.wait()
+
       if not self._uuid in AsyncWrapper._pool:
         AsyncWrapper._pool[self._uuid] = Shared()
         AsyncWrapper._processing_elements[self._uuid] = {}
@@ -187,14 +250,59 @@ class AsyncWrapper(beam.DoFn):
       to_return.append(x)
     for x in bundle_result:
       to_return.append(x)
-
     return to_return
+
+  async def async_fn_process(self, element, *args, **kwargs):
+    """Makes the call to the wrapped dofn's start_bundle, process
+    and finish_bundle methods for asynchronous DoFns.
+
+    Args:
+      element: The element to process.
+      *args: Any additional arguments to pass to the wrapped dofn's process
+        method.
+      **kwargs: Any additional keyword arguments to pass to the wrapped dofn's
+        process method.
+
+    Returns:
+      A list of elements produced by the input element.
+    """
+    async def _collect(result):
+      if result is None:
+        return []
+      if inspect.isawaitable(result):
+        result = await result
+      if isinstance(result, AsyncIterable):
+        return [item async for item in result]
+      if isinstance(result,
+                    (GeneratorType, Iterable)) and not isinstance(result,
+                                                                  (str, bytes)):
+        return list(result)
+      return [result]
+
+    self._sync_fn.start_bundle()
+    process_result = await _collect(
+        self._sync_fn.process(element, *args, **kwargs))
+    bundle_result = await _collect(self._sync_fn.finish_bundle())
+    return process_result + bundle_result
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
-      AsyncWrapper._items_in_buffer[self._uuid] -= 1
+      if self._uuid in AsyncWrapper._items_in_buffer:
+        AsyncWrapper._items_in_buffer[self._uuid] -= 1
 
-  def schedule_if_room(self, element, ignore_buffer=False, *args, **kwargs):
+  def _element_id(self, element, window=beam.DoFn.WindowParam):
+    # Encoded keys survive state decoding and distinguish numeric keys that
+    # compare equal in Python, such as signed zero or bool and int values.
+    encoded_key = self.TO_PROCESS.coder.key_coder().encode(element[0])
+    return (encoded_key, window, self._id_fn(element[1]))
+
+  def schedule_if_room(
+      self,
+      element,
+      ignore_buffer=False,
+      *args,
+      window=beam.DoFn.WindowParam,
+      **kwargs):
     """Schedules an item to be processed asynchronously if there is room.
 
     Args:
@@ -202,6 +310,7 @@ class AsyncWrapper(beam.DoFn):
       ignore_buffer: If true will ignore the buffer limit and schedule the item
         regardless of the buffer size.  Used when an item needs to skip to the
         front such as retries.
+      window: The Beam window owning the item. Not passed to the wrapped dofn.
       *args: arguments that the wrapped dofn requires.
       **kwargs: keyword arguments that the wrapped dofn requires.
 
@@ -209,15 +318,21 @@ class AsyncWrapper(beam.DoFn):
       True if the item was scheduled False otherwise.
     """
     with AsyncWrapper._lock:
-      element_id = self._id_fn(element[1])
+      element_id = self._element_id(element, window)
       if element_id in AsyncWrapper._processing_elements[self._uuid]:
         logging.info('item %s already in processing elements', element)
         return True
       if self.accepting_items() or ignore_buffer:
-        result = AsyncWrapper._pool[self._uuid].acquire(
-            AsyncWrapper.initialize_pool(self._parallelism)).submit(
-                lambda: self.sync_fn_process(element, *args, **kwargs),
-            )
+        if self._use_asyncio:
+          result = asyncio.run_coroutine_threadsafe(
+              self.async_fn_process(element, *args, **kwargs),
+              AsyncWrapper._event_loop,
+          )
+        else:
+          result = AsyncWrapper._pool[self._uuid].acquire(
+              AsyncWrapper.initialize_pool(self._parallelism)).submit(
+                  lambda: self.sync_fn_process(element, *args, **kwargs),
+              )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element_id] = (
             element, result)
@@ -228,7 +343,13 @@ class AsyncWrapper(beam.DoFn):
 
   # Add an item to the processing pool. Add the future returned by that item to
   # processing_elements_.
-  def schedule_item(self, element, ignore_buffer=False, *args, **kwargs):
+  def schedule_item(
+      self,
+      element,
+      ignore_buffer=False,
+      *args,
+      window=beam.DoFn.WindowParam,
+      **kwargs):
     """Schedules an item to be processed asynchronously.
 
     If the queue is full will block until room opens up.
@@ -241,6 +362,7 @@ class AsyncWrapper(beam.DoFn):
       ignore_buffer: If true will ignore the buffer limit and schedule the item
         regardless of the buffer size.  Used when an item needs to skip to the
         front such as retries.
+      window: The Beam window owning the item. Not passed to the wrapped dofn.
       *args: arguments that the wrapped dofn requires.
       **kwargs: keyword arguments that the wrapped dofn requires.
     """
@@ -248,7 +370,8 @@ class AsyncWrapper(beam.DoFn):
     sleep_time = 0.01
     total_sleep = 0
     while not done and total_sleep < self._timeout:
-      done = self.schedule_if_room(element, ignore_buffer, *args, **kwargs)
+      done = self.schedule_if_room(
+          element, ignore_buffer, *args, window=window, **kwargs)
       if not done:
         sleep_time = min(self.max_wait_time, sleep_time * 2)
         if self._verbose_logging or total_sleep > 10:
@@ -285,6 +408,7 @@ class AsyncWrapper(beam.DoFn):
       element,
       timer=beam.DoFn.TimerParam(TIMER),
       to_process=beam.DoFn.StateParam(TO_PROCESS),
+      window=beam.DoFn.WindowParam,
       *args,
       **kwargs):
     """Add the elements to the list of items to be processed asynchronously.
@@ -296,6 +420,7 @@ class AsyncWrapper(beam.DoFn):
       element: The element to process.
       timer: Callback timer that will commit elements.
       to_process: State that keeps track of queued items for exactly once.
+      window: The Beam window owning the item. Not passed to the wrapped dofn.
       *args: arguments that the wrapped dofn requires.
       **kwargs: keyword arguments that the wrapped dofn requires.
 
@@ -303,7 +428,7 @@ class AsyncWrapper(beam.DoFn):
       An empty list. The elements will be output asynchronously.
     """
 
-    self.schedule_item(element)
+    self.schedule_item(element, window=window)
 
     to_process.add(element)
 
@@ -323,16 +448,19 @@ class AsyncWrapper(beam.DoFn):
       self,
       to_process=beam.DoFn.StateParam(TO_PROCESS),
       timer=beam.DoFn.TimerParam(TIMER),
+      window=beam.DoFn.WindowParam,
   ):
     """Commits finished items and synchronizes local state with runner state.
 
-    Note timer firings are per key while local state contains messages for all
-    keys.  Only messages for the given key will be output/cleaned up.
+    Timer firings are per key and window while local state contains messages
+    for all keys and windows. Only messages for the given key and window will
+    be output/cleaned up.
 
     Args:
       to_process: State that keeps track of queued messagees for this key.
       timer: Timer that initiated this commit and can be reset if not all items
-        have finished..
+        have finished.
+      window: The Beam window owning the state and timer.
 
     Returns:
       A list of elements that have finished processing for this key.
@@ -354,22 +482,26 @@ class AsyncWrapper(beam.DoFn):
     key = None
     to_reschedule = []
     if to_process_local:
-      key = str(to_process_local[0][0])
+      key = to_process_local[0][0]
     else:
       logging.error(
           'no elements in state during timer callback. Timer should not have'
           ' been set.')
     if self._verbose_logging:
       logging.info('procesing timer for key: %s', key)
-    # processing state is per key so we expect this state to only contain a
-    # given key.  Skip items in processing_elements which are for a different
-    # key.
+    encoded_key = self.TO_PROCESS.coder.key_coder().encode(key)
+    # Runner state is scoped to a key and window. Leave work belonging to
+    # other state cells alone when synchronizing the shared local map.
     with AsyncWrapper._lock:
       processing_elements = AsyncWrapper._processing_elements[self._uuid]
-      to_process_local_ids = {self._id_fn(e[1]) for e in to_process_local}
+      to_process_local_ids = {
+          self._element_id(e, window)
+          for e in to_process_local
+      }
       to_remove_ids = []
       for element_id, (element, future) in processing_elements.items():
-        if element[0] == key and element_id not in to_process_local_ids:
+        if (element_id[:2] == (encoded_key, window) and
+            element_id not in to_process_local_ids):
           items_cancelled += 1
           future.cancel()
           to_remove_ids.append(element_id)
@@ -384,13 +516,15 @@ class AsyncWrapper(beam.DoFn):
       finished_items = []
       for x in to_process_local:
         items_in_se_state += 1
-        x_id = self._id_fn(x[1])
+        x_id = self._element_id(x, window)
         if x_id in processing_elements:
           _, future = processing_elements[x_id]
           if future.done():
-            to_return.append(future.result())
-            finished_items.append(x)
+            # Pop from local active map before checking the result
             processing_elements.pop(x_id)
+            to_return.append(future.result())
+            # Only mark as finished if result() succeeded without exception
+            finished_items.append(x)
             items_finished += 1
           else:
             items_not_yet_finished += 1
@@ -404,7 +538,7 @@ class AsyncWrapper(beam.DoFn):
 
     # Reschedule the items not under a lock
     for x in to_reschedule:
-      self.schedule_item(x, ignore_buffer=False)
+      self.schedule_item(x, ignore_buffer=False, window=window)
 
     # Update processing state to remove elements we've finished
     to_process.clear()
@@ -440,6 +574,7 @@ class AsyncWrapper(beam.DoFn):
       self,
       to_process=beam.DoFn.StateParam(TO_PROCESS),
       timer=beam.DoFn.TimerParam(TIMER),
+      window=beam.DoFn.WindowParam,
   ):
     """Helper method to commit finished items in response to timer firing.
 
@@ -447,8 +582,9 @@ class AsyncWrapper(beam.DoFn):
       to_process: State that keeps track of queued items for exactly once.
       timer: Timer that initiated this commit and can be reset if not all items
         have finished.
+      window: The Beam window owning the state and timer.
 
     Returns:
       A generator of elements that have finished processing for this key.
     """
-    return self.commit_finished_items(to_process, timer)
+    return self.commit_finished_items(to_process, timer, window)

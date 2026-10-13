@@ -29,7 +29,7 @@ public class FakeWindmillStubFactoryFactory implements WindmillStubFactoryFactor
   }
 
   @Override
-  public WindmillStubFactory makeWindmillStubFactory(boolean useIsolatedChannels) {
+  public WindmillStubFactory makeWindmillStubFactory() {
     return windmillStubFactory;
   }
 }

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -219,7 +220,8 @@ public class PrecombineGroupingTable<K, InputT, AccumT>
         return false;
       }
       WindowedGroupingTableKey that = (WindowedGroupingTableKey) o;
-      return structuralKey.equals(that.structuralKey) && windows.equals(that.windows);
+      return structuralKey.equals(that.structuralKey)
+          && Iterables.elementsEqual(windows, that.windows);
     }
 
     @Override

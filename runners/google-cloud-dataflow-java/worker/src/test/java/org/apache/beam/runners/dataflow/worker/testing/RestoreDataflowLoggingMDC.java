@@ -23,7 +23,7 @@ import org.junit.rules.ExternalResource;
 /** Saves, clears and restores the current thread-local logging parameters for tests. */
 public class RestoreDataflowLoggingMDC extends ExternalResource {
   private String previousJobId;
-  private String previousStageName;
+  private String previousSystemStageName;
   private String previousWorkerId;
   private String previousWorkId;
 
@@ -32,11 +32,11 @@ public class RestoreDataflowLoggingMDC extends ExternalResource {
   @Override
   protected void before() throws Throwable {
     previousJobId = DataflowWorkerLoggingMDC.getJobId();
-    previousStageName = DataflowWorkerLoggingMDC.getStageName();
+    previousSystemStageName = DataflowWorkerLoggingMDC.getSystemStageName();
     previousWorkerId = DataflowWorkerLoggingMDC.getWorkerId();
     previousWorkId = DataflowWorkerLoggingMDC.getWorkId();
     DataflowWorkerLoggingMDC.setJobId(null);
-    DataflowWorkerLoggingMDC.setStageName(null);
+    DataflowWorkerLoggingMDC.setSystemStageName(null);
     DataflowWorkerLoggingMDC.setWorkerId(null);
     DataflowWorkerLoggingMDC.setWorkId(null);
   }
@@ -44,7 +44,7 @@ public class RestoreDataflowLoggingMDC extends ExternalResource {
   @Override
   protected void after() {
     DataflowWorkerLoggingMDC.setJobId(previousJobId);
-    DataflowWorkerLoggingMDC.setStageName(previousStageName);
+    DataflowWorkerLoggingMDC.setSystemStageName(previousSystemStageName);
     DataflowWorkerLoggingMDC.setWorkerId(previousWorkerId);
     DataflowWorkerLoggingMDC.setWorkId(previousWorkId);
   }

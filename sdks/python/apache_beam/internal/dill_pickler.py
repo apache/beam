@@ -39,8 +39,6 @@ import traceback
 import types
 import zlib
 from typing import Any
-from typing import Dict
-from typing import Tuple
 
 import dill
 
@@ -50,7 +48,7 @@ from apache_beam.internal.set_pickler import save_set
 
 settings = {'dill_byref': None}
 
-patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
+patch_save_code = dill.__version__ == "0.3.1.1"
 
 if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
@@ -315,7 +313,7 @@ if 'save_module' in dir(dill.dill):
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]] = {}
+  known_module_dicts: dict[int, tuple[types.ModuleType, dict[str, Any]]] = {}
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):

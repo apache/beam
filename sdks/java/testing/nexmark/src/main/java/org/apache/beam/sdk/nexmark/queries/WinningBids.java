@@ -153,7 +153,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AuctionOrBidWindow)) {
         return false;
       }
       if (!super.equals(o)) {
@@ -350,8 +350,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    @Nullable
-                    Auction auction =
+                    @Nullable Auction auction =
                         c.element().getValue().getOnly(NexmarkQueryUtil.AUCTION_TAG, null);
                     if (auction == null) {
                       // We have bids without a matching auction. Give up.
@@ -396,7 +395,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof WinningBids)) {
       return false;
     }
 

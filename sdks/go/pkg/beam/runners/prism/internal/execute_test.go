@@ -519,6 +519,49 @@ func TestFailure(t *testing.T) {
 	}
 }
 
+func TestFailureHang(t *testing.T) {
+	initRunner(t)
+
+	p, s := beam.NewPipelineWithRoot()
+	imp := beam.Impulse(s)
+	col1 := beam.ParDo(s, doFnBlock, imp)
+	col2 := beam.ParDo(s, doFnFail, imp)
+	beam.ParDo(s, &int64Check{Name: "block", Want: []int{}}, col1)
+	beam.ParDo(s, &int64Check{Name: "fail", Want: []int{}}, col2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := executeWithT(ctx, t, p)
+	if err == nil {
+		t.Fatalf("expected pipeline failure, but got a success")
+	}
+	if want := "doFnFail: failing as intended"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
+	}
+}
+
+func TestFailure_SplitError(t *testing.T) {
+	initRunner(t)
+
+	p, s := beam.NewPipelineWithRoot()
+	configs := beam.Create(s, SourceConfig{NumElements: 100, InitialSplits: 1})
+	col := beam.ParDo(s, &slowFailSDF{}, configs)
+	beam.ParDo(s, &int64Check{Name: "sdf_fail", Want: []int{}}, col)
+
+	// Set a short timeout so the test fails quickly if the pipeline hangs due to split error handling bug
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := executeWithT(ctx, t, p)
+	if err == nil {
+		t.Fatalf("expected pipeline failure, but got a success")
+	}
+	if want := "intentional split error from tracker"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected pipeline failure with %q, but was %v", want, err)
+	}
+}
+
 func TestRunner_Passert(t *testing.T) {
 	initRunner(t)
 	tests := []struct {

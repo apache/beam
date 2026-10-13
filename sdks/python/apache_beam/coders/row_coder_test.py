@@ -33,6 +33,8 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import _SCHEMA_OPTION_STATIC_ENCODING
+from apache_beam.typehints.schemas import _static_encoding_option_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
@@ -43,7 +45,7 @@ Person = typing.NamedTuple(
         ("name", str),
         ("age", np.int32),
         ("address", typing.Optional[str]),
-        ("aliases", typing.List[str]),
+        ("aliases", list[str]),
         ("knows_javascript", bool),
         ("payload", typing.Optional[bytes]),
         ("custom_metadata", typing.Mapping[str, int]),
@@ -53,20 +55,20 @@ Person = typing.NamedTuple(
 NullablePerson = typing.NamedTuple(
     "NullablePerson",
     [("name", typing.Optional[str]), ("age", np.int32),
-     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("address", typing.Optional[str]), ("aliases", list[str]),
      ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
      ("custom_metadata", typing.Mapping[str, int]),
      ("favorite_time", typing.Optional[Timestamp]),
      ("one_more_field", typing.Optional[str])])
 
 
+@coders_registry.register_row
 class People(typing.NamedTuple):
   primary: Person
   partner: typing.Optional[Person]
 
 
-coders_registry.register_coder(Person, RowCoder)
-coders_registry.register_coder(People, RowCoder)
+coders_registry.register_row(Person)
 
 
 class RowCoderTest(unittest.TestCase):
@@ -202,6 +204,60 @@ class RowCoderTest(unittest.TestCase):
 
     for test_case in self.PEOPLE:
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
+
+  def test_create_row_coder_from_schema_with_parameterized_timestamp(self):
+    # Simulates schemas produced by the Java SDK's parameterized Timestamp
+    # logical type. Subseconds field uses INT16 for
+    # precision < 5 and INT32 otherwise.
+    for precision, subseconds_type in [(3, schema_pb2.INT16),
+                                       (4, schema_pb2.INT16),
+                                       (5, schema_pb2.INT32),
+                                       (6, schema_pb2.INT32),
+                                       (9, schema_pb2.INT32)]:
+      schema = schema_pb2.Schema(
+          id="timestamp_precision_%d" % precision,
+          fields=[
+              schema_pb2.Field(
+                  name="event_time",
+                  type=schema_pb2.FieldType(
+                      logical_type=schema_pb2.LogicalType(
+                          urn="beam:logical_type:timestamp:v1",
+                          representation=schema_pb2.FieldType(
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      id="timestamp_repr_%d" % precision,
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name="seconds",
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.INT64)
+                                          ),
+                                          schema_pb2.Field(
+                                              name="subseconds",
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=subseconds_type)),
+                                      ]))),
+                          argument_type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT32),
+                          argument=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int32=precision))))),
+          ])
+      coder = RowCoder(schema)
+      row = named_tuple_from_schema(schema)
+
+      subseconds = 10**precision - 1
+      for value in [
+          Timestamp(seconds=1500000000,
+                    subseconds=subseconds,
+                    precision=precision),
+          Timestamp(seconds=-2, subseconds=subseconds, precision=precision),
+          Timestamp(seconds=1500000000, precision=precision),
+      ]:
+        test_case = row(event_time=value)
+        decoded = coder.decode(coder.encode(test_case))
+        self.assertEqual(test_case, decoded)
+        self.assertEqual(decoded.event_time.precision(), precision)
 
   def test_row_coder_negative_varint(self):
     schema = schema_pb2.Schema(
@@ -455,6 +511,53 @@ class RowCoderTest(unittest.TestCase):
               dest, coder_impl.create_InputStream(seq_out.get())))
       for field, a in columnar.items():
         assert_array_equal(a[:n], dest[field][:n])
+
+  def test_row_coder_with_tuples(self):
+    class TupleRecord(typing.NamedTuple):
+      key: str
+      fixed_tuple: tuple[str, int]
+      var_tuple: tuple[int, ...]
+      homo_tuple: tuple[str, str]
+
+    coder = RowCoder(typing_to_runner_api(TupleRecord).row_type.schema)
+    record = TupleRecord("k1", ("hello", 42), (1, 2, 3), ("a", "b"))
+    encoded = coder.encode(record)
+    decoded = coder.decode(encoded)
+
+    self.assertEqual(record, decoded)
+    self.assertIsInstance(decoded.fixed_tuple, tuple)
+    self.assertIsInstance(decoded.var_tuple, tuple)
+    self.assertIsInstance(decoded.homo_tuple, tuple)
+    # Verify hashability as dict keys
+    d = {decoded.homo_tuple: "val1", decoded.fixed_tuple: "val2"}
+    self.assertEqual(d[("a", "b")], "val1")
+    self.assertEqual(d[("hello", 42)], "val2")
+    # Verify length mismatch raises ValueError instead of silent truncation
+    with self.assertRaises(ValueError):
+      coder.encode(
+          TupleRecord("k1", ("hello", 42, "extra"), (1, 2, 3), ("a", "b")))
+    with self.assertRaises(ValueError):
+      coder.encode(TupleRecord("k1", ("hello", ), (1, 2, 3), ("a", "b")))
+
+  def test_static_encoding(self):
+    schema = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32)),
+            schema_pb2.Field(
+                name="f_string",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+        ],
+        options=[_static_encoding_option_pb2()])
+    RowType = named_tuple_from_schema(schema)
+    row = RowType(f_int32=42, f_string="hello world!")
+    coder = RowCoder(schema)
+    encoded = coder.encode(row)
+    # VarInt(42) = 1 byte, String("hello world!") = 1 byte len + 12 chars = 13 bytes.
+    # Total = 14 bytes (0 envelope overhead, matching TupleCoder)
+    self.assertEqual(14, len(encoded))
+    self.assertEqual(row, coder.decode(encoded))
 
 
 if __name__ == "__main__":

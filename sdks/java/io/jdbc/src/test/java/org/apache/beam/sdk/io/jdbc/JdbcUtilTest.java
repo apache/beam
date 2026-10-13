@@ -327,7 +327,7 @@ public class JdbcUtilTest {
     assertEquals("cloudsql_postgresql", components.getScheme());
     assertEquals(
         ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
-        components.getSegments());
+        Lists.newArrayList(components.getSegments()));
   }
 
   @Test
@@ -341,7 +341,7 @@ public class JdbcUtilTest {
     assertEquals("cloudsql_postgresql", components.getScheme());
     assertEquals(
         ImmutableList.of("example.com:project", "some-region", "instance-name", "postgres"),
-        components.getSegments());
+        Lists.newArrayList(components.getSegments()));
   }
 
   @Test
@@ -358,7 +358,8 @@ public class JdbcUtilTest {
     JdbcUtil.FQNComponents components = JdbcUtil.FQNComponents.of(dataSource);
     assertEquals("cloudsql_mysql", components.getScheme());
     assertEquals(
-        ImmutableList.of("some-project", "US", "instance-name", "db"), components.getSegments());
+        ImmutableList.of("some-project", "US", "instance-name", "db"),
+        Lists.newArrayList(components.getSegments()));
   }
 
   @Test

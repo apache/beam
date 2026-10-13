@@ -26,10 +26,8 @@ import logging
 import threading
 import time
 from typing import Any
-from typing import Dict
 from typing import Iterator
 from typing import Optional
-from typing import Tuple
 
 import grpc
 from google.protobuf import struct_pb2
@@ -96,7 +94,7 @@ class JobServiceHandle(object):
 
   def submit(
       self, proto_pipeline: beam_runner_api_pb2.Pipeline
-  ) -> Tuple[str,
+  ) -> tuple[str,
              Iterator[beam_job_api_pb2.JobStateEvent],
              Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """
@@ -144,12 +142,15 @@ class JobServiceHandle(object):
         try:
           # no default values - we don't want runner options
           # added unless they were specified by the user
-          add_arg_args = {'action': 'store', 'help': option.description}
+          add_arg_args = {'action': 'store'}
+          if option.description is not None:
+            # Prevent bare %'s in help strings in 3.14+
+            add_arg_args['help'] = option.description.replace("%", "%%")
           if option.type == beam_job_api_pb2.PipelineOptionType.BOOLEAN:
             add_arg_args['action'] = 'store_true' \
               if option.default_value != 'true' else 'store_false'
           elif option.type == beam_job_api_pb2.PipelineOptionType.INTEGER:
-            add_arg_args['type'] = int
+            add_arg_args['type'] = int  # type: ignore
           elif option.type == beam_job_api_pb2.PipelineOptionType.ARRAY:
             add_arg_args['action'] = 'append'
           parser.add_argument("--%s" % option.name, **add_arg_args)
@@ -168,7 +169,7 @@ class JobServiceHandle(object):
 
   @staticmethod
   def encode_pipeline_options(
-      all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
+      all_options: dict[str, Any]) -> 'struct_pb2.Struct':
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:
@@ -212,7 +213,7 @@ class JobServiceHandle(object):
 
   def run(
       self, preparation_id: str
-  ) -> Tuple[str,
+  ) -> tuple[str,
              Iterator[beam_job_api_pb2.JobStateEvent],
              Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """Run the job"""
@@ -332,7 +333,7 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('pack_combiners', 'lift_combiners'):
+          if phase_name in ('pack_combiners', 'lift_combiners', 'expand_sdf'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(

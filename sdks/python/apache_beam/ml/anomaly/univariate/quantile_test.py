@@ -68,13 +68,13 @@ class LandmarkQuantileTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     def _accuracy_helper():
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       with warnings.catch_warnings(record=False):
         warnings.simplefilter("ignore")
@@ -138,13 +138,13 @@ class SlidingQuantileTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     def _accuracy_helper():
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       t1 = BufferedSlidingQuantileTracker(100, 0.1)
       t2 = SimpleSlidingQuantileTracker(100, 0.1)

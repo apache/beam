@@ -31,6 +31,7 @@ import static org.junit.Assume.assumeTrue;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
@@ -99,9 +100,14 @@ public class ServerFactoryTest {
 
   @Test
   public void defaultServerWithPortSupplier() throws Exception {
+    int port;
+    try (ServerSocket socket = new ServerSocket(0)) {
+      port = socket.getLocalPort();
+    }
+    int staticPort = port;
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         runTestUsing(
-            ServerFactory.createWithPortSupplier(() -> 65535),
+            ServerFactory.createWithPortSupplier(() -> staticPort),
             ManagedChannelFactory.createDefault());
     HostAndPort hostAndPort = HostAndPort.fromString(apiServiceDescriptor.getUrl());
     assertThat(
@@ -109,21 +115,26 @@ public class ServerFactoryTest {
         anyOf(
             equalTo(InetAddress.getLoopbackAddress().getHostName()),
             equalTo(InetAddress.getLoopbackAddress().getHostAddress())));
-    assertThat(hostAndPort.getPort(), is(65535));
+    assertThat(hostAndPort.getPort(), is(staticPort));
   }
 
   @Test
   public void urlFactoryWithPortSupplier() throws Exception {
+    int port;
+    try (ServerSocket socket = new ServerSocket(0)) {
+      port = socket.getLocalPort();
+    }
+    int staticPort = port;
     ServerFactory serverFactory =
         ServerFactory.createWithUrlFactoryAndPortSupplier(
-            (host, port) -> "foo" + ":" + port, () -> 65535);
+            (host, p) -> "foo" + ":" + p, () -> staticPort);
     CallStreamObserver<Elements> observer =
         TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
     TestDataService service = new TestDataService(observer);
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
     grpcCleanupRule.register(
         serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder));
-    assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
+    assertThat(descriptorBuilder.getUrl(), is("foo:" + staticPort));
   }
 
   @Test

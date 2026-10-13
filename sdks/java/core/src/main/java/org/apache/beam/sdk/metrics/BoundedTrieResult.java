@@ -50,7 +50,7 @@ public abstract class BoundedTrieResult {
         ImmutableSet.copyOf(s.stream().map(ImmutableList::copyOf).collect(Collectors.toSet())));
   }
 
-  /** @return an empty {@link BoundedTrieResult} */
+  /** Returns an empty {@link BoundedTrieResult}. */
   public static BoundedTrieResult empty() {
     return create(ImmutableSet.of());
   }

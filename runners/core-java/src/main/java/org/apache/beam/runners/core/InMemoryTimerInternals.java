@@ -167,7 +167,9 @@ public class InMemoryTimerInternals implements TimerInternals {
     }
   }
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -177,7 +179,9 @@ public class InMemoryTimerInternals implements TimerInternals {
     }
   }
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {

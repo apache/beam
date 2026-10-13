@@ -53,13 +53,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -98,6 +98,7 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -114,6 +115,7 @@ import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesSideInputsInTimer;
 import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
@@ -175,7 +177,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for ParDo. */
 @SuppressWarnings({
@@ -390,7 +391,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for basic {@link ParDo} scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -681,7 +682,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate behaviors around multiple inputs or outputs. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class MultipleInputsAndOutputTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -1590,13 +1591,13 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BundleFinalizationTests extends SharedTestBase implements Serializable {
     private abstract static class BundleFinalizingDoFn extends DoFn<KV<String, Long>, String> {
       private static final long MAX_ATTEMPTS = 100;
       // We use the UUID to uniquely identify this DoFn in case this test is run with
       // other tests in the same JVM.
-      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new ConcurrentHashMap<>();
       private final UUID uuid = UUID.randomUUID();
 
       public void testFinalization(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)
@@ -1745,7 +1746,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for ParDo lifecycle methods. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class LifecycleTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -1820,7 +1821,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate output timestamps. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
 
     static final String TIMER_ELEMENT = "timer";
@@ -2277,7 +2278,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo state. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class StateTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -3355,7 +3356,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesOrderedListState.class,
-      UsesOnWindowExpiration.class
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class
     })
     public void testOrderedListStateUnbounded() {
       testOrderedListStateImpl(true);
@@ -3419,7 +3421,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesUnboundedPCollections.class
+    })
     public void testOrderedListStateRangeFetchUnbounded() {
       testOrderedListStateRangeFetchImpl(true);
     }
@@ -3492,7 +3499,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesUnboundedPCollections.class
+    })
     public void testOrderedListStateRangeDeleteUnbounded() {
       testOrderedListStateRangeDeleteImpl(true);
     }
@@ -3675,6 +3687,154 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesSideInputsInTimer.class,
+      UsesTestStream.class,
+      UsesTimersInParDo.class,
+      UsesTriggeredSideInputs.class,
+      UsesOnWindowExpiration.class
+    })
+    public void testTimerSideInput() {
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      final PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      DoFn<KV<Integer, Integer>, KV<Integer, Integer>> doFn =
+          new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
+            @TimerId("timer")
+            private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("foo")
+            private final StateSpec<ValueState<Integer>> stateSpec = StateSpecs.value();
+
+            @ProcessElement
+            public void process(@Timestamp Instant ts, @TimerId("timer") Timer timer) {
+              timer.align(Duration.standardSeconds(10)).setRelative();
+            }
+
+            @OnTimer("timer")
+            public void onTimer(
+                OutputReceiver<KV<Integer, Integer>> o,
+                @DoFn.SideInput(sideInputTag1) Integer sideInput,
+                @Key Integer key) {
+              o.output(KV.of(key, sideInput));
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @DoFn.SideInput(sideInputTag1) Integer sideInput,
+                OutputReceiver<KV<Integer, Integer>> o,
+                @Key Integer key) {
+              o.output(KV.of(key, sideInput));
+            }
+          };
+
+      final int numTestElements = 10;
+      final Instant now = new Instant(0);
+      TestStream.Builder<KV<Integer, Integer>> builder =
+          TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder =
+            builder.addElements(
+                TimestampedValue.of(KV.of(i % 2, i), now.plus(Duration.millis(i * 1000))));
+        if ((i + 1) % 10 == 0) {
+          builder = builder.advanceWatermarkTo(now.plus(Duration.millis((i + 1) * 1000)));
+        }
+      }
+      List<KV<Integer, Integer>> expected =
+          IntStream.rangeClosed(0, 1)
+              .boxed()
+              .flatMap(i -> ImmutableList.of(KV.of(i, 2), KV.of(i, 2)).stream())
+              .collect(Collectors.toList());
+
+      PCollection<KV<Integer, Integer>> output =
+          pipeline
+              .apply(builder.advanceWatermarkToInfinity())
+              .apply(ParDo.of(doFn).withSideInput(sideInputTag1, sideInput));
+      PAssert.that(output).containsInAnyOrder(expected);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesSideInputsInTimer.class,
+      UsesTimersInParDo.class,
+      UsesTriggeredSideInputs.class
+    })
+    public void testSideInputNotReadyTimer() {
+      final String sideInputTag = "tag1";
+
+      // Create a side input that is delayed by 5 seconds using Thread.sleep
+      DoFn<KV<String, String>, String> delayFn =
+          new DoFn<KV<String, String>, String>() {
+            @ProcessElement
+            public void process(OutputReceiver<String> o) throws InterruptedException {
+              Thread.sleep(java.time.Duration.ofSeconds(15).toMillis());
+              o.output("side-value");
+            }
+          };
+
+      PCollectionView<String> sideInput =
+          pipeline
+              .apply("CreateSideSource", Create.of(KV.of("dummyKey", "")))
+              .apply("DelaySideInput", ParDo.of(delayFn))
+              .apply(View.asSingleton());
+
+      // Main input in global window
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+            @TimerId("timer")
+            private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("dummy")
+            private final StateSpec<ValueState<Integer>> dummy = StateSpecs.value();
+
+            @ProcessElement
+            public void process(
+                @Timestamp Instant ts,
+                @TimerId("timer") Timer timer,
+                @DoFn.SideInput(sideInputTag) String sideInputValue,
+                OutputReceiver<String> o) {
+              // Set timer to fire at current timestamp + 1 millis
+              timer.offset(Duration.millis(1)).setRelative();
+              o.output(sideInputValue);
+            }
+
+            @OnTimer("timer")
+            public void onTimer(
+                OutputReceiver<String> o, @DoFn.SideInput(sideInputTag) String sideInputValue) {
+              o.output(sideInputValue);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                OutputReceiver<String> o, @DoFn.SideInput(sideInputTag) String sideInputValue) {
+              o.output(sideInputValue);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline
+              .apply("CreateMainKV", Create.of(KV.of("key", "main-elem")))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag, sideInput));
+
+      PAssert.that(output).containsInAnyOrder("side-value", "side-value", "side-value");
       pipeline.run();
     }
 
@@ -3964,7 +4124,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for state coder inference behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -4489,7 +4649,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo timers. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -6372,7 +6532,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests validating Timer coder inference behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -6744,7 +6904,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo timerFamily. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -6970,7 +7130,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate Key in OnTimer. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class KeyTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -7104,7 +7264,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate OnWindowExpiration. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -7186,11 +7346,15 @@ public class ParDoTest implements Serializable {
             @OnWindowExpiration
             public void onWindowExpiration(
                 @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                BoundedWindow window,
                 @Key String key,
+                OnWindowExpirationContext context,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               // verify state
               assertEquals(1, (int) currentValue);
+              Preconditions.checkNotNull(context);
+              assertEquals(window, context.window());
               // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }
@@ -7228,7 +7392,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate SchemaInformation. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class SchemaInformationTests extends SharedTestBase implements Serializable {
 
     private static final Schema TEST_SCHEMA =
@@ -7350,7 +7514,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BundleInvariantsTests extends SharedTestBase implements Serializable {
 
     @Test

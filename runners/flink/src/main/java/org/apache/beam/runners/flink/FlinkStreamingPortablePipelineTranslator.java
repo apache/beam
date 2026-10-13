@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.util.construction.ExecutableStageTranslation.g
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -130,6 +131,12 @@ import org.apache.flink.util.OutputTag;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext> {
@@ -221,7 +228,9 @@ public class FlinkStreamingPortablePipelineTranslator
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
-  /** @deprecated Legacy non-portable source which can be replaced by a DoFn with timers. */
+  /**
+   * @deprecated Legacy non-portable source which can be replaced by a DoFn with timers.
+   */
   @Deprecated
   private static final String STREAMING_IMPULSE_TRANSFORM_URN =
       "flink:transform:streaming_impulse:v1";
@@ -284,10 +293,7 @@ public class FlinkStreamingPortablePipelineTranslator
     return context;
   }
 
-  private void urnNotFound(
-      String id,
-      RunnerApi.Pipeline pipeline,
-      FlinkStreamingPortablePipelineTranslator.TranslationContext context) {
+  private void urnNotFound(String id, RunnerApi.Pipeline pipeline, TranslationContext context) {
     throw new IllegalArgumentException(
         String.format(
             "Unknown type of URN %s for PTransform with id %s.",
@@ -735,7 +741,6 @@ public class FlinkStreamingPortablePipelineTranslator
 
   private <InputT, OutputT> void translateExecutableStage(
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
-    // TODO: Fail on splittable DoFns.
     // TODO: Special-case single outputs to avoid multiplexing PCollections.
     RunnerApi.Components components = pipeline.getComponents();
     RunnerApi.PTransform transform = components.getTransformsOrThrow(id);

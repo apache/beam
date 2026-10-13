@@ -42,7 +42,7 @@ public class RestoreDataflowLoggingMDCTest {
 
     final boolean[] evaluateRan = new boolean[1];
     DataflowWorkerLoggingMDC.setJobId("oldJobId");
-    DataflowWorkerLoggingMDC.setStageName("oldStageName");
+    DataflowWorkerLoggingMDC.setSystemStageName("oldStageName");
     DataflowWorkerLoggingMDC.setWorkerId("oldWorkerId");
     DataflowWorkerLoggingMDC.setWorkId("oldWorkId");
 
@@ -54,19 +54,19 @@ public class RestoreDataflowLoggingMDCTest {
                 evaluateRan[0] = true;
                 // Ensure parameters are cleared before the test runs
                 assertNull("null JobId", DataflowWorkerLoggingMDC.getJobId());
-                assertNull("null StageName", DataflowWorkerLoggingMDC.getStageName());
+                assertNull("null StageName", DataflowWorkerLoggingMDC.getSystemStageName());
                 assertNull("null WorkerId", DataflowWorkerLoggingMDC.getWorkerId());
                 assertNull("null WorkId", DataflowWorkerLoggingMDC.getWorkId());
 
                 // Simulate updating parameters for the test
                 DataflowWorkerLoggingMDC.setJobId("newJobId");
-                DataflowWorkerLoggingMDC.setStageName("newStageName");
+                DataflowWorkerLoggingMDC.setSystemStageName("newStageName");
                 DataflowWorkerLoggingMDC.setWorkerId("newWorkerId");
                 DataflowWorkerLoggingMDC.setWorkId("newWorkId");
 
                 // Ensure that the values changed
                 assertEquals("newJobId", DataflowWorkerLoggingMDC.getJobId());
-                assertEquals("newStageName", DataflowWorkerLoggingMDC.getStageName());
+                assertEquals("newStageName", DataflowWorkerLoggingMDC.getSystemStageName());
                 assertEquals("newWorkerId", DataflowWorkerLoggingMDC.getWorkerId());
                 assertEquals("newWorkId", DataflowWorkerLoggingMDC.getWorkId());
               }
@@ -77,7 +77,7 @@ public class RestoreDataflowLoggingMDCTest {
     // Validate that the statement ran and that the values were reverted
     assertTrue(evaluateRan[0]);
     assertEquals("oldJobId", DataflowWorkerLoggingMDC.getJobId());
-    assertEquals("oldStageName", DataflowWorkerLoggingMDC.getStageName());
+    assertEquals("oldStageName", DataflowWorkerLoggingMDC.getSystemStageName());
     assertEquals("oldWorkerId", DataflowWorkerLoggingMDC.getWorkerId());
     assertEquals("oldWorkId", DataflowWorkerLoggingMDC.getWorkId());
   }

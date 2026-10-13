@@ -151,7 +151,9 @@ public class SqsIO {
         .build();
   }
 
-  /** @deprecated Use {@link #writeBatches()} for more configuration options. */
+  /**
+   * @deprecated Use {@link #writeBatches()} for more configuration options.
+   */
   @Deprecated
   public static Write write() {
     return new AutoValue_SqsIO_Write.Builder()
@@ -788,8 +790,9 @@ public class SqsIO {
       @NotThreadSafe
       private class Dynamic extends Batches {
         @SuppressWarnings("method.invocation") // necessary dependencies are initialized
-        private final BiFunction<@NonNull String, @Nullable Batch, Batch> getLocked =
-            (queue, batch) -> batch != null && batch.lock(true) ? batch : createLocked(queue);
+        private Batch getLocked(@NonNull String queue, @Nullable Batch batch) {
+          return batch != null && batch.lock(true) ? batch : createLocked(queue);
+        }
 
         private final Map<@NonNull String, Batch> batches = new HashMap<>();
         private final AtomicBoolean submitExpiredRunning = new AtomicBoolean(false);
@@ -807,7 +810,7 @@ public class SqsIO {
 
         @Override
         Batch getLocked(T record) {
-          return batches.compute(destination.queueUrl(record), getLocked);
+          return batches.compute(destination.queueUrl(record), this::getLocked);
         }
 
         @Override

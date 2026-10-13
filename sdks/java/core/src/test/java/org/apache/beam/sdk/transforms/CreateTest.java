@@ -18,8 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -52,6 +51,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -80,10 +80,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for Create. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @SuppressWarnings({
   "unchecked",
 })
@@ -96,7 +95,7 @@ public class CreateTest {
   public void testCreate() {
     PCollection<String> output = p.apply(Create.of(LINES));
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
     p.run();
   }
 
@@ -105,7 +104,7 @@ public class CreateTest {
   public void testCreateEmpty() {
     PCollection<String> output = p.apply(Create.empty(StringUtf8Coder.of()));
 
-    PAssert.that(output).containsInAnyOrder(NO_LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(NO_LINES.toArray(new String[0]));
 
     assertEquals(StringUtf8Coder.of(), output.getCoder());
     p.run();
@@ -186,6 +185,7 @@ public class CreateTest {
 
     p.run();
   }
+
   /** An unserializable class to demonstrate encoding of elements. */
   private static class UnserializableRecord {
     private final String myString;

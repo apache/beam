@@ -69,6 +69,7 @@ public class WindmillStreamSenderTest {
           watermarks,
           processingContext,
           drainMode,
+          appliedFinalizeIds,
           getWorkStreamLatencies) -> {};
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
@@ -106,8 +107,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -137,8 +137,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -171,8 +170,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),

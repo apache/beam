@@ -200,11 +200,9 @@ public class JsonReadSchemaTransformFormatProviderTest
   }
 
   private static class CreateKVJsonString extends SimpleFunction<Long, KV<Integer, String>> {
-    Schema schema;
     PayloadSerializer payloadSerializer;
 
-    CreateKVJsonString(Schema schema, PayloadSerializer payloadSerializer) {
-      this.schema = schema;
+    CreateKVJsonString(PayloadSerializer payloadSerializer) {
       this.payloadSerializer = payloadSerializer;
     }
 
@@ -248,7 +246,7 @@ public class JsonReadSchemaTransformFormatProviderTest
                 .withAllowedLateness(Duration.ZERO)
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .discardingFiredPanes())
-        .apply(MapElements.via(new CreateKVJsonString(schema, payloadSerializer)))
+        .apply(MapElements.via(new CreateKVJsonString(payloadSerializer)))
         .setCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
         .apply(
             FileIO.<Integer, KV<Integer, String>>writeDynamic()
@@ -280,7 +278,7 @@ public class JsonReadSchemaTransformFormatProviderTest
     // Write rows to dynamic destinations (test_1.., test_2.., test_3..)
     writePipeline
         .apply(Create.of(Arrays.asList(0L, 1L, 2L)))
-        .apply(MapElements.via(new CreateKVJsonString(schema, payloadSerializer)))
+        .apply(MapElements.via(new CreateKVJsonString(payloadSerializer)))
         .setCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
         .apply(
             FileIO.<Integer, KV<Integer, String>>writeDynamic()

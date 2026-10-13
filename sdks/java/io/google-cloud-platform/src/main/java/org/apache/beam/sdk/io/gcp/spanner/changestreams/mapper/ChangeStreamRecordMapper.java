@@ -218,7 +218,6 @@ public class ChangeStreamRecordMapper {
    * @param resultSet the change stream result set
    * @param resultSetMetadata the metadata generated when reading the change stream row
    * @return a {@link List} of {@link ChangeStreamRecord} subclasses
-   * @throws InvalidProtocolBufferException
    */
   public List<ChangeStreamRecord> toChangeStreamRecords(
       PartitionMetadata partition,
@@ -564,11 +563,17 @@ public class ChangeStreamRecordMapper {
             .orElseThrow(IllegalArgumentException::new)
             .getStringValue(),
         Optional.ofNullable(valueMap.get(COLUMN_TYPES_COLUMN))
-            .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+            .orElseThrow(IllegalArgumentException::new)
+            .getListValue()
+            .getValuesList()
+            .stream()
             .map(this::columnTypeJsonFrom)
             .collect(Collectors.toList()),
-        Optional.ofNullable(valueMap.get(MODS_COLUMN)).orElseThrow(IllegalArgumentException::new)
-            .getListValue().getValuesList().stream()
+        Optional.ofNullable(valueMap.get(MODS_COLUMN))
+            .orElseThrow(IllegalArgumentException::new)
+            .getListValue()
+            .getValuesList()
+            .stream()
             .map(this::modJsonFrom)
             .collect(Collectors.toList()),
         modTypeFrom(
@@ -652,7 +657,10 @@ public class ChangeStreamRecordMapper {
             .orElseThrow(IllegalArgumentException::new)
             .getStringValue(),
         Optional.ofNullable(valueMap.get(CHILD_PARTITIONS_COLUMN))
-            .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+            .orElseThrow(IllegalArgumentException::new)
+            .getListValue()
+            .getValuesList()
+            .stream()
             .map(value -> childPartitionJsonFrom(partition.getPartitionToken(), value))
             .collect(Collectors.toList()),
         changeStreamRecordMetadataFrom(

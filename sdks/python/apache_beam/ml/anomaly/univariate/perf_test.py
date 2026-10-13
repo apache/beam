@@ -27,14 +27,6 @@ from apache_beam.ml.anomaly.univariate.mean import *
 from apache_beam.ml.anomaly.univariate.quantile import *
 from apache_beam.ml.anomaly.univariate.stdev import *
 
-seed_value_time = int(time.time())
-random.seed(seed_value_time)
-print(f"{'Seed value':32s}{seed_value_time}")
-
-numbers = []
-for _ in range(50000):
-  numbers.append(random.randint(0, 1000))
-
 
 def run_tracker(tracker, numbers):
   for i in range(len(numbers)):
@@ -42,39 +34,50 @@ def run_tracker(tracker, numbers):
     _ = tracker.get()
 
 
-def print_result(tracker, number=10, repeat=5):
-  runtimes = timeit.repeat(
-      lambda: run_tracker(tracker, numbers), number=number, repeat=repeat)
-  mean = statistics.mean(runtimes)
-  sd = statistics.stdev(runtimes)
-  print(f"{tracker.__class__.__name__:32s}{mean:.6f} ± {sd:.6f}")
-
-
 class PerfTest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    seed_value_time = int(time.time())
+    rng = random.Random(seed_value_time)
+    print(f"{'Seed value':32s}{seed_value_time}")
+
+    cls.numbers = []
+    for _ in range(50000):
+      cls.numbers.append(rng.randint(0, 1000))
+
+  def print_result(self, tracker, number=10, repeat=5):
+    runtimes = timeit.repeat(
+        lambda: run_tracker(tracker, self.numbers),
+        number=number,
+        repeat=repeat)
+    mean = statistics.mean(runtimes)
+    sd = statistics.stdev(runtimes)
+    print(f"{tracker.__class__.__name__:32s}{mean:.6f} ± {sd:.6f}")
+
   def test_mean_perf(self):
     print()
-    print_result(IncLandmarkMeanTracker())
-    print_result(IncSlidingMeanTracker(100))
+    self.print_result(IncLandmarkMeanTracker())
+    self.print_result(IncSlidingMeanTracker(100))
     # SimpleSlidingMeanTracker (numpy-based batch approach) is an order of
     # magnitude slower than other methods. To prevent excessively long test
     # runs, we reduce the number of repetitions.
-    print_result(SimpleSlidingMeanTracker(100), number=1)
+    self.print_result(SimpleSlidingMeanTracker(100), number=1)
 
   def test_stdev_perf(self):
     print()
-    print_result(IncLandmarkStdevTracker())
-    print_result(IncSlidingStdevTracker(100))
+    self.print_result(IncLandmarkStdevTracker())
+    self.print_result(IncSlidingStdevTracker(100))
     # Same as test_mean_perf, we reduce the number of repetitions here.
-    print_result(SimpleSlidingStdevTracker(100), number=1)
+    self.print_result(SimpleSlidingStdevTracker(100), number=1)
 
   def test_quantile_perf(self):
     print()
     with warnings.catch_warnings(record=False):
       warnings.simplefilter("ignore")
-      print_result(BufferedLandmarkQuantileTracker(0.5))
-    print_result(BufferedSlidingQuantileTracker(100, 0.5))
+      self.print_result(BufferedLandmarkQuantileTracker(0.5))
+    self.print_result(BufferedSlidingQuantileTracker(100, 0.5))
     # Same as test_mean_perf, we reduce the number of repetitions here.
-    print_result(SimpleSlidingQuantileTracker(100, 0.5), number=1)
+    self.print_result(SimpleSlidingQuantileTracker(100, 0.5), number=1)
 
 
 if __name__ == '__main__':

@@ -252,25 +252,27 @@ public class XmlIO {
       abstract Read<T> build();
     }
 
-    /** @deprecated Use {@link Compression} instead. */
+    /**
+     * @deprecated Use {@link Compression} instead.
+     */
     @Deprecated
     public enum CompressionType {
-      /** @see Compression#AUTO */
+      /** See {@link Compression#AUTO}. */
       AUTO(Compression.AUTO),
 
-      /** @see Compression#UNCOMPRESSED */
+      /** See {@link Compression#UNCOMPRESSED}. */
       UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-      /** @see Compression#GZIP */
+      /** See {@link Compression#GZIP}. */
       GZIP(Compression.GZIP),
 
-      /** @see Compression#BZIP2 */
+      /** See {@link Compression#BZIP2}. */
       BZIP2(Compression.BZIP2),
 
-      /** @see Compression#ZIP */
+      /** See {@link Compression#ZIP}. */
       ZIP(Compression.ZIP),
 
-      /** @see Compression#DEFLATE */
+      /** See {@link Compression#DEFLATE}. */
       DEFLATE(Compression.DEFLATE);
 
       private final Compression canonical;
@@ -279,7 +281,7 @@ public class XmlIO {
         this.canonical = canonical;
       }
 
-      /** @see Compression#matches */
+      /** See {@link Compression#matches}. */
       public boolean matches(String filename) {
         return canonical.matches(filename);
       }
@@ -340,7 +342,9 @@ public class XmlIO {
       return toBuilder().setMinBundleSize(minBundleSize).build();
     }
 
-    /** @deprecated use {@link #withCompression}. */
+    /**
+     * @deprecated use {@link #withCompression}.
+     */
     @Deprecated
     public Read<T> withCompressionType(CompressionType compressionType) {
       return withCompression(compressionType.canonical);

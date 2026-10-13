@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -46,7 +47,8 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain);
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain);
 
   /**
    * Calls a {@link DoFn DoFn's} {@link DoFn.FinishBundle @FinishBundle} method and performs
@@ -62,8 +64,21 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
+   * Performs per-key cleanup or processing after all elements, timers for a key have been processed
+   * and before moving to the next key or before finishBundle for the last key.
+   *
+   * <p>This is an optional method that can be used by runners as a hook to reset any per key state
+   * before moving to a different key in the same bundle. Currently used only by the Dataflow
+   * Streaming runner.
+   *
+   * @param key current key to clean up or finish processing
+   */
+  <KeyT extends @Nullable Object> void finishKey(KeyT key);
+
+  /**
+   * Returns the underlying fn instance.
+   *
    * @since 2.5.0
-   * @return the underlying fn instance.
    */
   DoFn<InputT, OutputT> getFn();
 }

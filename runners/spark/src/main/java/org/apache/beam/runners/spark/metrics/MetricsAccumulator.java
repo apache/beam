@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -54,11 +55,21 @@ public class MetricsAccumulator {
 
   /** Init metrics accumulator if it has not been initiated. This method is idempotent. */
   public static void init(SparkPipelineOptions opts, JavaSparkContext jsc) {
+    init(opts, jsc, opts.isStreaming());
+  }
+
+  /**
+   * Init metrics accumulator if it has not been initiated. This method is idempotent. With {@code
+   * useCheckpoint} set, the value is recovered from the metrics checkpoint under the checkpoint
+   * directory of {@code opts}, and {@link AccumulatorCheckpointingSparkListener} writes it back
+   * there. The DStream streaming path is the one using that checkpoint.
+   */
+  public static void init(SparkPipelineOptions opts, JavaSparkContext jsc, boolean useCheckpoint) {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
           Optional<CheckpointDir> maybeCheckpointDir =
-              opts.isStreaming()
+              useCheckpoint
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
           MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
@@ -82,6 +93,10 @@ public class MetricsAccumulator {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Spark merges only the accumulator instance the driver registered. A copy would collect metrics that nothing reports.")
   public static MetricsContainerStepMapAccumulator getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");

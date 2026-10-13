@@ -66,13 +66,10 @@ public abstract class AggregationQuery
 
   @Override
   public MongoCursor<Document> apply(MongoCollection<Document> collection) {
+    List<BsonDocument> pipeline = new ArrayList<>(mongoDbPipeline());
     if (bucket() != null) {
-      if (mongoDbPipeline().size() == 1) {
-        mongoDbPipeline().add(bucket());
-      } else {
-        mongoDbPipeline().set(mongoDbPipeline().size() - 1, bucket());
-      }
+      pipeline.add(bucket());
     }
-    return collection.aggregate(mongoDbPipeline()).iterator();
+    return collection.aggregate(pipeline).iterator();
   }
 }

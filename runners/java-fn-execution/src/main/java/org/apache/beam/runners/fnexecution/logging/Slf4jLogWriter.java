@@ -35,6 +35,7 @@ public class Slf4jLogWriter implements LogWriter {
   private Slf4jLogWriter() {}
 
   @Override
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   public void log(LogEntry entry) {
     Logger log;
     String location = entry.getLogLocation();

@@ -154,6 +154,64 @@ class DoFnProcessTest(unittest.TestCase):
       test_stream = (TestStream().advance_watermark_to(10).add_elements([1, 2]))
       (p | test_stream | beam.ParDo(DoFnProcessWithKeyparam()))
 
+  def test_dofn_returning_str_raises_clear_error(self):
+    """Regression test for https://github.com/apache/beam/issues/18712.
+
+    A DoFn returning a str instead of an iterable wrapping one used to
+    silently iterate per-character. It should now raise a clear TypeError.
+    """
+    class BadDoFn(DoFn):
+      def process(self, element):
+        return 'hello'
+
+    # Use base Exception (matching existing convention in
+    # typecheck_test.py::test_do_fn_returning_non_iterable_throws_error)
+    # because the runner's _reraise_augmented wraps the TypeError before
+    # it surfaces to the test framework.
+    with self.assertRaisesRegex(
+        Exception, 'Returning a str from a ParDo or FlatMap is not allowed'):
+      with TestPipeline() as p:
+        _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
+
+  def test_dofn_returning_bytes_raises_clear_error(self):
+    """Regression test for https://github.com/apache/beam/issues/18712."""
+    class BadDoFn(DoFn):
+      def process(self, element):
+        return b'hello'
+
+    with self.assertRaisesRegex(
+        Exception, 'Returning a bytes from a ParDo or FlatMap is not allowed'):
+      with TestPipeline() as p:
+        _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
+
+  def test_dofn_returning_dict_raises_clear_error(self):
+    """Regression test for https://github.com/apache/beam/issues/18712."""
+    class BadDoFn(DoFn):
+      def process(self, element):
+        return {'k': 'v'}
+
+    with self.assertRaisesRegex(
+        Exception, 'Returning a dict from a ParDo or FlatMap is not allowed'):
+      with TestPipeline() as p:
+        _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
+
+  def test_dofn_yielding_str_is_not_flagged(self):
+    """A generator (yield) process() can't hit the #18712 bug.
+
+    Yielding a str emits the whole str as one element and must not be
+    treated as the "returned a str" error case.
+    """
+    class YieldDoFn(DoFn):
+      def process(self, element):
+        yield 'hello'
+
+    with TestPipeline() as p:
+      (
+          p | beam.Create([0]) | beam.ParDo(YieldDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(['hello'], DoFnProcessTest.all_records)
+
   def test_pardo_with_unbounded_per_element_dofn(self):
     class UnboundedDoFn(beam.DoFn):
       @beam.DoFn.unbounded_per_element()

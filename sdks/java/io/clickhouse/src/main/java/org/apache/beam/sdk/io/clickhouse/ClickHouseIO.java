@@ -38,6 +38,9 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -107,6 +110,18 @@ import org.slf4j.LoggerFactory;
  * href="https://clickhouse.com/docs/guides/developer/deduplication">Deduplication strategies
  * documentation</a>
  *
+ * <h4>User agent</h4>
+ *
+ * <p>The connector automatically sets the ClickHouse client name to {@code Apache Beam/<version>},
+ * which is visible in {@code system.query_log.client_name}. If you set the {@code client_name}
+ * connection property, it is appended after the Beam identifier, for example:
+ *
+ * <pre>{@code
+ * Properties props = new Properties();
+ * props.setProperty("client_name", "MyApp/1.0");
+ * // Results in: "Apache Beam/<version> MyApp/1.0"
+ * }</pre>
+ *
  * <h4>Mapping between Beam and ClickHouse types</h4>
  *
  * <table summary="Type mapping">
@@ -125,12 +140,19 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#UINT64}</td> <td>{@link Schema.TypeName#INT64}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#DATE}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#DATETIME}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#DATETIME64}</td> <td>{@link Schema.TypeName#DATETIME} (precision &le; 3), {@link SqlTypes#TIMESTAMP} (4&ndash;6), or {@link NanosInstant} (&ge; 7)</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#DECIMAL}</td> <td>{@link FixedPrecisionNumeric}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#BOOL}</td> <td>{@link Schema.TypeName#BOOLEAN}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
+ *
+ * <p>{@code Decimal(P, S)} columns accept {@link java.math.BigDecimal} values. Fractional digits
+ * beyond the column scale are truncated toward zero, matching ClickHouse's own handling of excess
+ * fraction. A value whose truncated result still exceeds the column's declared range is rejected
+ * with an {@link IllegalArgumentException} rather than written.
  *
  * <p>Nullable row columns are supported through <a
  * href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in
@@ -244,21 +266,19 @@ public class ClickHouseIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = tableSchema();
-      if (tableSchema == null) {
-        tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties());
-      }
-
-      String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
-      String userAgent = String.format("Apache Beam/%s", sdkVersion);
 
       Properties properties = properties();
+      set(properties, "client_name", buildClientName(properties));
+
+      TableSchema tableSchema = tableSchema();
+      if (tableSchema == null) {
+        tableSchema = getTableSchema(clickHouseUrl(), database(), table(), properties);
+      }
 
       set(properties, "max_insert_block_size", maxInsertBlockSize());
       set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
-      set(properties, "product_name", userAgent);
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
@@ -421,6 +441,7 @@ public class ClickHouseIO {
       merged.putAll(properties);
       return toBuilder().properties(merged).build();
     }
+
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -526,8 +547,7 @@ public class ClickHouseIO {
               .setPassword(password)
               .setDefaultDatabase(database())
               .setOptions(options)
-              .setClientName(
-                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
+              .setClientName(properties().getProperty("client_name"));
 
       // Add optional compression if specified in properties
       String compress = properties().getProperty("compress", "false");
@@ -725,8 +745,7 @@ public class ClickHouseIO {
               .setUsername(user)
               .setPassword(password)
               .setDefaultDatabase(database)
-              .setClientName(
-                  String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion()));
+              .setClientName(buildClientName(properties));
 
       try (Client client = clientBuilder.build()) {
         String query = "DESCRIBE TABLE " + quoteIdentifier(table);
@@ -764,6 +783,17 @@ public class ClickHouseIO {
     } catch (Exception e) {
       throw new RuntimeException("Failed to get table schema for table: " + table, e);
     }
+  }
+
+  @VisibleForTesting
+  static String buildClientName(Properties properties) {
+    String beamAgent =
+        String.format("Apache Beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion());
+    String existingClientName = properties.getProperty("client_name");
+    if (!Strings.isNullOrEmpty(existingClientName)) {
+      return beamAgent + " " + existingClientName;
+    }
+    return beamAgent;
   }
 
   static String quoteIdentifier(String identifier) {

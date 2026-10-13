@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.junit.Assert.assertEquals;
@@ -76,7 +77,7 @@ public class PubsubToIcebergIT implements Serializable {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
+  static final String DATASET = TEMP_DATASET_PREFIX + "sql_pubsub_to_iceberg_" + System.nanoTime();
   static String warehouse;
   private static Catalog icebergCatalog;
   protected static final GcpOptions OPTIONS =
@@ -156,7 +157,7 @@ public class PubsubToIcebergIT implements Serializable {
             + ") \n"
             + "TYPE 'iceberg' \n"
             + "PARTITIONED BY('id', 'truncate(name, 3)') \n"
-            + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
+            + "TBLPROPERTIES '{ \"beam.write.triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
         format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"
@@ -211,7 +212,7 @@ public class PubsubToIcebergIT implements Serializable {
             + "   name VARCHAR \n "
             + ") \n"
             + "TYPE 'iceberg' \n"
-            + "TBLPROPERTIES '{ \"triggering_frequency_seconds\" : 10 }'";
+            + "TBLPROPERTIES '{ \"beam.write.triggering_frequency_seconds\" : 10 }'";
     String insertStatement =
         format("INSERT INTO %s \n", tableIdentifier)
             + "SELECT \n"

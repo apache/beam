@@ -25,7 +25,6 @@ runtime, for example.
 # pytype: skip-file
 
 from functools import wraps
-from typing import Set
 
 from apache_beam import error
 
@@ -95,7 +94,7 @@ class RuntimeValueProvider(ValueProvider):
   at graph construction time.
   """
   runtime_options = None
-  experiments: Set[str] = set()
+  experiments: set[str] = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name

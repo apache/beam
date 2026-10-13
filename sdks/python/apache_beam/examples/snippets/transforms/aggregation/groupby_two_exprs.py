@@ -44,12 +44,13 @@ def groupby_two_exprs(test=None):
         p
         | beam.Create(
             ['strawberry', 'raspberry', 'blueberry', 'blackberry', 'banana'])
-        | beam.GroupBy(letter=lambda s: s[0], is_berry=lambda s: 'berry' in s)
-        | beam.Map(print))
+        | beam.GroupBy(letter=lambda s: s[0], is_berry=lambda s: 'berry' in s))
     # [END groupby_two_exprs]
 
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
+    else:
+      _ = grouped | beam.Map(print)
 
 
 if __name__ == '__main__':

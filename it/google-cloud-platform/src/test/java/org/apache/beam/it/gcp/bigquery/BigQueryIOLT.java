@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,8 +43,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -126,7 +128,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
     String tableName =
         "io-bq-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);
@@ -244,7 +246,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        !("STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod))));
+                        !"STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod)));
         break;
       case JSON:
         writeIO =
@@ -341,7 +343,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
             region,
             launchInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-    assertEquals(configuration.numRecords, numRecords, 0.5);
+    assertEquals((double) configuration.numRecords, numRecords, 0.5);
 
     // export metrics
     MetricsConfiguration metricsConfig =

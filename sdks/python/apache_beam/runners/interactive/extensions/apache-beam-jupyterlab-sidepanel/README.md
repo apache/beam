@@ -31,41 +31,22 @@ Includes two different side panels:
 
 ## Installation
 
-There are two ways to install the extension:
-
-### 1. Via pip (recommended)
-
-The extension is now available as a Python package on PyPI. You can install it with:
+This extension is distributed as a prebuilt Python package. Install it with pip:
 
 ```bash
 pip install apache-beam-jupyterlab-sidepanel
 ```
 
-After installation, rebuild JupyterLab to activate the extension:
+Then restart JupyterLab. The side panels will be available automatically — no
+`jupyter lab build` step is needed.
+
+You can verify the extension is installed:
 
 ```bash
-jupyter lab clean
-jupyter lab build
+jupyter labextension list
 ```
 
-Then restart JupyterLab. The side panels will be available automatically.
-
-
-### 2. Via JupyterLab Extension Manager (legacy, will be deprecated soon)
-
-```bash
-jupyter labextension install apache-beam-jupyterlab-sidepanel
-```
-
-This installs the extension using JupyterLab's legacy extension system.
-
----
-
-## Notes
-
-- Pip installation is now the preferred method as it handles Python packaging and JupyterLab extension registration seamlessly.
-- After any upgrade or reinstallation, always rebuild JupyterLab to ensure the extension is activated.
-- For detailed usage and development, refer to the source code and issues on [GitHub](https://github.com/apache/beam).
+The extension should appear under the **prebuilt extensions** section.
 
 ---
 
@@ -90,15 +71,12 @@ The `jlpm` command is JupyterLab's pinned version of
 
 # Install dependencies
 jlpm
-# Build Typescript source
-jlpm build
-# Link your development version of the extension with JupyterLab
-jupyter labextension link .
 
-# Rebuild Typescript source after making changes
-jlpm build
-# Rebuild JupyterLab after making any changes
-jupyter lab build
+# Install the extension in editable mode (runs an initial JS build)
+pip install -e .
+
+# Verify installation
+jupyter labextension list
 ```
 
 You can watch the source directory and run JupyterLab in watch mode to watch for changes in the extension's source and automatically rebuild the extension and application.
@@ -110,7 +88,7 @@ jlpm watch
 jupyter lab --watch
 ```
 
-Now every change will be built locally and bundled into JupyterLab. Be sure to refresh your browser page after saving file changes to reload the extension (note: you'll need to wait for webpack to finish, which can take 10s+ at times).
+Now every change will be built locally and bundled into JupyterLab. Be sure to refresh your browser page after saving file changes to reload the extension (note: you'll need to wait for the build to finish, which can take 10s+ at times).
 
 ### Test
 
@@ -214,9 +192,5 @@ $PREFIX/share/jupyter/labextensions/apache-beam-jupyterlab-sidepanel/
 ### Uninstall
 
 ```bash
-jupyter labextension uninstall apache-beam-jupyterlab-sidepanel
-```
-or
-```bash
-pip uninstall apache-beam-jupyterlab-sidepanel
+pip uninstall apache_beam_jupyterlab_sidepanel
 ```

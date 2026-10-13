@@ -29,7 +29,11 @@ creating the sources or sinks respectively).
 Also, for programming convenience, instances of TableReference and TableSchema
 have a string representation that can be used for the corresponding arguments:
 
-  - TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.
+  - TableReference can be a PROJECT:DATASET.TABLE, PROJECT.DATASET.TABLE,
+    DATASET.TABLE or, for Lakehouse runtime catalog tables,
+    PROJECT.CATALOG.NAMESPACE.TABLE, which maps to a composite
+    CATALOG.NAMESPACE dataset id. A Lakehouse reference must include the
+    project id.
   - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
     (e.g. 'month:STRING,event_count:INTEGER').
 
@@ -366,10 +370,8 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from typing import Dict
-from typing import List
+from enum import Enum
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import fastavro
@@ -445,6 +447,7 @@ except ImportError:
 __all__ = [
     'TableRowJsonCoder',
     'BigQueryDisposition',
+    'BigQuerySchemaUpdateOption',
     'BigQuerySource',
     'BigQuerySink',
     'BigQueryQueryPriority',
@@ -485,6 +488,35 @@ Note: The actual limit is 10MB, but we set it to 9MB to make room for request
 overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 << 20
+
+_SCHEMA_UPDATE_OPTIONS = 'schemaUpdateOptions'
+
+
+def _merge_schema_update_options(
+    additional_bq_parameters, schema_update_options):
+  additional_bq_parameters = dict(additional_bq_parameters or {})
+  if _SCHEMA_UPDATE_OPTIONS in additional_bq_parameters:
+    raise ValueError(
+        '%s can be set with either schema_update_options or '
+        'additional_bq_parameters, but not both.' % _SCHEMA_UPDATE_OPTIONS)
+  additional_bq_parameters[_SCHEMA_UPDATE_OPTIONS] = schema_update_options
+  return additional_bq_parameters
+
+
+class _AdditionalBQParametersWithSchemaUpdateOptions(object):
+  def __init__(self, additional_bq_parameters, schema_update_options):
+    self.additional_bq_parameters = additional_bq_parameters
+    self.schema_update_options = schema_update_options
+
+  def __call__(self, destination):
+    if callable(self.additional_bq_parameters):
+      additional_bq_parameters = self.additional_bq_parameters(destination)
+    elif isinstance(self.additional_bq_parameters, vp.ValueProvider):
+      additional_bq_parameters = self.additional_bq_parameters.get()
+    else:
+      additional_bq_parameters = self.additional_bq_parameters
+    return _merge_schema_update_options(
+        additional_bq_parameters, self.schema_update_options)
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -583,6 +615,32 @@ class BigQueryDisposition(object):
     return disposition
 
 
+class BigQuerySchemaUpdateOption(str, Enum):
+  """Enum holding standard strings used for schema update options."""
+
+  ALLOW_FIELD_ADDITION = 'ALLOW_FIELD_ADDITION'
+  ALLOW_FIELD_RELAXATION = 'ALLOW_FIELD_RELAXATION'
+
+  @staticmethod
+  def validate(options):
+    if options is None:
+      return None
+    if not isinstance(options, list):
+      raise ValueError(
+          'schema_update_options must be a list. Received %s.' %
+          type(options).__name__)
+    values = tuple(option.value for option in BigQuerySchemaUpdateOption)
+    validated_options = []
+    for option in options:
+      try:
+        validated_options.append(BigQuerySchemaUpdateOption(option).value)
+      except ValueError:
+        raise ValueError(
+            'Invalid schema update option %s. Expecting %s' %
+            (option, values)) from None
+    return validated_options
+
+
 class BigQueryQueryPriority(object):
   """Class holding standard strings used for query priority."""
 
@@ -638,7 +696,7 @@ def _BigQuerySource(*args, **kwargs):
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
-  paths: List[str]
+  paths: list[str]
 
 
 class _CustomBigQuerySource(BoundedSource):
@@ -735,6 +793,10 @@ class _CustomBigQuerySource(BoundedSource):
         table_ref.projectId = self._get_project()
       table = bq.get_table(
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+      if table.numBytes is None:
+        # Some tables don't report storage statistics, e.g. Lakehouse runtime
+        # catalog tables.
+        return None
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
       project = self._get_project()
@@ -975,12 +1037,12 @@ class _CustomBigQueryStorageSource(BoundedSource):
       dataset: Optional[str] = None,
       project: Optional[str] = None,
       query: Optional[str] = None,
-      selected_fields: Optional[List[str]] = None,
+      selected_fields: Optional[list[str]] = None,
       row_restriction: Optional[str] = None,
       pipeline_options: Optional[GoogleCloudOptions] = None,
       unique_id: Optional[uuid.UUID] = None,
-      bigquery_job_labels: Optional[Dict] = None,
-      bigquery_dataset_labels: Optional[Dict] = None,
+      bigquery_job_labels: Optional[dict] = None,
+      bigquery_dataset_labels: Optional[dict] = None,
       job_name: Optional[str] = None,
       step_name: Optional[str] = None,
       use_standard_sql: Optional[bool] = False,
@@ -1057,7 +1119,23 @@ class _CustomBigQueryStorageSource(BoundedSource):
         if table_reference.projectId else self._get_parent_project())
     table = bq.get_table(
         project, table_reference.datasetId, table_reference.tableId)
+    # None for tables that don't report storage statistics, e.g. Lakehouse
+    # runtime catalog tables.
     return table.numBytes
+
+  def _get_stream_count(self, bq, desired_bundle_size):
+    """Number of streams to request; 0 lets the Storage Read API decide."""
+    table_size = self._get_table_size(bq, self.table_reference)
+    if table_size is None:
+      # A table that reports no size, e.g. a Lakehouse runtime catalog table,
+      # cannot be split by size.
+      return 0
+    stream_count = 0
+    if desired_bundle_size > 0:
+      stream_count = min(
+          int(table_size / desired_bundle_size),
+          _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
+    return max(stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -1071,7 +1149,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
-    _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
         self._get_parent_project(),
         location,
@@ -1202,14 +1279,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
         requested_session.read_options.row_restriction = self.row_restriction
 
       storage_client = bq_storage.BigQueryReadClient()
-      stream_count = 0
-      if desired_bundle_size > 0:
-        table_size = self._get_table_size(bq, self.table_reference)
-        stream_count = min(
-            int(table_size / desired_bundle_size),
-            _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
-      stream_count = max(
-          stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
+      stream_count = self._get_stream_count(bq, desired_bundle_size)
 
       parent = 'projects/{}'.format(self.table_reference.projectId)
       read_session = storage_client.create_read_session(
@@ -1570,12 +1640,6 @@ class BigQueryWriteFn(DoFn):
         minimum_logging_frequency_msec
     ) = self.streaming_api_logging_frequency_sec * 1000
 
-    self._backoff_calculator = iter(
-        retry.FuzzedExponentialIntervals(
-            initial_delay_secs=0.2,
-            num_retries=self._max_retries,
-            max_delay_secs=1500))
-
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
@@ -1607,7 +1671,7 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
-  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+  def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
     """Returns error string when the row estimated size is too big"""
     row_byte_size = get_deep_size(row_and_insert_id)
 
@@ -1754,6 +1818,12 @@ class BigQueryWriteFn(DoFn):
     else:
       insert_ids = [r[1] for r in rows_and_insert_ids]
 
+    backoff_calculator = iter(
+        retry.FuzzedExponentialIntervals(
+            initial_delay_secs=0.2,
+            num_retries=self._max_retries,
+            max_delay_secs=1500))
+
     while True:
       start = time.time()
       passed, errors = self.bigquery_wrapper.insert_rows(
@@ -1770,7 +1840,7 @@ class BigQueryWriteFn(DoFn):
           rows[entry['index']], entry["errors"], window_values[entry['index']])
                      for entry in errors]
       failed_insert_ids = [insert_ids[entry['index']] for entry in errors]
-      retry_backoff = next(self._backoff_calculator, None)
+      retry_backoff = next(backoff_calculator, None)
 
       # If retry_backoff is None, then we will not retry and must log.
       should_retry = any(
@@ -2007,9 +2077,11 @@ class WriteToBigQuery(PTransform):
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
+      primary_key: list[str] = None,
       expansion_service=None,
-      big_lake_configuration=None):
+      big_lake_configuration=None,
+      type_overrides=None,
+      schema_update_options=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2110,6 +2182,14 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         These can be 'timePartitioning', 'clustering', etc. They are passed
         directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+      schema_update_options (list): Allows the schema of the destination
+        table to be updated as a side effect of the load job. Each item may be
+        a :class:`BigQuerySchemaUpdateOption` member or its string value.
+        Supported values are
+        :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION` and
+        :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION`. This option
+        is only valid for ``FILE_LOADS`` and cannot be specified together with
+        ``schemaUpdateOptions`` in ``additional_bq_parameters``.
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
@@ -2157,8 +2237,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
       num_storage_api_streams: Specifies the number of write streams that the
-        Storage API sink will use. This parameter is only applicable when
-        writing unbounded data.
+        Storage API sink will use.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2178,14 +2257,20 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
-        The argument can be used by passing True and the Beam Rows will be
-        sent as they are to the BigQuery sink which expects a 'record'
-        and 'row_mutation_info' properties.
-        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+        When True, requires ``method=STORAGE_WRITE_API`` and
+        ``use_at_least_once=True``. Each input element must contain ``record``
+        and ``row_mutation_info`` properties. The latter must contain the
+        required string properties ``mutation_type`` (``UPSERT`` or
+        ``DELETE``) and ``change_sequence_number``.
       primary_key: When using CDC write on BigQuery and
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
         STORAGE_WRITE_API, working on 'at least once' mode.
+      type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
+        to Python types. These override the default type mappings when
+        converting BigQuery schemas to Python types for STORAGE_WRITE_API.
+        For example: ``{'DATE': datetime.date, 'JSON': dict}``.
+        Default mappings include STRING->str, INT64->np.int64, etc.
     """
     self._table = table
     self._dataset = dataset
@@ -2220,6 +2305,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
+    self.schema_update_options = BigQuerySchemaUpdateOption.validate(
+        schema_update_options)
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
@@ -2231,6 +2318,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
     self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2249,6 +2337,16 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     else:
       return self.method
 
+  def _additional_bq_parameters_for_file_loads(self):
+    if self.schema_update_options is None:
+      return self.additional_bq_parameters
+    if (callable(self.additional_bq_parameters) or
+        isinstance(self.additional_bq_parameters, vp.ValueProvider)):
+      return _AdditionalBQParametersWithSchemaUpdateOptions(
+          self.additional_bq_parameters, self.schema_update_options)
+    return _merge_schema_update_options(
+        self.additional_bq_parameters, self.schema_update_options)
+
   def expand(self, pcoll):
     p = pcoll.pipeline
 
@@ -2266,6 +2364,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
     experiments = p.options.view_as(DebugOptions).experiments or []
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
+
+    if (self.schema_update_options is not None and
+        method_to_use != WriteToBigQuery.Method.FILE_LOADS):
+      raise ValueError(
+          'schema_update_options is only supported when writing to BigQuery '
+          'with FILE_LOADS.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       if self.schema == SCHEMA_AUTODETECT:
@@ -2366,7 +2470,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           test_client=self.test_client,
           table_side_inputs=self.table_side_inputs,
           schema_side_inputs=self.schema_side_inputs,
-          additional_bq_parameters=self.additional_bq_parameters,
+          additional_bq_parameters=(
+              self._additional_bq_parameters_for_file_loads()),
           validate=self._validate,
           is_streaming_pipeline=is_streaming_pipeline,
           load_job_project_id=self.load_job_project_id)
@@ -2395,7 +2500,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
           big_lake_configuration=self._big_lake_configuration,
-          expansion_service=self.expansion_service)
+          expansion_service=self.expansion_service,
+          type_overrides=self._type_overrides)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2444,6 +2550,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'method': self.method,
         'insert_retry_strategy': self.insert_retry_strategy,
         'additional_bq_parameters': self.additional_bq_parameters,
+        'schema_update_options': self.schema_update_options,
         'table_side_inputs': table_side_inputs,
         'schema_side_inputs': schema_side_inputs,
         'triggering_frequency': self.triggering_frequency,
@@ -2488,13 +2595,13 @@ class WriteResult:
   def __init__(
       self,
       method: str = None,
-      destination_load_jobid_pairs: PCollection[Tuple[str,
+      destination_load_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
-      destination_copy_jobid_pairs: PCollection[Tuple[str,
+      destination_file_pairs: PCollection[tuple[str, tuple[str, int]]] = None,
+      destination_copy_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      failed_rows: PCollection[Tuple[str, dict]] = None,
-      failed_rows_with_errors: PCollection[Tuple[str, dict, list]] = None):
+      failed_rows: PCollection[tuple[str, dict]] = None,
+      failed_rows_with_errors: PCollection[tuple[str, dict, list]] = None):
 
     self._method = method
     self._destination_load_jobid_pairs = destination_load_jobid_pairs
@@ -2525,7 +2632,7 @@ class WriteResult:
 
   @property
   def destination_load_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2539,7 +2646,7 @@ class WriteResult:
     return self._destination_load_jobid_pairs
 
   @property
-  def destination_file_pairs(self) -> PCollection[Tuple[str, Tuple[str, int]]]:
+  def destination_file_pairs(self) -> PCollection[tuple[str, tuple[str, int]]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations along with the
@@ -2553,7 +2660,7 @@ class WriteResult:
 
   @property
   def destination_copy_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2567,7 +2674,7 @@ class WriteResult:
     return self._destination_copy_jobid_pairs
 
   @property
-  def failed_rows(self) -> PCollection[Tuple[str, dict]]:
+  def failed_rows(self) -> PCollection[tuple[str, dict]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
@@ -2583,7 +2690,7 @@ class WriteResult:
     return self._failed_rows
 
   @property
-  def failed_rows_with_errors(self) -> PCollection[Tuple[str, dict, list]]:
+  def failed_rows_with_errors(self) -> PCollection[tuple[str, dict, list]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns:
@@ -2642,9 +2749,10 @@ class StorageWriteToBigQuery(PTransform):
       with_auto_sharding=False,
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
+      primary_key: list[str] = None,
       big_lake_configuration=None,
-      expansion_service=None):
+      expansion_service=None,
+      type_overrides=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
     self._schema = schema
@@ -2658,6 +2766,7 @@ class StorageWriteToBigQuery(PTransform):
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
     self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2691,7 +2800,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False).with_output_types())
+                schema, False, self._type_overrides).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2723,7 +2832,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True).with_output_types())
+                schema, True, self._type_overrides).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2791,9 +2900,10 @@ class StorageWriteToBigQuery(PTransform):
       pass
 
   class ConvertToBeamRows(PTransform):
-    def __init__(self, schema, dynamic_destinations):
+    def __init__(self, schema, dynamic_destinations, type_overrides=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
+      self.type_overrides = type_overrides
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
@@ -2819,7 +2929,7 @@ class StorageWriteToBigQuery(PTransform):
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-          self.schema)
+          self.schema, self.type_overrides)
       if self.dynamic_destinations:
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
@@ -2859,10 +2969,13 @@ class ReadFromBigQuery(PTransform):
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. If dataset argument is :data:`None` then the table
       argument must contain the entire table reference specified as:
-      ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``. If it's a callable,
-      it must receive one argument representing an element to be written to
-      BigQuery, and return a TableReference, or a string table name as specified
-      above.
+      ``'DATASET.TABLE'``, ``'PROJECT:DATASET.TABLE'``,
+      ``'PROJECT.DATASET.TABLE'`` or, for Lakehouse runtime catalog tables,
+      ``'PROJECT.CATALOG.NAMESPACE.TABLE'``. A Lakehouse reference must
+      include the project id.
+      If it's a callable, it must receive one argument representing an element
+      to be written to BigQuery, and return a TableReference, or a string table
+      name as specified above.
     dataset (str): The ID of the dataset containing this table or
       :data:`None` if the table reference is specified entirely by the table
       argument.
@@ -2930,6 +3043,13 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    query_output_schema: Required when output_type is 'BEAM_ROW' and a query
+      is specified. A BigQuery schema describing the query result columns,
+      since the schema cannot be auto-derived from an existing table when
+      using a query. Accepts the same formats as WriteToBigQuery's schema
+      parameter: a dict like
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``,
+      a JSON string, or a TableSchema object.
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2945,10 +3065,12 @@ class ReadFromBigQuery(PTransform):
       output_type=None,
       timeout=None,
       *args,
+      query_output_schema=None,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
     self.output_type = output_type
+    self.query_output_schema = query_output_schema
     self._args = args
     self._kwargs = kwargs
     if timeout is not None:
@@ -2972,9 +3094,15 @@ class ReadFromBigQuery(PTransform):
 
     if self.output_type == 'BEAM_ROW' and self._kwargs.get('query',
                                                            None) is not None:
-      raise ValueError(
-          "Both a query and an output type of 'BEAM_ROW' were specified. "
-          "'BEAM_ROW' is not currently supported with queries.")
+      if self.query_output_schema is None:
+        raise ValueError(
+            "Both a query and an output type of 'BEAM_ROW' were specified "
+            "without a query_output_schema. When using a query, you must "
+            "provide query_output_schema so the output schema can be "
+            "determined without reading an existing table. The schema should "
+            "be a BigQuery schema dict, e.g. "
+            "{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}"
+            ", ...]}, or a TableSchema object.")
 
     self.gcs_location = gcs_location
     self.bigquery_dataset_labels = {
@@ -2997,6 +3125,11 @@ class ReadFromBigQuery(PTransform):
     if self.output_type == 'PYTHON_DICT' or self.output_type is None:
       return output_pcollection
     elif self.output_type == 'BEAM_ROW':
+      if self._kwargs.get('query', None) is not None:
+        user_schema = bigquery_tools.get_dict_table_schema(
+            self.query_output_schema)
+        return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+            user_schema, self._kwargs.get('selected_fields', None))
       table_details = bigquery_tools.parse_table_reference(
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),
@@ -3180,7 +3313,7 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None,
+      bigquery_job_labels: dict[str, str] = None,
       query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):

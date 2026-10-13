@@ -37,9 +37,7 @@ import sys
 import threading
 import time
 import traceback
-from typing import Dict
 from typing import Optional
-from typing import Tuple
 
 import grpc
 
@@ -47,6 +45,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.sentinel import Sentinel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +82,8 @@ class BeamFnExternalWorkerPoolServicer(
     self._container_executable = container_executable
     self._state_cache_size = state_cache_size
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
-    self._worker_processes: Dict[str, subprocess.Popen] = {}
+    self._worker_processes: dict[str, subprocess.Popen] = {}
+    self._worker_threads: dict[str, sdk_worker.SdkHarness] = {}
 
   @classmethod
   def start(
@@ -92,7 +92,7 @@ class BeamFnExternalWorkerPoolServicer(
       port=0,
       state_cache_size=0,
       data_buffer_time_limit_ms=-1,
-      container_executable: Optional[str] = None) -> Tuple[str, grpc.Server]:
+      container_executable: Optional[str] = None) -> tuple[str, grpc.Server]:
     options = [("grpc.http2.max_pings_without_data", 0),
                ("grpc.http2.max_ping_strikes", 0)]
     worker_server = grpc.server(
@@ -168,6 +168,7 @@ class BeamFnExternalWorkerPoolServicer(
             worker_id=start_worker_request.worker_id,
             state_cache_size=self._state_cache_size,
             data_buffer_time_limit_ms=self._data_buffer_time_limit_ms)
+        self._worker_threads[start_worker_request.worker_id] = worker
         worker_thread = threading.Thread(
             name='run_worker_%s' % start_worker_request.worker_id,
             target=worker.run)
@@ -189,6 +190,14 @@ class BeamFnExternalWorkerPoolServicer(
     if worker_process:
       _LOGGER.info("Stopping worker %s" % stop_worker_request.worker_id)
       kill_process_gracefully(worker_process)
+
+    # applicable for thread mode to ensure thread cleanup by
+    # unblocking the harness request stream.
+    worker_thread_harness = self._worker_threads.pop(
+        stop_worker_request.worker_id, None)
+    if worker_thread_harness:
+      _LOGGER.info("Stopping thread worker %s" % stop_worker_request.worker_id)
+      worker_thread_harness._responses.put(Sentinel.sentinel)
 
     return beam_fn_api_pb2.StopWorkerResponse()
 

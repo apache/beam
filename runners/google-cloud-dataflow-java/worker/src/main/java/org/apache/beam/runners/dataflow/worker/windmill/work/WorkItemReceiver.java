@@ -33,5 +33,6 @@ public interface WorkItemReceiver {
       boolean drainMode,
       Windmill.WorkItem workItem,
       long serializedWorkItemSize,
+      ImmutableList<Long> appliedFinalizeIds,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

@@ -15,11 +15,9 @@
 
 name: PreCommit Python Coverage
 on:
-  pull_request_target:
+  pull_request:
     branches: [ "master", "release-*" ]
     paths: [ "model/**", "sdks/python/**", "sdks/go/pkg/beam/runners/prism/**", "release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Coverage.json']
-  issue_comment:
-    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
@@ -28,7 +26,7 @@ on:
     - cron: '45 2/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -46,7 +44,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -58,81 +56,46 @@ env:
 
 jobs:
   beam_PreCommit_Python_Coverage:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.job_name }} (${{ matrix.python_version }})
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
-        job_phrase: [Run Python_Coverage PreCommit]
-        python_version: ['3.10']
-        # Run on both self-hosted and GitHub-hosted runners.
-        # Some tests (marked require_docker_in_docker) can't run on Beam's
-        # self-hosted runners due to Docker-in-Docker environment constraint.
-        # These tests will only execute on ubuntu-latest (GitHub-hosted).
-        # Context: https://github.com/apache/beam/pull/35585
-        os: [[self-hosted, ubuntu-20.04, highmem], [ubuntu-latest]]
+        python_version: ['3.11']
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      startswith(github.event.comment.body, 'Run Python_Coverage PreCommit 3.')
+      github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }}) (${{ join(matrix.os, ', ') }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
           python-version: ${{ matrix.python_version }}
-      - name: Start DinD
-        uses: ./.github/actions/dind-up-action
-        id: dind
-        if: contains(matrix.os, 'self-hosted')
-        with:
-          # Pin to stable Docker version to avoid compatibility issues
-          dind-image: "docker:27-dind"
-          # Enable all the new features
-          cleanup-dind-on-start: "true"
-          smoke-test-port-mapping: "true"
-          prime-testcontainers: "true"
-          tmpfs-run-size: 2g
-          tmpfs-varrun-size: 4g
-          export-gh-env: "true"
       - name: Run preCommitPyCoverage
         env:
-          DOCKER_HOST: ${{ contains(matrix.os, 'self-hosted') && steps.dind.outputs.docker-host || '' }}
           TOX_TESTENV_PASSENV: "DOCKER_*,TESTCONTAINERS_*,TC_*,BEAM_*,GRPC_*,OMP_*,OPENBLAS_*,PYTHONHASHSEED,PYTEST_*"
-          TESTCONTAINERS_HOST_OVERRIDE: ${{ contains(matrix.os, 'self-hosted') && env.DIND_IP || '' }}
-          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/var/run/docker.sock"
-          TESTCONTAINERS_RYUK_DISABLED: "false"
-          TESTCONTAINERS_RYUK_CONTAINER_PRIVILEGED: "true"
           PYTEST_ADDOPTS: "-v --tb=short --maxfail=3 --durations=20 --reruns=2 --reruns-delay=5"
           TC_TIMEOUT: "120"
           TC_MAX_TRIES: "120"
           TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py310:preCommitPyCoverage
-          arguments: |
-            -Pposargs="${{
-              contains(matrix.os, 'self-hosted') &&
-                '-m (not require_docker_in_docker)' ||
-                '-m require_docker_in_docker'
-            }}"
-      - uses: codecov/codecov-action@v3
+          gradle-command: :sdks:python:test-suites:tox:py311:preCommitPyCoverage
+      - uses: codecov/codecov-action@v7
         with:
           flags: python
           directory: sdks/python
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})
@@ -143,8 +106,9 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          commit: '${{ env.GITHUB_SHA }}'
+          comment_mode: 'off'
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/pytest*.xml'
           large_files: true
           check_name: "Python ${{ matrix.python_version }} Test Results (${{ join(matrix.os, ', ') }})"

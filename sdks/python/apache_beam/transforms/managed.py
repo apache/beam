@@ -88,8 +88,18 @@ BIGQUERY = "bigquery"
 POSTGRES = "postgres"
 MYSQL = "mysql"
 SQL_SERVER = "sqlserver"
+DELTA = "delta"
+DELTA_CDC = "delta_cdc"
 
-__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
+__all__ = [
+    "ICEBERG",
+    "KAFKA",
+    "BIGQUERY",
+    "DELTA",
+    "DELTA_CDC",
+    "Read",
+    "Write",
+]
 
 
 class Read(PTransform):
@@ -102,6 +112,8 @@ class Read(PTransform):
       POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,
       MYSQL: ManagedTransforms.Urns.MYSQL_READ.urn,
       SQL_SERVER: ManagedTransforms.Urns.SQL_SERVER_READ.urn,
+      DELTA: ManagedTransforms.Urns.DELTA_LAKE_READ.urn,
+      DELTA_CDC: ManagedTransforms.Urns.DELTA_LAKE_CDC_READ.urn,
   }
 
   def __init__(

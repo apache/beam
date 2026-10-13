@@ -1388,6 +1388,15 @@ class TextSourceTest(unittest.TestCase):
     self._run_read_test(
         file_name, expected_data, delimiter=b'*|', escapechar=b'\\')
 
+  def test_read_escaped_delimiter_followed_by_delimiter(self):
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file(lines=[b'li\\\n\nne\n'])
+      self._run_read_test(file_name, ['li\\\n', 'ne'], escapechar=b'\\')
+
+      file_name = tempdir.create_temp_file(lines=[b'li\\*|*|ne*|'])
+      self._run_read_test(
+          file_name, ['li\\*|', 'ne'], delimiter=b'*|', escapechar=b'\\')
+
   def test_read_escaped_lf_at_buffer_edge(self):
     file_name, expected_data = write_data(3, eol=EOL.LF, line_value=b'line\\\n')
     assert len(expected_data) == 3
@@ -1677,9 +1686,10 @@ class TextSinkTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       footer_text = 'footer'
       pcoll = pipeline | beam.core.Create(self.lines)
-      pcoll | 'Write' >> WriteToText(   # pylint: disable=expression-not-assigned
-        self.path,
-        footer=footer_text)
+      pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
+          self.path,
+          shard_name_template='',
+          footer=footer_text)
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):

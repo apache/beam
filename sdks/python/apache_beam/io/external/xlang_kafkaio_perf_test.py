@@ -17,7 +17,6 @@
 
 import logging
 import sys
-import typing
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -78,7 +77,7 @@ class _KafkaIOBatchWritePerfTest(LoadTest):
         self.pipeline
         | 'Generate records' >> iobase.Read(
             SyntheticSource(self.parse_synthetic_source_options())) \
-            .with_output_types(typing.Tuple[bytes, bytes])
+            .with_output_types(tuple[bytes, bytes])
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Avoid Fusion' >> Reshuffle()
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))

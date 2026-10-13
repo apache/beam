@@ -120,27 +120,27 @@ public class OrderedEventProcessorResult<KeyT, ResultT, EventT> implements POutp
       String transformName, PInput input, PTransform<?, ?> transform) {}
 
   /**
-   * @return processing status for a particular key. The elements will have the timestamp of the
-   *     instant the status was emitted.
+   * Returns processing status for a particular key. The elements will have the timestamp of the
+   * instant the status was emitted.
    */
   public PCollection<KV<KeyT, OrderedProcessingStatus>> processingStatuses() {
     return eventProcessingStatusPCollection;
   }
 
-  /** @return processed states keyed by the original key */
+  /** Returns processed states keyed by the original key. */
   public PCollection<KV<KeyT, ResultT>> output() {
     return outputPCollection;
   }
 
-  /** @return events which failed to process, including the reasons for failure. */
+  /** Returns events which failed to process, including the reasons for failure. */
   public PCollection<KV<KeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEvents() {
     return unprocessedEventPCollection;
   }
 
   /**
-   * @return a view to a calculated side input with the last contiguous range. Note: an iterator is
-   *     returned instead of a single value. Use {@link
-   *     ContiguousSequenceRange#largestRange(Iterable)} to get the largest range.
+   * Returns a view to a calculated side input with the last contiguous range. Note: an iterator is
+   * returned instead of a single value. Use {@link ContiguousSequenceRange#largestRange(Iterable)}
+   * to get the largest range.
    */
   public @Nullable PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRange() {
     return latestContiguousRange;

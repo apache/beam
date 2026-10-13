@@ -57,6 +57,7 @@
   transforms:
     MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
     RunInference: 'apache_beam.yaml.yaml_ml.run_inference'
+    MatchAll: 'apache_beam.yaml.yaml_io.match_all'
 
 - type: renaming
   transforms:

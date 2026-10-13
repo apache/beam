@@ -28,7 +28,6 @@ import threading
 import time
 import traceback
 from typing import Any
-from typing import List
 from typing import Mapping
 from typing import Optional
 
@@ -248,7 +247,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
-    self._state_queues: List[queue.Queue] = []
+    self._state_queues: list[queue.Queue] = []
     self._log_queues = JobLogQueues()
     self.daemon = True
     self.result = None
@@ -374,7 +373,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 class JobLogQueues(object):
   def __init__(self):
-    self._queues: List[queue.Queue] = []
+    self._queues: list[queue.Queue] = []
     self._cache = []
     self._cache_size = 10
     self._lock = threading.Lock()
@@ -455,7 +454,7 @@ class JobLogHandler(logging.Handler):
 
 def _extract_dependency_sets(
     envs: Mapping[str, beam_runner_api_pb2.Environment]
-) -> Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]:
+) -> Mapping[Any, list[beam_runner_api_pb2.ArtifactInformation]]:
   """Expands the set of environments into a mapping of (opaque) keys to
   dependency sets.  This is not 1:1 in the case of AnyOf environments.
 
@@ -472,7 +471,7 @@ def _extract_dependency_sets(
 
 def _update_dependency_sets(
     envs: Mapping[str, beam_runner_api_pb2.Environment],
-    resolved_deps: Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]):
+    resolved_deps: Mapping[Any, list[beam_runner_api_pb2.ArtifactInformation]]):
   """Takes the mapping of beam Environments (originally passed to
   `_extract_dependency_sets`) and a set of (key-wise) updated dependencies,
   and updates the original environment protos to contain the updated

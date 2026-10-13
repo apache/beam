@@ -16,6 +16,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"os"
@@ -52,23 +53,59 @@ func NewBufferedLoggerWithFlushInterval(ctx context.Context, logger *Logger, int
 	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: interval, periodicFlushContext: ctx, now: time.Now}
 }
 
-// Write implements the io.Writer interface, converting input to a string
-// and storing it in the BufferedLogger's buffer. If a logger is not provided,
-// the output is sent directly to os.Stderr.
+// Write implements the io.Writer interface. It buffers byte streams line-by-line
+// into memory and flushes periodically or upon calling Flush(), FlushAtError(), or
+// FlushAtDebug(). It is used primarily to redirect stdout/stderr of subprocesses or
+// standard Go log output. If a logger is not provided, the output is sent directly to os.Stderr.
 func (b *BufferedLogger) Write(p []byte) (int, error) {
 	if b.logger == nil {
 		return os.Stderr.Write(p)
 	}
-	n, err := b.builder.Write(p)
+
 	if b.logs == nil {
 		b.logs = make([]string, 0, initialLogSize)
 	}
-	b.logs = append(b.logs, b.builder.String())
-	b.builder.Reset()
+
+	start := 0
+	for {
+		// Look for the next newline in the incoming byte slice directly
+		nl := bytes.IndexByte(p[start:], '\n')
+		if nl == -1 {
+			break
+		}
+
+		// Write the segment up to the newline into the builder
+		b.builder.Write(p[start : start+nl])
+
+		// The builder now contains any previous partial line + the current complete segment
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
+
+		start += nl + 1
+	}
+
+	// Buffer any remaining bytes that didn't end in a newline
+	if start < len(p) {
+		b.builder.Write(p[start:])
+	}
+
 	if b.now().Sub(b.lastFlush) > b.flushInterval {
 		b.FlushAtDebug(b.periodicFlushContext)
 	}
-	return n, err
+
+	return len(p), nil
+}
+
+// Flush flushes the contents of the buffer to the logging service.
+// If err is non-nil, it flushes at Error severity; otherwise it flushes at Debug severity.
+// It returns the provided error.
+func (b *BufferedLogger) Flush(ctx context.Context, err error) error {
+	if err != nil {
+		b.FlushAtError(ctx)
+	} else {
+		b.FlushAtDebug(ctx)
+	}
+	return err
 }
 
 // FlushAtError flushes the contents of the buffer to the logging
@@ -76,6 +113,10 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 	if b.logger == nil {
 		return
+	}
+	if b.builder.Len() > 0 {
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
 	}
 	for _, message := range b.logs {
 		b.logger.Errorf(ctx, "%s", message)
@@ -90,6 +131,10 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 	if b.logger == nil {
 		return
 	}
+	if b.builder.Len() > 0 {
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
+	}
 	for _, message := range b.logs {
 		b.logger.Printf(ctx, "%s", message)
 	}
@@ -97,8 +142,9 @@ func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 	b.lastFlush = time.Now()
 }
 
-// Prints directly to the logging service. If the logger is nil, prints directly to the
-// console. Used for the container pre-build workflow.
+// Printf directly writes formatted messages to the underlying logger/service,
+// bypassing line buffering. If the logger is nil, it prints directly to the
+// console. Used for direct informational logs and the container pre-build workflow.
 func (b *BufferedLogger) Printf(ctx context.Context, format string, args ...any) {
 	if b.logger == nil {
 		log.Printf(format, args...)

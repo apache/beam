@@ -183,7 +183,7 @@ public class GrowableOffsetRangeTrackerTest {
     tracker.checkDone();
     simpleEstimator.setEstimateRangeEnd(0L);
     Progress currentProgress = tracker.getProgress();
-    assertEquals(Long.MAX_VALUE - 10L, currentProgress.getWorkCompleted(), 0);
+    assertEquals((double) (Long.MAX_VALUE - 10L), currentProgress.getWorkCompleted(), 0);
     assertEquals(0, currentProgress.getWorkRemaining(), 0.001);
   }
 
@@ -197,23 +197,23 @@ public class GrowableOffsetRangeTrackerTest {
 
     simpleEstimator.setEstimateRangeEnd(5L);
     Progress currentProgress = tracker.getProgress();
-    assertEquals(cur - start, currentProgress.getWorkCompleted(), 0.001);
+    assertEquals((double) (cur - start), currentProgress.getWorkCompleted(), 0.001);
     assertEquals(0, currentProgress.getWorkRemaining(), 0.001);
 
     simpleEstimator.setEstimateRangeEnd(35L);
     currentProgress = tracker.getProgress();
-    assertEquals(cur - start, currentProgress.getWorkCompleted(), 0.001);
-    assertEquals(35L - cur, currentProgress.getWorkRemaining(), 0.001);
+    assertEquals((double) (cur - start), currentProgress.getWorkCompleted(), 0.001);
+    assertEquals((double) (35L - cur), currentProgress.getWorkRemaining(), 0.001);
 
     simpleEstimator.setEstimateRangeEnd(25L);
     currentProgress = tracker.getProgress();
-    assertEquals(cur - start, currentProgress.getWorkCompleted(), 0.001);
-    assertEquals(25L - cur, currentProgress.getWorkRemaining(), 0.001);
+    assertEquals((double) (cur - start), currentProgress.getWorkCompleted(), 0.001);
+    assertEquals((double) (25L - cur), currentProgress.getWorkRemaining(), 0.001);
 
     simpleEstimator.setEstimateRangeEnd(Long.MAX_VALUE);
     currentProgress = tracker.getProgress();
-    assertEquals(cur - start, currentProgress.getWorkCompleted(), 0.001);
-    assertEquals(Long.MAX_VALUE - cur, currentProgress.getWorkRemaining(), 0.001);
+    assertEquals((double) (cur - start), currentProgress.getWorkCompleted(), 0.001);
+    assertEquals((double) (Long.MAX_VALUE - cur), currentProgress.getWorkRemaining(), 0.001);
   }
 
   @Test

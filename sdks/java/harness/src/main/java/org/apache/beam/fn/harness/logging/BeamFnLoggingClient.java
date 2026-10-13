@@ -21,6 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,6 +69,12 @@ import org.slf4j.MDC;
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BeamFnLoggingClient implements LoggingClient {
   private static final String ROOT_LOGGER_NAME = "";
   private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
@@ -214,7 +221,8 @@ public class BeamFnLoggingClient implements LoggingClient {
       this.streamPhaser = new AdvancingPhaser(1);
       this.channel = channel;
 
-      BeamFnLoggingGrpc.BeamFnLoggingStub stub = BeamFnLoggingGrpc.newStub(channel);
+      BeamFnLoggingGrpc.BeamFnLoggingStub stub =
+          BeamFnLoggingGrpc.newStub(channel).withWaitForReady();
       this.inboundObserver = new LogControlObserver();
       this.outboundObserver =
           new DirectStreamObserver<BeamFnApi.LogEntry.List>(
@@ -265,6 +273,8 @@ public class BeamFnLoggingClient implements LoggingClient {
             throw new RuntimeException(e);
           }
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         thrown = t;
         throw new RuntimeException(t);

@@ -668,12 +668,16 @@ public class PipelineOptionsFactoryTest {
 
     // Make sure the error message gives actionable details about what
     // annotations were contradictory.
-    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8
+    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8,
+    // and "value=" element name prefix is absent in Java 21+
     expectedException.expectMessage(
         anyOf(
             containsString("Default.String(value=\"abc\")"),
-            containsString("Default.String(value=abc)")));
-    expectedException.expectMessage("Default.Integer(value=1");
+            containsString("Default.String(value=abc)"),
+            containsString("Default.String(\"abc\")"),
+            containsString("Default.String(abc)")));
+    expectedException.expectMessage(
+        anyOf(containsString("Default.Integer(value=1"), containsString("Default.Integer(1")));
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultType.class);
@@ -686,11 +690,19 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithDefault#getObject()], "
-            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithInconsistentDefaultValue#getObject()]].");
+        anyOf(
+            containsString(
+                "Property [object] is marked with contradictory annotations. Found ["
+                    + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithDefault#getObject()], "
+                    + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithInconsistentDefaultValue#getObject()]]."),
+            containsString(
+                "Property [object] is marked with contradictory annotations. Found ["
+                    + "[Default.Integer(1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithDefault#getObject()], "
+                    + "[Default.Integer(0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithInconsistentDefaultValue#getObject()]].")));
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultValue.class);
@@ -703,11 +715,19 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Property [object] is marked with contradictory annotations. Found ["
-            + "[JsonIgnore(value=false) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithInconsistentJsonIgnoreValue#getObject()], "
-            + "[JsonIgnore(value=true) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithJsonIgnore#getObject()]].");
+        anyOf(
+            containsString(
+                "Property [object] is marked with contradictory annotations. Found ["
+                    + "[JsonIgnore(value=false) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithInconsistentJsonIgnoreValue#getObject()], "
+                    + "[JsonIgnore(value=true) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithJsonIgnore#getObject()]]."),
+            containsString(
+                "Property [object] is marked with contradictory annotations. Found ["
+                    + "[JsonIgnore(false) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithInconsistentJsonIgnoreValue#getObject()], "
+                    + "[JsonIgnore(true) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$GetterWithJsonIgnore#getObject()]].")));
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentJsonIgnoreValue.class);
@@ -731,12 +751,16 @@ public class PipelineOptionsFactoryTest {
 
     // Make sure the error message gives actionable details about what annotations were
     // contradictory.
-    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8
+    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8,
+    // and "value=" element name prefix is absent in Java 21+
     expectedException.expectMessage(
         anyOf(
             containsString("Default.String(value=\"abc\")"),
-            containsString("Default.String(value=abc)")));
-    expectedException.expectMessage("Default.Integer(value=0)");
+            containsString("Default.String(value=abc)"),
+            containsString("Default.String(\"abc\")"),
+            containsString("Default.String(abc)")));
+    expectedException.expectMessage(
+        anyOf(containsString("Default.Integer(value=0)"), containsString("Default.Integer(0)")));
 
     // When we attempt to create, we should error at this moment.
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
@@ -1957,7 +1981,8 @@ public class PipelineOptionsFactoryTest {
   }
 
   private static class RegisteredTestRunner extends PipelineRunner<PipelineResult> {
-    public static PipelineRunner<PipelineResult> fromOptions(PipelineOptions options) {
+    public static PipelineRunner<PipelineResult> fromOptions(
+        @SuppressWarnings("unused") PipelineOptions options) {
       return new RegisteredTestRunner();
     }
 
@@ -2174,7 +2199,7 @@ public class PipelineOptionsFactoryTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ComplexType2)) {
         return false;
       }
       ComplexType2 that = (ComplexType2) o;

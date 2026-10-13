@@ -55,8 +55,10 @@ public abstract class SideInputReference {
 
   /** The PTransform that uses this side input. */
   public abstract PTransformNode transform();
+
   /** The local name the referencing PTransform uses to refer to this side input. */
   public abstract String localName();
+
   /** The PCollection that backs this side input. */
   public abstract PCollectionNode collection();
 

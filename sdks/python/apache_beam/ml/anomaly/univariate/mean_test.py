@@ -70,13 +70,13 @@ class LandmarkMeanTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     for _ in range(10):
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       with warnings.catch_warnings(record=False):
         warnings.simplefilter("ignore")
@@ -140,13 +140,13 @@ class SlidingMeanTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     for _ in range(10):
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       t1 = IncSlidingMeanTracker(100)
       t2 = SimpleSlidingMeanTracker(100)

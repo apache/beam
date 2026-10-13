@@ -37,7 +37,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -145,6 +144,7 @@ import org.apache.beam.sdk.util.construction.ModelCoders;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -1070,28 +1070,20 @@ public class ProcessBundleHandlerTest {
                   dataOutput.add(input.getValue());
                 }));
 
-    Mockito.doAnswer(
-            (invocation) ->
-                new BeamFnDataOutboundAggregator(
-                    PipelineOptionsFactory.create(),
-                    invocation.getArgument(1),
-                    new StreamObserver<Elements>() {
-                      @Override
-                      public void onNext(Elements elements) {
-                        for (Timers timer : elements.getTimersList()) {
-                          timerOutput.addAll(elements.getTimersList());
-                        }
-                      }
+    Mockito.when(beamFnDataClient.getOutboundObserver(any(), any()))
+        .thenReturn(
+            new StreamObserver<Elements>() {
+              @Override
+              public void onNext(Elements elements) {
+                timerOutput.addAll(elements.getTimersList());
+              }
 
-                      @Override
-                      public void onError(Throwable throwable) {}
+              @Override
+              public void onError(Throwable throwable) {}
 
-                      @Override
-                      public void onCompleted() {}
-                    },
-                    invocation.getArgument(2)))
-        .when(beamFnDataClient)
-        .createOutboundAggregator(any(), any(), anyBoolean());
+              @Override
+              public void onCompleted() {}
+            });
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -1129,7 +1121,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()
@@ -1248,7 +1241,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     assertThrows(
@@ -1342,7 +1336,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     InstructionResponse.Builder builder =
@@ -1405,7 +1400,7 @@ public class ProcessBundleHandlerTest {
             (invocation) -> {
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(2, CloseableFnDataReceiver.class);
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1417,7 +1412,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any());
+        .registerReceiver(any(), any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1447,8 +1442,8 @@ public class ProcessBundleHandlerTest {
             .build());
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
-    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
+    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any(), any());
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
@@ -1471,7 +1466,7 @@ public class ProcessBundleHandlerTest {
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(2, CloseableFnDataReceiver.class);
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1485,7 +1480,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any());
+        .registerReceiver(any(), any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1522,7 +1517,7 @@ public class ProcessBundleHandlerTest {
                     .build()));
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
     verify(beamFnDataClient).poisonInstructionId(eq("instructionId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
@@ -1846,7 +1841,7 @@ public class ProcessBundleHandlerTest {
                     response =
                         handler.progress(
                             BeamFnApi.InstructionRequest.newBuilder()
-                                .setInstructionId("thread-" + threadId + "-" + (++requestCount))
+                                .setInstructionId("thread-" + threadId + "-" + ++requestCount)
                                 .setProcessBundleProgress(
                                     ProcessBundleProgressRequest.newBuilder()
                                         .setInstructionId("999L")
@@ -1961,7 +1956,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()

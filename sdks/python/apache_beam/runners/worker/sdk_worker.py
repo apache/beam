@@ -36,15 +36,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import DefaultDict
-from typing import Dict
-from typing import FrozenSet
 from typing import Generic
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import MutableMapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -56,9 +52,9 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.runners.common import WorkCancelledException
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
@@ -71,8 +67,7 @@ from apache_beam.utils.sentinel import Sentinel
 from apache_beam.version import __version__ as beam_version
 
 if TYPE_CHECKING:
-  from apache_beam.portability.api import endpoints_pb2
-  from apache_beam.utils.profiler import Profile
+  pass
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -86,7 +81,7 @@ DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
 MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
 # The number of ProcessBundleRequest instruction ids that BundleProcessorCache
 # will remember for failed instructions.
-MAX_FAILED_INSTRUCTIONS = 10000
+MAX_FAILED_INSTRUCTIONS = 1000
 
 # retry on transient UNAVAILABLE grpc error from state channels.
 _GRPC_SERVICE_CONFIG = json.dumps({
@@ -314,6 +309,14 @@ class SdkHarness(object):
     with statesampler.instruction_id(request.instruction_id):
       try:
         response = task()
+      except WorkCancelledException:
+        traceback_string = traceback.format_exc()
+        _LOGGER.info(
+            'Instruction %s cancelled by runner. Original traceback is\n%s\n',
+            request.instruction_id,
+            traceback_string)
+        response = beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=traceback_string)
       except:  # pylint: disable=bare-except
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
@@ -565,7 +568,15 @@ class BundleProcessorCache(object):
     """
     processor = None
     with self._lock:
-      self.failed_instruction_ids[instruction_id] = exception
+      tb_str = "".join(traceback.format_exception(exception))
+      if len(tb_str) > 10240:
+        tb_str = (
+            tb_str[:5000] + "\n... [traceback truncated] ...\n" +
+            tb_str[-5000:])
+      clean_exception = RuntimeError(
+          f"Original Exception: {type(exception).__name__}: {str(exception)[:2000]}\n{tb_str}"
+      )
+      self.failed_instruction_ids[instruction_id] = clean_exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
       if instruction_id in self.active_bundle_processors:
@@ -704,7 +715,8 @@ class SdkWorker(object):
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
-              bundle_processor.process_bundle(instruction_id))
+              bundle_processor.process_bundle(
+                  instruction_id, getattr(request, 'data_stream_id', '')))
           monitoring_infos = bundle_processor.monitoring_infos()
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
@@ -1150,6 +1162,9 @@ class GrpcStateHandler(StateHandler):
         raise RuntimeError()
     response = req_future.get()
     if response.error:
+      if (response.error_reason ==
+          beam_fn_api_pb2.StateResponse.ErrorReason.CANCELLED):
+        raise WorkCancelledException(response.error)
       raise RuntimeError(response.error)
     else:
       return response
@@ -1454,14 +1469,21 @@ class _DeferredCall(_Future[T]):
 
   def get(self, timeout=None):
     # type: (Optional[float]) -> T
-    return self._func(*(arg.get(timeout) for arg in self._args))
+    # List comprehension, not generator: *(gen) causes CPython to build the
+    # argument tuple incrementally via _PyTuple_Resize, which asserts
+    # Py_REFCNT(v)==1. A GC cycle between yields can increment that refcount,
+    # raising SystemError (Objects/tupleobject.c:927). See
+    # https://github.com/python/cpython/issues/127058 (fixed in 3.14.0a3+:
+    # https://github.com/python/cpython/commit/5a23994). *[list] allocates the
+    # tuple once at its final size, avoiding the resize entirely.
+    return self._func(*[arg.get(timeout) for arg in self._args])
 
   def set(self, value):
     # type: (T) -> _Future[T]
     raise NotImplementedError()
 
 
-class KeyedDefaultDict(DefaultDict[_KT, _VT]):
+class KeyedDefaultDict(collections.defaultdict[_KT, _VT]):
   if TYPE_CHECKING:
     # we promise to only use a subset of what DefaultDict can do
     def __init__(self, default_factory):

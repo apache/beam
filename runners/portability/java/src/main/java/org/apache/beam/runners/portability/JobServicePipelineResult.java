@@ -160,7 +160,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   }
 
   private void propagateErrors() {
-    if (terminalState != State.DONE) {
+    if (terminalState != State.DONE && terminalState != State.DRAINED) {
       JobMessagesRequest messageStreamRequest =
           JobMessagesRequest.newBuilder().setJobIdBytes(jobId).build();
       Iterator<JobMessagesResponse> messageStreamIterator =
@@ -196,10 +196,9 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       case UPDATED:
         return State.UPDATED;
       case DRAINING:
-        // TODO: Determine the correct mappings for the states below.
-        return State.UNKNOWN;
+        return State.DRAINING;
       case DRAINED:
-        return State.UNKNOWN;
+        return State.DRAINED;
       case STARTING:
         return State.RUNNING;
       case CANCELLING:

@@ -155,13 +155,17 @@ public class ChildPartitionsRecordAction {
             record.getStartTimestamp(),
             partition.getEndTimestamp(),
             partition.getHeartbeatMillis(),
+            partition.getTvfName(),
             childPartition);
     LOG.debug("[{}] Inserting child partition token {}", partitionToken, childPartitionToken);
     final Boolean insertedRow =
         partitionMetadataDao
             .runInTransaction(
                 transaction -> {
-                  if (transaction.getPartition(childPartitionToken) == null) {
+                  if (transaction.getPartition(
+                          PartitionMetadataDao.composePartitionTokenWithTvfName(
+                              childPartitionToken, partition.getTvfName()))
+                      == null) {
                     transaction.insert(row);
                     return true;
                   } else {
@@ -188,6 +192,7 @@ public class ChildPartitionsRecordAction {
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       long heartbeatMillis,
+      String tvfName,
       ChildPartition childPartition) {
     return PartitionMetadata.newBuilder()
         .setPartitionToken(childPartition.getToken())
@@ -195,6 +200,7 @@ public class ChildPartitionsRecordAction {
         .setStartTimestamp(startTimestamp)
         .setEndTimestamp(endTimestamp)
         .setHeartbeatMillis(heartbeatMillis)
+        .setTvfName(tvfName)
         .setState(CREATED)
         .setWatermark(startTimestamp)
         .build();

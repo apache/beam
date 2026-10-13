@@ -44,7 +44,10 @@ from apache_beam.utils.timestamp import Timestamp
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsio import GcsIO
+  if not GCS_INSTALLED:
+    GcsIO = None
 except ImportError:
   GcsIO = None
 
@@ -563,7 +566,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
   @unittest.skip(
       "Streaming to the Storage Write API sink with autosharding is broken "
-      "with Dataflow Runner V2.")
+      "with Dataflow Portable Runner.")
   def test_streaming_with_auto_sharding(self):
     self.skip_if_not_dataflow_runner()
     table = 'streaming_with_auto_sharding'

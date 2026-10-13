@@ -109,7 +109,7 @@ public class SparkMetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        LOG.warn("Exception caught" + e);
+        LOG.warn("Exception caught", e);
       }
     }
   }

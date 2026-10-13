@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.Clustering;
@@ -28,6 +29,7 @@ import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -102,12 +104,356 @@ public class BigQueryHelpersTest {
   }
 
   @Test
+  public void testTableParsing_lakehouseCatalogDotted() {
+    // 4-part Lakehouse runtime catalog reference: project.catalog.namespace.table. The
+    // catalog+namespace form a composite dataset id, including when the catalog name uses the
+    // GCS-bucket charset (lowercase, digits, dashes).
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.my-bucket-catalog.my_ns.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("my-bucket-catalog.my_ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_lakehouseCatalogColon() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:my-catalog.my_ns.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("my-catalog.my_ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_lakehouseCatalogNoProject() {
+    // Dataset ids may contain characters that project ids may not (e.g. '_'), in which case the
+    // whole prefix is the (composite) dataset id.
+    TableReference ref = BigQueryHelpers.parseTableSpec("my_catalog.my_ns.tbl");
+    assertEquals(null, ref.getProjectId());
+    assertEquals("my_catalog.my_ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_multiLevelNamespace() {
+    // More than four segments: everything between the project and the table becomes the dataset.
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.cat.ns1.ns2.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("cat.ns1.ns2", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_lakehouseWithPartitionDecorator() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.my-catalog.ns.tbl$20260101");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("my-catalog.ns", ref.getDatasetId());
+    assertEquals("tbl$20260101", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_domainScopedProjectPreserved() {
+    // Legacy domain-scoped projects keep their historical binding.
+    TableReference ref = BigQueryHelpers.parseTableSpec("example.com:project:data_set.tbl");
+    assertEquals("example.com:project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+
+    ref = BigQueryHelpers.parseTableSpec("example.com:project.data_set.tbl");
+    assertEquals("example.com:project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_domainScopedProjectWithCompositeDataset() {
+    // With two colons, the last colon is an explicit project terminator, so a domain-scoped
+    // project can address a Lakehouse catalog table: the remainder binds as a composite
+    // dataset.
+    TableReference ref = BigQueryHelpers.parseTableSpec("example.com:project:cat.ns.tbl");
+    assertEquals("example.com:project", ref.getProjectId());
+    assertEquals("cat.ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+
+    // The dotted spelling binds consistently: the first segment after the colon completes the
+    // domain-scoped project id; further middle segments form the composite dataset. (Project
+    // names cannot contain dots, so the pre-fix greedy binding of this string was invalid.)
+    ref = BigQueryHelpers.parseTableSpec("example.com:project.cat.ns.tbl");
+    assertEquals("example.com:project", ref.getProjectId());
+    assertEquals("cat.ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_partitionDecoratorColonForm() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:my-catalog.ns.tbl$20260101");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("my-catalog.ns", ref.getDatasetId());
+    assertEquals("tbl$20260101", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_tableIdSpecialCharacters() {
+    // Table ids may contain spaces, '@', '$', dashes, and unicode letters, none of which
+    // affect segment binding (only '.' and ':' are structural).
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.data_set.my table@x-1");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("my table@x-1", ref.getTableId());
+
+    ref = BigQueryHelpers.parseTableSpec("my-project.my-catalog.ns.ग्राहक");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("my-catalog.ns", ref.getDatasetId());
+    assertEquals("ग्राहक", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_colonFormMultiLevelNamespace() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:cat.ns1.ns2.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("cat.ns1.ns2", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_domainScopedMultiLevelNamespace() {
+    // Single-colon domain-scoped spelling with a multi-level composite dataset: the first
+    // segment after the colon completes the project id; everything else up to the table binds
+    // as the dataset.
+    TableReference ref = BigQueryHelpers.parseTableSpec("example.com:proj.cat.ns1.ns2.tbl");
+    assertEquals("example.com:proj", ref.getProjectId());
+    assertEquals("cat.ns1.ns2", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_consecutiveDotsPreservedInDataset() {
+    // Dataset content is preserved verbatim; degenerate consecutive dots are not collapsed
+    // (the service rejects the invalid dataset id; the parser must not mangle it).
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:a..b.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("a..b", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_trailingDotStaysOnLegacyBinding() {
+    // Degenerate trailing-dot specs pass the character-set gate with the dot inside the dataset
+    // id. They must keep their historical binding; the parser must never produce an empty
+    // dataset id.
+    TableReference ref = BigQueryHelpers.parseTableSpec("pp..t");
+    assertEquals(null, ref.getProjectId());
+    assertEquals("pp.", ref.getDatasetId());
+    assertEquals("t", ref.getTableId());
+
+    ref = BigQueryHelpers.parseTableSpec("google.com:proj..t");
+    assertEquals("google.com", ref.getProjectId());
+    assertEquals("proj.", ref.getDatasetId());
+    assertEquals("t", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_absorptionRequiresProjectCharset() {
+    // The segment absorbed into a domain-scoped project must be legal in the project charset,
+    // exactly what the historical greedy regex could absorb.
+    // '_' and uppercase were never absorbable:
+    TableReference ref = BigQueryHelpers.parseTableSpec("google.com:My_Cat.n.x.t");
+    assertEquals("google.com", ref.getProjectId());
+    assertEquals("My_Cat.n.x", ref.getDatasetId());
+    assertEquals("t", ref.getTableId());
+
+    // ...but a single-character segment was:
+    ref = BigQueryHelpers.parseTableSpec("example.com:a.b.t");
+    assertEquals("example.com:a", ref.getProjectId());
+    assertEquals("b", ref.getDatasetId());
+    assertEquals("t", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_nonProjectLeadingSegmentsFoldIntoDataset() {
+    // Leading segments that cannot be project ids (uppercase, '_', too short, leading '_')
+    // fold into the (composite) dataset with a null project, regardless of depth.
+    String[][] cases = {
+      {"My-Ds.ns.t", "My-Ds.ns"},
+      {"my_cat.a.b.t", "my_cat.a.b"},
+      {"a.c.n.t", "a.c.n"},
+      {"_x.a.b.c.t", "_x.a.b.c"},
+    };
+    for (String[] c : cases) {
+      TableReference ref = BigQueryHelpers.parseTableSpec(c[0]);
+      assertEquals(c[0], null, ref.getProjectId());
+      assertEquals(c[0], c[1], ref.getDatasetId());
+      assertEquals(c[0], "t", ref.getTableId());
+    }
+  }
+
+  @Test
+  public void testTableParsing_domainScopedNoAbsorptionWithoutDottedDataset() {
+    // Dot-less post-colon remainder: nothing to absorb; the pre-colon text alone is the project.
+    TableReference ref = BigQueryHelpers.parseTableSpec("google.com:data_set.tbl");
+    assertEquals("google.com", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_twoColonsDotlessDomain() {
+    // The explicit-terminator rule does not require a dotted (domain-like) project.
+    TableReference ref = BigQueryHelpers.parseTableSpec("p1:x2:data_set.tbl");
+    assertEquals("p1:x2", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+
+    ref = BigQueryHelpers.parseTableSpec("p1:x2:cat.ns.tbl");
+    assertEquals("p1:x2", ref.getProjectId());
+    assertEquals("cat.ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_uppercaseCatalogUnderNormalProject() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project:My_Cat.ns.tbl");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("My_Cat.ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsingError_rejectedForms() {
+    String[] rejected = {
+      "p1:t2", // colon form requires dataset.table
+      "ds.", // empty table
+      ".t", // empty dataset
+      "p1:d2.t3.", // trailing separator
+      "p1::ds.t", // colon cannot follow the separator colon
+      "MyProj:ds.t", // uppercase cannot precede a colon
+      "d1:d2:d3:data_set.tbl", // project ids contain at most one colon, so two is the maximum
+    };
+    for (String spec : rejected) {
+      try {
+        BigQueryHelpers.parseTableSpec(spec);
+        fail("Expected IllegalArgumentException for spec: " + spec);
+      } catch (IllegalArgumentException expected) {
+        // expected
+      }
+    }
+  }
+
+  @Test
+  public void testParseTableSpecIdempotentThroughToTableSpec() {
+    // parse(toTableSpec(parse(s))) == parse(s) for every accepted spec, the string-level
+    // consequence of the round-trip fixed point, covering all rebinding families.
+    String[] specs = {
+      "my-project:data_set.tbl",
+      "my-project.cat.ns.tbl",
+      "my-project:cat.ns.tbl",
+      "my-project:cat.ns1.ns2.tbl",
+      "example.com:proj:cat.ns.tbl",
+      "example.com:proj.cat.ns.tbl",
+      "my_cat.ns.tbl",
+      "my-project:My_Cat.ns.tbl",
+      "my-project:a..b.tbl",
+      "pp..t",
+      "google.com:proj..t",
+      "my-project:data_set.tbl$20260101",
+    };
+    for (String spec : specs) {
+      TableReference once = BigQueryHelpers.parseTableSpec(spec);
+      TableReference twice = BigQueryHelpers.parseTableSpec(BigQueryHelpers.toTableSpec(once));
+      assertEquals(spec, once.getProjectId(), twice.getProjectId());
+      assertEquals(spec, once.getDatasetId(), twice.getDatasetId());
+      assertEquals(spec, once.getTableId(), twice.getTableId());
+    }
+  }
+
+  @Test
+  public void testTableParsingError_colonIsNotATableSeparator() {
+    // The dataset/table separator must be a dot; a spec with no dot at all is rejected even
+    // if it contains colons.
+    thrown.expect(IllegalArgumentException.class);
+    BigQueryHelpers.parseTableSpec("my-project:data_set:tbl");
+  }
+
+  @Test
+  public void testTableParsing_projectlessCatalogSpecIsAmbiguous() {
+    // A project-less catalog reference is indistinguishable from project.dataset.table when the
+    // catalog name fits the project-id charset: the project interpretation wins. Users must
+    // write the full 4-part name (or use a TableReference) for such catalogs; only catalog
+    // names that are illegal as project ids (e.g. containing '_') parse as a composite dataset
+    // with the project left to be defaulted.
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-bucket-catalog.my_ns.tbl");
+    assertEquals("my-bucket-catalog", ref.getProjectId());
+    assertEquals("my_ns", ref.getDatasetId());
+    assertEquals("tbl", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_informationSchema() {
+    // INFORMATION_SCHEMA views ride along with the multi-segment rule: the pseudo-schema folds
+    // into the dataset id. (Neither the Storage Read API nor extract jobs support reading
+    // INFORMATION_SCHEMA views, so this reference form never reaches a table API; pinning the
+    // binding here documents that it at least keeps a valid, undotted project id.)
+    TableReference ref =
+        BigQueryHelpers.parseTableSpec("my-project.data_set.INFORMATION_SCHEMA.TABLES");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set.INFORMATION_SCHEMA", ref.getDatasetId());
+    assertEquals("TABLES", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsing_shortFirstSegmentIsNotAProject() {
+    // A single character cannot be a project id, so the prefix folds into the dataset id
+    // (historical behavior).
+    TableReference ref = BigQueryHelpers.parseTableSpec("a.b.c");
+    assertEquals(null, ref.getProjectId());
+    assertEquals("a.b", ref.getDatasetId());
+    assertEquals("c", ref.getTableId());
+  }
+
+  @Test
+  public void testToTableSpecParseTableSpecRoundTrip() {
+    List<TableReference> refs =
+        Arrays.asList(
+            new TableReference()
+                .setProjectId("my-project")
+                .setDatasetId("data_set")
+                .setTableId("tbl"),
+            new TableReference()
+                .setProjectId("my-project")
+                .setDatasetId("my-catalog.my_ns")
+                .setTableId("tbl"),
+            new TableReference()
+                .setProjectId("example.com:project")
+                .setDatasetId("data_set")
+                .setTableId("tbl"),
+            new TableReference()
+                .setProjectId("example.com:project")
+                .setDatasetId("my-catalog.my_ns")
+                .setTableId("tbl"),
+            new TableReference()
+                .setProjectId("my-project")
+                .setDatasetId("cat.ns1.ns2")
+                .setTableId("tbl"),
+            new TableReference()
+                .setProjectId("my-project")
+                .setDatasetId("my-catalog.ns")
+                .setTableId("tbl$20260101"),
+            new TableReference().setDatasetId("data_set").setTableId("tbl"));
+    for (TableReference ref : refs) {
+      TableReference reparsed = BigQueryHelpers.parseTableSpec(BigQueryHelpers.toTableSpec(ref));
+      assertEquals(BigQueryHelpers.toTableSpec(ref), ref.getProjectId(), reparsed.getProjectId());
+      assertEquals(BigQueryHelpers.toTableSpec(ref), ref.getDatasetId(), reparsed.getDatasetId());
+      assertEquals(BigQueryHelpers.toTableSpec(ref), ref.getTableId(), reparsed.getTableId());
+    }
+  }
+
+  @Test
   public void testTableParsingError0() {
     String expectedMessage =
         "Table specification [foo_bar_baz] is not in one of the expected formats ("
             + " [project_id]:[dataset_id].[table_id],"
             + " [project_id].[dataset_id].[table_id],"
-            + " [dataset_id].[table_id])";
+            + " [dataset_id].[table_id],"
+            + " [project_id]:[catalog_id].[namespace_id].[table_id],"
+            + " [project_id].[catalog_id].[namespace_id].[table_id])";
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);

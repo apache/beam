@@ -40,7 +40,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -245,6 +248,67 @@ public class TransformTranslatorTest implements Serializable {
 
       assertThat(parsed.stream().map(RDDNode::getOperator)).contains("filter");
       assertTrue(parsed.stream().anyMatch(e -> e.getName().contains(tag.getId())));
+    }
+  }
+
+  @Test
+  public void testMultipleOutputParDoWithUnconsumedSideOutputAndSerializationStorageLevel() {
+    Pipeline p = Pipeline.create();
+    TupleTag<String> tag1 = new TupleTag<String>("tag1") {};
+    TupleTag<String> tag2 = new TupleTag<String>("tag2") {};
+    TupleTag<String> tag3 = new TupleTag<String>("tag3") {};
+
+    SparkPipelineOptions options = contextRule.createPipelineOptions();
+    // Force serialization by setting storage level to MEMORY_AND_DISK_SER
+    options.setStorageLevel("MEMORY_AND_DISK_SER");
+
+    TransformTranslator.Translator translator = new TransformTranslator.Translator();
+
+    PTransform<PBegin, PCollection<String>> createTransform = Create.of("foo", "bar");
+
+    PCollectionTuple pCollectionTuple =
+        p.apply("Create Values", createTransform)
+            .apply(
+                "Multiple Output ParDo",
+                ParDo.of(new MultiOutputDoFn(tag1, tag2, tag3))
+                    .withOutputTags(tag1, TupleTagList.of(tag2).and(tag3)));
+
+    // consume tag1 and tag2
+    pCollectionTuple.get(tag1).apply("Count1", Count.globally());
+    pCollectionTuple.get(tag2).apply("Count2", Count.globally());
+
+    p.replaceAll(SparkTransformOverrides.getDefaultOverrides(false));
+
+    EvaluationContext ctxt = new EvaluationContext(contextRule.getSparkContext(), p, options);
+    SparkRunner.initAccumulators(options, ctxt.getSparkContext());
+    SparkRunner.updateDependentTransforms(p, translator, ctxt);
+
+    // This should not throw NullPointerException
+    p.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
+
+    // Also trigger some action on the RDD to ensure serialization happens
+    @SuppressWarnings("unchecked")
+    BoundedDataset<String> dataset =
+        (BoundedDataset<String>) ctxt.borrowDataset(pCollectionTuple.get(tag1));
+    dataset.getRDD().count();
+  }
+
+  private static class MultiOutputDoFn extends DoFn<String, String> {
+    private final TupleTag<String> tag1;
+    private final TupleTag<String> tag2;
+    private final TupleTag<String> tag3;
+
+    MultiOutputDoFn(TupleTag<String> tag1, TupleTag<String> tag2, TupleTag<String> tag3) {
+      this.tag1 = tag1;
+      this.tag2 = tag2;
+      this.tag3 = tag3;
+    }
+
+    @ProcessElement
+    public void process(@Element String input, MultiOutputReceiver outputReceiver) {
+      outputReceiver.get(tag1).output(input);
+      outputReceiver.get(tag2).output(input);
+      outputReceiver.get(tag3).output(input);
     }
   }
 }

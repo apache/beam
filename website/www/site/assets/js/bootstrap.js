@@ -109,7 +109,12 @@ if (typeof jQuery === 'undefined') {
       selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
     }
 
-    var $parent = $(selector)
+    var $parent
+    try {
+      $parent = selector ? $(document).find(selector) : $()
+    } catch (e) {
+      $parent = $()
+    }
 
     if (e) e.preventDefault()
 
@@ -502,7 +507,14 @@ if (typeof jQuery === 'undefined') {
   var clickHandler = function (e) {
     var href
     var $this   = $(this)
-    var $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) // strip for ie7
+    var selector = $this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
+    var $target
+    try {
+      $target = selector ? $(document).find(selector) : $()
+    } catch (e) {
+      $target = $()
+    }
+
     if (!$target.hasClass('carousel')) return
     var options = $.extend({}, $target.data(), $this.data())
     var slideIndex = $this.attr('data-slide-to')
@@ -691,7 +703,11 @@ if (typeof jQuery === 'undefined') {
     var target = $trigger.attr('data-target')
       || (href = $trigger.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
 
-    return $(target)
+    try {
+      return target ? $(document).find(target) : $()
+    } catch (e) {
+      return $()
+    }
   }
 
 
@@ -773,7 +789,12 @@ if (typeof jQuery === 'undefined') {
       selector = selector && /#[A-Za-z]/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
     }
 
-    var $parent = selector && $(selector)
+    var $parent
+    try {
+      $parent = selector && $(document).find(selector)
+    } catch (e) {
+      $parent = $()
+    }
 
     return $parent && $parent.length ? $parent : $this.parent()
   }
@@ -1230,7 +1251,13 @@ if (typeof jQuery === 'undefined') {
   $(document).on('click.bs.modal.data-api', '[data-toggle="modal"]', function (e) {
     var $this   = $(this)
     var href    = $this.attr('href')
-    var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) // strip for ie7
+    var selector = $this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, '')) // strip for ie7
+    var $target
+    try {
+      $target = selector ? $(document).find(selector) : $()
+    } catch (e) {
+      $target = $()
+    }
     var option  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
 
     if ($this.is('a')) e.preventDefault()
@@ -1550,11 +1577,18 @@ if (typeof jQuery === 'undefined') {
       .css(isVertical ? 'top' : 'left', '')
   }
 
+  function sanitizeHtml(string) {
+    if (typeof DOMPurify !== 'undefined' && typeof string === 'string') {
+      return DOMPurify.sanitize(string)
+    }
+    return string
+  }
+
   Tooltip.prototype.setContent = function () {
     var $tip  = this.tip()
     var title = this.getTitle()
 
-    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](this.options.html ? sanitizeHtml(title) : title)
     $tip.removeClass('fade in top bottom left right')
   }
 

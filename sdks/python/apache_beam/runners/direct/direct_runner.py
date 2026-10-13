@@ -250,8 +250,8 @@ K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
@@ -263,8 +263,8 @@ class _GroupByKeyOnly(PTransform):
     return PCollection.from_(pcoll)
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
   def __init__(self, windowing):
@@ -301,8 +301,8 @@ class _GroupAlsoByWindowDoFn(DoFn):
     return self.driver.process_entire_key(k, vs)
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gbko:v0.1"
@@ -318,8 +318,8 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
     return _StreamingGroupByKeyOnly()
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gabw:v0.1"
@@ -338,8 +338,8 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupByKey(PTransform):
   """The DirectRunner GroupByKey implementation."""
   def expand(self, pcoll):

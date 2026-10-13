@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -112,6 +114,13 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   boolean getLogMdc();
 
   void setLogMdc(boolean value);
+
+  @Description(
+      "This option controls if OpenTelemetry trace, spanId and sampled will be appended to log entries. This will allow to stitch traces to logs.")
+  @Default.Boolean(false)
+  boolean getLogOpenTelemetryTraceAndSpanId();
+
+  void setLogOpenTelemetryTraceAndSpanId(boolean value);
 
   /** This option controls whether logging will be redirected through the FnApi. */
   @Description(
@@ -218,7 +227,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
     public @NonNegative Integer create(PipelineOptions options) {
       SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
       return (Integer)
-          checkNotNull(
+          checkStateNotNull(
               InstanceBuilder.ofType(MaxCacheMemoryUsageMb.class)
                   .fromClass(sdkHarnessOptions.getMaxCacheMemoryUsageMbClass())
                   .build()
@@ -289,7 +298,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
      * the {@link Class#getName() class name}.
      */
     public SdkHarnessLogLevelOverrides addOverrideForClass(Class<?> klass, LogLevel logLevel) {
-      checkNotNull(klass, "Expected class to be not null.");
+      checkArgumentNotNull(klass, "Expected class to be not null.");
       addOverrideForName(klass.getName(), logLevel);
       return this;
     }
@@ -301,7 +310,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
      * the {@link Package#getName() package name}.
      */
     public SdkHarnessLogLevelOverrides addOverrideForPackage(Package pkg, LogLevel logLevel) {
-      checkNotNull(pkg, "Expected package to be not null.");
+      checkArgumentNotNull(pkg, "Expected package to be not null.");
       addOverrideForName(pkg.getName(), logLevel);
       return this;
     }
@@ -314,8 +323,8 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
      * in name.
      */
     public SdkHarnessLogLevelOverrides addOverrideForName(String name, LogLevel logLevel) {
-      checkNotNull(name, "Expected name to be not null.");
-      checkNotNull(
+      checkArgumentNotNull(name, "Expected name to be not null.");
+      checkArgumentNotNull(
           logLevel, "Expected logLevel to be one of %s.", Arrays.toString(LogLevel.values()));
       put(name, logLevel);
       return this;
@@ -329,7 +338,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
      */
     @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public static SdkHarnessLogLevelOverrides from(Map<String, String> values) {
-      checkNotNull(values, "Expected values to be not null.");
+      checkArgumentNotNull(values, "Expected values to be not null.");
       SdkHarnessLogLevelOverrides overrides = new SdkHarnessLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
         String module = entry.getKey();
@@ -467,6 +476,29 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setOpenTelemetryProperties(Map<String, String> value);
 
+  static void configureOpenTelemetry(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      if (System.getProperty("otel.service.instance.id") == null) {
+        String instanceId = UUID.randomUUID().toString();
+        System.setProperty("otel.service.instance.id", instanceId);
+      }
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
+    }
+  }
+
   @JsonIgnore
   @Hidden
   @Default.InstanceFactory(GlobalOpenTelemetryFactory.class)
@@ -480,4 +512,10 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       return GlobalOpenTelemetry.get();
     }
   }
+
+  /** The hex-encoded SHA256 hash of the staged portable pipeline proto. */
+  @Description("The hex-encoded SHA256 hash of the staged portable pipeline proto")
+  String getPipelineProtoHash();
+
+  void setPipelineProtoHash(String hash);
 }

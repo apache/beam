@@ -52,8 +52,7 @@ import org.joda.time.Instant;
  * PTransform}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
@@ -173,16 +172,17 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         } else {
           Instant watermark = reader.getWatermark();
           if (watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-            // If the reader had no elements available, but the shard is not done, reuse it later
-            // Might be better to finalize old checkpoint.
+            // If the reader had no elements available, but the shard is not done, reuse it later.
+            // Finalize old checkpoint now.
+            final CheckpointMarkT checkpoint = shard.getCheckpoint();
+            if (checkpoint != null) {
+              checkpoint.finalizeCheckpoint();
+            }
             resultBuilder.addUnprocessedElements(
                 Collections.<WindowedValue<?>>singleton(
                     WindowedValues.timestampedValueInGlobalWindow(
                         UnboundedSourceShard.of(
-                            shard.getSource(),
-                            shard.getDeduplicator(),
-                            reader,
-                            shard.getCheckpoint()),
+                            shard.getSource(), shard.getDeduplicator(), reader, null),
                         watermark)));
           } else {
             // End of input. Close the reader after finalizing old checkpoint.
@@ -238,10 +238,11 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private boolean startReader(
         UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
-      if (shard.getExistingReader() == null) {
+      UnboundedReader<OutputT> existingReader = shard.getExistingReader();
+      if (existingReader == null) {
         return reader.start();
       } else {
-        return shard.getExistingReader().advance();
+        return existingReader.advance();
       }
     }
 
@@ -297,6 +298,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       return of(source, deduplicator, null, null);
     }
 
+    @SuppressWarnings("nullness") // https://github.com/google/auto/issues/1320
     static <T, CheckpointT extends CheckpointMark> UnboundedSourceShard<T, CheckpointT> of(
         UnboundedSource<T, CheckpointT> source,
         UnboundedReadDeduplicator deduplicator,

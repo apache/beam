@@ -469,14 +469,19 @@ public class HistogramData implements Serializable {
   public interface BucketType extends Serializable {
     // Lower bound of a starting bucket.
     double getRangeFrom();
+
     // Upper bound of an ending bucket.
     double getRangeTo();
+
     // The number of buckets.
     int getNumBuckets();
+
     // Get the bucket array index for the given value.
     int getBucketIndex(double value);
+
     // Get the bucket size for the given bucket array index.
     double getBucketSize(int index);
+
     // Get the accumulated bucket size from bucket index 0 until endIndex.
     // Generally, this can be calculated as `sigma(0 <= i < endIndex) getBucketSize(i)`.
     double getAccumulatedBucketSize(int endIndex);
@@ -588,7 +593,7 @@ public class HistogramData implements Serializable {
     }
 
     private int getBucketIndexNegativeScale(int value) {
-      return getBucketIndexZeroScale(value) >> (-getScale());
+      return getBucketIndexZeroScale(value) >> -getScale();
     }
 
     // This method is valid for all 'scale' values but we fallback to more efficient methods for

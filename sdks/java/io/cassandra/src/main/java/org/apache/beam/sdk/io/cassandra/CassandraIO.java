@@ -770,27 +770,20 @@ public class CassandraIO {
     public void validate(PipelineOptions pipelineOptions) {
       checkState(
           hosts() != null,
-          "CassandraIO."
-              + getMutationTypeName()
-              + "() requires a list of hosts to be set via withHosts(hosts)");
+          "CassandraIO.%s() requires a list of hosts to be set via withHosts(hosts)",
+          getMutationTypeName());
       checkState(
           port() != null,
-          "CassandraIO."
-              + getMutationTypeName()
-              + "() requires a "
-              + "valid port number to be set via withPort(port)");
+          "CassandraIO.%s() requires a valid port number to be set via withPort(port)",
+          getMutationTypeName());
       checkState(
           keyspace() != null,
-          "CassandraIO."
-              + getMutationTypeName()
-              + "() requires a keyspace to be set via "
-              + "withKeyspace(keyspace)");
+          "CassandraIO.%s() requires a keyspace to be set via withKeyspace(keyspace)",
+          getMutationTypeName());
       checkState(
           entity() != null,
-          "CassandraIO."
-              + getMutationTypeName()
-              + "() requires an entity to be set via "
-              + "withEntity(entity)");
+          "CassandraIO.%s() requires an entity to be set via withEntity(entity)",
+          getMutationTypeName());
     }
 
     @Override

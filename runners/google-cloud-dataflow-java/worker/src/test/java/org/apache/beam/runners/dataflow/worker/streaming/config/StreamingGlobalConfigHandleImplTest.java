@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.OperationalLimits;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ConnectivityType;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -51,7 +52,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     globalConfigHandle.setConfig(config);
@@ -68,7 +69,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost1")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(true)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     globalConfigHandle.setConfig(updatedConfig);
@@ -91,7 +92,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback1 = new AtomicReference<>();
@@ -128,7 +129,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback1 = new AtomicReference<>();
@@ -165,7 +166,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
@@ -200,7 +201,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
@@ -237,7 +238,7 @@ public class StreamingGlobalConfigHandleImplTest {
                 .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
                 .setUserWorkerJobSettings(
                     UserWorkerRunnerV1Settings.newBuilder()
-                        .setUseSeparateWindmillHeartbeatStreams(false)
+                        .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                         .build())
                 .build();
     globalConfigHandle.registerConfigObserver(
@@ -273,7 +274,7 @@ public class StreamingGlobalConfigHandleImplTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     CopyOnWriteArrayList<StreamingGlobalConfig> configsFromCallback = new CopyOnWriteArrayList<>();

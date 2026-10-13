@@ -17,8 +17,4 @@
  */
 
 /** Benchmarks for core SDK utility classes. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.jmh.util;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

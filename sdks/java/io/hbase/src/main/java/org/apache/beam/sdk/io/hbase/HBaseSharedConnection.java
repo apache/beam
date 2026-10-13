@@ -120,7 +120,7 @@ class HBaseSharedConnection implements Serializable {
 
     // Warn if connection count is not 0 and reset connection count
     if (connectionPool.get(confString).getSecond() < 0) {
-      LOG.warn("Connection count for + " + confString + " at below 0, " + getDebugString());
+      LOG.warn("Connection count for {} at below 0, {}", confString, getDebugString());
       connectionPool.get(confString).setSecond(0);
     }
 

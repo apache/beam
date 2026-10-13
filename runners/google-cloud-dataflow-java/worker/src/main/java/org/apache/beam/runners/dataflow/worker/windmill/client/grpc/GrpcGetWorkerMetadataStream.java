@@ -114,22 +114,10 @@ public final class GrpcGetWorkerMetadataStream
   private Optional<WindmillEndpoints> extractWindmillEndpointsFrom(
       WorkerMetadataResponse response) {
     synchronized (metadataLock) {
-      if (response.getMetadataVersion() > latestResponse.getMetadataVersion()) {
-        this.latestResponse = response;
-        this.latestResponseReceived = Instant.now();
-        return Optional.of(WindmillEndpoints.from(response));
-      } else {
-        // If the currentMetadataVersion is greater than or equal to one in the response, the
-        // response data is stale, and we do not want to do anything.
-        LOG.debug(
-            "Received metadata version={}; Current metadata version={}. "
-                + "Skipping update because received stale metadata",
-            response.getMetadataVersion(),
-            latestResponse.getMetadataVersion());
-      }
+      this.latestResponse = response;
+      this.latestResponseReceived = Instant.now();
+      return Optional.of(WindmillEndpoints.from(response));
     }
-
-    return Optional.empty();
   }
 
   @Override

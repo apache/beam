@@ -121,7 +121,7 @@ public class MetricsReaderTest {
     private final Counter elementCounter = Metrics.counter(NAMESPACE, "counter");
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {
       elementCounter.inc();
     }
   }

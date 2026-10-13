@@ -18,7 +18,6 @@
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -83,7 +82,7 @@ def AnnotateText(
     features: Union[Mapping[str, bool],
                     language_v1.AnnotateTextRequest.Features],
     timeout: Optional[float] = None,
-    metadata: Optional[Sequence[Tuple[str, str]]] = None):
+    metadata: Optional[Sequence[tuple[str, str]]] = None):
   """A :class:`~apache_beam.transforms.ptransform.PTransform`
   for annotating text using the Google Cloud Natural Language API:
   https://cloud.google.com/natural-language/docs.
@@ -113,7 +112,7 @@ class _AnnotateTextFn(beam.DoFn):
       features: Union[Mapping[str, bool],
                       language_v1.AnnotateTextRequest.Features],
       timeout: Optional[float],
-      metadata: Optional[Sequence[Tuple[str, str]]] = None):
+      metadata: Optional[Sequence[tuple[str, str]]] = None):
     self.features = features
     self.timeout = timeout
     self.metadata = metadata

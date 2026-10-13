@@ -50,6 +50,11 @@ public class AfterSynchronizedProcessingTime extends OnceTrigger {
   }
 
   @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
+  }
+
+  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }

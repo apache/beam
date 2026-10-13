@@ -36,7 +36,7 @@ public abstract class PubsubMessagesCheck extends ConditionCheck {
 
   abstract SubscriptionName subscription();
 
-  abstract Integer minMessages();
+  abstract int minMessages();
 
   abstract @Nullable Integer maxMessages();
 
@@ -104,7 +104,7 @@ public abstract class PubsubMessagesCheck extends ConditionCheck {
 
     public abstract Builder setSubscription(SubscriptionName subscription);
 
-    public abstract Builder setMinMessages(Integer minMessages);
+    public abstract Builder setMinMessages(int minMessages);
 
     public abstract Builder setMaxMessages(Integer maxMessages);
 

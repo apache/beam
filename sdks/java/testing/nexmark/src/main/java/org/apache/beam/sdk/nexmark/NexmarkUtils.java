@@ -328,7 +328,7 @@ public class NexmarkUtils {
   @FormatMethod
   public static void info(@FormatString String format, Object... args) {
     if (LOG_INFO) {
-      LOG.info(String.format(format, args));
+      LOG.info("{}", String.format(format, args));
       if (LOG_TO_CONSOLE) {
         System.out.println(String.format(format, args));
       }

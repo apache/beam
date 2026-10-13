@@ -33,7 +33,7 @@ This will compile the Rust code and build a Python package linked to it in the c
 To execute wordcount locally using the direct runner, execute the following from the wordcount_rust directory within the same virtual environment:
 
 ```bash
-python wordcount.py --runner DirectRunner --input * --output counts.txt
+python wordcount_rust.py --runner DirectRunner --input "*" --output counts.txt
 ```
 
 To execute wordcount using the Dataflow runner, the tarball of the PyO3 Rust package must be provided to GCP. This is done by building the tarball then providing it as an `extra_package` argument. The tarball can be built using the following command from the wordcount_rust directory:
@@ -45,7 +45,7 @@ python -m build --sdist
 This places the tarball in `./word_processing/dist` as `word_processing-0.1.0.tar.gz`. Job submission to Dataflow from the `wordcount_rust` directory then looks like the following:
 
 ```bash
-python wordcount.py --runner DataflowRunner --input gs://apache-beam-samples/shakespeare/*.txt --output gs://<YOUR_BUCKET>/wordcount_rust/counts.txt --project <YOUR_PROJECT> --region <YOUR_REGION> --extra_package ./word_processing/dist/word_processing-0.1.0.tar.gz
+python wordcount_rust.py --runner DataflowRunner --input gs://apache-beam-samples/shakespeare/*.txt --output gs://<YOUR_BUCKET>/wordcount_rust/counts.txt --project <YOUR_PROJECT> --region <YOUR_REGION> --extra_package ./word_processing/dist/word_processing-0.1.0.tar.gz
 ```
 
 The job will then execute on Dataflow, installing the Rust package during worker setup. Wordcount will then execute and produce a counts.txt file in the specified output bucket.

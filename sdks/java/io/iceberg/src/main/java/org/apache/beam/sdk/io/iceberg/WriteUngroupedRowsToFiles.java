@@ -34,6 +34,7 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -47,8 +48,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.iceberg.catalog.Catalog;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -74,33 +73,55 @@ class WriteUngroupedRowsToFiles
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final long maxBytesPerFile;
+  private final @Nullable Map<String, String> writeProperties;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   WriteUngroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
-      long maxBytesPerFile) {
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties) {
+    this(catalogConfig, dynamicDestinations, filePrefix, maxBytesPerFile, writeProperties, null);
+  }
+
+  WriteUngroupedRowsToFiles(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix,
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.maxBytesPerFile = maxBytesPerFile;
+    this.writeProperties = writeProperties;
+    this.metadataView = metadataView;
   }
 
   @Override
   public Result expand(PCollection<KV<String, Row>> input) {
 
-    PCollectionTuple resultTuple =
-        input.apply(
-            ParDo.of(
-                    new WriteUngroupedRowsToFilesDoFn(
-                        catalogConfig,
-                        dynamicDestinations,
-                        filePrefix,
-                        DEFAULT_MAX_WRITERS_PER_BUNDLE,
-                        maxBytesPerFile))
-                .withOutputTags(
-                    WRITTEN_FILES_TAG,
-                    TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG))));
+    ParDo.MultiOutput<KV<String, Row>, FileWriteResult> parDo =
+        ParDo.of(
+                new WriteUngroupedRowsToFilesDoFn(
+                    catalogConfig,
+                    dynamicDestinations,
+                    filePrefix,
+                    DEFAULT_MAX_WRITERS_PER_BUNDLE,
+                    maxBytesPerFile,
+                    writeProperties,
+                    metadataView))
+            .withOutputTags(
+                WRITTEN_FILES_TAG,
+                TupleTagList.of(ImmutableList.of(WRITTEN_ROWS_TAG, SPILLED_ROWS_TAG)));
+
+    if (metadataView != null) {
+      parDo = parDo.withSideInputs(metadataView);
+    }
+
+    PCollectionTuple resultTuple = input.apply(parDo);
 
     return new Result(
         input.getPipeline(),
@@ -193,7 +214,8 @@ class WriteUngroupedRowsToFiles
     private final long maxFileSize;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
-    private transient @MonotonicNonNull Catalog catalog;
+    private final @Nullable Map<String, String> writeProperties;
+    private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
     private transient @Nullable RecordWriterManager recordWriterManager;
     private int spilledShardNumber;
 
@@ -202,30 +224,46 @@ class WriteUngroupedRowsToFiles
         DynamicDestinations dynamicDestinations,
         String filename,
         int maximumWritersPerBundle,
-        long maxFileSize) {
+        long maxFileSize,
+        @Nullable Map<String, String> writeProperties) {
+      this(
+          catalogConfig,
+          dynamicDestinations,
+          filename,
+          maximumWritersPerBundle,
+          maxFileSize,
+          writeProperties,
+          null);
+    }
+
+    public WriteUngroupedRowsToFilesDoFn(
+        IcebergCatalogConfig catalogConfig,
+        DynamicDestinations dynamicDestinations,
+        String filename,
+        int maximumWritersPerBundle,
+        long maxFileSize,
+        @Nullable Map<String, String> writeProperties,
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filename = filename;
       this.maxWritersPerBundle = maximumWritersPerBundle;
       this.maxFileSize = maxFileSize;
-    }
-
-    private org.apache.iceberg.catalog.Catalog getCatalog() {
-      if (catalog == null) {
-        this.catalog = catalogConfig.catalog();
-      }
-      return catalog;
+      this.writeProperties = writeProperties;
+      this.metadataView = metadataView;
     }
 
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+          new RecordWriterManager(
+              catalogConfig, filename, maxFileSize, maxWritersPerBundle, writeProperties);
       this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 
     @ProcessElement
     public void processElement(
+        ProcessContext c,
         @Element KV<String, Row> element,
         BoundedWindow window,
         PaneInfo paneInfo,
@@ -237,12 +275,16 @@ class WriteUngroupedRowsToFiles
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
 
+      Map<String, SerializableTableSpec> sideInputs =
+          metadataView != null ? c.sideInput(metadataView) : null;
+
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles
       boolean writeSuccess;
       try {
         writeSuccess =
-            Preconditions.checkNotNull(recordWriterManager).write(windowedDestination, data);
+            Preconditions.checkNotNull(recordWriterManager)
+                .write(windowedDestination, data, sideInputs);
       } catch (Exception e) {
         try {
           Preconditions.checkNotNull(recordWriterManager).close();

@@ -103,6 +103,8 @@ public class MoreFutures {
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CompletionException(e);
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             throw new CompletionException(t);
           }
@@ -132,6 +134,8 @@ public class MoreFutures {
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CompletionException(e);
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             throw new CompletionException(t);
           }

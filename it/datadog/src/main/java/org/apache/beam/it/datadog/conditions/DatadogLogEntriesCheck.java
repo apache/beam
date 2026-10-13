@@ -28,7 +28,7 @@ public abstract class DatadogLogEntriesCheck extends ConditionCheck {
 
   abstract DatadogResourceManager resourceManager();
 
-  abstract Integer minEntries();
+  abstract int minEntries();
 
   @Nullable
   abstract Integer maxEntries();
@@ -78,7 +78,7 @@ public abstract class DatadogLogEntriesCheck extends ConditionCheck {
 
     public abstract Builder setResourceManager(DatadogResourceManager resourceManager);
 
-    public abstract Builder setMinEntries(Integer minEvents);
+    public abstract Builder setMinEntries(int minEvents);
 
     public abstract Builder setMaxEntries(Integer maxEvents);
 

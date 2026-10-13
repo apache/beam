@@ -17,6 +17,7 @@
 
 """Unit tests for batched type converters."""
 
+# ruff: noqa: UP006
 import contextlib
 import random
 import typing

@@ -71,16 +71,64 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
+        allowed_lateness_seconds (<code style="color: #f54251">int32</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        change_type_column (<code style="color: green">str</code>)<br>
+        change_type_map (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         direct_write_byte_limit (<code style="color: #f54251">int32</code>)<br>
+        distribution_mode (<code style="color: green">str</code>)<br>
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        equality_columns (<code>list[<span style="color: green;">str</span>]</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        maximum_table_cache_size (<code style="color: #f54251">int32</code>)<br>
+        mode (<code style="color: green">str</code>)<br>
+        num_shards (<code style="color: #f54251">int32</code>)<br>
         only (<code style="color: green">str</code>)<br>
         partition_fields (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        sequence_number_column (<code style="color: green">str</code>)<br>
+        shards_per_partition (<code style="color: #f54251">int32</code>)<br>
+        sink_id (<code style="color: green">str</code>)<br>
+        snapshot_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        sort_fields (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        sorter_memory_mb (<code style="color: #f54251">int32</code>)<br>
+        table_cache_polling_buckets (<code style="color: #f54251">int32</code>)<br>
+        table_cache_refresh_interval_seconds (<code style="color: #f54251">int32</code>)<br>
         table_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        token_heartbeat_seconds (<code style="color: #f54251">int32</code>)<br>
         triggering_frequency_seconds (<code style="color: #f54251">int32</code>)<br>
+        upsert (<code style="color: orange">boolean</code>)<br>
+        use_side_input_table_cache (<code style="color: orange">boolean</code>)<br>
+        write_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>DELTA_CDC</strong></td>
+      <td>
+        <strong>table</strong> (<code style="color: green">str</code>)<br>
+        end_timestamp (<code style="color: green">str</code>)<br>
+        end_version (<code style="color: #f54251">int64</code>)<br>
+        hadoop_config (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        include_metadata_columns (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        start_timestamp (<code style="color: green">str</code>)<br>
+        start_version (<code style="color: #f54251">int64</code>)<br>
+      </td>
+      <td>
+        Unavailable
+      </td>
+    </tr>
+    <tr>
+      <td><strong>DELTA</strong></td>
+      <td>
+        <strong>table</strong> (<code style="color: green">str</code>)<br>
+        hadoop_config (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        timestamp (<code style="color: green">str</code>)<br>
+        version (<code style="color: #f54251">int64</code>)<br>
+      </td>
+      <td>
+        Unavailable
       </td>
     </tr>
     <tr>
@@ -122,41 +170,18 @@ and Beam SQL is invoked via the Managed API under the hood.
         filter (<code style="color: green">str</code>)<br>
         from_snapshot (<code style="color: #f54251">int64</code>)<br>
         from_timestamp (<code style="color: #f54251">int64</code>)<br>
+        include_metadata_columns (<code>list[<span style="color: green;">str</span>]</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
         starting_strategy (<code style="color: green">str</code>)<br>
         streaming (<code style="color: orange">boolean</code>)<br>
         to_snapshot (<code style="color: #f54251">int64</code>)<br>
         to_timestamp (<code style="color: #f54251">int64</code>)<br>
+        watermark_column (<code style="color: green">str</code>)<br>
+        watermark_column_time_unit (<code style="color: green">str</code>)<br>
       </td>
       <td>
         Unavailable
-      </td>
-    </tr>
-    <tr>
-      <td><strong>SQLSERVER</strong></td>
-      <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
-        fetch_size (<code style="color: #f54251">int32</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        num_partitions (<code style="color: #f54251">int32</code>)<br>
-        output_parallelization (<code style="color: orange">boolean</code>)<br>
-        partition_column (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        read_query (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-      </td>
-      <td>
-        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
-        autosharding (<code style="color: orange">boolean</code>)<br>
-        batch_size (<code style="color: #f54251">int64</code>)<br>
-        connection_properties (<code style="color: green">str</code>)<br>
-        location (<code style="color: green">str</code>)<br>
-        password (<code style="color: green">str</code>)<br>
-        username (<code style="color: green">str</code>)<br>
-        write_statement (<code style="color: green">str</code>)<br>
       </td>
     </tr>
     <tr>
@@ -173,6 +198,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         partition_column (<code style="color: green">str</code>)<br>
         password (<code style="color: green">str</code>)<br>
         read_query (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
         username (<code style="color: green">str</code>)<br>
       </td>
       <td>
@@ -183,6 +209,34 @@ and Beam SQL is invoked via the Managed API under the hood.
         connection_properties (<code style="color: green">str</code>)<br>
         location (<code style="color: green">str</code>)<br>
         password (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+        write_statement (<code style="color: green">str</code>)<br>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>POSTGRES</strong></td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        fetch_size (<code style="color: #f54251">int32</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        num_partitions (<code style="color: #f54251">int32</code>)<br>
+        output_parallelization (<code style="color: orange">boolean</code>)<br>
+        partition_column (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        read_query (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
+        username (<code style="color: green">str</code>)<br>
+      </td>
+      <td>
+        <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
+        autosharding (<code style="color: orange">boolean</code>)<br>
+        batch_size (<code style="color: #f54251">int64</code>)<br>
+        connection_properties (<code style="color: green">str</code>)<br>
+        location (<code style="color: green">str</code>)<br>
+        password (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
         username (<code style="color: green">str</code>)<br>
         write_statement (<code style="color: green">str</code>)<br>
       </td>
@@ -206,10 +260,11 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
-      <td><strong>POSTGRES</strong></td>
+      <td><strong>SQLSERVER</strong></td>
       <td>
         <strong>jdbc_url</strong> (<code style="color: green">str</code>)<br>
         connection_properties (<code style="color: green">str</code>)<br>
+        disable_auto_commit (<code style="color: orange">boolean</code>)<br>
         fetch_size (<code style="color: #f54251">int32</code>)<br>
         location (<code style="color: green">str</code>)<br>
         num_partitions (<code style="color: #f54251">int32</code>)<br>
@@ -217,6 +272,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         partition_column (<code style="color: green">str</code>)<br>
         password (<code style="color: green">str</code>)<br>
         read_query (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
         username (<code style="color: green">str</code>)<br>
       </td>
       <td>
@@ -226,6 +282,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         connection_properties (<code style="color: green">str</code>)<br>
         location (<code style="color: green">str</code>)<br>
         password (<code style="color: green">str</code>)<br>
+        secret_manager (<code style="color: green">str</code>)<br>
         username (<code style="color: green">str</code>)<br>
         write_statement (<code style="color: green">str</code>)<br>
       </td>
@@ -257,6 +314,28 @@ and Beam SQL is invoked via the Managed API under the hood.
     </tr>
     <tr>
       <td>
+        allowed_lateness_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        How long a late record may lag behind the watermark before it is dropped entirely, rather than routed to the dead_letter output. Defaults to 21600 (6 hours). Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        autosharding
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Enables dynamic sharding to automatically adjust the number of parallel writers based on data volume. It handles data skew by further sub-dividing partitions into multiple shards to prevent bottlenecks during high-throughput writes. Only available with 'hash' distribution mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
         catalog_name
       </td>
       <td>
@@ -275,6 +354,28 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         Properties used to set up the Iceberg catalog.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        change_type_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Merge-on-read only. The optional column name representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER,  or DELETE). This column will be stripped from the data row before writing to Iceberg. If unset, the sink will use the element's native ValueKind
+      </td>
+    </tr>
+    <tr>
+      <td>
+        change_type_map
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Merge-on-read only. Optional map from a change_type_column value to the canonical change type name (see above).
       </td>
     </tr>
     <tr>
@@ -301,13 +402,37 @@ and Beam SQL is invoked via the Managed API under the hood.
     </tr>
     <tr>
       <td>
+        distribution_mode
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Defines distribution of write data. Supported distributions:
+- none: don't shuffle rows (default)
+- hash: shuffle rows by partition key before writing data
+      </td>
+    </tr>
+    <tr>
+      <td>
         drop
       </td>
       <td>
         <code>list[<span style="color: green;">str</span>]</code>
       </td>
       <td>
-        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
+        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'. In merge-on-read mode the control columns are always dropped.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        equality_columns
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Columns defining row identity (equality-delete fields). Defaults to the destination table's identifier (primary-key) fields. Required if the table doesn't exist yet. Currently only supported in 'merge-on-read' mode.
       </td>
     </tr>
     <tr>
@@ -318,7 +443,40 @@ and Beam SQL is invoked via the Managed API under the hood.
         <code>list[<span style="color: green;">str</span>]</code>
       </td>
       <td>
-        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
+        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'. In merge-on-read mode the control columns are dropped unless listed here.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        maximum_table_cache_size
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        For a batch pipeline, sets the maximum number of table metadata specs to cache in memory. Tables exceeding this limit fall back to worker-local catalog loading.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        mode
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Controls how rows are written. 'append' (default) appends every row as new data. 'merge-on-read' treats each row as a change (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE) applied to the table by primary key.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        num_shards
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The number of deterministic primary-key-hash shards per destination, i.e. the max write parallelism per destination. Too low may bottleneck writes, and too high may produce more files. Defaults to 16. Currently only supported in 'merge-on-read' mode.
       </td>
     </tr>
     <tr>
@@ -356,6 +514,95 @@ For more information on partition transforms, please visit https://iceberg.apach
     </tr>
     <tr>
       <td>
+        sequence_number_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Merge-on-read only. The required column name representing the monotonic sequence number used to order a single key's changes. Defaults to '_commit_snapshot_sequence_number'. This column will be stripped from the data row before writing to Iceberg.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        shards_per_partition
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        Maximum number of shards a single partition's rows may occupy. Lower values write fewer files per commit, but also reduces per-partition write parallelism. A value of 1 pins each partition to one writer. Ignored for unpartitioned tables. Must be between 1 and `num_shards`; defaults to `num_shards`. Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        sink_id
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        A stable identifier for this sink, used to namespace the idempotency tokens written to each commit's Iceberg snapshot summary. Defaults to a unique per-write UUID. Set it explicitly (and keep it stable across relaunches) for exactly-once commits across relaunches of a particular streaming write. A batch load with a stable sink_id commits only once (later batch loads with the same sink_id are skipped). Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        snapshot_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Extra key/value properties to add to every commit's Iceberg snapshot summary. Keys prefixed with 'beam.cdc.' are reserved and rejected. Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        sort_fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Fields used to set the table's sort order, applied when the table is created. Each entry has the form `<term> [asc|desc] [nulls first|nulls last]`, where `<term>` is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). Direction defaults to ascending; null order defaults to nulls-first for ascending and nulls-last for descending. Note: this sets the table's declared sort order as metadata; it does not cause Beam to physically sort records before writing.
+For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        sorter_memory_mb
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The in-memory buffer size (MB) for the pre-write sort; groups larger than this spill to disk. Must be >= 1. Defaults to 100. Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_cache_polling_buckets
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        Sets the number of parallel buckets/workers used to query the Iceberg catalog during refreshes. Defaults to 1.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_cache_refresh_interval_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        For a streaming pipeline, sets the interval in seconds at which table metadata is refreshed from the catalog.
+      </td>
+    </tr>
+    <tr>
+      <td>
         table_properties
       </td>
       <td>
@@ -368,6 +615,17 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
+        token_heartbeat_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        Streaming only. If set, the sink will emit a periodic empty token-refresh commit while idle, so its thread of `sink_id` stamped snapshot stays recent and is less likely to be lost to `expire_snapshots`. Disabled by default. Currently only supported in 'merge-on-read' mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
         triggering_frequency_seconds
       </td>
       <td>
@@ -375,6 +633,39 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         For a streaming pipeline, sets the frequency at which snapshots are produced.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        upsert
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Merge-on-read only. If true, only the after-image of each change (INSERT/UPDATE_AFTER) is applied, as an upsert; UPDATE_BEFORE records are dropped. Default: false.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        use_side_input_table_cache
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Enables expirable side-input caching of Iceberg table metadata across workers to reduce catalog load.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        write_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties applied to the underlying file writer (e.g. Parquet write properties like 'write.parquet.bloom-filter-enabled.column.<col>').
       </td>
     </tr>
   </table>
@@ -464,6 +755,151 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         A subset of column names to read exclusively. If null or empty, all columns will be read.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `DELTA_CDC` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Delta Lake table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        end_timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        End timestamp of the Delta Lake table to read changes up to. Should be specified in the ISO 8601 standard.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        end_version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        End version of the Delta Lake table to read changes up to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        hadoop_config
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        include_metadata_columns
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Metadata columns to include in the output rows. Supported columns are: _change_type, _commit_version, and _commit_timestamp.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        start_timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Start timestamp of the Delta Lake table to read changes from. Should be specified in the ISO 8601 standard. Either this or the start version has to be provided.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        start_version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Start version of the Delta Lake table to read changes from. Either this or the start timestamp has to be provided.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `DELTA` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Delta Lake table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        hadoop_config
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Timestamp of the Delta Lake table to read (in UTC ISO 8601 format, e.g. 2026-05-20T15:43:26Z). Cannot be set if version is set.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Version of the Delta Lake table to read. Cannot be set if timestamp is set.
       </td>
     </tr>
   </table>
@@ -823,6 +1259,23 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
+        include_metadata_columns
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        List of top-level metadata columns to include with CDC output rows. Supported columns:
+- `_change_type`
+- `_row_id`
+- `_last_updated_sequence_number`
+- `_commit_snapshot_id`
+- `_commit_snapshot_sequence_number`
+
+      </td>
+    </tr>
+    <tr>
+      <td>
         keep
       </td>
       <td>
@@ -887,10 +1340,32 @@ For more information on table properties, please visit https://iceberg.apache.or
         Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds).
       </td>
     </tr>
+    <tr>
+      <td>
+        watermark_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Column used to derive the source's output watermark. Must be an existing, required, top-level column of type 'long' or 'timestamp'. If not set, the watermark advances according to snapshot commit timestamp.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        watermark_column_time_unit
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Time unit used to interpret watermark column of type LONG. One of NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS. Defaults to MICROSECONDS.
+      </td>
+    </tr>
   </table>
 </div>
 
-### `SQLSERVER` Write
+### `MYSQL` Write
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
@@ -934,6 +1409,17 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
+        connection_init_sql
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
+      </td>
+    </tr>
+    <tr>
+      <td>
         connection_properties
       </td>
       <td>
@@ -962,7 +1448,18 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: green">str</code>
       </td>
       <td>
-        Password for the JDBC source.
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        secret_manager
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
       </td>
     </tr>
     <tr>
@@ -985,139 +1482,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         SQL query used to insert records into the JDBC sink.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `SQLSERVER` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        disable_auto_commit
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fetch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to read from.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        num_partitions
-      </td>
-      <td>
-        <code style="color: #f54251">int32</code>
-      </td>
-      <td>
-        The number of partitions
-      </td>
-    </tr>
-    <tr>
-      <td>
-        output_parallelization
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        partition_column
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of a column of numeric type that will be used for partitioning.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        read_query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to query the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        username
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Username for the JDBC source.
       </td>
     </tr>
   </table>
@@ -1239,7 +1603,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: green">str</code>
       </td>
       <td>
-        Password for the JDBC source.
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
       </td>
     </tr>
     <tr>
@@ -1255,102 +1619,13 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        username
+        secret_manager
       </td>
       <td>
         <code style="color: green">str</code>
       </td>
       <td>
-        Username for the JDBC source.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `MYSQL` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>jdbc_url</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Connection URL for the JDBC sink.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        autosharding
-      </td>
-      <td>
-        <code style="color: orange">boolean</code>
-      </td>
-      <td>
-        If true, enables using a dynamically determined number of shards to write.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        batch_size
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        n/a
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_init_sql
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Sets the connection init sql statements used by the Driver. Only MySQL and MariaDB support this.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        connection_properties
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
-      </td>
-    </tr>
-    <tr>
-      <td>
-        location
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Name of the table to write to.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        password
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Password for the JDBC source.
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
       </td>
     </tr>
     <tr>
@@ -1362,162 +1637,6 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Username for the JDBC source.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        write_statement
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        SQL query used to insert records into the JDBC sink.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `BIGQUERY` Write
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        <strong>table</strong>
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        kms_key
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Use this Cloud KMS key to encrypt your data
-      </td>
-    </tr>
-    <tr>
-      <td>
-        only
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        triggering_frequency_seconds
-      </td>
-      <td>
-        <code style="color: #f54251">int64</code>
-      </td>
-      <td>
-        Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
-      </td>
-    </tr>
-  </table>
-</div>
-
-### `BIGQUERY` Read
-
-<div class="table-container-wrapper">
-  <table class="table table-bordered">
-    <tr>
-      <th>Configuration</th>
-      <th>Type</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td>
-        kms_key
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Use this Cloud KMS key to encrypt your data
-      </td>
-    </tr>
-    <tr>
-      <td>
-        query
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The SQL query to be executed to read from the BigQuery table.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        row_restriction
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        fields
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
-      </td>
-    </tr>
-    <tr>
-      <td>
-        table
-      </td>
-      <td>
-        <code style="color: green">str</code>
-      </td>
-      <td>
-        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
       </td>
     </tr>
   </table>
@@ -1595,7 +1714,18 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: green">str</code>
       </td>
       <td>
-        Password for the JDBC source.
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        secret_manager
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
       </td>
     </tr>
     <tr>
@@ -1717,7 +1847,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: green">str</code>
       </td>
       <td>
-        Password for the JDBC source.
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
       </td>
     </tr>
     <tr>
@@ -1733,6 +1863,17 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
+        secret_manager
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
+      </td>
+    </tr>
+    <tr>
+      <td>
         username
       </td>
       <td>
@@ -1740,6 +1881,406 @@ For more information on table properties, please visit https://iceberg.apache.or
       </td>
       <td>
         Username for the JDBC source.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `BIGQUERY` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        kms_key
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Use this Cloud KMS key to encrypt your data
+      </td>
+    </tr>
+    <tr>
+      <td>
+        query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The SQL query to be executed to read from the BigQuery table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        row_restriction
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: "col1, col2, col3"
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `BIGQUERY` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to drop from the input record before writing. Is mutually exclusive with 'keep' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A list of field names to keep in the input record. All other fields are dropped before writing. Is mutually exclusive with 'drop' and 'only'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        kms_key
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Use this Cloud KMS key to encrypt your data
+      </td>
+    </tr>
+    <tr>
+      <td>
+        only
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        triggering_frequency_seconds
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `SQLSERVER` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        disable_auto_commit
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to disable auto commit on read. Defaults to true if not provided. The need for this config varies depending on the database platform. Informix requires this to be set to false while Postgres requires this to be set to true.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        fetch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        This method is used to override the size of the data that is going to be fetched and loaded in memory per every database call. It should ONLY be used if the default value throws memory errors.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to read from.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        num_partitions
+      </td>
+      <td>
+        <code style="color: #f54251">int32</code>
+      </td>
+      <td>
+        The number of partitions
+      </td>
+    </tr>
+    <tr>
+      <td>
+        output_parallelization
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        Whether to reshuffle the resulting PCollection so results are distributed to all workers.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_column
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of a column of numeric type that will be used for partitioning.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        read_query
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to query the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        secret_manager
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `SQLSERVER` Write
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>jdbc_url</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Connection URL for the JDBC sink.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        autosharding
+      </td>
+      <td>
+        <code style="color: orange">boolean</code>
+      </td>
+      <td>
+        If true, enables using a dynamically determined number of shards to write.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        batch_size
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        n/a
+      </td>
+    </tr>
+    <tr>
+      <td>
+        connection_properties
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Used to set connection properties passed to the JDBC driver not already defined as standalone parameter (e.g. username and password can be set using parameters above accordingly). Format of the string must be "key1=value1;key2=value2;".
+      </td>
+    </tr>
+    <tr>
+      <td>
+        location
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Name of the table to write to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        password
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        secret_manager
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        username
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Username for the JDBC source.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        write_statement
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL query used to insert records into the JDBC sink.
       </td>
     </tr>
   </table>

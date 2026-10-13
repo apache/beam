@@ -45,13 +45,14 @@ public class TypedSchemaTransformProviderTest {
   abstract static class Configuration {
     abstract String getStringField();
 
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
 
     static Configuration create(String stringField, int integerField) {
       return new AutoValue_TypedSchemaTransformProviderTest_Configuration(
           stringField, integerField);
     }
-  };
+  }
+  ;
 
   private static class FakeTypedSchemaIOProvider
       extends TypedSchemaTransformProvider<Configuration> {
@@ -140,7 +141,7 @@ public class TypedSchemaTransformProviderTest {
 
     for (Configuration config : Arrays.asList(outputConfig, minimalOutputConfig)) {
       assertEquals("field1", config.getStringField());
-      assertEquals(13, config.getIntegerField().intValue());
+      assertEquals(13, config.getIntegerField());
     }
     assertEquals("Description of fake provider", provider.description());
   }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.subprocess.utils;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +65,7 @@ public class CallingSubProcessUtils {
 
   public static synchronized void initSemaphore(Integer permits, String binaryName) {
     if (!semaphores.containsKey(binaryName)) {
-      LOG.info(String.format(String.format("Initialized Semaphore for binary %s ", binaryName)));
+      LOG.info("Initialized Semaphore for binary {} ", binaryName);
       semaphores.put(binaryName, new Semaphore(permits));
     }
   }
@@ -88,6 +89,12 @@ public class CallingSubProcessUtils {
   }
 
   /** Permit class for access to worker cpu resources. */
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class Permit implements AutoCloseable {
 
     private String binaryName;

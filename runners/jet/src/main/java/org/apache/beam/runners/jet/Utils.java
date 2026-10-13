@@ -147,7 +147,7 @@ public class Utils {
   static Map<TupleTag<?>, Coder<?>> getOutputValueCoders(
       AppliedPTransform<?, ?, ?> appliedTransform) {
     return appliedTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
+        .filter(e -> e.getValue() != null)
         .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 
@@ -280,7 +280,7 @@ public class Utils {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ByteArrayKey)) {
         return false;
       }
       ByteArrayKey that = (ByteArrayKey) o;

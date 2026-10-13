@@ -22,11 +22,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,7 +47,7 @@ public class TimerTest {
     assertTrue(clearedTimer.getClearBit());
     assertEquals("timer", clearedTimer.getUserKey());
     assertEquals("tag", clearedTimer.getDynamicTimerTag());
-    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), clearedTimer.getWindows());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), (Set<?>) clearedTimer.getWindows());
   }
 
   @Test
@@ -57,12 +59,13 @@ public class TimerTest {
             Collections.singleton(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING);
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL);
     assertEquals("key", timer.getUserKey());
     assertEquals("tag", timer.getDynamicTimerTag());
     assertEquals(FIRE_TIME, timer.getFireTimestamp());
     assertEquals(HOLD_TIME, timer.getHoldTimestamp());
-    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), timer.getWindows());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), (Set<?>) timer.getWindows());
     assertEquals(PaneInfo.NO_FIRING, timer.getPaneInfo());
     assertFalse(timer.getClearBit());
   }
@@ -79,7 +82,8 @@ public class TimerTest {
             Collections.singleton(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING));
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL));
     CoderProperties.structuralValueDecodeEncodeEqual(
         coder, Timer.cleared("key", "tag", Collections.singleton(GlobalWindow.INSTANCE)));
     CoderProperties.structuralValueConsistentWithEquals(
@@ -90,14 +94,16 @@ public class TimerTest {
             Collections.singleton(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL),
         Timer.of(
             "key",
             "tag",
             Collections.singleton(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING));
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL));
     CoderProperties.structuralValueConsistentWithEquals(
         coder,
         Timer.cleared("key", "tag", Collections.singleton(GlobalWindow.INSTANCE)),
@@ -115,7 +121,8 @@ public class TimerTest {
             Collections.singletonList(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING));
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL));
     CoderProperties.coderDecodeEncodeEqual(
         coder, Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)));
     CoderProperties.coderConsistentWithEquals(
@@ -126,14 +133,16 @@ public class TimerTest {
             Collections.singletonList(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL),
         Timer.of(
             "key",
             "tag",
             Collections.singletonList(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING));
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL));
     CoderProperties.coderConsistentWithEquals(
         coder,
         Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)),
@@ -146,14 +155,16 @@ public class TimerTest {
             Collections.singletonList(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING),
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL),
         Timer.of(
             "key",
             "tag",
             Collections.singletonList(GlobalWindow.INSTANCE),
             FIRE_TIME,
             HOLD_TIME,
-            PaneInfo.NO_FIRING));
+            PaneInfo.NO_FIRING,
+            CausedByDrain.NORMAL));
     CoderProperties.coderDeterministic(
         coder,
         Timer.cleared("key", "tag", Collections.singletonList(GlobalWindow.INSTANCE)),

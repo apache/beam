@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -308,7 +309,15 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(timerId, "", null, window, timestamp, timestamp, TimeDomain.EVENT_TIME);
+    runner.onTimer(
+        timerId,
+        "",
+        null,
+        window,
+        timestamp,
+        timestamp,
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.CAUSED_BY_DRAIN);
 
     assertThat(
         underlying.firedTimers,
@@ -319,7 +328,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timestamp,
                 timestamp,
                 TimeDomain.EVENT_TIME,
-                CausedByDrain.NORMAL)));
+                CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
@@ -353,7 +362,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       firedTimers.add(
           TimerData.of(
               timerId,
@@ -362,13 +372,16 @@ public class SimplePushbackSideInputDoFnRunnerTest {
               timestamp,
               outputTimestamp,
               timeDomain,
-              CausedByDrain.NORMAL));
+              causedByDrain));
     }
 
     @Override
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
     @Override
     public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
@@ -510,7 +523,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
-          timer.getDomain());
+          timer.getDomain(),
+          timer.causedByDrain());
     }
   }
 
@@ -526,7 +540,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public final StateSpec<ValueState<Integer>> intState = StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
-    public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+    public void processElement(
+        @SuppressWarnings("unused") ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
       Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
       state.write(currentValue + 1);
     }

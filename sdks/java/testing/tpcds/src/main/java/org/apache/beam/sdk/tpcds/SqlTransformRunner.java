@@ -247,6 +247,7 @@ public class SqlTransformRunner {
    * @param results Tpcds run results
    * @throws Exception
    */
+  @SuppressWarnings("JavaUtilDate")
   private static void printExecutionSummary(List<TpcdsRunResult> results) throws Exception {
     List<List<String>> summaryRowsList = new ArrayList<>();
     for (TpcdsRunResult tpcdsRunResult : results) {

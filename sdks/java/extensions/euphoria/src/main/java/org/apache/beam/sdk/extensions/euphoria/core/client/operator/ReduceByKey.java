@@ -113,10 +113,10 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
    */
   public interface CombineFunctionWithIdentity<T> extends CombinableBinaryFunction<T> {
 
-    /** @return identity value with respect to the combining function. */
+    /** Returns identity value with respect to the combining function. */
     T identity();
 
-    /** @return type descriptor of the value */
+    /** Returns type descriptor of the value. */
     default TypeDescriptor<T> valueDesc() {
       return null;
     }
@@ -240,7 +240,7 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
      * Syntactic sugar to enable #combineBy to take only single argument and be used in helpers like
      * #combineBy(Sums.ofLongs()).
      *
-     * @deprecated Replaced by @{link #combineBy(CombineFunctionWithIdentity)}.
+     * @deprecated Replaced by {@link #combineBy(CombineFunctionWithIdentity)}.
      */
     @Deprecated
     default WindowByBuilder<KeyT, ValueT> combineBy(

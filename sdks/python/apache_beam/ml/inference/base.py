@@ -178,6 +178,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       **kwargs):
@@ -190,6 +192,17 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before emitting; used in streaming contexts.
       max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable mapping an element to its length (int). When
+        set together with max_batch_duration_secs, enables length-aware bucketed
+        keying so that elements of similar length are batched together, reducing
+        padding waste for variable-length inputs. Bucket assignment uses
+        bisect_right so boundaries are lower-inclusive: e.g., for boundaries
+        [10, 50], buckets are (-inf, 10), [10, 50), [50, inf).
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
+        Requires batch_length_fn. Defaults to [16, 32, 64, 128, 256, 512] when
+        batch_length_fn is set.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
@@ -209,6 +222,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self._batching_kwargs['max_batch_weight'] = max_batch_weight
     if element_size_fn is not None:
       self._batching_kwargs['element_size_fn'] = element_size_fn
+    if batch_length_fn is not None:
+      self._batching_kwargs['length_fn'] = batch_length_fn
+    if batch_bucket_boundaries is not None:
+      self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
     self._large_model = large_model
     self._model_copies = model_copies
     self._share_across_processes = large_model or (model_copies is not None)
@@ -344,8 +361,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_no_batching(
       self
-  ) -> """ModelHandler[Union[
-    ExampleT, Iterable[ExampleT]], PostProcessT, ModelT, PostProcessT]""":
+  ) -> 'ModelHandler[Union[ExampleT, Iterable[ExampleT]], PredictionT, ModelT]':
     """Returns a new ModelHandler which does not require batching
     of inputs so that RunInference will skip this step.  RunInference will
     expect the input to be pre-batched and passed in as an Iterable of records.
@@ -557,7 +573,7 @@ class _ModelHandlerManager:
     # Map key for a model to a unique tag that will persist for the life of
     # that model in memory. A new tag will be generated if a model is swapped
     # out of memory and reloaded.
-    self._tag_map: dict[str, str] = OrderedDict()
+    self._tag_map: OrderedDict[str, str] = OrderedDict()
     # Map a tag to a multiprocessshared model object for that tag. Each entry
     # of this map should last as long as the corresponding entry in _tag_map.
     self._proxy_map: dict[str, multi_process_shared.MultiProcessShared] = {}
@@ -1369,6 +1385,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_identifier: Optional[str] = None,
       use_model_manager: bool = False,
       model_manager_args: Optional[dict[str, Any]] = None,
+      monitoring_transform: Optional[beam.PTransform] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1399,6 +1416,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           the same tag for different models will lead to non-deterministic
           results, so exercise caution when using this parameter. This only
           impacts models which are already being shared across processes.
+        monitoring_transform: A PTransform that receives a copy of the
+          un-postprocessed PCollection of PredictionResult objects produced
+          directly by inference.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -1411,6 +1431,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._watch_model_pattern = watch_model_pattern
     self._use_model_manager = use_model_manager
     self._model_manager_args = model_manager_args
+    self._monitoring_transform = monitoring_transform
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1421,11 +1442,16 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       self._model_tag = uuid.uuid4().hex
 
   def annotations(self):
+    extra = {}
+    if self._monitoring_transform is not None:
+      extra['monitoring_transform'] = str(self._monitoring_transform)
     return {
         'model_handler': str(self._model_handler),
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
+        'model_identifier': self._model_tag,
+        **extra,
         **super().annotations()
     }
 
@@ -1567,6 +1593,13 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           batched_elements_pcoll
           | 'BeamML_RunInference' >> run_inference_pardo)
 
+    if self._monitoring_transform is not None:
+      with results.pipeline.transform_annotations(model_identifier=''):
+        _ = (
+            results
+            | 'BeamML_RunInference_MonitoringOutlet' >>
+            self._monitoring_transform)
+
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')
 
@@ -1575,6 +1608,18 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       return results, dlq
 
     return results
+
+  def with_monitoring_transform(
+      self, monitoring_transform: beam.PTransform) -> 'RunInference':
+    """Allows attaching a monitoring PTransform that receives a copy of the
+    un-postprocessed PCollection of prediction objects (such as PredictionResult)
+    emitted by the underlying model inference step.
+
+    Args:
+      monitoring_transform: A PTransform accepting PCollection[PredictionT].
+    """
+    self._monitoring_transform = monitoring_transform
+    return self
 
   def with_exception_handling(
       self,
@@ -1767,7 +1812,7 @@ class _ModelStatus():
           self._pending_hard_delete.append((
               tag,
               datetime.now() + 2 * timedelta(seconds=min_model_life_seconds)))
-        self._active_tags.remove(tag)
+        self._active_tags.discard(tag)
 
   def get_valid_tag(self, tag: str) -> str:
     """Takes in a proposed valid tag and returns a valid one.
@@ -1829,13 +1874,16 @@ class _ModelStatus():
         return
 
 
+_model_statuses: dict[str, _ModelStatus] = {}
+
+
 def load_model_status(
     model_tag: str, share_across_processes: bool) -> _ModelStatus:
   tag = f'{model_tag}_model_status'
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
         lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
-  return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
+  return _model_statuses.setdefault(tag, _ModelStatus(False))
 
 
 class _ProxyLoader:
@@ -1980,6 +2028,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager:
+      # Force an import here to avoid missing ModelManager when needed.
+      # Throw an error if ModelManager is not available since it's required for this code path.
+      global ModelManager
+      if ModelManager is None:
+        from apache_beam.ml.inference.model_manager import ModelManager
       logging.info("Using Model Manager to manage models automatically.")
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),

@@ -24,7 +24,7 @@ import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.Topic;
 import com.google.pubsub.v1.TopicName;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -108,7 +108,7 @@ final class PubsubUtils {
         CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_HYPHEN).convert(prefix);
     String formattedTimestamp =
         DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS")
-            .withZone(ZoneId.of("UTC"))
+            .withZone(ZoneOffset.UTC)
             .format(Instant.now());
     return String.format("%s-%s", convertedPrefix, formattedTimestamp);
   }

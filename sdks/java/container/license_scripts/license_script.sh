@@ -18,6 +18,13 @@ set -e
 
 # Get currently used Python version from Gradle or assume a default.
 PYTHON=${1:-python3}
+if ! command -v "${PYTHON}" >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
+  else
+    PYTHON=python
+  fi
+fi
 SCRIPT_DIR="${PWD}/license_scripts"
 ENV_DIR="${PWD}/build/virtualenv"
 
@@ -39,8 +46,19 @@ echo "Copying already-fetched licenses from ${EXISTING_LICENSE_DIR} to ${DOWNLOA
 if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
 mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
-python -m venv --clear ${ENV_DIR}  --without-pip --system-site-packages
+${PYTHON} -m venv --clear ${ENV_DIR} --without-pip --system-site-packages
 . ${ENV_DIR}/bin/activate
+if ! python -m pip --version >/dev/null 2>&1; then
+  GET_PIP_URL="https://bootstrap.pypa.io/get-pip.py"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sSL "$GET_PIP_URL" | python
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- "$GET_PIP_URL" | python
+  else
+    echo "Neither curl nor wget found; cannot bootstrap pip"
+    exit 1
+  fi
+fi
 python -m pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages

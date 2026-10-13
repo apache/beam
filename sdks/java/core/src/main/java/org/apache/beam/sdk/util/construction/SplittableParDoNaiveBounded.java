@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,6 +56,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -504,6 +507,12 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+          DoFn<InputT, OutputT> doFn) {
+        throw new IllegalStateException();
+      }
+
+      @Override
       public InputT element(DoFn<InputT, OutputT> doFn) {
         return element;
       }
@@ -511,6 +520,16 @@ public class SplittableParDoNaiveBounded {
       @Override
       public Object key() {
         throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public CausedByDrain causedByDrain() {
+        return outerContext.causedByDrain();
+      }
+
+      @Override
+      public ValueKind valueKind() {
+        return outerContext.valueKind();
       }
 
       @Override
@@ -538,6 +557,16 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+        return outerContext.causedByDrain();
+      }
+
+      @Override
+      public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+        return outerContext.valueKind();
+      }
+
+      @Override
       public String timerId(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
@@ -549,13 +578,7 @@ public class SplittableParDoNaiveBounded {
           public OutputBuilder<OutputT> builder(OutputT value) {
             return outputBuilderSupplier
                 .builder(value)
-                .setReceiver(
-                    windowedValue ->
-                        outerContext.outputWindowedValue(
-                            windowedValue.getValue(),
-                            windowedValue.getTimestamp(),
-                            windowedValue.getWindows(),
-                            windowedValue.getPaneInfo()));
+                .setReceiver(windowedValue -> outerContext.outputWindowedValue(windowedValue));
           }
         };
       }
@@ -571,13 +594,7 @@ public class SplittableParDoNaiveBounded {
                 return outputBuilderSupplier
                     .builder(value)
                     .setReceiver(
-                        windowedValue ->
-                            outerContext.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                        windowedValue -> outerContext.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -649,6 +666,16 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outerContext.outputWindowedValue(windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outerContext.outputWindowedValue(tag, windowedValue);
+      }
+
+      @Override
       public InputT element() {
         return element;
       }
@@ -676,6 +703,21 @@ public class SplittableParDoNaiveBounded {
       @Override
       public Long currentRecordOffset() {
         return outerContext.currentRecordOffset();
+      }
+
+      @Override
+      public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+        return outerContext.currentRecordId();
+      }
+
+      @Override
+      public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+        return outerContext.currentRecordOffset();
+      }
+
+      @Override
+      public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+        throw new IllegalStateException();
       }
 
       @Override

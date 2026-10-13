@@ -27,11 +27,15 @@ ext.summary = "Truth matchers for integration tests."
 
 dependencies {
     implementation project(path: ":it:common")
+    implementation 'org.apache.avro:avro:1.11.1'
     // TODO: excluding Guava until Truth updates it to >32.1.x
     implementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
     implementation library.java.guava
+    implementation library.java.vendored_guava_32_1_2_jre
     permitUsedUndeclared library.java.guava
     implementation library.java.google_code_gson
 }

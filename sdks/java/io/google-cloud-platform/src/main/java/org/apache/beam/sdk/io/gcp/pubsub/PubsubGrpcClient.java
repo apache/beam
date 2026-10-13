@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auth.Credentials;
 import com.google.protobuf.Timestamp;
@@ -67,20 +67,17 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A helper class for talking to Pubsub via grpc. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubGrpcClient extends PubsubClient {
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 60;
 
+  @SuppressWarnings("nullness") // netty requires ciphers(null) but is not annotated
   private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
     String format = PubsubOptions.targetForRootUrl(urlString);
 
@@ -104,7 +101,7 @@ public class PubsubGrpcClient extends PubsubClient {
         @Nullable String timestampAttribute,
         @Nullable String idAttribute,
         PubsubOptions options,
-        String rootUrlOverride)
+        @Nullable String rootUrlOverride)
         throws IOException {
       return new PubsubGrpcClient(
           timestampAttribute,
@@ -144,9 +141,9 @@ public class PubsubGrpcClient extends PubsubClient {
   /** Cached stubs, or null if not cached. */
   private PublisherGrpc.@Nullable PublisherBlockingStub cachedPublisherStub;
 
-  private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
+  private SubscriberGrpc.@Nullable SubscriberBlockingStub cachedSubscriberStub;
 
-  private SchemaServiceGrpc.SchemaServiceBlockingStub cachedSchemaServiceStub;
+  private SchemaServiceGrpc.@Nullable SchemaServiceBlockingStub cachedSchemaServiceStub;
 
   @VisibleForTesting
   PubsubGrpcClient(
@@ -189,7 +186,8 @@ public class PubsubGrpcClient extends PubsubClient {
 
   /** Return channel with interceptor for returning credentials. */
   private Channel newChannel() throws IOException {
-    checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
+    ManagedChannel channel =
+        checkStateNotNull(publisherChannel, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
         new ClientAuthInterceptor(
             credentials,
@@ -198,7 +196,7 @@ public class PubsubGrpcClient extends PubsubClient {
                     .setDaemon(true)
                     .setNameFormat("PubsubGrpcClient-thread")
                     .build()));
-    return ClientInterceptors.intercept(publisherChannel, interceptor);
+    return ClientInterceptors.intercept(channel, interceptor);
   }
 
   /** Return a stub for making a publish request with a timeout. */
@@ -237,8 +235,9 @@ public class PubsubGrpcClient extends PubsubClient {
             timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
       }
 
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
-        message.putAttributes(idAttribute, outgoingMessage.recordId());
+      String recordId = outgoingMessage.recordId();
+      if (idAttribute != null && recordId != null && !recordId.isEmpty()) {
+        message.putAttributes(idAttribute, recordId);
       }
 
       request.addMessages(message);
@@ -267,12 +266,18 @@ public class PubsubGrpcClient extends PubsubClient {
     }
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessagesCount());
     for (ReceivedMessage message : response.getReceivedMessagesList()) {
+      if (!message.hasMessage()) {
+        continue;
+      }
       PubsubMessage pubsubMessage = message.getMessage();
       Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Timestamp.
       long timestampMsSinceEpoch;
-      if (Strings.isNullOrEmpty(timestampAttribute)) {
+      if (timestampAttribute == null || timestampAttribute.isEmpty()) {
+        if (!pubsubMessage.hasPublishTime()) {
+          throw new IllegalStateException("Received message missing publishTime");
+        }
         Timestamp timestampProto = pubsubMessage.getPublishTime();
         timestampMsSinceEpoch =
             timestampProto.getSeconds() * 1000 + timestampProto.getNanos() / 1000L / 1000L;
@@ -282,14 +287,16 @@ public class PubsubGrpcClient extends PubsubClient {
 
       // Ack id.
       String ackId = message.getAckId();
-      checkState(!Strings.isNullOrEmpty(ackId));
+      if (ackId.isEmpty()) {
+        throw new IllegalStateException("Received message missing ackId");
+      }
 
       // Record id, if any.
-      @Nullable String recordId = null;
+      String recordId = null;
       if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
-      if (Strings.isNullOrEmpty(recordId)) {
+      if (recordId == null || recordId.isEmpty()) {
         // Fall back to the Pubsub provided message id.
         recordId = pubsubMessage.getMessageId();
       }
@@ -475,15 +482,15 @@ public class PubsubGrpcClient extends PubsubClient {
 
   /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
   @Override
-  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+  public @Nullable SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
     GetTopicRequest request = GetTopicRequest.newBuilder().setTopic(topicPath.getPath()).build();
     Topic topic = publisherStub().getTopic(request);
-    SchemaSettings schemaSettings = topic.getSchemaSettings();
-    if (schemaSettings.getSchema().isEmpty()) {
+    if (!topic.hasSchemaSettings()) {
       return null;
     }
+    SchemaSettings schemaSettings = topic.getSchemaSettings();
     String schemaPath = schemaSettings.getSchema();
-    if (schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
+    if (schemaPath.isEmpty() || schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
       return null;
     }
     return PubsubClient.schemaPathFromPath(schemaPath);

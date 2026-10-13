@@ -26,12 +26,9 @@ import sys
 import time
 from datetime import timedelta
 from typing import Any
-from typing import Dict
 from typing import Generic
-from typing import List
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -294,7 +291,7 @@ class _FilterCacheReadFn(beam.DoFn):
 
   It emits to main output for successful cache read requests or
   to the tagged output - `cache_misses` - otherwise."""
-  def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
+  def process(self, element: tuple[RequestT, ResponseT], *args, **kwargs):
     if not element[1]:
       yield pvalue.TaggedOutput('cache_misses', element[0])
     else:
@@ -361,7 +358,7 @@ class _CallDoFn(beam.DoFn):
     self._metrics_collector.requests.inc(1)
 
     is_throttled_request = False
-    if self._throttler:
+    if self._throttler is not None:
       while self._throttler.throttler.throttle_request(time.time() *
                                                        MSEC_TO_SEC):
         _LOGGER.info(
@@ -378,7 +375,8 @@ class _CallDoFn(beam.DoFn):
       response = self._repeater.repeat(
           self._caller, request, self._timeout, self._metrics_collector)
       self._metrics_collector.responses.inc(1)
-      self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
+      if self._throttler is not None:
+        self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
       yield response
     except Exception as e:
       raise e
@@ -455,7 +453,7 @@ class _RedisCaller(Caller):
       *,
       request_coder: Optional[coders.Coder],
       response_coder: Optional[coders.Coder],
-      kwargs: Optional[Dict[str, Any]] = None,
+      kwargs: Optional[dict[str, Any]] = None,
       source_caller: Optional[Caller] = None,
       mode: _RedisMode,
   ):
@@ -538,13 +536,13 @@ class _RedisCaller(Caller):
 
   def __call__(self, element, *args, **kwargs):
     if self.mode == _RedisMode.READ:
-      if isinstance(element, List):
+      if isinstance(element, list):
         responses = [self._read_cache(e) for e in element]
         return responses
       else:
         return self._read_cache(element)
     else:
-      if isinstance(element, List):
+      if isinstance(element, list):
         responses = [self._write_cache(e) for e in element]
         return responses
       else:
@@ -563,7 +561,7 @@ class _ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
       port: int,
       time_to_live: Union[int, timedelta],
       *,
-      kwargs: Optional[Dict[str, Any]] = None,
+      kwargs: Optional[dict[str, Any]] = None,
       request_coder: Optional[coders.Coder],
       response_coder: Optional[coders.Coder],
       source_caller: Optional[Caller[RequestT, ResponseT]] = None,
@@ -602,7 +600,7 @@ class _ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
     return requests | RequestResponseIO(self.redis_caller)
 
 
-class _WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT,
+class _WriteToRedis(beam.PTransform[beam.PCollection[tuple[RequestT,
                                                            ResponseT]],
                                     beam.PCollection[ResponseT]]):
   """A `PTransfrom` that performs write to Redis cache."""
@@ -612,7 +610,7 @@ class _WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT,
       port: int,
       time_to_live: Union[int, timedelta],
       *,
-      kwargs: Optional[Dict[str, Any]] = None,
+      kwargs: Optional[dict[str, Any]] = None,
       request_coder: Optional[coders.Coder],
       response_coder: Optional[coders.Coder],
       source_caller: Optional[Caller[RequestT, ResponseT]] = None,
@@ -646,7 +644,7 @@ class _WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT,
         mode=_RedisMode.WRITE)
 
   def expand(
-      self, elements: beam.PCollection[Tuple[RequestT, ResponseT]]
+      self, elements: beam.PCollection[tuple[RequestT, ResponseT]]
   ) -> beam.PCollection[ResponseT]:
     return elements | RequestResponseIO(self.redis_caller)
 

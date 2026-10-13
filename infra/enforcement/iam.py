@@ -21,10 +21,12 @@ import sys
 import yaml
 from google.api_core import exceptions
 from google.cloud import resourcemanager_v3
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict
 from sending import SendingClient
+from datetime import datetime, timezone
 
 CONFIG_FILE = "config.yml"
+IAC_DRIFT_IAM_USER = "IAC_DRIFT_IAM_USER"
 
 class IAMPolicyComplianceChecker:
 
@@ -214,7 +216,7 @@ class IAMPolicyComplianceChecker:
             self.logger.info(error_msg)
             raise RuntimeError(error_msg)
 
-        differences = []        
+        differences = []
 
         all_emails = set(current_users.keys()) | set(existing_users.keys())
 
@@ -223,7 +225,7 @@ class IAMPolicyComplianceChecker:
             existing_user = existing_users.get(email)
 
             if current_user and not existing_user:
-                differences.append(f"User {email} not found in existing policy.")
+                differences.append(f"IAC_DRIFT_IAM_USER: Unauthorized user '{email}' detected in GCP but not found in existing policy.")
             elif not current_user and existing_user:
                 differences.append(f"User {email} found in policy file but not in GCP.")
             elif current_user and existing_user:
@@ -247,51 +249,86 @@ class IAMPolicyComplianceChecker:
         """
         if not self.sending_client:
             raise ValueError("SendingClient is required for creating announcements")
-            
         diff = self.check_compliance()
 
         if not diff:
             self.logger.info("No compliance issues found, no announcement will be created.")
             return
 
-        title = f"IAM Policy Non-Compliance Detected"
-        body = f"IAM policy for project {self.project_id} is not compliant with the defined policies on {self.users_file}\n\n"
-        for issue in diff:
-            body += f"- {issue}\n"
+        iam_drift_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER not in issue]
 
-        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the IAM policy for project {self.project_id}.\n\n"
-        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
-        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+        if general_issues:
+            self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Triggering announcement...")
+            title = f"IAM Policy Non-Compliance Detected"
+            body = f"IAM policy for project {self.project_id} is not compliant with the defined policies on {self.users_file}\n\n"
+            for issue in general_issues:
+                body += f"- {issue}\n"
 
-        self.sending_client.create_announcement(title, body, recipient, announcement)
+            announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the IAM policy for project {self.project_id}.\n\n"
+            announcement += f"We found {len(general_issues)} compliance issue(s) that need your attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+            self.sending_client.create_announcement(title, body, recipient, announcement)
+
+        if iam_drift_issues:
+            self.logger.info(f"Found {len(iam_drift_issues)} critical IAM security alerts. Dispatching to GitHub security issue...")
+            title = f"[{IAC_DRIFT_IAM_USER}] Action Required: Unauthorized IAM Users Detected"
+            body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
+            for issue in iam_drift_issues:
+                body += f"- {issue}\n"
+
+            announcement = f"URGENT: Dear team,\n\nThis is an automated security alert regarding unauthorized IAM access in project {self.project_id}.\n\n"
+            announcement += f"We found {len(iam_drift_issues)} critical security alert(s) that require IMMEDIATE attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and revoke unauthorized access immediately."
+
+            self.sending_client.create_announcement(title, body, recipient, announcement)
 
     def print_announcement(self, recipient: str) -> None:
         """
         Prints announcement details instead of sending them (for testing purposes).
-        
+
         Args:
             recipient (str): The email address of the announcement recipient.
         """
         if not self.sending_client:
             raise ValueError("SendingClient is required for printing announcements")
-            
+
         diff = self.check_compliance()
 
         if not diff:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        title = f"IAM Policy Non-Compliance Detected"
-        body = f"IAM policy for project {self.project_id} is not compliant with the defined policies on {self.users_file}\n\n"
-        for issue in diff:
-            body += f"- {issue}\n"
+        iam_drift_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER not in issue]
 
-        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the IAM policy for project {self.project_id}.\n\n"
-        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
-        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+        if general_issues:
+            self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Printing announcement...")
+            title = f"IAM Policy Non-Compliance Detected"
+            body = f"IAM policy for project {self.project_id} is not compliant with the defined policies on {self.users_file}\n\n"
+            for issue in general_issues:
+                body += f"- {issue}\n"
 
-        self.sending_client.print_announcement(title, body, recipient, announcement)
-    
+            announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the IAM policy for project {self.project_id}.\n\n"
+            announcement += f"We found {len(general_issues)} compliance issue(s) that need your attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+            self.sending_client.print_announcement(title, body, recipient, announcement)
+
+        if iam_drift_issues:
+            self.logger.info("Printing security dashboard update for IAM vulnerabilities...")
+            title = f"[{IAC_DRIFT_IAM_USER}] Action Required: Unauthorized IAM Users Detected"
+            body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
+            for issue in iam_drift_issues:
+                body += f"- {issue}\n"
+
+            announcement = f"URGENT: Dear team,\n\nThis is an automated security alert regarding unauthorized IAM access in project {self.project_id}.\n\n"
+            announcement += f"We found {len(iam_drift_issues)} critical security alert(s) that require IMMEDIATE attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and revoke unauthorized access immediately."
+
+            self.sending_client.print_announcement(title, body, recipient, announcement)
+
     def generate_compliance(self) -> None:
         """
         Modifies the users file to match the current IAM policy.

@@ -285,7 +285,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     return new DoFn<List<Row>, Row>() {
       @ProcessElement
       public void processElement(
-          @Element List<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
+          @Element List<Row> inputPartition,
+          OutputReceiver<Row> out,
+          @SuppressWarnings("unused") ProcessContext c) {
         List<Row> sortedRowsAsList = inputPartition;
         NavigableMap<BigDecimal, List<Row>> indexRange = null;
         if (!fieldAgg.rows) {
@@ -406,7 +408,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     public void processElement(
         @Element KV<Row, Iterable<Row>> inputPartition,
         OutputReceiver<Iterable<Row>> out,
-        ProcessContext c) {
+        @SuppressWarnings("unused") ProcessContext c) {
       out.output(inputPartition.getValue());
     }
   }
@@ -415,7 +417,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     return new DoFn<Iterable<Row>, List<Row>>() {
       @ProcessElement
       public void processElement(
-          @Element Iterable<Row> inputPartition, OutputReceiver<List<Row>> out, ProcessContext c) {
+          @Element Iterable<Row> inputPartition,
+          OutputReceiver<List<Row>> out,
+          @SuppressWarnings("unused") ProcessContext c) {
         List<Row> partitionRows = Lists.newArrayList(inputPartition);
         BeamSortRel.BeamSqlRowComparator beamSqlRowComparator =
             new BeamSortRel.BeamSqlRowComparator(

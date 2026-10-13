@@ -47,8 +47,13 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
       Session session = ConnectionManager.getSession(read);
       Mapper<T> mapper = read.mapperFactoryFn().apply(session);
       String partitionKey =
-          session.getCluster().getMetadata().getKeyspace(read.keyspace().get())
-              .getTable(read.table().get()).getPartitionKey().stream()
+          session
+              .getCluster()
+              .getMetadata()
+              .getKeyspace(read.keyspace().get())
+              .getTable(read.table().get())
+              .getPartitionKey()
+              .stream()
               .map(ColumnMetadata::getName)
               .map(ReadFn::quoteIdentifier)
               .collect(Collectors.joining(","));

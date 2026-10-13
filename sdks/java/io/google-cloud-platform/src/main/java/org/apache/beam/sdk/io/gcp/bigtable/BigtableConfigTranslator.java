@@ -137,7 +137,7 @@ class BigtableConfigTranslator {
             .stubSettings()
             .setCredentialsProvider(
                 FixedCredentialsProvider.create(
-                    (pipelineOptions.as(GcpOptions.class)).getGcpCredential()));
+                    pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
 
       if (config.getCredentialFactory() != null) {
@@ -211,8 +211,7 @@ class BigtableConfigTranslator {
       InstantiatingGrpcChannelProvider grpcChannelProvider =
           (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
       stubSettings.setTransportChannelProvider(
-          grpcChannelProvider
-              .toBuilder()
+          grpcChannelProvider.toBuilder()
               .setChannelPoolSettings(ChannelPoolSettings.staticallySized(config.getChannelCount()))
               .build());
     }

@@ -21,11 +21,17 @@
 
 import gc
 import logging
+import tempfile
 import unittest
 import unittest.mock
 
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import sdk_container_builder
+
+try:
+  from google.cloud.devtools import cloudbuild_v1
+except ImportError:
+  cloudbuild_v1 = None
 
 
 class SdkContainerBuilderTest(unittest.TestCase):
@@ -119,6 +125,41 @@ class SdkContainerBuilderTest(unittest.TestCase):
         f'Expected image name to start with {expected_prefix},'\
            f' got: {container_image_name}'
     )
+
+  @unittest.skipIf(
+      cloudbuild_v1 is None, 'GCP Cloud Build dependencies are not installed')
+  def test_cloud_builder_assign_machine_type(self):
+    """Verify Cloud Build machine_type is correctly set on BuildOptions."""
+    from google.cloud.devtools.cloudbuild_v1 import types as cloud_build_types
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      options = pipeline_options.PipelineOptions([
+          '--project=test-project',
+          '--temp_location=gs://test-bucket/temp',
+          '--cloud_build_machine_type=n1-highcpu-8',
+          '--no_auth',  # Avoid fetching credential for unit testing
+      ])
+      builder = sdk_container_builder._SdkContainerImageCloudBuilder(options)
+      builder._temp_src_dir = temp_dir
+      builder._upload_to_gcs = unittest.mock.MagicMock()
+
+      mock_cloudbuild_client = unittest.mock.MagicMock()
+      mock_build_response = unittest.mock.MagicMock()
+      mock_build_response.metadata.build.id = 'dummy-id'
+      mock_build_response.metadata.build.log_url = 'http://dummy.url'
+      mock_cloudbuild_client.create_build.return_value = mock_build_response
+      mock_cloudbuild_client.get_build.return_value = cloud_build_types.Build(
+          status=cloud_build_types.Build.Status.SUCCESS)
+      builder._cloudbuild_client = mock_cloudbuild_client
+
+      builder._invoke_docker_build_and_push(
+          'gcr.io/test-project/prebuilt_beam_sdk:latest')
+
+      mock_cloudbuild_client.create_build.assert_called_once()
+      create_build_request = mock_cloudbuild_client.create_build.call_args[0][0]
+      self.assertEqual(
+          create_build_request.build.options.machine_type,
+          cloud_build_types.BuildOptions.MachineType.N1_HIGHCPU_8)
 
 
 if __name__ == '__main__':

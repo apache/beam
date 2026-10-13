@@ -137,7 +137,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof CoderTypeSerializer)) {
       return false;
     }
 

@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
  * <h3>No-argument {@link SolaceIO#read()} top-level method</h3>
  *
  * <p>This method returns a PCollection of {@link Solace.Record} objects. It uses a default mapper
- * ({@link SolaceRecordMapper#map(BytesXMLMessage)}) to map from the received {@link
+ * ({@link SolaceRecordMapper#toRecord(BytesXMLMessage)}) to map from the received {@link
  * BytesXMLMessage} from Solace, to the {@link Solace.Record} objects.
  *
  * <p>By default, it also uses a {@link BytesXMLMessage#getSenderTimestamp()} for watermark
@@ -220,6 +220,13 @@ import org.slf4j.LoggerFactory;
  * <p>To write to Solace, use {@link #write()} with a {@link PCollection<Solace.Record>}. You can
  * also use {@link #write(SerializableFunction)} to specify a format function to convert the input
  * type to {@link Solace.Record}.
+ *
+ * <p>Each record can select its JCSMP payload representation through {@link
+ * Solace.Record.PayloadType}. The default is {@link Solace.Record.PayloadType#BYTES_XML}, which
+ * preserves the historical behavior of writing the byte array with {@code
+ * BytesXMLMessage.writeBytes}. Use {@code setText(String)} to create a UTF-8 {@link
+ * com.solacesystems.jcsmp.TextMessage}, or select {@link Solace.Record.PayloadType#BYTES} to
+ * publish the byte array with a JCSMP {@link com.solacesystems.jcsmp.BytesMessage}.
  *
  * <h3>Writing to a static topic or queue</h3>
  *
@@ -414,6 +421,8 @@ public class SolaceIO {
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
   private static final Duration DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
+  private static final Duration DEFAULT_ACK_DEADLINE = Duration.standardSeconds(30);
+  public static final boolean DEFAULT_NACK_ON_TIMEOUT = false;
   public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
@@ -458,10 +467,12 @@ public class SolaceIO {
     return new Read<Solace.Record>(
         Read.Configuration.<Solace.Record>builder()
             .setTypeDescriptor(TypeDescriptor.of(Solace.Record.class))
-            .setParseFn(SolaceRecordMapper::map)
+            .setParseFn(SolaceRecordMapper::toRecord)
             .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
-            .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
+            .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
+            .setAckDeadline(DEFAULT_ACK_DEADLINE)
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
   }
 
   /**
@@ -490,7 +501,9 @@ public class SolaceIO {
             .setParseFn(parseFn)
             .setTimestampFn(timestampFn)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
-            .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
+            .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
+            .setAckDeadline(DEFAULT_ACK_DEADLINE)
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
   }
 
   /**
@@ -573,6 +586,33 @@ public class SolaceIO {
      */
     public Read<T> withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
       configurationBuilder.setWatermarkIdleDurationThreshold(idleDurationThreshold);
+      return this;
+    }
+
+    /**
+     * Optional. Sets the deadline for acknowledging messages. If a checkpoint is not finalized
+     * within this duration, the messages in that checkpoint will be negatively acknowledged
+     * (Nacked) to the broker. The default ack deadline is 30 seconds.
+     */
+    public Read<T> withAckDeadline(Duration ackDeadline) {
+      configurationBuilder.setAckDeadline(ackDeadline);
+      return this;
+    }
+
+    /**
+     * Optional. Sets whether to explicitly negative-acknowledge (NACK) messages when a checkpoint
+     * times out (exceeds {@link #withAckDeadline(Duration)}).
+     *
+     * <p>Default is {@code false}. When disabled, timed out checkpoints are evicted from memory to
+     * prevent unbounded memory growth, and the broker will redeliver unacknowledged messages upon
+     * session reconnection or flow rebind.
+     *
+     * <p>Note: Enabling NACK requires Solace broker version 10.2.1+ and consumer flows configured
+     * to support settlement outcomes (e.g. {@code Outcome.FAILED}). Calling NACK on standard flows
+     * throws {@link com.solacesystems.jcsmp.InvalidOperationException}.
+     */
+    public Read<T> withNackOnTimeout(boolean nackOnTimeout) {
+      configurationBuilder.setNackOnTimeout(nackOnTimeout);
       return this;
     }
 
@@ -689,6 +729,10 @@ public class SolaceIO {
 
       abstract Duration getWatermarkIdleDurationThreshold();
 
+      abstract Duration getAckDeadline();
+
+      abstract boolean getNackOnTimeout();
+
       public static <T> Builder<T> builder() {
         Builder<T> builder =
             new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
@@ -718,6 +762,10 @@ public class SolaceIO {
         abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
         abstract Builder<T> setWatermarkIdleDurationThreshold(Duration idleDurationThreshold);
+
+        abstract Builder<T> setAckDeadline(Duration ackDeadline);
+
+        abstract Builder<T> setNackOnTimeout(boolean nackOnTimeout);
 
         abstract Configuration<T> build();
       }
@@ -756,7 +804,9 @@ public class SolaceIO {
                   coder,
                   configuration.getTimestampFn(),
                   configuration.getWatermarkIdleDurationThreshold(),
-                  configuration.getParseFn())));
+                  configuration.getParseFn(),
+                  configuration.getAckDeadline(),
+                  configuration.getNackOnTimeout())));
     }
 
     @VisibleForTesting

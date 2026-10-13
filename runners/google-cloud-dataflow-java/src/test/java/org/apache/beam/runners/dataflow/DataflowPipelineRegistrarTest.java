@@ -37,14 +37,14 @@ public class DataflowPipelineRegistrarTest {
   public void testCorrectOptionsAreReturned() {
     assertEquals(
         ImmutableList.of(DataflowPipelineOptions.class),
-        new DataflowPipelineRegistrar.Options().getPipelineOptions());
+        Lists.newArrayList(new DataflowPipelineRegistrar.Options().getPipelineOptions()));
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
     assertEquals(
         ImmutableList.of(DataflowRunner.class, TestDataflowRunner.class),
-        new DataflowPipelineRegistrar.Runner().getPipelineRunners());
+        Lists.newArrayList(new DataflowPipelineRegistrar.Runner().getPipelineRunners()));
   }
 
   @Test

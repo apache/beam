@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 
+import static org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper.isOmni;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -89,6 +91,8 @@ public class SpannerChangeStreamsSchemaTransformIT {
 
   @Test
   public void testReadSpannerChangeStream() {
+    assumeFalse(
+        "SchemaTransform tests do not support dynamic SpannerConfig overrides for Omni", isOmni());
     // Defines how many rows are going to be inserted / updated / deleted in the test
     final int numRows = 5;
     // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the

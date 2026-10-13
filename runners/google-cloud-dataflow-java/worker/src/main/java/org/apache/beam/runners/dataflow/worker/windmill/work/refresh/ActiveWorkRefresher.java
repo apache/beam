@@ -44,8 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Asynchronously GetData requests to Streaming Engine for all sufficiently old active work and
- * invalidates stuck commits.
+ * Asynchronously GetData requests to Streaming Engine for all sufficiently old active work.
  *
  * <p>This informs Windmill that processing is ongoing and the work should not be retried. The age
  * threshold is determined by {@link #activeWorkRefreshPeriodMillis}
@@ -61,7 +60,6 @@ public final class ActiveWorkRefresher {
   private final int activeWorkRefreshPeriodMillis;
   private final Supplier<Collection<ComputationState>> computations;
   private final DataflowExecutionStateSampler sampler;
-  private final int stuckCommitDurationMillis;
   private final HeartbeatTracker heartbeatTracker;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
   private final ExecutorService fanOutActiveWorkRefreshExecutor;
@@ -69,14 +67,12 @@ public final class ActiveWorkRefresher {
   public ActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
-      int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
       ScheduledExecutorService activeWorkRefreshExecutor,
       HeartbeatTracker heartbeatTracker) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
-    this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
@@ -101,29 +97,16 @@ public final class ActiveWorkRefresher {
           activeWorkRefreshPeriodMillis,
           TimeUnit.MILLISECONDS);
     }
-
-    if (stuckCommitDurationMillis > 0) {
-      int periodMillis = Math.max(stuckCommitDurationMillis / 10, 100);
-      activeWorkRefreshExecutor.scheduleWithFixedDelay(
-          this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
-    }
   }
 
   public void stop() {
-    if (activeWorkRefreshPeriodMillis > 0 || stuckCommitDurationMillis > 0) {
+    if (activeWorkRefreshPeriodMillis > 0) {
       activeWorkRefreshExecutor.shutdown();
       try {
         activeWorkRefreshExecutor.awaitTermination(300, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         activeWorkRefreshExecutor.shutdownNow();
       }
-    }
-  }
-
-  private void invalidateStuckCommits() {
-    Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
-    for (ComputationState computationState : computations.get()) {
-      computationState.invalidateStuckCommits(stuckCommitDeadline);
     }
   }
 

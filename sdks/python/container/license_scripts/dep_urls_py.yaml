@@ -116,7 +116,7 @@ pip_dependencies:
   oauth2client:
     license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
   orjson:
-    license: "https://github.com/ijl/orjson/raw/master/LICENSE-APACHE"
+    license: "https://raw.githubusercontent.com/ijl/orjson/master/LICENSE-APACHE"
   pandas:
     license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
   pathlib2:
@@ -135,7 +135,7 @@ pip_dependencies:
   pyhamcrest:
     license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
   pyjsparser:
-    license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
+    license: "https://raw.githubusercontent.com/PiotrDabkowski/pyjsparser/refs/heads/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
   milvus-lite:

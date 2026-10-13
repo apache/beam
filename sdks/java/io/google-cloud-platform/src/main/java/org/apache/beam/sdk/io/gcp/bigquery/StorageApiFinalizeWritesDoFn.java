@@ -120,7 +120,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
         contexts -> {
           RetryManager.Operation.Context<FinalizeWriteStreamResponse> firstContext =
               Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
-          LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
+          LOG.error("Finalize of stream {} failed", streamId, firstContext.getError());
           finalizeOperationsFailed.inc();
           BigQuerySinkMetrics.reportFailedRPCMetrics(
               firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
@@ -132,7 +132,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               Preconditions.checkArgumentNotNull(
                   c.getResult(),
                   "Finalize of write stream " + streamId + " finished, but with null result");
-          LOG.debug("Finalize of stream " + streamId + " finished with " + response);
+          LOG.debug("Finalize of stream {} finished with {}", streamId, response);
           rowsFinalized.inc(response.getRowCount());
 
           finalizeOperationsSucceeded.inc();
@@ -157,9 +157,6 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
       retryManager.addOperation(
           c -> {
-            @SuppressWarnings({
-              "nullness" // unsure why s is inferred to be @Nullable
-            })
             Iterable<String> streamsToCommit =
                 Iterables.filter(streamNames, s -> !alreadyCommittedStreams.contains(s));
             batchCommitOperationsSent.inc();
@@ -169,17 +166,15 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
             RetryManager.Operation.Context<BatchCommitWriteStreamsResponse> firstContext =
                 Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
             LOG.error(
-                "BatchCommit failed. tableId "
-                    + tableId
-                    + " streamNames "
-                    + streamNames
-                    + " error: "
-                    + firstContext.getError());
+                "BatchCommit failed. tableId {} streamNames {}",
+                tableId,
+                streamNames,
+                firstContext.getError());
             batchCommitOperationsFailed.inc();
             return RetryType.RETRY_ALL_OPERATIONS;
           },
           c -> {
-            LOG.info("BatchCommit succeeded for tableId " + tableId + " response " + c.getResult());
+            LOG.info("BatchCommit succeeded for tableId {} response {}", tableId, c.getResult());
             batchCommitOperationsSucceeded.inc();
           },
           response -> {
@@ -190,9 +185,6 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
                   alreadyCommittedStreams.add(storageError.getEntity());
                 }
               }
-              @SuppressWarnings({
-                "nullness" // unsure why s is inferred to be @Nullable
-              })
               Iterable<String> streamsToCommit =
                   Iterables.filter(streamNames, s -> !alreadyCommittedStreams.contains(s));
               // If there are no more streams left to commit, then report this operation as having

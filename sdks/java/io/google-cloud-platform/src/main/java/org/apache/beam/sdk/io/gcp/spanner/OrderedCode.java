@@ -298,7 +298,7 @@ class OrderedCode {
     return BITS_TO_LENGTH[log2Floor(n < 0 ? ~n : n) + 1];
   }
 
-  /** @see #readSignedNumIncreasing() */
+  /** See {@link #readSignedNumIncreasing()}. */
   public void writeSignedNumIncreasing(long val) {
     long x = val < 0 ? ~val : val;
     if (x < 64) { // Fast path for encoding length == 1.

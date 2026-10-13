@@ -190,6 +190,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                       .setTimestamp(kv.getValue().getTimestamp())
                       .setWindow(kv.getValue().getWindow())
                       .setPaneInfo(kv.getValue().getPaneInfo())
+                      .setValueKind(kv.getValue().getValueKind())
                       .output();
                 }
               }));

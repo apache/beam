@@ -147,7 +147,11 @@ public abstract class WorkProgressUpdater {
     this.clock = clock;
   }
 
-  /** @param worker workexecutor for the updater. */
+  /**
+   * Sets the worker for the updater.
+   *
+   * @param worker workexecutor for the updater.
+   */
   public void setWorker(WorkExecutor worker) {
     this.worker = worker;
   }
@@ -292,6 +296,8 @@ public abstract class WorkProgressUpdater {
           checkpointState = CheckpointState.CHECKPOINT_SUCCESSFUL;
           return true;
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         LOG.warn("Error trying to checkpoint the worker: ", e);
       }
@@ -305,6 +311,8 @@ public abstract class WorkProgressUpdater {
     LOG.debug("Updating progress on work item {}", workString());
     try {
       reportProgressHelper();
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (InterruptedException e) {
       LOG.info("Cancelling workitem execution: {}", workString(), e);
       worker.abort();

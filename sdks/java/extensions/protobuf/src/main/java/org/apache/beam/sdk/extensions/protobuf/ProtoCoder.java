@@ -208,6 +208,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     }
   }
 
+  @SuppressWarnings("EqualsGetClass")
   @Override
   public boolean equals(@Nullable Object other) {
     if (this == other) {

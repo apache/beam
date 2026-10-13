@@ -42,6 +42,10 @@ public abstract class SplittableProcessElementInvoker<
     private final DoFn.ProcessContinuation continuation;
     private final @Nullable Instant futureOutputWatermark;
     private final @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState;
+    private final double backlogBytes;
+
+    /* Constant representing an unknown amount of backlog. */
+    public static final double BACKLOG_UNKNOWN = -1.0;
 
     @SuppressFBWarnings(
         value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
@@ -50,12 +54,27 @@ public abstract class SplittableProcessElementInvoker<
         @Nullable RestrictionT residualRestriction,
         DoFn.ProcessContinuation continuation,
         @Nullable Instant futureOutputWatermark,
-        @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState) {
+        @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState,
+        double backlogBytes) {
       checkArgument(continuation != null, "continuation must not be null");
       this.continuation = continuation;
       this.residualRestriction = residualRestriction;
       this.futureOutputWatermark = futureOutputWatermark;
       this.futureWatermarkEstimatorState = futureWatermarkEstimatorState;
+      this.backlogBytes = backlogBytes;
+    }
+
+    public Result(
+        @Nullable RestrictionT residualRestriction,
+        DoFn.ProcessContinuation continuation,
+        @Nullable Instant futureOutputWatermark,
+        @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState) {
+      this(
+          residualRestriction,
+          continuation,
+          futureOutputWatermark,
+          futureWatermarkEstimatorState,
+          BACKLOG_UNKNOWN);
     }
 
     /**
@@ -75,6 +94,10 @@ public abstract class SplittableProcessElementInvoker<
 
     public @Nullable WatermarkEstimatorStateT getFutureWatermarkEstimatorState() {
       return futureWatermarkEstimatorState;
+    }
+
+    public double getBacklogBytes() {
+      return backlogBytes;
     }
   }
 

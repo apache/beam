@@ -1077,6 +1077,130 @@ def model_bigqueryio_xlang(
   # [END model_bigqueryio_write_with_storage_write_api]
 
 
+def model_managed_iceberg():
+  """Examples for Managed Iceberg sources and sinks."""
+  # [START hadoop_catalog_config]
+  hadoop_catalog_props = {
+      'type': 'hadoop',
+      'warehouse': 'file:///tmp/beam-iceberg-local-quickstart'
+  }
+  # [END hadoop_catalog_config]
+
+  # [START managed_iceberg_config]
+  managed_config = {
+      'table': 'my_db.my_table', 'catalog_properties': hadoop_catalog_props
+  }
+
+  # Note: The table will get created when inserting data (see below)
+  # [END managed_iceberg_config]
+
+  # [START managed_iceberg_insert]
+  with beam.Pipeline() as p:
+    (
+        p
+        | beam.Create([
+            beam.Row(id=1, name="Mark", age=32),
+            beam.Row(id=2, name="Omar", age=24),
+            beam.Row(id=3, name="Rachel", age=27)
+        ])
+        | beam.managed.Write("iceberg", config=managed_config))
+  # [END managed_iceberg_insert]
+
+  # [START managed_iceberg_read]
+  with beam.Pipeline() as p:
+    (
+        p
+        | beam.managed.Read("iceberg", config=managed_config)
+        | beam.LogElements())
+  # [END managed_iceberg_read]
+
+  BUCKET_NAME = ""
+  PROJECT_ID = ""
+
+  # [START biglake_public_catalog_props]
+  biglake_catalog_props = {
+      'type': 'rest',
+      'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+      'warehouse': 'gs://biglake-public-nyc-taxi-iceberg',
+      'header.x-goog-user-project': PROJECT_ID,
+      'rest.auth.type': 'google',
+      'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+      'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+  }
+  # [END biglake_public_catalog_props]
+
+  # [START biglake_public_query]
+  from statistics import mean
+
+  config = {
+      "table": "public_data.nyc_taxicab",
+      "catalog_properties": biglake_catalog_props,
+      "filter": "data_file_year = 2021 AND tip_amount > 100",
+      "keep": ["passenger_count", "total_amount", "trip_distance"]
+  }
+
+  with beam.Pipeline() as p:
+    rows = p | beam.managed.Read("iceberg", config=config)
+
+    result = (
+        rows | beam.Select(num_trips=lambda x: 1, *rows.element_type._fields)
+        | beam.GroupBy('passenger_count').aggregate_field(
+            'num_trips', sum, 'total_trips').aggregate_field(
+                'total_amount', mean, 'avg_fare').aggregate_field(
+                    'trip_distance', mean, 'avg_distance'))
+
+    result | beam.Map(print)
+  # [END biglake_public_query]
+
+  # [START biglake_catalog_props]
+  biglake_catalog_config = {
+      'type': 'rest',
+      'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+      'warehouse': 'gs://' + BUCKET_NAME,
+      'header.x-goog-user-project': PROJECT_ID,
+      'rest.auth.type': 'google',
+      'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+      'header.X-Iceberg-Access-Delegation': 'vended-credentials'
+  }
+  # [END biglake_catalog_props]
+
+  # [START model_managed_iceberg_data_types]
+  import apache_beam as beam
+  from apache_beam.utils.timestamp import Timestamp
+
+  row = beam.Row(
+      boolean_field=True,
+      int_field=1,
+      long_field=2,
+      float_field=3.45,
+      bytes_field=b'value',
+      string_field="value",
+      timestamptz_field=Timestamp(4, 5),
+      array_field=[1, 2, 3],
+      map_field={
+          "a": 1, "b": 2
+      },
+      struct_field=beam.Row(nested_field="nested_value", nested_field2=123))
+
+  import numpy as np
+  from apache_beam.typehints.row_type import RowTypeConstraint
+  from typing import Sequence
+
+  # Override data schema by adding `with_output_types` to the transform:
+  beam.Create(row).with_output_types(
+      RowTypeConstraint.from_fields([
+          ('boolean_field', bool), ('int_field', int), ('long_field', np.int64),
+          ('float_field', float), ('bytes_field', bytes), ('string_field', str),
+          ('timestamptz_field', Timestamp), ('array_field', Sequence[int]),
+          ('map_field', dict[str, int]),
+          (
+              'struct_field',
+              RowTypeConstraint.from_fields([('nested_field', str),
+                                             ('nested_field2', int)]))
+      ]))
+  # [END model_managed_iceberg_data_types]
+
+
 def model_composite_transform_example(contents, output_path):
   """Example of a composite transform.
 
@@ -1447,6 +1571,66 @@ def side_input_slow_update(
       | 'ApplyCrossJoin' >> beam.FlatMap(
           cross_join, rights=beam.pvalue.AsIter(side_input)))
   # [END SideInputSlowUpdateSnip1]
+
+  return pipeline, result
+
+
+def side_input_slow_update_global_window(
+    first_timestamp, last_timestamp, side_input_interval, main_input_interval):
+  # [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+  from apache_beam.transforms import combiners
+  from apache_beam.transforms import trigger
+  from apache_beam.transforms import window
+  from apache_beam.transforms.periodicsequence import PeriodicImpulse
+
+  # To run indefinitely, pass MAX_TIMESTAMP from apache_beam.utils.timestamp
+  # as last_timestamp.
+
+  # Placeholder that represents an external service, such as a database or a
+  # configuration endpoint. Replace it with the external read of your choice.
+  def read_from_placeholder_external_service(refresh_timestamp):
+    return {'Key_A': str(refresh_timestamp)}
+
+  def enrich_with_side_input(element, config):
+    # The side input is read as an iterable rather than as a singleton,
+    # because the global window side input can hold more than one element if
+    # it fires again before the value is consumed.
+    latest_config = next(iter(config), {})
+    return element, latest_config.get('Key_A')
+
+  # Create pipeline.
+  pipeline = beam.Pipeline()
+
+  # Periodically read the external data into the global window.
+  # Repeatedly(AfterCount(1)) emits a new pane for every impulse, and the
+  # DISCARDING accumulation mode drops the previous value, so that
+  # Latest.Globally only considers the most recent element.
+  # Use Latest.Globally().without_defaults(): the variant with defaults adds
+  # its own side input, which stops the transform from emitting more than once.
+  side_input = (
+      pipeline
+      | 'SideInputImpulse' >> PeriodicImpulse(
+          first_timestamp, last_timestamp, side_input_interval)
+      | 'ReadExternalData' >> beam.Map(read_from_placeholder_external_service)
+      | 'WindowSideInput' >> beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+          accumulation_mode=trigger.AccumulationMode.DISCARDING)
+      | 'GetLatest' >> combiners.Latest.Globally().without_defaults())
+
+  # Consume the side input from a main input that uses non-global windows.
+  # PeriodicImpulse generates test data. Use a real streaming source, such as
+  # PubSubIO or KafkaIO, in production.
+  result = (
+      pipeline
+      | 'MainInputImpulse' >> PeriodicImpulse(
+          first_timestamp,
+          last_timestamp,
+          main_input_interval,
+          apply_windowing=True)
+      | 'ApplySideInput' >> beam.Map(
+          enrich_with_side_input, config=beam.pvalue.AsIter(side_input)))
+  # [END SideInputPatternSlowUpdateGlobalWindowSnip1]
 
   return pipeline, result
 

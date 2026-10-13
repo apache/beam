@@ -117,6 +117,7 @@ abstract class Repeater<InputT, OutputT> {
         }
         latestError = Optional.of(e);
       } catch (InterruptedException ignored) {
+        // Ignore the interrupt and try again.
       }
       incIfPresent(getBackoffCounter());
       waitFor = getBackOff().nextBackOffMillis();

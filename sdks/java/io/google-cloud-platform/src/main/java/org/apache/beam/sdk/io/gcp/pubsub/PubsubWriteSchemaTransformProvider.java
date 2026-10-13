@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +43,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
@@ -106,7 +107,10 @@ public class PubsubWriteSchemaTransformProvider
           for (int ix = 0; ix < fields.size(); ix++) {
             String name = fields.get(ix).getName();
             if (attributes != null && attributes.contains(name)) {
-              messageAttributes.put(name, row.getValue(ix));
+              String val = row.getString(ix);
+              if (val != null) {
+                messageAttributes.put(name, val);
+              }
             } else if (name.equals(attributesMap)) {
               Map<String, String> attrs = row.<String, String>getMap(ix);
               if (attrs != null) {
@@ -135,11 +139,11 @@ public class PubsubWriteSchemaTransformProvider
 
   @Override
   public SchemaTransform from(PubsubWriteSchemaTransformConfiguration configuration) {
-    if (!VALID_DATA_FORMATS.contains(configuration.getFormat().toUpperCase())) {
+    String format = checkArgumentNotNull(configuration.getFormat(), "Format must be specified");
+    if (!VALID_DATA_FORMATS.contains(format.toUpperCase())) {
       throw new IllegalArgumentException(
           String.format(
-              "Format %s not supported. Only supported formats are %s",
-              configuration.getFormat(), VALID_FORMATS_STR));
+              "Format %s not supported. Only supported formats are %s", format, VALID_FORMATS_STR));
     }
     return new PubsubWriteSchemaTransform(configuration);
   }
@@ -152,14 +156,10 @@ public class PubsubWriteSchemaTransformProvider
     }
 
     @Override
-    @SuppressWarnings({
-      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-    })
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      String errorOutput =
-          configuration.getErrorHandling() == null
-              ? null
-              : configuration.getErrorHandling().getOutput();
+      PubsubWriteSchemaTransformConfiguration.ErrorHandling errorHandling =
+          configuration.getErrorHandling();
+      String errorOutput = errorHandling == null ? null : errorHandling.getOutput();
 
       final Schema errorSchema =
           Schema.builder()
@@ -167,16 +167,19 @@ public class PubsubWriteSchemaTransformProvider
               .addNullableRowField("row", input.get("input").getSchema())
               .build();
 
-      String format = configuration.getFormat();
+      String format = checkArgumentNotNull(configuration.getFormat(), "Format must be specified");
       Schema beamSchema = input.get("input").getSchema();
       Schema payloadSchema;
-      if (configuration.getAttributes() == null && configuration.getAttributesMap() == null) {
+      List<String> attributes = configuration.getAttributes();
+      String attributesMap = configuration.getAttributesMap();
+      if (attributes == null && attributesMap == null) {
         payloadSchema = beamSchema;
       } else {
         Schema.Builder payloadSchemaBuilder = Schema.builder();
         for (Schema.Field f : beamSchema.getFields()) {
-          if (!configuration.getAttributes().contains(f.getName())
-              && !f.getName().equals(configuration.getAttributesMap())) {
+          boolean isAttribute = attributes != null && attributes.contains(f.getName());
+          boolean isAttributesMap = f.getName().equals(attributesMap);
+          if (!isAttribute && !isAttributesMap) {
             payloadSchemaBuilder.addField(f);
           }
         }
@@ -190,9 +193,12 @@ public class PubsubWriteSchemaTransformProvider
                   "Raw output only supported for single-field schemas, got %s", payloadSchema));
         }
         if (payloadSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
-          fn = row -> row.getBytes(0);
+          fn = row -> checkArgumentNotNull(row.getBytes(0), "Payload bytes value cannot be null");
         } else if (payloadSchema.getField(0).getType().equals(Schema.FieldType.STRING)) {
-          fn = row -> row.getString(0).getBytes(StandardCharsets.UTF_8);
+          fn =
+              row ->
+                  checkArgumentNotNull(row.getString(0), "Payload string value cannot be null")
+                      .getBytes(StandardCharsets.UTF_8);
         } else {
           throw new IllegalArgumentException(
               String.format(
@@ -217,20 +223,23 @@ public class PubsubWriteSchemaTransformProvider
                   ParDo.of(
                           new ErrorFn(
                               fn,
-                              configuration.getAttributes(),
-                              configuration.getAttributesMap(),
+                              attributes,
+                              attributesMap,
                               payloadSchema,
                               errorSchema,
                               errorOutput != null))
                       .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
       PubsubIO.Write<PubsubMessage> writeTransform =
-          PubsubIO.writeMessages().to(configuration.getTopic());
-      if (!Strings.isNullOrEmpty(configuration.getIdAttribute())) {
-        writeTransform = writeTransform.withIdAttribute(configuration.getIdAttribute());
+          PubsubIO.writeMessages()
+              .to(checkArgumentNotNull(configuration.getTopic(), "Topic must be specified"));
+      String idAttribute = configuration.getIdAttribute();
+      if (idAttribute != null && !idAttribute.isEmpty()) {
+        writeTransform = writeTransform.withIdAttribute(idAttribute);
       }
-      if (!Strings.isNullOrEmpty(configuration.getTimestampAttribute())) {
-        writeTransform = writeTransform.withIdAttribute(configuration.getTimestampAttribute());
+      String timestampAttribute = configuration.getTimestampAttribute();
+      if (timestampAttribute != null && !timestampAttribute.isEmpty()) {
+        writeTransform = writeTransform.withTimestampAttribute(timestampAttribute);
       }
       outputTuple.get(OUTPUT_TAG).apply(writeTransform);
       outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);

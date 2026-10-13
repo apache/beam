@@ -838,9 +838,11 @@ public abstract class Row implements Serializable {
 
     @Internal
     public <T> Row withFieldValueGetters(
-        Factory<List<FieldValueGetter<T, Object>>> fieldValueGetterFactory, T getterTarget) {
+        Factory<List<FieldValueGetter<T, Object>>> fieldValueGetterFactory,
+        T getterTarget,
+        TypeDescriptor<?> getterTargetType) {
       checkState(getterTarget != null, "getters require withGetterTarget.");
-      return new RowWithGetters<>(schema, fieldValueGetterFactory, getterTarget);
+      return new RowWithGetters<>(schema, fieldValueGetterFactory, getterTarget, getterTargetType);
     }
 
     public Row build() {

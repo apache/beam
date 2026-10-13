@@ -77,18 +77,19 @@ func TestReadValueState(t *testing.T) {
 
 func buildStateProvider() stateProvider {
 	return stateProvider{
-		ctx:               context.Background(),
-		sr:                &testStateReader{},
-		elementKey:        []byte{1},
-		window:            []byte{1},
-		transactionsByKey: make(map[string][]state.Transaction),
-		initialValueByKey: make(map[string]any),
-		initialBagByKey:   make(map[string][]any),
-		readersByKey:      make(map[string]io.ReadCloser),
-		appendersByKey:    make(map[string]io.Writer),
-		clearersByKey:     make(map[string]io.Writer),
-		combineFnsByKey:   make(map[string]*graph.CombineFn), // Each test can specify coders as needed
-		codersByKey:       make(map[string]*coder.Coder),     // Each test can specify coders as needed
+		ctx:                     context.Background(),
+		sr:                      &testStateReader{},
+		elementKey:              []byte{1},
+		window:                  []byte{1},
+		transactionsByKey:       make(map[string][]state.Transaction),
+		initialValueByKey:       make(map[string]any),
+		initialBagByKey:         make(map[string][]any),
+		initialOrderedListByKey: make(map[string][]any),
+		readersByKey:            make(map[string]io.ReadCloser),
+		appendersByKey:          make(map[string]io.Writer),
+		clearersByKey:           make(map[string]io.Writer),
+		combineFnsByKey:         make(map[string]*graph.CombineFn), // Each test can specify coders as needed
+		codersByKey:             make(map[string]*coder.Coder),     // Each test can specify coders as needed
 	}
 }
 

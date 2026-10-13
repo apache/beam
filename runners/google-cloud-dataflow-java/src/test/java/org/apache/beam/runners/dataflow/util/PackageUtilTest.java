@@ -191,6 +191,8 @@ public class PackageUtilTest {
     assertThat(target.getName(), endsWith(".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
     assertThat(attr.getSize(), equalTo((long) contents.length()));
+    String expectedHash = Files.asByteSource(tmpFile).hash(Hashing.sha256()).toString();
+    assertThat(target.getSha256(), equalTo(expectedHash));
   }
 
   @Test
@@ -299,6 +301,8 @@ public class PackageUtilTest {
 
     assertThat(target.getName(), endsWith(".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
+    String expectedHash = Files.asByteSource(tmpFile).hash(Hashing.sha256()).toString();
+    assertThat(target.getSha256(), equalTo(expectedHash));
     assertThat(
         new LineReader(Channels.newReader(pipe.source(), StandardCharsets.UTF_8.name())).readLine(),
         equalTo(contents));

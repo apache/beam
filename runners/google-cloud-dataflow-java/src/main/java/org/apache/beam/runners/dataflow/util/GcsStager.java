@@ -21,15 +21,42 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.auto.value.AutoValue;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
 
 /** Utility class for staging files to GCS. */
 public class GcsStager implements Stager {
+  @AutoValue
+  abstract static class StagedFilesCacheKey {
+    abstract String getStagingLocation();
+
+    abstract List<StagedFile> getFilesToStage();
+
+    static StagedFilesCacheKey of(String stagingLocation, List<StagedFile> filesToStage) {
+      return new AutoValue_GcsStager_StagedFilesCacheKey(stagingLocation, filesToStage);
+    }
+  }
+
+  private static final int MAX_STAGED_FILES_CACHE_SIZE = 5000;
+
+  private static final Cache<StagedFilesCacheKey, List<DataflowPackage>> STAGED_FILES_CACHE =
+      CacheBuilder.newBuilder()
+          .maximumSize(MAX_STAGED_FILES_CACHE_SIZE)
+          .expireAfterWrite(Duration.ofMinutes(30))
+          .build();
+
   private DataflowPipelineOptions options;
 
   private GcsStager(DataflowPipelineOptions options) {
@@ -49,6 +76,24 @@ public class GcsStager implements Stager {
    */
   @Override
   public List<DataflowPackage> stageFiles(List<StagedFile> filesToStage) {
+    String stagingLocation = options.getStagingLocation();
+    if (stagingLocation != null) {
+      StagedFilesCacheKey cacheKey = StagedFilesCacheKey.of(stagingLocation, filesToStage);
+      try {
+        return STAGED_FILES_CACHE.get(
+            cacheKey, () -> Collections.unmodifiableList(stageFilesUncached(filesToStage)));
+      } catch (ExecutionException | UncheckedExecutionException e) {
+        if (e.getCause() != null) {
+          Throwables.throwIfUnchecked(e.getCause());
+          throw new RuntimeException(e.getCause());
+        }
+        throw new RuntimeException(e);
+      }
+    }
+    return stageFilesUncached(filesToStage);
+  }
+
+  private List<DataflowPackage> stageFilesUncached(List<StagedFile> filesToStage) {
     try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
       return packageUtil.stageClasspathElements(
           filesToStage, options.getStagingLocation(), buildCreateOptions());

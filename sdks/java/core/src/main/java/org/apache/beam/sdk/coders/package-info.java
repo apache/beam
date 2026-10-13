@@ -36,8 +36,4 @@
  * String}, and {@code List}, as well as coders like {@link org.apache.beam.sdk.coders.AvroCoder}
  * that can be used to encode many custom types.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.coders;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

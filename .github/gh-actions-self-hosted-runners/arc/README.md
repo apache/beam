@@ -16,7 +16,7 @@
     limitations under the License.
 -->
 
-# Actions Runner Contoler
+# Actions Runner Controller
 
 # About
 Check out the docs at https://github.com/actions/actions-runner-controller/blob/master/docs/about-arc.md
@@ -45,7 +45,7 @@ main_runner = {
     max_node_count = "5"                                      # Main runner pool maximal node count
     min_replicas = "5"                                        # Min number of runner PODs in the main pool . Do not confuse with Nodes
     max_replicas = "20"                                       # Max number of runner PODs in the main pool . Do not confuse with Nodes
-    webhook_scaling                                           # Enable webhook scaling for main pool
+    webhook_scaling = true                                    # Enable webhook scaling for main pool
 }
 environment = "environment_name"                              # Name of the environment. Used as a prefix like dev- stag- anything-
 ingress_domain = "fqdn"                                       # FQDN for webhook ingress
@@ -66,7 +66,7 @@ machine_type = "e2-standard-2"            # Macihne type for the pool
 min_node_count = 1                        # Minimal node count
 max_node_count = 2                        # Maximal node count
 min_replicas = 1                          # Minimal replica count
-min_replicas = 2                          # Maximal replica count
+max_replicas = 2                          # Maximal replica count
 webhook_scaling = true                    # Enable webhook based scaling
 runner_image = "gcr.io/someimage:sometag" # Image to use
 labels = ["self-hosted", "testrunner"]    # Label set for runner pool. Used in `on`

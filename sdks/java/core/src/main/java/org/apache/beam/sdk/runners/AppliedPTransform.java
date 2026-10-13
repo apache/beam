@@ -77,7 +77,7 @@ public abstract class AppliedPTransform<
 
   public abstract Pipeline getPipeline();
 
-  /** @return map of {@link TupleTag TupleTags} which are not side inputs. */
+  /** Returns map of {@link TupleTag TupleTags} which are not side inputs. */
   public Map<TupleTag<?>, PCollection<?>> getMainInputs() {
     Map<TupleTag<?>, PCollection<?>> sideInputs =
         PValues.fullyExpand(getTransform().getAdditionalInputs());

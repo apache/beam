@@ -57,7 +57,7 @@ public class InMemoryReaderFactoryTest {
 
     Source cloudSource = new Source();
     cloudSource.setSpec(spec);
-    cloudSource.setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
+    cloudSource.setCodec(CloudObjects.asCloudObject(coder, /* sdkComponents= */ null));
 
     return cloudSource;
   }

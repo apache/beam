@@ -88,8 +88,7 @@ class TableContainer {
     this.primaryKeyColumnIndices = primaryColumnFieldIndices(primaryKeyColumns, table);
   }
 
-  @Nullable
-  List<Object> getPrimaryKey(TableRow tableRow) {
+  @Nullable List<Object> getPrimaryKey(TableRow tableRow) {
     if (primaryKeyColumns == null) {
       return null;
     }

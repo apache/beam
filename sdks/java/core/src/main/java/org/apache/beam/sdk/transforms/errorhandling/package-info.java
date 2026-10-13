@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 /** Provides utilities for handling errors in Pipelines. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.errorhandling;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

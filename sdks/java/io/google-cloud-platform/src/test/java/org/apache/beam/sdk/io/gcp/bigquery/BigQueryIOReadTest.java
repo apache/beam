@@ -178,7 +178,7 @@ public class BigQueryIOReadTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MyData)) {
         return false;
       }
       MyData myData = (MyData) o;

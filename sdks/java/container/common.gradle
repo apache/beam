@@ -83,6 +83,7 @@ task copyGolangLicenses(type: Copy) {
 
 task copyJdkOptions(type: Copy) {
     from "option-jamm.json"
+    from "option-arrow.json"
     from "java${imageJavaVersion}-security.properties"
     from "option-java${imageJavaVersion}-security.json"
     into "build/target/options"

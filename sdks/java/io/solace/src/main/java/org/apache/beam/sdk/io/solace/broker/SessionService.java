@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
@@ -138,7 +138,7 @@ public abstract class SessionService implements Serializable {
    * asynchronously received callbacks from Solace for message publications. The queue
    * implementation has to be thread-safe for production use-cases.
    */
-  public abstract Queue<PublishResult> getPublishedResultsQueue();
+  public abstract BlockingQueue<PublishResult> getPublishedResultsQueue();
 
   /**
    * Override this method and provide your specific properties, including all those related to
@@ -225,10 +225,9 @@ public abstract class SessionService implements Serializable {
         }
         if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
           LOG.warn(
-              String.format(
-                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                      + " HIGHER_THROUGHPUT mode was selected",
-                  BATCHED_PUB_ACK_WINDOW));
+              "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to {} since"
+                  + " HIGHER_THROUGHPUT mode was selected",
+              BATCHED_PUB_ACK_WINDOW);
         }
 
         // Override the properties
@@ -250,10 +249,9 @@ public abstract class SessionService implements Serializable {
 
         if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
           LOG.warn(
-              String.format(
-                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                      + " LOWER_LATENCY mode was selected",
-                  STREAMING_PUB_ACK_WINDOW));
+              "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to {} since"
+                  + " LOWER_LATENCY mode was selected",
+              STREAMING_PUB_ACK_WINDOW);
         }
 
         // Override the properties

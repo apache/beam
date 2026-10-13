@@ -147,8 +147,7 @@ public class BagUserState<T> {
           // Respect the batching limit by outputting the previous batch of
           // elements.
           beamFnStateClient.handle(
-              request
-                  .toBuilder()
+              request.toBuilder()
                   .setAppend(
                       StateAppendRequest.newBuilder()
                           .setData(out.consumePrefixToByteString(previousSize))));
@@ -158,15 +157,13 @@ public class BagUserState<T> {
           // exceeding runner state limits due to large elements, we output
           // without additional batching.
           beamFnStateClient.handle(
-              request
-                  .toBuilder()
+              request.toBuilder()
                   .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
         }
       }
-      if (out.size() > 0) {
+      if (!out.isEmpty()) {
         beamFnStateClient.handle(
-            request
-                .toBuilder()
+            request.toBuilder()
                 .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
       }
     }

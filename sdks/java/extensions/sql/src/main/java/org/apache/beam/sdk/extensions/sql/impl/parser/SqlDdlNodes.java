@@ -55,7 +55,7 @@ public class SqlDdlNodes {
   }
 
   /** Returns the schema in which to create an object. */
-  static Pair<CalciteSchema, String> schema(
+  public static Pair<CalciteSchema, String> schema(
       CalcitePrepare.Context context, boolean mutable, SqlIdentifier id) {
     CalciteSchema rootSchema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
     @Nullable CalciteSchema schema = null;
@@ -72,7 +72,10 @@ public class SqlDdlNodes {
     return Pair.of(checkStateNotNull(schema, "Got null sub-schema for path '%s'", path), name(id));
   }
 
-  private static @Nullable CalciteSchema childSchema(CalciteSchema rootSchema, List<String> path) {
+  public static @Nullable CalciteSchema childSchema(CalciteSchema rootSchema, List<String> path) {
+    if (path == null) {
+      return null;
+    }
     @Nullable CalciteSchema schema = rootSchema;
     for (String p : path) {
       if (schema == null) {

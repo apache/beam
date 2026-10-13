@@ -25,7 +25,6 @@ import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PortableIcebergDestinations implements DynamicDestinations {
@@ -34,6 +33,7 @@ class PortableIcebergDestinations implements DynamicDestinations {
   private final String fileFormat;
 
   private final @Nullable List<String> partitionFields;
+  private final @Nullable List<String> sortFields;
   private final @Nullable Map<String, String> tableProperties;
 
   public PortableIcebergDestinations(
@@ -41,12 +41,14 @@ class PortableIcebergDestinations implements DynamicDestinations {
       String fileFormat,
       Schema inputSchema,
       @Nullable List<String> partitionFields,
+      @Nullable List<String> sortFields,
       @Nullable Map<String, String> tableProperties,
       @Nullable List<String> fieldsToDrop,
       @Nullable List<String> fieldsToKeep,
       @Nullable String onlyField) {
     this.interpolator = new RowStringInterpolator(destinationTemplate, inputSchema);
     this.partitionFields = partitionFields;
+    this.sortFields = sortFields;
     this.tableProperties = tableProperties;
     RowFilter rf = new RowFilter(inputSchema);
 
@@ -81,11 +83,12 @@ class PortableIcebergDestinations implements DynamicDestinations {
   @Override
   public IcebergDestination instantiateDestination(String dest) {
     return IcebergDestination.builder()
-        .setTableIdentifier(TableIdentifier.parse(dest))
+        .setTableIdentifier(IcebergUtils.parseTableIdentifier(dest))
         .setTableCreateConfig(
             IcebergTableCreateConfig.builder()
                 .setSchema(getDataSchema())
                 .setPartitionFields(partitionFields)
+                .setSortFields(sortFields)
                 .setTableProperties(tableProperties)
                 .build())
         .setFileFormat(FileFormat.fromString(fileFormat))

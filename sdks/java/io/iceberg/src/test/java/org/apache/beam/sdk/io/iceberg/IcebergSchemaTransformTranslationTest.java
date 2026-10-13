@@ -46,9 +46,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.types.Types;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,6 +82,13 @@ public class IcebergSchemaTransformTranslationTest {
           .build();
   private static final Map<String, String> CONFIG_PROPERTIES =
       ImmutableMap.<String, String>builder().put("key", "value").put("key2", "value2").build();
+  private static final org.apache.iceberg.Schema CDC_TRANSLATION_SCHEMA =
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.optional(2, "data", Types.StringType.get()),
+              Types.NestedField.required(3, "event_micros", Types.LongType.get())),
+          ImmutableSet.of(1));
   private static final Row WRITE_CONFIG_ROW =
       Row.withSchema(WRITE_PROVIDER.configurationSchema())
           .withFieldValue("table", "test_table_identifier")
@@ -84,6 +96,18 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
           .withFieldValue("config_properties", CONFIG_PROPERTIES)
           .withFieldValue("keep", Collections.singletonList("str"))
+          .build();
+
+  /** A merge-on-read write config: the mode plus the options gated to it. */
+  private static final Row WRITE_CDC_CONFIG_ROW =
+      Row.withSchema(WRITE_PROVIDER.configurationSchema())
+          .withFieldValue("table", "test_table_identifier")
+          .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+          .withFieldValue("mode", "merge-on-read")
+          .withFieldValue("change_type_column", "op")
+          .withFieldValue("upsert", true)
+          .withFieldValue("equality_columns", Collections.singletonList("id"))
+          .withFieldValue("sink_id", "stable-sink")
           .build();
 
   private static final Row READ_CONFIG_ROW =
@@ -104,6 +128,9 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("to_timestamp", 456L)
           .withFieldValue("poll_interval_seconds", 123)
           .withFieldValue("streaming", true)
+          .withFieldValue("keep", ImmutableList.of("id", "event_micros"))
+          .withFieldValue("filter", "\"data\" = 'keep'")
+          .withFieldValue("watermark_column", "event_micros")
           .build();
 
   @Test
@@ -119,6 +146,21 @@ public class IcebergSchemaTransformTranslationTest {
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
+  }
+
+  @Test
+  public void testReCreateCdcWriteTransformFromRow() {
+    IcebergWriteSchemaTransform writeTransform =
+        (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CDC_CONFIG_ROW);
+
+    IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
+        new IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    IcebergWriteSchemaTransform writeTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+
+    assertEquals(WRITE_CDC_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
   }
 
   @Test
@@ -269,7 +311,15 @@ public class IcebergSchemaTransformTranslationTest {
     // First build a pipeline
     Pipeline p = Pipeline.create();
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
-    warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
+    Table table = warehouse.createTable(TableIdentifier.parse(identifier), CDC_TRANSLATION_SCHEMA);
+    table
+        .newFastAppend()
+        .appendFile(
+            warehouse.writeRecords(
+                "cdc-translation.parquet",
+                table.schema(),
+                Collections.singletonList(record(1L, "keep", 123L))))
+        .commit();
 
     Map<String, String> properties = new HashMap<>(CATALOG_PROPERTIES);
     properties.put("warehouse", warehouse.location);
@@ -278,6 +328,9 @@ public class IcebergSchemaTransformTranslationTest {
         Row.fromRow(READ_CDC_CONFIG_ROW)
             .withFieldValue("table", identifier)
             .withFieldValue("catalog_properties", properties)
+            .withFieldValue("from_snapshot", table.currentSnapshot().snapshotId())
+            .withFieldValue("to_snapshot", table.currentSnapshot().snapshotId())
+            .withFieldValue("to_timestamp", null)
             .build();
 
     IcebergCdcReadSchemaTransform readTransform =
@@ -319,5 +372,11 @@ public class IcebergSchemaTransformTranslationTest {
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, readTransformFromSpec.getConfigurationRow());
+  }
+
+  private static Record record(long id, String data, long eventMicros) {
+    return TestFixtures.createRecord(
+        CDC_TRANSLATION_SCHEMA,
+        ImmutableMap.of("id", id, "data", data, "event_micros", eventMicros));
   }
 }

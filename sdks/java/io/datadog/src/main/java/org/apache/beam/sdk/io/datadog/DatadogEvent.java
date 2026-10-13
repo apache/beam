@@ -26,6 +26,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoValue
 public abstract class DatadogEvent {
 
+  public static final String SOURCE = "ddsource";
+  public static final String TAGS = "ddtags";
+  public static final String HOSTNAME = "hostname";
+  public static final String SERVICE = "service";
+  public static final String MESSAGE = "message";
+
   public static Builder newBuilder() {
     return new AutoValue_DatadogEvent.Builder();
   }

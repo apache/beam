@@ -316,13 +316,11 @@ public class ProtoBeamConverter {
       return (BeamToProtoConverter<T, T>) IDENTITY;
     }
 
-    @NonNull
-    ProtoT convert(@NonNull BeamT value);
+    @NonNull ProtoT convert(@NonNull BeamT value);
   }
 
   interface FromProtoGetter<BeamT> {
-    @Nullable
-    BeamT getFromProto(Message message);
+    @Nullable BeamT getFromProto(Message message);
   }
 
   @FunctionalInterface
@@ -333,8 +331,7 @@ public class ProtoBeamConverter {
       return (ProtoToBeamConverter<T, T>) IDENTITY;
     }
 
-    @NonNull
-    BeamT convert(@NonNull ProtoT protoValue);
+    @NonNull BeamT convert(@NonNull ProtoT protoValue);
   }
 
   interface ToProtoSetter<BeamT> {

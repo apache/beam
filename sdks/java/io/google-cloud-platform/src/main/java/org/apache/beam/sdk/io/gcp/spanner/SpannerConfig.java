@@ -28,6 +28,9 @@ import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.google.spanner.v1.DirectedReadOptions;
 import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -91,11 +94,17 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
+  public abstract @Nullable ValueProvider<DirectedReadOptions> getDirectedReadOptions();
+
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
 
   public abstract @Nullable ValueProvider<Boolean> getPlainText();
+
+  public abstract @Nullable ValueProvider<String> getClientCertPath();
+
+  public abstract @Nullable ValueProvider<String> getClientCertKeyPath();
 
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
@@ -103,6 +112,10 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
 
   public abstract @Nullable ValueProvider<Credentials> getCredentials();
+
+  public abstract @Nullable ValueProvider<java.time.Duration> getWaitForSessionCreationDuration();
+
+  public abstract @Nullable ValueProvider<Boolean> getEnableOpenTelemetryTracing();
 
   abstract Builder toBuilder();
 
@@ -179,6 +192,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
 
+    abstract Builder setDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions);
+
     abstract Builder setDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled);
 
     abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
@@ -188,6 +203,16 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+    abstract Builder setWaitForSessionCreationDuration(
+        ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+
+    abstract Builder setEnableOpenTelemetryTracing(
+        ValueProvider<Boolean> enableOpenTelemetryTracing);
+
+    abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+    abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
     public abstract SpannerConfig build();
   }
@@ -322,6 +347,40 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setDatabaseRole(databaseRole).build();
   }
 
+  /** Specifies the Cloud Spanner directed read options. */
+  public SpannerConfig withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+    return withDirectedReadOptions(ValueProvider.StaticValueProvider.of(directedReadOptions));
+  }
+
+  /** Specifies the Cloud Spanner directed read options. */
+  public SpannerConfig withDirectedReadOptions(
+      ValueProvider<DirectedReadOptions> directedReadOptions) {
+    return toBuilder().setDirectedReadOptions(directedReadOptions).build();
+  }
+
+  /** Specifies the Cloud Spanner directed read options from a string representation. */
+  public SpannerConfig withDirectedReadOptions(String directedReadOptions) {
+    if (directedReadOptions == null || directedReadOptions.isEmpty()) {
+      return this;
+    }
+    return withDirectedReadOptions(parseDirectedReadOptions(directedReadOptions));
+  }
+
+  @VisibleForTesting
+  static DirectedReadOptions parseDirectedReadOptions(String directedReadOptions) {
+    if (directedReadOptions == null || directedReadOptions.isEmpty()) {
+      return DirectedReadOptions.getDefaultInstance();
+    }
+    DirectedReadOptions.Builder builder = DirectedReadOptions.newBuilder();
+    try {
+      JsonFormat.parser().merge(directedReadOptions, builder);
+      return builder.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(
+          "Failed to parse DirectedReadOptions from string: " + directedReadOptions, e);
+    }
+  }
+
   /** Specifies if the pipeline has to be run on the independent compute resource. */
   public SpannerConfig withDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled) {
     return toBuilder().setDataBoostEnabled(dataBoostEnabled).build();
@@ -388,5 +447,64 @@ public abstract class SpannerConfig implements Serializable {
    */
   public SpannerConfig withUsingPlainTextChannel(boolean plainText) {
     return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+  }
+
+  /**
+   * Sets the wait time for a multiplexed session to be available when creating a database client.
+   *
+   * <p>Setting this will block the {@link com.google.cloud.spanner.DatabaseClient} creation.
+   *
+   * @param waitForSessionCreationDuration The duration to wait. Defaults to {@link
+   *     SpannerAccessor#DEFAULT_SESSION_WAIT_DURATION}.
+   * @return {@link SpannerConfig}
+   */
+  public SpannerConfig withWaitForSessionCreationDuration(
+      ValueProvider<java.time.Duration> waitForSessionCreationDuration) {
+    return toBuilder().setWaitForSessionCreationDuration(waitForSessionCreationDuration).build();
+  }
+
+  public SpannerConfig withWaitForSessionCreationDuration(
+      java.time.Duration waitForSessionCreationDuration) {
+    return withWaitForSessionCreationDuration(
+        ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+  }
+
+  public SpannerConfig withEnableOpenTelemetryTracing(
+      ValueProvider<Boolean> enableOpenTelemetryTracing) {
+    return toBuilder().setEnableOpenTelemetryTracing(enableOpenTelemetryTracing).build();
+  }
+
+  public SpannerConfig withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+    return withEnableOpenTelemetryTracing(
+        ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(
+      ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+    return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(String certPath, String keyPath) {
+    return withClientCert(
+        ValueProvider.StaticValueProvider.of(certPath),
+        ValueProvider.StaticValueProvider.of(keyPath));
   }
 }

@@ -20,9 +20,10 @@ package org.apache.beam.examples;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -58,10 +60,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** End-to-end integration test of {@link WindowedWordCount}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class WindowedWordCountIT {
 
   @Rule public TestName testName = new TestName();
@@ -128,7 +129,9 @@ public class WindowedWordCountIT {
             .resolve(
                 String.format(
                     "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
-                    testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
+                    testName.getMethodName(),
+                    LocalDateTime.now(ZoneId.of("UTC")),
+                    ThreadLocalRandom.current().nextInt()),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)

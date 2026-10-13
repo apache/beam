@@ -429,6 +429,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
      * them.
      */
     private static final long FIRESTORE_RPC_BYTES_MAX = (long) (9.5 * 1024 * 1024);
+
     /** The Cloud Firestore API has a limit of 500 document updates per request. */
     private static final int FIRESTORE_SINGLE_REQUEST_UPDATE_DOCUMENTS_MAX = 500;
 

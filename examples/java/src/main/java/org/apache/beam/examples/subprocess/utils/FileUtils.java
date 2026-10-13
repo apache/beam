@@ -28,6 +28,8 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -63,7 +65,7 @@ public class FileUtils {
 
     ResourceId sourceFile = getFileResourceId(configuration.getWorkerPath(), fileName.toString());
 
-    LOG.info("Copying file from worker " + sourceFile);
+    LOG.info("Copying file from worker {}", sourceFile);
 
     ResourceId destinationFile =
         getFileResourceId(configuration.getSourcePath(), fileName.toString());
@@ -72,37 +74,41 @@ public class FileUtils {
     try {
       return copyFile(sourceFile, destinationFile);
     } catch (Exception ex) {
-      LOG.error(
-          String.format("Error copying file from %s  to %s", sourceFile, destinationFile), ex);
+      LOG.error("Error copying file from {}  to {}", sourceFile, destinationFile, ex);
       throw ex;
     }
   }
 
-  public static String copyFileFromGCSToWorker(ExecutableFile execuableFile) throws Exception {
+  public static String copyFileFromGCSToWorker(ExecutableFile executableFile) throws Exception {
 
     ResourceId sourceFile =
-        FileSystems.matchNewResource(execuableFile.getSourceGCSLocation(), false);
-    ResourceId destinationFile =
-        FileSystems.matchNewResource(execuableFile.getDestinationLocation(), false);
+        FileSystems.matchNewResource(executableFile.getSourceGCSLocation(), false);
     try {
       LOG.info(
-          String.format(
-              "Moving File %s to %s ",
-              execuableFile.getSourceGCSLocation(), execuableFile.getDestinationLocation()));
-      Path path = Paths.get(execuableFile.getDestinationLocation());
+          "Moving File {} to {} ",
+          executableFile.getSourceGCSLocation(),
+          executableFile.getDestinationLocation());
+      Path path = Paths.get(executableFile.getDestinationLocation());
 
       if (path.toFile().exists()) {
         LOG.warn(
-            String.format(
-                "Overwriting file %s, should only see this once per worker.",
-                execuableFile.getDestinationLocation()));
+            "Overwriting file {}, should only see this once per worker.",
+            executableFile.getDestinationLocation());
       }
-      copyFile(sourceFile, destinationFile);
-      path.toFile().setExecutable(true);
+      Path stagedFile = path.resolveSibling(".beam-executable-" + UUID.randomUUID() + ".tmp");
+      try {
+        ResourceId stagedResource = FileSystems.matchNewResource(stagedFile.toString(), false);
+        copyFile(sourceFile, stagedResource);
+        stagedFile.toFile().setExecutable(true);
+        Files.move(
+            stagedFile, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      } finally {
+        Files.deleteIfExists(stagedFile);
+      }
       return path.toString();
 
     } catch (Exception ex) {
-      LOG.error(String.format("Error moving file : %s ", execuableFile.fileName), ex);
+      LOG.error("Error moving file : {} ", executableFile.fileName, ex);
       throw ex;
     }
   }
@@ -144,13 +150,12 @@ public class FileUtils {
 
       if (!path.toFile().exists()) {
         Files.createDirectories(path);
-        LOG.info(String.format("Created Folder %s ", path.toFile()));
+        LOG.info("Created Folder {} ", path.toFile());
       }
     } catch (FileAlreadyExistsException ex) {
       LOG.warn(
-          String.format(
-              " Tried to create folder %s which already existsed, this should not happen!",
-              configuration.getWorkerPath()),
+          " Tried to create folder {} which already existsed, this should not happen!",
+          configuration.getWorkerPath(),
           ex);
     }
   }

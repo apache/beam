@@ -249,8 +249,7 @@ final class GrpcDirectGetWorkStream
     StreamingGetWorkRequest request =
         StreamingGetWorkRequest.newBuilder()
             .setRequest(
-                requestHeader
-                    .toBuilder()
+                requestHeader.toBuilder()
                     .setMaxItems(initialGetWorkBudget.items())
                     .setMaxBytes(initialGetWorkBudget.bytes())
                     .build())
@@ -282,6 +281,7 @@ final class GrpcDirectGetWorkStream
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         metadata.drainMode(),
+        assembledWorkItem.appliedFinalizeIds(),
         assembledWorkItem.latencyAttributions());
     budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension();

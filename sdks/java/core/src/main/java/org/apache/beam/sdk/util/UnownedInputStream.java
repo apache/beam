@@ -35,6 +35,10 @@ public class UnownedInputStream extends FilterInputStream {
     super(delegate);
   }
 
+  InputStream getWrappedStream() {
+    return in;
+  }
+
   @Override
   public void close() throws IOException {
     throw new UnsupportedOperationException(

@@ -72,6 +72,7 @@ final class RpcQosImpl implements RpcQos {
           .stream()
           .map(Code::getNumber)
           .collect(ImmutableSet.toImmutableSet());
+
   /**
    * The target minimum number of requests per samplePeriodMs, even if no requests succeed. Must be
    * greater than 0, else we could throttle to zero. Because every decision is probabilistic, there
@@ -653,7 +654,7 @@ final class RpcQosImpl implements RpcQos {
       long calculatedGrowth =
           (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
       long growth = Math.max(0, calculatedGrowth);
-      return baseBatchBudget * Math.pow(1.5, growth);
+      return baseBatchBudget * Math.pow(1.5, (double) growth);
     }
 
     void recordWriteCount(Instant instant, int numWrites) {
@@ -801,7 +802,8 @@ final class RpcQosImpl implements RpcQos {
 
       double currentIntervalMillis =
           Math.min(
-              initialBackoff.getMillis() * Math.pow(1.5, attempt - 1), MAX_BACKOFF.getMillis());
+              initialBackoff.getMillis() * Math.pow(1.5, attempt - 1),
+              (double) MAX_BACKOFF.getMillis());
       double randomOffset =
           (rand.nextDouble() * 2 - 1) * RANDOMIZATION_FACTOR * currentIntervalMillis;
       long nextBackoffMillis = Math.round(currentIntervalMillis + randomOffset);

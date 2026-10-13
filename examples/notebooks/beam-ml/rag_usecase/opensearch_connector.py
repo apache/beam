@@ -88,8 +88,8 @@ class InsertDocInOpenSearch(PTransform):
         """
         self.host = host
         self.port = port
-        self.username = username | os.getenv("OPENSEARCH_USERNAME")
-        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
+        self.username = username or os.getenv("OPENSEARCH_USERNAME")
+        self.password = password or os.getenv("OPENSEARCH_PASSWORD")
         self._batch_size = batch_size
 
         if not self.username or not self.password:
@@ -247,8 +247,8 @@ class InsertEmbeddingInOpenSearch(PTransform):
         """
         self.host = host
         self.port = port
-        self.username = username | os.getenv("OPENSEARCH_USERNAME")
-        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
+        self.username = username or os.getenv("OPENSEARCH_USERNAME")
+        self.password = password or os.getenv("OPENSEARCH_PASSWORD")
         self.batch_size = batch_size
         self.embedded_columns = embedded_columns
 

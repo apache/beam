@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,6 +40,24 @@ var (
 
 const pipLogFlushInterval time.Duration = 15 * time.Second
 const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
+
+// executeWithLogger runs the program with os.Stdin, piping stdout and stderr to bufLogger,
+// and flushes the logger at ERROR severity on failure or DEBUG severity on success.
+func executeWithLogger(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) error {
+	err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, prog, args...)
+	return bufLogger.Flush(ctx, err)
+}
+
+// executeWithOutput runs the program with os.Stdin, capturing stdout in a byte buffer
+// while piping stderr to bufLogger, and flushes the logger at ERROR severity on failure or DEBUG severity on success.
+func executeWithOutput(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) ([]byte, error) {
+	var stdout bytes.Buffer
+	err := execx.ExecuteEnvWithIO(nil, os.Stdin, &stdout, bufLogger, prog, args...)
+	if flushErr := bufLogger.Flush(ctx, err); flushErr != nil {
+		return nil, flushErr
+	}
+	return stdout.Bytes(), nil
+}
 
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []string, dir, name string) error {
@@ -61,12 +80,9 @@ func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []s
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
 			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
-			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-			if err != nil {
-				bufLogger.FlushAtError(ctx)
+			if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
-			bufLogger.FlushAtDebug(ctx)
 			return nil
 		}
 	}
@@ -120,23 +136,16 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
-				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-				if err != nil {
-					bufLogger.FlushAtError(ctx)
+				if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
-				} else {
-					bufLogger.FlushAtDebug(ctx)
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
-				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-				if err != nil {
-					bufLogger.FlushAtError(ctx)
+				if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 				}
-				bufLogger.FlushAtDebug(ctx)
 				return nil
 			}
 
@@ -145,12 +154,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 			if pipNoBuildIsolation {
 				args = append(args, "--no-build-isolation")
 			}
-			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-			if err != nil {
-				bufLogger.FlushAtError(ctx)
+			if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
-			bufLogger.FlushAtDebug(ctx)
 			return nil
 		}
 	}
@@ -191,16 +197,34 @@ func installExtraPackages(ctx context.Context, logger *tools.Logger, files []str
 	return nil
 }
 
-func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, acceptableWhlSpecs []string) string {
+// getPythonVersionSpec returns the Python version specifier (e.g., "310" for Python 3.10)
+func getPythonVersionSpec() (string, error) {
+	cmd := exec.Command("python", "-V")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	re := regexp.MustCompile(`Python (\d)\.(\d+).*`)
+	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
+	if len(pyVersions) != 3 {
+		return "", fmt.Errorf("cannot parse Python version from %s", stdoutStderr)
+	}
+	return fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2]), nil
+}
+
+func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string) string {
 	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
+
+	pyVersionSpec, err := getPythonVersionSpec()
+	if err != nil {
+		bufLogger.Printf(ctx, "Failed to get Python version specifier: %v", err)
+		return ""
+	}
+
 	for _, file := range files {
-		if strings.HasPrefix(file, "apache_beam") {
-			for _, s := range acceptableWhlSpecs {
-				if strings.HasSuffix(file, s) {
-					bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
-					return file
-				}
-			}
+		if strings.HasPrefix(file, "apache_beam") && strings.HasSuffix(file, ".whl") && strings.Contains(file, "cp"+pyVersionSpec) {
+			bufLogger.Printf(ctx, "Found Apache Beam SDK wheel: %v", file)
+			return file
 		}
 	}
 	return ""
@@ -211,8 +235,8 @@ func findBeamSdkWhl(ctx context.Context, logger *tools.Logger, files []string, a
 // assume that the pipleine was started with the Beam SDK found in the wheel
 // file, and we try to install it. If not successful, we fall back to installing
 // SDK from source tarball provided in sdkSrcFile.
-func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, acceptableWhlSpecs []string, required bool) error {
-	sdkWhlFile := findBeamSdkWhl(ctx, logger, files, acceptableWhlSpecs)
+func installSdk(ctx context.Context, logger *tools.Logger, files []string, workDir string, sdkSrcFile string, required bool) error {
+	sdkWhlFile := findBeamSdkWhl(ctx, logger, files)
 	bufLogger := tools.NewBufferedLoggerWithFlushInterval(ctx, logger, pipLogFlushInterval)
 	if sdkWhlFile != "" {
 		// by default, pip rejects to install wheel if same version already installed

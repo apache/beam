@@ -19,19 +19,17 @@ package org.apache.beam.sdk.io.snowflake.test;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import net.snowflake.client.jdbc.SnowflakeSQLException;
+import net.snowflake.client.api.exception.SnowflakeSQLException;
 
 /** Fake implementation of Snowflake warehouse used in test code. */
 public class FakeSnowflakeDatabase implements Serializable {
-  private static Map<String, List<String>> tables = new HashMap<>();
+  private static final Map<String, List<String>> tables = new ConcurrentHashMap<>();
 
-  private FakeSnowflakeDatabase() {
-    tables = new HashMap<>();
-  }
+  private FakeSnowflakeDatabase() {}
 
   public static void createTable(String table) {
     FakeSnowflakeDatabase.tables.put(table, Collections.emptyList());
@@ -72,7 +70,7 @@ public class FakeSnowflakeDatabase implements Serializable {
   }
 
   public static void clean() {
-    FakeSnowflakeDatabase.tables = new HashMap<>();
+    tables.clear();
   }
 
   public static void truncateTable(String table) {

@@ -48,7 +48,8 @@ public class DoFnInstanceManagersTest {
     boolean tornDown = false;
 
     @ProcessElement
-    public void processElement(ProcessContext processContext) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext processContext)
+        throws Exception {}
 
     @Teardown
     public void teardown() throws Exception {

@@ -23,15 +23,20 @@ package org.apache.beam.sdk.io.sparkreceiver;
  */
 public interface HasOffset {
 
-  /** @param offset inclusive start offset from which the reading should be started. */
+  /**
+   * Sets the start offset.
+   *
+   * @param offset inclusive start offset from which the reading should be started.
+   */
   void setStartOffset(Long offset);
 
-  /** @return exclusive end offset to which the reading from current page will occur. */
+  /** Returns exclusive end offset to which the reading from current page will occur. */
   Long getEndOffset();
 
   /**
    * Some {@link org.apache.spark.streaming.receiver.Receiver} support mechanism of checkpoint (e.g.
    * ack). This method should be called before stopping the receiver.
    */
-  default void setCheckpoint(Long recordsProcessed) {};
+  default void setCheckpoint(Long recordsProcessed) {}
+  ;
 }

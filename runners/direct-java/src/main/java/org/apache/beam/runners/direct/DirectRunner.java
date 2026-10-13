@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Collection;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -65,9 +68,6 @@ import org.joda.time.Duration;
  * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
  * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   enum Enforcement {
@@ -185,7 +185,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
       DisplayDataValidator.validatePipeline(pipeline);
       DisplayDataValidator.validateOptions(options);
-      SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
+      // Ensure a reference is held on the configured loggers as otherwise they are eligible for
+      // garbage collection as they are internally weak references.
+      List<Logger> loggers =
+          SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
       ExecutorService metricsPool =
           Executors.newCachedThreadPool(
               new ThreadFactoryBuilder()
@@ -218,14 +221,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         try {
           result.waitUntilFinish();
         } catch (UserCodeException userException) {
-          throw new PipelineExecutionException(userException.getCause());
+          throw new PipelineExecutionException(checkStateNotNull(userException.getCause()));
+        } catch (RuntimeException | OutOfMemoryError e) {
+          throw e;
         } catch (Throwable t) {
-          if (t instanceof RuntimeException) {
-            throw (RuntimeException) t;
-          }
           throw new RuntimeException(t);
         }
       }
+      loggers.clear();
       return result;
     } finally {
       MetricsEnvironment.setMetricsSupported(false);
@@ -364,6 +367,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      * org.apache.beam.sdk.PipelineResult.State#FAILED}.
      */
     @Override
+    // PipelineResult.waitUntilFinish(Duration) is documented to return null on timeout, but its
+    // interface return type is not annotated @Nullable; annotating it would ripple across every
+    // runner's override, so the timeout null is suppressed here rather than in the sdk-core API.
+    @SuppressWarnings("nullness")
     public State waitUntilFinish(Duration duration) {
       if (this.state.isTerminal()) {
         return this.state;
@@ -375,7 +382,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
         // UserCodeException is truncated and replaced with the stack starting at the call to
         // waitToFinish
-        throw new Pipeline.PipelineExecutionException(uce.getCause());
+        throw new Pipeline.PipelineExecutionException(checkStateNotNull(uce.getCause()));
       } catch (Exception e) {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();

@@ -21,8 +21,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.dataflow.worker.WindmillNamespacePrefix;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WindmillTimerType;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.annotations.Internal;
@@ -58,22 +58,18 @@ public abstract class WindmillTagEncoding {
    * @param timerTag tag of the timer that maps to the hold.
    */
   public abstract ByteString timerHoldTag(
-      WindmillNamespacePrefix prefix, TimerData timerData, ByteString timerTag);
+      WindmillTimerType windmillTimerType, TimerData timerData, ByteString timerTag);
 
   /**
-   * Produce a tag that is guaranteed to be unique for the given prefix, namespace, domain and
-   * timestamp.
+   * Produce a tag that is guaranteed to be unique for the given timer type and TimerData
    *
    * <p>This is necessary because Windmill will deduplicate based only on this tag.
    */
-  public abstract ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData);
+  public abstract ByteString timerTag(WindmillTimerType windmillTimerType, TimerData timerData);
 
-  /** Converts Windmill Timer to beam TimerData */
-  public abstract TimerData windmillTimerToTimerData(
-      WindmillNamespacePrefix prefix,
-      Timer timer,
-      Coder<? extends BoundedWindow> windowCoder,
-      boolean draining);
+  /** Converts Windmill Timer to TimerData */
+  public abstract WindmillTimerData windmillTimerToTimerData(
+      Timer timer, Coder<? extends BoundedWindow> windowCoder, boolean draining);
 
   /**
    * Uses the given {@link Timer} builder to build a windmill {@link Timer} from {@link TimerData}.
@@ -82,11 +78,13 @@ public abstract class WindmillTagEncoding {
    */
   public Timer.Builder buildWindmillTimerFromTimerData(
       @Nullable String stateFamily,
-      WindmillNamespacePrefix prefix,
+      WindmillTimerType windmillTimerType,
       TimerData timerData,
       Timer.Builder builder) {
 
-    builder.setTag(timerTag(prefix, timerData)).setType(timerType(timerData.getDomain()));
+    builder
+        .setTag(timerTag(windmillTimerType, timerData))
+        .setType(timerType(timerData.getDomain()));
 
     if (stateFamily != null) {
       builder.setStateFamily(stateFamily);

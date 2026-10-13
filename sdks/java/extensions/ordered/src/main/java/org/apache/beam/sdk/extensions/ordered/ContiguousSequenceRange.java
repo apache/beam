@@ -41,13 +41,13 @@ public abstract class ContiguousSequenceRange
       ContiguousSequenceRange.of(
           Long.MIN_VALUE, Long.MIN_VALUE, Instant.ofEpochMilli(Long.MIN_VALUE));
 
-  /** @return inclusive starting sequence */
+  /** Returns inclusive starting sequence. */
   public abstract long getStart();
 
-  /** @return exclusive end sequence */
+  /** Returns exclusive end sequence. */
   public abstract long getEnd();
 
-  /** @return latest timestamp of all events in the range */
+  /** Returns latest timestamp of all events in the range. */
   public abstract Instant getTimestamp();
 
   @Override
@@ -91,8 +91,8 @@ public abstract class ContiguousSequenceRange
     @Override
     public void encode(
         ContiguousSequenceRange value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       VarLongCoder.of().encode(value.getStart(), outStream);
       VarLongCoder.of().encode(value.getEnd(), outStream);
       InstantCoder.of().encode(value.getTimestamp(), outStream);
@@ -100,8 +100,8 @@ public abstract class ContiguousSequenceRange
 
     @Override
     public ContiguousSequenceRange decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       long start = VarLongCoder.of().decode(inStream);
       long end = VarLongCoder.of().decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream);

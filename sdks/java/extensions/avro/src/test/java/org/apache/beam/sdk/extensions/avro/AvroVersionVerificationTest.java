@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.avro;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.junit.Assert.assertEquals;
 
-import org.apache.avro.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assume;
@@ -33,7 +33,6 @@ public class AvroVersionVerificationTest {
   public void testAvroVersion() {
     @Nullable String targetVer = System.getProperty("beam.target.avro.version");
     Assume.assumeTrue(!Strings.isNullOrEmpty(targetVer));
-    String actualVer = Schema.class.getPackage().getImplementationVersion();
-    assertEquals(targetVer, actualVer);
+    assertEquals(targetVer, VERSION_AVRO);
   }
 }

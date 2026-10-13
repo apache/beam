@@ -30,9 +30,10 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +115,9 @@ public class BigtableReadSchemaTransformProviderIT {
             .build();
     tableAdminClient = BigtableTableAdminClient.create(adminSettings);
 
-    tableId = String.format("BTReadSchemaTransformIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+    tableId =
+        String.format(
+            "BTReadSchemaTransformIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC")));
     if (!tableAdminClient.exists(tableId)) {
       CreateTableRequest createTableRequest =
           CreateTableRequest.of(tableId)

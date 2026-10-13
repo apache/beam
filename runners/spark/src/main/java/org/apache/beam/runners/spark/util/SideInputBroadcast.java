@@ -82,7 +82,7 @@ public class SideInputBroadcast<T> implements Serializable {
       val = coder.decode(new ByteArrayInputStream(bcast.value()));
     } catch (IOException ioe) {
       // this should not ever happen, log it if it does.
-      LOG.warn(ioe.getMessage());
+      LOG.warn("Error reading broadcast data", ioe);
       val = null;
     }
     return val;

@@ -33,6 +33,7 @@ from google.protobuf import text_format
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
+from apache_beam.metrics.metrics_flag import MetricsFlag
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -50,6 +51,7 @@ from apache_beam.utils import profiler
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 _FN_LOG_HANDLER = None
+_STAGED_DIRECTORY = 'staged'
 
 
 def _import_beam_plugins(plugins):
@@ -57,21 +59,30 @@ def _import_beam_plugins(plugins):
     try:
       importlib.import_module(plugin)
       _LOGGER.debug('Imported beam-plugin %s', plugin)
-    except ImportError:
+    except ImportError as exc:
+      if '.' not in plugin:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+        continue
+
       try:
         _LOGGER.debug((
             "Looks like %s is not a module. "
-            "Trying to import it assuming it's a class"),
+            "Trying to import it assuming it's a class."),
                       plugin)
         module, _ = plugin.rsplit('.', 1)
         importlib.import_module(module)
         _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
-      except ImportError as exc:
-        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+      except ImportError as fallback_exc:
+        _LOGGER.warning(
+            'Failed to import beam-plugin %s', plugin, exc_info=fallback_exc)
 
 
 def create_harness(environment, dry_run=False):
   """Creates SDK Fn Harness."""
+
+  # Bootstrap log level to capture startup events until pipeline options are
+  # parsed and the actual log level is set.
+  logging.getLogger().setLevel(logging.INFO)
 
   deferred_exception = None
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in environment:
@@ -93,8 +104,24 @@ def create_harness(environment, dry_run=False):
   else:
     fn_log_handler = None
 
-  pipeline_options_dict = _load_pipeline_options(
-      environment.get('PIPELINE_OPTIONS'))
+  options_json = environment.get('PIPELINE_OPTIONS')
+
+  # We check if options are stored in the file.
+  if 'PIPELINE_OPTIONS_FILE' in environment:
+    options_file = environment['PIPELINE_OPTIONS_FILE']
+    try:
+      with open(options_file, 'r') as f:
+        options_json = f.read()
+        _LOGGER.info('Load pipeline options from file: %s', options_file)
+    except Exception:
+      _LOGGER.error(
+          'Failed to load pipeline options from file: %s',
+          options_file,
+          exc_info=True)
+      raise
+
+  pipeline_options_dict = _load_pipeline_options(options_json)
+
   default_log_level = _get_log_level_from_options_dict(pipeline_options_dict)
   logging.getLogger().setLevel(default_log_level)
   _set_log_level_overrides(pipeline_options_dict)
@@ -103,6 +130,7 @@ def create_harness(environment, dry_run=False):
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
+  MetricsFlag.set_default_pipeline_options(sdk_pipeline_options)
   pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
 
@@ -111,6 +139,12 @@ def create_harness(environment, dry_run=False):
       environment.get('RUNNER_CAPABILITIES', '').split())
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'no_staged_dir_in_sys_path' not in experiments and semi_persistent_directory:
+    staged_dir = os.path.join(semi_persistent_directory, _STAGED_DIRECTORY)
+    if os.path.isdir(staged_dir) and staged_dir not in sys.path:
+      sys.path.append(staged_dir)
+
   _worker_id = environment.get('WORKER_ID', None)
 
   try:
@@ -239,6 +273,7 @@ def terminate_sdk_harness():
 
 
 def _load_pipeline_options(options_json):
+  """Deserialize the pipeline options from a JSON string into a dictionary."""
   if options_json is None:
     return {}
   options = json.loads(options_json)
@@ -256,6 +291,8 @@ def _load_pipeline_options(options_json):
 
 
 def _parse_pipeline_options(options_json):
+  """Parses the pipeline options from a JSON string into a PipelineOptions 
+  object."""
   return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 

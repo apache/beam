@@ -69,6 +69,7 @@ import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.avro.AvroReadSupport;
+import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
@@ -134,23 +135,24 @@ import org.slf4j.LoggerFactory;
  * <p>ParquetIO leverages splittable reading by using Splittable DoFn. It initially splits the files
  * into the blocks of 64MB and may dynamically split further for higher read efficiency.
  *
- * <p>Reading with projection can be enabled with the projection schema as following. Splittable
- * reading is enabled when reading with projection. The projection_schema contains only the column
- * that we would like to read and encoder_schema contains the schema to encode the output with the
- * unwanted columns changed to nullable. Partial reading provide decrease of reading time due to
- * partial processing of the data and partial encoding. The decrease in the reading time depends on
- * the relative position of the columns. Memory allocation is optimised depending on the encoding
- * schema. Note that the improvement is not as significant comparing to the proportion of the data
- * requested, since the processing time saved is only the time to read the unwanted columns, the
- * reader will still go over the data set according to the encoding schema since data for each
- * column in a row is stored interleaved.
+ * <p>Reading with projection can be configured directly on the underlying Parquet reader via the
+ * upstream {@link AvroReadSupport} API and passed to {@link Read#withConfiguration(Configuration)}.
+ * Splittable reading is enabled when reading with projection. Partial reading decreases reading
+ * time due to partial processing and partial encoding; the improvement depends on the relative
+ * position of the columns because data for each column in a row is stored interleaved.
  *
  * <pre>{@code
+ * Configuration conf = new Configuration();
+ * AvroReadSupport.setAvroReadSchema(conf, SCHEMA);
+ * AvroReadSupport.setRequestedProjection(conf, PROJECTION_SCHEMA);
+ *
  * PCollection<GenericRecord> records =
- *   pipeline
- *     .apply(
- *       ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(Projection_schema,Encoder_Schema));
+ *   pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withConfiguration(conf));
  * }</pre>
+ *
+ * <p>The {@link Read#withProjection(Schema, Schema)} and {@link ReadFiles#withProjection(Schema,
+ * Schema)} helpers are deprecated in favor of the approach shown above; see their Javadoc for
+ * details.
  *
  * <h3>Reading records of an unknown schema</h3>
  *
@@ -332,7 +334,19 @@ public class ParquetIO {
     public Read from(String filepattern) {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
-    /** Enable the reading with projection. */
+
+    /**
+     * Enable the reading with projection.
+     *
+     * @deprecated The {@code encoderSchema} parameter is redundant and this wrapper duplicates
+     *     functionality already available upstream. Configure projection on a Hadoop {@link
+     *     Configuration} using {@link AvroReadSupport#setRequestedProjection(Configuration, Schema)
+     *     AvroReadSupport.setRequestedProjection} and {@link
+     *     AvroReadSupport#setAvroReadSchema(Configuration, Schema)
+     *     AvroReadSupport.setAvroReadSchema}, then pass it to {@link
+     *     #withConfiguration(Configuration)}.
+     */
+    @Deprecated
     public Read withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
           .setProjectionSchema(projectionSchema)
@@ -467,8 +481,7 @@ public class ParquetIO {
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
           .apply(
-              parseFilesGenericRecords(getParseFn())
-                  .toBuilder()
+              parseFilesGenericRecords(getParseFn()).toBuilder()
                   .setCoder(getCoder())
                   .setConfiguration(getConfiguration())
                   .build());
@@ -640,6 +653,18 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
+    /**
+     * Enable the reading with projection.
+     *
+     * @deprecated The {@code encoderSchema} parameter is redundant and this wrapper duplicates
+     *     functionality already available upstream. Configure projection on a Hadoop {@link
+     *     Configuration} using {@link AvroReadSupport#setRequestedProjection(Configuration, Schema)
+     *     AvroReadSupport.setRequestedProjection} and {@link
+     *     AvroReadSupport#setAvroReadSchema(Configuration, Schema)
+     *     AvroReadSupport.setAvroReadSchema}, then pass it to {@link
+     *     #withConfiguration(Configuration)}.
+     */
+    @Deprecated
     public ReadFiles withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
           .setProjectionSchema(projectionSchema)
@@ -708,7 +733,7 @@ public class ParquetIO {
     }
 
     @DoFn.BoundedPerElement
-    static class SplitReadFn<T> extends DoFn<ReadableFile, T> {
+    static final class SplitReadFn<T> extends DoFn<ReadableFile, T> {
       private final Class<? extends GenericData> modelClass;
       private final String requestSchemaString;
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
@@ -970,10 +995,10 @@ public class ParquetIO {
       }
     }
 
-    private static class BeamParquetInputFile implements InputFile {
+    public static class BeamParquetInputFile implements InputFile {
       private final SeekableByteChannel seekableByteChannel;
 
-      BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
+      public BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
         this.seekableByteChannel = seekableByteChannel;
       }
 
@@ -1005,8 +1030,10 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Sink.Builder()
         .setJsonSchema(schema.toString())
         .setCompressionCodec(CompressionCodecName.SNAPPY)
-        // This resembles the default value for ParquetWriter.rowGroupSize.
         .setRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
+        .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
+        .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
+        .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
         .build();
   }
 
@@ -1022,6 +1049,16 @@ public class ParquetIO {
 
     abstract int getRowGroupSize();
 
+    abstract int getPageSize();
+
+    abstract boolean getEnableDictionary();
+
+    abstract boolean getEnableBloomFilter();
+
+    abstract @Nullable ValueProvider<Integer> getMinRowCountForPageSizeCheck();
+
+    abstract @Nullable ValueProvider<Integer> getMaxRowCountForPageSizeCheck();
+
     abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
 
     abstract Builder toBuilder();
@@ -1035,6 +1072,18 @@ public class ParquetIO {
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
       abstract Builder setRowGroupSize(int rowGroupSize);
+
+      abstract Builder setPageSize(int pageSize);
+
+      abstract Builder setEnableDictionary(boolean enableDictionary);
+
+      abstract Builder setEnableBloomFilter(boolean enableBloomFilter);
+
+      abstract Builder setMinRowCountForPageSizeCheck(
+          ValueProvider<Integer> minRowCountForPageSizeCheck);
+
+      abstract Builder setMaxRowCountForPageSizeCheck(
+          ValueProvider<Integer> maxRowCountForPageSizeCheck);
 
       abstract Builder setAvroDataModelClass(Class<? extends GenericData> modelClass);
 
@@ -1064,6 +1113,85 @@ public class ParquetIO {
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
+    /** Specify the page size for the Parquet writer. Defaults to {@code 1 MB}. */
+    public Sink withPageSize(int pageSize) {
+      checkArgument(pageSize > 0, "pageSize must be positive");
+      return toBuilder().setPageSize(pageSize).build();
+    }
+
+    /** Enable or disable dictionary encoding. Enabled by default. */
+    public Sink withDictionaryEncoding(boolean enableDictionary) {
+      return toBuilder().setEnableDictionary(enableDictionary).build();
+    }
+
+    /** Enable or disable bloom filters. Disabled by default. */
+    public Sink withBloomFilterEnabled(boolean enableBloomFilter) {
+      return toBuilder().setEnableBloomFilter(enableBloomFilter).build();
+    }
+
+    /**
+     * Specify the minimum number of rows to write before a page size check is performed. The writer
+     * buffers at least this many rows before checking whether the page size threshold has been
+     * reached. With large rows, the default ({@code 100}) can cause excessive memory use; set a
+     * lower value (e.g. {@code 1}) to flush pages more frequently.
+     */
+    public Sink withMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck) {
+      checkArgument(
+          minRowCountForPageSizeCheck > 0, "minRowCountForPageSizeCheck must be positive");
+      return toBuilder()
+          .setMinRowCountForPageSizeCheck(
+              ValueProvider.StaticValueProvider.of(minRowCountForPageSizeCheck))
+          .build();
+    }
+
+    /**
+     * Like {@link #withMinRowCountForPageSizeCheck(int)}, but accepts a {@link ValueProvider} so
+     * the value can be supplied at runtime (required for classic Dataflow templates).
+     */
+    public Sink withMinRowCountForPageSizeCheck(
+        ValueProvider<Integer> minRowCountForPageSizeCheck) {
+      checkNotNull(minRowCountForPageSizeCheck, "minRowCountForPageSizeCheck can not be null");
+      if (minRowCountForPageSizeCheck.isAccessible()) {
+        Integer value = minRowCountForPageSizeCheck.get();
+        checkNotNull(value, "minRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "minRowCountForPageSizeCheck must be positive");
+      }
+      return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
+    }
+
+    /**
+     * Specify the maximum number of rows to buffer before a page size check is forced. By default
+     * Parquet estimates the next check from the average row size and may defer it (up to {@code
+     * 10000} rows); a run of small rows followed by large rows can then let the column page buffer
+     * overflow {@code Integer.MAX_VALUE} before the deferred check fires. Setting this (e.g. {@code
+     * 1}) caps the interval so a check -- and flush -- happens at least this often regardless of
+     * the estimate. Pair it with {@link #withMinRowCountForPageSizeCheck(int)} to bound the buffer
+     * for tables whose row sizes vary widely.
+     */
+    public Sink withMaxRowCountForPageSizeCheck(int maxRowCountForPageSizeCheck) {
+      checkArgument(
+          maxRowCountForPageSizeCheck > 0, "maxRowCountForPageSizeCheck must be positive");
+      return toBuilder()
+          .setMaxRowCountForPageSizeCheck(
+              ValueProvider.StaticValueProvider.of(maxRowCountForPageSizeCheck))
+          .build();
+    }
+
+    /**
+     * Like {@link #withMaxRowCountForPageSizeCheck(int)}, but accepts a {@link ValueProvider} so
+     * the value can be supplied at runtime (required for classic Dataflow templates).
+     */
+    public Sink withMaxRowCountForPageSizeCheck(
+        ValueProvider<Integer> maxRowCountForPageSizeCheck) {
+      checkNotNull(maxRowCountForPageSizeCheck, "maxRowCountForPageSizeCheck can not be null");
+      if (maxRowCountForPageSizeCheck.isAccessible()) {
+        Integer value = maxRowCountForPageSizeCheck.get();
+        checkNotNull(value, "maxRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "maxRowCountForPageSizeCheck must be positive");
+      }
+      return toBuilder().setMaxRowCountForPageSizeCheck(maxRowCountForPageSizeCheck).build();
+    }
+
     /**
      * Define the Avro data model; see {@link AvroParquetWriter.Builder#withDataModel(GenericData)}.
      */
@@ -1079,6 +1207,7 @@ public class ParquetIO {
 
       Schema schema = new Schema.Parser().parse(getJsonSchema());
       Class<? extends GenericData> modelClass = getAvroDataModelClass();
+      Configuration conf = SerializableConfiguration.newConfiguration(getConfiguration());
 
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
@@ -1088,8 +1217,30 @@ public class ParquetIO {
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
-              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
-              .withRowGroupSize(getRowGroupSize());
+              .withConf(conf)
+              .withRowGroupSize(getRowGroupSize())
+              .withPageSize(getPageSize())
+              .withDictionaryEncoding(getEnableDictionary())
+              .withBloomFilterEnabled(getEnableBloomFilter());
+
+      ValueProvider<Integer> minRowCountProvider = getMinRowCountForPageSizeCheck();
+      if (minRowCountProvider != null) {
+        Integer minRowCount = minRowCountProvider.get();
+        if (minRowCount != null) {
+          checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
+          builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
+        }
+      }
+
+      ValueProvider<Integer> maxRowCountProvider = getMaxRowCountForPageSizeCheck();
+      if (maxRowCountProvider != null) {
+        Integer maxRowCount = maxRowCountProvider.get();
+        if (maxRowCount != null) {
+          checkArgument(maxRowCount > 0, "maxRowCountForPageSizeCheck must be positive");
+          builder = builder.withMaxRowCountForPageSizeCheck(maxRowCount);
+        }
+      }
+
       if (modelClass != null) {
         try {
           builder.withDataModel(buildModelObject(modelClass));

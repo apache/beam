@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
@@ -142,6 +144,7 @@ public class SchemaTranslationTest {
                   Field.of("decimal", FieldType.DECIMAL), Field.of("datetime", FieldType.DATETIME)))
           .add(Schema.of(Field.of("fixed_bytes", FieldType.logicalType(FixedBytes.of(24)))))
           .add(Schema.of(Field.of("micros_instant", FieldType.logicalType(new MicrosInstant()))))
+          .add(Schema.of(Field.of("date", FieldType.logicalType(SqlTypes.DATE))))
           .add(Schema.of(Field.of("python_callable", FieldType.logicalType(new PythonCallable()))))
           .add(
               Schema.of(
@@ -388,6 +391,7 @@ public class SchemaTranslationTest {
           .add(simpleRow(FieldType.DECIMAL, BigDecimal.valueOf(100000)))
           .add(simpleRow(FieldType.logicalType(new PortableNullArgLogicalType()), "str"))
           .add(simpleRow(FieldType.logicalType(new DateTime()), LocalDateTime.of(2000, 1, 3, 3, 1)))
+          .add(simpleRow(FieldType.logicalType(SqlTypes.DATE), LocalDate.of(2000, 1, 3)))
           .add(simpleNullRow(FieldType.STRING))
           .add(simpleNullRow(FieldType.INT32))
           .add(simpleNullRow(FieldType.map(FieldType.STRING, FieldType.INT32)))
@@ -457,6 +461,12 @@ public class SchemaTranslationTest {
           .add(FieldType.logicalType(FixedString.of(10)))
           .add(FieldType.logicalType(VariableString.of(10)))
           .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
+          .add(FieldType.logicalType(Timestamp.MILLIS))
+          .add(FieldType.logicalType(Timestamp.MICROS))
+          .add(FieldType.logicalType(Timestamp.NANOS))
+          // INT16/INT32 subseconds representation boundary.
+          .add(FieldType.logicalType(Timestamp.of(4)))
+          .add(FieldType.logicalType(Timestamp.of(5)))
           .add(FieldType.logicalType(new PortableNullArgLogicalType()))
           .add(FieldType.logicalType(new NullArgumentLogicalType()))
           .build();

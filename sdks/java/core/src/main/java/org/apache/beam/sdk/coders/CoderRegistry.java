@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -137,6 +138,8 @@ public class CoderRegistry {
           TimestampedValue.class,
           CoderProviders.fromStaticMethods(
               TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class));
+      builder.put(
+          ValueKind.class, CoderProviders.fromStaticMethods(ValueKind.class, ValueKindCoder.class));
       builder.put(Void.class, CoderProviders.fromStaticMethods(Void.class, VoidCoder.class));
       builder.put(
           byte[].class, CoderProviders.fromStaticMethods(byte[].class, ByteArrayCoder.class));

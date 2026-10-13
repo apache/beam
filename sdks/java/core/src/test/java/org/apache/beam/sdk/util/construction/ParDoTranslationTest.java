@@ -280,7 +280,9 @@ public class ParDoTranslationTest {
 
   private static class DropElementsFn extends DoFn<KV<Long, String>, Void> {
     @ProcessElement
-    public void proc(ProcessContext context, BoundedWindow window) {
+    public void proc(
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") BoundedWindow window) {
       context.output(null);
     }
 
@@ -297,17 +299,20 @@ public class ParDoTranslationTest {
 
   private static class SplittableDropElementsFn extends DoFn<KV<Long, String>, Void> {
     @ProcessElement
-    public void proc(ProcessContext context, RestrictionTracker<Integer, ?> restriction) {
+    public void proc(
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") RestrictionTracker<Integer, ?> restriction) {
       context.output(null);
     }
 
     @GetInitialRestriction
-    public Integer restriction(@Element KV<Long, String> elem) {
+    public Integer restriction(@SuppressWarnings("unused") @Element KV<Long, String> elem) {
       return 42;
     }
 
     @NewTracker
-    public RestrictionTracker<Integer, ?> newTracker(@Restriction Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(
+        @SuppressWarnings("unused") @Restriction Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 
@@ -388,7 +393,7 @@ public class ParDoTranslationTest {
   public static class BundleFinalizerTranslation {
     private static class StartBundleDoFn extends DoFn<String, String> {
       @StartBundle
-      public void startBundle(BundleFinalizer bundleFinalizer) {}
+      public void startBundle(@SuppressWarnings("unused") BundleFinalizer bundleFinalizer) {}
 
       @ProcessElement
       public void processElement() {}
@@ -396,15 +401,15 @@ public class ParDoTranslationTest {
 
     private static class ProcessContextDoFn extends DoFn<String, String> {
       @ProcessElement
-      public void processElement(BundleFinalizer finalizer) {}
+      public void processElement(@SuppressWarnings("unused") BundleFinalizer finalizer) {}
     }
 
     private static class FinishBundleDoFn extends DoFn<String, String> {
       @FinishBundle
-      public void finishBundle(BundleFinalizer bundleFinalizer) {}
+      public void finishBundle(@SuppressWarnings("unused") BundleFinalizer bundleFinalizer) {}
 
       @ProcessElement
-      public void processElement(BundleFinalizer finalizer) {}
+      public void processElement(@SuppressWarnings("unused") BundleFinalizer finalizer) {}
     }
 
     @Test

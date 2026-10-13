@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,10 +41,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link GenerateSequence}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class GenerateSequenceTest {
   public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
     // Count == numElements
@@ -174,16 +174,15 @@ public class GenerateSequenceTest {
 
   @Test
   public void testBuildExternal() {
-    @SuppressWarnings("NonCanonicalType")
     GenerateSequence.External.ExternalConfiguration externalConfig =
-        new AutoValue_GenerateSequence.External.ExternalConfiguration();
+        new GenerateSequence.External.ExternalConfiguration();
     externalConfig.setStart(42L);
     externalConfig.setStop(43L);
     externalConfig.setElementsPerPeriod(1L);
     externalConfig.setMaxReadTime(2L);
     externalConfig.setPeriod(3L);
 
-    AutoValue_GenerateSequence.Builder builder = new AutoValue_GenerateSequence.Builder();
+    GenerateSequence.Builder builder = GenerateSequence.from(0).toBuilder();
     GenerateSequence object = builder.buildExternal(externalConfig);
     assertThat(object.getFrom(), is(42L));
     assertThat(object.getTo(), is(43L));

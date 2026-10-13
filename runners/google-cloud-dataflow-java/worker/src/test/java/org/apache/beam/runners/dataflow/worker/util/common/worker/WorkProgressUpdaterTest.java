@@ -56,8 +56,7 @@ public class WorkProgressUpdaterTest {
     boolean shouldCheckpoint();
 
     /** Return the exception that (if not null) will be thrown in {@code reportProgressHelper}. */
-    @Nullable
-    Exception shouldThrow();
+    @Nullable Exception shouldThrow();
   }
 
   private long startTimeMs;

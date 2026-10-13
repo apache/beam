@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.range.OffsetRange;
 
-/** Determines bundle sizes based on @{link SyntheticSourceOptions}. */
+/** Determines bundle sizes based on {@link SyntheticSourceOptions}. */
 public class BundleSplitter implements Serializable {
 
   private SyntheticSourceOptions options;

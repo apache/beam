@@ -171,7 +171,9 @@ public class ApproximateUnique {
     /** The desired maximum estimation error or null if not specified. */
     private final @Nullable Double maximumEstimationError;
 
-    /** @see ApproximateUnique#globally(int) */
+    /**
+     * @see ApproximateUnique#globally(int)
+     */
     public Globally(int sampleSize) {
       if (sampleSize < 16) {
         throw new IllegalArgumentException(
@@ -185,7 +187,9 @@ public class ApproximateUnique {
       this.maximumEstimationError = null;
     }
 
-    /** @see ApproximateUnique#globally(double) */
+    /**
+     * @see ApproximateUnique#globally(double)
+     */
     public Globally(double maximumEstimationError) {
       if (maximumEstimationError < 0.01 || maximumEstimationError > 0.5) {
         throw new IllegalArgumentException(
@@ -228,7 +232,9 @@ public class ApproximateUnique {
     /** The desired maximum estimation error or null if not specified. */
     private final @Nullable Double maximumEstimationError;
 
-    /** @see ApproximateUnique#perKey(int) */
+    /**
+     * @see ApproximateUnique#perKey(int)
+     */
     public PerKey(int sampleSize) {
       if (sampleSize < 16) {
         throw new IllegalArgumentException(
@@ -241,7 +247,9 @@ public class ApproximateUnique {
       this.maximumEstimationError = null;
     }
 
-    /** @see ApproximateUnique#perKey(double) */
+    /**
+     * @see ApproximateUnique#perKey(double)
+     */
     public PerKey(double estimationError) {
       if (estimationError < 0.01 || estimationError > 0.5) {
         throw new IllegalArgumentException(
@@ -352,7 +360,7 @@ public class ApproximateUnique {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof LargestUnique)) {
           return false;
         }
         LargestUnique that = (LargestUnique) o;
@@ -384,6 +392,8 @@ public class ApproximateUnique {
       try {
         heap.add(hash(input, coder));
         return heap;
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         throw new RuntimeException(e);
       }

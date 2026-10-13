@@ -69,6 +69,7 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
    * @return true if the other object has the same class as this {@link AtomicCoder}.
    */
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public final boolean equals(@Nullable Object other) {
     return other != null && this.getClass().equals(other.getClass());
   }

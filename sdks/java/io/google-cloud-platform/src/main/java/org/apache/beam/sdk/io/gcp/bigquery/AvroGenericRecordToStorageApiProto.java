@@ -189,13 +189,13 @@ public class AvroGenericRecordToStorageApiProto {
         Preconditions.checkArgument(
             value instanceof Long, "Expecting a value as Long type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
-            java.time.LocalTime.ofNanoOfDay((TimeUnit.MICROSECONDS.toNanos((long) value))));
+            java.time.LocalTime.ofNanoOfDay(TimeUnit.MICROSECONDS.toNanos((long) value)));
       } else {
         Preconditions.checkArgument(
             value instanceof Integer, "Expecting a value as Integer type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
             java.time.LocalTime.ofNanoOfDay(
-                (TimeUnit.MILLISECONDS).toNanos(((Integer) value).longValue())));
+                TimeUnit.MILLISECONDS.toNanos(((Integer) value).longValue())));
       }
     }
   }
@@ -267,7 +267,7 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
-   * Forwards {@param changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
+   * Forwards {@code changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
    * GenericRecord, String, String)} via {@link Long#toHexString}.
    */
   public static DynamicMessage messageFromGenericRecord(
@@ -317,7 +317,6 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
-  @SuppressWarnings("nullness")
   private static TableFieldSchema fieldDescriptorFromAvroField(org.apache.avro.Schema.Field field) {
     @Nullable Schema schema = field.schema();
 
@@ -360,12 +359,14 @@ public class AvroGenericRecordToStorageApiProto {
         if (valueType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
-        TableFieldSchema keyFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field("key", keyType, "key of the map entry", null));
-        TableFieldSchema valueFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field("value", valueType, "value of the map entry", null));
+        // The Avro Field constructor accepts a null default value, but Avro is not annotated.
+        @SuppressWarnings("nullness")
+        Schema.Field keyField = new Schema.Field("key", keyType, "key of the map entry", null);
+        @SuppressWarnings("nullness")
+        Schema.Field valueField =
+            new Schema.Field("value", valueType, "value of the map entry", null);
+        TableFieldSchema keyFieldSchema = fieldDescriptorFromAvroField(keyField);
+        TableFieldSchema valueFieldSchema = fieldDescriptorFromAvroField(valueField);
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)
@@ -382,9 +383,10 @@ public class AvroGenericRecordToStorageApiProto {
         Preconditions.checkState(
             elementType.getType() != Schema.Type.UNION,
             "Multiple non-null union types are not supported.");
-        TableFieldSchema unionFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field(field.name(), elementType, field.doc(), null));
+        // The Avro Field constructor accepts a null default value, but Avro is not annotated.
+        @SuppressWarnings("nullness")
+        Schema.Field unionField = new Schema.Field(field.name(), elementType, field.doc(), null);
+        TableFieldSchema unionFieldSchema = fieldDescriptorFromAvroField(unionField);
         builder =
             builder
                 .setType(unionFieldSchema.getType())

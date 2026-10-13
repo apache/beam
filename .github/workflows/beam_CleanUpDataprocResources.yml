@@ -20,7 +20,7 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -51,11 +51,13 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
     name: "beam_CleanUpDataprocResources"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Delete leaked resources for all the jobs that generates flink clusters
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./cleanup.sh -xe

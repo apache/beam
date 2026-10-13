@@ -28,12 +28,14 @@ import hamcrest as hc
 import mock
 from parameterized import parameterized
 
+from apache_beam.options.pipeline_options import AwsOptions
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import S3Options
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
@@ -47,8 +49,8 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 _LOGGER = logging.getLogger(__name__)
 
 try:
-  import apache_beam.io.gcp.gcsio  # pylint: disable=unused-import
-  has_gcsio = True
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
+  has_gcsio = GCS_INSTALLED
 except ImportError:
   has_gcsio = False
 
@@ -444,12 +446,18 @@ class PipelineOptionsTest(unittest.TestCase):
         'abc',
         '--disk_type',
         'def',
+        '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200',
         '--element_processing_timeout_minutes',
         '10',
     ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.disk_provisioned_iops, 4000)
+    self.assertEqual(worker_options.disk_provisioned_throughput_mibps, 200)
     self.assertEqual(worker_options.element_processing_timeout_minutes, 10)
 
     options = PipelineOptions(
@@ -563,6 +571,22 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['extra_packages'], None)
 
+  def test_files_to_stage(self):
+    options = PipelineOptions([
+        '--file_to_stage',
+        'abc',
+        '--files_to_stage',
+        'def',
+        '--files_to_stage',
+        'ghi'
+    ])
+    self.assertEqual(
+        sorted(options.get_all_options()['files_to_stage']),
+        ['abc', 'def', 'ghi'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['files_to_stage'], None)
+
   def test_dataflow_job_file(self):
     options = PipelineOptions(['--dataflow_job_file', 'abc'])
     self.assertEqual(options.get_all_options()['dataflow_job_file'], 'abc')
@@ -662,6 +686,52 @@ class PipelineOptionsTest(unittest.TestCase):
       # Invalid option choice.
       options = PipelineOptions(['--type_check_strictness', 'blahblah'])
       options.view_as(TypeOptions)
+
+  def test_profiling_agent_is_exclusive_with_legacy_profiling_options(self):
+    options = PipelineOptions(['--profiler_agent=memray'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_cpu'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(
+        any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_memory'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(
+        any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+  def test_profiling_agent_coredump_adds_core_pattern(self):
+    options = PipelineOptions(['--profiler_agent=coredump'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    debug_options = options.view_as(DebugOptions)
+    self.assertEqual(
+        debug_options.lookup_experiment('core_pattern'),
+        '/tmp/beam_coredump.%e.%p')
+
+  def test_profile_location_defaulting_and_opt_out(self):
+    options = PipelineOptions(
+        ['--profiler_agent=memray', '--temp_location=gs://bucket/temp'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    self.assertEqual(
+        options.view_as(ProfilingOptions).profile_location,
+        'gs://bucket/temp/profiles')
+
+    options = PipelineOptions([
+        '--profiler_agent=memray',
+        '--temp_location=gs://bucket/temp',
+        '--profile_location=gs://other-bucket/custom_profiles'
+    ])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    self.assertEqual(
+        options.view_as(ProfilingOptions).profile_location,
+        'gs://other-bucket/custom_profiles')
 
   def test_add_experiment(self):
     options = PipelineOptions([])
@@ -1051,6 +1121,100 @@ class CompatVersionTest(unittest.TestCase):
     self.assertFalse(
         options_no_compat.is_compat_version_prior_to("1.0.0"),
         msg="Should return False when update_compatibility_version is not set")
+
+
+class AwsOptionsTest(unittest.TestCase):
+  def test_aws_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+        '--aws_disable_ssl',
+    ]).view_as(AwsOptions)
+    self.assertEqual(options.aws_access_key_id, 'key')
+    self.assertEqual(options.aws_region_name, 'us-east-1')
+    self.assertTrue(options.aws_disable_ssl)
+    self.assertIsNone(options.aws_endpoint_url)
+
+  def test_s3_options(self):
+    options = PipelineOptions([
+        '--s3_access_key_id=key',
+        '--s3_region_name=us-west-2',
+        '--s3_api_version=2006-03-01',
+    ]).view_as(S3Options)
+    self.assertEqual(options.s3_access_key_id, 'key')
+    self.assertEqual(options.s3_region_name, 'us-west-2')
+    self.assertEqual(options.s3_api_version, '2006-03-01')
+    self.assertFalse(options.s3_disable_ssl)
+
+  def test_client_settings_without_service_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+    ])
+    self.assertEqual(
+        options.view_as(AwsOptions).get_client_settings(),
+        {
+            'access_key_id': 'key',
+            'secret_access_key': None,
+            'session_token': None,
+            'endpoint_url': None,
+            'region_name': 'us-east-1',
+            'verify': None,
+            'disable_ssl': False,
+        })
+
+  def test_s3_options_override_aws_defaults(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+        '--aws_endpoint_url=https://vpce.example.com',
+        '--s3_region_name=us-west-2',
+        '--s3_endpoint_url=http://localhost:9000',
+        '--s3_disable_ssl',
+    ])
+    settings = options.view_as(AwsOptions).get_client_settings(
+        options.view_as(S3Options))
+    self.assertEqual(settings['region_name'], 'us-west-2')
+    self.assertEqual(settings['endpoint_url'], 'http://localhost:9000')
+    self.assertTrue(settings['disable_ssl'])
+    # Not overridden for S3, so the --aws_* default applies.
+    self.assertEqual(settings['access_key_id'], 'key')
+
+  def test_s3_options_from_kwargs(self):
+    options = PipelineOptions(s3_endpoint_url='http://localhost:4566')
+    settings = options.view_as(AwsOptions).get_client_settings(
+        options.view_as(S3Options))
+    self.assertEqual(settings['endpoint_url'], 'http://localhost:4566')
+
+  def test_other_services_can_override_aws_defaults(self):
+    # Any service options class can override the defaults by declaring a
+    # prefix and <prefix>_<setting> options, e.g. a future
+    # SecretsManagerOptions with --secretsmanager_endpoint_url.
+    class FakeServiceOptions(object):
+      AWS_CLIENT_SETTINGS_PREFIX = 'fake'
+      fake_endpoint_url = 'https://fake.example.com'
+      fake_region_name = None
+
+    aws_options = PipelineOptions([
+        '--aws_region_name=us-east-1',
+        '--aws_endpoint_url=https://default.example.com',
+    ]).view_as(AwsOptions)
+    settings = aws_options.get_client_settings(FakeServiceOptions())
+    self.assertEqual(settings['endpoint_url'], 'https://fake.example.com')
+    self.assertEqual(settings['region_name'], 'us-east-1')
+
+  def test_s3_api_version_is_s3_only(self):
+    options = PipelineOptions(['--s3_api_version=2006-03-01'])
+    self.assertNotIn('aws_api_version', options.get_all_options())
+    self.assertNotIn(
+        'api_version', options.view_as(AwsOptions).get_client_settings())
+
+  def test_options_are_registered_once(self):
+    all_options = PipelineOptions(['--aws_region_name=us-east-1'
+                                   ]).get_all_options()
+    self.assertEqual(all_options['aws_region_name'], 'us-east-1')
+    self.assertIn('s3_region_name', all_options)
+    self.assertIn('s3_api_version', all_options)
 
 
 if __name__ == '__main__':

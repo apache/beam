@@ -28,6 +28,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -74,9 +76,8 @@ public class IcebergBatchWriteExample {
 
   static class ExtractBrowserTransactionsFn extends DoFn<Row, KV<String, Long>> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      Row row = c.element();
-      c.output(
+    public void processElement(@Element Row row, OutputReceiver<KV<String, Long>> receiver) {
+      receiver.output(
           KV.of(
               Preconditions.checkStateNotNull(row.getString("browser")),
               Preconditions.checkStateNotNull(row.getInt64("transactions"))));
@@ -85,13 +86,13 @@ public class IcebergBatchWriteExample {
 
   static class FormatCountsFn extends DoFn<KV<String, Long>, Row> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@Element KV<String, Long> element, OutputReceiver<Row> receiver) {
       Row row =
           Row.withSchema(AGGREGATED_SCHEMA)
-              .withFieldValue("browser", c.element().getKey())
-              .withFieldValue("transaction_count", c.element().getValue())
+              .withFieldValue("browser", element.getKey())
+              .withFieldValue("transaction_count", element.getValue())
               .build();
-      c.output(row);
+      receiver.output(row);
     }
   }
 

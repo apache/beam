@@ -53,6 +53,7 @@ public class CatalogSchema implements Schema {
   private final JdbcConnection connection;
   private final Catalog catalog;
   private final Map<String, BeamCalciteSchema> subSchemas = new HashMap<>();
+
   /**
    * Creates a Calcite {@link Schema} representing a {@link CatalogManager}. This will typically be
    * the root node of a pipeline.
@@ -108,7 +109,7 @@ public class CatalogSchema implements Schema {
     if (alreadyExists) {
       String message = format("Database '%s' already exists.", name);
       if (ifNotExists || name.equals(DEFAULT)) {
-        LOG.info(message);
+        LOG.info("Database '{}' already exists.", name);
       } else {
         throw SqlUtil.newContextException(
             databaseIdentifier.getParserPosition(), RESOURCE.internal(message));

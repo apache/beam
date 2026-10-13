@@ -14,8 +14,6 @@ import dataclasses
 import json
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import TypedDict
 
 import yaml
@@ -50,8 +48,8 @@ class EdgeData:
 
 
 class FlowGraph(TypedDict):
-  nodes: List[Dict[str, Any]]
-  edges: List[Dict[str, Any]]
+  nodes: list[dict[str, Any]]
+  edges: list[dict[str, Any]]
 
 
 # ======================== Main Function ========================
@@ -96,8 +94,8 @@ def parse_beam_yaml(yaml_str: str, isDryRunMode: bool = False) -> str:
     pipeline = parsed_yaml['pipeline']
     transforms = pipeline.get('transforms', [])
 
-    nodes: List[NodeData] = []
-    edges: List[EdgeData] = []
+    nodes: list[NodeData] = []
+    edges: list[EdgeData] = []
 
     nodes.append(NodeData(id='0', label='Input', type='input'))
     nodes.append(NodeData(id='1', label='Output', type='output'))
@@ -144,7 +142,7 @@ def parse_beam_yaml(yaml_str: str, isDryRunMode: bool = False) -> str:
 
 
 def build_success_response(
-    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]) -> str:
+    nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> str:
   """Build success response"""
   return json.dumps({'data': {'nodes': nodes, 'edges': edges}, 'error': None})
 

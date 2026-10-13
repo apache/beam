@@ -128,7 +128,7 @@ public class MetadataTableAdminDao {
     return false;
   }
 
-  /** @return true if metadata table exists, otherwise false. */
+  /** Returns true if metadata table exists, otherwise false. */
   public boolean doesMetadataTableExist() {
     return tableAdminClient.exists(tableId);
   }

@@ -22,7 +22,6 @@ import uuid
 from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
-from typing import Tuple
 
 import yaml
 from yaml import SafeLoader
@@ -150,7 +149,7 @@ def patch_yaml(original_str: str, updated):
 
   # This (recursively) finds the portion of the original string that must
   # be replaced with new content.
-  def diff(a: Any, b: Any) -> Iterable[Tuple[int, int, str]]:
+  def diff(a: Any, b: Any) -> Iterable[tuple[int, int, str]]:
     if a == b:
       return
     elif (isinstance(a, dict) and isinstance(b, dict) and

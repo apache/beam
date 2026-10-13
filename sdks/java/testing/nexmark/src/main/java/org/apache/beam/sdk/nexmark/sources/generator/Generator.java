@@ -86,7 +86,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NextEvent)) {
         return false;
       }
 

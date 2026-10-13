@@ -199,6 +199,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
+
   /** Max duration of a bundle. */
   private final long maxBundleTimeMills;
 
@@ -223,9 +224,11 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
   /** Stores new finalizations being gathered. */
   private transient InMemoryBundleFinalizer bundleFinalizer;
+
   /** Pending bundle finalizations which have not been acknowledged yet. */
   private transient LinkedHashMap<Long, List<InMemoryBundleFinalizer.Finalization>>
       pendingFinalizations;
+
   /**
    * Keep a maximum of 32 bundle finalizations for {@link
    * BundleFinalizer.Callback#onBundleSuccess()}.
@@ -257,12 +260,16 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * been addressed.
    */
   private transient volatile boolean bundleStarted;
+
   /** Number of processed elements in the current bundle. */
   private transient volatile long elementCount;
+
   /** Time that the last bundle was finished (to set the timer). */
   private transient volatile long lastFinishBundleTime;
+
   /** Callback to be executed before the current bundle is started. */
   private transient volatile Runnable preBundleCallback;
+
   /** Callback to be executed after the current bundle was finished. */
   private transient volatile Runnable bundleFinishedCallback;
 
@@ -598,9 +605,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   /**
-   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
-   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
-   * override in @{link ExecutableStageDoFnOperator}.
+   * Retrieve a keyed state backend that should be used to buffer elements for
+   * {@code @RequiresStableInput} functionality. By default this is the default keyed backend, but
+   * can be override in {@link ExecutableStageDoFnOperator}.
    *
    * @return the keyed backend to use for element buffering
    */
@@ -974,10 +981,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * of finishing a bundle in snapshot() first.
    *
    * <p>In order to avoid having {@link DoFnRunner#processElement(WindowedValue)} or {@link
-   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain)} not
-   * between StartBundle and FinishBundle, this method needs to be called in each processElement and
-   * each processWatermark and onProcessingTime. Do not need to call in onEventTime, because it has
-   * been guaranteed in the processWatermark.
+   * DoFnRunner#onTimer(String, String, Object, BoundedWindow, Instant, Instant, TimeDomain,
+   * CausedByDrain)} not between StartBundle and FinishBundle, this method needs to be called in
+   * each processElement and each processWatermark and onProcessingTime. Do not need to call in
+   * onEventTime, because it has been guaranteed in the processWatermark.
    */
   private void checkInvokeStartBundle() {
     if (!bundleStarted) {
@@ -1195,6 +1202,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     timerInternals.onFiredOrDeletedTimer(timerData);
 
+    // hej
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
@@ -1202,7 +1210,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
-        timerData.getDomain());
+        timerData.getDomain(),
+        timerData.causedByDrain());
   }
 
   @SuppressWarnings("unchecked")
@@ -1237,6 +1246,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     private final TupleTag<OutputT> mainTag;
     private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private final Map<TupleTag<?>, Integer> tagsToIds;
+
     /**
      * A lock to be acquired before writing to the buffer. This lock will only be acquired during
      * buffering. It will not be acquired during flushing the buffer.
@@ -1246,6 +1256,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     private final boolean isStreaming;
 
     private Map<Integer, TupleTag<?>> idsToTags;
+
     /** Elements buffered during a snapshot, by output id. */
     @VisibleForTesting
     final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
@@ -1254,6 +1265,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     /** Indicates whether we are buffering data as part of snapshotState(). */
     private boolean openBuffer = false;
+
     /** For performance, to avoid having to access the state backend when the buffer is empty. */
     private boolean bufferIsEmpty = false;
 
@@ -1491,7 +1503,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     }
   }
 
-  class FlinkTimerInternals implements TimerInternals {
+  final class FlinkTimerInternals implements TimerInternals {
 
     private static final String PENDING_TIMERS_STATE_NAME = "pending-timers";
 
@@ -1656,7 +1668,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -1673,7 +1687,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+     */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {

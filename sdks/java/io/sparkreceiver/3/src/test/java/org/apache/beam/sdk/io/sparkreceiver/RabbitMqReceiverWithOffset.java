@@ -117,7 +117,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
 
   @Override
   public void stop(String message) {
-    LOG.info(message);
+    LOG.info("{}", message);
     isStopped.set(true);
     super.stop(message);
     try {
@@ -135,7 +135,7 @@ class RabbitMqReceiverWithOffset extends Receiver<String> implements HasOffset {
 
   @Override
   public void stop(String message, Throwable error) {
-    LOG.error(message, error);
+    LOG.error("{}", message, error);
     isStopped.set(true);
     super.stop(message, error);
     try {

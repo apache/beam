@@ -30,7 +30,7 @@ public abstract class ClickHouseRowsCheck extends ConditionCheck {
 
   abstract String table();
 
-  abstract Integer minRows();
+  abstract int minRows();
 
   abstract @Nullable Integer maxRows();
 
@@ -85,7 +85,7 @@ public abstract class ClickHouseRowsCheck extends ConditionCheck {
 
     public abstract Builder setTable(String table);
 
-    public abstract Builder setMinRows(Integer minRows);
+    public abstract Builder setMinRows(int minRows);
 
     public abstract Builder setMaxRows(Integer maxRows);
 

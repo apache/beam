@@ -106,7 +106,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
                     request.getWorkerId(), options, capabilities, logEndpoint, ctrlEndpoint, null);
                 LOG.info("Successfully started worker {}.", request.getWorkerId());
               } catch (Exception exn) {
-                LOG.error(String.format("Failed to start worker %s.", request.getWorkerId()), exn);
+                LOG.error("Failed to start worker {}.", request.getWorkerId(), exn);
               }
             });
     th.setName("SDK-worker-" + request.getWorkerId());

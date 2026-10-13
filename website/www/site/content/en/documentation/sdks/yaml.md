@@ -1,6 +1,6 @@
 ---
 type: languages
-title: "Apache Beam YAML API"
+title: "Apache Beam YAML"
 ---
 <!--
     Licensed to the Apache Software Foundation (ASF) under one
@@ -21,11 +21,13 @@ title: "Apache Beam YAML API"
     under the License.
 -->
 
-# Beam YAML API
+# Beam YAML
 
 Beam YAML is a declarative syntax for describing Apache Beam pipelines by using
 YAML files. You can use Beam YAML to author and run a Beam pipeline without
 writing any code.
+
+For a full transform API reference, see https://beam.apache.org/releases/yamldoc/current/
 
 ## Overview
 
@@ -809,6 +811,40 @@ pipeline:
 
 This pipeline can be run with the same command as in the `% include` example
 above.
+
+You can also use template inheritance (`{% extends %}` and `{% block %}`) to define a base pipeline layout and allow child pipelines to override specific blocks of transforms:
+
+<PATH_TO_YOUR_REPO>/base_pipeline.yaml
+```yaml
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromText
+      config:
+        path: {{ input_path }}
+
+# Injection point for child templates
+{% block custom_steps %}
+{% endblock %}
+
+    - type: WriteToText
+      config:
+        path: {{ output_path }}
+```
+
+<PATH_TO_YOUR_REPO>/child_pipeline.yaml
+```yaml
+{% extends '<PATH_TO_YOUR_REPO>/base_pipeline.yaml' %}
+
+{% block custom_steps %}
+    - type: Filter
+      config:
+        language: python
+        keep: 'row.count > 10'
+{% endblock %}
+```
+
+This pipeline can be run using the exact same command structure as above.
 
 There are many more ways to import and even use template inheritance using
 Jinja as seen [here](https://jinja.palletsprojects.com/en/stable/templates/#import)

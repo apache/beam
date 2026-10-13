@@ -75,7 +75,7 @@ function verify_hash() {
   wget https://dist.apache.org/repos/dist/dev/beam/KEYS
   gpg --import KEYS
   gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
-  gsutil version -l
+  gcloud version
 }
 
 
@@ -122,7 +122,7 @@ function verify_wordcount_dataflow() {
 
   # verify results.
   wordcount_output_in_gcs="gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT"
-  gcs_pull_result=$(gsutil ls gs://$BUCKET_NAME)
+  gcs_pull_result=$(gcloud storage ls gs://$BUCKET_NAME)
   if [[ $gcs_pull_result != *$wordcount_output_in_gcs* ]]; then
     echo "ERROR: The wordcount example failed on DataflowRunner".
     complete "failed when running wordcount example with DataflowRunner."
@@ -130,7 +130,7 @@ function verify_wordcount_dataflow() {
   fi
 
   # clean output files from GCS
-  gsutil rm gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT-*
+  gcloud storage rm gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT-*
   echo "SUCCEED: wordcount successfully run on DataflowRunner."
 }
 

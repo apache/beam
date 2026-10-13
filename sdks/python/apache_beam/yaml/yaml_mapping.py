@@ -16,20 +16,17 @@
 #
 
 """This module defines the basic MapToFields operation."""
-import atexit
-import importlib
+import datetime
 import itertools
-import os
-import queue
+import json
 import re
-import sys
 import threading
-import uuid
 from collections import abc
 from collections.abc import Callable
 from collections.abc import Collection
 from collections.abc import Iterable
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any
 from typing import NamedTuple
 from typing import Optional
@@ -59,6 +56,12 @@ from apache_beam.yaml.yaml_errors import map_errors_to_standard_format
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 from apache_beam.yaml.yaml_provider import dicts_to_rows
+
+# Import quickjs package if it exists
+try:
+  import quickjs
+except ImportError:
+  quickjs = None
 
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
@@ -177,6 +180,54 @@ def _check_mapping_arguments(
     raise ValueError(f'{transform_name} cannot specify "name" without "path"')
 
 
+_THREAD_LOCAL_JS_CACHE = threading.local()
+
+
+class _JsFunctionWrapper:
+  def __init__(self, source_code, entrypoint_name):
+    self.source_code = source_code
+    self.entrypoint_name = entrypoint_name
+
+  def _get_fn(self):
+    cache = _THREAD_LOCAL_JS_CACHE
+    if not hasattr(cache, 'functions'):
+      cache.functions = {}
+
+    cache_key = (self.source_code, self.entrypoint_name)
+    if cache_key not in cache.functions:
+      context = quickjs.Context()
+      context.eval(self.source_code)
+      f = context.get(self.entrypoint_name)
+
+      def call_fn(*args, run_gc=True):
+        def convert_arg(arg):
+          if isinstance(arg, (type(None), str, bool, float, int)):
+            return arg
+          else:
+            return context.parse_json(json.dumps(arg))
+
+        try:
+          result = f(*[convert_arg(a) for a in args])
+          if isinstance(result, quickjs.Object):
+            result = json.loads(result.json())
+          return result
+        finally:
+          if run_gc:
+            context.gc()
+
+      cache.functions[cache_key] = call_fn
+
+    return cache.functions[cache_key]
+
+  def __call__(self, row):
+    fn = self._get_fn()
+    try:
+      return dicts_to_rows(fn(py_value_to_js_dict(row)))
+    except Exception as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: {exn}") from exn
+
+
 # TODO(yaml) Improve type inferencing for JS UDF's
 def py_value_to_js_dict(py_value):
   if ((isinstance(py_value, tuple) and hasattr(py_value, '_asdict')) or
@@ -184,187 +235,70 @@ def py_value_to_js_dict(py_value):
     py_value = py_value._asdict()
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
+  elif isinstance(py_value, bytes):
+    return py_value.decode('utf-8', errors='replace')
+  elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
+    return {'__date__': True, 'value': py_value.isoformat()}
+  elif isinstance(py_value, Decimal):
+    return float(py_value)
   elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
   else:
     return py_value
 
 
-class PythonMonkeyDispatcher:
-  """Dispatcher for executing JavaScript code using pythonmonkey.
-
-  This class manages a worker thread to execute JavaScript, ensuring that
-  pythonmonkey is only imported and used within that thread. It also handles
-  process shutdown carefully to avoid segmentation faults known to occur
-  when pythonmonkey is present during standard Python interpreter finalization.
-  """
-  def __init__(self):
-    self._req_queue = queue.Queue()
-    self._resp_events = {}
-    self._resp_data = {}
-    self._lock = threading.Lock()
-    self._thread = threading.Thread(target=self._worker, daemon=True)
-    self._started = False
-    # Register the stop method to be called on exit.
-    # atexit handlers are executed in LIFO order. By registering at import time,
-    # we ensure this handler runs last, allowing other cleanup handlers
-    # (registered later) to execute first.
-    atexit.register(self.stop)
-
-  def start(self):
-    with self._lock:
-      if not self._started:
-        self._thread.start()
-        self._started = True
-
-  def stop(self):
-    # This method is called on process exit.
-    if not self._started:
-      return
-    # Flush standard streams before forced exit to avoid data loss.
-    try:
-      sys.stdout.flush()
-      sys.stderr.flush()
-    except Exception:
-      pass
-    # Force an immediate exit to avoid a segmentation fault that occurs with
-    # pythonmonkey during standard interpreter finalization.
-    # Since this runs as one of the last atexit handlers (due to import-time
-    # registration), most other cleanup should have already completed.
-    os._exit(0)
-
-  def _worker(self):
-    try:
-      import pythonmonkey as pm
-    except ImportError:
-      pm = None
-
-    self._pm = pm
-    self._cache = {}
-
-    while True:
-      req = self._req_queue.get()
-      if req is None:
-        break
-
-      req_id, type_str, payload = req
-      res = None
-      is_err = False
-      try:
-        if self._pm is None:
-          raise ImportError(
-              "PythonMonkey not installed or failed to import in worker thread."
-          )
-
-        if type_str == 'exec':
-          source, row = payload
-          if source not in self._cache:
-            self._cache[source] = self._pm.eval(f"({source})")
-          func = self._cache[source]
-          res = func(row)
-      except Exception as e:
-        res = e
-        is_err = True
-
-      with self._lock:
-        if req_id in self._resp_events:
-          self._resp_data[req_id] = (is_err, res)
-          self._resp_events[req_id].set()
-
-  def eval_and_run(self, source, row):
-    if not self._started:
-      self.start()
-
-    req_id = str(uuid.uuid4())
-    event = threading.Event()
-    with self._lock:
-      self._resp_events[req_id] = event
-
-    self._req_queue.put((req_id, 'exec', (source, row)))
-    event.wait()
-
-    with self._lock:
-      is_err, result = self._resp_data.pop(req_id)
-      del self._resp_events[req_id]
-
-    if is_err:
-      raise result
-    return result
-
-
-_pythonmonkey_dispatcher = PythonMonkeyDispatcher()
-
-
-class JavaScriptCallable:
-  def __init__(self, source, name=None):
-    self._source = source
-    self._name = name
-
-  def __call__(self, row):
-    # Check for pythonmonkey availability lazily (on first call)
-    if importlib.util.find_spec("pythonmonkey") is None:
-      raise RuntimeError(
-          "PythonMonkey is not installed. Please install 'apache_beam[yaml]' "
-          "to use JavaScript mapping functions.")
-
-    row_as_dict = py_value_to_js_dict(row)
-    try:
-      # If we have a name, it means we evaluated a file and need to call
-      # a specific function.
-      # Dispatcher expects a self-contained source/expression.
-      if self._name:
-        # Wrap: (function() { <source>; return <name>; })()
-        effective_source = (
-            f"(function() {{ {self._source}; return {self._name}; }})()")
-      else:
-        # Expression/Callable case: Wrap in parens to be safe
-        effective_source = f"({self._source})"
-
-      js_result = _pythonmonkey_dispatcher.eval_and_run(
-          effective_source, row_as_dict)
-
-    except Exception as exn:
-      raise RuntimeError(
-          f"Error evaluating javascript expression: {exn}") from exn
-    return dicts_to_rows(_finalize_js_result(js_result))
-
-
-def _finalize_js_result(obj):
-  """Coerce pythonmonkey objects to native Python objects (specifically
-  strings).
-  """
-  if isinstance(obj, str):
-    return str(obj)
-  if isinstance(obj, list):
-    return [_finalize_js_result(x) for x in obj]
-  if isinstance(obj, dict):
-    return {k: _finalize_js_result(v) for k, v in obj.items()}
-  return obj
-
-
+# TODO(yaml) Consider adding optional language version parameter to support
+#  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
 
-  if importlib.util.find_spec("pythonmonkey") is None:
+  if quickjs is None:
     raise ValueError(
-        "PythonMonkey is not installed. Please install 'apache_beam[yaml]' "
-        "to use JavaScript mapping functions.")
+        "Javascript mapping functions are not supported because the "
+        "quickjs-ng library is not installed.")
 
   if expression:
-    source = '\n'.join(['function(__row__) {'] + [
-        f'  {name} = __row__.{name}'
-        for name in original_fields if name in expression
-    ] + ['  return (' + expression + ')'] + ['}'])
-    return JavaScriptCallable(source)
+    source_code = f"""
+    function udf(__row__) {{
+      with (__row__) {{
+        return ({expression});
+      }}
+    }}
+    """
+    user_entrypoint = 'udf'
 
   elif callable:
-    return JavaScriptCallable(callable)
+    source_code = f"var __udf__ = ({callable});"
+    user_entrypoint = '__udf__'
 
   else:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    return JavaScriptCallable(udf_code, name=name)
+    source_code = udf_code
+    user_entrypoint = name
+
+  source_code += f"""
+  function __convert_dates__(obj) {{
+    if (obj && typeof obj === 'object') {{
+      if (obj.__date__) {{
+        return new Date(obj.value);
+      }}
+      for (var key in obj) {{
+        if (obj.hasOwnProperty(key)) {{
+          obj[key] = __convert_dates__(obj[key]);
+        }}
+      }}
+    }}
+    return obj;
+  }}
+
+  function __wrapper__(row) {{
+    return {user_entrypoint}(__convert_dates__(row));
+  }}
+  """
+
+  return _JsFunctionWrapper(source_code, '__wrapper__')
 
 
 def _expand_python_mapping_func(

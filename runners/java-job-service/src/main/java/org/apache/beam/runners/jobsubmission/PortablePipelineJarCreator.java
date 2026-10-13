@@ -73,6 +73,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   private final Class mainClass;
 
   @VisibleForTesting JarOutputStream outputStream;
+
   /** Wrapper over {@link #outputStream}. */
   @VisibleForTesting WritableByteChannel outputChannel;
 
@@ -202,8 +203,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     try (InputStream artifactStream = ArtifactRetrievalService.getArtifact(artifact)) {
       ByteStreams.copy(artifactStream, outputStream);
     }
-    return artifact
-        .toBuilder()
+    return artifact.toBuilder()
         .setTypeUrn(ArtifactRetrievalService.FILE_ARTIFACT_URN)
         .setTypePayload(
             RunnerApi.ArtifactFilePayload.newBuilder()

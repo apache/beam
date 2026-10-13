@@ -41,9 +41,9 @@ public class PluginConfigInstantiationUtils {
   private static final String MACRO_FIELDS_FIELD_NAME = "macroFields";
 
   /**
-   * Method for instantiating {@link PluginConfig} object of specific class {@param configClass}.
+   * Method for instantiating {@link PluginConfig} object of specific class {@code configClass}.
    * After instantiating, it will go over all {@link Field}s with the {@link Name} annotation and
-   * set the appropriate parameter values from the {@param params} map for them.
+   * set the appropriate parameter values from the {@code params} map for them.
    *
    * @param params map of config fields, where key is the name of the field, value must be String or
    *     boxed primitive

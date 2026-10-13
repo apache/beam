@@ -164,13 +164,13 @@ public class MetricsEnvironment {
     }
   }
 
-  /**
-   * Set the {@link MetricsContainer} for the associated {@link MetricsEnvironment}.
-   *
-   * @return The previous container for the associated {@link MetricsEnvironment}.
-   */
+  /** Set the {@link MetricsContainer} for the associated {@link MetricsEnvironment}. */
   public interface MetricsEnvironmentState {
-    @Nullable
-    MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
+    /**
+     * Activates the given container.
+     *
+     * @return The previous container for the associated {@link MetricsEnvironment}.
+     */
+    @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
   }
 }

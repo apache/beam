@@ -66,7 +66,7 @@ public class ConvertTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJO1)) {
         return false;
       }
       POJO1 pojo1 = (POJO1) o;
@@ -96,7 +96,7 @@ public class ConvertTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJO1Nested)) {
         return false;
       }
       POJO1Nested that = (POJO1Nested) o;

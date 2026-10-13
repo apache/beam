@@ -44,7 +44,7 @@ public class Event implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Event)) {
       return false;
     }
     Event event = (Event) o;

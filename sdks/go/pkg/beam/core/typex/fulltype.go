@@ -89,6 +89,8 @@ func printShortComposite(t reflect.Type) string {
 		return "KV"
 	case NullableType:
 		return "Nullable"
+	case ShardedKeyType:
+		return "SK"
 	default:
 		return fmt.Sprintf("invalid(%v)", t)
 	}
@@ -145,6 +147,14 @@ func New(t reflect.Type, components ...FullType) FullType {
 			}
 			return &tree{class, t, components}
 		case TimersType:
+			return &tree{class, t, components}
+		case ShardedKeyType:
+			if len(components) != 1 {
+				panic(fmt.Sprintf("Invalid number of components for ShardedKey: %v, %v", t, components))
+			}
+			if components[0].Class() == Composite {
+				panic(fmt.Sprintf("Invalid to nest composite inside ShardedKey: %v, %v", t, components))
+			}
 			return &tree{class, t, components}
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))
@@ -224,6 +234,19 @@ func IsCoGBK(t FullType) bool {
 // NewCoGBK constructs a new CoGBK of the given component types.
 func NewCoGBK(components ...FullType) FullType {
 	return New(CoGBKType, components...)
+}
+
+// IsShardedKey returns true iff the type is a ShardedKey.
+func IsShardedKey(t FullType) bool {
+	return t.Type() == ShardedKeyType
+}
+
+// NewShardedKey constructs a new ShardedKey FullType wrapping the given
+// key component. The ShardedKey has exactly one component — the user key
+// type — because the ShardID byte-string has a fixed representation and
+// is not a user-configurable type.
+func NewShardedKey(keyType FullType) FullType {
+	return New(ShardedKeyType, keyType)
 }
 
 // IsStructurallyAssignable returns true iff a from value is structurally

@@ -19,8 +19,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 
 from pymilvus import MilvusClient
@@ -65,7 +63,7 @@ class MilvusWriteConfig:
   partition_name: str = ""
   timeout: Optional[float] = None
   write_config: WriteConfig = field(default_factory=WriteConfig)
-  kwargs: Dict[str, Any] = field(default_factory=dict)
+  kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.collection_name:
@@ -113,10 +111,10 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
   """
   connection_params: MilvusConnectionParameters
   write_config: MilvusWriteConfig
-  column_specs: List[ColumnSpec] = field(
+  column_specs: list[ColumnSpec] = field(
       default_factory=lambda: MilvusVectorWriterConfig.default_column_specs())
 
-  def create_converter(self) -> Callable[[EmbeddableItem], Dict[str, Any]]:
+  def create_converter(self) -> Callable[[EmbeddableItem], dict[str, Any]]:
     """Creates a function to convert EmbeddableItem objects to Milvus records.
 
     Returns:
@@ -124,7 +122,7 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
       dictionary representing
       a Milvus record with fields mapped according to column_specs.
     """
-    def convert(chunk: EmbeddableItem) -> Dict[str, Any]:
+    def convert(chunk: EmbeddableItem) -> dict[str, Any]:
       result = {}
       for col in self.column_specs:
         result[col.column_name] = col.value_fn(chunk)
@@ -143,7 +141,7 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
     return _WriteToMilvusVectorDatabase(self)
 
   @staticmethod
-  def default_column_specs() -> List[ColumnSpec]:
+  def default_column_specs() -> list[ColumnSpec]:
     """Returns default column specifications for RAG use cases.
 
     Creates column mappings for standard RAG fields: id, dense embedding,
@@ -289,16 +287,18 @@ class _MilvusSink:
     """Writes a batch of documents to the Milvus collection.
 
     Performs an upsert operation to insert new documents or update existing
-    ones based on primary key. After the upsert, flushes the collection to
-    ensure data persistence.
+    ones based on primary key, reusing the client established in ``__enter__``.
+
+    Note:
+      This submits the upsert to Milvus; it does not call ``flush()`` on the
+      collection. Newly written rows become queryable according to Milvus'
+      normal segment-sync behavior. Callers that require immediate
+      read-after-write visibility should flush the collection explicitly.
 
     Args:
       documents: List of dictionaries representing Milvus records to write.
         Each dictionary should contain fields matching the collection schema.
     """
-    self._client = MilvusClient(
-        **unpack_dataclass_with_kwargs(self._connection_params))
-
     resp = self._client.upsert(
         collection_name=self._write_config.collection_name,
         partition_name=self._write_config.partition_name,
@@ -348,3 +348,4 @@ class _MilvusSink:
     _ = exc_type, exc_val, exc_tb  # Unused parameters
     if self._client:
       self._client.close()
+      self._client = None

@@ -529,7 +529,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
     // Clearing this list should "release" some memory that will be needed to dump the heap.
     // We could try to reallocate it again if we later notice memory pressure has subsided,
-    // but that is risk. Further, leaving this released may help with the memory pressure.
+    // but that is risky. Further, leaving this released may help with the memory pressure.
     reservedForDumpingHeap = null;
 
     try {
@@ -670,8 +670,11 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    * repeated dumps. These files can be of comparable size to the local disk.
    */
   public File dumpHeap()
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
     return dumpHeap(localDumpFolder);
   }
 
@@ -737,8 +740,11 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    */
   @VisibleForTesting
   static synchronized File dumpHeap(File directory)
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
     boolean liveObjectsOnly = false;
     File fileName = new File(directory, "heap_dump.hprof");
     if (fileName.exists() && !fileName.delete()) {

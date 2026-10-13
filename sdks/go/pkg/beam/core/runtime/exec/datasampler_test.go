@@ -104,16 +104,9 @@ func TestDataSampler(t *testing.T) {
 			for _, sample := range test.samples {
 				dataSampler.SendSample(sample.PCollectionID, sample.Element, sample.Timestamp)
 			}
-			var samplesCount = -1
-			var samples map[string][]*DataSample
-			for i := 0; i < 5; i++ {
-				samples = dataSampler.GetSamples(test.pids)
-				if len(samples) == len(test.want) {
-					samplesCount = len(samples)
-					break
-				}
-				time.Sleep(time.Second)
-			}
+			time.Sleep(1 * time.Second)
+			samples := dataSampler.GetSamples(test.pids)
+			samplesCount := len(samples)
 			cancel()
 			if samplesCount != len(test.want) {
 				t.Errorf("got an unexpected number of sampled elements: %v, want: %v", samplesCount, len(test.want))

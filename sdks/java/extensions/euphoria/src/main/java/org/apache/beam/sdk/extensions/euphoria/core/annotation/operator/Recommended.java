@@ -30,14 +30,14 @@ import java.lang.annotation.Target;
 public @interface Recommended {
 
   /**
-   * @return a human readable explanation why the annotated operator is recommendation for native
-   *     implementation by an executor
+   * Returns a human readable explanation why the annotated operator is recommendation for native
+   * implementation by an executor.
    */
   String reason();
 
-  /** @return the state complexity */
+  /** Returns the state complexity. */
   StateComplexity state();
 
-  /** @return the number of global repartition operations */
+  /** Returns the number of global repartition operations. */
   int repartitions();
 }

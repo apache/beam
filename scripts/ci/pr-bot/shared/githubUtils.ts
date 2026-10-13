@@ -42,6 +42,31 @@ export async function addPrComment(pullNumber: number, body: string) {
   });
 }
 
+export async function requestPrReviewers(
+  pullNumber: number,
+  reviewers: string[],
+  githubClient?: any
+) {
+  if (!reviewers || reviewers.length === 0) {
+    return;
+  }
+  const client = githubClient || getGitHubClient();
+  for (const reviewer of reviewers) {
+    try {
+      await client.rest.pulls.requestReviewers({
+        owner: REPO_OWNER,
+        repo: REPO,
+        pull_number: pullNumber,
+        reviewers: [reviewer],
+      });
+    } catch (err) {
+      console.log(
+        `Unable to request review from ${reviewer} on PR ${pullNumber} (best effort): ${err}`
+      );
+    }
+  }
+}
+
 export async function nextActionReviewers(
   pullNumber: number,
   existingLabels: Label[]
@@ -68,6 +93,27 @@ export async function nextActionAuthor(
     issue_number: pullNumber,
     labels: newLabels,
   });
+}
+
+export async function closePr(pullNumber: number) {
+  await getGitHubClient().rest.pulls.update({
+    owner: REPO_OWNER,
+    repo: REPO,
+    pull_number: pullNumber,
+    state: "closed",
+  });
+}
+
+export async function getPrFiles(pullNumber: number): Promise<string[]> {
+  const files = await getGitHubClient().paginate(
+    getGitHubClient().rest.pulls.listFiles,
+    {
+      owner: REPO_OWNER,
+      repo: REPO,
+      pull_number: pullNumber,
+    }
+  );
+  return files.map((file: any) => file.filename);
 }
 
 export async function checkIfCommitter(username: string): Promise<boolean> {
@@ -101,4 +147,12 @@ function removeNextActionLabel(existingLabels: Label[]): string[] {
         label.name != "Next Action: Author"
     )
     .map((label) => label.name);
+}
+
+export function hasLabel(pull: any, labelName: string): boolean {
+  return (pull?.labels || []).some(
+    (label: any) =>
+      (typeof label === "string" ? label : label?.name || "").toLowerCase() ===
+      labelName.toLowerCase()
+  );
 }

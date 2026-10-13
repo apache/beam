@@ -122,7 +122,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         Arrays.asList(
             BigQueryWriteConfiguration.builder()
                 .setTable("project:dataset.table")
-                .setCreateDisposition("INVALID_DISPOSITION"));
+                .setCreateDisposition("INVALID_DISPOSITION"),
+            BigQueryWriteConfiguration.builder()
+                .setTable("project:dataset.table")
+                .setNumStreams(-1));
 
     for (BigQueryWriteConfiguration.Builder config : invalidConfigs) {
       assertThrows(

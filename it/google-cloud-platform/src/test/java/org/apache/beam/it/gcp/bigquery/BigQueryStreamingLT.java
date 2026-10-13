@@ -19,6 +19,7 @@ package org.apache.beam.it.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSpec;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -95,7 +96,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStreamingLT");
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_load_test_" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "sink_load_test_" + System.nanoTime();
 
   private TestConfiguration config;
   private Integer crashIntervalSeconds;
@@ -128,8 +129,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     }
 
     // Set expected table if the property is provided,
-    @Nullable
-    String expectedTable =
+    @Nullable String expectedTable =
         TestProperties.getProperty("expectedTable", "", TestProperties.Type.PROPERTY);
     if (!Strings.isNullOrEmpty(expectedTable)) {
       config = config.toBuilder().setExpectedTable(expectedTable).build();
@@ -160,18 +160,18 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
   @AutoValue
   abstract static class TestConfiguration {
     /** Rows will be generated for this many minutes. */
-    abstract Integer getMinutes();
+    abstract int getMinutes();
 
     /** Data shape: The byte-size for each field. */
-    abstract Integer getByteSizePerField();
+    abstract int getByteSizePerField();
 
     /** Data shape: The number of fields per row. */
-    abstract Integer getNumFields();
+    abstract int getNumFields();
 
     /**
      * Rate of generated elements sent to the sink. Will run with a minimum of 1k rows per second.
      */
-    abstract Integer getRowsPerSecond();
+    abstract int getRowsPerSecond();
 
     abstract String getRunner();
 

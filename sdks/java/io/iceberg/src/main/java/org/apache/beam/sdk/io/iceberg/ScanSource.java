@@ -47,7 +47,8 @@ class ScanSource extends BoundedSource<Row> {
   }
 
   private TableScan getTableScan() {
-    Table table = scanConfig.getTable();
+    Table table =
+        TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
     TableScan tableScan = table.newScan().project(scanConfig.getProjectedSchema());
 
     if (scanConfig.getFilter() != null) {
@@ -115,7 +116,9 @@ class ScanSource extends BoundedSource<Row> {
 
   @Override
   public Coder<Row> getOutputCoder() {
-    return RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+    return RowCoder.of(
+        IcebergUtils.icebergSchemaToBeamSchema(
+            scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
   }
 
   @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transformservice.launcher;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,6 +47,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Can be either used programatically or as an executable jar.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class TransformServiceLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(TransformServiceLauncher.class);
@@ -89,11 +96,11 @@ public class TransformServiceLauncher {
     // Setting up the credentials directory.
     File credentialsDir = Paths.get(tmpDir, "credentials_dir").toFile();
     if (credentialsDir.exists()) {
-      LOG.info("Reusing the existing credentials directory " + credentialsDir.getAbsolutePath());
+      LOG.info("Reusing the existing credentials directory {}", credentialsDir.getAbsolutePath());
     } else {
       LOG.info(
-          "Creating a temporary directory for storing credentials: "
-              + credentialsDir.getAbsolutePath());
+          "Creating a temporary directory for storing credentials: {}",
+          credentialsDir.getAbsolutePath());
       if (!credentialsDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing credentials: "
@@ -131,11 +138,11 @@ public class TransformServiceLauncher {
     File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
     Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
     if (dependenciesDir.exists()) {
-      LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
+      LOG.info("Reusing the existing dependencies directory {}", dependenciesDir.getAbsolutePath());
     } else {
       LOG.info(
-          "Creating a temporary directory for storing dependencies: "
-              + dependenciesDir.getAbsolutePath());
+          "Creating a temporary directory for storing dependencies: {}",
+          dependenciesDir.getAbsolutePath());
       if (!dependenciesDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing dependencies: "

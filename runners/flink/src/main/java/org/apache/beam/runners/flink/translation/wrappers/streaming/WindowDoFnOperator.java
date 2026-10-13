@@ -118,7 +118,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     // for some K, V
 
     return DoFnRunners.lateDataDroppingRunner(
-        (DoFnRunner) doFnRunner, timerInternals, windowingStrategy);
+        (DoFnRunner) doFnRunner, stepContext, windowingStrategy);
   }
 
   @Override

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
@@ -74,10 +75,16 @@ import org.joda.time.Instant;
  *       Double>>}
  * </ul>
  *
- * <p>In addition to this, it passes {@Code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
+ * <p>In addition to this, it passes {@code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
  * method.
  */
 @Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SplittableSplitAndSizeRestrictionsDoFnRunner<
         InputT, RestrictionT extends @NonNull Object, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Void, BoundedWindow> {
@@ -316,6 +323,8 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
   private <T> void outputTo(FnDataReceiver<WindowedValue<T>> consumer, WindowedValue<T> output) {
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }

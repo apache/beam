@@ -35,6 +35,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -233,7 +234,7 @@ public class JdbcSchemaIOProviderTest {
         "connectionProp", Objects.requireNonNull(dataSourceConf.getConnectionProperties()).get());
     assertEquals(
         new ArrayList<>(Collections.singleton("initSql")),
-        Objects.requireNonNull(dataSourceConf.getConnectionInitSqls()).get());
+        Lists.newArrayList(Objects.requireNonNull(dataSourceConf.getConnectionInitSqls()).get()));
     assertEquals(3, (int) dataSourceConf.getMaxConnections().get());
     assertEquals("test.jar", Objects.requireNonNull(dataSourceConf.getDriverJars()).get());
     assertEquals(10L, schemaIO.config.getInt64("writeBatchSize").longValue());

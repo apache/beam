@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -96,6 +97,12 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
@@ -111,6 +118,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final Semaphore availableCachesSemaphore;
   private final LinkedBlockingDeque<EnvironmentCacheAndLock> availableCaches;
   private final boolean loadBalanceBundles;
+
   /** Clients which were evicted due to environment expiration but still had pending references. */
   private final Set<WrappedSdkHarnessClient> evictedActiveClients;
 
@@ -733,6 +741,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     abstract GrpcFnServer<GrpcStateService> getStateServer();
 
     abstract Builder toBuilder();
+
+    public static Builder builder() {
+      return new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder();
+    }
 
     @AutoValue.Builder
     abstract static class Builder {

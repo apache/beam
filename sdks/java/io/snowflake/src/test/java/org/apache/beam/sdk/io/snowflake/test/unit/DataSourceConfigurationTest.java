@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
+import net.snowflake.client.internal.api.implementation.datasource.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.junit.Before;

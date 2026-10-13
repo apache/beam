@@ -202,7 +202,7 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObject() throws Exception {
-      CloudObject cloudObject = CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null);
+      CloudObject cloudObject = CloudObjects.asCloudObject(coder, /* sdkComponents= */ null);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
       assertEquals(coder.getClass(), fromCloudObject.getClass());
@@ -276,7 +276,7 @@ public class CloudObjectsTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && getClass().equals(other.getClass());
+      return other instanceof ObjectCoder;
     }
 
     @Override
@@ -321,7 +321,7 @@ public class CloudObjectsTest {
       if (this == o) {
         return true;
       }
-      return o != null && getClass() == o.getClass();
+      return o instanceof RowIdentity;
     }
   }
 }

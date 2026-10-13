@@ -31,7 +31,7 @@ import com.google.bigtable.v2.PingAndWarmRequest;
 import com.google.bigtable.v2.PingAndWarmResponse;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.ReadRowsResponse;
-import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.metrics.NoopMetricsProvider;
 import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
@@ -225,18 +225,19 @@ public class BigtableSharedClientTest {
 
   /** Overrides the default settings to ensure 1 channel per client. */
   public static class ClientSettingsOverride
-      implements BiFunction<Builder, PipelineOptions, Builder> {
+      implements BiFunction<
+          BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder> {
 
     @Override
-    public Builder apply(Builder builder, PipelineOptions pipelineOptions) {
+    public BigtableDataSettings.Builder apply(
+        BigtableDataSettings.Builder builder, PipelineOptions pipelineOptions) {
       InstantiatingGrpcChannelProvider oldTransport =
           (InstantiatingGrpcChannelProvider) builder.stubSettings().getTransportChannelProvider();
 
       builder
           .stubSettings()
           .setTransportChannelProvider(
-              oldTransport
-                  .toBuilder()
+              oldTransport.toBuilder()
                   .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
                   .build());
       // Make sure to disable builtin metrics

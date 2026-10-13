@@ -322,6 +322,9 @@ pre {
     }
   }
 }
+.tab-switcher {
+    @extend .runner-switcher;
+}
 .shell-switcher {
   ul.nav-tabs {
     padding-left: 0;

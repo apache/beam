@@ -50,6 +50,9 @@ except ImportError:
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
+  if not GCS_INSTALLED:
+    GCSFileSystem = None  # type: ignore
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
@@ -635,7 +638,8 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=2,
           max_batch_size=2)
 
-      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(
+          KEYED_TORCH_EXAMPLES, reshuffle=False)
       inference_args_side_input = (
           pipeline | 'create side' >> beam.Create(inference_args))
       predictions = pcoll | RunInference(
@@ -709,7 +713,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=2,
           max_batch_size=2)
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(examples, reshuffle=False)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,

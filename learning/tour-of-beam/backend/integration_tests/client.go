@@ -165,7 +165,9 @@ func Do(dst interface{}, method, url string, queryParams, headers map[string]str
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if err := verifyServerHeaders(resp.Header); err != nil {
 		return err
@@ -180,7 +182,9 @@ func Do(dst interface{}, method, url string, queryParams, headers map[string]str
 	}
 
 	tee := io.TeeReader(resp.Body, os.Stdout)
-	defer os.Stdout.WriteString("\n")
+	defer func() {
+		_, _ = os.Stdout.WriteString("\n")
+	}()
 	if err := json.NewDecoder(tee).Decode(dst); err != nil {
 		return fmt.Errorf("response decode err: %w", err)
 	}

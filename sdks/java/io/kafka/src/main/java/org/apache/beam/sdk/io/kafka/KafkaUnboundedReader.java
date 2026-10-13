@@ -23,21 +23,23 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -62,7 +64,9 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.InvalidOffsetException;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -78,6 +82,11 @@ import org.slf4j.LoggerFactory;
  * partitions. See {@link KafkaIO} for user visible documentation and example usage.
  */
 class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+
+  // Track last successfully committed offsets to suppress no-op commits for idle partitions.
+  private final Map<TopicPartition, Long> lastCommittedOffsets = new HashMap<>();
+  // Track last commit time per partition to ensure periodic commits for time lag monitoring.
+  private final Map<TopicPartition, Instant> lastCommitTimes = new HashMap<>();
 
   ///////////////////// Reader API ////////////////////////////////////////////////////////////
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -108,17 +117,22 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       try {
         Duration timeout = resolveDefaultApiTimeout(spec);
         future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
-      } catch (TimeoutException e) {
-        consumer.wakeup(); // This unblocks consumer stuck on network I/O.
-        // Likely reason : Kafka servers are configured to advertise internal ips, but
-        // those ips are not accessible from workers outside.
-        String msg =
-            String.format(
-                "%s: Timeout while initializing partition '%s'. "
-                    + "Kafka client may not be able to connect to servers.",
-                this, pState.topicPartition);
-        LOG.error("{}", msg);
-        throw new IOException(msg);
+      } catch (TimeoutException | ExecutionException e) {
+        if (e instanceof TimeoutException
+            || e.getCause() instanceof org.apache.kafka.common.errors.TimeoutException) {
+          // TODO: Find out if manually waking up was only relevant for legacy Kafka clients.
+          consumer.wakeup(); // This unblocks consumer stuck on network I/O.
+          // Likely reason : Kafka servers are configured to advertise internal ips, but
+          // those ips are not accessible from workers outside.
+          String msg =
+              String.format(
+                  "%s: Timeout while initializing partition '%s'. "
+                      + "Kafka client may not be able to connect to servers.",
+                  this, pState.topicPartition);
+          LOG.error("{}", msg);
+          throw new IOException(msg);
+        }
+        throw new IOException(e);
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -133,18 +147,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
     consumerPollThread.submit(this::consumerPollLoop);
 
-    // offsetConsumer setup :
-    Map<String, Object> offsetConsumerConfig =
-        KafkaIOUtils.getOffsetConsumerConfig(
-            name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
-
-    offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-
-    // Fetch offsets once before running periodically.
-    updateLatestOffsets();
-
-    offsetFetcherThread.scheduleAtFixedRate(
-        this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     return advance();
   }
 
@@ -198,7 +200,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         int recordSize =
             (rawRecord.key() == null ? 0 : rawRecord.key().length)
                 + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-        pState.recordConsumed(rawRecord.offset(), recordSize);
+        pState.recordConsumed(rawRecord.offset(), recordSize, Instant.now());
         bytesRead.inc(recordSize);
         bytesReadBySplit.inc(recordSize);
 
@@ -375,6 +377,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT_MAX = Duration.millis(20);
   private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
   private static final Duration MIN_COMMIT_FAIL_LOG_INTERVAL = Duration.standardMinutes(10);
+  // Maximum time between commits for idle partitions (for time lag monitoring).
+  private static final Duration MAX_IDLE_COMMIT_INTERVAL = Duration.standardMinutes(10);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
   // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -394,16 +398,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       new AtomicReference<>();
   private AtomicBoolean closed = new AtomicBoolean(false);
   private Instant nextAllowedCommitFailLogTime = Instant.ofEpochMilli(0);
-
-  // Backlog support :
-  // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
-  // then look at position(). Use another consumer to do this so that the primary consumer does
-  // not need to be interrupted. The latest offsets are fetched periodically on a thread. This is
-  // still a bit of a hack, but so far there haven't been any issues reported by the users.
-  private @Nullable Consumer<byte[], byte[]> offsetConsumer = null;
-  private final ScheduledExecutorService offsetFetcherThread =
-      Executors.newSingleThreadScheduledExecutor();
-  private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
 
   private static final long UNINITIALIZED_OFFSET = -1;
 
@@ -443,25 +437,35 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   // maintains state of each assigned partition (buffered records, consumed offset, etc)
   private static class PartitionState<K, V> {
+    @SuppressWarnings("rawtypes")
+    private static final AtomicReferenceFieldUpdater<PartitionState, Instant> LAST_UPDATED =
+        AtomicReferenceFieldUpdater.newUpdater(PartitionState.class, Instant.class, "lastUpdated");
+
     private final TopicPartition topicPartition;
+    // Note that nextOffset and latestOffset are updated on different threads.
+    // Writes are ordered by a subsequent write of lastUpdated.
+    // Reads are ordered by a preceding read of lastUpdated.
     private long nextOffset;
     private long latestOffset;
-    private Instant latestOffsetFetchTime;
+    private volatile Instant lastUpdated;
     private Instant lastWatermark; // As returned by timestampPolicy
     private final TimestampPolicy<K, V> timestampPolicy;
 
     private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-    private KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
+    // Note that avgRecordSize is indepedently synchronized, but also needs to be ordered in
+    // relation to lastUpdated to avoid observing independent states.
+    private final KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
 
     PartitionState(
         TopicPartition partition, long nextOffset, TimestampPolicy<K, V> timestampPolicy) {
       this.topicPartition = partition;
       this.nextOffset = nextOffset;
       this.latestOffset = UNINITIALIZED_OFFSET;
-      this.latestOffsetFetchTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.timestampPolicy = timestampPolicy;
+      this.lastUpdated =
+          BoundedWindow.TIMESTAMP_MIN_VALUE; // volatile store (sequentially consistent release)
     }
 
     public TopicPartition topicPartition() {
@@ -469,41 +473,51 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     // Update consumedOffset and avgRecordSize
-    void recordConsumed(long offset, int size) {
-      nextOffset = offset + 1;
-      avgRecordSize.update(size);
+    void recordConsumed(long offset, int size, Instant consumeTime) {
+      nextOffset = offset + 1; // normal store
+      avgRecordSize.update(size); // independent ordered store (release)
+      LAST_UPDATED.lazySet(this, consumeTime); // ordered store (release)
     }
 
-    synchronized void setLatestOffset(long latestOffset, Instant fetchTime) {
-      this.latestOffset = latestOffset;
-      this.latestOffsetFetchTime = fetchTime;
-      LOG.debug(
-          "{}: latest offset update for {} : {} (consumer offset {}, avg record size {})",
-          this,
-          topicPartition,
-          latestOffset,
-          nextOffset,
-          avgRecordSize);
+    void setLatestOffset(long latestOffset, Instant fetchTime) {
+      this.latestOffset = latestOffset; // normal store
+      LAST_UPDATED.lazySet(this, fetchTime); // ordered store (release)
     }
 
-    synchronized long approxBacklogInBytes() {
+    long approxBacklogInBytes() {
       // Note that is an estimate of uncompressed backlog.
       long backlogMessageCount = backlogMessageCount();
       if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
-      return (long) (backlogMessageCount * avgRecordSize.get());
+      return (long)
+          (backlogMessageCount * avgRecordSize.get()); // independent volatile load (acquire)
     }
 
-    synchronized long backlogMessageCount() {
-      if (latestOffset < 0 || nextOffset < 0 || latestOffset < nextOffset) {
+    long backlogMessageCount() {
+      return backlogMessageCountInternal(this.lastUpdated); // volatile load (acquire)
+    }
+
+    // This is ugly, but needed because mkTimestampPolicyContext would otherwise issue two volatile
+    // reads that could be observed as holding different values.
+    // Note that the argument must always be the result of acquiring the member lastUpdated.
+    @SuppressWarnings("ReferenceEquality")
+    private long backlogMessageCountInternal(Instant lastUpdated) {
+      final long nextOffset = this.nextOffset; // normal load
+      final long latestOffset = this.latestOffset; // normal load
+
+      if (lastUpdated == BoundedWindow.TIMESTAMP_MIN_VALUE
+          || latestOffset < 0
+          || nextOffset < 0
+          || latestOffset < nextOffset) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
       return latestOffset - nextOffset;
     }
 
-    synchronized TimestampPolicyContext mkTimestampPolicyContext() {
-      return new TimestampPolicyContext(backlogMessageCount(), latestOffsetFetchTime);
+    TimestampPolicyContext mkTimestampPolicyContext() {
+      final Instant lastUpdated = this.lastUpdated; // volatile load (acquire)
+      return new TimestampPolicyContext(backlogMessageCountInternal(lastUpdated), lastUpdated);
     }
 
     Instant updateAndGetWatermark() {
@@ -572,9 +586,30 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   private void consumerPollLoop() {
-    // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
     Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+    List<TopicPartition> topicPartitions =
+        Preconditions.checkStateNotNull(source.getSpec().getTopicPartitions());
 
+    // Set initial latest offset for each partition.
+    try {
+      Instant fetchTime = Instant.now();
+      Map<TopicPartition, Long> endOffsets = consumer.endOffsets(topicPartitions);
+      for (PartitionState<K, V> p : partitionStates) {
+        p.setLatestOffset(
+            endOffsets.getOrDefault(p.topicPartition, UNINITIALIZED_OFFSET), fetchTime);
+      }
+    } catch (KafkaException e) {
+      if (!closed.get()) { // Ignore the exception if the reader is closed.
+        LOG.warn(
+            "{}: exception while fetching latest offset for partitions {}. will be retried.",
+            this,
+            topicPartitions,
+            e);
+      }
+      // Don't update the latest offset.
+    }
+
+    // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
     try {
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
@@ -587,6 +622,32 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
               kafkaResults.updateSuccessfulRpcMetrics(
                   kafkaTopic,
                   java.time.Duration.ofMillis(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+            }
+
+            // Fetch the current offsets and update the latest offset.
+            Instant fetchTime = Instant.now();
+            for (PartitionState<K, V> pState : partitionStates) {
+              try {
+                final long position = consumer.position(pState.topicPartition);
+                consumer
+                    .currentLag(pState.topicPartition)
+                    .ifPresent(lag -> pState.setLatestOffset(position + lag, fetchTime));
+              } catch (InvalidOffsetException e) {
+                // The position is undefined or out of range.
+                pState.setLatestOffset(UNINITIALIZED_OFFSET, fetchTime);
+              } catch (KafkaException e) {
+                if (!closed.get()) { // Ignore the exception if the reader is closed.
+                  LOG.warn(
+                      "{}: exception while fetching latest offset for partitions {}. will be retried.",
+                      this,
+                      topicPartitions,
+                      e);
+                }
+                // Wakeups, interrupts, authentication failures, authorization failures, timeouts
+                // and unrecoverable errors can be ignored. This routine is reattempted on every
+                // iteration and fallback methods would likely trigger the same unrecoverable
+                // errors.
+              }
             }
           } else if (availableRecordsQueue.offer(
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
@@ -609,39 +670,91 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   private void commitCheckpointMark() {
     KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-    if (checkpointMark != null) {
-      LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
-      Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
-      Instant now = Instant.now();
+    if (checkpointMark == null) {
+      return;
+    }
 
-      try {
-        consumer.commitSync(
-            checkpointMark.getPartitions().stream()
-                .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-                .collect(
-                    Collectors.toMap(
-                        p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                        p -> new OffsetAndMetadata(p.getNextOffset()))));
+    LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+    Instant now = Instant.now();
+
+    try {
+      // Commit only partitions whose offsets have advanced since the last successful commit
+      // for this reader, or partitions that haven't been committed within MAX_IDLE_COMMIT_INTERVAL.
+      // This suppresses no-op commits for idle partitions while ensuring periodic commits
+      // for time lag monitoring.
+      Map<TopicPartition, OffsetAndMetadata> toCommit =
+          checkpointMark.getPartitions().stream()
+              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+              .filter(
+                  p -> {
+                    TopicPartition tp = new TopicPartition(p.getTopic(), p.getPartition());
+                    Long prev = lastCommittedOffsets.get(tp);
+                    long next = p.getNextOffset();
+                    Instant lastCommitTime = lastCommitTimes.get(tp);
+
+                    // Commit if offset has advanced
+                    if (prev == null || next > prev) {
+                      return true;
+                    }
+
+                    // Also commit if partition hasn't been committed within max idle interval
+                    if (lastCommitTime == null
+                        || now.isAfter(lastCommitTime.plus(MAX_IDLE_COMMIT_INTERVAL))) {
+                      return true;
+                    }
+
+                    return false;
+                  })
+              .collect(
+                  Collectors.toMap(
+                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                      p -> new OffsetAndMetadata(p.getNextOffset())));
+
+      int totalPartitions = checkpointMark.getPartitions().size();
+      int idlePartitions = totalPartitions - toCommit.size();
+      if (idlePartitions > 0) {
+        LOG.debug(
+            "{}: Skipping commit for {} idle partitions ({} of {} partitions active)",
+            this,
+            idlePartitions,
+            toCommit.size(),
+            totalPartitions);
+      }
+
+      if (toCommit.isEmpty()) {
+        // Nothing advanced since last successful commit; avoid noisy commitSync().
+        return;
+      }
+
+      consumer.commitSync(toCommit);
+
+      // Only update after a successful commit.
+      for (Map.Entry<TopicPartition, OffsetAndMetadata> e : toCommit.entrySet()) {
+        lastCommittedOffsets.put(e.getKey(), e.getValue().offset());
+        lastCommitTimes.put(e.getKey(), now);
+      }
+
+      nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
+    } catch (Exception e) {
+      // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
+      // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
+      if (now.isAfter(nextAllowedCommitFailLogTime)) {
+        LOG.warn(
+            String.format(
+                "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
+                this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
+            e);
         nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
-      } catch (Exception e) {
-        // Log but ignore the exception. Committing consumer offsets to Kafka is not critical for
-        // KafkaIO because it relies on the offsets stored in KafkaCheckpointMark.
-        if (now.isAfter(nextAllowedCommitFailLogTime)) {
-          LOG.warn(
-              String.format(
-                  "%s: Did not successfully commit finalized checkpoint for > %s. Current checkpoint: %s",
-                  this, MIN_COMMIT_FAIL_LOG_INTERVAL, checkpointMark),
-              e);
-          nextAllowedCommitFailLogTime = now.plus(MIN_COMMIT_FAIL_LOG_INTERVAL);
-        } else {
-          LOG.info(
-              String.format(
-                  "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
-                  this, checkpointMark),
-              e);
-        }
+      } else {
+        LOG.info(
+            String.format(
+                "%s: Could not commit finalized checkpoint. Commit will be retried with subsequent reads. Current checkpoint: %s",
+                this, checkpointMark),
+            e);
       }
     }
   }
@@ -681,15 +794,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       }
       if (recordsDequeuePollTimeout.isLongerThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MIN)) {
         recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.millis(1));
-        LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
+        LOG.debug("Reducing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
       }
       return;
     }
 
     if (recordsDequeuePollTimeout.isShorterThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX)) {
       recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.millis(1));
-      LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
-      LOG.debug("Record count: " + records.count());
+      LOG.debug("Increasing poll timeout for reader to {}", recordsDequeuePollTimeout.getMillis());
+      LOG.debug("Record count: {}", records.count());
     }
 
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
@@ -721,37 +834,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         pState.nextOffset = consumer.position(pState.topicPartition);
       }
     }
-  }
-
-  // Update latest offset for each partition.
-  // Called from setupInitialOffset() at the start and then periodically from offsetFetcher thread.
-  private void updateLatestOffsets() {
-    Consumer<byte[], byte[]> offsetConsumer = Preconditions.checkStateNotNull(this.offsetConsumer);
-    List<TopicPartition> topicPartitions =
-        Preconditions.checkStateNotNull(source.getSpec().getTopicPartitions());
-    Instant fetchTime = Instant.now();
-    try {
-      Map<TopicPartition, Long> endOffsets = offsetConsumer.endOffsets(topicPartitions);
-      for (PartitionState<K, V> p : partitionStates) {
-        p.setLatestOffset(
-            Preconditions.checkStateNotNull(
-                endOffsets.get(p.topicPartition),
-                "No end offset found for partition %s.",
-                p.topicPartition),
-            fetchTime);
-      }
-    } catch (Exception e) {
-      if (!closed.get()) { // Ignore the exception if the reader is closed.
-        LOG.warn(
-            "{}: exception while fetching latest offset for partitions {}. will be retried.",
-            this,
-            topicPartitions,
-            e);
-      }
-      // Don't update the latest offset.
-    }
-
-    LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
   }
 
   private void reportBacklog() {
@@ -795,7 +877,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public void close() throws IOException {
     closed.set(true);
     consumerPollThread.shutdown();
-    offsetFetcherThread.shutdown();
 
     boolean isShutdown = false;
 
@@ -806,14 +887,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (consumer != null) {
         consumer.wakeup();
       }
-      if (offsetConsumer != null) {
-        offsetConsumer.wakeup();
-      }
       availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
       try {
-        isShutdown =
-            consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
-                && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
+        isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e); // not expected
@@ -830,7 +906,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     Closeables.close(keyDeserializerInstance, true);
     Closeables.close(valueDeserializerInstance, true);
 
-    Closeables.close(offsetConsumer, true);
     Closeables.close(consumer, true);
   }
 

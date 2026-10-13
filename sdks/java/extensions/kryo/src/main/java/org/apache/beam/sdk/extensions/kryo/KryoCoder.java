@@ -41,6 +41,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Coder using Kryo as (de)serialization mechanism. See {@link KryoCoderProvider} to get more
  * details about usage.
  *
+ * <p><b>Warning:</b> Kryo deserialization (especially with the default {@code
+ * kryoRegistrationRequired=false} setting in {@link KryoOptions}) can instantiate arbitrary classes
+ * and is unsafe when applied to untrusted data. Do not use {@link KryoCoder} to deserialize
+ * untrusted external input. To restrict deserialization to an explicit set of allowed classes,
+ * enable {@link KryoOptions#setKryoRegistrationRequired(boolean)} and register classes via {@link
+ * KryoRegistrar}.
+ *
  * @param <T> type of element coder can handle
  */
 public class KryoCoder<T> extends CustomCoder<T> {
@@ -283,7 +290,7 @@ public class KryoCoder<T> extends CustomCoder<T> {
 
   @Override
   public boolean equals(@Nullable Object other) {
-    if (other != null && getClass().equals(other.getClass())) {
+    if (other instanceof KryoCoder) {
       return instanceId.equals(((KryoCoder<?>) other).instanceId);
     }
     return false;

@@ -18,10 +18,10 @@
 package org.apache.beam.it.gcp.dataflow;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.LEGACY_RUNNER;
-import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_JOB_ID;
-import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_JOB_TYPE;
-import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.PARAM_RUNNER;
+import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.LEGACY_RUNNER;
+import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.PARAM_JOB_ID;
+import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.PARAM_JOB_TYPE;
+import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.PARAM_RUNNER;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -49,6 +49,7 @@ import java.util.Collections;
 import org.apache.beam.it.common.PipelineLauncher.JobState;
 import org.apache.beam.it.common.PipelineLauncher.LaunchConfig;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
+import org.apache.beam.it.common.dataflow.AbstractPipelineLauncher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;

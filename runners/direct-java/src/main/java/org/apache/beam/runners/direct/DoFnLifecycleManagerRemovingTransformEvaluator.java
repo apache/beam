@@ -84,7 +84,7 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
       if (removalException instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }
-      LOG.error(msg, removalException);
+      LOG.error("{}", msg, removalException);
       e.addSuppressed(removalException);
     }
   }

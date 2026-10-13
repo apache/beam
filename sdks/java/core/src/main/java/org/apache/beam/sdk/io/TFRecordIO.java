@@ -157,7 +157,9 @@ public class TFRecordIO {
       return toBuilder().setValidate(false).build();
     }
 
-    /** @deprecated Use {@link #withCompression}. */
+    /**
+     * @deprecated Use {@link #withCompression}.
+     */
     @Deprecated
     public Read withCompressionType(TFRecordIO.CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -372,7 +374,9 @@ public class TFRecordIO {
       return withNumShards(1).withShardNameTemplate("");
     }
 
-    /** @deprecated use {@link #withCompression}. */
+    /**
+     * @deprecated use {@link #withCompression}.
+     */
     @Deprecated
     public Write withCompressionType(CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -460,19 +464,21 @@ public class TFRecordIO {
     }
   }
 
-  /** @deprecated Use {@link Compression}. */
+  /**
+   * @deprecated Use {@link Compression}.
+   */
   @Deprecated
   public enum CompressionType {
-    /** @see Compression#AUTO */
+    /** See {@link Compression#AUTO}. */
     AUTO(Compression.AUTO),
 
-    /** @see Compression#UNCOMPRESSED */
+    /** See {@link Compression#UNCOMPRESSED}. */
     NONE(Compression.UNCOMPRESSED),
 
-    /** @see Compression#GZIP */
+    /** See {@link Compression#GZIP}. */
     GZIP(Compression.GZIP),
 
-    /** @see Compression#DEFLATE */
+    /** See {@link Compression#DEFLATE}. */
     ZLIB(Compression.DEFLATE);
 
     private final Compression canonical;
@@ -481,7 +487,7 @@ public class TFRecordIO {
       this.canonical = canonical;
     }
 
-    /** @see Compression#matches */
+    /** See {@link Compression#matches}. */
     public boolean matches(String filename) {
       return canonical.matches(filename);
     }

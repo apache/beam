@@ -23,6 +23,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.context.Context;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -34,12 +39,14 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,6 +57,11 @@ import org.junit.runners.JUnit4;
 /** Test case for {@link WindowedValue}. */
 @RunWith(JUnit4.class)
 public class WindowedValueTest {
+
+  @After
+  public void tearDown() {
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
+  }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -81,6 +93,17 @@ public class WindowedValueTest {
   @Test
   public void testWindowedValueWithElementMetadataCoder() throws CoderException {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
+
+    Context context =
+        Context.current()
+            .with(
+                Span.wrap(
+                    SpanContext.create(
+                        "ff000000000000000000000000000041",
+                        "ff00000000000041",
+                        TraceFlags.getSampled(),
+                        TraceState.builder().put("foo", "bar").put("bar", "baz").build())));
+
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
         WindowedValues.of(
@@ -93,7 +116,39 @@ public class WindowedValueTest {
             PaneInfo.NO_FIRING,
             null,
             null,
-            CausedByDrain.CAUSED_BY_DRAIN); // drain is persisted as part of metadata
+            CausedByDrain.CAUSED_BY_DRAIN,
+            context,
+            ValueKind.DELETE); // drain is persisted as part of metadata
+
+    Coder<WindowedValue<String>> windowedValueCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+    byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+
+    WindowedValue<String> decodedValue =
+        CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
+
+    Assert.assertEquals(value.getValue(), decodedValue.getValue());
+    Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
+    Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, value.causedByDrain());
+    Assert.assertNotNull(value.getOpenTelemetryContext());
+    Assert.assertEquals(ValueKind.DELETE, value.getValueKind());
+  }
+
+  @Test
+  public void testWindowedValueWithValueKindCoder() throws CoderException {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    Instant timestamp = new Instant(1234);
+    WindowedValue<String> value =
+        WindowedValues.<String>builder()
+            .setValue("abc")
+            .setTimestamp(timestamp)
+            .setWindows(
+                Arrays.asList(new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)))))
+            .setPaneInfo(PaneInfo.NO_FIRING)
+            .setValueKind(ValueKind.UPDATE_BEFORE)
+            .build();
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
@@ -105,7 +160,7 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
-    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, value.causedByDrain());
+    Assert.assertEquals(value.getValueKind(), decodedValue.getValueKind());
   }
 
   @Test

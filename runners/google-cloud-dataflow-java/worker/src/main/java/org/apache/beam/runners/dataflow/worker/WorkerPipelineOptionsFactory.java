@@ -58,10 +58,10 @@ public class WorkerPipelineOptionsFactory {
           objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else if (System.getProperties().containsKey("sdk_pipeline_options_file")) {
       String filePath = System.getProperty("sdk_pipeline_options_file");
-      LOG.info("Loading pipeline options from " + filePath);
+      LOG.info("Loading pipeline options from {}", filePath);
       String serializedOptions =
           new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-      LOG.info("Worker harness starting with: " + serializedOptions);
+      LOG.info("Worker harness starting with: {}", serializedOptions);
       options =
           objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else {

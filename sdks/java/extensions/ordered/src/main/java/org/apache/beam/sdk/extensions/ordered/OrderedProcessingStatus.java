@@ -54,44 +54,44 @@ public abstract class OrderedProcessingStatus {
   }
 
   /**
-   * @return Last sequence processed. If null is returned - no elements for the given key and window
-   *     have been processed yet.
+   * Returns last sequence processed. If null is returned - no elements for the given key and window
+   * have been processed yet.
    */
   public abstract @Nullable Long getLastProcessedSequence();
 
-  /** @return Number of events received out of sequence and buffered. */
+  /** Returns number of events received out of sequence and buffered. */
   public abstract long getNumberOfBufferedEvents();
 
-  /** @return Earliest buffered sequence. If null is returned - there are no buffered events. */
+  /** Returns earliest buffered sequence. If null is returned - there are no buffered events. */
   @Nullable
   public abstract Long getEarliestBufferedSequence();
 
-  /** @return Latest buffered sequence. If null is returned - there are no buffered events. */
+  /** Returns latest buffered sequence. If null is returned - there are no buffered events. */
   @Nullable
   public abstract Long getLatestBufferedSequence();
 
-  /** @return Total number of events received for the given key and window. */
+  /** Returns total number of events received for the given key and window. */
   public abstract long getNumberOfReceivedEvents();
 
   /**
-   * @return Number of duplicate events which were output in {@link
-   *     OrderedEventProcessorResult#unprocessedEvents()} PCollection
+   * Returns number of duplicate events which were output in {@link
+   * OrderedEventProcessorResult#unprocessedEvents()} PCollection.
    */
   public abstract long getDuplicateCount();
 
-  /** @return Number of output results produced. */
+  /** Returns number of output results produced. */
   public abstract long getResultCount();
 
   /**
-   * @return Indicator that the last event for the given key and window has been received. It
-   *     doesn't necessarily mean that all the events for the given key and window have been
-   *     processed. Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this
-   *     indicator as the sign that the processing is complete.
+   * Returns indicator that the last event for the given key and window has been received. It
+   * doesn't necessarily mean that all the events for the given key and window have been processed.
+   * Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this indicator as the
+   * sign that the processing is complete.
    */
   public abstract boolean isLastEventReceived();
 
   /**
-   * @return Timestamp of when the status was produced. It is not related to the event's timestamp.
+   * Returns timestamp of when the status was produced. It is not related to the event's timestamp.
    */
   public abstract Instant getStatusDate();
 
@@ -103,7 +103,7 @@ public abstract class OrderedProcessingStatus {
     if (obj == null) {
       return false;
     }
-    if (!OrderedProcessingStatus.class.isAssignableFrom(obj.getClass())) {
+    if (!(obj instanceof OrderedProcessingStatus)) {
       return false;
     }
     OrderedProcessingStatus that = (OrderedProcessingStatus) obj;

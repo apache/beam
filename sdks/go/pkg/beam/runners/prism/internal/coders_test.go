@@ -370,6 +370,22 @@ func Test_pullDecoder(t *testing.T) {
 				},
 			},
 			[]byte{3, 0},
+		}, {
+			"sharded_key",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderShardedKey,
+				},
+				ComponentCoderIds: []string{"key"},
+			},
+			map[string]*pipepb.Coder{
+				"key": {
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderVarInt,
+					},
+				},
+			},
+			[]byte{3, 1, 2, 3, 255, 3},
 		},
 	}
 	for _, test := range tests {

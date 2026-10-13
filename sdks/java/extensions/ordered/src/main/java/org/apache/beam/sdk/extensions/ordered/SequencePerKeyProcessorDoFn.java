@@ -159,6 +159,7 @@ class SequencePerKeyProcessorDoFn<
     if (numberOfResultsBeforeBundleStart == null) {
       // Per key processing is synchronized by Beam. There is no need to have it here.
       numberOfResultsBeforeBundleStart = processingState.getResultCount();
+      numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
     }
 
     processingState.eventReceived();
@@ -189,7 +190,7 @@ class SequencePerKeyProcessorDoFn<
   private boolean checkIfProcessingIsCompleted(ProcessingState<EventKeyTypeT> processingState) {
     boolean result = processingState.isProcessingCompleted();
     if (result && LOG.isTraceEnabled()) {
-      LOG.trace("Processing for key '" + processingState.getKey() + "' is completed.");
+      LOG.trace("Processing for key '{}' is completed.", processingState.getKey());
     }
     return result;
   }
@@ -256,9 +257,10 @@ class SequencePerKeyProcessorDoFn<
       return;
     }
 
-    LOG.debug("Starting to process batch for key '" + processingState.getKey() + "'");
+    LOG.debug("Starting to process batch for key '{}'", processingState.getKey());
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
+    this.numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
 
     processBufferedEvents(
         processingState, state, bufferedEventsState, outputReceiver, largeBatchEmissionTimer);

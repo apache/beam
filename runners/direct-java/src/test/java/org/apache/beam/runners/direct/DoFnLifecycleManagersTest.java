@@ -111,7 +111,7 @@ public class DoFnLifecycleManagersTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) throws Exception {}
 
     @Teardown
     public void teardown() throws Exception {
@@ -165,6 +165,6 @@ public class DoFnLifecycleManagersTest {
 
   private static class EmptyFn extends DoFn<Object, Object> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) throws Exception {}
   }
 }

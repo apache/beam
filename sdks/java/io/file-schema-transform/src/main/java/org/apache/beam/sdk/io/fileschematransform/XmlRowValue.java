@@ -211,7 +211,7 @@ class XmlRowValue implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof XmlRowValue)) {
       return false;
     }
 

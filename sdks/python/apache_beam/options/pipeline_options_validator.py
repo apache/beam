@@ -30,6 +30,7 @@ from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -55,6 +56,7 @@ class PipelineOptionsValidator(object):
       DebugOptions,
       GoogleCloudOptions,
       PortableOptions,
+      ProfilingOptions,
       SetupOptions,
       StandardOptions,
       TestOptions,
@@ -201,7 +203,15 @@ class PipelineOptionsValidator(object):
 
     if not self.is_full_string_match(self.GCS_BUCKET, bucket):
       return self._validate_error(self.ERR_INVALID_GCS_BUCKET, arg, arg_name)
-    if gcs_object is None or '\n' in gcs_object or '\r' in gcs_object:
+    if gcs_object is None:
+      return self._validate_error(
+          "Invalid GCS path: '%s' given for option: %s. "
+          "Did you mean: 'gs://%s/ or gs://some_bucket/%s'?",
+          arg,
+          arg_name,
+          bucket,
+          bucket)
+    if '\n' in gcs_object or '\r' in gcs_object:
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
     return []
 

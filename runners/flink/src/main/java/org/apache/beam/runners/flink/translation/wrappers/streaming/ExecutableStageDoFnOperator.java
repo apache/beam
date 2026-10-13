@@ -88,6 +88,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -101,6 +102,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.UserStateReference;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -148,6 +150,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
   private final FlinkExecutableStageContextFactory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
+
   /** A lock which has to be acquired when concurrently accessing state and timers. */
   private final ReentrantLock stateBackendLock;
 
@@ -371,10 +374,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<FlinkKey> keyedStateBackend;
+
     /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
+
     /** For debugging: The key coder used by the Runner. */
     private final @Nullable Coder runnerKeyCoder;
+
     /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
     private final @Nullable AbstractKeyedStateBackend<FlinkKey> keyStateBackendWithKeyGroupInfo;
 
@@ -915,6 +921,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
      * this consistent. Please see the description in DoFnOperator.
      */
     private volatile RemoteBundle remoteBundle;
+
     /**
      * Current main input receiver. Volatile to ensure mutually exclusive bundle processing threads
      * see this consistent. Please see the description in DoFnOperator.
@@ -1001,15 +1008,27 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
-        TimeDomain timeDomain) {
+        TimeDomain timeDomain,
+        CausedByDrain causedByDrain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
       if (StateAndTimerBundleCheckpointHandler.isSdfTimer(timerId)) {
         StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-        WindowedValue stateValue =
-            keyedStateInternals.state(namespace, StateTags.value(timerId, residualCoder)).read();
-        processElement(stateValue);
+        // Residuals from pre-#27648 savepoints used per-residual ValueState tags and are not
+        // migrated; an older savepoint has no entry under the new tag, so the read is null and the
+        // residual is dropped.
+        MapState<String, WindowedValue<InputT>> residualState =
+            keyedStateInternals.state(
+                namespace, StateAndTimerBundleCheckpointHandler.residualStateTag(residualCoder));
+        WindowedValue<InputT> stateValue = residualState.get(timerId).read();
+        // Drop the consumed residual so a polling SDF's keyed state stays bounded across
+        // self-checkpoints (apache/beam#27648). Flink commits this removal only with the bundle's
+        // checkpoint, so on failure the timer re-fires and the residual is re-read.
+        residualState.remove(timerId);
+        if (stateValue != null) {
+          processElement(stateValue);
+        }
       } else {
         KV<String, String> transformAndTimerFamilyId =
             TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
@@ -1034,7 +1053,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
                 timestamp,
                 outputTimestamp,
                 // TODO: Support propagating the PaneInfo through.
-                PaneInfo.NO_FIRING);
+                PaneInfo.NO_FIRING,
+                causedByDrain);
         try {
           timerReceiver.accept(timerValue);
         } catch (Exception e) {
@@ -1060,6 +1080,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
         remoteBundle = null;
       }
     }
+
+    @Override
+    public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
     @Override
     public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
@@ -1303,12 +1326,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
 
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 
   private static class StableNoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @RequiresStableInput
     @ProcessElement
-    public void doNothing(ProcessContext context) {}
+    public void doNothing(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

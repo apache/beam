@@ -998,7 +998,7 @@ public class Group {
 
     abstract @Nullable Fanout getFanout();
 
-    abstract Boolean getFewKeys();
+    abstract boolean getFewKeys();
 
     abstract ByFields<InputT> getByFields();
 
@@ -1014,7 +1014,7 @@ public class Group {
     abstract static class Builder<InputT> {
       public abstract Builder<InputT> setFanout(@Nullable Fanout value);
 
-      public abstract Builder<InputT> setFewKeys(Boolean fewKeys);
+      public abstract Builder<InputT> setFewKeys(boolean fewKeys);
 
       abstract Builder<InputT> setByFields(ByFields<InputT> byFields);
 

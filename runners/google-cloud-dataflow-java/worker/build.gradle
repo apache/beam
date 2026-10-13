@@ -131,7 +131,7 @@ applyJavaNature(
             dependencies {
                 // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
                 // which includes several org.eclipse.jetty artifacts + servlet-api
-                include(dependency("org.eclipse.jetty:.*:9.4.57.v20241219"))
+                include(dependency("org.eclipse.jetty:.*:9.4.58.v20250814"))
                 include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
             }
             relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
@@ -149,11 +149,27 @@ applyJavaNature(
             from "$buildDir/original_sources_to_package"
 
             exclude "META-INF/LICENSE.txt"
+            exclude "META-INF/maven/org.eclipse.jetty/**"
             exclude "about.html"
         })
-
 /******************************************************************************/
 // Configure the worker root project
+
+tasks.withType(Test).configureEach {
+  // WindmillStateTestUtils.assertNoReference walks every object reachable from the Windmill
+  // state cache (Guava Cache / ConcurrentHashMap) to ensure no per-work-item WindmillStateReader
+  // leaks into the global cache. It uses reflection (Field.setAccessible) into JDK internals
+  // (e.g. Integer.value, AtomicReferenceArray.array, ReentrantLock.sync, ReferenceQueue.head),
+  // which requires --add-opens on Java 17+.
+  jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.ref=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+          '--add-opens=java.base/java.io=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED'
+}
 
 configurations {
     sourceFile
@@ -167,6 +183,11 @@ configurations {
 
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation library.java.gax
+    implementation library.java.google_cloud_core
+    implementation library.java.guava
+    permitUnusedDeclared library.java.guava
+    implementation library.java.protobuf_java
 
     // Note that any dependency that is modified here should also be modified within
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
@@ -193,6 +214,7 @@ dependencies {
 
     implementation library.java.google_auth_library_credentials
     implementation library.java.proto_google_common_protos
+    implementation library.java.google_cloud_logging
 
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)
@@ -200,13 +222,16 @@ dependencies {
     compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
 
     implementation "javax.servlet:javax.servlet-api:3.1.0"
-    implementation "org.eclipse.jetty:jetty-server:9.4.57.v20241219"
-    implementation "org.eclipse.jetty:jetty-servlet:9.4.57.v20241219"
+    implementation "org.eclipse.jetty:jetty-server:9.4.58.v20250814"
+    implementation "org.eclipse.jetty:jetty-servlet:9.4.58.v20250814"
     implementation library.java.avro
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.joda_time
+    implementation library.java.opentelemetry_context
+    testImplementation library.java.opentelemetry_sdk_testing
+    implementation library.java.opentelemetry_api
     implementation library.java.slf4j_api
     implementation library.java.vendored_grpc_1_69_0
     implementation library.java.error_prone_annotations

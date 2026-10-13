@@ -24,7 +24,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -161,7 +160,7 @@ public class FullJoin {
     public <OutputT> Join.WindowByBuilder<KeyT, OutputT> using(
         BinaryFunctor<Optional<LeftT>, Optional<RightT>, OutputT> joinFunc,
         @Nullable TypeDescriptor<OutputT> outputType) {
-      return new Join.Builder<>(name, Type.FULL)
+      return new Join.Builder<>(name, Join.Type.FULL)
           .of(left, right)
           .by(leftKeyExtractor, rightKeyExtractor, keyType)
           .using(

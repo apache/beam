@@ -23,6 +23,8 @@ bounded and unbounded `PCollections` with SQL statements. Your SQL query
 is translated to a `PTransform`, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.
 
+Beam SQL extends [DDL commands](/documentation/dsls/sql/ddl) for supported catalogs.
+
 Beam SQL uses Calcite SQL based on [Apache Calcite](https://calcite.apache.org),
 a dialect widespread in big data processing.
 

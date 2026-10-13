@@ -128,6 +128,7 @@ public class FilterUtils {
     }
     // SqlLiteral nodes do not contain field names, so we can ignore them.
   }
+
   /**
    * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
    * data pruning.
@@ -400,6 +401,7 @@ public class FilterUtils {
         datetime = LocalDateTime.parse(value, formatter);
         return datetime;
       } catch (DateTimeParseException ignored) {
+        // Ignore and try the next formatter.
       }
     }
     return LocalDateTime.of(LocalDate.parse(value), LocalTime.MIN);

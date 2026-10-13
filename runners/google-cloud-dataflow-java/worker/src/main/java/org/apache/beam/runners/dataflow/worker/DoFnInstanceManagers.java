@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 })
 public class DoFnInstanceManagers {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnInstanceManagers.class);
+
   /**
    * Returns a {@link DoFnInstanceManager} that returns {@link DoFnInfo} instances obtained by
    * deserializing the provided bytes. {@link DoFnInstanceManager} will call {@link DoFn.Setup} as
@@ -92,11 +93,11 @@ public class DoFnInstanceManagers {
       if (elapsed > 180_000) { // 3 min
         // Work item could fail for long-running setup due to Dataflow worker lease timeout
         LOG.warn(
-            String.format(
-                "DoFn.setup for %s ran for %d seconds.\nThis could cause Dataflow worker "
-                    + "lease expire and failing the job. DoFn.Setup should not contain long "
-                    + "running operations.",
-                fn.getDoFn().getClass(), elapsed / 1_000));
+            "DoFn.setup for {} ran for {} seconds.\nThis could cause Dataflow worker "
+                + "lease expire and failing the job. DoFn.Setup should not contain long "
+                + "running operations.",
+            fn.getDoFn().getClass(),
+            elapsed / 1_000);
       }
       return fn;
     }

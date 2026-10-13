@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.testing;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -42,8 +43,6 @@ import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableList;
-import com.google.api.services.bigquery.model.TableList.Tables;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -444,13 +443,19 @@ public class BigqueryClient {
                         .setLocation(location))
                 .execute();
         if (response != null) {
-          LOG.info("Successfully created new dataset : " + response.getId());
+          LOG.info("Successfully created new dataset : {}", response.getId());
           return;
         } else {
           lastException =
               new IOException(
                   "Expected valid response from insert dataset job, but received null.");
         }
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() == 409) {
+          LOG.info("Dataset {} already exists, treating as success.", datasetId);
+          return;
+        }
+        lastException = e;
       } catch (IOException e) {
         // ignore and retry
         lastException = e;
@@ -467,27 +472,18 @@ public class BigqueryClient {
   public void deleteTable(String projectId, String datasetId, String tableName) {
     try {
       bqClient.tables().delete(projectId, datasetId, tableName).execute();
-      LOG.info("Successfully deleted table: " + tableName);
+      LOG.info("Successfully deleted table: {}", tableName);
     } catch (Exception e) {
-      LOG.debug("Exception caught when deleting table: " + e.getMessage());
+      LOG.debug("Exception caught when deleting table", e);
     }
   }
 
   public void deleteDataset(String projectId, String datasetId) {
     try {
-      TableList tables = bqClient.tables().list(projectId, datasetId).execute();
-      for (Tables table : tables.getTables()) {
-        this.deleteTable(projectId, datasetId, table.getTableReference().getTableId());
-      }
+      bqClient.datasets().delete(projectId, datasetId).setDeleteContents(true).execute();
+      LOG.info("Successfully deleted dataset: {}", datasetId);
     } catch (Exception e) {
-      LOG.debug("Exceptions caught when listing all tables: " + e.getMessage());
-    }
-
-    try {
-      bqClient.datasets().delete(projectId, datasetId).execute();
-      LOG.info("Successfully deleted dataset: " + datasetId);
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when deleting dataset: " + e.getMessage());
+      LOG.debug("Exceptions caught when deleting dataset", e);
     }
   }
 
@@ -503,12 +499,22 @@ public class BigqueryClient {
       try {
         Table response = this.bqClient.tables().insert(projectId, datasetId, newTable).execute();
         if (response != null) {
-          LOG.info("Successfully created new table: " + response.getId());
+          LOG.info("Successfully created new table: {}", response.getId());
           return;
         } else {
           lastException =
               new IOException("Expected valid response from create table job, but received null.");
         }
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() == 409) {
+          LOG.info(
+              "Table {}:{}.{} already exists, treating as success.",
+              projectId,
+              datasetId,
+              newTable.getTableReference().getTableId());
+          return;
+        }
+        lastException = e;
       } catch (IOException e) {
         // ignore and retry
         lastException = e;
@@ -547,7 +553,7 @@ public class BigqueryClient {
                 .execute();
         if (response != null
             && (response.getInsertErrors() == null || response.getInsertErrors().isEmpty())) {
-          LOG.info("Successfully inserted data into table : " + tableName);
+          LOG.info("Successfully inserted data into table : {}", tableName);
           return;
         } else {
           if (response == null || response.getInsertErrors() == null) {

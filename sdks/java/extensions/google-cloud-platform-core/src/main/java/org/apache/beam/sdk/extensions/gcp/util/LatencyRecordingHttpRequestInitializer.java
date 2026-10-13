@@ -63,7 +63,7 @@ public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitia
     @Override
     public void interceptResponse(HttpResponse response) throws IOException {
       long timeToResponse = System.currentTimeMillis() - startTime;
-      requestLatencies.update(timeToResponse);
+      requestLatencies.update((double) timeToResponse);
     }
 
     @Override

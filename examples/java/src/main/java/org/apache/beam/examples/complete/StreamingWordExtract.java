@@ -34,6 +34,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 
 /**
@@ -55,12 +57,12 @@ public class StreamingWordExtract {
   /** A {@link DoFn} that tokenizes lines of text into individual words. */
   static class ExtractWords extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN, -1);
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      String[] words = element.split(ExampleUtils.TOKENIZER_PATTERN, -1);
 
       for (String word : words) {
         if (!word.isEmpty()) {
-          c.output(word);
+          receiver.output(word);
         }
       }
     }
@@ -69,8 +71,8 @@ public class StreamingWordExtract {
   /** A {@link DoFn} that uppercases a word. */
   static class Uppercase extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(c.element().toUpperCase());
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      receiver.output(element.toUpperCase());
     }
   }
 
@@ -78,8 +80,8 @@ public class StreamingWordExtract {
   static class StringToRowConverter extends DoFn<String, TableRow> {
     /** In this example, put the whole string into single BigQuery field. */
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(new TableRow().set("string_field", c.element()));
+    public void processElement(@Element String element, OutputReceiver<TableRow> receiver) {
+      receiver.output(new TableRow().set("string_field", element));
     }
 
     static TableSchema getSchema() {

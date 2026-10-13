@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.gcp.spanner.matchers;
 
-import static org.apache.beam.it.gcp.artifacts.utils.JsonTestUtil.parseJsonString;
+import static org.apache.beam.it.common.artifacts.utils.JsonTestUtil.parseJsonString;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
 
 import com.google.cloud.spanner.Mutation;

@@ -22,6 +22,7 @@ This directory contains documentation for contributors to the Apache Beam projec
 - [Committer Guide](committer-guide.md): Guidelines for Beam committers regarding code review, pull request objectives, merging processes, and post-merge tasks.
 - [Committer Onboarding](committer-onboarding.md): A checklist for new Beam committers to set up their accounts and permissions.
 - [Java Dependency Upgrades](java-dependency-upgrades.md): Instructions for upgrading Java dependencies in Beam, including running linkage checkers and verification tests.
+- [Local Flink Python Validation](local-flink-python.md): Instructions for running Python pipelines on a local Flink standalone cluster.
 - [Python Tips](python-tips.md): Tips and instructions for developing the Python SDK, including environment setup, running tests, and handling dependencies.
 - [RC Testing Guide](rc-testing-guide.md): A guide for testing Beam Release Candidates (RCs) against downstream projects for Python, Java, and Go SDKs.
 - [Release Guide](release-guide.md): A comprehensive guide for the Release Manager on how to perform a Beam release, from preparation to promotion.

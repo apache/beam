@@ -38,14 +38,14 @@ public class PrismRegistrarTest {
   public void testCorrectOptionsAreReturned() {
     assertEquals(
         ImmutableList.of(PrismPipelineOptions.class, TestPrismPipelineOptions.class),
-        new Options().getPipelineOptions());
+        Lists.newArrayList(new Options().getPipelineOptions()));
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
     assertEquals(
         ImmutableList.of(PrismRunner.class, TestPrismRunner.class),
-        new Runner().getPipelineRunners());
+        Lists.newArrayList(new Runner().getPipelineRunners()));
   }
 
   @Test

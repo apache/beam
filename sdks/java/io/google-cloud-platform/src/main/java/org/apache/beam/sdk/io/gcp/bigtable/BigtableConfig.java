@@ -62,8 +62,9 @@ public abstract class BigtableConfig implements Serializable {
   abstract @Nullable BigtableOptions getBigtableOptions();
 
   /** Configurator of the effective Bigtable Options. */
-  abstract @Nullable SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-      getBigtableOptionsConfigurator();
+  abstract @Nullable
+      SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
+          getBigtableOptionsConfigurator();
 
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();
@@ -98,13 +99,17 @@ public abstract class BigtableConfig implements Serializable {
 
     abstract Builder setAppProfileId(ValueProvider<String> appProfileId);
 
-    /** @deprecated please set the options directly in BigtableIO. */
+    /**
+     * @deprecated please set the options directly in BigtableIO.
+     */
     @Deprecated
     abstract Builder setBigtableOptions(BigtableOptions options);
 
     abstract Builder setValidate(boolean validate);
 
-    /** @deprecated please set the options directly in BigtableIO. */
+    /**
+     * @deprecated please set the options directly in BigtableIO.
+     */
     @Deprecated
     abstract Builder setBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
@@ -123,12 +128,12 @@ public abstract class BigtableConfig implements Serializable {
   }
 
   public BigtableConfig withProjectId(ValueProvider<String> projectId) {
-    checkArgument(projectId != null, "Project Id of BigTable can not be null");
+    checkArgument(projectId != null, "Project Id of Bigtable can not be null");
     return toBuilder().setProjectId(projectId).build();
   }
 
   public BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
-    checkArgument(instanceId != null, "Instance Id of BigTable can not be null");
+    checkArgument(instanceId != null, "Instance Id of Bigtable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
 
@@ -137,14 +142,18 @@ public abstract class BigtableConfig implements Serializable {
     return toBuilder().setAppProfileId(appProfileId).build();
   }
 
-  /** @deprecated please set the options directly in BigtableIO. */
+  /**
+   * @deprecated please set the options directly in BigtableIO.
+   */
   @Deprecated
   public BigtableConfig withBigtableOptions(BigtableOptions options) {
     checkArgument(options != null, "Bigtable options can not be null");
     return toBuilder().setBigtableOptions(options).build();
   }
 
-  /** @deprecated please set the options directly in BigtableIO. */
+  /**
+   * @deprecated please set the options directly in BigtableIO.
+   */
   @Deprecated
   public BigtableConfig withBigtableOptionsConfigurator(
       SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {

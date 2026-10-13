@@ -23,8 +23,29 @@ import tempfile
 import threading
 import unittest
 from typing import Any
+from unittest.mock import patch
+
+import pytest
 
 from apache_beam.utils import multi_process_shared
+
+
+@pytest.fixture(autouse=True)
+def isolate_multi_process_shared_tests(tmp_path, monkeypatch):
+  """Isolates MultiProcessShared tests by using a unique temp directory per test.
+
+  This prevents tests running in parallel (e.g. with pytest-xdist) from
+  interfering with each other by writing to the same shared default temp directory.
+  """
+  orig_init = multi_process_shared.MultiProcessShared.__init__
+
+  def mock_init(self, constructor, tag, *args, **kwargs):
+    if 'path' not in kwargs:
+      kwargs['path'] = str(tmp_path)
+    return orig_init(self, constructor, tag, *args, **kwargs)
+
+  monkeypatch.setattr(
+      multi_process_shared.MultiProcessShared, '__init__', mock_init)
 
 
 class CallableCounter(object):
@@ -284,22 +305,6 @@ class MultiProcessSharedTest(unittest.TestCase):
 
 
 class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
-  def setUp(self):
-    tempdir = tempfile.gettempdir()
-    for tag in ['basic',
-                'main',
-                'to_delete',
-                'to_keep',
-                'mix1',
-                'mix2',
-                'test_process_exit',
-                'thundering_herd_test']:
-      for ext in ['', '.address', '.address.error']:
-        try:
-          os.remove(os.path.join(tempdir, tag + ext))
-        except OSError:
-          pass
-
   def tearDown(self):
     for p in multiprocessing.active_children():
       if p.is_alive():
@@ -460,6 +465,32 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       shared2.unsafe_hard_delete()
     except Exception:
       pass
+
+  def test_transient_connection_error_recovery(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='transient_test', always_proxy=True, spawn_process=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='transient_test', always_proxy=True, spawn_process=True)
+
+    counter1 = shared1.acquire()
+
+    orig_connect = multi_process_shared._SingletonRegistrar.connect
+    connect_calls = [0]
+
+    def side_effect_connect(self_mgr, *args, **kwargs):
+      connect_calls[0] += 1
+      if connect_calls[0] == 1:
+        raise ConnectionError("Simulated transient connection failure")
+      return orig_connect(self_mgr, *args, **kwargs)
+
+    with patch.object(multi_process_shared._SingletonRegistrar,
+                      'connect',
+                      autospec=True,
+                      side_effect=side_effect_connect):
+      counter2 = shared2.acquire()
+
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
 
 
 if __name__ == '__main__':

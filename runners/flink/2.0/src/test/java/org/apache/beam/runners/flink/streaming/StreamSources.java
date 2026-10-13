@@ -52,7 +52,7 @@ public class StreamSources {
     @Override
     default void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
-    /** In Flink 1.19 the {@code emitRecordAttributes} method was added. */
+    /** In Flink 1.19 the {@code recordAttributes} method was added. */
     @Override
     default void emitRecordAttributes(RecordAttributes recordAttributes) {
       throw new UnsupportedOperationException("emitRecordAttributes not implemented");

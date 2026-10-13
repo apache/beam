@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Read API jobs
@@ -59,9 +60,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryDirectReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryDirectReadSchemaTransformConfiguration> {
@@ -100,8 +98,9 @@ public class BigQueryDirectReadSchemaTransformProvider
 
     public void validate() {
       String invalidConfigMessage = "Invalid BigQuery Direct Read configuration: ";
-      if (!Strings.isNullOrEmpty(this.getTableSpec())) {
-        checkNotNull(BigQueryHelpers.parseTableSpec(this.getTableSpec()));
+      if (this.getTableSpec() != null && !this.getTableSpec().isEmpty()) {
+        // Throws IllegalArgumentException if the table spec is malformed.
+        BigQueryHelpers.parseTableSpec(this.getTableSpec());
         checkArgument(
             Strings.isNullOrEmpty(this.getQuery()),
             invalidConfigMessage + "Cannot specify both query and table spec.");
@@ -125,29 +124,33 @@ public class BigQueryDirectReadSchemaTransformProvider
     }
 
     @SchemaFieldDescription("The SQL query to be executed to read from the BigQuery table.")
+    @Pure
     @Nullable
     public abstract String getQuery();
 
     @SchemaFieldDescription(
         "The fully-qualified name of the BigQuery table to read from. Format: [${PROJECT}:]${DATASET}.${TABLE}")
+    @Pure
     @Nullable
     public abstract String getTableSpec();
 
     @SchemaFieldDescription(
         "Read only rows that match this filter, which must be compatible with Google standard SQL. This is not supported when reading via query.")
+    @Pure
     @Nullable
     public abstract String getRowRestriction();
 
     @SchemaFieldDescription(
         "Read only the specified fields (columns) from a BigQuery table. Fields may not be returned in the order specified. If no value is specified, then all fields are returned. Example: \"col1, col2, col3\"")
+    @Pure
     @Nullable
     public abstract List<String> getSelectedFields();
 
     @SchemaFieldDescription("Use this Cloud KMS key to encrypt your data")
+    @Pure
     @Nullable
     public abstract String getKmsKey();
 
-    @Nullable
     /** Builder for the {@link BigQueryDirectReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -172,7 +175,7 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformProvider}.
    */
   public static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
-    private BigQueryServices testBigQueryServices = null;
+    private @Nullable BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
@@ -224,23 +227,26 @@ public class BigQueryDirectReadSchemaTransformProvider
       BigQueryIO.TypedRead<TableRow> read =
           BigQueryIO.readTableRowsWithSchema().withMethod(TypedRead.Method.DIRECT_READ);
 
-      if (!Strings.isNullOrEmpty(configuration.getTableSpec())) {
+      if (configuration.getTableSpec() != null && !configuration.getTableSpec().isEmpty()) {
         read = read.from(configuration.getTableSpec());
-        if (!Strings.isNullOrEmpty(configuration.getRowRestriction())) {
+        if (configuration.getRowRestriction() != null
+            && !configuration.getRowRestriction().isEmpty()) {
           read = read.withRowRestriction(configuration.getRowRestriction());
         }
         if (configuration.getSelectedFields() != null) {
           read = read.withSelectedFields(configuration.getSelectedFields());
         }
       } else {
-        read = read.fromQuery(configuration.getQuery()).usingStandardSql();
+        // Guaranteed non-empty by BigQueryDirectReadSchemaTransformConfiguration#validate(), which
+        // runs in this transform's constructor.
+        read = read.fromQuery(checkStateNotNull(configuration.getQuery())).usingStandardSql();
       }
-      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+      if (configuration.getKmsKey() != null && !configuration.getKmsKey().isEmpty()) {
         read = read.withKmsKey(configuration.getKmsKey());
       }
 
       if (this.testBigQueryServices != null) {
-        read = read.withTestServices(testBigQueryServices);
+        read = read.withTestServices(this.testBigQueryServices);
       }
 
       return read;

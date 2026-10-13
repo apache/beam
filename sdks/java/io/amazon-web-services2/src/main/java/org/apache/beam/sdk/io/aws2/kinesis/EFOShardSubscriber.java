@@ -180,7 +180,7 @@ class EFOShardSubscriber {
               String.format(
                   "Pool %s - unknown case which is likely a bug: state=%s seqnum=%s",
                   pool.getPoolId(), state, lastContinuationSequenceNumber);
-          LOG.warn(msg);
+          LOG.warn("{}", msg);
           done.completeExceptionally(new IllegalStateException(msg));
         };
   }
@@ -272,6 +272,7 @@ class EFOShardSubscriber {
       implements Subscriber<SubscribeToShardEventStream>, SubscribeToShardResponseHandler.Visitor {
     /** Tracks continuation sequence number. */
     @Nullable String sequenceNumber;
+
     /** Current active subscription to request more events or cancel it. */
     @Nullable Subscription subscription;
 

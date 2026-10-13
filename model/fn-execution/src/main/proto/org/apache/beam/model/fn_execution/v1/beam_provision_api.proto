@@ -75,7 +75,7 @@ message ProvisionInfo {
     // (optional) The control endpoint this SDK should use.
     org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 10;
 
-    // The set of dependencies that should be staged into this environment.
+    // (optional) The set of dependencies that should be staged into this environment.
     repeated org.apache.beam.model.pipeline.v1.ArtifactInformation dependencies = 11;
 
     // (optional) A set of capabilities that this SDK is allowed to use in its

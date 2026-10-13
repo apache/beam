@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -25,6 +27,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
@@ -41,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utility methods used to instantiate and operate over cache instances. */
-@SuppressWarnings("nullness")
 public final class Caches {
   private static final Logger LOG = LoggerFactory.getLogger(Caches.class);
 
@@ -70,7 +72,7 @@ public final class Caches {
   public static final long REFERENCE_SIZE = 8;
 
   /** Returns the amount of memory in bytes the provided object consumes. */
-  public static long weigh(Object o) {
+  public static long weigh(@Nullable Object o) {
     if (o == null) {
       return REFERENCE_SIZE;
     }
@@ -115,6 +117,7 @@ public final class Caches {
         cache;
     private final LongAdder weightInBytes;
 
+    @SuppressWarnings("argument")
     ShrinkOnEviction(
         CacheBuilder<CompositeKey, WeightedValue<Object>> cacheBuilder, LongAdder weightInBytes) {
       this.cache = cacheBuilder.removalListener(this).build();
@@ -130,18 +133,19 @@ public final class Caches {
     @Override
     public void onRemoval(
         RemovalNotification<CompositeKey, WeightedValue<Object>> removalNotification) {
-      weightInBytes.add(
-          -(removalNotification.getKey().getWeight() + removalNotification.getValue().getWeight()));
-      if (removalNotification.wasEvicted()) {
-        if (!(removalNotification.getValue().getValue() instanceof Cache.Shrinkable)) {
-          return;
-        }
-        Object updatedEntry = ((Shrinkable<?>) removalNotification.getValue().getValue()).shrink();
-        if (updatedEntry != null) {
-          cache.put(
-              removalNotification.getKey(),
-              addWeightedValue(removalNotification.getKey(), updatedEntry, weightInBytes));
-        }
+      CompositeKey key = checkNotNull(removalNotification.getKey());
+      WeightedValue<Object> value = checkNotNull(removalNotification.getValue());
+      weightInBytes.add(-(key.getWeight() + value.getWeight()));
+      if (!removalNotification.wasEvicted()) {
+        return;
+      }
+      @Nullable Object v = value.getValue();
+      if (!(v instanceof Cache.Shrinkable)) {
+        return;
+      }
+      @Nullable Object updatedEntry = ((Shrinkable<?>) v).shrink();
+      if (updatedEntry != null) {
+        cache.put(key, addWeightedValue(key, updatedEntry, weightInBytes));
       }
     }
   }
@@ -282,8 +286,8 @@ public final class Caches {
     }
 
     @Override
-    public V peek(K key) {
-      WeightedValue<Object> value = cache.getIfPresent(keyPrefix.valueKey(key));
+    public @Nullable V peek(K key) {
+      @Nullable WeightedValue<Object> value = cache.getIfPresent(keyPrefix.valueKey(key));
       if (value == null) {
         return null;
       }
@@ -298,7 +302,9 @@ public final class Caches {
             cache
                 .get(
                     compositeKey,
-                    () -> addWeightedValue(compositeKey, loadingFunction.apply(key), weightInBytes))
+                    () ->
+                        addWeightedValue(
+                            compositeKey, checkNotNull(loadingFunction.apply(key)), weightInBytes))
                 .getValue();
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
@@ -308,7 +314,7 @@ public final class Caches {
     @Override
     public void put(K key, V value) {
       CompositeKey compositeKey = keyPrefix.valueKey(key);
-      cache.put(compositeKey, addWeightedValue(compositeKey, value, weightInBytes));
+      cache.put(compositeKey, addWeightedValue(compositeKey, checkNotNull(value), weightInBytes));
     }
 
     @Override
@@ -356,7 +362,7 @@ public final class Caches {
       return new CompositeKeyPrefix(subKey, subKeyWeight);
     }
 
-    <K> CompositeKey valueKey(K k) {
+    <K> CompositeKey valueKey(@Nullable K k) {
       return new CompositeKey(namespace, weight, k);
     }
 
@@ -391,10 +397,10 @@ public final class Caches {
   @VisibleForTesting
   static class CompositeKey implements Weighted {
     private final Object[] namespace;
-    private final Object key;
+    private final @Nullable Object key;
     private final long weight;
 
-    private CompositeKey(Object[] namespace, long namespaceWeight, Object key) {
+    private CompositeKey(Object[] namespace, long namespaceWeight, @Nullable Object key) {
       this.namespace = namespace;
       this.key = key;
       this.weight = namespaceWeight + weigh(key);
@@ -402,11 +408,15 @@ public final class Caches {
 
     @Override
     public String toString() {
-      return "CompositeKey{namespace=" + Arrays.toString(namespace) + ", key=" + key + "}";
+      return "CompositeKey{namespace="
+          + Arrays.toString(namespace)
+          + ", key="
+          + String.valueOf(key)
+          + "}";
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -434,6 +444,7 @@ public final class Caches {
    * <p>The set of keys that are tracked are only those provided to {@link #peek} and {@link
    * #computeIfAbsent}.
    */
+  @SuppressWarnings("nullness")
   public static class ClearableCache<K, V> extends SubCache<K, V> {
     private final Set<K> weakHashSet;
 

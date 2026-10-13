@@ -24,11 +24,13 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
+import json
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import fastavro
 
@@ -41,10 +43,13 @@ from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
+from apache_beam.io import mongodbio
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
@@ -99,7 +104,8 @@ def read_from_bigquery(
     table: Optional[str] = None,
     query: Optional[str] = None,
     row_restriction: Optional[str] = None,
-    fields: Optional[Iterable[str]] = None):
+    fields: Optional[Iterable[str]] = None,
+    schema: Optional[Any] = None):
   """Reads data from BigQuery.
 
   Exactly one of table or query must be set.
@@ -117,18 +123,27 @@ def read_from_bigquery(
       specified field is a nested field, all the sub-fields in the field will be
       selected. The output field order is unrelated to the order of fields
       given here.
+    schema (dict): Required when query is set. A BigQuery schema describing
+      the query result columns, e.g.
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``.
+      Not applicable when reading from a table (schema is auto-derived).
   """
   if query is None:
     assert table is not None
   else:
     assert table is None and row_restriction is None and fields is None
+    if schema is None:
+      raise ValueError(
+          "When using 'query' in ReadFromBigQuery YAML transform, "
+          "'schema' is required to define the output row structure.")
   return ReadFromBigQuery(
       query=query,
       table=table,
       row_restriction=row_restriction,
       selected_fields=fields,
       method='DIRECT_READ',
-      output_type='BEAM_ROW')
+      output_type='BEAM_ROW',
+      query_output_schema=schema)
 
 
 def write_to_bigquery(
@@ -246,11 +261,9 @@ def _create_parser(
     _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
-    # pylint: disable=line-too-long
     return (
-        beam_schema,
-        lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+        beam_schema, lambda record: covert_to_row(
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))
   elif format == 'PROTO':
     _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
@@ -317,7 +330,8 @@ def read_from_pubsub(
     attributes: Optional[Iterable[str]] = None,
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
-    timestamp_attribute: Optional[str] = None):
+    timestamp_attribute: Optional[str] = None,
+    publish_time_field: Optional[str] = None):
   """Reads messages from Cloud Pub/Sub.
 
   Args:
@@ -367,14 +381,19 @@ def read_from_pubsub(
         ``2015-10-29T23:41:41.123Z``. The sub-second component of the
         timestamp is optional, and digits beyond the first three (i.e., time
         units smaller than milliseconds) may be ignored.
+    publish_time_field: Field to add to output messages with the Pub/Sub
+      message publish time. If None, no such field is added.
   """
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
+  if publish_time_field is not None and not publish_time_field.strip():
+    raise ValueError('publish_time_field must be a non-empty field name.')
+  has_publish_time_field = publish_time_field is not None
   payload_schema, parser = _create_parser(format, schema)
   extra_fields: list[schema_pb2.Field] = []
-  if not attributes and not attributes_map:
+  if not attributes and not attributes_map and not has_publish_time_field:
     mapper = lambda msg: parser(msg)
   else:
     if isinstance(attributes, str):
@@ -385,6 +404,9 @@ def read_from_pubsub(
     if attributes_map:
       extra_fields.append(
           schemas.schema_field(attributes_map, Mapping[str, str]))
+    if has_publish_time_field:
+      extra_fields.append(
+          schemas.schema_field(publish_time_field, Optional[Timestamp]))
 
     def mapper(msg):
       values = parser(msg.data).as_dict()
@@ -394,6 +416,10 @@ def read_from_pubsub(
           values[attr] = msg.attributes[attr]
       if attributes_map:
         values[attributes_map] = msg.attributes
+      if has_publish_time_field:
+        values[publish_time_field] = (
+            Timestamp.of(msg.publish_time)
+            if msg.publish_time is not None else None)
       return beam.Row(**values)
 
   output = (
@@ -401,7 +427,8 @@ def read_from_pubsub(
       | beam.io.ReadFromPubSub(
           topic=topic,
           subscription=subscription,
-          with_attributes=bool(attributes or attributes_map),
+          with_attributes=bool(
+              attributes or attributes_map or has_publish_time_field),
           id_label=id_attribute,
           timestamp_attribute=timestamp_attribute)
       | 'ParseMessage' >> beam.Map(mapper))
@@ -551,6 +578,66 @@ def read_from_iceberg(
           config_properties=config_properties))
 
 
+def read_from_delta(
+    table: str,
+    version: Optional[int] = None,
+    timestamp: Optional[str] = None,
+    hadoop_config: Optional[Mapping[str, str]] = None,
+):
+  """Reads a Delta Lake table.
+
+  Args:
+    table: Identifier of the Delta Lake table.
+    version: Version of the Delta Lake table to read.
+    timestamp: Timestamp of the Delta Lake table to read.
+    hadoop_config: Hadoop configuration properties.
+  """
+  return beam.managed.Read(
+      "delta",
+      config=dict(
+          table=table,
+          version=version,
+          timestamp=timestamp,
+          hadoop_config=hadoop_config))
+
+
+def read_from_delta_cdc(
+    table: str,
+    start_version: Optional[int] = None,
+    start_timestamp: Optional[str] = None,
+    end_version: Optional[int] = None,
+    end_timestamp: Optional[str] = None,
+    include_metadata_columns: Optional[Iterable[str]] = None,
+    hadoop_config: Optional[Mapping[str, str]] = None,
+):
+  """Reads change records from a Delta Lake table.
+
+  Args:
+    table: Identifier of the Delta Lake table.
+    start_version: Start version of the Delta Lake table to read changes from.
+      Either this or start_timestamp has to be provided.
+    start_timestamp: Start timestamp of the Delta Lake table to read changes
+      from. Should be specified in the ISO 8601 standard. Either this or
+      start_version has to be provided.
+    end_version: End version of the Delta Lake table to read changes up to.
+    end_timestamp: End timestamp of the Delta Lake table to read changes up to.
+      Should be specified in the ISO 8601 standard.
+    include_metadata_columns: Metadata columns to include in the output rows.
+      Supported columns are: _change_type, _commit_version, and _commit_timestamp.
+    hadoop_config: Properties passed to the Hadoop Configuration.
+  """
+  return beam.managed.Read(
+      "delta_cdc",
+      config=dict(
+          table=table,
+          start_version=start_version,
+          start_timestamp=start_timestamp,
+          end_version=end_version,
+          end_timestamp=end_timestamp,
+          include_metadata_columns=include_metadata_columns,
+          hadoop_config=hadoop_config))
+
+
 def write_to_iceberg(
     table: str,
     catalog_name: Optional[str] = None,
@@ -562,6 +649,22 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
+    distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
+    mode: Optional[str] = None,
+    sequence_number_column: Optional[str] = None,
+    change_type_column: Optional[str] = None,
+    change_type_map: Optional[Mapping[str, str]] = None,
+    upsert: Optional[bool] = None,
+    equality_columns: Optional[Iterable[str]] = None,
+    num_shards: Optional[int] = None,
+    shards_per_partition: Optional[int] = None,
+    allowed_lateness_seconds: Optional[int] = None,
+    sink_id: Optional[str] = None,
+    token_heartbeat_seconds: Optional[int] = None,
+    snapshot_properties: Optional[Mapping[str, str]] = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    sorter_memory_mb: Optional[int] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -611,6 +714,60 @@ def write_to_iceberg(
     only: The name of exactly one field to keep as the top level record when
       writing to the destination. All other fields are dropped. This field must
       be of row type. Mutually exclusive with drop and keep.
+    distribution_mode: Defines distribution of write data. Supported
+      distributions:
+      - none: don't shuffle rows (default)
+      - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
+    mode: Controls how rows are written. 'append' (default) appends every row
+      as new data. 'merge-on-read' treats each row as a change (INSERT,
+      UPDATE_BEFORE, UPDATE_AFTER, or DELETE) applied to the table by primary
+      key.
+    sequence_number_column: Merge-on-read only. the required column name
+      representing the monotonic sequence number used to order a single key's
+      changes. Default column name is '_commit_snapshot_sequence_number'. This
+      column will be stripped from the data row before writing to Iceberg.
+    change_type_column: Merge-on-read only. The optional column name
+      representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER,
+      or DELETE). This column will be stripped from the data row before writing
+      to Iceberg.
+    change_type_map: Merge-on-read only. Optional map from the
+      `change_type_column` value to the canonical change type name (see above).
+    upsert: Merge-on-read only. If true, only the after-image of each change
+      (INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records
+      are dropped. Default: false.
+    equality_columns: Columns defining row identity (equality-delete fields).
+      Defaults to the destination table's identifier (primary-key) fields.
+      Required if the table doesn't exist yet. Currently only supported in
+      'merge-on-read' mode.
+    num_shards: The number of deterministic primary-key-hash shards per
+      destination, i.e. the max write parallelism per destination. Defaults to
+      16. Currently only supported in 'merge-on-read' mode.
+    shards_per_partition: Maximum number of shards a single partition's rows
+      may occupy. Defaults to `num_shards`. Currently only supported in
+      'merge-on-read' mode.
+    allowed_lateness_seconds: How long a late record may lag behind the
+      watermark before it is dropped entirely. Defaults to 21600 (6 hours).
+      Currently only supported in 'merge-on-read' mode.
+    sink_id: A stable identifier namespacing the idempotency tokens written to
+      each commit. Defaults to a unique per-write UUID. Override with a stable
+      ID for exactly-once commits across relaunches of a particular streaming
+      write. Currently only relevant in 'merge-on-read' mode.
+    token_heartbeat_seconds: Streaming only. Refresh each idle
+      destination's commit token every this many seconds. Disabled by default.
+      Currently only relevant in 'merge-on-read' mode.
+    snapshot_properties: Extra properties added to every commit's snapshot
+      summary. Currently only supported in 'merge-on-read' mode.
+    error_handling: Where to send records the sink cannot apply (e.g. an
+      unknown change type) instead of failing the pipeline. Currently only
+      supported in 'merge-on-read' mode.
+    sorter_memory_mb: The in-memory buffer size (MB) for the pre-write sort.
+      Groups larger than this spill to disk. Default: 100MB. Currently only
+      relevant in 'merge-on-read' mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -624,7 +781,23 @@ def write_to_iceberg(
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
-          only=only))
+          only=only,
+          distribution_mode=distribution_mode,
+          autosharding=autosharding,
+          mode=mode,
+          sequence_number_column=sequence_number_column,
+          change_type_column=change_type_column,
+          change_type_map=change_type_map,
+          upsert=upsert,
+          equality_columns=equality_columns,
+          num_shards=num_shards,
+          shards_per_partition=shards_per_partition,
+          allowed_lateness_seconds=allowed_lateness_seconds,
+          sink_id=sink_id,
+          token_heartbeat_seconds=token_heartbeat_seconds,
+          snapshot_properties=snapshot_properties,
+          error_handling=error_handling,
+          sorter_memory_mb=sorter_memory_mb))
 
 
 def io_providers():
@@ -710,3 +883,268 @@ def write_to_tfrecord(
           num_shards=num_shards,
           shard_name_template=shard_name_template,
           compression_type=getattr(CompressionTypes, compression_type))
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def read_from_mongodb(
+    root,
+    *,
+    database: str,
+    collection: str,
+    schema: Union[str, dict[str, Any]],
+    uri: Optional[str] = None,
+    filter: Optional[dict[str, Any]] = None):
+  """Reads data from MongoDB.
+
+  The resulting PCollection consists of rows with fields matching the provided
+  schema.
+
+  Args:
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    schema: JSON schema specifying the fields to select and their types.
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    filter: A JSON/bson mapping specifying elements which must be present.
+  """
+  if isinstance(schema, str):
+    schema = json.loads(schema)
+  if isinstance(filter, str):
+    filter = json.loads(filter)
+
+  beam_schema = json_utils.json_schema_to_beam_schema(schema)
+  beam_type = schema_pb2.FieldType(
+      row_type=schema_pb2.RowType(schema=beam_schema))
+  to_row_fn = json_utils.json_to_row(beam_type)
+
+  output = (
+      root
+      | mongodbio.ReadFromMongoDB(
+          uri=uri, db=database, coll=collection, filter=filter)
+      | beam.Map(to_row_fn))
+  output.element_type = schemas.named_tuple_from_schema(beam_schema)
+  return output
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def write_to_mongodb(
+    pcoll,
+    *,
+    database: str,
+    collection: str,
+    uri: Optional[str] = None,
+    batch_size: int = 1024):
+  """Writes data to MongoDB.
+
+  Args:
+    pcoll: The input PCollection of Beam Rows.
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    batch_size: Number of documents per bulk_write to MongoDB.
+  """
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  return (
+      pcoll
+      | beam.Map(row_to_dict)
+      | mongodbio.WriteToMongoDB(
+          uri=uri, db=database, coll=collection, batch_size=batch_size))
+
+
+@beam.ptransform_fn
+def match_all(
+    pcoll,
+    *,
+    file_pattern: Optional[str] = None,
+    empty_match_treatment: str = 'ALLOW',
+):
+  """Matches file patterns from the input PCollection.
+
+  This transform returns a PCollection of matching files, each represented as a
+  Row with path, size_in_bytes, and last_updated_in_seconds fields.
+
+  Args:
+    file_pattern (str): The name of the field in the input PCollection that contains
+      the file pattern string. If not specified and the input PCollection has
+      exactly one field, that field will be used.
+    empty_match_treatment (str): How to treat empty matches. Possible values are
+      'ALLOW', 'DISALLOW', and 'ALLOW_IF_WILDCARD'. Defaults to 'ALLOW'.
+  """
+  from apache_beam.typehints import schemas
+
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception:
+    field_names = None
+
+  if field_names:
+    if file_pattern is not None:
+      if file_pattern not in field_names:
+        raise ValueError(
+            f"Field '{file_pattern}' not found in input schema fields: {field_names}"
+        )
+      pattern_field = file_pattern
+    elif len(field_names) == 1:
+      pattern_field = field_names[0]
+    else:
+      raise ValueError(
+          f"Input schema has multiple fields {field_names}. "
+          f"Please specify the 'file_pattern' parameter to select which field "
+          f"contains the file pattern.")
+    patterns = pcoll | beam.Map(lambda x: str(getattr(x, pattern_field)))
+  else:
+    patterns = pcoll
+
+  matched = patterns | beam.io.fileio.MatchAll(
+      empty_match_treatment=empty_match_treatment)
+
+  return matched | beam.Map(
+      lambda x: beam.Row(
+          path=str(x.path), size_in_bytes=int(x.size_in_bytes),
+          last_updated_in_seconds=float(x.last_updated_in_seconds)
+          if x.last_updated_in_seconds is not None else None))
+
+
+_DICOM_SEARCH_OUTPUT_SCHEMA = RowTypeConstraint.from_fields([
+    ('result', str),
+    ('status', str),
+    ('input', str),
+])
+
+
+def _dicom_search_result_to_row(result):
+  if not result.get('success'):
+    raise RuntimeError(
+        'DicomSearch failed with status: %s' % (result.get('status'), ))
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_output_row(result):
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_error_row(result):
+  inp = result.get('input') or {}
+  if isinstance(inp, Mapping):
+    element = beam.Row(**dict(inp))
+  else:
+    element = inp
+  return beam.Row(
+      element=element,
+      msg='DicomSearch failed with status: %s' % (result.get('status'), ),
+      stack='')
+
+
+@beam.ptransform_fn
+def dicom_search(
+    pcoll, *, buffer_size: int = 8, max_workers: int = 5, error_handling=None):
+  """Searches a Google Cloud Healthcare DICOM store using QIDO-RS.
+
+  This transform takes an input PCollection of Rows describing QIDO search
+  requests and returns Rows with the search results encoded as JSON.
+
+  Each input Row must include:
+
+    - project_id (str): GCP project containing the DICOM store.
+    - region (str): Region where the DICOM store resides.
+    - dataset_id (str): Dataset containing the DICOM store.
+    - dicom_store_id (str): DICOM store id.
+    - search_type (str): One of ``studies``, ``series``, or ``instances``.
+    - params (map of str to str, optional): QIDO search filters.
+
+  Successful outputs are Rows with:
+
+    - result (str): JSON-encoded list of matching DICOM resources.
+    - status (str): HTTP status from the DICOM API.
+    - input (str): JSON-encoded copy of the search request.
+
+  Failed searches raise unless ``error_handling`` is set, in which case they
+  are routed to the configured error output.
+
+  Args:
+    buffer_size: Number of requests to buffer before flushing.
+    max_workers: Maximum number of threads used to issue requests.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit failed searches, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
+  """
+  try:
+    from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  except ImportError as exn:
+    raise ValueError(
+        "GCP dependencies are not installed. Cannot use DicomSearch. "
+        "Please install using 'pip install apache-beam[gcp]'.") from exn
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  def normalize_request(value):
+    # YAML Create types params as map[str, str]; qido_search needs int
+    # limit/offset for pagination comparisons.
+    request = row_to_dict(value)
+    params = request.get('params')
+    params = dict(params) if isinstance(params, Mapping) else {}
+    limit = params.get('limit', 500)
+    offset = params.get('offset', 0)
+    params['limit'] = int(limit)
+    params['offset'] = int(offset)
+    request['params'] = params
+    return request
+
+  if error_handling:
+    error_handling = yaml_utils.SafeLineLoader.strip_metadata(error_handling)
+
+  results = (
+      pcoll
+      | beam.Map(normalize_request)
+      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers))
+
+  if error_handling and error_handling.get('output'):
+    return {
+        'good': (
+            results
+            | beam.Filter(lambda r: r.get('success'))
+            | beam.Map(_dicom_search_to_output_row).with_output_types(
+                _DICOM_SEARCH_OUTPUT_SCHEMA)),
+        error_handling['output']: (
+            results
+            | beam.Filter(lambda r: not r.get('success'))
+            | beam.Map(_dicom_search_to_error_row)),
+    }
+
+  return results | beam.Map(_dicom_search_result_to_row).with_output_types(
+      _DICOM_SEARCH_OUTPUT_SCHEMA)

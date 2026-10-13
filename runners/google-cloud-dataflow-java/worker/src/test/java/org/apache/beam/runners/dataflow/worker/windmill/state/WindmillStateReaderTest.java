@@ -35,9 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Future;
-import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
@@ -1572,16 +1572,16 @@ public class WindmillStateReaderTest {
 
     try {
       watermarkFuture.get();
-      fail("Expected KeyTokenInvalidException");
+      fail("Expected WorkCancelingException");
     } catch (Exception e) {
-      assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(e));
+      assertTrue(WorkCancellingException.isWorkCancellingException(e));
     }
 
     try {
       bagFuture.get();
-      fail("Expected KeyTokenInvalidException");
+      fail("Expected WorkCancelingException");
     } catch (Exception e) {
-      assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(e));
+      assertTrue(WorkCancellingException.isWorkCancellingException(e));
     }
   }
 

@@ -112,7 +112,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link PTransform Transforms} for reading from and writing to Google Cloud Bigtable.
  *
- * <p>Please note the Cloud BigTable HBase connector available <a
+ * <p>Please note the Cloud Bigtable HBase connector available <a
  * href="https://github.com/googleapis/java-bigtable-hbase/tree/master/bigtable-dataflow-parent/bigtable-hbase-beam">here</a>.
  * We recommend using that connector over this one if <a
  * href="https://cloud.google.com/bigtable/docs/hbase-bigtable">HBase API</a></> works for your
@@ -642,8 +642,7 @@ public class BigtableIO {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
-              bigtableReadOptions
-                  .toBuilder()
+              bigtableReadOptions.toBuilder()
                   .setMaxBufferElementCount(maxBufferElementCount)
                   .build())
           .build();
@@ -794,7 +793,7 @@ public class BigtableIO {
     static SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
         enableBulkApiConfigurator(
             final @Nullable SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-                    userConfigurator) {
+                userConfigurator) {
       return optionsBuilder -> {
         if (userConfigurator != null) {
           optionsBuilder = userConfigurator.apply(optionsBuilder);
@@ -1142,14 +1141,18 @@ public class BigtableIO {
           .build();
     }
 
-    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /**
+     * @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect.
+     */
     @Deprecated
     public Write withThrottlingTargetMs(int throttlingTargetMs) {
       LOG.warn("withThrottlingTargetMs has been removed and does not have effect.");
       return this;
     }
 
-    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /**
+     * @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect.
+     */
     @Deprecated
     public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
       LOG.warn("withThrottlingReportTargetMs has been removed and does not have an effect.");
@@ -1264,8 +1267,7 @@ public class BigtableIO {
                       new BigtableWriterFn(
                           factory,
                           bigtableConfig,
-                          bigtableWriteOptions
-                              .toBuilder()
+                          bigtableWriteOptions.toBuilder()
                               .setCloseWaitTimeout(closeWaitTimeout)
                               .build(),
                           input.getCoder(),
@@ -1545,7 +1547,7 @@ public class BigtableIO {
           String.format(
               "At least %d errors occurred writing to Bigtable. First %d errors: %s",
               i + failures.size(), i, logEntry.toString());
-      LOG.error(message);
+      LOG.error("{}", message);
       IOException exception = new IOException(message);
       for (BigtableWriteException e : suppressed) {
         exception.addSuppressed(e);
@@ -2125,6 +2127,7 @@ public class BigtableIO {
       return record;
     }
   }
+
   /**
    * Overwrite options to determine what to do if change stream name is being reused and there
    * exists metadata of the same change stream name.
@@ -2462,7 +2465,7 @@ public class BigtableIO {
       // Only try to create or update metadata table if option is set to true. Otherwise, just
       // check if the table exists.
       if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
-        LOG.info("Created metadata table: " + metadataTableId);
+        LOG.info("Created metadata table: {}", metadataTableId);
       }
     }
 
@@ -2645,7 +2648,7 @@ public class BigtableIO {
       // Only try to create or update metadata table if option is set to true. Otherwise, just
       // check if the table exists.
       if (metadataTableAdminDao.createMetadataTable()) {
-        LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
+        LOG.info("Created metadata table: {}", metadataTableAdminDao.getTableId());
       }
       return metadataTableAdminDao.doesMetadataTableExist();
     } finally {

@@ -60,7 +60,7 @@ public class SinkRegistryTest {
     com.google.api.services.dataflow.model.Sink cloudSink =
         new com.google.api.services.dataflow.model.Sink();
     cloudSink.setSpec(spec);
-    cloudSink.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
+    cloudSink.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /* sdkComponents= */ null));
     try {
       SinkRegistry.defaultRegistry()
           .create(

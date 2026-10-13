@@ -31,8 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Implementations should have a way of determining which catalog is currently active, and
  * produce it when {@link #currentCatalog()} is invoked.
  *
- * <p>When {@link #registerTableProvider(String, TableProvider)} is called, the provider should
- * become available for all catalogs.
+ * <p>When {@link #registerTableProvider(TableProvider)} is called, the provider should become
+ * available for all catalogs.
  */
 @Internal
 public interface CatalogManager {
@@ -46,8 +46,7 @@ public interface CatalogManager {
   Catalog currentCatalog();
 
   /** Attempts to fetch the catalog with this name. May produce null if it does not exist. */
-  @Nullable
-  Catalog getCatalog(String name);
+  @Nullable Catalog getCatalog(String name);
 
   /** Drops the catalog with this name. No-op if the catalog already does not exist. */
   void dropCatalog(String name);

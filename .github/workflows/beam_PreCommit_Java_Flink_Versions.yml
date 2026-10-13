@@ -24,7 +24,7 @@ on:
       - 'runners/flink/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java_Flink_Versions.yml'
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
@@ -32,8 +32,6 @@ on:
       - 'release/**'
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_Flink_Versions.json'
-  issue_comment:
-    types: [created]
   schedule:
   - cron: '30 1/6 * * *'
   workflow_dispatch:
@@ -55,7 +53,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -66,25 +64,23 @@ env:
 jobs:
   beam_PreCommit_Java_Flink_Versions:
     name: beam_PreCommit_Java_Flink_Versions (Run Java_Flink_Versions PreCommit)
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: 'Run Java_Flink_Versions PreCommit'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: default
+          java-version: 11
           python-version: default
       - name: run Java Flink Versions PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -93,7 +89,7 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -102,7 +98,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          commit: '${{ env.GITHUB_SHA }}'
+          comment_mode: 'off'
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/build/test-results/**/*.xml'
           large_files: true

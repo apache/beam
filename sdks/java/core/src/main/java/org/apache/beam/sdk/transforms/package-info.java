@@ -33,8 +33,4 @@
  * package are composites, and users can also create composite PTransforms for their own
  * application-specific logic.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

@@ -380,7 +380,7 @@ class EnrichmentTestHelpers:
           uri=db.uri,
           user=db.user,
           password=db.password,
-          db_id=db.id,
+          db_name=db.id,
           token=db.token)
       collection_name = MilvusTestHelpers.initialize_db_with_data(
           connection_params)

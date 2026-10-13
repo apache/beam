@@ -30,6 +30,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+# ruff: noqa: UP006
+import dataclasses
 import decimal
 import enum
 import itertools
@@ -59,6 +61,7 @@ from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.typehints.schemas import _SCHEMA_OPTION_STATIC_ENCODING
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -66,11 +69,6 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None  # type: ignore
 
 try:
   import dill
@@ -316,9 +314,6 @@ class ProtoCoderImpl(SimpleCoderImpl):
     proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(value.ByteSize(), nested)
-
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -337,9 +332,6 @@ class ProtoPlusCoderImpl(SimpleCoderImpl):
 
   def decode(self, value):
     return self.proto_plus_type.deserialize(value)
-
-  def estimate_size(self, value, nested=False):
-    return self._get_nested_size(type(value).pb(value).ByteSize(), nested)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -503,7 +495,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
-    elif dataclasses and dataclasses.is_dataclass(value):
+    elif dataclasses.is_dataclass(value):
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
@@ -851,13 +843,29 @@ class BigEndianShortCoderImpl(StreamCoderImpl):
     out.write_bigendian_int16(value)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> float
+    # type: (create_InputStream, bool) -> int
     return in_stream.read_bigendian_int16()
 
   def estimate_size(self, unused_value, nested=False):
     # type: (Any, bool) -> int
     # A short is encoded as 2 bytes, regardless of nesting.
     return 2
+
+
+class ByteCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_byte(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    return in_stream.read_byte()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # A byte is encoded as 1 byte, regardless of nesting.
+    return 1
 
 
 class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
@@ -1948,31 +1956,35 @@ class RowCoderImpl(StreamCoderImpl):
         for i in self.encoding_positions)
     self.has_nullable_fields = any(
         field.type.nullable for field in self.schema.fields)
+    self.static_encoding = any(
+        opt.name == _SCHEMA_OPTION_STATIC_ENCODING and
+        opt.value.atomic_value.boolean for opt in self.schema.options)
 
   def encode_to_stream(self, value, out, nested):
-    out.write_var_int64(self.num_fields)
     attrs = [getattr(value, name) for name in self.field_names]
 
-    if self.has_nullable_fields:
-      any_nulls = False
-      for attr in attrs:
-        if attr is None:
-          any_nulls = True
-          break
-      if any_nulls:
-        out.write_var_int64((self.num_fields + 7) // 8)
-        # Pack the bits, little-endian, in consecutive bytes.
-        running = 0
-        for i, attr in enumerate(attrs):
-          if i and i % 8 == 0:
-            out.write_byte(running)
-            running = 0
-          running |= (attr is None) << (i % 8)
-        out.write_byte(running)
+    if not self.static_encoding:
+      out.write_var_int64(self.num_fields)
+      if self.has_nullable_fields:
+        any_nulls = False
+        for attr in attrs:
+          if attr is None:
+            any_nulls = True
+            break
+        if any_nulls:
+          out.write_var_int64((self.num_fields + 7) // 8)
+          # Pack the bits, little-endian, in consecutive bytes.
+          running = 0
+          for i, attr in enumerate(attrs):
+            if i and i % 8 == 0:
+              out.write_byte(running)
+              running = 0
+            running |= (attr is None) << (i % 8)
+          out.write_byte(running)
+        else:
+          out.write_byte(0)
       else:
         out.write_byte(0)
-    else:
-      out.write_byte(0)
 
     for i in range(self.num_fields):
       if not self.encoding_positions_are_trivial:
@@ -2014,13 +2026,14 @@ class RowCoderImpl(StreamCoderImpl):
       has_null_bits = np.zeros((n, ), dtype=np.uint8)
 
     for k in range(n):
-      out.write_var_int64(self.num_fields)
-      if has_null_bits[k]:
-        out.write_byte(null_bits_len)
-        for i in range(null_bits_len):
-          out.write_byte(null_bits[k, i])
-      else:
-        out.write_byte(0)
+      if not self.static_encoding:
+        out.write_var_int64(self.num_fields)
+        if has_null_bits[k]:
+          out.write_byte(null_bits_len)
+          for i in range(null_bits_len):
+            out.write_byte(null_bits[k, i])
+        else:
+          out.write_byte(0)
       for i in range(self.num_fields):
         if not self.encoding_positions_are_trivial:
           i = self.encoding_positions_argsort[i]
@@ -2033,11 +2046,15 @@ class RowCoderImpl(StreamCoderImpl):
           cython.cast(RowColumnEncoder, attrs[i]).encode_to_stream(k, out)
 
   def decode_from_stream(self, in_stream, nested):
-    nvals = in_stream.read_var_int64()
-    null_mask_len = in_stream.read_var_int64()
-    if null_mask_len:
-      # pylint: disable=unused-variable
-      null_mask_c = null_mask_py = in_stream.read(null_mask_len)
+    if self.static_encoding:
+      nvals = self.num_fields
+      null_mask_len = 0
+    else:
+      nvals = in_stream.read_var_int64()
+      null_mask_len = in_stream.read_var_int64()
+      if null_mask_len:
+        # pylint: disable=unused-variable
+        null_mask_c = null_mask_py = in_stream.read(null_mask_len)
 
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
@@ -2071,11 +2088,15 @@ class RowCoderImpl(StreamCoderImpl):
     for k in range(n):
       if in_stream.size() == 0:
         break
-      nvals = in_stream.read_var_int64()
-      null_mask_len = in_stream.read_var_int64()
-      if null_mask_len:
-        # pylint: disable=unused-variable
-        null_mask_c = null_mask = in_stream.read(null_mask_len)
+      if self.static_encoding:
+        nvals = self.num_fields
+        null_mask_len = 0
+      else:
+        nvals = in_stream.read_var_int64()
+        null_mask_len = in_stream.read_var_int64()
+        if null_mask_len:
+          # pylint: disable=unused-variable
+          null_mask_c = null_mask = in_stream.read(null_mask_len)
 
       for i in range(min(self.num_fields, nvals)):
         if not self.encoding_positions_are_trivial:

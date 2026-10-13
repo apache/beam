@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -29,9 +30,6 @@ import java.util.List;
  * times (both in the same trigger expression and in other trigger expressions), the {@code
  * ExecutableTrigger} wrapped around them forms a tree (only one occurrence).
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class ExecutableTriggerStateMachine implements Serializable {
 
   /** Store the index assigned to this trigger. */
@@ -60,12 +58,10 @@ public class ExecutableTriggerStateMachine implements Serializable {
     this.trigger = checkNotNull(trigger, "trigger must not be null");
     this.triggerIndex = nextUnusedIndex++;
 
-    if (trigger.subTriggers() != null) {
-      for (TriggerStateMachine subTrigger : trigger.subTriggers()) {
-        ExecutableTriggerStateMachine subExecutable = create(subTrigger, nextUnusedIndex);
-        subTriggers.add(subExecutable);
-        nextUnusedIndex = subExecutable.firstIndexAfterSubtree;
-      }
+    for (TriggerStateMachine subTrigger : trigger.subTriggers()) {
+      ExecutableTriggerStateMachine subExecutable = create(subTrigger, nextUnusedIndex);
+      subTriggers.add(subExecutable);
+      nextUnusedIndex = subExecutable.firstIndexAfterSubtree;
     }
     firstIndexAfterSubtree = nextUnusedIndex;
   }
@@ -99,18 +95,19 @@ public class ExecutableTriggerStateMachine implements Serializable {
   }
 
   public ExecutableTriggerStateMachine getSubTriggerContaining(int index) {
-    checkNotNull(subTriggers);
     checkState(
         index > triggerIndex && index < firstIndexAfterSubtree,
         "Cannot find sub-trigger containing index not in this tree.");
     ExecutableTriggerStateMachine previous = null;
     for (ExecutableTriggerStateMachine subTrigger : subTriggers) {
       if (index < subTrigger.triggerIndex) {
-        return previous;
+        break;
       }
       previous = subTrigger;
     }
-    return previous;
+    // The bounds check above places the index within this subtree but past this trigger itself,
+    // so it always falls inside one of the sub-triggers.
+    return checkStateNotNull(previous, "No sub-trigger of %s contains index %s", trigger, index);
   }
 
   public void invokePrefetchOnElement(TriggerStateMachine.PrefetchContext c) {

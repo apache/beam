@@ -128,10 +128,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   /** Map of preparationId to preparation. */
   private final ConcurrentHashMap<String, JobPreparation> preparations;
+
   /** Map of preparationId to staging token. */
   private final ConcurrentHashMap<String, String> stagingSessionTokens;
+
   /** Map of invocationId to invocation. */
   private final ConcurrentHashMap<String, JobInvocation> invocations;
+
   /** InvocationIds of completed invocations in least-recently-completed order. */
   private final ConcurrentLinkedDeque<String> completedInvocationsIds;
 
@@ -276,9 +279,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       LOG.warn("Encountered Status Exception", e);
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Preparation %s", preparationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Preparation {}", preparationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -313,8 +314,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         newSubEnvs.add(
             subEnv.getDependenciesCount() == 0
                 ? subEnv
-                : subEnv
-                    .toBuilder()
+                : subEnv.toBuilder()
                     .clearDependencies()
                     .addAllDependencies(resolvedDependencies.get(i + ":" + entry.getKey()))
                     .build());
@@ -363,9 +363,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -385,9 +383,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -406,9 +402,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -432,9 +426,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -472,9 +464,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      String errMessage =
-          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
-      LOG.error(errMessage, e);
+      LOG.error("Encountered Unexpected Exception for Invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -498,7 +488,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
-      LOG.error(String.format("Encountered exception for job invocation %s", invocationId), e);
+      LOG.error("Encountered exception for job invocation {}", invocationId, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
     LOG.info("Finished getting job metrics for {}", invocationId);

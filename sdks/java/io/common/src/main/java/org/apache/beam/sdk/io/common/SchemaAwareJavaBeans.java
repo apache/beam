@@ -40,12 +40,12 @@ public class SchemaAwareJavaBeans {
 
   /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
   public static AllPrimitiveDataTypes allPrimitiveDataTypes(
-      Boolean aBoolean,
+      boolean aBoolean,
       BigDecimal aDecimal,
-      Double aDouble,
-      Float aFloat,
-      Integer anInteger,
-      Long aLong,
+      double aDouble,
+      float aFloat,
+      int anInteger,
+      long aLong,
       String aString) {
     return new AutoValue_SchemaAwareJavaBeans_AllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
@@ -85,7 +85,7 @@ public class SchemaAwareJavaBeans {
   }
 
   /** Convenience method for {@link ByteType} instantiation. */
-  public static ByteType byteType(Byte aByte, List<Byte> byteList) {
+  public static ByteType byteType(byte aByte, List<Byte> byteList) {
     return new AutoValue_SchemaAwareJavaBeans_ByteType.Builder()
         .setByte(aByte)
         .setByteList(byteList)
@@ -329,17 +329,17 @@ public class SchemaAwareJavaBeans {
   @AutoValue
   public abstract static class AllPrimitiveDataTypes implements Serializable {
 
-    public abstract Boolean getABoolean();
+    public abstract boolean getABoolean();
 
     public abstract BigDecimal getADecimal();
 
-    public abstract Double getADouble();
+    public abstract double getADouble();
 
-    public abstract Float getAFloat();
+    public abstract float getAFloat();
 
-    public abstract Integer getAnInteger();
+    public abstract int getAnInteger();
 
-    public abstract Long getALong();
+    public abstract long getALong();
 
     public abstract String getAString();
 
@@ -348,17 +348,17 @@ public class SchemaAwareJavaBeans {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setABoolean(Boolean value);
+      public abstract Builder setABoolean(boolean value);
 
       public abstract Builder setADecimal(BigDecimal value);
 
-      public abstract Builder setADouble(Double value);
+      public abstract Builder setADouble(double value);
 
-      public abstract Builder setAFloat(Float value);
+      public abstract Builder setAFloat(float value);
 
-      public abstract Builder setAnInteger(Integer value);
+      public abstract Builder setAnInteger(int value);
 
-      public abstract Builder setALong(Long value);
+      public abstract Builder setALong(long value);
 
       public abstract Builder setAString(String value);
 
@@ -448,7 +448,7 @@ public class SchemaAwareJavaBeans {
   @AutoValue
   public abstract static class ByteType {
 
-    public abstract Byte getByte();
+    public abstract byte getByte();
 
     public abstract List<Byte> getByteList();
 
@@ -457,7 +457,7 @@ public class SchemaAwareJavaBeans {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setByte(Byte value);
+      public abstract Builder setByte(byte value);
 
       public abstract Builder setByteList(List<Byte> value);
 

@@ -159,7 +159,7 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	// could have used numericID keys, if there was no transaction:
 	// incomplete keys are resolved after Tx commit, and
 	// we need to reference them in child nodes
-	var groupId int = 0
+	groupId := 0
 	genGroupKey := func(parentKey *datastore.Key) *datastore.Key {
 		groupId++
 		return datastoreKey(TbLearningNodeKind,
@@ -181,13 +181,14 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 	}
 
 	saveNode = func(node tob.Node, order, level int, parentKey *datastore.Key) error {
-		if node.Type == tob.NODE_UNIT {
+		switch node.Type {
+		case tob.NODE_UNIT:
 			return saveUnit(node.Unit, order, level, parentKey)
-		} else if node.Type == tob.NODE_GROUP {
+		case tob.NODE_GROUP:
 			return saveGroup(node.Group, order, level, parentKey)
+		default:
+			return fmt.Errorf("unknown datastore node type: %v", node.Type)
 		}
-
-		return fmt.Errorf("unknown datastore node type: %v", node.Type)
 	}
 
 	rootKey := pgNameKey(TbLearningPathKind, tree.Sdk.StorageID(), nil)

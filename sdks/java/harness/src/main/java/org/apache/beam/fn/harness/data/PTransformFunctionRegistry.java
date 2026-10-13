@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
@@ -53,6 +54,12 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
  * // Note: this is used in ProcessBundleHandler.
  * </pre>
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class PTransformFunctionRegistry {
 
   private final ExecutionStateTracker stateTracker;
@@ -119,8 +126,8 @@ public class PTransformFunctionRegistry {
   }
 
   /**
-   * @return A list of wrapper functions which will invoke the registered functions indirectly. The
-   *     order of registry is maintained.
+   * Returns a list of wrapper functions which will invoke the registered functions indirectly. The
+   * order of registry is maintained.
    */
   public List<ThrowingRunnable> getFunctions() {
     return runnables;

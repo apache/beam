@@ -32,7 +32,7 @@ V = t.TypeVar("V")
 
 @dataclasses.dataclass
 class _Create(beam.PTransform):
-  values: t.Tuple[t.Any]
+  values: tuple[t.Any]
 
   def expand(self, input_or_inputs):
     return beam.pvalue.PCollection.from_(input_or_inputs)
@@ -56,8 +56,8 @@ class _Read(beam.PTransform):
     return beam.pvalue.PCollection.from_(input_or_inputs)
 
 
-@typehints.with_input_types(t.Tuple[K, V])
-@typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, t.Iterable[V]])
 class _GroupByKeyOnly(beam.PTransform):
   def expand(self, input_or_inputs):
     return beam.pvalue.PCollection.from_(input_or_inputs)
@@ -70,8 +70,8 @@ class _GroupByKeyOnly(beam.PTransform):
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
 
-@typehints.with_input_types(t.Tuple[K, t.Iterable[V]])
-@typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
+@typehints.with_input_types(tuple[K, t.Iterable[V]])
+@typehints.with_output_types(tuple[K, t.Iterable[V]])
 class _GroupAlsoByWindow(beam.ParDo):
   def __init__(self, windowing):
     super().__init__(_GroupAlsoByWindowDoFn(windowing))
@@ -81,8 +81,8 @@ class _GroupAlsoByWindow(beam.ParDo):
     return beam.pvalue.PCollection.from_(input_or_inputs)
 
 
-@typehints.with_input_types(t.Tuple[K, V])
-@typehints.with_output_types(t.Tuple[K, t.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, t.Iterable[V]])
 class _GroupByKey(beam.PTransform):
   def expand(self, input_or_inputs):
     return (
@@ -105,7 +105,7 @@ class _Flatten(beam.PTransform):
     return beam.pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
 
-def dask_overrides() -> t.List[PTransformOverride]:
+def dask_overrides() -> list[PTransformOverride]:
   class CreateOverride(PTransformOverride):
     def matches(self, applied_ptransform: AppliedPTransform) -> bool:
       return applied_ptransform.transform.__class__ == beam.Create

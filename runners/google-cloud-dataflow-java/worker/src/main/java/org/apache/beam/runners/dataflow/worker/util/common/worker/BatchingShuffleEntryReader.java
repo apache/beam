@@ -60,6 +60,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
 
     /** The most recently read batch. */
     ShuffleBatchReader.@Nullable Batch currentBatch;
+
     /** An iterator over the most recently read batch. */
     private @Nullable ListIterator<ShuffleEntry> entries;
 
@@ -129,7 +130,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
         nextStartPosition = batch.nextStartPosition;
         entries = batch.entries.listIterator();
         currentBatch = batch;
-      } catch (RuntimeException e) {
+      } catch (RuntimeException | OutOfMemoryError e) {
         throw e;
       } catch (Throwable t) {
         throw new RuntimeException(t);

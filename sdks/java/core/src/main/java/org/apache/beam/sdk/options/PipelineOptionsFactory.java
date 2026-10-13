@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -133,8 +133,8 @@ import org.slf4j.LoggerFactory;
  *       registered with this factory.
  * </ul>
  *
- * <p>See the <a
- * href="http://www.oracle.com/technetwork/java/javase/documentation/spec-136004.html">JavaBeans
+ * <p>See the <a href=
+ * "http://www.oracle.com/technetwork/java/javase/documentation/spec-136004.html">JavaBeans
  * specification</a> for more details as to what constitutes a property.
  */
 @SuppressWarnings({
@@ -277,7 +277,7 @@ public class PipelineOptionsFactory {
      * PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String... args) {
-      checkNotNull(args, "Arguments should not be null.");
+      checkArgumentNotNull(args, "Arguments should not be null.");
       return new Builder(args, validation, strictParsing, true);
     }
 
@@ -338,7 +338,8 @@ public class PipelineOptionsFactory {
         appNameOptions.setAppName(defaultAppName);
       }
 
-      // Ensure the options id has been populated either by the user using the command line
+      // Ensure the options id has been populated either by the user using the command
+      // line
       // or by the default value factory.
       t.getOptionsId();
 
@@ -433,7 +434,8 @@ public class PipelineOptionsFactory {
         break;
       }
     }
-    // Then find the first instance after that is not the PipelineOptionsFactory/Builder class.
+    // Then find the first instance after that is not the
+    // PipelineOptionsFactory/Builder class.
     while (elements.hasNext()) {
       StackTraceElement next = elements.next();
       if (!PIPELINE_OPTIONS_FACTORY_CLASSES.contains(next.getClassName())) {
@@ -499,13 +501,6 @@ public class PipelineOptionsFactory {
   static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-
-  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
-      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
-          .createInstance(
-              MAPPER.getDeserializationConfig(),
-              new TokenBuffer(MAPPER, false).asParser(),
-              new InjectableValues.Std());
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
@@ -587,7 +582,7 @@ public class PipelineOptionsFactory {
    * window.
    */
   public static void printHelp(PrintStream out) {
-    checkNotNull(out);
+    checkArgumentNotNull(out);
     out.println("The set of registered options are:");
     Set<Class<? extends PipelineOptions>> sortedOptions =
         new TreeSet<>(ClassNameComparator.INSTANCE);
@@ -622,8 +617,8 @@ public class PipelineOptionsFactory {
    * This method will attempt to format its output to be compatible with a terminal window.
    */
   public static void printHelp(PrintStream out, Class<? extends PipelineOptions> iface) {
-    checkNotNull(out);
-    checkNotNull(iface);
+    checkArgumentNotNull(out);
+    checkArgumentNotNull(iface);
     CACHE.get().validateWellFormed(iface);
 
     Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface, true);
@@ -697,7 +692,7 @@ public class PipelineOptionsFactory {
    */
   public static List<PipelineOptionDescriptor> describe(
       Set<Class<? extends PipelineOptions>> ifaces) {
-    checkNotNull(ifaces);
+    checkArgumentNotNull(ifaces);
     List<PipelineOptionDescriptor> result = new ArrayList<>();
     Set<Method> seenMethods = Sets.newHashSet();
 
@@ -869,7 +864,8 @@ public class PipelineOptionsFactory {
     List<TypeMismatch> mismatches = new ArrayList<>();
     Set<String> usedDescriptors = Sets.newHashSet();
     /*
-     * Add all the getter/setter pairs to the list of descriptors removing the getter once
+     * Add all the getter/setter pairs to the list of descriptors removing the
+     * getter once
      * it has been paired up.
      */
     for (Method method : methods) {
@@ -995,7 +991,8 @@ public class PipelineOptionsFactory {
             + "PipelineOptions proxy class to implement all of the interfaces.",
         iface.getName());
 
-    // Verify that there are no methods with the same name with two different return types.
+    // Verify that there are no methods with the same name with two different return
+    // types.
     validateReturnType(iface);
 
     SortedSet<Method> allInterfaceMethods =
@@ -1098,7 +1095,8 @@ public class PipelineOptionsFactory {
     validateGettersHaveConsistentAnnotation(
         methodNameToAllMethodMap, descriptors, AnnotationPredicates.JSON_SERIALIZE);
 
-    // Verify that if a method has either @JsonSerialize or @JsonDeserialize then it has both.
+    // Verify that if a method has either @JsonSerialize or @JsonDeserialize then it
+    // has both.
     validateMethodsHaveBothJsonSerializeAndDeserialize(descriptors);
 
     // Verify that no setter has @JsonIgnore.
@@ -1280,7 +1278,8 @@ public class PipelineOptionsFactory {
       knownMethodsNames.add(method.getName());
     }
 
-    // Verify that no additional methods are on an interface that aren't a bean property.
+    // Verify that no additional methods are on an interface that aren't a bean
+    // property.
     // Because methods can have multiple declarations, we do a name-based comparison
     // here to prevent false positives.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
@@ -1727,7 +1726,12 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
-      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.copy();
+      // Initialize a new context that is properly associated with a dummy parser.
+      // Using copy() here would leave the context's transient parser field as null,
+      // causing NullPointerExceptions in Jackson 2.14+ when deserializers try to
+      // query the parser for format constraints or coercion validations.
+      JsonParser dummyParser = new TokenBuffer(MAPPER, false).asParser();
+      DefaultDeserializationContext context = createDeserializationContext(dummyParser);
       Object maybeDeserializerClass =
           context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
@@ -1748,6 +1752,11 @@ public class PipelineOptionsFactory {
     } catch (JsonMappingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static DefaultDeserializationContext createDeserializationContext(JsonParser parser) {
+    return ((DefaultDeserializationContext) MAPPER.getDeserializationContext())
+        .createInstance(MAPPER.getDeserializationConfig(), parser, new InjectableValues.Std());
   }
 
   private static Optional<JsonSerializer<Object>> computeCustomSerializerForMethod(Method method) {
@@ -1799,7 +1808,12 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
+    // Create a fresh context that is correctly associated with the active parser.
+    // Using copy() here would leave the context's transient parser field as null,
+    // causing NullPointerExceptions in Jackson 2.14+ deserializers during coercion
+    // validations and length checks.
+    DefaultDeserializationContext context = createDeserializationContext(parser);
+    return jsonDeserializer.deserialize(parser, context);
   }
 
   /**
@@ -1823,7 +1837,8 @@ public class PipelineOptionsFactory {
         try {
           tree = MAPPER.readTree("\"" + value + "\"");
         } catch (JsonParseException inner) {
-          // rethrow the original exception rather the one thrown from the fallback attempt
+          // rethrow the original exception rather the one thrown from the fallback
+          // attempt
           throw e;
         }
       } else {
@@ -1891,7 +1906,8 @@ public class PipelineOptionsFactory {
           }
         }
         Method method = propertyNamesToGetters.get(entry.getKey());
-        // Only allow empty argument values for String, String Array, and Collection<String>.
+        // Only allow empty argument values for String, String Array, and
+        // Collection<String>.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
 
@@ -2089,7 +2105,7 @@ public class PipelineOptionsFactory {
     }
 
     private synchronized void register(Class<? extends PipelineOptions> iface) {
-      checkNotNull(iface);
+      checkArgumentNotNull(iface);
       checkArgument(iface.isInterface(), "Only interface types are supported.");
 
       if (registeredOptions.contains(iface)) {
@@ -2144,7 +2160,8 @@ public class PipelineOptionsFactory {
         Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
       checkArgument(iface.isInterface(), "Only interface types are supported.");
 
-      // Validate that every inherited interface must extend PipelineOptions except for
+      // Validate that every inherited interface must extend PipelineOptions except
+      // for
       // PipelineOptions itself.
       validateInheritedInterfacesExtendPipelineOptions(iface);
 
@@ -2152,7 +2169,8 @@ public class PipelineOptionsFactory {
       Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
           Stream.concat(validatedPipelineOptionsInterfaces.stream(), Stream.of(iface))
               .collect(Collectors.toSet());
-      // Validate that the view of all currently passed in options classes is well formed.
+      // Validate that the view of all currently passed in options classes is well
+      // formed.
       if (!combinedCache.containsKey(combinedPipelineOptionsInterfaces)) {
         final Class<?>[] interfaces = combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY);
         @SuppressWarnings("unchecked")

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.fromTableSchema;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -53,6 +54,12 @@ import org.slf4j.LoggerFactory;
   "argument",
   "return"
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SchemasUtils {
 
   /* Logger for class.*/
@@ -73,7 +80,7 @@ public class SchemasUtils {
       byte[] encoded = Files.readAllBytes(Paths.get(path));
       parseJson(new String(encoded, encoding));
     }
-    LOG.info("Extracted schema: " + bigQuerySchema.toPrettyString());
+    LOG.info("Extracted schema: {}", bigQuerySchema.toPrettyString());
   }
 
   public TableSchema getBigQuerySchema() {
@@ -132,7 +139,6 @@ public class SchemasUtils {
    *
    * @param filePath path to file in GCS
    * @return contents of the file as a string
-   * @throws IOException thrown if not able to read file
    */
   public static String getGcsFileAsString(String filePath) {
     MatchResult result;
@@ -156,7 +162,7 @@ public class SchemasUtils {
       return CharStreams.toString(reader);
 
     } catch (IOException ioe) {
-      LOG.error("File system i/o error: " + ioe.getMessage());
+      LOG.error("File system i/o error", ioe);
       throw new RuntimeException(ioe);
     }
   }

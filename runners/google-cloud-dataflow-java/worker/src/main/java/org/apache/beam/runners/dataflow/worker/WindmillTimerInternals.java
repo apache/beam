@@ -60,13 +60,26 @@ class WindmillTimerInternals implements TimerInternals {
   private final Watermarks watermarks;
   private final Instant processingTime;
   private final String stateFamily;
-  private final WindmillNamespacePrefix prefix;
+  private final WindmillTimerType type;
   private final Consumer<TimerData> onTimerModified;
   private final WindmillTagEncoding windmillTagEncoding;
 
+  private boolean poisoned = false;
+
+  public void poison() {
+    this.poisoned = true;
+  }
+
+  private void checkNotPoisoned() {
+    if (poisoned) {
+      throw new IllegalStateException(
+          "WindmillTimerInternals is poisoned and cannot be used after flushState().");
+    }
+  }
+
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
-      WindmillNamespacePrefix prefix, // partitions user and system namespaces into "/u" and "/s"
+      WindmillTimerType type,
       Instant processingTime,
       Watermarks watermarks,
       WindmillTagEncoding windmillTagEncoding,
@@ -74,18 +87,20 @@ class WindmillTimerInternals implements TimerInternals {
     this.watermarks = watermarks;
     this.processingTime = checkNotNull(processingTime);
     this.stateFamily = stateFamily;
-    this.prefix = prefix;
+    this.type = type;
     this.windmillTagEncoding = windmillTagEncoding;
     this.onTimerModified = onTimerModified;
   }
 
-  public WindmillTimerInternals withPrefix(WindmillNamespacePrefix prefix) {
+  public WindmillTimerInternals withType(WindmillTimerType type) {
+    checkNotPoisoned();
     return new WindmillTimerInternals(
-        stateFamily, prefix, processingTime, watermarks, windmillTagEncoding, onTimerModified);
+        stateFamily, type, processingTime, watermarks, windmillTagEncoding, onTimerModified);
   }
 
   @Override
   public void setTimer(TimerData timerKey) {
+    checkNotPoisoned();
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
     timerMap.put(
         new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
@@ -101,6 +116,7 @@ class WindmillTimerInternals implements TimerInternals {
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
+    checkNotPoisoned();
     TimerData timer =
         TimerData.of(
             timerId,
@@ -124,6 +140,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(TimerData timerKey) {
+    checkNotPoisoned();
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
     timerMap.put(
         new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
@@ -139,6 +156,7 @@ class WindmillTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    checkNotPoisoned();
     deleteTimer(
         TimerData.of(
             timerId,
@@ -152,12 +170,14 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public Instant currentProcessingTime() {
+    checkNotPoisoned();
     Instant now = Instant.now();
     return processingTime.isAfter(now) ? processingTime : now;
   }
 
   @Override
   public @Nullable Instant currentSynchronizedProcessingTime() {
+    checkNotPoisoned();
     return watermarks.synchronizedProcessingTime();
   }
 
@@ -172,6 +192,7 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public Instant currentInputWatermarkTime() {
+    checkNotPoisoned();
     return watermarks.inputDataWatermark();
   }
 
@@ -186,10 +207,12 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public @Nullable Instant currentOutputWatermarkTime() {
+    checkNotPoisoned();
     return watermarks.outputDataWatermark();
   }
 
   public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+    checkNotPoisoned();
     for (Entry<TimerData, Boolean> value : timerMap.values()) {
       // Regardless of whether it is set or not, it must have some TimerData stored so we
       // can know its time domain
@@ -197,7 +220,7 @@ class WindmillTimerInternals implements TimerInternals {
 
       Timer.Builder timer =
           windmillTagEncoding.buildWindmillTimerFromTimerData(
-              stateFamily, prefix, timerData, outputBuilder.addOutputTimersBuilder());
+              stateFamily, type, timerData, outputBuilder.addOutputTimersBuilder());
 
       if (value.getValue()) {
         // Setting the timer. If it is a user timer, set a hold.
@@ -210,7 +233,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Setting a timer, clear any prior hold and set to the new value
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
+                .setTag(windmillTagEncoding.timerHoldTag(type, timerData, timer.getTag()))
                 .setStateFamily(stateFamily)
                 .setReset(true)
                 .addTimestamps(
@@ -219,7 +242,7 @@ class WindmillTimerInternals implements TimerInternals {
             // Clear the hold in case a previous iteration of this timer set one.
             outputBuilder
                 .addWatermarkHoldsBuilder()
-                .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
+                .setTag(windmillTagEncoding.timerHoldTag(type, timerData, timer.getTag()))
                 .setStateFamily(stateFamily)
                 .setReset(true);
           }
@@ -234,7 +257,7 @@ class WindmillTimerInternals implements TimerInternals {
           // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
-              .setTag(windmillTagEncoding.timerHoldTag(prefix, timerData, timer.getTag()))
+              .setTag(windmillTagEncoding.timerHoldTag(type, timerData, timer.getTag()))
               .setStateFamily(stateFamily)
               .setReset(true);
         }
@@ -247,15 +270,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   private boolean needsWatermarkHold(TimerData timerData) {
     // If it is a user timer or a system timer with outputTimestamp different than timestamp
-    return WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)
+    return WindmillTimerType.USER_TIMER.equals(type)
         || !timerData.getTimestamp().isEqual(timerData.getOutputTimestamp());
-  }
-
-  public static boolean isSystemTimer(Windmill.Timer timer) {
-    return timer.getTag().startsWith(WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX.byteString());
-  }
-
-  public static boolean isUserTimer(Windmill.Timer timer) {
-    return timer.getTag().startsWith(WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.byteString());
   }
 }

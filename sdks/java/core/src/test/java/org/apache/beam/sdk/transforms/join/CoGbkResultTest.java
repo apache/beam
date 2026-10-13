@@ -207,7 +207,7 @@ public class CoGbkResultTest {
     for (int trial = 0; trial < 10; trial++) {
       // Populate this with a constant to reproduce failures.
       int seed = (int) (Integer.MAX_VALUE * Math.random());
-      LOG.info("Running " + Arrays.toString(tagSizes) + " with seed " + seed);
+      LOG.info("Running {} with seed {}", Arrays.toString(tagSizes), seed);
       Random random = new Random(seed);
       List<Integer> tags = new ArrayList<>();
       for (int tagNum = 0; tagNum < tagSizes.length; tagNum++) {

@@ -129,7 +129,6 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
    *                 .<String, String>via(word -> 1 / word.length)  // Could throw ArithmeticException
    *                 .exceptionsVia(
    *                     new InferableFunction<ExceptionElement<KV<String, String>>, String>() {
-   *                       @Override
    *                       public String apply(ExceptionElement<KV<String, String>> input) {
    *                         return input.exception().getMessage();
    *                       }

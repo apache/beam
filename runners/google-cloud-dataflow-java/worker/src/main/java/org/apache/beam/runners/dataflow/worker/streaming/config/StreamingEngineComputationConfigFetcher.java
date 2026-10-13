@@ -171,7 +171,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       ImmutableSet<HostAndPort> endpoints =
           StreamSupport.stream(
                   Splitter.on(',').split(config.getWindmillServiceEndpoint()).spliterator(),
-                  /* isParallel= */ false)
+                  /* parallel= */ false)
               .map(endpoint -> HostAndPort.fromString(endpoint).withDefaultPort(windmillPort))
               .collect(toImmutableSet());
 
@@ -181,7 +181,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     if (config.getMaxWorkItemCommitBytes() != null
         && config.getMaxWorkItemCommitBytes() > 0
         && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
-      operationalLimits.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      operationalLimits.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes());
     }
 
     if (config.getOperationalLimits() != null) {

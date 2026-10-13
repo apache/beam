@@ -21,11 +21,8 @@ import json
 import random
 import unittest
 import uuid
-from typing import Dict
-from typing import List
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -373,7 +370,7 @@ class AssertEqualAndRecord(beam.PTransform):
   def expand(self, pcoll):
     # Convert elements to rows outside the matcher to avoid capturing
     # any grpc channels that might be created during the conversion
-    expected_rows = yaml_provider.dicts_to_rows(self._elements)
+    expected_rows = [yaml_provider.to_dict(e) for e in self._elements]
     recording_id = self._recording_id
 
     # Create a serializable matcher function that doesn't capture
@@ -395,8 +392,7 @@ class AssertEqualAndRecord(beam.PTransform):
             raise
 
     matcher = SerializableMatcher(expected_rows, recording_id)
-    return assert_that(
-        pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
+    return assert_that(pcoll | beam.Map(yaml_provider.to_dict), matcher)
 
 
 def create_test(
@@ -539,11 +535,11 @@ K1 = TypeVar('K1')
 K2 = TypeVar('K2')
 V = TypeVar('V')
 
-InputsType = Dict[str, Union[str, List[str]]]
+InputsType = dict[str, Union[str, list[str]]]
 
 
 def _composite_key_to_nested(
-    d: Mapping[Tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
+    d: Mapping[tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
   nested = collections.defaultdict(dict)
   for (k1, k2), v in d.items():
     nested[k1][k2] = v
@@ -551,10 +547,7 @@ def _composite_key_to_nested(
 
 
 def _try_row_as_dict(row):
-  try:
-    return row._asdict()
-  except AttributeError:
-    return row
+  return yaml_provider.to_dict(row)
 
 
 # Linter: No need for unittest.main here.

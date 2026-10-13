@@ -135,7 +135,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
   private static final CloudObject windowedStringCoder =
       CloudObjects.asCloudObject(
-          WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()), /*sdkComponents=*/ null);
+          WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()), /* sdkComponents= */ null);
 
   private IntrinsicMapTaskExecutorFactory mapTaskExecutorFactory;
   private PipelineOptions options;
@@ -330,7 +330,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -535,7 +536,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             ExecutionLocation.UNKNOWN);
 
     Node outputReceiverNode =
-        IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+        IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet, false)
             .apply(
                 InstructionOutputNode.create(
                     instructionNode.getParallelInstruction().getOutputs().get(0), PCOLLECTION_ID));
@@ -581,14 +582,14 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             FullWindowedValueCoder.of(
                 KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()),
                 IntervalWindowCoder.of()),
-            /*sdkComponents=*/ null));
+            /* sdkComponents= */ null));
 
     InstructionOutput output = new InstructionOutput();
     output.setName("pgbk_output_name");
     output.setCodec(
         CloudObjects.asCloudObject(
             KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
-            /*sdkComponents=*/ null));
+            /* sdkComponents= */ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -614,7 +615,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -669,7 +671,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -721,7 +724,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     InstructionOutput output = new InstructionOutput();
     output.setName("flatten_output_name");
-    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
+    output.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /* sdkComponents= */ null));
     output.setOriginalName("originalName");
     output.setSystemName("systemName");
 
@@ -750,7 +753,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),

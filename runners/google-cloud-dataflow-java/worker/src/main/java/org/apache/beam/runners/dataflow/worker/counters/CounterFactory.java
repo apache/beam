@@ -226,7 +226,7 @@ public class CounterFactory {
       long count = this.getCount() + 1;
       long sum = this.getSum() + value;
       // TODO: Replace sum-of-squares with statistics for a better stddev algorithm.
-      double sumOfSquares = this.getSumOfSquares() + Math.pow(value, 2);
+      double sumOfSquares = this.getSumOfSquares() + Math.pow((double) value, 2);
 
       int bucketIndex = calculateBucket(value);
       List<Long> buckets = incrementBucket(bucketIndex);

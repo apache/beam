@@ -63,6 +63,7 @@ abstract class ProcessorDoFn<
   private final long maxNumberOfResultsToProduce;
 
   protected @Nullable Long numberOfResultsBeforeBundleStart = 0L;
+  protected @Nullable Long numberOfDuplicatesBeforeBundleStart = 0L;
 
   ProcessorDoFn(
       EventExaminer<EventT, StateT> eventExaminer,
@@ -85,15 +86,17 @@ abstract class ProcessorDoFn<
   @StartBundle
   public void onBundleStart() {
     numberOfResultsBeforeBundleStart = null;
+    numberOfDuplicatesBeforeBundleStart = null;
   }
 
   @FinishBundle
   public void onBundleFinish() {
     // This might be necessary because this field is also used in a Timer
     numberOfResultsBeforeBundleStart = null;
+    numberOfDuplicatesBeforeBundleStart = null;
   }
 
-  /** @return true if each event needs to be examined. */
+  /** Returns true if each event needs to be examined. */
   abstract boolean checkForFirstOrLastEvent();
 
   /**
@@ -245,7 +248,7 @@ abstract class ProcessorDoFn<
       MultiOutputReceiver outputReceiver,
       Instant statusTimestamp) {
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Emitting status for: " + processingState.getKey() + ", " + processingState);
+      LOG.trace("Emitting status for: {}, {}", processingState.getKey(), processingState);
     }
     outputReceiver
         .get(statusTupleTag)
@@ -267,16 +270,19 @@ abstract class ProcessorDoFn<
 
   protected boolean reachedMaxResultCountForBundle(
       ProcessingState<EventKeyT> processingState, Timer largeBatchEmissionTimer) {
-    boolean exceeded =
+    long resultsEmitted =
         processingState.resultsProducedInBundle(
-                numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart)
-            >= maxNumberOfResultsToProduce;
+            numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart);
+    long duplicatesEmitted =
+        processingState.duplicatesProducedInBundle(
+            numberOfDuplicatesBeforeBundleStart == null ? 0 : numberOfDuplicatesBeforeBundleStart);
+
+    boolean exceeded = (resultsEmitted + duplicatesEmitted) >= maxNumberOfResultsToProduce;
     if (exceeded) {
       if (LOG.isTraceEnabled()) {
         LOG.trace(
-            "Setting the timer to output next batch of events for key '"
-                + processingState.getKey()
-                + "'");
+            "Setting the timer to output next batch of events for key '{}'",
+            processingState.getKey());
       }
       // See GroupIntoBatches for examples on how to hold the timestamp.
       // TODO: test that on draining the pipeline all the results are still produced correctly.
@@ -355,9 +361,10 @@ abstract class ProcessorDoFn<
                             beforeInitialSequence
                                 ? Reason.before_initial_sequence
                                 : Reason.duplicate))));
-        // TODO: When there is a large number of duplicates this can cause a situation where
-        // we produce too much output and the runner will start throwing unrecoverable errors.
-        // Need to add counting logic to accumulate both the normal and DLQ outputs.
+        if (reachedMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
+          endClearRange = fromLong(eventSequence + 1);
+          break;
+        }
         continue;
       }
 
@@ -388,12 +395,12 @@ abstract class ProcessorDoFn<
       try {
         if (state == null) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Creating a new state: " + processingState.getKey() + " " + bufferedEvent);
+            LOG.trace("Creating a new state: {} {}", processingState.getKey(), bufferedEvent);
           }
           state = eventExaminer.createStateOnInitialEvent(bufferedEvent);
         } else {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Mutating " + processingState.getKey() + " " + bufferedEvent);
+            LOG.trace("Mutating {} {}", processingState.getKey(), bufferedEvent);
           }
           state.mutate(bufferedEvent);
         }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -40,9 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
@@ -362,26 +360,28 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   /** Handles verifying {@code STATE} at end of publish test. */
   private static void performFinalPublishStateChecks() {
     checkState(STATE.isActive, "No test still in flight");
+    Set<OutgoingMessage> remainingExpected =
+        checkStateNotNull(STATE.remainingExpectedOutgoingMessages);
     checkState(
-        STATE.remainingExpectedOutgoingMessages.isEmpty(),
+        remainingExpected.isEmpty(),
         "Still waiting for %s messages to be published",
-        STATE.remainingExpectedOutgoingMessages.size());
+        remainingExpected.size());
   }
 
   /** Handles verifying {@code STATE} at end of pull test. */
   private static void performFinalPullStateChecks() {
+    List<IncomingMessage> remainingPending =
+        checkStateNotNull(STATE.remainingPendingIncomingMessages);
+    Map<String, IncomingMessage> pendingAck = checkStateNotNull(STATE.pendingAckIncomingMessages);
+    Map<String, Long> ackDeadline = checkStateNotNull(STATE.ackDeadline);
     checkState(
-        STATE.remainingPendingIncomingMessages.isEmpty(),
+        remainingPending.isEmpty(),
         "Still waiting for %s messages to be pulled",
-        STATE.remainingPendingIncomingMessages.size());
+        remainingPending.size());
     checkState(
-        STATE.pendingAckIncomingMessages.isEmpty(),
-        "Still waiting for %s messages to be ACKed",
-        STATE.pendingAckIncomingMessages.size());
+        pendingAck.isEmpty(), "Still waiting for %s messages to be ACKed", pendingAck.size());
     checkState(
-        STATE.ackDeadline.isEmpty(),
-        "Still waiting for %s messages to be ACKed",
-        STATE.ackDeadline.size());
+        ackDeadline.isEmpty(), "Still waiting for %s messages to be ACKed", ackDeadline.size());
   }
 
   public static PubsubTestClientFactory createFactoryForCreateSubscription() {
@@ -445,13 +445,17 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   public void advance() {
     synchronized (STATE) {
       checkState(inPullMode(), "Can only advance in pull mode");
+      Clock clock = checkStateNotNull(STATE.clock);
+      Map<String, Long> ackDeadline = checkStateNotNull(STATE.ackDeadline);
+      Map<String, IncomingMessage> pendingAck = checkStateNotNull(STATE.pendingAckIncomingMessages);
+      List<IncomingMessage> remainingPending =
+          checkStateNotNull(STATE.remainingPendingIncomingMessages);
       // Any messages who's ACKs timed out are available for re-pulling.
-      Iterator<Map.Entry<String, Long>> deadlineItr = STATE.ackDeadline.entrySet().iterator();
+      Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
       while (deadlineItr.hasNext()) {
         Map.Entry<String, Long> entry = deadlineItr.next();
-        if (entry.getValue() <= STATE.clock.currentTimeMillis()) {
-          STATE.remainingPendingIncomingMessages.add(
-              STATE.pendingAckIncomingMessages.remove(entry.getKey()));
+        if (entry.getValue() <= clock.currentTimeMillis()) {
+          remainingPending.add(checkStateNotNull(pendingAck.remove(entry.getKey())));
           deadlineItr.remove();
         }
       }
@@ -465,14 +469,19 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     synchronized (STATE) {
       checkState(inPublishMode(), "Can only publish in publish mode");
-      boolean isDynamic = STATE.expectedTopic == null;
+      TopicPath expectedTopic = STATE.expectedTopic;
+      boolean isDynamic = expectedTopic == null;
       if (!isDynamic) {
         checkState(
-            topic.equals(STATE.expectedTopic),
+            topic.equals(expectedTopic),
             "Topic %s does not match expected %s",
             topic,
-            STATE.expectedTopic);
+            expectedTopic);
       }
+      Set<OutgoingMessage> remainingExpected =
+          checkStateNotNull(STATE.remainingExpectedOutgoingMessages);
+      Set<OutgoingMessage> remainingFailing =
+          checkStateNotNull(STATE.remainingFailingOutgoingMessages);
       @MonotonicNonNull String batchOrderingKey = null;
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
         if (batchOrderingKey == null) {
@@ -480,15 +489,15 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
         }
         checkState(outgoingMessage.getMessage().getOrderingKey().equals(batchOrderingKey));
         if (isDynamic) {
-          checkState(outgoingMessage.topic().equals(topic.getPath()));
+          checkState(topic.getPath().equals(outgoingMessage.topic()));
         } else {
           checkState(outgoingMessage.topic() == null);
         }
-        if (STATE.remainingFailingOutgoingMessages.remove(outgoingMessage)) {
+        if (remainingFailing.remove(outgoingMessage)) {
           throw new RuntimeException("Simulating failure for " + outgoingMessage);
         }
         checkState(
-            STATE.remainingExpectedOutgoingMessages.remove(outgoingMessage),
+            remainingExpected.remove(outgoingMessage),
             "Unexpected outgoing message %s",
             outgoingMessage);
       }
@@ -505,21 +514,27 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       throws IOException {
     synchronized (STATE) {
       checkState(inPullMode(), "Can only pull in pull mode");
-      long now = STATE.clock.currentTimeMillis();
+      Clock clock = checkStateNotNull(STATE.clock);
+      long now = clock.currentTimeMillis();
       checkState(
           requestTimeMsSinceEpoch == now,
           "Simulated time %s does not match request time %s",
           now,
           requestTimeMsSinceEpoch);
+      SubscriptionPath expectedSubscription = checkStateNotNull(STATE.expectedSubscription);
       checkState(
-          subscription.equals(STATE.expectedSubscription),
+          subscription.equals(expectedSubscription),
           "Subscription %s does not match expected %s",
           subscription,
-          STATE.expectedSubscription);
+          expectedSubscription);
       checkState(returnImmediately, "Pull only supported if returning immediately");
 
       List<IncomingMessage> incomingMessages = new ArrayList<>();
-      Iterator<IncomingMessage> pendItr = STATE.remainingPendingIncomingMessages.iterator();
+      List<IncomingMessage> remainingPending =
+          checkStateNotNull(STATE.remainingPendingIncomingMessages);
+      Map<String, IncomingMessage> pendingAck = checkStateNotNull(STATE.pendingAckIncomingMessages);
+      Map<String, Long> ackDeadline = checkStateNotNull(STATE.ackDeadline);
+      Iterator<IncomingMessage> pendItr = remainingPending.iterator();
       while (pendItr.hasNext()) {
         IncomingMessage incomingMessage = pendItr.next();
         pendItr.remove();
@@ -531,9 +546,8 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
                 incomingMessage.ackId(),
                 incomingMessage.recordId());
         incomingMessages.add(incomingMessageWithRequestTime);
-        STATE.pendingAckIncomingMessages.put(
-            incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
-        STATE.ackDeadline.put(
+        pendingAck.put(incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
+        ackDeadline.put(
             incomingMessageWithRequestTime.ackId(),
             requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000L);
         if (incomingMessages.size() >= batchSize) {
@@ -548,19 +562,22 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   public void acknowledge(SubscriptionPath subscription, List<String> ackIds) throws IOException {
     synchronized (STATE) {
       checkState(inPullMode(), "Can only acknowledge in pull mode");
+      SubscriptionPath expectedSubscription = checkStateNotNull(STATE.expectedSubscription);
       checkState(
-          subscription.equals(STATE.expectedSubscription),
+          subscription.equals(expectedSubscription),
           "Subscription %s does not match expected %s",
           subscription,
-          STATE.expectedSubscription);
+          expectedSubscription);
 
+      Map<String, Long> ackDeadline = checkStateNotNull(STATE.ackDeadline);
+      Map<String, IncomingMessage> pendingAck = checkStateNotNull(STATE.pendingAckIncomingMessages);
       for (String ackId : ackIds) {
         checkState(
-            STATE.ackDeadline.remove(ackId) != null,
+            ackDeadline.remove(ackId) != null,
             "No message with ACK id %s is waiting for an ACK",
             ackId);
         checkState(
-            STATE.pendingAckIncomingMessages.remove(ackId) != null,
+            pendingAck.remove(ackId) != null,
             "No message with ACK id %s is waiting for an ACK",
             ackId);
       }
@@ -572,31 +589,40 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
     synchronized (STATE) {
       checkState(inPullMode(), "Can only modify ack deadline in pull mode");
+      SubscriptionPath expectedSubscription = checkStateNotNull(STATE.expectedSubscription);
       checkState(
-          subscription.equals(STATE.expectedSubscription),
+          subscription.equals(expectedSubscription),
           "Subscription %s does not match expected %s",
           subscription,
-          STATE.expectedSubscription);
+          expectedSubscription);
 
+      Map<String, Long> ackDeadline = checkStateNotNull(STATE.ackDeadline);
+      Map<String, IncomingMessage> pendingAck = checkStateNotNull(STATE.pendingAckIncomingMessages);
+      Clock clock = checkStateNotNull(STATE.clock);
+      List<IncomingMessage> remainingPending =
+          checkStateNotNull(STATE.remainingPendingIncomingMessages);
       for (String ackId : ackIds) {
         if (deadlineSeconds > 0) {
           checkState(
-              STATE.ackDeadline.remove(ackId) != null,
+              ackDeadline.remove(ackId) != null,
               "No message with ACK id %s is waiting for an ACK",
               ackId);
           checkState(
-              STATE.pendingAckIncomingMessages.containsKey(ackId),
+              pendingAck.containsKey(ackId),
               "No message with ACK id %s is waiting for an ACK",
               ackId);
-          STATE.ackDeadline.put(ackId, STATE.clock.currentTimeMillis() + deadlineSeconds * 1000L);
+          ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000L);
         } else {
           checkState(
-              STATE.ackDeadline.remove(ackId) != null,
+              ackDeadline.remove(ackId) != null,
               "No message with ACK id %s is waiting for an ACK",
               ackId);
-          IncomingMessage message = STATE.pendingAckIncomingMessages.remove(ackId);
-          checkState(message != null, "No message with ACK id %s is waiting for an ACK", ackId);
-          STATE.remainingPendingIncomingMessages.add(message);
+          IncomingMessage message =
+              checkStateNotNull(
+                  pendingAck.remove(ackId),
+                  "No message with ACK id %s is waiting for an ACK",
+                  ackId);
+          remainingPending.add(message);
         }
       }
     }
@@ -656,7 +682,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   public boolean isEOF() {
     synchronized (STATE) {
       checkState(inPullMode(), "Can only check EOF in pull mode");
-      return STATE.remainingPendingIncomingMessages.isEmpty();
+      return checkStateNotNull(STATE.remainingPendingIncomingMessages).isEmpty();
     }
   }
 
@@ -674,12 +700,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   }
 
   @Override
-  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+  public @Nullable SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
     return STATE.expectedSchemaPath;
   }
 
   @Override
   public Schema getSchema(SchemaPath schemaPath) throws IOException {
-    return STATE.expectedSchema;
+    return checkStateNotNull(STATE.expectedSchema, "expectedSchema is not set");
   }
 }

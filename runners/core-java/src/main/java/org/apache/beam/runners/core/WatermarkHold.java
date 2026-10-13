@@ -466,6 +466,23 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     context.state().access(EXTRA_HOLD_TAG).clear();
   }
 
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Permit marking the watermark holds as empty locally, without necessarily clearing them in
+   * the backend.
+   */
+  public void setKnownEmpty(ReduceFn<?, ?, ?, W>.Context context) {
+    WindowTracing.debug(
+        "WatermarkHold.setKnownEmpty: For key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
+        context.key(),
+        context.window(),
+        timerInternals.currentInputWatermarkTime(),
+        timerInternals.currentOutputWatermarkTime());
+    context.state().access(elementHoldTag).setKnownEmpty();
+    context.state().access(EXTRA_HOLD_TAG).setKnownEmpty();
+  }
+
   /** Return the current data hold, or null if none. Does not clear. For debugging only. */
   public @Nullable Instant getDataCurrent(ReduceFn<?, ?, ?, W>.Context context) {
     return context.state().access(elementHoldTag).read();

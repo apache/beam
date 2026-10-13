@@ -86,7 +86,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         for the feature values.
       exception_level: a `enum.Enum` value from
         `apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel`
-        to set the level when an empty row is returned from the BigTable query.
+        to set the level when an empty row is returned from the Bigtable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
         `aiplatform.gapic.FeatureOnlineStoreServiceClient`.
@@ -229,7 +229,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         for the feature values.
       exception_level: a `enum.Enum` value from
         `apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel`
-        to set the level when an empty row is returned from the BigTable query.
+        to set the level when an empty row is returned from the Bigtable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
         `aiplatform.gapic.FeaturestoreOnlineServingServiceClient`.

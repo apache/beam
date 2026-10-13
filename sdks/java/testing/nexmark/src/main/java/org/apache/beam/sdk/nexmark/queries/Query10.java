@@ -72,12 +72,16 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   private static class OutputFile implements Serializable {
     /** Maximum possible timestamp of records in file. */
     private final Instant maxTimestamp;
+
     /** Shard within window. */
     private final String shard;
+
     /** Index of file in all files in shard. */
     private final long index;
+
     /** Timing of records in this file. */
     private final PaneInfo.Timing timing;
+
     /** Path to file containing records, or {@literal null} if no output required. */
     private final @Nullable String filename;
 
@@ -147,8 +151,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
 
   /** Construct an {@link OutputFile} for {@code pane} in {@code window} for {@code shard}. */
   private OutputFile outputFileFor(BoundedWindow window, String shard, PaneInfo paneInfo) {
-    @Nullable
-    String filename =
+    @Nullable String filename =
         outputPath == null
             ? null
             : String.format(
@@ -243,15 +246,14 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     }
                     String shard = c.element().getKey();
                     LOG.debug(
-                        String.format(
-                            "%s with timestamp %s has %d actually late and %d on-time "
-                                + "elements in pane %s for window %s",
-                            shard,
-                            c.timestamp(),
-                            numLate,
-                            numOnTime,
-                            c.pane(),
-                            window.maxTimestamp()));
+                        "{} with timestamp {} has {} actually late and {} on-time "
+                            + "elements in pane {} for window {}",
+                        shard,
+                        c.timestamp(),
+                        numLate,
+                        numOnTime,
+                        c.pane(),
+                        window.maxTimestamp());
                     if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
                       if (numLate == 0) {
                         LOG.error("ERROR! No late events in late pane for {}", shard);
@@ -292,9 +294,11 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
                     OutputFile outputFile = outputFileFor(window, shard, c.pane());
                     LOG.debug(
-                        String.format(
-                            "Writing %s with record timestamp %s, window timestamp %s, pane %s",
-                            shard, c.timestamp(), window.maxTimestamp(), c.pane()));
+                        "Writing {} with record timestamp {}, window timestamp {}, pane {}",
+                        shard,
+                        c.timestamp(),
+                        window.maxTimestamp(),
+                        c.pane());
                     if (outputFile.filename != null) {
                       LOG.info("Beginning write to '{}'", outputFile.filename);
                       int n = 0;

@@ -238,6 +238,7 @@ public class CsvIOParseTest {
                 "instant",
                 input ->
                     DateTimeFormat.forPattern("yyyy-MM-dd@HH:mm:ss")
+                        .withZoneUTC()
                         .parseDateTime(input)
                         .toInstant())
             .withCustomRecordParsing("instantList", instantListParsingLambda());
@@ -308,7 +309,10 @@ public class CsvIOParseTest {
       List<Instant> output = new ArrayList<>();
       for (String cell : cells) {
         output.add(
-            DateTimeFormat.forPattern("HH-mm-ss-yyyy-MM-dd").parseDateTime(cell).toInstant());
+            DateTimeFormat.forPattern("HH-mm-ss-yyyy-MM-dd")
+                .withZoneUTC()
+                .parseDateTime(cell)
+                .toInstant());
       }
       return output;
     };

@@ -336,10 +336,13 @@ class PubSubSubscriptionCleaner(StaleCleaner):
             for subscription in self.client.list_subscriptions(request={"project": self.project_path}):
                 subscription_name = subscription.name
                 # Apply prefix filtering if prefixes are defined
-                if not self.prefixes or any(subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes):
-                    # Check if the subscription has a topic associated with it
-                    if subscription.detached:
+                if subscription.detached:
                         d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
+                #Only attached subscriptions with the NYC taxi prefix are eligible.
+                elif any(
+                    subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes
+                ):
+                    d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
 
         return d
 
@@ -347,8 +350,7 @@ class PubSubSubscriptionCleaner(StaleCleaner):
         self.client = pubsub_v1.SubscriberClient()
         print(f"{self.clock()} - Deleting PubSub subscription {resource_name}")
         with self.client:
-            subscription_path = self.client.subscription_path(self.project_id, resource_name)
-            self.client.delete_subscription(request={"subscription": subscription_path})
+            self.client.delete_subscription(request={"subscription": resource_name})
 
 def clean_pubsub_topics():
     """ Clean up stale PubSub topics in the specified GCP project.
@@ -363,6 +365,7 @@ def clean_pubsub_topics():
     prefixes = [
         "psit_topic_input",
         "psit_topic_output",
+        "psit_topic_ordering",
         "wc_topic_input",
         "wc_topic_output",
         "leader_board_it_input_topic",
@@ -416,8 +419,16 @@ def clean_pubsub_subscriptions():
     project_id = DEFAULT_PROJECT_ID
     bucket_name = DEFAULT_BUCKET_NAME
 
-    # No prefixes are defined for subscriptions so we will delete all stale subscriptions
-    prefixes = []
+    # Restrict subscription cleanup to the NYC taxi prefix only.
+    prefixes = [
+        "taxirides-realtime_beam_",
+        "pubsub_io_performance",
+        "psit_sub_input",
+        "psit_sub_output",
+        "psit_sub_ordering",
+        "wc_subscription_input",
+        "wc_subscription_output",
+    ]
 
     # Create a PubSubSubscriptionCleaner instance
     cleaner = PubSubSubscriptionCleaner(project_id=project_id, bucket_name=bucket_name,
@@ -427,7 +438,7 @@ def clean_pubsub_subscriptions():
     cleaner.refresh()
 
     # Delete stale resources
-    cleaner.delete_stale(dry_run=True) # Keep dry_run=True to avoid accidental deletions during testing
+    cleaner.delete_stale(dry_run=False)
 
 if __name__ == "__main__":
     # Clean up stale PubSub topics

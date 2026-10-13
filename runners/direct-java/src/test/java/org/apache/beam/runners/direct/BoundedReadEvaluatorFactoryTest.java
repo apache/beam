@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.direct.BoundedReadEvaluatorFactory.BoundedSourceShard;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -306,7 +307,7 @@ public class BoundedReadEvaluatorFactoryTest {
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), containsInAnyOrder(gw(2L), gw(3L), gw(1L)));
-    assertThat(TestSource.readerClosed, is(true));
+    assertThat(TestSource.readerClosed.get(), is(true));
   }
 
   @Test
@@ -326,7 +327,7 @@ public class BoundedReadEvaluatorFactoryTest {
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), emptyIterable());
-    assertThat(TestSource.readerClosed, is(true));
+    assertThat(TestSource.readerClosed.get(), is(true));
   }
 
   @Test
@@ -336,7 +337,7 @@ public class BoundedReadEvaluatorFactoryTest {
   }
 
   private static class TestSource<T> extends OffsetBasedSource<T> {
-    private static boolean readerClosed;
+    private static final AtomicBoolean readerClosed = new AtomicBoolean(false);
     private final Coder<T> coder;
     private final T[] elems;
     private final int firstSplitIndex;
@@ -352,7 +353,7 @@ public class BoundedReadEvaluatorFactoryTest {
       this.elems = elems;
       this.coder = coder;
       this.firstSplitIndex = firstSplitIndex;
-      readerClosed = false;
+      readerClosed.set(false);
 
       subrangesCompleted = new CountDownLatch(2);
     }
@@ -449,7 +450,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     @Override
     public void close() throws IOException {
-      TestSource.readerClosed = true;
+      TestSource.readerClosed.set(true);
     }
   }
 

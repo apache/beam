@@ -754,6 +754,58 @@ class TestReadFromBigQuery(unittest.TestCase):
         Lineage.query(p.result.metrics(), Lineage.SOURCE),
         set(["bigquery:project.dataset.table"]))
 
+  @parameterized.expand([
+      # Tables without storage statistics (e.g. Lakehouse runtime catalog
+      # tables) let the Storage Read API pick the stream count.
+      param(num_bytes=None, expected_max_stream_count=0),
+      param(
+          num_bytes=5,
+          expected_max_stream_count=beam_bq._CustomBigQueryStorageSource.
+          MIN_SPLIT_COUNT),
+  ])
+  def test_direct_read_split_stream_count(
+      self, num_bytes, expected_max_stream_count):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()), \
+        mock.patch.object(bq_storage.BigQueryReadClient,
+                          'create_read_session') as mock_create_session:
+      mock_create_session.return_value = mock.Mock(streams=[])
+      source = beam_bq._CustomBigQueryStorageSource(
+          method=ReadFromBigQuery.Method.DIRECT_READ,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), num_bytes)
+      self.assertEqual(list(source.split(desired_bundle_size=1 << 20)), [])
+
+    _, kwargs = mock_create_session.call_args
+    self.assertEqual(kwargs['max_stream_count'], expected_max_stream_count)
+    self.assertEqual(
+        kwargs['read_session'].table,
+        'projects/project/datasets/catalog.namespace/tables/table')
+
+  @parameterized.expand([
+      # A table without storage statistics has an unknown size, not a size
+      # of zero.
+      param(num_bytes=None, expected_size=None),
+      param(num_bytes=5, expected_size=5),
+  ])
+  def test_export_estimate_size(self, num_bytes, expected_size):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()):
+      source = beam_bq._CustomBigQuerySource(
+          method=ReadFromBigQuery.Method.EXPORT,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), expected_size)
+
   def test_read_all_lineage(self):
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
@@ -776,6 +828,55 @@ class TestReadFromBigQuery(unittest.TestCase):
             'bigquery:project1.dataset1.table1',
             'bigquery:project2.dataset2.table2'
         ]))
+
+  def test_query_with_beam_row_requires_schema(self):
+    with self.assertRaisesRegex(ValueError, 'query_output_schema'):
+      ReadFromBigQuery(
+          query='SELECT id, name FROM dataset.table', output_type='BEAM_ROW')
+
+  def test_query_with_beam_row_and_schema_accepted(self):
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+            {
+                'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    transform = ReadFromBigQuery(
+        query='SELECT id, name FROM dataset.table',
+        output_type='BEAM_ROW',
+        query_output_schema=schema)
+    self.assertEqual(transform.query_output_schema, schema)
+
+  def test_expand_output_type_uses_query_schema(self):
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+            {
+                'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    transform = ReadFromBigQuery(
+        query='SELECT id, name FROM dataset.table',
+        output_type='BEAM_ROW',
+        query_output_schema=schema)
+
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                           'get_table') as mock_get_table, \
+         mock.patch('apache_beam.io.gcp.bigquery.bigquery_schema_tools'
+                    '.convert_to_usertype') as mock_convert:
+      mock_convert.return_value = beam.Map(lambda x: x)
+      fake_pcoll = mock.MagicMock()
+      transform._expand_output_type(fake_pcoll)
+
+    mock_get_table.assert_not_called()
+    mock_convert.assert_called_once_with(schema, None)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -979,7 +1080,10 @@ class TestWriteToBigQuery(unittest.TestCase):
     original = WriteToBigQuery(
         table=lambda _, side_input: side_input['table'],
         table_side_inputs=(table_record_pcv, ),
-        schema=schema)
+        schema=schema,
+        schema_update_options=[
+            beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+        ])
 
     # pylint: disable=expression-not-assigned
     p | beam.Create([]) | 'MyWriteToBigQuery' >> original
@@ -1021,6 +1125,145 @@ class TestWriteToBigQuery(unittest.TestCase):
         deserialized_side_input_data.window_mapping_fn)
     self.assertEqual(
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
+    self.assertEqual(
+        original.schema_update_options, deserialized.schema_update_options)
+
+  def test_schema_update_options_added_to_file_load_parameters(self):
+    additional_bq_parameters = {'timePartitioning': {'type': 'DAY'}}
+    schema_update_options = [
+        beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+    ]
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        additional_bq_parameters=additional_bq_parameters,
+        schema_update_options=schema_update_options)
+
+    self.assertEqual(['ALLOW_FIELD_ADDITION'], transform.schema_update_options)
+    self.assertIs(type(transform.schema_update_options[0]), str)
+    self.assertEqual({
+        'timePartitioning': {
+            'type': 'DAY'
+        },
+        'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION'],
+    },
+                     transform._additional_bq_parameters_for_file_loads())
+    self.assertNotIn('schemaUpdateOptions', additional_bq_parameters)
+
+  def test_schema_update_options_keeps_additional_bq_parameters_path(self):
+    additional_bq_parameters = {
+        'schemaUpdateOptions': [
+            beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+        ]
+    }
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        additional_bq_parameters=additional_bq_parameters)
+
+    self.assertEqual(
+        additional_bq_parameters,
+        transform._additional_bq_parameters_for_file_loads())
+
+  def test_schema_update_options_rejects_duplicate_configuration(self):
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        additional_bq_parameters={
+            'schemaUpdateOptions': [
+                beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION
+            ]
+        },
+        schema_update_options=[
+            beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+        ])
+
+    with self.assertRaisesRegex(ValueError, 'schemaUpdateOptions'):
+      transform._additional_bq_parameters_for_file_loads()
+
+  def test_schema_update_options_rejects_non_list(self):
+    schema_update_option = (
+        beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION)
+    with self.assertRaisesRegex(ValueError, 'must be a list'):
+      WriteToBigQuery(
+          table='dataset.table',
+          method=WriteToBigQuery.Method.FILE_LOADS,
+          schema_update_options=schema_update_option)
+
+  def test_schema_update_options_rejects_invalid_value(self):
+    with self.assertRaisesRegex(ValueError, 'Invalid schema update option'):
+      WriteToBigQuery(
+          table='dataset.table',
+          method=WriteToBigQuery.Method.FILE_LOADS,
+          schema_update_options=['INVALID_SCHEMA_UPDATE_OPTION'])
+
+  def test_schema_update_options_accepts_valid_string(self):
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        schema_update_options=['ALLOW_FIELD_RELAXATION'])
+
+    self.assertEqual(['ALLOW_FIELD_RELAXATION'],
+                     transform.schema_update_options)
+
+  def test_schema_update_options_with_callable_additional_bq_parameters(self):
+    schema_update_options = [
+        beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+    ]
+
+    def additional_bq_parameters(destination):
+      self.assertEqual('project:dataset.table', destination)
+      return {'clustering': {'fields': ['columnA']}}
+
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        additional_bq_parameters=additional_bq_parameters,
+        schema_update_options=schema_update_options)
+
+    additional_parameters = transform._additional_bq_parameters_for_file_loads()
+    self.assertEqual({
+        'clustering': {
+            'fields': ['columnA']
+        },
+        'schemaUpdateOptions': schema_update_options,
+    },
+                     additional_parameters('project:dataset.table'))
+
+  def test_schema_update_options_with_value_provider_parameters(self):
+    schema_update_options = [
+        beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+    ]
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        additional_bq_parameters=StaticValueProvider(
+            dict, {'timePartitioning': {
+                'type': 'DAY'
+            }}),
+        schema_update_options=schema_update_options)
+
+    additional_parameters = transform._additional_bq_parameters_for_file_loads()
+    self.assertEqual({
+        'timePartitioning': {
+            'type': 'DAY'
+        },
+        'schemaUpdateOptions': schema_update_options,
+    },
+                     additional_parameters('project:dataset.table'))
+
+  def test_schema_update_options_only_supported_for_file_loads(self):
+    p = TestPipeline()
+    pcoll = p | beam.Create([{'columnA': 'value'}])
+
+    with self.assertRaisesRegex(ValueError, 'FILE_LOADS'):
+      _ = pcoll | WriteToBigQuery(
+          table='dataset.table',
+          schema='columnA:STRING',
+          method=WriteToBigQuery.Method.STREAMING_INSERTS,
+          schema_update_options=[
+              beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
+          ])
 
   def test_streaming_triggering_frequency_without_auto_sharding(self):
     def noop(table, **kwargs):
@@ -1524,8 +1767,10 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     # Expecting 1 initial call plus maximum number of retries
     expected_call_count = 1 + bigquery_tools.MAX_RETRIES
 
+    # This relies on runner-specific mocking behavior which can be
+    # inconsistent on Prism.
     with self.assertRaises(Exception) as exc:
-      with beam.Pipeline() as p:
+      with beam.Pipeline('FnApiRunner') as p:
         _ = (
             p
             | beam.Create([{
@@ -2090,6 +2335,110 @@ def test_with_batched_input_splits_large_batch(self):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
+  def _retry_test_writer(self, responses, **kwargs):
+    client = mock.Mock()
+    client.insert_rows_json.side_effect = responses
+    fn = beam_bq.BigQueryWriteFn(
+        batch_size=1,
+        create_disposition=beam_bq.BigQueryDisposition.CREATE_NEVER,
+        write_disposition=beam_bq.BigQueryDisposition.WRITE_APPEND,
+        with_batched_input=True,
+        test_client=client,
+        **kwargs)
+    fn.start_bundle()
+    return fn, client
+
+  def _process_retry_batch(
+      self, fn, month, destination='project-id:dataset_id.table_id'):
+    return fn.process(
+        (destination, [({
+            'month': month
+        }, 'insertid%d' % month)]),
+        window_value=beam.transforms.window.GlobalWindows.windowed_value(None))
+
+  @parameterized.expand([
+      ('same_destination', 'project-id:dataset_id.table_id'),
+      ('different_destination', 'project-id:dataset_id.other_table'),
+  ])
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_successful_batches_do_not_consume_retries(
+      self, unused_name, destination, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([[], errors, []], max_retries=1)
+
+    self.assertEqual([], self._process_retry_batch(fn, 1))
+    self.assertEqual([], self._process_retry_batch(fn, 2, destination))
+
+    self.assertEqual([[{
+        'month': 1
+    }], [{
+        'month': 2
+    }], [{
+        'month': 2
+    }]],
+                     [
+                         call.kwargs['json_rows']
+                         for call in client.insert_rows_json.call_args_list
+                     ])
+    self.assertEqual([['insertid1'], ['insertid2'], ['insertid2']],
+                     [
+                         call.kwargs['row_ids']
+                         for call in client.insert_rows_json.call_args_list
+                     ])
+    sleep.assert_called_once()
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_exhausted_batch_does_not_consume_next_batch_retries(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer(
+        [errors, errors, errors, []], max_retries=1)
+
+    failed = self._process_retry_batch(fn, 1)
+    self.assertEqual([('project-id:dataset_id.table_id', {
+        'month': 1
+    })],
+                     [
+                         output.value.value for output in failed
+                         if output.tag == beam_bq.BigQueryWriteFn.FAILED_ROWS
+                     ])
+    self.assertEqual([], self._process_retry_batch(fn, 2))
+    self.assertEqual(4, client.insert_rows_json.call_count)
+    self.assertEqual(2, sleep.call_count)
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_successful_batches_do_not_increase_retry_backoff(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([[]] * 20 + [errors, errors, []])
+
+    for month in range(21):
+      self.assertEqual([], self._process_retry_batch(fn, month))
+
+    self.assertEqual(23, client.insert_rows_json.call_count)
+    self.assertEqual(2, sleep.call_count)
+    first_delay = sleep.call_args_list[0].args[0]
+    second_delay = sleep.call_args_list[1].args[0]
+    self.assertGreaterEqual(first_delay, 0.1)
+    self.assertLessEqual(first_delay, 0.2)
+    self.assertGreaterEqual(second_delay, 0.2)
+    self.assertLessEqual(second_delay, 0.4)
+
+  @mock.patch('apache_beam.io.gcp.bigquery.time.sleep')
+  def test_zero_retries_attempts_each_batch_once(self, sleep):
+    errors = [{'index': 0, 'errors': [{'reason': 'backendError'}]}]
+    fn, client = self._retry_test_writer([errors, []], max_retries=0)
+
+    failed = self._process_retry_batch(fn, 1)
+    self.assertEqual([('project-id:dataset_id.table_id', {
+        'month': 1
+    })],
+                     [
+                         output.value.value for output in failed
+                         if output.tag == beam_bq.BigQueryWriteFn.FAILED_ROWS
+                     ])
+    self.assertEqual([], self._process_retry_batch(fn, 2))
+    self.assertEqual(2, client.insert_rows_json.call_count)
+    sleep.assert_not_called()
+
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
@@ -2760,15 +3109,15 @@ class PubSubBigQueryIT(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
-  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
-
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
     self.dataset_id = '%s%d%s' % (
-        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = '%s.output_table' % (self.dataset_id)

@@ -133,7 +133,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     if (translator == null || !applyCanTranslate(transform, node, translator)) {
       String transformUrn = PTransformTranslation.urnForTransform(transform);
-      LOG.info(transformUrn);
+      LOG.info("{}", transformUrn);
       throw new UnsupportedOperationException(
           "The transform " + transformUrn + " is currently not supported.");
     }

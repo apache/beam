@@ -21,6 +21,7 @@ import java.io.Closeable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A write operation. */
 @SuppressWarnings({
@@ -101,6 +102,16 @@ public class WriteOperation extends ReceivingOperation {
       } finally {
         super.finish();
         writer = null;
+      }
+    }
+  }
+
+  @Override
+  public void finishKey(@Nullable Object key) throws Exception {
+    try (Closeable scope = context.enterProcess()) {
+      checkStarted();
+      if (writer != null) {
+        writer.finishKey(key);
       }
     }
   }

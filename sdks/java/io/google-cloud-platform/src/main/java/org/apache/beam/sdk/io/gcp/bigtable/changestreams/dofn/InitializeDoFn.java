@@ -50,9 +50,9 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
 
   @ProcessElement
   public void processElement(OutputReceiver<InitialPipelineState> receiver) throws IOException {
-    LOG.info(daoFactory.getStreamTableDebugString());
-    LOG.info(daoFactory.getMetadataTableDebugString());
-    LOG.info("ChangeStreamName: " + daoFactory.getChangeStreamName());
+    LOG.info("{}", daoFactory.getStreamTableDebugString());
+    LOG.info("{}", daoFactory.getMetadataTableDebugString());
+    LOG.info("ChangeStreamName: {}", daoFactory.getChangeStreamName());
 
     boolean resume = false;
     DetectNewPartitionsState detectNewPartitionsState =

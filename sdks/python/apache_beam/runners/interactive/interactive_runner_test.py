@@ -43,6 +43,7 @@ from apache_beam.runners.interactive.dataproc.dataproc_cluster_manager import Da
 from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.testing.mock_env import isolated_env
 from apache_beam.runners.portability.flink_runner import FlinkRunner
+from apache_beam.runners.runner import PipelineRunner
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -531,6 +532,25 @@ class InteractiveRunnerTest(unittest.TestCase):
     size = cache_manager.size('full', key)
     # Despite (highly redundant) windowing information, the cache is small.
     self.assertLess(size, sum(inputs))
+
+  def test_default_pickle_library_override_delegates(self):
+    mock_underlying = unittest.mock.MagicMock(spec=PipelineRunner)
+    mock_underlying.default_pickle_library_override.return_value = 'cloudpickle'
+
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=mock_underlying)
+
+    self.assertEqual(runner.default_pickle_library_override(), 'cloudpickle')
+
+  def test_default_pickle_library_override_fallback(self):
+    mock_underlying = unittest.mock.MagicMock(spec=PipelineRunner)
+    del mock_underlying.default_pickle_library_override
+
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=mock_underlying)
+
+    # Should fallback to the base class implementation without crashing
+    self.assertIsNone(runner.default_pickle_library_override())
 
 
 @unittest.skipIf(

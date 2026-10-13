@@ -30,10 +30,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -117,13 +119,19 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
     throw new UnsupportedOperationException("Unsupported for ProcessFn");
   }
 
   @Override
   public void finishBundle() {
     simpleRunner.finishBundle();
+  }
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    simpleRunner.finishKey(key);
   }
 
   @Override

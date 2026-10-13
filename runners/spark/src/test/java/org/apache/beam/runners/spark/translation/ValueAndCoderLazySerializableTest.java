@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -67,7 +68,9 @@ public class ValueAndCoderLazySerializableTest {
     @SuppressWarnings("unchecked")
     ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>> materialized =
         (ValueAndCoderLazySerializable<Iterable<WindowedValue<Integer>>>) ois.readObject();
-    assertEquals(accumulatedValue, materialized.getOrDecode(iterAccumCoder));
+    assertEquals(
+        Lists.newArrayList(accumulatedValue),
+        Lists.newArrayList(materialized.getOrDecode(iterAccumCoder)));
   }
 
   @Test
@@ -101,7 +104,9 @@ public class ValueAndCoderLazySerializableTest {
             kryo.readObject(input, ValueAndCoderLazySerializable.class);
     input.close();
 
-    assertEquals(accumulatedValue, materialized.getOrDecode(iterAccumCoder));
+    assertEquals(
+        Lists.newArrayList(accumulatedValue),
+        Lists.newArrayList(materialized.getOrDecode(iterAccumCoder)));
   }
 
   private <T> WindowedValue<T> winVal(T val) {

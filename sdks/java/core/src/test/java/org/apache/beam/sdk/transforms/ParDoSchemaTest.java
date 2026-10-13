@@ -43,6 +43,7 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -66,10 +67,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Test {@link Schema} support. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @Category(UsesSchema.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
@@ -402,7 +402,7 @@ public class ParDoSchemaTest implements Serializable {
   abstract static class Inferred {
     abstract String getStringField();
 
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
   }
 
   @Test
@@ -448,7 +448,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class Inferred2 {
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
 
     abstract String getStringField();
   }
@@ -519,7 +519,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class ForExtraction {
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
 
     abstract String getStringField();
 
@@ -828,7 +828,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class TestStateSchemaValue2 {
-    abstract Integer getInteger();
+    abstract int getInteger();
   }
 
   @DefaultSchema(AutoValueSchema.class)

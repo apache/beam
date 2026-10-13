@@ -24,19 +24,27 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link ReflectHelpers}. */
 @RunWith(JUnit4.class)
 public class ReflectHelpersTest {
+  @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
   @Test
   public void testMethodFormatter() throws Exception {
@@ -137,15 +145,20 @@ public class ReflectHelpersTest {
     assertThat(
         ReflectHelpers.formatAnnotation(Options.class.getMethod("getString").getAnnotations()[0]),
         anyOf(
-            equalTo("Default.String(value=package.OuterClass$InnerClass#method())"),
-            equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")")));
+            equalTo("Default.String(value=package.OuterClass$InnerClass#method())"), // Java8
+            equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")"), // Java11
+            equalTo("Default.String(\"package.OuterClass$InnerClass#method()\")") // Javaa21
+            ));
   }
 
   @Test
   public void testFormatAnnotationJsonIgnore() throws Exception {
-    assertEquals(
-        "JsonIgnore(value=true)",
-        ReflectHelpers.formatAnnotation(Options.class.getMethod("getObject").getAnnotations()[0]));
+    assertThat(
+        ReflectHelpers.formatAnnotation(Options.class.getMethod("getObject").getAnnotations()[0]),
+        anyOf(
+            equalTo("JsonIgnore(value=true)"), // Java11
+            equalTo("JsonIgnore(true)") // Java21
+            ));
   }
 
   @Test
@@ -205,6 +218,26 @@ public class ReflectHelpersTest {
       names.add(service.getName());
     }
 
+    assertThat(names, contains("Alpha", "Zeta"));
+  }
+
+  @Test
+  public void testLoadServicesOrderedHandlesFailingProvider() throws Exception {
+    File servicesDir = tmp.newFolder("META-INF", "services");
+    File serviceFile = new File(servicesDir, FakeService.class.getName());
+    Files.asCharSink(serviceFile, StandardCharsets.UTF_8)
+        .write("non.existent.Class\n" + AlphaImpl.class.getName() + "\n");
+
+    URLClassLoader classLoader =
+        new URLClassLoader(
+            new URL[] {tmp.getRoot().toURI().toURL()}, ReflectHelpers.findClassLoader());
+    List<String> names = new ArrayList<>();
+    for (FakeService service : ReflectHelpers.loadServicesOrdered(FakeService.class, classLoader)) {
+      names.add(service.getName());
+    }
+
+    // "non.existent.Class" should be skipped gracefully, and AlphaImpl and ZetaImpl should be
+    // loaded.
     assertThat(names, contains("Alpha", "Zeta"));
   }
 }

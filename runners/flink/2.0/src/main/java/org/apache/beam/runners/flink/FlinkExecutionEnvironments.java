@@ -36,6 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Stream
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -47,7 +48,6 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -271,6 +271,7 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
     }
     configureWebUIOptions(flinkStreamEnv.getConfig(), options.as(PipelineOptions.class));
+    configureCustomKryoSerializers(flinkStreamEnv.getConfig());
 
     return flinkStreamEnv;
   }
@@ -295,6 +296,14 @@ public class FlinkExecutionEnvironments {
     }
   }
 
+  private static void configureCustomKryoSerializers(ExecutionConfig config) {
+    SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+    // Force Beam schema to use JavaSerializer to fix serialization involving ImmutableMap
+    serializerConfig.registerTypeWithKryoSerializer(
+        org.apache.beam.sdk.schemas.Schema.class,
+        com.esotericsoftware.kryo.serializers.JavaSerializer.class);
+  }
+
   private static class GlobalJobParametersImpl extends ExecutionConfig.GlobalJobParameters {
     private final Map<String, String> jobOptions;
 
@@ -309,7 +318,7 @@ public class FlinkExecutionEnvironments {
 
     @Override
     public boolean equals(Object obj) {
-      if (obj == null || this.getClass() != obj.getClass()) {
+      if (!(obj instanceof GlobalJobParametersImpl)) {
         return false;
       }
 
@@ -390,7 +399,6 @@ public class FlinkExecutionEnvironments {
   }
 
   private static void configureStateBackend(FlinkPipelineOptions options, Configuration config) {
-    final StateBackend stateBackend;
     if (options.getStateBackend() != null) {
       final String storagePath = options.getStateBackendStoragePath();
       Preconditions.checkArgument(

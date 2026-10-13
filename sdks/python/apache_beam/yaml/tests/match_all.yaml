@@ -1,0 +1,96 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # 1. Write first matching file to temp directory
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {value: "a"}
+        - type: WriteToText
+          config:
+            path: "{TEMP_DIR}/match1.txt"
+
+  # 2. Write second matching file to temp directory
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {value: "b"}
+        - type: WriteToText
+          config:
+            path: "{TEMP_DIR}/match2.txt"
+
+  # 3. Write an ignore file to temp directory (should not be matched)
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {value: "c"}
+        - type: WriteToText
+          config:
+            path: "{TEMP_DIR}/ignore.txt"
+
+  # 4. Match files using MatchAll and verify only match1 and match2 are found
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {pattern: "{TEMP_DIR}/match*.txt*"}
+        - type: MatchAll
+          config:
+            file_pattern: pattern
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              filename: "path.split('/')[-1].split('-')[0]"
+        - type: AssertEqual
+          config:
+            elements:
+              - {filename: "match1.txt"}
+              - {filename: "match2.txt"}
+
+  # 5. Match non-existent files with ALLOW empty_match_treatment (should succeed but return empty PCollection)
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {pattern: "{TEMP_DIR}/does_not_exist*.txt*"}
+        - type: MatchAll
+          config:
+            file_pattern: pattern
+            empty_match_treatment: ALLOW
+        - type: AssertEqual
+          config:
+            elements: []
+

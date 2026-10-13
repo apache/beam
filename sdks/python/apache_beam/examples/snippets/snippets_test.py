@@ -333,12 +333,12 @@ class TypeHintsTest(unittest.TestCase):
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    from typing import Tuple, TypeVar
+    from typing import TypeVar
 
     T = TypeVar('T')
 
     @beam.typehints.with_input_types(T)
-    @beam.typehints.with_output_types(Tuple[int, T])
+    @beam.typehints.with_output_types(tuple[int, T])
     class MyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
@@ -351,7 +351,7 @@ class TypeHintsTest(unittest.TestCase):
 
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
-      words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
+      words_with_lens | beam.Map(lambda x: x).with_input_types(tuple[int, int])
 
   def test_bad_types_annotations(self):
     p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
@@ -394,10 +394,10 @@ class TypeHintsTest(unittest.TestCase):
     # annotation has an additional Optional for the else clause.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn_annotations_optional]
-      from typing import List, Optional
+      from typing import Optional
 
       class FilterEvensDoubleDoFn(beam.DoFn):
-        def process(self, element: int) -> Optional[List[int]]:
+        def process(self, element: int) -> Optional[list[int]]:
           if element % 2 == 0:
             return [element, element]
           return None
@@ -461,7 +461,6 @@ class TypeHintsTest(unittest.TestCase):
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
-      from typing import Tuple
 
       class Player(object):
         def __init__(self, team, name):
@@ -487,7 +486,7 @@ class TypeHintsTest(unittest.TestCase):
       totals = (
           lines
           | beam.Map(parse_player_and_score)
-          | beam.CombinePerKey(sum).with_input_types(Tuple[Player, int]))
+          | beam.CombinePerKey(sum).with_input_types(tuple[Player, int]))
       # [END type_hints_deterministic_key]
 
       assert_that(
@@ -1467,6 +1466,44 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
     finally:
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
+
+  def test_side_input_slow_update_global_window(self):
+    side_input_interval = 5
+    main_input_interval = 5
+    duration = 30
+
+    first_ts = math.floor(time.time()) - duration
+    # Aligning the timestamp to get persistent results.
+    first_ts = first_ts - (
+        first_ts % (side_input_interval * main_input_interval))
+    last_ts = first_ts + duration
+
+    expected_main_input_elements = sorted(
+        first_ts + main_input_interval * i
+        for i in range(duration // main_input_interval))
+    expected_side_input_values = set(
+        str(first_ts + side_input_interval * i)
+        for i in range(duration // side_input_interval))
+
+    def check_enriched_elements(actual):
+      main_input_elements = sorted(element for element, _ in actual)
+      assert main_input_elements == expected_main_input_elements, (
+          'Expected main input elements %s, got %s' %
+          (expected_main_input_elements, main_input_elements))
+
+      side_input_values = set(value for _, value in actual)
+      assert None not in side_input_values, (
+          'Some elements were processed before the side input was ready.')
+      unexpected_values = side_input_values - expected_side_input_values
+      assert not unexpected_values, (
+          'Observed side input values that the side input never produced: %s' %
+          unexpected_values)
+
+    pipeline, pipeline_result = snippets.side_input_slow_update_global_window(
+        first_ts, last_ts, side_input_interval, main_input_interval)
+
+    with pipeline:
+      assert_that(pipeline_result, check_enriched_elements)
 
 
 class ValueProviderInfoTest(unittest.TestCase):

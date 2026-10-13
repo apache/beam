@@ -48,4 +48,9 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return null;
   }
+
+  @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return null;
+  }
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -24,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
@@ -315,5 +318,45 @@ public class BeamSortRelTest extends BaseRelTest {
 
     Assert.assertEquals(10., estimate.getRowCount(), 0.01);
     Assert.assertEquals(10., estimate.getWindow(), 0.01);
+  }
+
+  @Test
+  public void testOrderBy_noLimit() {
+    String sql =
+        "SELECT order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows).satisfies(new AssertSorted());
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static class AssertSorted implements SerializableFunction<Iterable<Row>, Void> {
+    @Override
+    public Void apply(Iterable<Row> input) {
+      List<Row> list = new ArrayList<>();
+      for (Row r : input) {
+        list.add(r);
+      }
+      Assert.assertEquals(10, list.size());
+      for (int i = 0; i < list.size() - 1; i++) {
+        Row r1 = list.get(i);
+        Row r2 = list.get(i + 1);
+        Long id1 = r1.getInt64("order_id");
+        Long id2 = r2.getInt64("order_id");
+        int comp = id1.compareTo(id2);
+        if (comp > 0) {
+          Assert.fail("Rows not sorted by order_id asc: " + list);
+        } else if (comp == 0) {
+          Integer site1 = r1.getInt32("site_id");
+          Integer site2 = r2.getInt32("site_id");
+          if (site1 < site2) {
+            Assert.fail("Rows not sorted by site_id desc when order_id is equal: " + list);
+          }
+        }
+      }
+      return null;
+    }
   }
 }

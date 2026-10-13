@@ -54,6 +54,72 @@ class TestBigQueryToSchema(unittest.TestCase):
             'count': typing.Optional[np.int64]
         })
 
+  def test_query_schema_missing_field_in_data(self):
+    """Schema declares a field the row doesn't have -- fails loudly."""
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode='NULLABLE'),
+        bigquery.TableFieldSchema(name='name', type='STRING', mode='NULLABLE'),
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    dofn = bigquery_schema_tools.BeamSchemaConversionDoFn(usertype)
+
+    input_dict = {'id': 42}  # 'name' missing
+    with self.assertRaisesRegex(TypeError,
+                                "missing.*required.*argument.*'name'"):
+      list(dofn.process(input_dict))
+
+  def test_query_schema_extra_field_in_data(self):
+    """Row has a field the schema doesn't declare -- fails loudly."""
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode='NULLABLE'),
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    dofn = bigquery_schema_tools.BeamSchemaConversionDoFn(usertype)
+
+    input_dict = {'id': 42, 'extra_col': 'unexpected'}
+    with self.assertRaisesRegex(TypeError,
+                                "unexpected keyword argument 'extra_col'"):
+      list(dofn.process(input_dict))
+
+  def test_query_schema_type_mismatch_not_validated(self):
+    """Schema says INTEGER, data is a non-numeric string.
+ 
+    This does NOT raise -- the mismatched value passes through unvalidated.
+    This test documents that behavior; it is a known limitation, not a
+    guarantee that this is desirable.
+    """
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode='NULLABLE'),
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    dofn = bigquery_schema_tools.BeamSchemaConversionDoFn(usertype)
+
+    input_dict = {'id': 'not_a_number'}
+    results = list(dofn.process(input_dict))
+    self.assertEqual(len(results), 1)
+    # Type is NOT coerced or validated -- the string passes through as-is.
+    self.assertEqual(results[0].id, 'not_a_number')
+
+  def test_query_schema_happy_path_no_mocks(self):
+    """No-mock happy path: real schema, real conversion, fake row only."""
+    fields = [
+        bigquery.TableFieldSchema(name='id', type='INTEGER', mode='NULLABLE'),
+        bigquery.TableFieldSchema(name='name', type='STRING', mode='NULLABLE'),
+    ]
+    schema = bigquery.TableSchema(fields=fields)
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+    dofn = bigquery_schema_tools.BeamSchemaConversionDoFn(usertype)
+
+    input_dict = {'id': 42, 'name': 'beam'}
+    results = list(dofn.process(input_dict))
+
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].id, 42)
+    self.assertEqual(results[0].name, 'beam')
+
   def test_check_conversion_with_selected_fields(self):
     fields = [
         bigquery.TableFieldSchema(name='stn', type='STRING', mode="NULLABLE"),
@@ -189,8 +255,8 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_unsupported_query_export(self):
     with self.assertRaisesRegex(
         ValueError,
-        "Both a query and an output type of 'BEAM_ROW' were specified. "
-        "'BEAM_ROW' is not currently supported with queries."):
+        "Both a query and an output type of 'BEAM_ROW' were specified "
+        "without a query_output_schema"):
       p = apache_beam.Pipeline()
       _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="project:dataset.sample_table",
@@ -201,8 +267,8 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_unsupported_query_direct_read(self):
     with self.assertRaisesRegex(
         ValueError,
-        "Both a query and an output type of 'BEAM_ROW' were specified. "
-        "'BEAM_ROW' is not currently supported with queries."):
+        "Both a query and an output type of 'BEAM_ROW' were specified "
+        "without a query_output_schema"):
       p = apache_beam.Pipeline()
       _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="project:dataset.sample_table",
@@ -335,6 +401,115 @@ class TestBigQueryToSchema(unittest.TestCase):
     }
 
     self.assertEqual(usertype.__annotations__, expected_annotations)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestTypeOverridesSchemaTools(unittest.TestCase):
+  """Tests for type_overrides parameter in bigquery_schema_tools."""
+  def test_bq_field_to_type_with_overrides(self):
+    """Test bq_field_to_type function with type_overrides."""
+    import datetime
+
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # Without overrides, DATE is not supported
+    with self.assertRaises(KeyError):
+      bq_field_to_type("DATE", "REQUIRED")
+
+    # With overrides, DATE works
+    overrides = {"DATE": datetime.date}
+    self.assertEqual(
+        bq_field_to_type("DATE", "REQUIRED", overrides), datetime.date)
+    self.assertEqual(
+        bq_field_to_type("DATE", "NULLABLE", overrides),
+        typing.Optional[datetime.date])
+    self.assertEqual(
+        bq_field_to_type("DATE", "REPEATED", overrides),
+        typing.Sequence[datetime.date])
+
+  def test_bq_field_to_type_overrides_can_use_str(self):
+    """Test that type_overrides can map DATE/DATETIME/JSON to str."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    self.assertEqual(bq_field_to_type("DATE", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("DATETIME", "REQUIRED", overrides), str)
+    self.assertEqual(bq_field_to_type("JSON", "REQUIRED", overrides), str)
+
+  def test_generate_user_type_with_overrides(self):
+    """Test generate_user_type_from_bq_schema with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    # Without overrides, DATE is not supported
+    with self.assertRaises(ValueError):
+      bigquery_schema_tools.generate_user_type_from_bq_schema(schema)
+
+    # With overrides, DATE works
+    overrides = {"DATE": datetime.date}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[datetime.date]
+        })
+
+  def test_generate_user_type_overrides_with_str(self):
+    """Test that type_overrides can map DATE to str."""
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": str}
+    usertype = bigquery_schema_tools.generate_user_type_from_bq_schema(
+        schema, type_overrides=overrides)
+    self.assertEqual(
+        usertype.__annotations__, {
+            'id': np.int64, 'event_date': typing.Optional[str]
+        })
+
+  def test_convert_to_usertype_with_overrides(self):
+    """Test convert_to_usertype function with type_overrides."""
+    import datetime
+
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(
+                name='id', type='INTEGER', mode="REQUIRED"),
+            bigquery.TableFieldSchema(
+                name='event_date', type='DATE', mode="NULLABLE")
+        ])
+
+    overrides = {"DATE": datetime.date}
+    transform = bigquery_schema_tools.convert_to_usertype(
+        schema, type_overrides=overrides)
+
+    # The transform should be created successfully
+    self.assertIsNotNone(transform)
+    self.assertIsInstance(transform, beam.ParDo)
+
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
+    from apache_beam.io.gcp.bigquery_schema_tools import bq_field_to_type
+
+    # GEOGRAPHY is in the default mapping as str
+    self.assertEqual(bq_field_to_type("GEOGRAPHY", "REQUIRED"), str)
+
+    # We can override it
+    overrides = {"GEOGRAPHY": bytes}
+    self.assertEqual(
+        bq_field_to_type("GEOGRAPHY", "REQUIRED", overrides), bytes)
 
 
 if __name__ == '__main__':

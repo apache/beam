@@ -83,13 +83,19 @@ pip install torch==1.10.0
 ### TensorRT dependencies
 
 The RunInference API supports TensorRT SDK for high-performance deep learning inference with NVIDIA GPUs.
-To use TensorRT locally, we suggest an environment with TensorRT >= 8.0.1. Install TensorRT as per the
+To use TensorRT locally, we suggest an environment with TensorRT >= 10.0. Install TensorRT as per the
 [TensorRT Install Guide](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html). You
 will need to make sure the Python bindings for TensorRT are also installed correctly, these are available by installing the python3-libnvinfer and python3-libnvinfer-dev packages on your TensorRT download.
 
+TensorRT 10 or later is required. Note that a serialized TensorRT engine can only
+be deserialized by the TensorRT major version that built it, so an engine built
+with TensorRT 8.x must be rebuilt. TensorRT 10 and later also require a GPU with
+compute capability 7.5 or higher, for example, T4, L4, A100. The NVIDIA Pascal and Volta GPUs
+such as the Tesla P4, P100 and V100 are no longer supported.
+
 If you would like to use Docker, you can use an NGC image like:
 ```
-docker pull nvcr.io/nvidia/tensorrt:22.04-py3
+docker pull nvcr.io/nvidia/tensorrt:26.06-py3
 ```
 as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image).
 
@@ -930,6 +936,12 @@ python -m apache_beam.examples.inference.vllm_text_completion \
 
 Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
 
+On GPUs with about 16GiB of memory (for example NVIDIA T4), vLLM’s defaults can fail
+during engine startup with CUDA out of memory. The example therefore passes conservative
+``--max-num-seqs`` and ``--gpu-memory-utilization`` values by default (overridable with
+``--vllm_max_num_seqs`` and ``--vllm_gpu_memory_utilization``) via
+`vllm_server_kwargs`, matching the pattern used in other vLLM examples.
+
 This writes the output to the output file location with contents like:
 
 ```
@@ -967,5 +979,71 @@ and produce the following result in your output file location:
 ```
 An emperor penguin is an adorable creature that lives in Antarctica.
 ```
+
+---
+## Table row inference
+
+[`table_row_inference.py`](./table_row_inference.py) contains an implementation for a RunInference pipeline that processes structured table rows from a file or Pub/Sub, runs ML inference while preserving the table schema, and writes results to BigQuery. It supports both batch (file input) and streaming (Pub/Sub) modes.
+
+### Prerequisites for table row inference
+
+Install dependencies (or use `apache_beam/ml/inference/table_row_inference_requirements.txt` from the `sdks/python` directory):
+
+```sh
+pip install apache-beam[gcp] scikit-learn google-cloud-pubsub
+```
+
+For streaming mode you need a Pub/Sub topic and subscription, a BigQuery dataset, and a GCS bucket for model and temp files.
+
+### Model and data for table row inference
+
+1. Create a scikit-learn model and sample data using the provided utilities:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference_utils --action=create_model --output_path=model.pkl --num_features=3
+python -m apache_beam.examples.inference.table_row_inference_utils --action=generate_data --output_path=input_data.jsonl --num_rows=1000 --num_features=3
+```
+
+2. Input data should be JSONL with an `id` field and feature columns, for example:
+
+```json
+{"id": "row_1", "feature1": 1.5, "feature2": 2.3, "feature3": 3.7}
+```
+
+### Running `table_row_inference.py` (batch)
+
+To run the table row inference pipeline in batch mode locally:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=batch \
+  --input_file=input_data.jsonl \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DirectRunner
+```
+
+### Running `table_row_inference.py` (streaming)
+
+For streaming mode, use a Pub/Sub subscription and DataflowRunner. Set up a topic and subscription first, then run:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=streaming \
+  --input_subscription=projects/PROJECT/subscriptions/SUBSCRIPTION \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=gs://BUCKET/model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DataflowRunner \
+  --project=PROJECT \
+  --region=us-central1 \
+  --temp_location=gs://BUCKET/temp \
+  --staging_location=gs://BUCKET/staging
+```
+
+See the script for full pipeline options (window size, trigger interval, worker settings, etc.).
+
+Output is written to the BigQuery table with columns such as `row_key`, `prediction`, and the original input feature columns.
 
 ---

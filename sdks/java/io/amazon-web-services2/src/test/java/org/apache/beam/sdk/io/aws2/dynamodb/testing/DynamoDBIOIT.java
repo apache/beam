@@ -154,7 +154,7 @@ public class DynamoDBIOIT {
   }
 
   private static KV<String, WriteRequest> buildWriteRequest(TestRow row) {
-    AttributeValue id = AttributeValue.builder().n(row.id().toString()).build();
+    AttributeValue id = AttributeValue.builder().n(String.valueOf(row.id())).build();
     AttributeValue name = AttributeValue.builder().s(row.name()).build();
     PutRequest req = PutRequest.builder().item(ImmutableMap.of(COL_ID, id, COL_NAME, name)).build();
     return KV.of(env.options().getDynamoDBTable(), WriteRequest.builder().putRequest(req).build());

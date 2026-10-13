@@ -127,31 +127,33 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
   static final String TEMP_DIRECTORY_PREFIX = ".temp-beam";
 
-  /** @deprecated use {@link Compression}. */
+  /**
+   * @deprecated use {@link Compression}.
+   */
   @Deprecated
   public enum CompressionType implements WritableByteChannelFactory {
-    /** @see Compression#UNCOMPRESSED */
+    /** See {@link Compression#UNCOMPRESSED}. */
     UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    /** @see Compression#GZIP */
+    /** See {@link Compression#GZIP}. */
     GZIP(Compression.GZIP),
 
-    /** @see Compression#BZIP2 */
+    /** See {@link Compression#BZIP2}. */
     BZIP2(Compression.BZIP2),
 
-    /** @see Compression#ZSTD */
+    /** See {@link Compression#ZSTD}. */
     ZSTD(Compression.ZSTD),
 
-    /** @see Compression#LZO */
+    /** See {@link Compression#LZO}. */
     LZO(Compression.LZO),
 
-    /** @see Compression#LZOP */
+    /** See {@link Compression#LZOP}. */
     LZOP(Compression.LZOP),
 
-    /** @see Compression#DEFLATE */
+    /** See {@link Compression#DEFLATE}. */
     DEFLATE(Compression.DEFLATE),
 
-    /** @see Compression#SNAPPY */
+    /** See {@link Compression#SNAPPY}. */
     SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
@@ -339,8 +341,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         return destinationCoder;
       }
       // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-      @Nullable
-      TypeDescriptor<DestinationT> descriptor =
+      @Nullable TypeDescriptor<DestinationT> descriptor =
           extractFromTypeParameters(
               this,
               DynamicDestinations.class,
@@ -1177,8 +1178,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final Coder<BoundedWindow> windowCoder;
     private final Coder<DestinationT> destinationCoder;
 
-    protected FileResultCoder(
-        Coder<BoundedWindow> windowCoder, Coder<DestinationT> destinationCoder) {
+    FileResultCoder(Coder<BoundedWindow> windowCoder, Coder<DestinationT> destinationCoder) {
       this.windowCoder = NullableCoder.of(windowCoder);
       this.destinationCoder = destinationCoder;
     }
@@ -1249,12 +1249,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * @see <a href=
      *     'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
      */
-    @Nullable
-    String getMimeType();
+    @Nullable String getMimeType();
 
-    /** @return an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP} */
-    @Nullable
-    String getSuggestedFilenameSuffix();
+    /** Returns an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP}. */
+    @Nullable String getSuggestedFilenameSuffix();
   }
 
   /**
@@ -1268,8 +1266,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    */
   public interface WritableByteChannelFactory extends OutputFileHints {
     /**
+     * Returns the {@link WritableByteChannel} to be used during output.
+     *
      * @param channel the {@link WritableByteChannel} to wrap
-     * @return the {@link WritableByteChannel} to be used during output
      */
     WritableByteChannel create(WritableByteChannel channel) throws IOException;
   }

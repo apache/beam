@@ -36,6 +36,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -61,6 +62,7 @@ public class SpannerIOReadChangeStreamTest {
   private static final String TEST_METADATA_DATABASE = "my-metadata-database";
   private static final String TEST_METADATA_TABLE = "my-metadata-table";
   private static final String TEST_CHANGE_STREAM = "my-change-stream";
+  private static final List<String> TEST_CHANGE_STREAM_TVF_NAME_LIST = Arrays.asList();
 
   /** Basic configuration tests using standard JUnit4. */
   @RunWith(JUnit4.class)
@@ -84,6 +86,7 @@ public class SpannerIOReadChangeStreamTest {
               .withMetadataInstance(TEST_METADATA_INSTANCE)
               .withMetadataDatabase(TEST_METADATA_DATABASE)
               .withMetadataTable(TEST_METADATA_TABLE)
+              .withTvfNameList(TEST_CHANGE_STREAM_TVF_NAME_LIST)
               .withRpcPriority(RpcPriority.MEDIUM)
               .withInclusiveStartAt(Timestamp.now());
     }
@@ -156,6 +159,22 @@ public class SpannerIOReadChangeStreamTest {
           defaultCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
       assertEquals(defaultCredential, metadataSpannerConfigWithCredential.getCredentials().get());
     }
+
+    @Test
+    public void testSetDirectedReadOptions() {
+      String directedReadString =
+          "{\"includeReplicas\":{\"replicaSelections\":[{\"location\":\"us-central1\",\"type\":\"READ_ONLY\"}]}}";
+      readChangeStream = readChangeStream.withDirectedReadOptions(directedReadString);
+      SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
+      assertEquals(
+          "us-central1",
+          changeStreamSpannerConfig
+              .getDirectedReadOptions()
+              .get()
+              .getIncludeReplicas()
+              .getReplicaSelections(0)
+              .getLocation());
+    }
   }
 
   /** Parameterized tests for Dialect and Partition Mode combinations. */
@@ -227,6 +246,64 @@ public class SpannerIOReadChangeStreamTest {
         // @changeStreamName)
         assertTrue("GoogleSQL SQL should use @changeStreamName", sql.contains("@changeStreamName"));
       }
+    }
+  }
+
+  /** Tests for quote escaping. */
+  @RunWith(JUnit4.class)
+  public static class QuoteEscapingTests {
+
+    @Test
+    public void testEscapeQuotes() {
+      assertEquals("my_string", SpannerIO.escapeQuotes("'my_string'"));
+      assertEquals("my_string", SpannerIO.escapeQuotes("`my_string`"));
+      assertEquals("my_string", SpannerIO.escapeQuotes("\"my_string\""));
+    }
+  }
+
+  /** Tests for TVF existence validation. */
+  @RunWith(JUnit4.class)
+  public static class TvfExistenceTests {
+
+    @Test
+    public void testCheckTvfExistence_Success() {
+      DatabaseClient databaseClient = mock(DatabaseClient.class);
+      ReadOnlyTransaction transaction = mock(ReadOnlyTransaction.class);
+      ResultSet resultSet = mock(ResultSet.class);
+
+      when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+      when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+      when(resultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
+      when(resultSet.getString(0)).thenReturn("tvf1").thenReturn("tvf2");
+
+      SpannerIO.checkTvfExistence(databaseClient, Arrays.asList("tvf1", "tvf2"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCheckTvfExistence_CaseInsensitive() {
+      DatabaseClient databaseClient = mock(DatabaseClient.class);
+      ReadOnlyTransaction transaction = mock(ReadOnlyTransaction.class);
+      ResultSet resultSet = mock(ResultSet.class);
+
+      when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+      when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+      when(resultSet.next()).thenReturn(true).thenReturn(false);
+      when(resultSet.getString(0)).thenReturn("tvf1"); // DB returns uppercase
+
+      SpannerIO.checkTvfExistence(databaseClient, Arrays.asList("TVF1"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testCheckTvfExistence_NotFound() {
+      DatabaseClient databaseClient = mock(DatabaseClient.class);
+      ReadOnlyTransaction transaction = mock(ReadOnlyTransaction.class);
+      ResultSet resultSet = mock(ResultSet.class);
+
+      when(databaseClient.readOnlyTransaction()).thenReturn(transaction);
+      when(transaction.executeQuery(any(Statement.class))).thenReturn(resultSet);
+      when(resultSet.next()).thenReturn(false);
+
+      SpannerIO.checkTvfExistence(databaseClient, Arrays.asList("missing_tvf"));
     }
   }
 

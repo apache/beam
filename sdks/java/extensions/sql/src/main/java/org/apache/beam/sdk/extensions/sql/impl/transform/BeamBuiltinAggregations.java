@@ -83,6 +83,8 @@ public class BeamBuiltinAggregations {
                   typeName -> new DropNullFn(BeamBuiltinAggregations.createBitAnd(typeName)))
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
+              .put("STDDEV_POP", t -> VarianceFn.newPopulationStddev(t.getTypeName()))
+              .put("STDDEV_SAMP", t -> VarianceFn.newSampleStddev(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
               .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
               .put("COUNTIF", typeName -> CountIf.combineFn())
@@ -561,6 +563,7 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
+
       /** The bitwise-or of the inputs seen so far. */
       long bitOr = 0L;
     }
@@ -609,6 +612,7 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
+
       /** The bitwise-and of the inputs seen so far. */
       long bitAnd = -1L;
     }
@@ -652,6 +656,7 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
+
       /** The bitwise-and of the inputs seen so far. */
       long bitXOr = 0L;
     }

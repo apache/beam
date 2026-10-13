@@ -52,8 +52,7 @@ def tokenize_sentence(
     text_and_mask: tuple[str, str],
     bert_tokenizer: BertTokenizer) -> tuple[str, dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
-  tokenized_sentence = bert_tokenizer.encode_plus(
-      masked_text, return_tensors="pt")
+  tokenized_sentence = bert_tokenizer(masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
   # add optional batching flag.

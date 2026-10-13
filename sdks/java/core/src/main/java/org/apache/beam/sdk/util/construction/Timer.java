@@ -36,6 +36,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -65,9 +67,17 @@ public abstract class Timer<K> {
       Collection<? extends BoundedWindow> windows,
       Instant fireTimestamp,
       Instant holdTimestamp,
-      PaneInfo paneInfo) {
+      PaneInfo paneInfo,
+      CausedByDrain causedByDrain) {
     return new AutoValue_Timer(
-        userKey, dynamicTimerTag, windows, false, fireTimestamp, holdTimestamp, paneInfo);
+        userKey,
+        dynamicTimerTag,
+        windows,
+        false,
+        fireTimestamp,
+        holdTimestamp,
+        paneInfo,
+        causedByDrain);
   }
 
   /**
@@ -76,7 +86,8 @@ public abstract class Timer<K> {
    */
   public static <K> Timer<K> cleared(
       K userKey, String dynamicTimerTag, Collection<? extends BoundedWindow> windows) {
-    return new AutoValue_Timer(userKey, dynamicTimerTag, windows, true, null, null, null);
+    return new AutoValue_Timer(
+        userKey, dynamicTimerTag, windows, true, null, null, null, CausedByDrain.NORMAL);
   }
 
   /** Returns the key that the timer is set on. */
@@ -116,6 +127,8 @@ public abstract class Timer<K> {
    */
   public abstract @Nullable PaneInfo getPaneInfo();
 
+  public abstract CausedByDrain causedByDrain();
+
   @Override
   public final boolean equals(@Nullable Object other) {
     if (!(other instanceof Timer)) {
@@ -124,7 +137,7 @@ public abstract class Timer<K> {
     Timer<?> that = (Timer<?>) other;
     return Objects.equals(this.getUserKey(), that.getUserKey())
         && Objects.equals(this.getDynamicTimerTag(), that.getDynamicTimerTag())
-        && Objects.equals(this.getWindows(), that.getWindows())
+        && Iterables.elementsEqual(this.getWindows(), that.getWindows())
         && (this.getClearBit() == that.getClearBit())
         && Objects.equals(this.getFireTimestamp(), that.getFireTimestamp())
         && Objects.equals(this.getHoldTimestamp(), that.getHoldTimestamp())
@@ -186,6 +199,7 @@ public abstract class Timer<K> {
         InstantCoder.of().encode(timer.getFireTimestamp(), outStream);
         InstantCoder.of().encode(timer.getHoldTimestamp(), outStream);
         PaneInfoCoder.INSTANCE.encode(timer.getPaneInfo(), outStream);
+        // todo maybe similarly to windowedValue, should we propagate metadata with paneinfo bit
       }
     }
 
@@ -201,7 +215,15 @@ public abstract class Timer<K> {
       Instant fireTimestamp = InstantCoder.of().decode(inStream);
       Instant holdTimestamp = InstantCoder.of().decode(inStream);
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      return Timer.of(userKey, dynamicTimerTag, windows, fireTimestamp, holdTimestamp, paneInfo);
+      // todo maybe similarly to windowedValue, should we propagate metadata with paneinfo bit
+      return Timer.of(
+          userKey,
+          dynamicTimerTag,
+          windows,
+          fireTimestamp,
+          holdTimestamp,
+          paneInfo,
+          CausedByDrain.NORMAL);
     }
 
     @Override

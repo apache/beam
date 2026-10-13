@@ -45,7 +45,7 @@ public class SimpleStateRegistry {
     }
   }
 
-  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
+  /** Returns execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
     for (SimpleExecutionState state : executionStates) {

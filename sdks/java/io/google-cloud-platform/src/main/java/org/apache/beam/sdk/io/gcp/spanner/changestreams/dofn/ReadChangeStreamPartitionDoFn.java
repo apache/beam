@@ -42,6 +42,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -74,11 +76,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
+  private final boolean cancelQueryOnHeartbeat;
+
   /**
    * Needs to be set through the {@link
    * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
    */
   private ThroughputEstimator<DataChangeRecord> throughputEstimator;
+
+  private final Duration realTimeCheckpointInterval;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -95,17 +101,23 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
+   * @param realTimeCheckpointInterval duration to be used for the next end timestamp
+   * @param cancelQueryOnHeartbeat flag to improve low latency checkpointing
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics) {
+      ChangeStreamMetrics metrics,
+      Duration realTimeCheckpointInterval,
+      boolean cancelQueryOnHeartbeat) {
     this.daoFactory = daoFactory;
-    this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
+    this.mapperFactory = mapperFactory;
     this.metrics = metrics;
     this.isMutableChangeStream = daoFactory.isMutableChangeStream();
+    this.realTimeCheckpointInterval = realTimeCheckpointInterval;
+    this.cancelQueryOnHeartbeat = cancelQueryOnHeartbeat;
     this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
@@ -136,13 +148,16 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetInitialRestriction
   public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
+    final String tvfName = partition.getTvfName();
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
     final com.google.cloud.Timestamp endTimestamp =
         TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
-        daoFactory.getPartitionMetadataDao().updateToRunning(token);
+        daoFactory
+            .getPartitionMetadataDao()
+            .updateToRunning(PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName));
 
     if (partitionScheduledAt != null && partitionRunningAt != null) {
       metrics.updatePartitionScheduledToRunning(
@@ -186,7 +201,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * PartitionEventRecordAction} and {@link QueryChangeStreamAction}.
    */
   @Setup
-  public void setup() {
+  public void setup(PipelineOptions options) {
+    daoFactory.setOpenTelemetry(options.as(SdkHarnessOptions.class).getOpenTelemetry());
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
     final ChangeStreamRecordMapper changeStreamRecordMapper =
@@ -195,7 +211,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final DataChangeRecordAction dataChangeRecordAction =
         actionFactory.dataChangeRecordAction(throughputEstimator);
     final HeartbeatRecordAction heartbeatRecordAction =
-        actionFactory.heartbeatRecordAction(metrics);
+        actionFactory.heartbeatRecordAction(metrics, cancelQueryOnHeartbeat);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
         actionFactory.childPartitionsRecordAction(partitionMetadataDao, metrics);
     final PartitionStartRecordAction partitionStartRecordAction =
@@ -218,7 +234,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             partitionEndRecordAction,
             partitionEventRecordAction,
             metrics,
-            isMutableChangeStream);
+            isMutableChangeStream,
+            realTimeCheckpointInterval,
+            options.as(SdkHarnessOptions.class).getOpenTelemetry());
   }
 
   /**

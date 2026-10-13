@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -136,7 +135,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
   @Override
   public SinkWriter<WindowedValue<T>> writer() {
-    return new PubsubWriter(topic);
+    return new PubsubWriter();
   }
 
   /** The SinkWriter for a PubsubSink. */
@@ -144,22 +143,25 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
     private ByteStringOutputStream stream; // Kept across adds for buffer reuse.
 
-    private PubsubWriter(String topic) {
-      outputBuilder =
-          Windmill.PubSubMessageBundle.newBuilder()
-              .setTopic(topic)
-              .setTimestampLabel(timestampLabel)
-              .setIdLabel(idLabel)
-              .setWithAttributes(withAttributes);
+    private PubsubWriter() {
+      outputBuilder = createOutputBuilder();
       stream = new ByteStringOutputStream();
+    }
+
+    private Windmill.PubSubMessageBundle.Builder createOutputBuilder() {
+      return Windmill.PubSubMessageBundle.newBuilder()
+          .setTopic(topic)
+          .setTimestampLabel(timestampLabel)
+          .setIdLabel(idLabel)
+          .setWithAttributes(withAttributes);
     }
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
+      if (!stream.isEmpty()) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but was of size " + stream.size());
+      }
       ByteString byteString = null;
       try {
         if (formatFn != null) {
@@ -188,18 +190,33 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
       return byteString.size();
     }
 
+    private void flush(boolean bundleLevel) {
+      try {
+        Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
+        if (pubsubMessages.getMessagesCount() > 0) {
+          if (bundleLevel) {
+            // If/when we add support for ordering keys, the flush needs to happen at the key level
+            context.addBundlePubsubMessages(pubsubMessages);
+          } else {
+            context.getKeyOutputBuilder().addPubsubMessages(pubsubMessages);
+          }
+        }
+      } finally {
+        // TODO: Set to createOutputBuilder() for if/when adding support to reuse the sink across
+        // bundles.
+        outputBuilder.clear();
+      }
+    }
+
     @Override
     public void close() throws IOException {
-      Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
-      if (pubsubMessages.getMessagesCount() > 0) {
-        context.getOutputBuilder().addPubsubMessages(pubsubMessages);
-      }
-      outputBuilder.clear();
+      flush(/* bundleLevel= */ context.multiKeyBundleEnabled());
     }
 
     @Override
     public void abort() throws IOException {
-      close();
+      outputBuilder.clear();
+      stream.reset();
     }
   }
 

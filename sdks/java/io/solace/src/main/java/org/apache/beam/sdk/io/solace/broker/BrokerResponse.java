@@ -18,14 +18,22 @@
 package org.apache.beam.sdk.io.solace.broker;
 
 import com.google.api.client.http.HttpResponse;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BrokerResponse {
   final int code;
   final String message;
@@ -35,10 +43,14 @@ public class BrokerResponse {
     this.code = responseCode;
     this.message = message;
     if (content != null) {
-      this.content =
-          new BufferedReader(new InputStreamReader(content, StandardCharsets.UTF_8))
-              .lines()
-              .collect(Collectors.joining("\n"));
+      // Use try-with-resources so the underlying InputStream is always closed once the
+      // response body has been read; otherwise the HTTP connection stream leaks.
+      try (BufferedReader reader =
+          new BufferedReader(new InputStreamReader(content, StandardCharsets.UTF_8))) {
+        this.content = reader.lines().collect(Collectors.joining("\n"));
+      } catch (IOException e) {
+        throw new UncheckedIOException("Failed to read broker response content", e);
+      }
     }
   }
 
