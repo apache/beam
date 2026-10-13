@@ -195,9 +195,10 @@ def apply_dofn_to_bundle(
   for it in items:
     do_fn_invoker.invoke_process(it)
 
+  do_fn_invoker.invoke_finish_bundle()
+
   results = [v.value for v in tagged_receivers.values]
 
-  do_fn_invoker.invoke_finish_bundle()
   do_fn_invoker.invoke_teardown()
 
   return results

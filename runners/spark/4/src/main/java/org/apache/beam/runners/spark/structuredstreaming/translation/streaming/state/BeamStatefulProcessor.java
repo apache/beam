@@ -72,6 +72,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
+  private static final String BEAM_WATERMARK = "beamWatermark";
 
   private final DoFn<KV<K, V>, OutputT> doFn;
   private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
@@ -85,6 +86,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   private transient @Nullable MapState<String, byte[]> beamState;
   private transient @Nullable ValueState<byte[]> beamTimers;
+  private transient @Nullable ValueState<Long> beamWatermark;
   private transient @Nullable List<WindowedValue<OutputT>> currentOutputs;
   private transient boolean needsBundleStart;
 
@@ -113,26 +115,45 @@ public class BeamStatefulProcessor<K, V, OutputT>
     beamState =
         getHandle().getMapState(BEAM_STATE, Encoders.STRING(), Encoders.BINARY(), TTLConfig.NONE());
     beamTimers = getHandle().getValueState(BEAM_TIMERS, Encoders.BINARY(), TTLConfig.NONE());
+    beamWatermark = getHandle().getValueState(BEAM_WATERMARK, Encoders.LONG(), TTLConfig.NONE());
+  }
+
+  private void storeWatermark(SparkTimerInternals timerInternals) {
+    checkStateNotNull(beamWatermark).update(timerInternals.currentInputWatermarkTime().getMillis());
+  }
+
+  private SparkTimerInternals timerInternals(TimerValues timerValues) {
+    ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
+    // Late data is filtered against the watermark of the key's previous visit.
+    // A key seen for the first time or idle for several batches filters against an older watermark.
+    Instant low =
+        watermarkState.exists()
+            ? new Instant(watermarkState.get())
+            : BoundedWindow.TIMESTAMP_MIN_VALUE;
+    Instant high = new Instant(timerValues.getCurrentWatermarkInMs());
+    SparkTimerInternals timerInternals = SparkTimerInternals.forWatermarks(low, high);
+    restoreTimers(timerInternals);
+    return timerInternals;
   }
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleInputRows(
       K key, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
-    SparkTimerInternals timerInternals =
-        SparkTimerInternals.forWatermark(new Instant(timerValues.getCurrentWatermarkInMs()));
-    restoreTimers(timerInternals);
+    SparkTimerInternals timerInternals = timerInternals(timerValues);
 
     DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
     while (rows.hasNext()) {
       runner.processElement(rows.next());
     }
+    timerInternals.advanceWatermark();
     // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, null);
+    storeWatermark(timerInternals);
     return ScalaInterop.scalaIterator(outputs);
   }
 
@@ -140,18 +161,18 @@ public class BeamStatefulProcessor<K, V, OutputT>
   public Iterator<WindowedValue<OutputT>> handleExpiredTimer(
       K key, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
-    Instant watermark = new Instant(timerValues.getCurrentWatermarkInMs());
-    SparkTimerInternals timerInternals = SparkTimerInternals.forWatermark(watermark);
-    restoreTimers(timerInternals);
+    SparkTimerInternals timerInternals = timerInternals(timerValues);
+    timerInternals.advanceWatermark();
 
     DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
-    fireDueTimers(key, watermark, timerInternals, runner);
+    fireDueTimers(key, timerInternals.currentInputWatermarkTime(), timerInternals, runner);
     // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, expiredTimerInfo.getExpiryTimeInMs());
+    storeWatermark(timerInternals);
     return ScalaInterop.scalaIterator(outputs);
   }
 
