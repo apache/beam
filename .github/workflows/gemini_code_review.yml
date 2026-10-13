@@ -62,6 +62,7 @@ jobs:
         shell: bash
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GEMINI_FORCE_FILE_STORAGE: 'true'
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GCP_REGION || 'us-central1' }}
@@ -116,6 +117,7 @@ jobs:
             --model "${GEMINI_MODEL}" \
             --prompt "$(cat prompt.txt)" \
             --output-format json \
+            < /dev/null \
             > gemini_raw_output.json
 
           if jq -e . gemini_raw_output.json >/dev/null 2>&1; then
