@@ -135,7 +135,11 @@ jobs:
 
             PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from API **v${CURRENT_API}** to API **v${LATEST_API}**.
 
-          Please review the changes and merge if all tests pass."
+          Please review the changes and merge if all tests pass. If failures happen, please try to update this PR (and the workflow automation, if broken) to resolve them, or reach out to [dev@beam.apache.org](mailto:dev@beam.apache.org) for assistance.
+
+          Google Ads API versions are deprecated and sunset on a rolling ~12-month schedule, after which requests to sunset versions fail at runtime and break \`GoogleAdsIO\`. This workflow upgrades the version as new releases come out (roughly every three months) to prevent deprecation breakage.
+
+          Previous issues where this caused customer impact: https://github.com/apache/beam/issues/37618 and https://github.com/apache/beam/issues/32241."
 
             GITHUB_PR_URL=$(gh pr create --title "Upgrade Google Ads to ${LATEST_VER} (API v${LATEST_API})" --body "$PR_BODY" --label "dependencies" --base master)
             echo "Link of the new PR: $GITHUB_PR_URL"
