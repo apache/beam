@@ -124,7 +124,10 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', "sed -i -E 's#(image: gcr\\.io/apache-beam-testing/(beamgrafana|beammetricssyncjenkins|beammetricssyncgithub))\$#\\1:${project.lastCommitId}#' kubernetes/beamgrafana-deploy.yaml"
+        args '-c', "kubectl --namespace default set image deployment/beamgrafana \
+          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
+          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
+          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
       }
 
       exec {
