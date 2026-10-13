@@ -48,7 +48,7 @@ class Boto3ClientOptionsTest(unittest.TestCase):
             '--aws_session_token=TOKEN',
             '--aws_endpoint_url=http://localhost:4566',
             '--aws_region_name=us-east-1',
-            '--aws_api_version=2006-03-01',
+            '--s3_api_version=2006-03-01',
             '--aws_verify=False',
             '--aws_disable_ssl',
         ]))
@@ -66,7 +66,7 @@ class Boto3ClientOptionsTest(unittest.TestCase):
             'aws_session_token': 'TOKEN',
         })
 
-  def test_deprecated_s3_options_still_work(self):
+  def test_s3_options_without_aws_options(self):
     boto3_client.Client(
         PipelineOptions([
             '--s3_access_key_id=AKIDEXAMPLE',
@@ -80,13 +80,20 @@ class Boto3ClientOptionsTest(unittest.TestCase):
     self.assertEqual(kwargs['region_name'], 'us-west-2')
     self.assertFalse(kwargs['use_ssl'])
 
-  def test_aws_options_take_precedence_over_s3_options(self):
+  def test_s3_options_override_aws_options(self):
     boto3_client.Client(
         PipelineOptions([
-            '--s3_region_name=us-west-2',
+            '--aws_access_key_id=AKIDEXAMPLE',
             '--aws_region_name=us-east-1',
+            '--aws_endpoint_url=https://vpce.example.com',
+            '--s3_region_name=us-west-2',
+            '--s3_endpoint_url=http://localhost:9000',
         ]))
-    self.assertEqual(self._client_kwargs()['region_name'], 'us-east-1')
+    kwargs = self._client_kwargs()
+    self.assertEqual(kwargs['region_name'], 'us-west-2')
+    self.assertEqual(kwargs['endpoint_url'], 'http://localhost:9000')
+    # Settings without an S3 override use the --aws_* default.
+    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
 
   def test_dict_options(self):
     boto3_client.Client({

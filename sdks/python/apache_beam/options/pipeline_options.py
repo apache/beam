@@ -2399,30 +2399,27 @@ class OptionsContext(object):
     return options
 
 
-# Deprecated S3Options option names, mapped to the AwsOptions options that
-# replace them.
-_DEPRECATED_S3_TO_AWS_OPTIONS = {
-    's3_access_key_id': 'aws_access_key_id',
-    's3_secret_access_key': 'aws_secret_access_key',
-    's3_session_token': 'aws_session_token',
-    's3_endpoint_url': 'aws_endpoint_url',
-    's3_region_name': 'aws_region_name',
-    's3_api_version': 'aws_api_version',
-    's3_verify': 'aws_verify',
-    's3_disable_ssl': 'aws_disable_ssl',
-}
-_AWS_TO_DEPRECATED_S3_OPTIONS = {
-    aws: s3
-    for s3, aws in _DEPRECATED_S3_TO_AWS_OPTIONS.items()
-}
+# Client settings shared by all AWS clients. Each is configured in AwsOptions as
+# --aws_<setting>, and can be overridden for one service by a service options
+# class (see AwsOptions.get_client_settings), e.g. --s3_<setting> in S3Options.
+_AWS_CLIENT_SETTINGS = (
+    'access_key_id',
+    'secret_access_key',
+    'session_token',
+    'endpoint_url',
+    'region_name',
+    'verify',
+    'disable_ssl',
+)
 
 
 class AwsOptions(PipelineOptions):
-  """Options used to create AWS service clients, e.g. for S3.
+  """Default options for creating AWS service clients.
 
-  The deprecated ``--s3_*`` flags from :class:`S3Options` are still accepted.
-  Each ``aws_*`` option falls back to its ``s3_*`` counterpart when it is not
-  set.
+  These settings apply to every AWS client Beam creates. A service options
+  class can override any of them for its own client, e.g. ``--s3_endpoint_url``
+  in :class:`S3Options` overrides ``--aws_endpoint_url`` for S3 only. Use
+  :meth:`get_client_settings` to get the effective settings for a service.
   """
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -2441,69 +2438,105 @@ class AwsOptions(PipelineOptions):
     parser.add_argument(
         '--aws_endpoint_url',
         default=None,
-        help='The complete URL to use for the constructed AWS client.')
+        help='The complete URL to use for the constructed AWS clients.')
     parser.add_argument(
         '--aws_region_name',
         default=None,
-        help='The name of the region associated with the AWS client.')
-    parser.add_argument(
-        '--aws_api_version',
-        default=None,
-        help='The API version to use with the AWS client.')
+        help='The name of the region associated with the AWS clients.')
     parser.add_argument(
         '--aws_verify',
         default=None,
-        help='Whether or not to verify SSL certificates with the AWS client.')
+        help='Whether or not to verify SSL certificates with the AWS clients.')
     parser.add_argument(
         '--aws_disable_ssl',
         default=False,
         action='store_true',
         help=(
-            'Whether or not to use SSL with the AWS client. '
+            'Whether or not to use SSL with the AWS clients. '
             'By default, SSL is used.'))
 
-    # Deprecated S3Options flags, kept for backward compatibility. They are
-    # registered here (not on S3Options) so that both flag sets are parsed by
-    # every AwsOptions view and are never registered twice.
-    for s3_name, aws_name in _DEPRECATED_S3_TO_AWS_OPTIONS.items():
-      if s3_name == 's3_disable_ssl':
-        kwargs = {'default': False, 'action': 'store_true'}
-      else:
-        kwargs = {'default': None}
-      parser.add_argument(
-          '--' + s3_name,
-          help='Deprecated, use --%s instead.' % aws_name,
-          **kwargs)
+  def get_client_settings(
+      self,
+      service_options: Optional['PipelineOptions'] = None) -> dict[str, Any]:
+    """Returns the effective client settings for an AWS service.
 
-  def __getattr__(self, name):
-    value = super().__getattr__(name)
-    s3_name = _AWS_TO_DEPRECATED_S3_OPTIONS.get(name)
-    if s3_name and not value:
-      s3_value = self._all_options.get(s3_name)
-      if s3_value:
-        logger.log_first_n(
-            logging.WARN,
-            '--%s is deprecated, use --%s instead.' % (s3_name, name),
-            key='message')
-        return s3_value
-    return value
+    Starts from the ``--aws_*`` defaults and applies the overrides set in
+    ``service_options``. A service options class opts in by defining
+    ``AWS_CLIENT_SETTINGS_PREFIX`` (e.g. ``'s3'``) and options named
+    ``<prefix>_<setting>`` for the settings it can override (e.g.
+    ``s3_endpoint_url``). An override applies when it is set (not None/False).
+
+    Args:
+      service_options: Optional options view for a specific service, e.g.
+        ``options.view_as(S3Options)``.
+
+    Returns:
+      A dict keyed by setting name (``access_key_id``, ``secret_access_key``,
+      ``session_token``, ``endpoint_url``, ``region_name``, ``verify``,
+      ``disable_ssl``).
+    """
+    settings = {
+        name: getattr(self, 'aws_' + name)
+        for name in _AWS_CLIENT_SETTINGS
+    }
+    prefix = getattr(service_options, 'AWS_CLIENT_SETTINGS_PREFIX', None)
+    if prefix:
+      for name in _AWS_CLIENT_SETTINGS:
+        override = getattr(service_options, '%s_%s' % (prefix, name), None)
+        if override:
+          settings[name] = override
+    return settings
 
 
-class S3Options(AwsOptions):
-  """Deprecated, use :class:`AwsOptions` instead.
+class S3Options(PipelineOptions):
+  """Options for the S3 client.
 
-  The ``s3_*`` attributes delegate to the corresponding ``aws_*`` options, so
-  both the old and new flags are honored.
+  ``--s3_api_version`` is S3-specific. The other options override the
+  corresponding ``--aws_*`` default in :class:`AwsOptions` for S3 only, e.g. to
+  point S3 at an S3-compatible endpoint while other AWS clients use the
+  defaults.
   """
-  def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
-    logger.log_first_n(
-        logging.WARN,
-        'S3Options is deprecated, use AwsOptions instead.',
-        key='message')
-    super().__init__(flags, **kwargs)
+  AWS_CLIENT_SETTINGS_PREFIX = 's3'
 
-  def __getattr__(self, name):
-    aws_name = _DEPRECATED_S3_TO_AWS_OPTIONS.get(name)
-    if aws_name:
-      return getattr(self, aws_name)
-    return super().__getattr__(name)
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--s3_access_key_id',
+        default=None,
+        help='The access key ID for the S3 client. Overrides '
+        '--aws_access_key_id.')
+    parser.add_argument(
+        '--s3_secret_access_key',
+        default=None,
+        help='The secret access key for the S3 client. Overrides '
+        '--aws_secret_access_key.')
+    parser.add_argument(
+        '--s3_session_token',
+        default=None,
+        help='The session token for the S3 client. Overrides '
+        '--aws_session_token.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the S3 client. Overrides '
+        '--aws_endpoint_url.')
+    parser.add_argument(
+        '--s3_region_name',
+        default=None,
+        help='The name of the region associated with the S3 client. '
+        'Overrides --aws_region_name.')
+    parser.add_argument(
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the S3 client. '
+        'Overrides --aws_verify.')
+    parser.add_argument(
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
+        help='Disable SSL for the S3 client, even if --aws_disable_ssl is not '
+        'set.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the S3 client.')
