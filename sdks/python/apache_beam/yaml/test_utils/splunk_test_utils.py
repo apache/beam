@@ -25,8 +25,6 @@ import json
 import logging
 import threading
 
-_LOGGER = logging.getLogger(__name__)
-
 _HEC_PATH = "/services/collector/event"
 
 
@@ -95,6 +93,11 @@ class MockSplunkHandler(http.server.BaseHTTPRequestHandler):
           self.server.received_records.extend(records)
     except Exception as e:
       logging.error("CRITICAL: Failure unpacking mock splunk payload: %s", e)
+      self.send_response(400)
+      self.send_header('Content-Type', 'application/json')
+      self.end_headers()
+      self.wfile.write(b'{"text": "Invalid data format", "code": 6}')
+      return
 
     self.send_response(200)
     self.send_header('Content-Type', 'application/json')
@@ -136,16 +139,16 @@ def temp_fake_splunk_server(expected_records=None):
       logging.error(
           "Error interacting with temporary fake Splunk server: %s", err)
       raise err
-    finally:
-      if expected_records is not None:
 
-        canonicalize = lambda rec: json.dumps(rec, sort_keys=True)
+  if expected_records is not None:
 
-        actual_strs = sorted([canonicalize(r) for r in received])
-        expected_strs = sorted([canonicalize(e) for e in expected_records])
+    canonicalize = lambda rec: json.dumps(rec, sort_keys=True)
 
-        assert actual_strs == expected_strs, (
-            f"Mismatch in recorded Splunk events!\n"
-            f"Expected: {expected_strs}\n"
-            f"Actual:   {actual_strs}"
-        )
+    actual_strs = sorted([canonicalize(r) for r in received])
+    expected_strs = sorted([canonicalize(e) for e in expected_records])
+
+    assert actual_strs == expected_strs, (
+        f"Mismatch in recorded Splunk events!\n"
+        f"Expected: {expected_strs}\n"
+        f"Actual:   {actual_strs}"
+    )
