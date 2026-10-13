@@ -16,9 +16,6 @@
 name: Gemini Enterprise Code Review
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/gemini_code_review.yml'
   pull_request_target:
     types: [opened, reopened, ready_for_review]
   workflow_dispatch:
@@ -37,7 +34,7 @@ concurrency:
 jobs:
   gemini-review:
     name: Gemini Enterprise PR Review
-    if: github.repository == 'apache/beam'
+    if: github.repository == 'apache/beam' && !github.event.pull_request.draft
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 15
     permissions:
@@ -78,8 +75,7 @@ jobs:
             },
             "tools": {
               "core": [
-                "web_fetch",
-                "run_shell_command(curl)"
+                "web_fetch"
               ]
             }
           }
@@ -106,7 +102,7 @@ jobs:
           EOF
           sed "s|__PR_URL__|${PR_URL}|g" prompt_template.txt > prompt.txt
 
-          npx --yes @google/gemini-cli@latest \
+          npx --yes @google/gemini-cli@0.37.1 \
             --yolo \
             --model "${GEMINI_MODEL}" \
             --prompt "$(cat prompt.txt)" \
