@@ -16,11 +16,10 @@
 name: Gemini Enterprise Code Review
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/gemini_code_review.yml'
   pull_request_target:
     types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -31,13 +30,19 @@ on:
 permissions: read-all
 
 concurrency:
-  group: gemini-code-review-${{ github.event.pull_request.number || inputs.pr_number }}
+  group: gemini-code-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   gemini-review:
     name: Gemini Enterprise PR Review
-    if: github.repository == 'apache/beam'
+    if: >-
+      github.repository == 'apache/beam' &&
+      (
+        (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/gemini review')) ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 15
     permissions:
@@ -60,7 +65,7 @@ jobs:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
           GOOGLE_CLOUD_LOCATION: 'global'
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-argon' }}
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -98,7 +103,7 @@ jobs:
                 "side": "RIGHT",
                 "severity": "🟠 High",
                 "body": "Clear explanation of why this is an issue and how to fix it.",
-                "suggestion": "optional exact replacement line(s) without backticks, or null"
+                "suggestion": "optional exact replacement for the single target line without backticks, or null"
               }
             ]
           }
@@ -122,7 +127,7 @@ jobs:
       - name: Post PR Review to GitHub
         uses: actions/github-script@v9
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
         with:
           script: |
             const fs = require('fs');
@@ -178,9 +183,10 @@ jobs:
               }
             }
 
-            const reviewBody = parsed.summary
+            const baseSummary = parsed.summary
               ? String(parsed.summary).trim()
               : '## 📋 Review Summary\n\nAutomated code review completed.';
+            const reviewBody = `${baseSummary}\n\n---\n*💡 Tip: Comment \`/gemini review\` on this pull request to trigger a new Gemini code review.*`;
 
             try {
               await github.rest.pulls.createReview({
