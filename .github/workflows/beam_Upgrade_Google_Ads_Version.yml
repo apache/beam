@@ -133,7 +133,7 @@ jobs:
             gh auth setup-git
             git push origin "$branchName" --quiet
 
-            PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from API **v${CURRENT_API}** to API **v${LATEST_API}**.
+            PR_BODY="This PR was created by [beam_Upgrade_Google_Ads_Version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/beam_Upgrade_Google_Ads_Version.yml). It upgrades \`com.google.api-ads:google-ads\` from API **v${CURRENT_API}** to API **v${LATEST_API}**.
 
           Please enable the workflow checks to run.
           
