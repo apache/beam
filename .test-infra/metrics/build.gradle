@@ -124,7 +124,12 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', "sed -E 's#(image: gcr\\.io/apache-beam-testing/(beamgrafana|beammetricssyncjenkins|beammetricssyncgithub))\$#\\1:${project.lastCommitId}#' kubernetes/beamgrafana-deploy.yaml | kubectl --namespace default apply -f -"
+        args '-c', "sed -i -E 's#(image: gcr\\.io/apache-beam-testing/(beamgrafana|beammetricssyncjenkins|beammetricssyncgithub))\$#\\1:${project.lastCommitId}#' kubernetes/beamgrafana-deploy.yaml"
+      }
+
+      exec {
+        executable 'sh'
+        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
       }
     } else {
       println 'Nothing to do, exiting.'
