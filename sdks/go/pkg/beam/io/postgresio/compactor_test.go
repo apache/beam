@@ -29,12 +29,13 @@ type TestOrder struct {
 	Amount float64 `db:"amount"`
 }
 
-func TestBatchCompactorLastWriteWins(t *testing.T) {
+// TestBatchCompactorKeepsOneRowPerKey checks that a batch never carries a key
+// twice, which PostgreSQL would reject with SQLSTATE 21000. The later arrival
+// replaces the earlier one; that is arrival order, not event order.
+func TestBatchCompactorKeepsOneRowPerKey(t *testing.T) {
 	bc := newBatchCompactor(10, 1024, 1*time.Second)
 
-	// Add order with ID 100, amount 50.0
 	bc.Add("100|", []any{int64(100)}, TestOrder{ID: 100, Region: "US", Amount: 50.0}, 64)
-	// Add updated order with ID 100, amount 75.0 (should overwrite)
 	bc.Add("100|", []any{int64(100)}, TestOrder{ID: 100, Region: "US", Amount: 75.0}, 64)
 	// Add distinct order with ID 101
 	bc.Add("101|", []any{int64(101)}, TestOrder{ID: 101, Region: "EU", Amount: 20.0}, 64)
@@ -50,7 +51,7 @@ func TestBatchCompactorLastWriteWins(t *testing.T) {
 
 	order0 := records[0].(TestOrder)
 	if order0.ID != 100 || order0.Amount != 75.0 {
-		t.Errorf("expected latest amount 75.0 for ID 100, got %v", order0)
+		t.Errorf("got %v, want the later-arriving row for ID 100 (amount 75.0)", order0)
 	}
 
 	order1 := records[1].(TestOrder)
@@ -326,7 +327,7 @@ func TestExtractPrimaryKeysMapEdgeCases(t *testing.T) {
 // reviewer noted in the case-insensitive fallback. reflect.Value.MapKeys
 // returns keys in an unspecified order, so a map holding both "ID" and "Id"
 // could resolve to a different value on each call. The entity key groups rows
-// for last-write-wins compaction and orders them for deadlock avoidance, so an
+// for in-batch deduplication and orders them for deadlock avoidance, so an
 // unstable choice would split one logical row across bundles and reorder locks
 // between workers. The pick is arbitrary, but it has to be fixed.
 func TestExtractPrimaryKeysAmbiguousCaseIsStable(t *testing.T) {

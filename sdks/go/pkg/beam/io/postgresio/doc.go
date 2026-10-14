@@ -45,11 +45,16 @@
 // unqualified name when the pipeline is constructed rather than letting a
 // worker fail later with "relation does not exist".
 //
-// 2. Deadlock Mitigation (Anti-40P01): Employs an in-memory batchCompactor that
-// deduplicates micro-batches via Last-Write-Wins (LWW) and sorts records canonically
-// by composite primary key prior to database transmission, minimizing PostgreSQL
-// SQLState 40P01 deadlocks across distributed workers, backed by an exponential-backoff
-// retry loop as the primary safety net.
+// 2. Batching: Rows are buffered per bundle and flushed by count, size or
+// interval. Within a batch, a primary key that appears more than once is kept
+// once, because PostgreSQL rejects a statement that affects the same row
+// twice. The surviving row is the later arrival in the bundle. That is not
+// event order, and nothing coordinates across bundles or workers, so Write
+// does not decide which version of a row wins. A pipeline that needs the
+// latest version to win must establish it before Write, for example with a
+// stateful DoFn keyed by primary key. Each batch is sorted by primary key so
+// concurrent writers take row locks in the same order, and a write that still
+// deadlocks is retried with backoff.
 //
 // 3. Multi-Output Dead-Letter Queue (DLQ): Returns a WriteResult struct separating
 // successfully committed records from rejected records (with sanitized error messages

@@ -41,7 +41,7 @@ sequenceDiagram
 
     Note over DoFn,Target: Bundle Lifecycle: StartBundle / ProcessElement
     DoFn->>DoFn: Buffer incoming records into batch slice (e.g. 5,000 rows)
-    DoFn->>DoFn: LWW compaction & canonical primary-key sorting
+    DoFn->>DoFn: Keep one row per primary key, sort by primary key
 
     Note over DoFn,Target: Execution in FinishBundle: executeStagedCopy
     DoFn->>Pool: Acquire dedicated connection (max lifetime validated)
@@ -85,7 +85,7 @@ sequenceDiagram
    The Go connector is completely self-contained (`CGO_ENABLED=0` invariant). It does not require a Java runtime or expansion service for native Go pipelines.
 2. **Upstream Database Guardrails**:
    * Connection pool bounding: `WithMaxConnections` defaults to 2 per worker to eliminate connection exhaustion under large worker autoscaling.
-   * Last-Write-Wins (LWW) compaction & primary key sorting: Prevents duplicate updates and mitigates PostgreSQL `40P01` deadlock errors on concurrent batches, backed by an exponential backoff retry loop as the primary safety net.
+   * In-batch deduplication and primary key sorting: a batch never carries a key twice, which PostgreSQL would reject with SQLSTATE `21000`. This is not an ordering guarantee; see batchCompactor. Sorting reduces `40P01` deadlocks, and deadlocked writes are retried.
    * Dynamic IAM Token Expiration: Pooled connections enforce token lifetime limits to renew short-lived cloud credentials before socket expiration.
 3. **Factual and Objective Tone**:
    Documentation, code comments, commit messages, and PR descriptions must remain strictly factual, describing concrete engineering behaviors, algorithms, and latency/throughput metrics without promotional modifiers.

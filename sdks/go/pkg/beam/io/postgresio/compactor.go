@@ -29,13 +29,6 @@ import (
 	"time"
 )
 
-var (
-	passwordRegex = regexp.MustCompile(`(?i)(password|token|secret|key|access_token|client_secret)\s*[:=]\s*['"]?[^\s,'"]+['"]?`)
-	urlCredRegex  = regexp.MustCompile(`(?i)([a-zA-Z][a-zA-Z0-9+.-]*)://([^:]+):([^@]+)@`)
-	bearerRegex   = regexp.MustCompile(`(?i)Bearer\s+[a-zA-Z0-9_\-\.~+/]+=*`)
-	ipRegex       = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
-)
-
 // recordEntry represents an in-flight element buffered within a micro-batch.
 type recordEntry struct {
 	EntityKey  string
@@ -44,8 +37,25 @@ type recordEntry struct {
 	ByteLength int
 }
 
-// batchCompactor manages micro-batch buffering, Last-Write-Wins (LWW) deduplication,
-// and deterministic primary key sorting to minimize PostgreSQL SQLState 40P01 deadlocks.
+// batchCompactor buffers rows into batches for one bundle, keeps at most one
+// row per primary key in each batch, and sorts the batch by primary key.
+//
+// Deduplication exists because PostgreSQL rejects a statement that would
+// affect the same row twice: an INSERT ... ON CONFLICT DO UPDATE or a MERGE
+// fails with SQLSTATE 21000 if its input carries a key more than once. It is
+// not an ordering mechanism. When a key repeats within a batch, the row that
+// arrived later in the bundle replaces the earlier one, and arrival order
+// within a bundle is not event order. Nothing here coordinates across bundles
+// or workers, so a delayed older row in a later bundle still overwrites a
+// newer one already written.
+//
+// A pipeline that needs the latest version of each key to win must establish
+// that before Write, for example with a stateful DoFn keyed by primary key
+// that keeps the greatest version seen per key and window.
+//
+// Sorting by primary key makes concurrent batches acquire row locks in the
+// same order, which reduces deadlocks (SQLSTATE 40P01). It does not prevent
+// them, so writes that deadlock are still retried.
 type batchCompactor struct {
 	maxBatchSize  int
 	maxBatchBytes int
@@ -53,7 +63,7 @@ type batchCompactor struct {
 	lastFlushTime time.Time
 
 	buffer       []recordEntry
-	seenKeys     map[string]int // maps entity key to slice index for LWW deduplication
+	seenKeys     map[string]int // entity key -> index in buffer
 	currentBytes int
 }
 
@@ -78,33 +88,17 @@ func newBatchCompactor(maxBatchSize, maxBatchBytes int, flushInterval time.Durat
 	}
 }
 
-// Add buffers an entry with Last-Write-Wins deduplication if entityKey is non-empty.
+// Add buffers a row. If entityKey is non-empty and a row with the same key is
+// already buffered, the new row replaces it; see batchCompactor for why that
+// is a statement-validity measure and not an ordering guarantee.
 func (bc *batchCompactor) Add(entityKey string, sortKey []any, data any, byteLength int) {
 	if byteLength <= 0 {
 		byteLength = 64
 	}
 
-	// Sort-key-aware last-write-wins deduplication.
-	//
-	// Beam provides no ordering guarantee between bundles, and an upstream
-	// shuffle or a replay can deliver an older mutation after a newer one.
-	// Overwriting unconditionally would discard the newer row and leave the
-	// sink holding a stale value that no later event corrects.
-	//
-	// A strictly older incoming record is therefore dropped. Equal sort keys
-	// still overwrite: the sink populates SortKey with the primary key for
-	// canonical flush ordering, so two updates to the same row carry the same
-	// key and carry no recency information, and plain arrival order remains
-	// the best available answer. When the CDC path populates SortKey with
-	// (LSN, intra-transaction sequence) the comparison becomes a true recency
-	// check.
 	if entityKey != "" {
 		if existingIdx, exists := bc.seenKeys[entityKey]; exists {
 			existing := bc.buffer[existingIdx]
-			if compareSortKeys(sortKey, existing.SortKey) < 0 {
-				// The buffered record is strictly newer: keep it.
-				return
-			}
 			bc.currentBytes -= existing.ByteLength
 			bc.buffer[existingIdx] = recordEntry{
 				EntityKey:  entityKey,
@@ -144,14 +138,14 @@ func (bc *batchCompactor) ShouldFlush() bool {
 	return false
 }
 
-// CompactAndSort returns the deduplicated records sorted canonically by composite primary key,
-// and resets the internal buffer for the next micro-batch.
+// CompactAndSort returns the buffered rows sorted by primary key and resets
+// the buffer for the next batch.
 func (bc *batchCompactor) CompactAndSort() []any {
 	if len(bc.buffer) == 0 {
 		return nil
 	}
 
-	// Canonical sort to minimize SQLState 40P01 deadlocks
+	// A consistent lock order across concurrent batches reduces 40P01 deadlocks.
 	sort.SliceStable(bc.buffer, func(i, j int) bool {
 		return compareSortKeys(bc.buffer[i].SortKey, bc.buffer[j].SortKey) < 0
 	})
@@ -245,9 +239,21 @@ func compareSingleKey(a, b any) int {
 		}
 	}
 
-	// Fallback to string representation for other types
+	// Reached for types not handled above, and also when a and b have
+	// different dynamic types (an int against an int64, say), since each case
+	// only matches a b of its own type. Comparing the formatted values is
+	// deterministic, which is all lock ordering needs, but it is not a
+	// numeric ordering: "10" sorts before "9".
 	return strings.Compare(fmt.Sprint(a), fmt.Sprint(b))
 }
+
+// Patterns scrubbed from error text by sanitizeErrorMessage.
+var (
+	passwordRegex = regexp.MustCompile(`(?i)(password|token|secret|key|access_token|client_secret)\s*[:=]\s*['"]?[^\s,'"]+['"]?`)
+	urlCredRegex  = regexp.MustCompile(`(?i)([a-zA-Z][a-zA-Z0-9+.-]*)://([^:]+):([^@]+)@`)
+	bearerRegex   = regexp.MustCompile(`(?i)Bearer\s+[a-zA-Z0-9_\-\.~+/]+=*`)
+	ipRegex       = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+)
 
 // sanitizeErrorMessage scrubs passwords, inline JDBC URL credentials, Bearer tokens,
 // and IP addresses from error strings prior to emission to metrics or Dead-Letter Queues.
@@ -322,7 +328,7 @@ func extractPrimaryKeys(val any, pkCols []string) (string, []any) {
 				// so a map carrying more than one spelling of the same column
 				// ("ID" and "Id", say) would otherwise resolve to a different
 				// entry on each call. The entity key produced here groups rows
-				// for last-write-wins compaction and orders them for deadlock
+				// for in-batch deduplication and orders them for deadlock
 				// avoidance, so an unstable choice would split one logical row
 				// across bundles. Taking the lexicographically smallest match
 				// makes the choice arbitrary but fixed.

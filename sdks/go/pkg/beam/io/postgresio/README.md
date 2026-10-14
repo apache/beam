@@ -44,37 +44,22 @@
 ## 1. Architectural Overview
 
 ```
-+-----------------------------------------------------------------------------------+
-|                            PostgreSQL Primary Database                            |
-|                  (WAL Logs, Logical Replication Slot, Tables)                     |
-+--------------------+---------------------------------------+----------------------+
-                     |                                       ^
-        Logical CDC  | (pgoutput) [Planned]                  | Parameterized
-        Replication  |                                       | UNNEST ($1::type[])
-                     v                                       | Upserts
-+--------------------+-------------------+   +---------------+----------------------+
-|   postgresio.ReadCDC Source [Planned]  |   |        postgresio.Write Sink         |
-|  - Decoupled Heartbeat Goroutine       |   |  - batchCompactor (LWW deduplication)|
-|  - pgoutput Binary Message Parser      |   |  - Canonical Composite PK Sorter     |
-|  - In-Flight XID Transaction Spooler   |   |  - Pool Clamping (2 conns default)   |
-|  - Bundle Checkpointing (FlushLSN)     |   |  - Dead-Letter Queue (FailedRow)     |
-+--------------------+-------------------+   +---------------+----------------------+
-                     |                                       ^
-                     v                                       |
-+--------------------+---------------------------------------+----------------------+
-|             Apache Arrow Columnar Vectorized Engine [Planned]                     |
-|  - ArrowRecordBatch zero-copy conversion (0 allocs/op, amortized)                 |
-|  - Schema Reflection & Go Type Unnesting (cdc_range, arrays, jsonb)               |
-+-----------------------------------------------------------------------------------+
-                     |                                       ^
-                     v                                       |
-+--------------------+---------------------------------------+----------------------+
-|                     Beam Go SchemaTransform & Expansion Service                   |
-|  - URN: beam:schematransform:org.apache.beam:postgres_write:v1                    |
-|  - URN: beam:schematransform:org.apache.beam:postgres_read:v1                     |
-|  - URN: beam:schematransform:org.apache.beam:postgres_read_cdc:v1 [Planned]       |
-|  - Cross-Language Portability (Beam YAML, Python SDK)                             |
-+-----------------------------------------------------------------------------------+
+ PCollection<T>
+       |
+       v
++------------------------------------------------------------+
+| postgresio.Write                                           |
+|   per bundle: buffer rows; flush by count, bytes, interval |
+|   per batch:  keep one row per primary key; sort by key    |
+|   execute:    staged COPY + INSERT ... ON CONFLICT         |
+|               or parameterized UNNEST                      |
+|   deadlock:   retry with jittered exponential backoff      |
++------------------------------+-----------------------------+
+                               |
+              +----------------+----------------+
+              v                                 v
+   WriteResult.SuccessfulRows        WriteResult.FailedRows
+                                     (rows the database rejected)
 ```
 
 ### Staged COPY Upsert Sequence Diagram
@@ -82,15 +67,15 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DoFn as PostgreSqlWriteDoFn / Worker
+    participant DoFn as postgresio.Write worker
     participant Pool as Dynamic DB Connection Pool
-    participant PG as PostgreSQL 18 Server
+    participant PG as PostgreSQL server
     participant Temp as Session Temporary Staging Table
     participant Target as Production Target Table
 
     Note over DoFn,Target: Bundle Lifecycle: StartBundle / ProcessElement
     DoFn->>DoFn: Buffer incoming records into batch slice (e.g. 5,000 rows)
-    DoFn->>DoFn: LWW compaction & canonical primary-key sorting
+    DoFn->>DoFn: Keep one row per primary key, sort by primary key
 
     Note over DoFn,Target: Execution in FinishBundle: executeStagedCopy
     DoFn->>Pool: Acquire dedicated connection (max lifetime validated)
@@ -133,7 +118,7 @@ sequenceDiagram
 ### A. High-Throughput Write Engine
 * **Staged COPY Upsert (`WriteMethodStagedCopy`, Default)**: Streams micro-batched tuples through a prepared `COPY <staging> (<columns>) FROM STDIN` into a session-scoped temporary table (`CREATE TEMP TABLE IF NOT EXISTS <staging> (LIKE target INCLUDING DEFAULTS) ON COMMIT DELETE ROWS`). The staging table is created once per session and emptied at each commit rather than created and dropped per batch, so steady-state flushes execute no catalog DDL. Once streamed, an atomic set-based merge (`INSERT INTO target SELECT ... FROM <staging> ON CONFLICT DO UPDATE SET ...`) applies the batch, so per-row statements are never parsed or planned.
 * **Parameterized `UNNEST` Array Upsert (`WriteMethodUnnest`)**: Executes batch inserts and upserts via vectorized array parameters with explicit type casts (`UNNEST($1::bigint[], $2::text[], ...)`), providing fallback execution when temporary table creation is restricted.
-* **In-Memory Batch Compaction & Deadlock Mitigation**: The `batchCompactor` applies Last-Write-Wins (LWW) deduplication within micro-batches and sorts records canonically by composite primary key prior to database execution. This enforces uniform row-lock acquisition order across distributed parallel workers to minimize `SQLState 40P01` deadlocks, backed by an exponential backoff retry loop as the primary safety net.
+* **Batching and deadlocks**: Within a batch, a primary key that appears more than once is kept once, because PostgreSQL rejects a statement that affects the same row twice (SQLSTATE `21000`). The surviving row is the later arrival in the bundle, which is not event order, and nothing coordinates across bundles or workers. **Write does not decide which version of a row wins**; if your pipeline needs the latest version to win, establish that before `Write`, for example with a stateful DoFn keyed by primary key. Each batch is sorted by primary key so concurrent writers take row locks in the same order, which reduces `40P01` deadlocks; a write that still deadlocks is retried with backoff.
 * **Declarative Replication Origin Stamping**: Users can configure `.WithReplicationOriginName("beam_origin")`. Each pooled connection selects the origin once via `SELECT pg_replication_origin_session_setup($1)`, so every WAL record the sink produces carries that origin. A peer subscription declared `WITH (origin = none)` then skips those changes, breaking the cyclic feedback loop in active-active bidirectional synchronization. The origin must already exist (`SELECT pg_replication_origin_create('beam_origin')`) and the role needs the privilege described under [Required privileges](#required-privileges).
 * **Connection Pool Management & CVE-2018-1058 Mitigation**: Clamps worker connection pools to 2 connections by default to prevent connection storms. Automatically injects `search_path=pg_catalog,pg_temp` into every connection DSN, closing search-path hijacking vulnerabilities across all pool connections.
 * **Dead-Letter Queue (DLQ)**: Separates successfully committed rows from rejected records, appending sanitized error messages and PostgreSQL SQL states without credential leakage. Every failure has exactly one outcome. A batch rejected by the *server* (a constraint violation, say) is emitted to `FailedRows` and the bundle continues. A batch that the current *configuration* can never write correctly — `MERGE` on the `UNNEST` path, `MERGE` over a partial row, or a row type naming a column that does not exist — fails the bundle instead, because retrying it against the same configuration would fail identically, and draining it to the DLQ would report success while hiding a misconfiguration. The DLQ is batch-granular: the failing statement is set-based, so PostgreSQL does not report which input row caused the error, and a job reprocessing the DLQ must expect already-applied rows in it.
