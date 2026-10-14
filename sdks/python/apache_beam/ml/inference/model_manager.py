@@ -795,7 +795,7 @@ class ModelManager:
     self._monitor.refresh()
     self._monitor.reset_peak()
 
-  def _force_reset(self):
+  def force_reset(self):
     logger.warning("Force Reset Triggered")
     self._delete_all_models()
     self._models = defaultdict(list)
