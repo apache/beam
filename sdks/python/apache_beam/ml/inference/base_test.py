@@ -24,6 +24,7 @@ import pickle
 import random
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import unittest.mock
@@ -54,6 +55,26 @@ from apache_beam.utils import multi_process_shared
 class FakeModel:
   def predict(self, example: int) -> int:
     return example + 1
+
+
+class _Unpicklable:
+  """Mimics an object that cannot be pickled, e.g. a C extension object."""
+  def __init__(self):
+    self._lock = threading.Lock()
+
+
+class FakeModelHandlerSendsUnpicklableData(base.ModelHandler[int,
+                                                             int,
+                                                             FakeModel]):
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    # Calls on a model shared across processes pickle their arguments.
+    return [model.predict(_Unpicklable()) for _ in batch]
+
+  def share_model_across_processes(self):
+    return True
 
 
 class FakeStatefulModel:
@@ -348,6 +369,25 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_unpicklable_data_multi_process_shared(self):
+    with self.assertRaisesRegex(Exception, 'Pickling error encountered'):
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | 'start' >> beam.Create([1])
+            | base.RunInference(FakeModelHandlerSendsUnpicklableData()))
+
+  def test_is_pickling_error(self):
+    self.assertTrue(base._is_pickling_error(pickle.PicklingError('x')))
+    self.assertTrue(
+        base._is_pickling_error(
+            TypeError("cannot pickle '_thread.lock' object")))
+    self.assertTrue(
+        base._is_pickling_error(
+            AttributeError("Can't pickle local object 'f.<locals>.g'")))
+    self.assertFalse(base._is_pickling_error(TypeError('unsupported type')))
+    self.assertFalse(base._is_pickling_error(ValueError('pickle')))
 
   def test_run_inference_impl_simple_examples_multi_process_shared_multi_copy(
       self):

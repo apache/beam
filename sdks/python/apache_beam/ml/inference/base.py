@@ -148,6 +148,18 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
+def _is_pickling_error(e: BaseException) -> bool:
+  """Returns True if the exception was likely raised while pickling data."""
+  if isinstance(e, pickle.PickleError):
+    return True
+  # Unpicklable objects (e.g. C extension objects, locks, local functions)
+  # typically surface as TypeError or AttributeError, for example
+  # "cannot pickle 'X' object" or "Can't pickle local object ...".
+  return (
+      isinstance(e, (TypeError, AttributeError)) and
+      'pickle' in str(e).lower())
+
+
 @dataclass(frozen=True)
 class KeyModelPathMapping(Generic[KeyT]):
   """
@@ -2113,7 +2125,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
-      if (e is pickle.PickleError and
+      if (_is_pickling_error(e) and
           self._model_handler.share_model_across_processes()):
         raise TypeError(
             'Pickling error encountered while running inference. '
