@@ -1388,8 +1388,7 @@ class UtilTest(unittest.TestCase):
       return {
           c.api_endpoint
           for c in (
-              client._jobs_client,
-              client._messages_client,
+              client._jobs_client, client._messages_client,
               client._metrics_client)
       }
 
