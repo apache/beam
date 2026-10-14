@@ -128,6 +128,34 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
         BeamFnStateClient beamFnStateClient,
         Coder<K> keyCoder,
+        Coder<BoundedWindow> windowCoder) {
+      this(
+          pipelineOptions,
+          runnerCapabilities,
+          ptransformId,
+          processBundleInstructionId,
+          cacheTokens,
+          bundleCache,
+          processWideCache,
+          sideInputSpecMap,
+          beamFnStateClient,
+          keyCoder,
+          windowCoder,
+          () -> false,
+          () -> false);
+    }
+
+    public Factory(
+        PipelineOptions pipelineOptions,
+        Set<String> runnerCapabilities,
+        String ptransformId,
+        Supplier<String> processBundleInstructionId,
+        Supplier<List<CacheToken>> cacheTokens,
+        Supplier<Cache<?, ?>> bundleCache,
+        Cache<?, ?> processWideCache,
+        Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+        BeamFnStateClient beamFnStateClient,
+        Coder<K> keyCoder,
         Coder<BoundedWindow> windowCoder,
         Supplier<Boolean> hasNoState,
         Supplier<Boolean> onlyBundleForKeys) {
@@ -268,6 +296,34 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
   private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
   private @Nullable Supplier<ByteString> encodedCurrentWindowSupplier;
+
+  public FnApiStateAccessor(
+      PipelineOptions pipelineOptions,
+      Set<String> runnerCapabilities,
+      String ptransformId,
+      Supplier<String> processBundleInstructionId,
+      Supplier<List<CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
+      Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+      BeamFnStateClient beamFnStateClient,
+      Coder<K> keyCoder,
+      Coder<BoundedWindow> windowCoder) {
+    this(
+        pipelineOptions,
+        runnerCapabilities,
+        ptransformId,
+        processBundleInstructionId,
+        cacheTokens,
+        bundleCache,
+        processWideCache,
+        sideInputSpecMap,
+        beamFnStateClient,
+        keyCoder,
+        windowCoder,
+        () -> false,
+        () -> false);
+  }
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,

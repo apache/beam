@@ -163,6 +163,15 @@ public class OrderedListUserState<T> {
       BeamFnStateClient beamFnStateClient,
       String instructionId,
       StateKey stateKey,
+      Coder<T> valueCoder) {
+    this(cache, beamFnStateClient, instructionId, stateKey, valueCoder, false, false);
+  }
+
+  public OrderedListUserState(
+      Cache<?, ?> cache,
+      BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      StateKey stateKey,
       Coder<T> valueCoder,
       boolean hasNoState,
       boolean onlyBundleForKeys) {

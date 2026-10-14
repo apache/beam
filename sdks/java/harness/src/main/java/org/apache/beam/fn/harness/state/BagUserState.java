@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.state;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
@@ -50,7 +52,7 @@ public class BagUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest request;
   private final Coder<T> valueCoder;
-  private final CachingStateIterable<T> oldValues;
+  private final @Nullable CachingStateIterable<T> oldValues;
   private List<T> newValues;
   private boolean isCleared;
   private boolean isClosed;
@@ -58,6 +60,16 @@ public class BagUserState<T> {
   private final boolean onlyBundleForKeys;
 
   static final int BAG_APPEND_BATCHING_LIMIT = 10 * 1024 * 1024;
+
+  /** The cache must be namespaced for this state object accordingly. */
+  public BagUserState(
+      Cache<?, ?> cache,
+      BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      StateKey stateKey,
+      Coder<T> valueCoder) {
+    this(cache, beamFnStateClient, instructionId, stateKey, valueCoder, false, false);
+  }
 
   /** The cache must be namespaced for this state object accordingly. */
   public BagUserState(
@@ -80,7 +92,7 @@ public class BagUserState<T> {
 
     this.oldValues =
         hasNoState
-            ? CachingStateIterable.emptyIterable()
+            ? null
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 this.cache, beamFnStateClient, request, valueCoder);
     this.newValues = new ArrayList<>();
@@ -96,10 +108,11 @@ public class BagUserState<T> {
       return PrefetchableIterables.limit(Collections.unmodifiableList(newValues), newValues.size());
     } else if (newValues.isEmpty()) {
       // If we have no new values then just return the old values.
-      return oldValues;
+      return checkNotNull(oldValues);
     }
     return PrefetchableIterables.concat(
-        oldValues, Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
+        checkNotNull(oldValues),
+        Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
   }
 
   public void append(T t) {
@@ -169,12 +182,14 @@ public class BagUserState<T> {
     }
 
     // Modify the underlying cached state depending on the mutations performed
-    if (isCleared) {
-      // Note this takes ownership of newValues. This object is no longer used after it has been
-      // closed.
-      oldValues.clearAndAppend(newValues);
-    } else {
-      oldValues.append(newValues);
+    if (oldValues != null) {
+      if (isCleared) {
+        // Note this takes ownership of newValues. This object is no longer used after it has been
+        // closed.
+        oldValues.clearAndAppend(newValues);
+      } else {
+        oldValues.append(newValues);
+      }
     }
   }
 }

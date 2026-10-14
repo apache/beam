@@ -162,10 +162,14 @@ public interface PTransformRunnerFactory {
     DoFn.BundleFinalizer getBundleFinalizer();
 
     /** A supplier containing hasNoState. */
-    Supplier<Boolean> getHasNoStateSupplier();
+    default Supplier<Boolean> getHasNoStateSupplier() {
+      return () -> false;
+    }
 
     /** A supplier containing onlyBundleForKeys. */
-    Supplier<Boolean> getOnlyBundleForKeysSupplier();
+    default Supplier<Boolean> getOnlyBundleForKeysSupplier() {
+      return () -> false;
+    }
   }
 
   /**

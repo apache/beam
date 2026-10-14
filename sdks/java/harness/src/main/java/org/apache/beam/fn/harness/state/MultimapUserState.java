@@ -50,6 +50,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of a multimap user state that utilizes the Beam Fn State API to fetch, clear
@@ -67,8 +68,8 @@ public class MultimapUserState<K, V> {
   private final StateRequest keysStateRequest;
   private final StateRequest entriesStateRequest;
   private final StateRequest userStateRequest;
-  private final CachingStateIterable<K> persistedKeys;
-  private final CachingStateIterable<KV<K, Iterable<V>>> persistedEntries;
+  private final @Nullable CachingStateIterable<K> persistedKeys;
+  private final @Nullable CachingStateIterable<KV<K, Iterable<V>>> persistedEntries;
 
   private boolean isClosed;
   private boolean isCleared;
@@ -79,6 +80,16 @@ public class MultimapUserState<K, V> {
   private HashMap<Object, KV<K, List<V>>> pendingAdds = Maps.newHashMap();
   // Values retrieved from persistent storage
   private HashMap<Object, KV<K, CachingStateIterable<V>>> persistedValues = Maps.newHashMap();
+
+  public MultimapUserState(
+      Cache<?, ?> cache,
+      BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      StateKey stateKey,
+      Coder<K> mapKeyCoder,
+      Coder<V> valueCoder) {
+    this(cache, beamFnStateClient, instructionId, stateKey, mapKeyCoder, valueCoder, false, false);
+  }
 
   public MultimapUserState(
       Cache<?, ?> cache,
@@ -106,7 +117,7 @@ public class MultimapUserState<K, V> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
     this.persistedKeys =
         hasNoState
-            ? CachingStateIterable.emptyIterable()
+            ? null
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 cache, beamFnStateClient, keysStateRequest, mapKeyCoder);
 
@@ -133,7 +144,7 @@ public class MultimapUserState<K, V> {
     this.entriesStateRequest = entriesStateRequestBuilder.build();
     this.persistedEntries =
         hasNoState
-            ? CachingStateIterable.emptyIterable()
+            ? null
             : StateFetchingIterators.readAllAndDecodeStartingFrom(
                 Caches.subCache(this.cache, "AllEntries"),
                 beamFnStateClient,
@@ -468,7 +479,9 @@ public class MultimapUserState<K, V> {
     if (isCleared) {
       // This will clear all keys and values since values is a sub-cache of keys. Note this
       // takes ownership of pendingAddKeys. This object is no longer used after it has been closed.
-      persistedKeys.clearAndAppend(pendingAddsKeys);
+      if (persistedKeys != null) {
+        persistedKeys.clearAndAppend(pendingAddsKeys);
+      }
 
       // Since the map was cleared we can add all the values that are pending since we know
       // that they must have been cleared.
@@ -483,8 +496,10 @@ public class MultimapUserState<K, V> {
       // The cast to Set<Object> is necessary since the checker framework would like to further
       // limit the type to Set<@KeyFor("this.pendingRemoves") Object> which is incompatible with
       // the API being remove(Set<Object>). We don't want to limit the API for remove either.
-      persistedKeys.remove((Set<Object>) pendingRemoves.keySet());
-      persistedKeys.append(pendingAddsKeys);
+      if (persistedKeys != null) {
+        persistedKeys.remove((Set<Object>) pendingRemoves.keySet());
+        persistedKeys.append(pendingAddsKeys);
+      }
 
       // For each removed key, we want to update the internal cache to clear its set of values
       for (Map.Entry<Object, K> entry : pendingRemoves.entrySet()) {
