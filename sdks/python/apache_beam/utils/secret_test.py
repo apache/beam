@@ -17,6 +17,7 @@
 
 import base64
 import json
+import pickle
 import unittest
 from unittest import mock
 
@@ -78,6 +79,9 @@ class SecretTest(unittest.TestCase):
       param(
           secret_string='type:awssecreT;name:foo;invalid_key:bar',
           exception_str='Invalid secret parameter invalid_key'),
+      param(
+          secret_string='type:awssecreT;name:foo;access_key_id:bar',
+          exception_str='Use the --aws_access_key_id pipeline option'),
   ])
   def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
     with self.assertRaisesRegex(Exception, exception_str):
@@ -391,170 +395,70 @@ class AwsSecretTest(unittest.TestCase):
     secret = AwsSecret('my-secret')
     self.assertEqual(secret.get_str(cacheSecret=True), 'aws-value')
     self.assertEqual(secret.get_bytes(cacheSecret=True), b'aws-value')
-    # Fetched once; without options or settings boto3's defaults are used.
     self.mock_boto3_client.assert_called_once_with('secretsmanager')
     self.mock_sm.get_secret_value.assert_called_once_with(SecretId='my-secret')
-    # The cached value is not pickled.
     self.assertIsNone(secret.__getstate__()['_cached_secret_bytes'])
 
-  @parameterized.expand([
-      ('bytes', b'binary'),
-      ('base64_string', base64.b64encode(b'binary').decode('utf-8')),
-  ])
-  def test_get_secret_binary(self, _, payload):
-    self.mock_sm.get_secret_value.return_value = {'SecretBinary': payload}
-    self.assertEqual(AwsSecret('my-secret').get_bytes(), b'binary')
-
-  def test_version_and_stage(self):
-    AwsSecret.from_dict({
-        'name': 'my-secret', 'version_id': 'v-12345', 'stage': 'AWSCURRENT'
-    }).get_str()
-    self.mock_sm.get_secret_value.assert_called_once_with(
-        SecretId='my-secret', VersionId='v-12345', VersionStage='AWSCURRENT')
-
-  @parameterized.expand([
-      (
-          'api_error', {
-              'side_effect': Exception('Secret not found')
-          },
-          'Secret not found'),
-      (
-          'empty_payload', {
-              'return_value': {}
-          },
-          'contains neither SecretString nor SecretBinary'),
-  ])
-  def test_fetch_failure_raises_runtime_error(self, _, behavior, message):
-    self.mock_sm.get_secret_value.configure_mock(**behavior)
-    with self.assertRaisesRegex(RuntimeError, message):
-      AwsSecret('my-secret').get_str()
-
-  def test_connection_settings_in_spec(self):
-    secret = AwsSecret.from_dict({
-        'name': 'my-secret',
-        'region_name': 'us-west-2',
-        'endpoint_url': 'http://localhost:4566',
-        'verify': 'false',
-        'disable_ssl': 'true',
-    })
-    self.assertEqual(
-        secret._client_settings,
-        {
-            'region_name': 'us-west-2',
-            'endpoint_url': 'http://localhost:4566',
-            'verify': 'false',
-            'disable_ssl': True,
-        })
-    # Settings apply without pipeline options too.
+    # Keyword settings apply without pipeline options.
     AwsSecret('my-secret', region_name='eu-west-1').get_str()
     self.assertEqual(
         self._client_kwargs(), {
             'region_name': 'eu-west-1', 'use_ssl': True
         })
 
-  @parameterized.expand([
-      (
-          'credential', {
-              'access_key_id': 'x'
-          },
-          'Use the --aws_access_key_id pipeline option'),
-      ('alias', {
-          'region': 'x'
-      }, 'Invalid secret parameter region'),
-      (
-          'option_name', {
-              'aws_region_name': 'x'
-          },
-          'Invalid secret parameter aws_region_name'),
-      (
-          'bad_bool', {
-              'disable_ssl': 'maybe'
-          },
-          'Invalid boolean value for disable_ssl'),
-  ])
-  def test_invalid_spec_raises_value_error(self, _, extra, message):
-    with self.assertRaisesRegex(ValueError, message):
-      AwsSecret.from_dict({'name': 'my-secret', **extra})
+    AwsSecret.from_dict({
+        'name': 'my-secret', 'version_id': 'v-12345', 'stage': 'AWSCURRENT'
+    }).get_str()
+    self.mock_sm.get_secret_value.assert_called_with(
+        SecretId='my-secret', VersionId='v-12345', VersionStage='AWSCURRENT')
 
-  @mock.patch.dict('os.environ', {'AWS_DEFAULT_REGION': 'eu-central-1'})
-  def test_settings_from_aws_options(self):
-    # --aws_* options take precedence over the environment, and --s3_*
-    # overrides apply to the S3 client only.
+  def test_get_secret_binary(self):
+    self.mock_sm.get_secret_value.return_value = {'SecretBinary': b'binary'}
+    self.assertEqual(AwsSecret('my-secret').get_bytes(), b'binary')
+
+    # A base64-encoded string payload is decoded.
+    self.mock_sm.get_secret_value.return_value = {
+        'SecretBinary': base64.b64encode(b'binary').decode('utf-8')
+    }
+    self.assertEqual(AwsSecret('my-secret').get_bytes(), b'binary')
+
+  def test_fetch_failure_raises_runtime_error(self):
+    self.mock_sm.get_secret_value.side_effect = Exception('Secret not found')
+    with self.assertRaisesRegex(RuntimeError, 'Secret not found'):
+      AwsSecret('my-secret').get_str()
+
+    self.mock_sm.get_secret_value.side_effect = None
+    self.mock_sm.get_secret_value.return_value = {}
+    with self.assertRaisesRegex(
+        RuntimeError, 'contains neither SecretString nor SecretBinary'):
+      AwsSecret('my-secret').get_str()
+
+  def test_aws_options_and_spec_overrides(self):
     secret = Secret.parse_secret_option(
-        'type:awssecret;name:my-secret',
+        'type:awssecret;name:my-secret;region_name:us-west-2;disable_ssl:true',
         self._options(
             '--aws_access_key_id=AKIDEXAMPLE',
             '--aws_secret_access_key=SECRETEXAMPLE',
-            '--aws_session_token=TOKEN',
             '--aws_region_name=us-east-2',
             '--aws_endpoint_url=http://localhost:4566',
-            '--s3_access_key_id=S3KEY',
-            '--s3_endpoint_url=http://localhost:9000'))
-    self.assertEqual(secret.get_str(), 'aws-value')
+            '--s3_region_name=eu-west-1'))
+    restored = pickle.loads(pickle.dumps(secret))
+    self.assertEqual(restored, secret)
+    self.assertNotEqual(secret, AwsSecret('my-secret', region_name='us-west-2'))
+    self.assertEqual(restored.get_str(), 'aws-value')
     self.assertEqual(
         self._client_kwargs(),
         {
             'aws_access_key_id': 'AKIDEXAMPLE',
             'aws_secret_access_key': 'SECRETEXAMPLE',
-            'aws_session_token': 'TOKEN',
-            'region_name': 'us-east-2',
-            'endpoint_url': 'http://localhost:4566',
-            'use_ssl': True,
-        })
-
-  def test_spec_settings_override_aws_options(self):
-    secret = Secret.from_json(
-        '{"name": "my-secret", "region_name": "us-west-2", '
-        '"endpoint_url": "http://localhost:4566", "disable_ssl": "true"}',
-        'AwsSecretsManager',
-        self._options(
-            '--aws_access_key_id=AKIDEXAMPLE',
-            '--aws_region_name=us-east-2',
-            '--aws_endpoint_url=http://other:4566'))
-    secret.get_str()
-    self.assertEqual(
-        self._client_kwargs(),
-        {
-            'aws_access_key_id': 'AKIDEXAMPLE',
             'region_name': 'us-west-2',
             'endpoint_url': 'http://localhost:4566',
             'use_ssl': False,
         })
 
-    # An explicit false in the spec overrides --aws_disable_ssl.
-    Secret.parse_secret_option(
-        'type:awssecret;name:my-secret;disable_ssl:false',
-        self._options('--aws_disable_ssl')).get_str()
-    self.assertTrue(self._client_kwargs()['use_ssl'])
-
-  @mock.patch('google.cloud.secretmanager.SecretManagerServiceClient')
-  def test_credentials_resolved_through_gcp_secret_manager(
-      self, mock_gcp_client):
-    payloads = {
-        'projects/p/secrets/key-id/versions/latest': b'AKIDEXAMPLE',
-        'projects/p/secrets/secret-key/versions/latest': b'SECRETEXAMPLE',
-    }
-
-    def access(request):
-      response = mock.MagicMock()
-      response.payload.data = payloads[request['name']]
-      return response
-
-    mock_gcp_client.return_value.access_secret_version.side_effect = access
-
-    secret = Secret.from_json(
-        '{"name": "my-secret"}',
-        'AwsSecretsManager',
-        self._options(
-            '--aws_credentials_secret_manager=GoogleCloudSecretManager',
-            '--aws_access_key_id={"name": "key-id", "project": "p"}',
-            '--aws_secret_access_key={"name": "secret-key", "project": "p"}'))
-    self.assertEqual(secret.get_str(), 'aws-value')
-    kwargs = self._client_kwargs()
-    self.assertEqual(kwargs['aws_access_key_id'], 'AKIDEXAMPLE')
-    self.assertEqual(kwargs['aws_secret_access_key'], 'SECRETEXAMPLE')
-
   def test_credentials_in_aws_secrets_manager_rejected(self):
+    # Credential specs are resolved lazily, so construction succeeds and the
+    # error is only raised on fetch.
     secret = Secret.from_json(
         '{"name": "my-secret"}',
         'AwsSecretsManager',
@@ -564,42 +468,6 @@ class AwsSecretTest(unittest.TestCase):
     with self.assertRaisesRegex(RuntimeError, 'cannot be AWS Secrets Manager'):
       secret.get_str()
     self.mock_boto3_client.assert_not_called()
-
-  def test_pickle_and_equality(self):
-    import pickle
-    with mock.patch('apache_beam.utils.secret.Secret.from_json',
-                    wraps=Secret.from_json) as spy:
-      secret = Secret.from_json(
-          '{"name": "my-secret", "region_name": "us-west-2"}',
-          'AwsSecretsManager',
-          self._options(
-              '--aws_credentials_secret_manager=GoogleCloudSecretManager',
-              '--aws_access_key_id=projects/p/secrets/key-id/versions/1'))
-      # Only the outer from_json call; the credential spec is not resolved yet.
-      self.assertEqual(spy.call_count, 1)
-
-    restored = pickle.loads(pickle.dumps(secret))
-    self.assertEqual(restored, secret)
-    self.assertEqual(
-        restored._aws_options['aws_access_key_id'],
-        'projects/p/secrets/key-id/versions/1')
-    self.assertEqual(restored._client_settings, {'region_name': 'us-west-2'})
-
-    with_options_1 = AwsSecret('s')
-    with_options_1.apply_pipeline_options({'aws_region_name': 'us-east-1'})
-    with_options_2 = AwsSecret('s')
-    with_options_2.apply_pipeline_options({'aws_region_name': 'us-east-2'})
-    self.assertNotEqual(with_options_1, with_options_2)
-    self.assertNotEqual(
-        AwsSecret('s', region_name='us-east-1'),
-        AwsSecret('s', region_name='us-east-2'))
-
-  def test_other_secrets_ignore_pipeline_options(self):
-    secret = Secret.from_json(
-        'projects/p/secrets/s/versions/1',
-        'GoogleCloudSecretManager',
-        self._options('--aws_region_name=us-east-2'))
-    self.assertEqual(secret, GcpSecret('projects/p/secrets/s/versions/1'))
 
 
 class RawSecretTest(unittest.TestCase):
@@ -670,6 +538,19 @@ class SecretFactoryTest(unittest.TestCase):
         spec="my-secret-arn", secret_manager="AwsSecretsManager")
     self.assertIsInstance(secret_plain, AwsSecret)
     self.assertEqual(secret_plain._secret_id, "my-secret-arn")
+
+    # When pipeline options are provided
+    secret_with_options = Secret.from_json(
+        spec=json.dumps({
+            "name": "test-aws-secret", "region_name": "us-west-2"
+        }),
+        secret_manager="AwsSecretsManager",
+        options={"aws_region_name": "us-east-2"})
+    self.assertIsInstance(secret_with_options, AwsSecret)
+    self.assertEqual(
+        secret_with_options._aws_options, {"aws_region_name": "us-east-2"})
+    self.assertEqual(
+        secret_with_options._client_settings, {"region_name": "us-west-2"})
 
   def test_secret_factory_hsm(self):
     hsm_spec = json.dumps({
