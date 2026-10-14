@@ -223,6 +223,6 @@ public final class FirestoreV1FnBatchWriteWithDeadLetterQueueTest
       CounterFactory counterFactory,
       DistributionFactory distributionFactory) {
     return new BatchWriteFnWithDeadLetterQueue(
-        clock, ff, rpcQosOptions, counterFactory, null, null);
+        clock, ff, rpcQosOptions, counterFactory, null, null, null);
   }
 }

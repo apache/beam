@@ -563,6 +563,20 @@ public final class RpcQosTest {
   }
 
   @Test
+  public void rampUp_growsFromProvidedStart() {
+    RpcQosOptions options =
+        RpcQosOptions.newBuilder().withHintMaxNumWorkers(500).withBatchInitialCount(500).build();
+    RpcQosImpl qos = new RpcQosImpl(options, random, sleeper, counterFactory, distributionFactory);
+    qos.setRampUpStart(Instant.EPOCH);
+
+    // 20 minutes after the ramp-up start: 500 / 500 * 1.5^((20 - 5) / 5) = 3.375
+    Instant firstWrite = Instant.EPOCH.plus(Duration.standardMinutes(20));
+    RpcWriteAttemptImpl attempt = qos.newWriteAttempt(RPC_ATTEMPT_CONTEXT);
+    FlushBufferImpl<Element<Object>> buffer = attempt.newFlushBuffer(firstWrite);
+    assertEquals(3, buffer.nextBatchMaxCount);
+  }
+
+  @Test
   public void isCodeRetryable() {
     doTest_isCodeRetryable(Code.ABORTED, true);
     doTest_isCodeRetryable(Code.ALREADY_EXISTS, false);

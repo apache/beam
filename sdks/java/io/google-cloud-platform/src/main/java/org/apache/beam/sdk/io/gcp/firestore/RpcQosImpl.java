@@ -126,6 +126,11 @@ final class RpcQosImpl implements RpcQos {
   }
 
   @Override
+  public void setRampUpStart(Instant rampUpStart) {
+    writeRampUp.setFirstInstant(rampUpStart);
+  }
+
+  @Override
   public RpcWriteAttemptImpl newWriteAttempt(Context context) {
     return new RpcWriteAttemptImpl(
         context,
@@ -625,6 +630,10 @@ final class RpcQosImpl implements RpcQos {
           distributionFactory.get(RpcQos.class.getName(), "qos_rampUp_throttlingMs");
       this.availableWriteCountBudget =
           distributionFactory.get(RpcQos.class.getName(), "qos_rampUp_availableWriteCountBudget");
+    }
+
+    void setFirstInstant(Instant instant) {
+      firstInstant = Optional.of(instant);
     }
 
     int getAvailableWriteCountBudget(Instant instant) {
