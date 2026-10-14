@@ -1127,12 +1127,9 @@ func (fn *writeFn) extractRowValues(item any) []any {
 			vals[i] = nil
 			continue
 		}
-		switch vec := val.(type) {
-		case Vector:
-			vals[i] = FormatVectorLiteral(vec)
-		case []float32:
-			vals[i] = FormatVectorLiteral(vec)
-		default:
+		if vec, isVec := val.([]float32); isVec {
+			vals[i] = formatVectorLiteral(vec)
+		} else {
 			vals[i] = val
 		}
 	}
