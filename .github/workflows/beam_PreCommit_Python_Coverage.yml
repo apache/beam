@@ -48,9 +48,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   HF_INFERENCE_TOKEN: ${{ secrets.HF_INFERENCE_TOKEN }}
 
 
@@ -62,7 +60,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
-        python_version: ['3.10']
+        python_version: ['3.11']
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
@@ -89,8 +87,8 @@ jobs:
           TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py310:preCommitPyCoverage
-      - uses: codecov/codecov-action@v3
+          gradle-command: :sdks:python:test-suites:tox:py311:preCommitPyCoverage
+      - uses: codecov/codecov-action@v7
         with:
           flags: python
           directory: sdks/python

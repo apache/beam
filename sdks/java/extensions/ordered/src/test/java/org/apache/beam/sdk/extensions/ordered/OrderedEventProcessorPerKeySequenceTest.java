@@ -247,6 +247,54 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
   }
 
   @Test
+  public void testLargeNumberOfDuplicatesPaginatesCorrectly() throws CannotProvideCoderException {
+    int maxResultsPerOutput = 10;
+    int duplicateCount = 25;
+    List<Event> events = new ArrayList<>();
+    events.add(Event.create(0, "id-1", "a"));
+
+    // Add 25 duplicates of the next event. The maxResultsPerOutput is 10, so it should
+    // paginate the duplicates across multiple bundles.
+    for (int i = 0; i < duplicateCount; i++) {
+      events.add(Event.create(1, "id-1", "b"));
+    }
+
+    Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
+    expectedStatuses.add(
+        KV.of(
+            "id-1",
+            OrderedProcessingStatus.create(
+                1L,
+                0,
+                null,
+                null,
+                events.size(),
+                2L,
+                duplicateCount - 1, // one is processed, the rest are duplicates
+                false,
+                NOT_USED_FOR_TESTING)));
+
+    Collection<KV<String, String>> expectedOutput = new ArrayList<>();
+    expectedOutput.add(KV.of("id-1", "a"));
+    expectedOutput.add(KV.of("id-1", "ab"));
+
+    Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> duplicates = new ArrayList<>();
+    for (int i = 0; i < duplicateCount - 1; i++) {
+      duplicates.add(KV.of("id-1", KV.of(1L, UnprocessedEvent.create("b", Reason.duplicate))));
+    }
+
+    testPerKeySequenceProcessing(
+        events.toArray(new Event[0]),
+        expectedStatuses,
+        expectedOutput,
+        duplicates,
+        EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
+        INITIAL_SEQUENCE_OF_0,
+        maxResultsPerOutput,
+        DONT_PRODUCE_STATUS_ON_EVERY_EVENT);
+  }
+
+  @Test
   public void testHandlingOfCheckedExceptions() throws CannotProvideCoderException {
     Event[] events = {
       Event.create(0, "id-1", "a"),

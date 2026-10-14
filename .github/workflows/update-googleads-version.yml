@@ -1,0 +1,148 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Upgrade Google Ads Version
+
+on:
+  schedule:
+    - cron: "0 0 1 * *" # Monthly on the 1st at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  issues: read
+  statuses: read
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  upgrade_google_ads:
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    name: Upgrade Google Ads
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          validate-wrappers: false
+
+      - name: Check if new Google Ads version is available
+        id: check_ads
+        run: |
+          BUILD_GRADLE="sdks/java/io/google-ads/build.gradle"
+          CURRENT_VER=$(sed -n 's/.*com\.google\.api-ads:google-ads:\([0-9.]*\).*/\1/p' "$BUILD_GRADLE")
+          CURRENT_API=$(sed -n 's/.*com\.google\.api-ads:google-ads-stubs-v\([0-9]*\):.*/\1/p' "$BUILD_GRADLE")
+
+          METADATA_URL="https://repo1.maven.org/maven2/com/google/api-ads/google-ads/maven-metadata.xml"
+          LATEST_VER=$(curl -fsSL "$METADATA_URL" | sed -n 's/.*<release>\([0-9.]*\)<\/release>.*/\1/p')
+
+          POM_URL="https://repo1.maven.org/maven2/com/google/api-ads/google-ads-codegen/${LATEST_VER}/google-ads-codegen-${LATEST_VER}.pom"
+          LATEST_API=$(curl -fsSL "$POM_URL" | sed -n 's/.*<artifactId>google-ads-stubs-v\([0-9]*\)<\/artifactId>.*/\1/p' | sort -n | tail -n 1)
+
+          if [[ -z "$CURRENT_VER" || -z "$CURRENT_API" || -z "$LATEST_VER" || -z "$LATEST_API" ]]; then
+            echo "Failed to resolve versions (current=${CURRENT_VER}/v${CURRENT_API}, latest=${LATEST_VER}/v${LATEST_API})"
+            exit 1
+          fi
+
+          echo "Current: ${CURRENT_VER} (v${CURRENT_API}), Latest: ${LATEST_VER} (v${LATEST_API})"
+          {
+            echo "current_version=${CURRENT_VER}"
+            echo "current_api=${CURRENT_API}"
+            echo "latest_version=${LATEST_VER}"
+            echo "latest_api=${LATEST_API}"
+            if (( LATEST_API > CURRENT_API )); then
+              echo "should_upgrade=true"
+            else
+              echo "should_upgrade=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upgrade Google Ads and verify build
+        if: steps.check_ads.outputs.should_upgrade == 'true'
+        env:
+          CURRENT_VER: ${{ steps.check_ads.outputs.current_version }}
+          CURRENT_API: ${{ steps.check_ads.outputs.current_api }}
+          LATEST_VER: ${{ steps.check_ads.outputs.latest_version }}
+          LATEST_API: ${{ steps.check_ads.outputs.latest_api }}
+        run: |
+          sed -i "s/google-ads:${CURRENT_VER}/google-ads:${LATEST_VER}/g" sdks/java/io/google-ads/build.gradle
+          sed -i "s/google-ads-stubs-v${CURRENT_API}:${CURRENT_VER}/google-ads-stubs-v${LATEST_API}:${LATEST_VER}/g" sdks/java/io/google-ads/build.gradle
+
+          PKG_DIR="sdks/java/io/google-ads/src/main/java/org/apache/beam/sdk/io/googleads"
+          git mv "${PKG_DIR}/GoogleAdsV${CURRENT_API}.java" "${PKG_DIR}/GoogleAdsV${LATEST_API}.java"
+          find sdks/java/io/google-ads/src -name "*.java" -exec sed -i \
+            -e "s/GoogleAdsV${CURRENT_API}/GoogleAdsV${LATEST_API}/g" \
+            -e "s/com\.google\.ads\.googleads\.v${CURRENT_API}\./com.google.ads.googleads.v${LATEST_API}./g" \
+            -e "s/getVersion${CURRENT_API}()/getVersion${LATEST_API}()/g" \
+            -e "s/GOOGLE_ADS_SERVICE_STUB_V${CURRENT_API}/GOOGLE_ADS_SERVICE_STUB_V${LATEST_API}/g" \
+            -e "s/Google Ads API v${CURRENT_API}/Google Ads API v${LATEST_API}/g" {} +
+
+          ./gradlew :sdks:java:io:google-ads:spotlessApply :sdks:java:io:google-ads:build
+
+      - name: Install gh cli
+        if: steps.check_ads.outputs.should_upgrade == 'true'
+        uses: $/.github/actions/setup-gh-cli-linux
+
+      - name: Set git config
+        if: steps.check_ads.outputs.should_upgrade == 'true'
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "actions@${RUNNER_NAME}.local"
+
+      - name: Commit Changes and create PR
+        if: steps.check_ads.outputs.should_upgrade == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_VER: ${{ steps.check_ads.outputs.current_version }}
+          CURRENT_API: ${{ steps.check_ads.outputs.current_api }}
+          LATEST_VER: ${{ steps.check_ads.outputs.latest_version }}
+          LATEST_API: ${{ steps.check_ads.outputs.latest_api }}
+        run: |
+          branchName="upgrade_google_ads_from_v${CURRENT_API}_to_v${LATEST_API}"
+          git checkout -b "$branchName"
+          git add sdks/java/io/google-ads/build.gradle sdks/java/io/google-ads/src
+          if ! git diff --cached --quiet; then
+            echo "Changes are ready to commit"
+            git commit -m "Upgrade Google Ads to ${LATEST_VER} (API v${LATEST_API})" --quiet
+            gh auth setup-git
+            git push origin "$branchName" --quiet
+
+            PR_BODY="This PR was created by [update-googleads-version.yml](https://github.com/${GITHUB_REPOSITORY}/blob/master/.github/workflows/update-googleads-version.yml). It upgrades \`com.google.api-ads:google-ads\` from API **v${CURRENT_API}** to API **v${LATEST_API}**.
+
+          Please review the changes and merge if all tests pass. If failures happen, please try to update this PR (and the workflow automation, if broken) to resolve them, or reach out to [dev@beam.apache.org](mailto:dev@beam.apache.org) for assistance.
+
+          Google Ads API versions are deprecated and sunset on a rolling ~12-month schedule, after which requests to sunset versions fail at runtime and break \`GoogleAdsIO\`. This workflow upgrades the version as new releases come out (roughly every three months) to prevent deprecation breakage.
+
+          Previous issues where this caused customer impact: https://github.com/apache/beam/issues/37618 and https://github.com/apache/beam/issues/32241."
+
+            GITHUB_PR_URL=$(gh pr create --title "Upgrade Google Ads to ${LATEST_VER} (API v${LATEST_API})" --body "$PR_BODY" --label "dependencies" --base master)
+            echo "Link of the new PR: $GITHUB_PR_URL"
+          else
+            echo "No changes on the files"
+          fi

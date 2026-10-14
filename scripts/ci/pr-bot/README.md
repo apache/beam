@@ -37,6 +37,7 @@ The bot consists of three core workflows and a persistent state tracking system:
 ### 2. PR Updates & Commands (`processPrUpdate.ts`)
 * Triggered on PR pushes (`synchronize`), draft transitions (`converted_to_draft`, `ready_for_review`), and comments (`issue_comment: created`).
 * Shifts attention to author (`Next Action: Author`) when a PR is marked as draft (`converted_to_draft`) and back to reviewers (`Next Action: Reviewers`) when taken out of draft (`ready_for_review`) or when the author pushes new commits or posts comments on a non-draft PR.
+* When a PR is marked `ready_for_review` and has no reviewers assigned yet, immediately assigns reviewers if it already has matching reviewer labels and passing CI checks.
 * Removes `slow-review` label upon receiving a comment from a non-author reviewer.
 * Processes commands like `assign to next reviewer`, `waiting on author`, `stop reviewer notifications`, `assign set of reviewers`, and `remind me after tests pass`.
 

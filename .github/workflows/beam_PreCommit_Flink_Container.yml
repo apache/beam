@@ -62,9 +62,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_REGION: us-central1
@@ -77,7 +75,7 @@ env:
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-precommit-flink-container-${{ github.run_id }}
   DOCKER_REGISTRY: gcr.io
   DOCKER_REPOSITORY_ROOT: ${{ github.event_name == 'pull_request' && 'gcr.io/apache-beam-testing/beam-sdk-pr' || 'gcr.io/apache-beam-testing/beam-sdk' }}
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.11'
   PYTHON_SDK_IMAGE_TAG: latest
 
 jobs:
@@ -114,7 +112,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:container:py310:docker
+          gradle-command: :sdks:python:container:py311:docker
           arguments: |
             -PpythonVersion=${{ env.PYTHON_VERSION }} \
             -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \

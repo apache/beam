@@ -44,9 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_PostCommit_Python_Xlang_IO_Direct:
@@ -71,7 +69,7 @@ jobs:
         with:
           java-version: '17'
           python-version: |
-            3.10
+            3.11
             3.14
       - name: run PostCommit Python Xlang IO Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action

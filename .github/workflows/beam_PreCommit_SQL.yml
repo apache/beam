@@ -49,9 +49,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_PreCommit_SQL:
@@ -121,7 +119,7 @@ jobs:
           name: Jacoco Results
           path: '**/build/jacoco/report/**'
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           file: ${{ steps.jacoco_report_path.outputs.path }}
           flags: java

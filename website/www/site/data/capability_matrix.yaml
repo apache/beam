@@ -18,6 +18,8 @@ capability-matrix:
       name: Prism Local Runner
     - class: flink
       name: Apache Flink
+    - class: flaredb
+      name: FlareDB
     - class: spark-rdd
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
@@ -56,6 +58,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ParDo itself, as per-element transformation with UDFs, is fully supported by Flink for both batch and streaming.
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: ParDo execution is supported
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -95,6 +101,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: "Uses Flink's keyBy for key grouping. When grouping by window in streaming (creating the panes) the Flink runner uses the Beam code. This guarantees support for all windowing and triggering mechanisms."
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: Uses Apache DataFusion to run GroupByKey operation.
             - class: spark-rdd
               l1: "Partially"
               l2: fully supported in batch mode
@@ -131,6 +141,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: flaredb
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -173,6 +187,10 @@ capability-matrix:
               l1: "Yes"
               l2: "fully supported"
               l3: Uses a combiner for pre-aggregation for batch and streaming.
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "CombinePerKey and CombineGlobally expand into combine sub-transforms that run in the SDK harness."
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -212,6 +230,10 @@ capability-matrix:
               l1: "Partially"
               l2: supported via inlining
               l3: ""
+            - class: flaredb
+              l1: "Partially"
+              l2: supported via inlining
+              l3: "Composite transforms are expanded and inlined by the SDK before the pipeline reaches the runner."
             - class: spark-rdd
               l1: "Partially"
               l2: supported via inlining
@@ -251,6 +273,10 @@ capability-matrix:
               l1: "Yes"
               l2: some size restrictions in streaming
               l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Side inputs are modeled in fusion and watermarking, but side-input data is not delivered to the SDK harness (only bag user state is served)."
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -290,6 +316,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3:
+            - class: flaredb
+              l1: "Partially"
+              l2: bounded sources only
+              l3: "Bounded sources run in the SDK harness (e.g. TextIO). Unbounded sources support is not implemented yet"
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -329,6 +359,10 @@ capability-matrix:
               l1: "Partially"
               l2: All metrics types are supported.
               l3: Only attempted values are supported. No committed values for metrics.
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Metrics are not collected or reported"
             - class: spark-rdd
               l1: "Partially"
               l2: All metric types are supported.
@@ -368,6 +402,10 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
+            - class: flaredb
+              l1: "Partially"
+              l2: bag/value state and timers
+              l3: "BagState and bag-backed ValueState are supported, together with event-time and processing-time timers. SetState, MapState, and ordered-list state are not yet supported."
             - class: spark-rdd
               l1: "Partially"
               l2: full support in batch mode
@@ -416,6 +454,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "Bounded Splittable DoFns are expanded (pair-with-restriction, split-and-size, truncate, process) and executed with residual handling."
             - class: spark-rdd
               l1: "Partially"
               l2: Only portable Spark Runner in batch mode supports this.
@@ -455,6 +497,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "SDF side inputs are modeled in the expansion but not delivered to the harness."
             - class: spark-rdd
               l1:
               l2:
@@ -494,6 +540,10 @@ capability-matrix:
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "Residual roots returned by the SDF are processed as new work items with output-watermark holds."
             - class: spark-rdd
               l1: "Partially"
               l2: Only portable Spark Runner in batch mode supports this.
@@ -533,6 +583,10 @@ capability-matrix:
               l1: "No"
               l2:
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Runner-initiated work splitting is not implemented yet."
             - class: spark-rdd
               l1: "No"
               l2:
@@ -571,6 +625,10 @@ capability-matrix:
             - class: flink
               l1: "No"
               l2:
+              l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
               l3: ""
             - class: spark-rdd
               l1: "No"
@@ -620,6 +678,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Unbounded sources are not yet supported."
             - class: spark-rdd
               l1:
               l2:
@@ -658,6 +720,10 @@ capability-matrix:
             - class: flink
               l1: "Partially"
               l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
               l3: ""
             - class: spark-rdd
               l1:
@@ -698,6 +764,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: ""
             - class: spark-rdd
               l1:
               l2:
@@ -737,6 +807,10 @@ capability-matrix:
               l1: "No"
               l2:
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: ""
             - class: spark-rdd
               l1:
               l2:
@@ -775,6 +849,10 @@ capability-matrix:
             - class: flink
               l1: "Partially"
               l2: Only portable Flink Runner supports this with checkpointing enabled.
+              l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
               l3: ""
             - class: spark-rdd
               l1:
@@ -824,6 +902,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: default
+              l3: ""
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -863,6 +945,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: supported
+              l3: "Uses the interval-window, GroupByKey aggregates per fixed window."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -902,6 +988,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: supported
+              l3: "Uses the interval-window coder, GroupByKey aggregates per sliding window."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -941,6 +1031,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "The session-window is not supported yet."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -980,6 +1074,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Only the global and interval windows are supported."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -1019,6 +1117,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Window merging is not supported."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -1058,6 +1160,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: flaredb
+              l1: "Partially"
+              l2: default only
+              l3: "GroupByKey emits with the window's max timestamp, custom OutputTimeFns (timestamp combiners) are not supported."
             - class: spark-rdd
               l1: "Yes"
               l2: supported
@@ -1107,6 +1213,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "The trigger is read from the windowing strategy."
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -1146,6 +1256,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "AfterWatermark and AfterSynchronizedProcessingTime drive end-of-window and late firings."
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -1186,6 +1300,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "AfterProcessingTime fires against the processing-time clock."
             - class: spark-rdd
               l1: "Yes"
               l2: "This is Spark streaming's native model"
@@ -1223,6 +1341,10 @@ capability-matrix:
               l2: partially supported
               l3: "Prism will double fire on count triggers"
             - class: flink
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: flaredb
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1266,6 +1388,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "AfterAll, AfterAny, AfterEach, OrFinally are implemented."
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -1303,6 +1429,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: flaredb
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1346,6 +1476,10 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: The Flink Runner supports timers in non-merging windows.
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: "Supports timers and delivered to the SDK harness."
             - class: spark-rdd
               l1: "Partially"
               l2: fully supported in batch mode
@@ -1395,6 +1529,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: flaredb
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
             - class: spark-rdd
               l1: "Yes"
               l2: fully supported
@@ -1432,6 +1570,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: flaredb
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1484,6 +1626,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: Flink supports taking a "savepoint" of the pipeline and shutting the pipeline down after its completion.
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "The drain API is not implemented."
             - class: spark-rdd
               l1:
               l2:
@@ -1523,6 +1669,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: Flink has a native savepoint capability.
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "PCollections are materialized as Paimon tables, but there is no checkpoint/savepoint API."
             - class: spark-rdd
               l1: "Partially"
               l2:
@@ -1562,6 +1712,10 @@ capability-matrix:
               l1: "Partially"
               l2:
               l3: Flink may perform different shuffling algorithms for batch and streaming. Flink guarantees key-ordered delivery in streaming, though not in batch.
+            - class: flaredb
+              l1: "No"
+              l2: not implemented
+              l3: "Single-node execution, no explicit key-ordered delivery guarantee."
             - class: spark-rdd
               l1: "Unverified"
               l2:

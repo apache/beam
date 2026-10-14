@@ -75,7 +75,7 @@ public class MutationDetectors {
    *
    * @param <T> the type of values checked for mutation
    */
-  private static class CodedValueMutationDetector<T> implements MutationDetector {
+  private static final class CodedValueMutationDetector<T> implements MutationDetector {
 
     private final Coder<T> coder;
     private final T clonedOriginalValue;
