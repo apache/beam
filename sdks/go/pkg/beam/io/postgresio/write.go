@@ -766,15 +766,13 @@ func retryOnDeadlock(ctx context.Context, onRetry func(), op func(context.Contex
 	return err
 }
 
-// buildCopyStatement returns a COPY ... FROM STDIN statement.
+// buildCopyStatement returns a COPY ... FROM STDIN statement for an already
+// quoted table and column list.
 //
-// This replaces the deprecated lib/pq copy-statement helper, which quoted the
-// table name itself. Because the caller has already quoted the identifier via
-// sanitizeTableIdentifier, that helper produced a doubly-quoted name such as
-// COPY """public"".""orders""", which PostgreSQL reads as a single table
-// literally named `"public"."orders"`.
-//
-// table must already be a quoted identifier; columns must already be quoted.
+// The statement is built here rather than with lib/pq's pq.CopyIn because
+// pq.CopyIn quotes the table name itself. The sink quotes identifiers once, in
+// sanitizeTableIdentifier, so passing that result to pq.CopyIn would quote it
+// a second time and name a table that does not exist.
 func buildCopyStatement(table string, columns []string) (string, error) {
 	if table == "" {
 		return "", fmt.Errorf("postgresio: COPY target table must not be empty")
