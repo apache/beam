@@ -30,6 +30,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
@@ -41,7 +42,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** An executor for executing work on windmill items. */
+/**
+ * An executor for executing work on windmill items.
+ *
+ * <p>When multi-key bundles are enabled, batchable work is also indexed in {@link
+ * KeyGroupWorkIndex} so running bundles can steal it via {@link #pollWork}. Stolen work leaves a
+ * no-op stale shell in the executor queue, which is discarded when dequeued or purged in bulk if
+ * the queue grows too large.
+ */
 public class BoundedQueueExecutor {
 
   private final ThreadPoolExecutor executor;
@@ -82,8 +90,11 @@ public class BoundedQueueExecutor {
   @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
-  // If set the keyGroupWorkQueue is used by the underlying executor.
-  private final @Nullable KeyGroupWorkQueue keyGroupWorkQueue;
+  private final LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
+  private final @Nullable KeyGroupWorkIndex keyGroupWorkIndex;
+
+  private volatile int purgeQueueSizeThreshold;
+  private final AtomicBoolean purgingStaleShells = new AtomicBoolean(false);
 
   public BoundedQueueExecutor(
       int initialMaximumPoolSize,
@@ -93,8 +104,8 @@ public class BoundedQueueExecutor {
       long maximumBytesOutstanding,
       ThreadFactory threadFactory,
       boolean useFairMonitor,
-      boolean useKeyGroupWorkQueue) {
-    this.keyGroupWorkQueue = useKeyGroupWorkQueue ? new KeyGroupWorkQueue(useFairMonitor) : null;
+      boolean multiKeyBundleEnabled) {
+    this.keyGroupWorkIndex = multiKeyBundleEnabled ? new KeyGroupWorkIndex() : null;
     this.maximumPoolSize = initialMaximumPoolSize;
     monitor = new Monitor(useFairMonitor);
     executor =
@@ -103,7 +114,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            keyGroupWorkQueue != null ? keyGroupWorkQueue : new LinkedBlockingQueue<>(),
+            workQueue,
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -130,6 +141,8 @@ public class BoundedQueueExecutor {
     executor.allowCoreThreadTimeOut(true);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;
+    this.purgeQueueSizeThreshold =
+        computePurgeQueueSizeThreshold(maximumElementsOutstanding, /* queueSize= */ 0);
   }
 
   // Before adding a Work to the queue, check that there are enough bytes of space or no other
@@ -172,6 +185,8 @@ public class BoundedQueueExecutor {
     }
     this.maximumPoolSize = maximumPoolSize;
     this.maximumElementsOutstanding = maximumElementsOutstanding;
+    this.purgeQueueSizeThreshold =
+        computePurgeQueueSizeThreshold(maximumElementsOutstanding, /* queueSize= */ 0);
   }
 
   public void shutdown() throws InterruptedException {
@@ -183,6 +198,18 @@ public class BoundedQueueExecutor {
 
   public boolean executorQueueIsEmpty() {
     return executor.getQueue().isEmpty();
+  }
+
+  /** Returns the number of entries in the executor queue, including stale shells. */
+  @VisibleForTesting
+  int executorQueueSize() {
+    return workQueue.size();
+  }
+
+  @VisibleForTesting
+  boolean keyGroupWorkIndexIsEmpty() {
+    @Nullable KeyGroupWorkIndex index = keyGroupWorkIndex;
+    return index == null || index.isEmpty();
   }
 
   public synchronized long allThreadsActiveTime() {
@@ -328,29 +355,104 @@ public class BoundedQueueExecutor {
     }
   }
 
+  /**
+   * A {@link Runnable} for an {@link ExecutableWork} that can be claimed either by an executor
+   * thread in {@link #run} or by a multi-key bundle in {@link #pollWork}.
+   *
+   * <p>Thread safety: {@link #state} is {@code volatile} and transitions at most once from {@link
+   * #QUEUED} to {@link #STARTED} or {@link #STOLEN} via {@link #STATE}{@code .compareAndSet}.
+   * Non-final fields {@link #work} and {@link #handle} are written before {@code state} is
+   * initialized in the constructor, and are subsequently read and cleared only by the single thread
+   * that wins that {@code compareAndSet}. All other accesses read only {@code final} fields or
+   * {@code volatile state}.
+   */
   static final class QueuedWork implements Runnable {
 
-    private final ExecutableWork work;
-    private final BoundedQueueExecutorWorkHandleImpl handle;
+    private static final int QUEUED = 0;
+    private static final int STARTED = 1; // Claimed by an executor thread in run().
+    private static final int STOLEN = 2; // Claimed by a multi-key bundle in pollWork().
 
-    public QueuedWork(ExecutableWork work, BoundedQueueExecutorWorkHandleImpl handle) {
+    private static final AtomicIntegerFieldUpdater<QueuedWork> STATE =
+        AtomicIntegerFieldUpdater.newUpdater(QueuedWork.class, "state");
+
+    // Non-null iff the work is eligible to be stolen by a multi-key bundle.
+    private final @Nullable KeyGroupWorkIndex keyGroupWorkIndex;
+    private final KeyGroupWorkIndex.@Nullable QueueKey queueKey;
+    // Cleared upon claim so stale shells and claimed index entries do not retain work references.
+    private @Nullable ExecutableWork work;
+    private @Nullable BoundedQueueExecutorWorkHandleImpl handle;
+    private volatile int state = QUEUED;
+
+    QueuedWork(
+        ExecutableWork work,
+        BoundedQueueExecutorWorkHandleImpl handle,
+        @Nullable KeyGroupWorkIndex keyGroupWorkIndex) {
       this.work = work;
       this.handle = handle;
+      Work w = work.work();
+      if (keyGroupWorkIndex != null
+          && !w.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+          && !w.isMultiKeyBatchingDisabled()) {
+        this.keyGroupWorkIndex = keyGroupWorkIndex;
+        this.queueKey = new KeyGroupWorkIndex.QueueKey(w.getComputationId(), w.getKeyGroup());
+      } else {
+        this.keyGroupWorkIndex = null;
+        this.queueKey = null;
+      }
     }
 
     public ExecutableWork getWork() {
-      return work;
+      return checkStateNotNull(work, "QueuedWork was already claimed.");
     }
 
     public BoundedQueueExecutorWorkHandleImpl getHandle() {
-      return handle;
+      return checkStateNotNull(handle, "QueuedWork was already claimed.");
+    }
+
+    boolean isStealable() {
+      return keyGroupWorkIndex != null;
+    }
+
+    KeyGroupWorkIndex.QueueKey queueKey() {
+      return checkStateNotNull(queueKey);
+    }
+
+    boolean isClaimed() {
+      return state != QUEUED;
+    }
+
+    private boolean isStolen() {
+      return state == STOLEN;
+    }
+
+    boolean tryClaimForExecution() {
+      return STATE.compareAndSet(this, QUEUED, STARTED);
+    }
+
+    boolean tryClaimForSteal() {
+      return STATE.compareAndSet(this, QUEUED, STOLEN);
+    }
+
+    private void clearClaimedWork() {
+      work = null;
+      handle = null;
     }
 
     @Override
     public void run() {
-      checkArgument(!handle.isClosed());
-      try (handle) {
-        work.run(handle);
+      if (!tryClaimForExecution()) {
+        return; // Already stolen by a multi-key bundle.
+      }
+      ExecutableWork workToRun = getWork();
+      BoundedQueueExecutorWorkHandleImpl workHandle = getHandle();
+      clearClaimedWork();
+      @Nullable KeyGroupWorkIndex index = keyGroupWorkIndex;
+      if (index != null) {
+        index.remove(this);
+      }
+      checkArgument(!workHandle.isClosed());
+      try (workHandle) {
+        workToRun.run(workHandle);
       }
     }
   }
@@ -361,11 +463,16 @@ public class BoundedQueueExecutor {
     monitor.leave();
     BoundedQueueExecutorWorkHandleImpl handle =
         new BoundedQueueExecutorWorkHandleImpl(work.work(), workBytes);
+    QueuedWork queuedWork = new QueuedWork(work, handle, keyGroupWorkIndex);
     try {
-      executor.execute(new QueuedWork(work, handle));
+      executor.execute(queuedWork);
     } catch (Throwable t) {
       handle.close();
       throw ExceptionUtils.safeWrapThrowableAsException(t);
+    }
+    if (queuedWork.isStealable()) {
+      // Index after queuing so work rejected after shutdown cannot be stolen.
+      checkStateNotNull(keyGroupWorkIndex).add(queuedWork);
     }
   }
 
@@ -403,23 +510,59 @@ public class BoundedQueueExecutor {
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
     checkStateNotNull(onFailedWorkHandler);
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
-    if (keyGroupWorkQueue == null) {
+    @Nullable KeyGroupWorkIndex index = keyGroupWorkIndex;
+    if (index == null) {
       return null;
     }
     while (true) {
-      @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
-      if (queuedWork == null) {
+      @Nullable QueuedWork stolen = index.pollAndClaim(computationId, keyGroup);
+      if (stolen == null) {
         return null;
       }
-      Work work = queuedWork.getWork().work();
+      ExecutableWork stolenWork = stolen.getWork();
+      BoundedQueueExecutorWorkHandleImpl stolenHandle = stolen.getHandle();
+      stolen.clearClaimedWork();
+      onWorkStolen();
+      Work work = stolenWork.work();
       if (work.isFailed()) {
-        queuedWork.getHandle().close();
+        stolenHandle.close();
         onFailedWorkHandler.onFailedWork(work);
         continue;
       }
-      internalHandle.merge(queuedWork.getHandle());
-      return queuedWork.getWork();
+      internalHandle.merge(stolenHandle);
+      return stolenWork;
     }
+  }
+
+  /**
+   * Purges stale shells in bulk if they accumulate while all executor threads are busy running
+   * multi-key bundles.
+   */
+  private void onWorkStolen() {
+    if (workQueue.size() <= purgeQueueSizeThreshold
+        || !purgingStaleShells.compareAndSet(false, true)) {
+      return;
+    }
+    try {
+      if (!executor.isShutdown()) {
+        workQueue.removeIf(BoundedQueueExecutor::isStaleShell);
+        // Wait for the queue to grow by maximumElementsOutstanding to avoid purging frequently.
+        purgeQueueSizeThreshold =
+            computePurgeQueueSizeThreshold(maximumElementsOutstanding(), workQueue.size());
+      }
+    } finally {
+      purgingStaleShells.set(false);
+    }
+  }
+
+  private static int computePurgeQueueSizeThreshold(int maximumElementsOutstanding, int queueSize) {
+    long threshold =
+        Math.max(2L * maximumElementsOutstanding, (long) queueSize + maximumElementsOutstanding);
+    return (int) Math.min(threshold, Integer.MAX_VALUE);
+  }
+
+  private static boolean isStaleShell(Runnable runnable) {
+    return runnable instanceof QueuedWork && ((QueuedWork) runnable).isStolen();
   }
 
   private void decrementCounters(int elements, long bytes) {

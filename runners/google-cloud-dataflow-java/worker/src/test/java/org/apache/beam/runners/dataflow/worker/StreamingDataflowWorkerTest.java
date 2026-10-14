@@ -4005,7 +4005,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4067,7 +4067,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4138,7 +4138,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4213,7 +4213,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
