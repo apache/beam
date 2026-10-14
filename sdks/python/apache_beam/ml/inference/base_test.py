@@ -571,6 +571,29 @@ class RunInferenceBaseTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
 
+  def test_keyed_many_model_handlers_with_model_manager_raises(self):
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    keyed_mh = base.KeyedModelHandler(mhs)
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(keyed_mh, use_model_manager=True)
+
+    # Wrapped handlers should be rejected as well.
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(
+          keyed_mh.with_preprocess_fn(lambda x: x).with_no_batching(),
+          use_model_manager=True)
+
+    # Without the model manager, or with a single keyed model, it is allowed.
+    base.RunInference(keyed_mh)
+    base.RunInference(
+        base.KeyedModelHandler(FakeModelHandler()), use_model_manager=True)
+
   def test_keyed_model_handler_get_num_bytes(self):
     mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
     batch = [('key1', 1), ('key2', 2), ('key1', 3)]

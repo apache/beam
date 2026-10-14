@@ -742,6 +742,10 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     at the same time. For more information about memory management, see
     `Use a keyed `ModelHandler <https://beam.apache.org/documentation/ml/about-ml/#use-a-keyed-modelhandler-object>_`.  # pylint: disable=line-too-long
 
+    A KeyedModelHandler with many models defined per key cannot be used with
+    `RunInference(..., use_model_manager=True)`, since it manages its per-key
+    models itself.
+
 
     Args:
       unkeyed: Either (a) an implementation of ModelHandler that does not
@@ -1370,6 +1374,19 @@ class OOMProtectedFn:
       raise e
 
 
+def _is_multi_model_keyed_handler(model_handler: ModelHandler) -> bool:
+  """Returns whether model_handler is a KeyedModelHandler with many models,
+  looking through any batching or pre/postprocessing wrappers."""
+  while isinstance(model_handler,
+                   (_PrebatchedModelHandler,
+                    _PreProcessingModelHandler,
+                    _PostProcessingModelHandler)):
+    model_handler = model_handler._base
+  return (
+      isinstance(model_handler, KeyedModelHandler) and
+      not model_handler._single_model)
+
+
 class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
                                                           Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
@@ -1416,10 +1433,26 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           the same tag for different models will lead to non-deterministic
           results, so exercise caution when using this parameter. This only
           impacts models which are already being shared across processes.
+        use_model_manager: Whether to load and manage models with a
+          ModelManager, which tracks memory usage and evicts models as needed.
+          This is not supported with a KeyedModelHandler that maps keys to
+          multiple model handlers, since that handler manages its own per-key
+          models (see `max_models_per_worker_hint`); a ValueError is raised
+          in that case.
+        model_manager_args: Keyword arguments used to construct the
+          ModelManager when use_model_manager is True.
         monitoring_transform: A PTransform that receives a copy of the
           un-postprocessed PCollection of PredictionResult objects produced
           directly by inference.
     """
+    if use_model_manager and _is_multi_model_keyed_handler(model_handler):
+      raise ValueError(
+          'use_model_manager=True is not supported with a KeyedModelHandler '
+          'that maps keys to multiple model handlers. That handler loads and '
+          'caches its per-key models itself, so they would not be tracked by '
+          'the ModelManager. Use max_models_per_worker_hint on the '
+          'KeyedModelHandler to limit how many models are loaded at once, or '
+          'set use_model_manager=False.')
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
