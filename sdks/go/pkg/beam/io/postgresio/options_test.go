@@ -21,7 +21,7 @@ import (
 )
 
 func TestNewWriteOptionsDefaults(t *testing.T) {
-	opts := NewWriteOptions()
+	opts := newWriteOptions()
 	if opts.Port != 5432 {
 		t.Errorf("expected default port 5432, got %d", opts.Port)
 	}
@@ -37,7 +37,7 @@ func TestNewWriteOptionsDefaults(t *testing.T) {
 }
 
 func TestWriteOptionsFunctionalBuilders(t *testing.T) {
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithHost("db.example.net"),
 		WithPort(5433),
 		WithDatabase("prod_db"),
@@ -157,7 +157,7 @@ func TestSanitizeTableIdentifierRejectsMultiPart(t *testing.T) {
 }
 
 func TestWriteOptionsReplicationOriginValidation(t *testing.T) {
-	opts := NewWriteOptions(WithReplicationOriginName("beam_node_1"))
+	opts := newWriteOptions(WithReplicationOriginName("beam_node_1"))
 	if opts.ReplicationOriginName != "beam_node_1" {
 		t.Errorf("expected origin beam_node_1, got %q", opts.ReplicationOriginName)
 	}
@@ -167,11 +167,11 @@ func TestWriteOptionsReplicationOriginValidation(t *testing.T) {
 			t.Errorf("expected panic for invalid origin with special characters")
 		}
 	}()
-	_ = NewWriteOptions(WithReplicationOriginName("invalid; DROP TABLE users;"))
+	_ = newWriteOptions(WithReplicationOriginName("invalid; DROP TABLE users;"))
 }
 
 func TestWriteOptionsMergeAndExplain(t *testing.T) {
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithWriteMode(WriteModeMerge),
 		WithOpColumn("_op_type"),
 		WithDeleteOpValue("DELETE"),

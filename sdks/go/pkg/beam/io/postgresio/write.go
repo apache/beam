@@ -73,9 +73,22 @@ type WriteResult struct {
 	FailedRows     beam.PCollection
 }
 
-// Write writes elements from an input PCollection to a target PostgreSQL table using
-// parameterized array upserts, in-memory deduplication, and deadlock mitigation sorting.
-func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) WriteResult {
+// Write writes the elements of col to table, which must be schema-qualified,
+// for example "public.orders". Configure it with the With* options:
+//
+//	res := postgresio.Write(s, "public.orders", orders,
+//		postgresio.WithHost("db.example.com"),
+//		postgresio.WithDatabase("shop"),
+//		postgresio.WithPrimaryKeyColumns("order_id"))
+//
+// Invalid configuration panics at pipeline construction rather than failing
+// later on a worker.
+func Write(s beam.Scope, table string, col beam.PCollection, opts ...Option) WriteResult {
+	return write(s, table, newWriteOptions(opts...), col)
+}
+
+// write is Write with its options already resolved.
+func write(s beam.Scope, table string, opts writeOptions, col beam.PCollection) WriteResult {
 	s = s.Scope("postgresio.Write")
 
 	// The write path pins search_path to pg_catalog,pg_temp on every pooled
@@ -101,13 +114,13 @@ func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) 
 	// both modes promise. Nothing downstream can detect this: the pipeline
 	// reports success and the rows are simply absent.
 	if (opts.WriteMode == WriteModeUpsert || opts.WriteMode == WriteModeMerge) && len(opts.PrimaryKeyCols) == 0 {
-		panic(fmt.Sprintf("postgresio.Write: write mode %v requires primary key columns (PrimaryKeyCols); "+
+		panic(fmt.Sprintf("postgresio.Write: write mode %v requires primary key columns; "+
 			"without them conflicting rows are silently discarded rather than merged. "+
-			"Set PrimaryKeyCols, or use WriteModeInsert if plain inserts are intended.", opts.WriteMode))
+			"Use WithPrimaryKeyColumns, or WriteModeInsert if plain inserts are intended.", opts.WriteMode))
 	}
 
 	if opts.WriteMode == WriteModeUpdate && len(opts.PrimaryKeyCols) == 0 {
-		panic("postgresio.Write: WriteModeUpdate requires primary key columns (PrimaryKeyCols)")
+		panic("postgresio.Write: WriteModeUpdate requires primary key columns; use WithPrimaryKeyColumns")
 	}
 
 	// Connection identity is checked here rather than left to the worker. A
@@ -115,20 +128,17 @@ func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) 
 	// runner, long after submission, as a libpq connection error that names
 	// neither the option that was left empty nor the transform that needed it.
 	if opts.Host == "" {
-		panic("postgresio.Write: Host must be set. For a Unix domain socket, set Host to the " +
+		panic("postgresio.Write: WithHost must be set. For a Unix domain socket, pass the " +
 			"socket directory, for example \"/var/run/postgresql\"; libpq's compiled-in default is " +
 			"not assumed because it differs between distributions and container images")
 	}
 	if opts.Database == "" {
-		panic("postgresio.Write: Database must be set. libpq would otherwise default it to the " +
+		panic("postgresio.Write: WithDatabase must be set. libpq would otherwise default it to the " +
 			"username, which is rarely the intended target")
 	}
 
-	// validateSSLMode already guards the CDC and option-builder paths. Applying
-	// it to the effective value here closes the gap for callers that build
-	// WriteOptions as a struct literal and bypass NewWriteOptions, so a typo
-	// such as "verify_full" is rejected at construction instead of at connect
-	// time on every worker.
+	// Validated here so a typo such as "verify_full" is rejected at
+	// construction instead of at connect time on every worker.
 	effectiveSSLMode := opts.SSLMode
 	if effectiveSSLMode == "" {
 		effectiveSSLMode = DefaultSSLMode
@@ -178,7 +188,7 @@ func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) 
 	// overwritten run as though it had said nothing at all.
 	if len(opts.UpdateFields) > 0 &&
 		opts.WriteMode != WriteModeUpsert && opts.WriteMode != WriteModeUpdate {
-		panic(fmt.Sprintf("postgresio.Write: UpdateFields is only honored by WriteModeUpsert and "+
+		panic(fmt.Sprintf("postgresio.Write: WithUpdateFields is only honored by WriteModeUpsert and "+
 			"WriteModeUpdate, but write mode is %v, which would ignore it. Remove WithUpdateFields, "+
 			"or select a write mode that has a SET clause to restrict.", opts.WriteMode))
 	}
@@ -239,7 +249,7 @@ func buildWriteDSN(host string, port int, database, username, password, sslMode,
 
 type writeFn struct {
 	Table          string           `json:"table"`
-	Options        WriteOptions     `json:"options"`
+	Options        writeOptions     `json:"options"`
 	Type           beam.EncodedType `json:"type"`
 	PrimaryKeyCols []string         `json:"primary_key_cols"`
 
@@ -254,7 +264,7 @@ func (fn *writeFn) Setup(ctx context.Context) error {
 	fn.workerID = fmt.Sprintf("%016x", rand.Uint64())
 
 	if fn.Options.WriteMode == WriteModeUpdate && len(fn.PrimaryKeyCols) == 0 {
-		return fmt.Errorf("postgresio: WriteModeUpdate requires primary key columns (PrimaryKeyCols)")
+		return fmt.Errorf("postgresio: WriteModeUpdate requires primary key columns")
 	}
 
 	sslMode := fn.Options.SSLMode
@@ -270,7 +280,6 @@ func (fn *writeFn) Setup(ctx context.Context) error {
 
 	connector := &pqConnector{
 		dsn:               dsn,
-		initSQL:           fn.Options.ConnectionInitSQL,
 		replicationOrigin: fn.Options.ReplicationOriginName,
 	}
 	db := sql.OpenDB(connector)
@@ -328,12 +337,6 @@ func (fn *writeFn) applyPgBouncerCompatibility(ctx context.Context) {
 			"staging table, which transaction pooling cannot guarantee is present on the connection a "+
 			"later flush lands on.")
 		fn.Options.WriteMethod = WriteMethodUnnest
-	}
-	if fn.Options.ConnectionInitSQL != "" {
-		log.Warnf(ctx, "postgresio: ConnectionInitSQL is set alongside PgBouncer compatibility. It runs "+
-			"when a pooled connection is opened, but transaction pooling may route a later statement to "+
-			"a different server connection that never ran it, so session-level settings apply "+
-			"inconsistently. Prefer values that can be set as connection parameters.")
 	}
 }
 

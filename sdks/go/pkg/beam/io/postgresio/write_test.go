@@ -34,7 +34,7 @@ import (
 func TestBuildUnnestQueryUpsert(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpsert), WithPrimaryKeyColumns("id")),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpsert), WithPrimaryKeyColumns("id")),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{"id", "region", "amount"},
@@ -73,7 +73,7 @@ func TestBuildUnnestQueryUpsert(t *testing.T) {
 func TestBuildUnnestQueryUpsert_WithUpdateFields(t *testing.T) {
 	fn := &writeFn{
 		Table: `"public"."orders"`,
-		Options: NewWriteOptions(
+		Options: newWriteOptions(
 			WithWriteMode(WriteModeUpsert),
 			WithPrimaryKeyColumns("id"),
 			WithUpdateFields("amount"),
@@ -109,7 +109,7 @@ func TestBuildUnnestQueryUpsert_WithUpdateFields(t *testing.T) {
 func TestBuildUnnestQueryInsertOnly(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeInsert)),
+		Options:        newWriteOptions(WithWriteMode(WriteModeInsert)),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: nil,
 		columns:        []string{"id", "region", "amount"},
@@ -140,7 +140,7 @@ func TestBuildUnnestQueryInsertOnly(t *testing.T) {
 func TestBuildUnnestQueryUpdate(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id")),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id")),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{"id", "region", "amount"},
@@ -180,7 +180,7 @@ func TestBuildUnnestQueryUpdate(t *testing.T) {
 func TestBuildUnnestQueryUpdate_WithUpdateFields(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id"), WithUpdateFields("amount")),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id"), WithUpdateFields("amount")),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{"id", "region", "amount"},
@@ -221,7 +221,7 @@ func TestBuildUnnestQueryUpdate_WithUpdateFields(t *testing.T) {
 func TestBuildStagedCopyMergeQueryUpdate(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id"), WithUpdateFields("amount")),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id"), WithUpdateFields("amount")),
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{"id", "region", "amount"},
 	}
@@ -239,7 +239,7 @@ func TestBuildStagedCopyMergeQueryUpdate(t *testing.T) {
 	// Without UpdateFields, all non-PK columns are updated
 	fnNoFilter := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id")),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpdate), WithPrimaryKeyColumns("id")),
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{"id", "region", "amount"},
 	}
@@ -258,7 +258,7 @@ func TestBuildStagedCopyMergeQueryUpdate(t *testing.T) {
 	// WriteModeUpdate requires PKs
 	fnNoPK := &writeFn{
 		Table:   `"public"."orders"`,
-		Options: NewWriteOptions(WithWriteMode(WriteModeUpdate)),
+		Options: newWriteOptions(WithWriteMode(WriteModeUpdate)),
 		columns: []string{"id", "region", "amount"},
 	}
 	if _, err := fnNoPK.buildStagedCopyMergeQuery("beam_stage_w1_test"); err == nil {
@@ -274,7 +274,7 @@ func TestBuildUnnestQueryNullArray(t *testing.T) {
 
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithWriteMode(WriteModeInsert)),
+		Options:        newWriteOptions(WithWriteMode(WriteModeInsert)),
 		Type:           beam.EncodedType{T: reflect.TypeOf(ArrayOrder{})},
 		PrimaryKeyCols: nil,
 		columns:        []string{"id", "tags"},
@@ -338,13 +338,13 @@ func TestWriteTransformPipelineConstruction(t *testing.T) {
 	}
 
 	col := beam.CreateList(s, orders)
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithPrimaryKeyColumns("id"),
 	)
 
-	result := Write(s, "public.orders", opts, col)
+	result := write(s, "public.orders", opts, col)
 
 	if !result.SuccessfulRows.IsValid() {
 		t.Errorf("expected valid SuccessfulRows PCollection")
@@ -368,10 +368,10 @@ func TestWriteRejectsInvalidTableNameAtGraphConstruction(t *testing.T) {
 
 	_, s := beam.NewPipelineWithRoot()
 	col := beam.CreateList(s, []TestOrder{{ID: 1}})
-	opts := NewWriteOptions()
+	opts := newWriteOptions()
 
 	// Malicious table name should panic at graph construction time
-	Write(s, `public.orders"; DROP TABLE users; --`, opts, col)
+	write(s, `public.orders"; DROP TABLE users; --`, opts, col)
 }
 
 func TestStagedCopyExecutionDirect(t *testing.T) {
@@ -395,7 +395,7 @@ func TestStagedCopyExecutionDirect(t *testing.T) {
 
 	fn := &writeFn{
 		Table:          `"public"."migrated_transactions"`,
-		Options:        NewWriteOptions(WithWriteMethod(WriteMethodStagedCopy), WithWriteMode(WriteModeUpsert)),
+		Options:        newWriteOptions(WithWriteMethod(WriteMethodStagedCopy), WithWriteMode(WriteModeUpsert)),
 		Type:           beam.EncodedType{T: reflect.TypeOf(StagedRecord{})},
 		PrimaryKeyCols: []string{"id"},
 		db:             db,
@@ -646,7 +646,7 @@ func TestBuildWriteDSN_SSLRootCert(t *testing.T) {
 }
 
 func TestWriteOptions_SSLRootCert(t *testing.T) {
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithSSLRootCert("/etc/ssl/ca.pem"),
@@ -655,7 +655,7 @@ func TestWriteOptions_SSLRootCert(t *testing.T) {
 		t.Errorf("WithSSLRootCert failed: got %q, want %q", opts.SSLRootCert, "/etc/ssl/ca.pem")
 	}
 
-	optsAlias := NewWriteOptions(
+	optsAlias := newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithSSLRootCerts("/etc/ssl/ca-alias.pem"),
@@ -666,7 +666,7 @@ func TestWriteOptions_SSLRootCert(t *testing.T) {
 }
 
 func TestWriteOptions_DefaultSSLMode(t *testing.T) {
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 	)
@@ -675,7 +675,7 @@ func TestWriteOptions_DefaultSSLMode(t *testing.T) {
 	}
 
 	// Caller can explicitly lower to "require"
-	optsRequire := NewWriteOptions(
+	optsRequire := newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithSSLMode("require"),
@@ -709,7 +709,7 @@ func TestWriteRejectsUnqualifiedTableName(t *testing.T) {
 		}
 	}()
 
-	Write(s, "orders", NewWriteOptions(WithPrimaryKeyColumns("id")), col)
+	Write(s, "orders", col, WithPrimaryKeyColumns("id"))
 }
 
 // TestWriteAcceptsSchemaQualifiedTableName confirms the guard does not reject
@@ -723,11 +723,11 @@ func TestWriteAcceptsSchemaQualifiedTableName(t *testing.T) {
 
 	_, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, TestOrder{ID: 1, Region: "US", Amount: 100.0})
-	Write(s, "public.orders", NewWriteOptions(
+	Write(s, "public.orders", col,
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithPrimaryKeyColumns("id"),
-	), col)
+	)
 }
 
 func TestBuildMergeQuery(t *testing.T) {
@@ -837,7 +837,7 @@ func TestExplainPlanParsingAndSampling(t *testing.T) {
 func TestWriteReturnsErrorOnQueryFailure(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(),
+		Options:        newWriteOptions(),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
 		columns:        []string{""}, // Empty column name causes sanitizeIdentifier to fail
@@ -971,7 +971,7 @@ func (c recordingConnector) Driver() driver.Driver { return recordingDriver(c) }
 func newRecordingWriteFn(rec *stmtRecorder, opts ...Option) *writeFn {
 	fn := &writeFn{
 		Table:   `"public"."orders"`,
-		Options: NewWriteOptions(append([]Option{WithWriteMode(WriteModeInsert), WithWriteMethod(WriteMethodUnnest)}, opts...)...),
+		Options: newWriteOptions(append([]Option{WithWriteMode(WriteModeInsert), WithWriteMethod(WriteMethodUnnest)}, opts...)...),
 		Type:    beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		columns: []string{"id", "region", "amount"},
 		colTypes: map[string]string{
@@ -1159,7 +1159,7 @@ func TestWriteRoutesRejectedRowsToDLQOnExecFailure(t *testing.T) {
 		Table: `"public"."orders"`,
 		// The UNNEST method reaches the execution path directly, without the
 		// staged COPY fast path that would need a real transaction.
-		Options: NewWriteOptions(
+		Options: newWriteOptions(
 			WithWriteMode(WriteModeInsert),
 			WithWriteMethod(WriteMethodUnnest),
 		),
@@ -1208,24 +1208,24 @@ func TestWriteRoutesRejectedRowsToDLQOnExecFailure(t *testing.T) {
 }
 
 func TestWriteOptionsPasswordRedaction(t *testing.T) {
-	opts := NewWriteOptions(
+	opts := newWriteOptions(
 		WithHost("db.example.com"),
 		WithUsername("beam_writer"),
 		WithPassword("super_secret_write_pwd"),
 	)
 	str := opts.String()
 	if strings.Contains(str, "super_secret_write_pwd") {
-		t.Fatalf("WriteOptions string leaked raw password: %s", str)
+		t.Fatalf("writeOptions string leaked raw password: %s", str)
 	}
 	if !strings.Contains(str, "<redacted>") {
-		t.Fatalf("WriteOptions string missing <redacted> token: %s", str)
+		t.Fatalf("writeOptions string missing <redacted> token: %s", str)
 	}
 }
 
 // validWriteOpts returns options that satisfy every construction-time check,
 // so a test can introduce exactly one fault and attribute the panic to it.
-func validWriteOpts() WriteOptions {
-	return NewWriteOptions(
+func validWriteOpts() writeOptions {
+	return newWriteOptions(
 		WithHost("localhost"),
 		WithDatabase("testdb"),
 		WithPrimaryKeyColumns("id"),
@@ -1234,7 +1234,7 @@ func validWriteOpts() WriteOptions {
 
 // writePanic runs Write with the given options and reports the panic message,
 // or "" when the call returned normally.
-func writePanic(t *testing.T, opts WriteOptions) string {
+func writePanic(t *testing.T, opts writeOptions) string {
 	t.Helper()
 
 	var msg string
@@ -1246,7 +1246,7 @@ func writePanic(t *testing.T, opts WriteOptions) string {
 		}()
 		_, s := beam.NewPipelineWithRoot()
 		col := beam.Create(s, TestOrder{ID: 1, Region: "US", Amount: 1})
-		Write(s, "public.orders", opts, col)
+		write(s, "public.orders", opts, col)
 	}()
 	return msg
 }
@@ -1266,7 +1266,7 @@ func TestWriteRejectsConflictModesWithoutPrimaryKeys(t *testing.T) {
 			if msg == "" {
 				t.Fatalf("%v without primary keys was accepted; conflicting rows would be silently discarded", mode)
 			}
-			if !strings.Contains(msg, "PrimaryKeyCols") {
+			if !strings.Contains(msg, "WithPrimaryKeyColumns") {
 				t.Errorf("panic does not name the option to set: %s", msg)
 			}
 		})
@@ -1471,7 +1471,7 @@ func TestValidateUpdateFields(t *testing.T) {
 func TestSetupRejectsUnknownUpdateField(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
-		Options:        NewWriteOptions(WithHost("localhost"), WithDatabase("testdb"), WithPrimaryKeyColumns("id"), WithUpdateFields("emial")),
+		Options:        newWriteOptions(WithHost("localhost"), WithDatabase("testdb"), WithPrimaryKeyColumns("id"), WithUpdateFields("emial")),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
 	}

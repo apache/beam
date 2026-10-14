@@ -73,9 +73,9 @@ const (
 	WriteMethodUnnest
 )
 
-// WriteOptions configures connection pooling, write mutation modes, batch thresholds,
+// writeOptions configures connection pooling, write mutation modes, batch thresholds,
 // and safety guards for writing to PostgreSQL.
-type WriteOptions struct {
+type writeOptions struct {
 	Host           string
 	Port           int
 	Database       string
@@ -108,7 +108,6 @@ type WriteOptions struct {
 	FlushInterval         time.Duration
 	MaxConnections        int
 	UsePgBouncer          bool
-	ConnectionInitSQL     string
 	ReplicationOriginName string
 	OpColumn              string
 	DeleteOpValue         string
@@ -116,20 +115,20 @@ type WriteOptions struct {
 	ExplainSampleRate     float64
 }
 
-// String returns a redacted representation of the WriteOptions, safe for logging.
-func (o WriteOptions) String() string {
+// String returns a redacted representation of the writeOptions, safe for logging.
+func (o writeOptions) String() string {
 	pwd := "<redacted>"
 	if o.Password == "" {
 		pwd = "<none>"
 	}
-	return fmt.Sprintf("WriteOptions{Host: %s, Port: %d, Database: %s, Username: %s, Password: %s, WriteMode: %v, BatchSize: %d}",
+	return fmt.Sprintf("postgresio.Write options{Host: %s, Port: %d, Database: %s, Username: %s, Password: %s, WriteMode: %v, BatchSize: %d}",
 		o.Host, o.Port, o.Database, o.Username, pwd, o.WriteMode, o.BatchSize)
 }
 
-// pqConnector implements driver.Connector with optional per-connection init SQL.
+// pqConnector implements driver.Connector, selecting a replication origin on
+// each new connection when one is configured.
 type pqConnector struct {
-	dsn     string
-	initSQL string
+	dsn string
 
 	// replicationOrigin, when set, is selected on every connection this
 	// connector opens. See selectReplicationOrigin.
@@ -140,19 +139,6 @@ func (c *pqConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	conn, err := (&pq.Driver{}).Open(c.dsn)
 	if err != nil {
 		return nil, err
-	}
-
-	if c.initSQL != "" {
-		var initErr error
-		if execer, ok := conn.(driver.ExecerContext); ok {
-			_, initErr = execer.ExecContext(ctx, c.initSQL, nil)
-		} else if execerSync, ok := conn.(driver.Execer); ok {
-			_, initErr = execerSync.Exec(c.initSQL, nil)
-		}
-		if initErr != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("postgresio: connection init SQL failed: %w", initErr)
-		}
 	}
 
 	if err := selectReplicationOrigin(ctx, conn, c.replicationOrigin); err != nil {
@@ -211,12 +197,12 @@ func (c *pqConnector) Driver() driver.Driver {
 	return &pq.Driver{}
 }
 
-// Option represents a functional option for configuring WriteOptions.
-type Option func(*WriteOptions)
+// Option represents a functional option for configuring writeOptions.
+type Option func(*writeOptions)
 
-// NewWriteOptions creates a WriteOptions struct initialized with production defaults.
-func NewWriteOptions(opts ...Option) WriteOptions {
-	wo := WriteOptions{
+// newWriteOptions creates a writeOptions struct initialized with production defaults.
+func newWriteOptions(opts ...Option) writeOptions {
+	wo := writeOptions{
 		Port:           5432,
 		SSLMode:        DefaultSSLMode,
 		WriteMode:      WriteModeUpsert,
@@ -239,48 +225,48 @@ func NewWriteOptions(opts ...Option) WriteOptions {
 
 // WithHost sets the target PostgreSQL server hostname or IP address.
 func WithHost(host string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.Host = host
 	}
 }
 
 // WithPort sets the target PostgreSQL server TCP port.
 func WithPort(port int) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.Port = port
 	}
 }
 
 // WithDatabase sets the target database name.
 func WithDatabase(db string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.Database = db
 	}
 }
 
 // WithUsername sets the database authentication username.
 func WithUsername(user string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.Username = user
 	}
 }
 
 // WithPassword sets the database authentication password.
 func WithPassword(pass string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.Password = pass
 	}
 }
 
 // WithPasswordEnvVar sets the environment variable name on the worker to resolve the password.
 func WithPasswordEnvVar(envVar string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.PasswordEnvVar = envVar
 	}
 }
 
 // ResolvePassword returns the password to use, prioritizing PasswordEnvVar, then Password, then PGPASSWORD.
-func (o WriteOptions) ResolvePassword() string {
+func (o writeOptions) ResolvePassword() string {
 	if o.PasswordEnvVar != "" {
 		if val := os.Getenv(o.PasswordEnvVar); val != "" {
 			return val
@@ -294,14 +280,14 @@ func (o WriteOptions) ResolvePassword() string {
 
 // WithSSLMode sets the SSL/TLS connection mode (disable, require, verify-ca, verify-full).
 func WithSSLMode(sslMode string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.SSLMode = sslMode
 	}
 }
 
 // WithSSLRootCert sets the SSL root certificate path or PEM for verify-ca or verify-full.
 func WithSSLRootCert(cert string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.SSLRootCert = cert
 	}
 }
@@ -313,21 +299,21 @@ func WithSSLRootCerts(cert string) Option {
 
 // WithWriteMethod sets the bulk write method (WriteMethodStagedCopy or WriteMethodUnnest).
 func WithWriteMethod(method WriteMethod) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.WriteMethod = method
 	}
 }
 
 // WithWriteMode configures the write strategy (Insert, Upsert, or Update).
 func WithWriteMode(mode WriteMode) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.WriteMode = mode
 	}
 }
 
 // WithPrimaryKeyColumns specifies primary key column names required for upserts and deadlock sorting.
 func WithPrimaryKeyColumns(cols ...string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.PrimaryKeyCols = cols
 	}
 }
@@ -343,35 +329,35 @@ func WithPrimaryKeyColumns(cols ...string) Option {
 // entirely under WriteModeInsert and WriteModeMerge, which have no SET clause
 // to restrict.
 func WithUpdateFields(fields ...string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.UpdateFields = append([]string(nil), fields...)
 	}
 }
 
 // WithBatchSize sets the maximum number of rows buffered before issuing a batch write.
 func WithBatchSize(size int) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.BatchSize = size
 	}
 }
 
 // WithMaxBatchBytes sets the maximum payload byte volume buffered before flushing.
 func WithMaxBatchBytes(bytes int) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.MaxBatchBytes = bytes
 	}
 }
 
 // WithFlushInterval sets the maximum latency before buffering rows are flushed.
 func WithFlushInterval(interval time.Duration) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.FlushInterval = interval
 	}
 }
 
 // WithMaxConnections clamps the worker connection pool size.
 func WithMaxConnections(maxConns int) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.MaxConnections = maxConns
 	}
 }
@@ -386,9 +372,6 @@ func WithMaxConnections(maxConns int) Option {
 //   - WriteMethodStagedCopy is downgraded to WriteMethodUnnest. Staged COPY
 //     creates a temporary staging table once and reuses it across flushes; a
 //     later flush can land on a connection where that table was never created.
-//   - ConnectionInitSQL is warned about, because it runs when a pooled
-//     connection is opened and a later statement may be routed to a server
-//     connection that never ran it.
 //
 // WriteModeMerge is rejected outright at pipeline construction, since MERGE is
 // only expressible through the staged COPY path.
@@ -396,7 +379,7 @@ func WithMaxConnections(maxConns int) Option {
 // Leave this off when connecting to PostgreSQL directly, or through PgBouncer
 // in session pooling mode; the downgrade costs throughput for no benefit.
 func WithPgBouncer(usePgBouncer bool) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.UsePgBouncer = usePgBouncer
 	}
 }
@@ -407,7 +390,7 @@ var originNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,64}$`)
 // When specified, write transactions are tagged with this origin to prevent bidirectional
 // replication loops when replicating between active-active PostgreSQL databases.
 func WithReplicationOriginName(originName string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		if originName != "" && !originNameRegex.MatchString(originName) {
 			panic(fmt.Sprintf("postgresio: invalid replication origin name %q (must match ^[a-zA-Z0-9_]{1,64}$)", originName))
 		}
@@ -417,21 +400,21 @@ func WithReplicationOriginName(originName string) Option {
 
 // WithOpColumn specifies the column indicating the mutation operation type for WriteModeMerge.
 func WithOpColumn(col string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.OpColumn = col
 	}
 }
 
 // WithDeleteOpValue specifies the value in OpColumn that represents a DELETE mutation for WriteModeMerge.
 func WithDeleteOpValue(val string) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.DeleteOpValue = val
 	}
 }
 
 // WithExplainAnalyze enables EXPLAIN (ANALYZE, BUFFERS) query plan sampling on sink writes.
 func WithExplainAnalyze(enabled bool) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.ExplainAnalyze = enabled
 	}
 }
@@ -441,7 +424,7 @@ func WithExplainAnalyze(enabled bool) Option {
 // clamped to 1.0. Note that sampling is only evaluated when WithExplainAnalyze(true) is
 // enabled; by default, EXPLAIN (ANALYZE) is disabled.
 func WithExplainSampleRate(rate float64) Option {
-	return func(o *WriteOptions) {
+	return func(o *writeOptions) {
 		o.ExplainSampleRate = rate
 	}
 }

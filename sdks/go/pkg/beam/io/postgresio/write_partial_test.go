@@ -51,7 +51,7 @@ func newPartialWriteFn(t *testing.T) *writeFn {
 	fn := &writeFn{
 		Table:          `"public"."docs"`,
 		PrimaryKeyCols: []string{"id"},
-		Options:        NewWriteOptions(WithWriteMode(WriteModeUpsert)),
+		Options:        newWriteOptions(WithWriteMode(WriteModeUpsert)),
 		columns:        testDocColumns,
 	}
 	fn.Type = beam.EncodedType{T: reflect.TypeOf(partialDoc{})}

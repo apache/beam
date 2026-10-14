@@ -173,7 +173,7 @@ func main() {
 	}
 	input := beam.CreateList(s, orders)
 
-	opts := postgresio.NewWriteOptions(
+	result := postgresio.Write(s, "test_pipelines.target_orders", input,
 		postgresio.WithHost("localhost"),
 		postgresio.WithPort(5432),
 		postgresio.WithDatabase("postgres"),
@@ -183,8 +183,7 @@ func main() {
 		postgresio.WithWriteMode(postgresio.WriteModeUpsert),
 		postgresio.WithBatchSize(5000),
 	)
-
-	result := postgresio.Write(s, "test_pipelines.target_orders", opts, input)
+	_ = result // result.FailedRows carries rows the database rejected.
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		panic(err)

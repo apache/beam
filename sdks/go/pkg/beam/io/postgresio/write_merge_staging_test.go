@@ -114,7 +114,7 @@ func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 
 	fn := &writeFn{
 		Table: target,
-		Options: NewWriteOptions(
+		Options: newWriteOptions(
 			WithWriteMode(WriteModeMerge),
 			WithWriteMethod(WriteMethodStagedCopy),
 			WithOpColumn(opCol),
@@ -216,7 +216,7 @@ func TestMergeQueryUsesTheSanitizationStageTheSinkIsAt(t *testing.T) {
 func TestWritePartitionMergeRefusesUnnestFallback(t *testing.T) {
 	fn := &writeFn{
 		Table: `"public"."accounts"`,
-		Options: NewWriteOptions(
+		Options: newWriteOptions(
 			WithWriteMode(WriteModeMerge),
 			WithWriteMethod(WriteMethodUnnest),
 			WithOpColumn("op"),
@@ -261,7 +261,7 @@ func TestWritePartitionMergeRefusesUnnestFallback(t *testing.T) {
 func TestWritePartitionMergeRefusesPartialRows(t *testing.T) {
 	fn := &writeFn{
 		Table: `"public"."accounts"`,
-		Options: NewWriteOptions(
+		Options: newWriteOptions(
 			WithWriteMode(WriteModeMerge),
 			WithWriteMethod(WriteMethodStagedCopy),
 			WithOpColumn("op"),

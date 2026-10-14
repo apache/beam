@@ -84,7 +84,7 @@ sequenceDiagram
 1. **Pure Go Without JNI or JVM Wrappers**:
    The Go connector is completely self-contained (`CGO_ENABLED=0` invariant). It does not require a Java runtime or expansion service for native Go pipelines.
 2. **Upstream Database Guardrails**:
-   * Connection pool bounding: `WriteOptions.MaxConnections` defaults to 2 per worker to eliminate connection exhaustion under large worker autoscaling.
+   * Connection pool bounding: `WithMaxConnections` defaults to 2 per worker to eliminate connection exhaustion under large worker autoscaling.
    * Last-Write-Wins (LWW) compaction & primary key sorting: Prevents duplicate updates and mitigates PostgreSQL `40P01` deadlock errors on concurrent batches, backed by an exponential backoff retry loop as the primary safety net.
    * Dynamic IAM Token Expiration: Pooled connections enforce token lifetime limits to renew short-lived cloud credentials before socket expiration.
 3. **Factual and Objective Tone**:

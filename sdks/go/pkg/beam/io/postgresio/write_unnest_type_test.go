@@ -35,7 +35,7 @@ func TestWrite_UNNESTTypeBinding(t *testing.T) {
 
 	fn := &writeFn{
 		Table:   `"orders"`,
-		Options: NewWriteOptions(WithWriteMode(WriteModeInsert)),
+		Options: newWriteOptions(WithWriteMode(WriteModeInsert)),
 		Type:    beam.EncodedType{T: reflect.TypeOf(complexRow{})},
 		columns: []string{"date_col", "array_col", "text_col", "jsonb_col"},
 		colTypes: map[string]string{

@@ -286,7 +286,7 @@ func TestEstimateElementSizeTerminatesOnCycles(t *testing.T) {
 // field nothing read. Staged COPY reuses a session-scoped staging table, which
 // transaction pooling cannot keep alive between flushes.
 func TestPgBouncerDowngradesStagedCopy(t *testing.T) {
-	fn := &writeFn{Options: NewWriteOptions(
+	fn := &writeFn{Options: newWriteOptions(
 		WithWriteMethod(WriteMethodStagedCopy),
 		WithPgBouncer(true),
 	)}
@@ -302,17 +302,17 @@ func TestPgBouncerDowngradesStagedCopy(t *testing.T) {
 func TestPgBouncerLeavesOtherConfigurationsAlone(t *testing.T) {
 	tests := []struct {
 		name string
-		opts WriteOptions
+		opts writeOptions
 		want WriteMethod
 	}{
 		{
 			name: "disabled",
-			opts: NewWriteOptions(WithWriteMethod(WriteMethodStagedCopy), WithPgBouncer(false)),
+			opts: newWriteOptions(WithWriteMethod(WriteMethodStagedCopy), WithPgBouncer(false)),
 			want: WriteMethodStagedCopy,
 		},
 		{
 			name: "already unnest",
-			opts: NewWriteOptions(WithWriteMethod(WriteMethodUnnest), WithPgBouncer(true)),
+			opts: newWriteOptions(WithWriteMethod(WriteMethodUnnest), WithPgBouncer(true)),
 			want: WriteMethodUnnest,
 		},
 	}
