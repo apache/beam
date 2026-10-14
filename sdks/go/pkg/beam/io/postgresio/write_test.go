@@ -21,7 +21,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -1563,75 +1562,5 @@ func TestBuildUnnestQueryFromMapElements(t *testing.T) {
 	}
 	if len(args) != 2 {
 		t.Fatalf("expected one array argument per column, got %d", len(args))
-	}
-}
-
-// TestWriteSetupRejectsLostDialFunc covers a dialer that was configured at
-// construction but dropped crossing the serialization boundary. Connecting
-// anyway would bypass the proxy the caller installed.
-func TestWriteSetupRejectsLostDialFunc(t *testing.T) {
-	fn := &writeFn{
-		Table: `"public"."orders"`,
-		Options: WriteOptions{
-			Host:             "localhost",
-			Port:             5432,
-			Database:         "testdb",
-			SSLMode:          SSLModeDisable,
-			RequiresDialFunc: true, // survived serialization
-			DialFunc:         nil,  // did not
-		},
-	}
-
-	err := fn.Setup(context.Background())
-	if err == nil {
-		t.Fatal("Setup connected without the configured dialer, silently bypassing the intended proxy")
-	}
-	if !strings.Contains(err.Error(), "DialFunc") {
-		t.Errorf("error does not identify the lost dialer: %v", err)
-	}
-}
-
-// TestDialFuncMarkerSurvivesSerialization demonstrates the premise the marker
-// rests on: Beam encodes DoFn fields as JSON, which drops the closure and
-// keeps the bool. Without the bool, a worker cannot distinguish a pipeline
-// that never wanted a dialer from one whose dialer was lost.
-func TestDialFuncMarkerSurvivesSerialization(t *testing.T) {
-	original := WriteOptions{
-		Host:     "localhost",
-		Database: "testdb",
-		DialFunc: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return nil, fmt.Errorf("unused")
-		},
-		RequiresDialFunc: true,
-	}
-
-	encoded, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("options must be JSON-encodable to cross the worker boundary: %v", err)
-	}
-
-	var decoded WriteOptions
-	if err := json.Unmarshal(encoded, &decoded); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if decoded.DialFunc != nil {
-		t.Error("a closure is not serializable; DialFunc should not have survived")
-	}
-	if !decoded.RequiresDialFunc {
-		t.Error("RequiresDialFunc did not survive, so a worker cannot detect the lost dialer")
-	}
-}
-
-// TestWriteAcceptsDialFunc confirms the construction-time checks do not reject
-// a pipeline that legitimately supplies a dialer.
-func TestWriteAcceptsDialFunc(t *testing.T) {
-	opts := validWriteOpts()
-	opts.DialFunc = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return nil, fmt.Errorf("unused")
-	}
-
-	if msg := writePanic(t, opts); msg != "" {
-		t.Fatalf("Write rejected a pipeline with a custom dialer: %s", msg)
 	}
 }

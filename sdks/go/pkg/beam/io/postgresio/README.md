@@ -212,7 +212,6 @@ func main() {
 | `WithMaxBatchBytes(int)` | `8388608` (8 MB) | Maximum bytes per micro-batch flush |
 | `WithFlushInterval(Duration)` | `1s` | Maximum time between micro-batch flushes |
 | `WithPgBouncer(bool)` | `false` | Avoids session state under PgBouncer transaction pooling (downgrades Staged COPY to parameterized UNNEST) |
-| `WithDialFunc(DialFunc)` | `nil` | Custom network dialer (e.g., Cloud SQL Go Connector, AWS RDS IAM socket) |
 
 ### Column mapping
 

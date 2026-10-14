@@ -19,7 +19,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -74,35 +73,6 @@ const (
 	WriteMethodUnnest
 )
 
-// DialFunc defines a pluggable network dialer interface for connecting to PostgreSQL.
-// Used by cloud-specific dialers (e.g., Google Cloud SQL, AlloyDB) to establish
-// authenticated mTLS socket connections.
-//
-// A DialFunc is a Go closure and cannot be serialized, so it reaches a worker
-// only on runners that execute in the submitting process. On a distributed
-// runner the field arrives nil. The options structs therefore carry a
-// RequiresDialFunc marker, which does serialize, so the worker can tell a
-// pipeline that never configured a dialer apart from one whose dialer was
-// dropped in transit and fail loudly instead of quietly opening a direct
-// connection that bypasses the intended proxy.
-type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
-
-// errDialFuncLost reports a dialer that was configured at pipeline
-// construction but did not reach this worker.
-//
-// Continuing without it would open a direct TCP connection to Host:Port,
-// silently bypassing the Cloud SQL connector, AlloyDB connector or IAM proxy
-// tunnel the caller installed. That route is usually the only authorized one
-// and often the only encrypted one, so the connection has to fail rather than
-// quietly succeed by another path.
-func errDialFuncLost() error {
-	return fmt.Errorf("postgresio: a custom DialFunc was configured but did not reach this worker. " +
-		"A dialer is a Go closure and cannot be serialized, so it is only available on runners that " +
-		"execute in the submitting process. On a distributed runner, reach the database through a " +
-		"sidecar or proxy that the worker can dial directly (for example the Cloud SQL Auth Proxy) " +
-		"and leave DialFunc unset")
-}
-
 // WriteOptions configures connection pooling, write mutation modes, batch thresholds,
 // and safety guards for writing to PostgreSQL.
 type WriteOptions struct {
@@ -140,18 +110,10 @@ type WriteOptions struct {
 	UsePgBouncer          bool
 	ConnectionInitSQL     string
 	ReplicationOriginName string
-	DialFunc              DialFunc `beam:"-" json:"-"`
-
-	// RequiresDialFunc records that a custom dialer was configured. It is set
-	// automatically by Write and should not be assigned directly. Unlike
-	// DialFunc it survives serialization, which is what lets a worker detect
-	// that the dialer itself did not.
-	RequiresDialFunc bool
-
-	OpColumn          string
-	DeleteOpValue     string
-	ExplainAnalyze    bool
-	ExplainSampleRate float64
+	OpColumn              string
+	DeleteOpValue         string
+	ExplainAnalyze        bool
+	ExplainSampleRate     float64
 }
 
 // String returns a redacted representation of the WriteOptions, safe for logging.
@@ -164,36 +126,10 @@ func (o WriteOptions) String() string {
 		o.Host, o.Port, o.Database, o.Username, pwd, o.WriteMode, o.BatchSize)
 }
 
-// pqDialerAdapter adapts a postgresio DialFunc into a pq.Dialer.
-type pqDialerAdapter struct {
-	ctx      context.Context
-	dialFunc DialFunc
-}
-
-func (a *pqDialerAdapter) Dial(network, address string) (net.Conn, error) {
-	ctx := a.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return a.dialFunc(ctx, network, address)
-}
-
-func (a *pqDialerAdapter) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	ctx := a.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return a.dialFunc(ctx, network, address)
-}
-
-// pqConnector implements driver.Connector using a custom pq.Dialer and optional per-connection init SQL.
+// pqConnector implements driver.Connector with optional per-connection init SQL.
 type pqConnector struct {
-	dialFunc DialFunc
-	dialer   pq.Dialer
-	dsn      string
-	initSQL  string
+	dsn     string
+	initSQL string
 
 	// replicationOrigin, when set, is selected on every connection this
 	// connector opens. See selectReplicationOrigin.
@@ -201,16 +137,7 @@ type pqConnector struct {
 }
 
 func (c *pqConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	var conn driver.Conn
-	var err error
-	if c.dialFunc != nil {
-		conn, err = pq.DialOpen(&pqDialerAdapter{ctx: ctx, dialFunc: c.dialFunc}, c.dsn)
-	} else if c.dialer != nil {
-		conn, err = pq.DialOpen(c.dialer, c.dsn)
-	} else {
-		d := &pq.Driver{}
-		conn, err = d.Open(c.dsn)
-	}
+	conn, err := (&pq.Driver{}).Open(c.dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -471,13 +398,6 @@ func WithMaxConnections(maxConns int) Option {
 func WithPgBouncer(usePgBouncer bool) Option {
 	return func(o *WriteOptions) {
 		o.UsePgBouncer = usePgBouncer
-	}
-}
-
-// WithDialFunc injects a custom network dialer for Cloud SQL, AlloyDB, or proxy tunnels.
-func WithDialFunc(dialFunc DialFunc) Option {
-	return func(o *WriteOptions) {
-		o.DialFunc = dialFunc
 	}
 }
 

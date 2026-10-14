@@ -170,11 +170,6 @@ func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) 
 			"PgBouncer mode.")
 	}
 
-	// Recorded here, in the submitting process, because this is the last point
-	// at which the closure is observable. Setup runs on the worker, where a
-	// dropped DialFunc and an unconfigured one are otherwise indistinguishable.
-	opts.RequiresDialFunc = opts.DialFunc != nil
-
 	// UpdateFields only reaches SQL through the two SET clauses: the upsert's
 	// ON CONFLICT DO UPDATE and the update's UPDATE ... SET. Insert has no SET
 	// clause, and MERGE builds its own from the primary key and the operation
@@ -262,12 +257,6 @@ func (fn *writeFn) Setup(ctx context.Context) error {
 		return fmt.Errorf("postgresio: WriteModeUpdate requires primary key columns (PrimaryKeyCols)")
 	}
 
-	// A configured dialer that arrives nil was dropped crossing the
-	// serialization boundary.
-	if fn.Options.RequiresDialFunc && fn.Options.DialFunc == nil {
-		return errDialFuncLost()
-	}
-
 	sslMode := fn.Options.SSLMode
 	if sslMode == "" {
 		sslMode = DefaultSSLMode
@@ -280,7 +269,6 @@ func (fn *writeFn) Setup(ctx context.Context) error {
 		fn.Options.Username, password, sslMode, fn.Options.SSLRootCert)
 
 	connector := &pqConnector{
-		dialFunc:          fn.Options.DialFunc,
 		dsn:               dsn,
 		initSQL:           fn.Options.ConnectionInitSQL,
 		replicationOrigin: fn.Options.ReplicationOriginName,
