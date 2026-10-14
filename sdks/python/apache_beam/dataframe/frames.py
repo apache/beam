@@ -2057,11 +2057,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       if base_func in HAND_IMPLEMENTED_GLOBAL_AGGREGATIONS:
         result = getattr(self, base_func)(*args, **kwargs)
         if isinstance(func, list):
+          name = self._expr.proxy().name
           with expressions.allow_non_parallel_operations(True):
             return frame_base.DeferredFrame.wrap(
                 expressions.ComputedExpression(
                     f'wrap_aggregate_{base_func}',
-                    lambda x: pd.Series(x, index=[base_func]), [result._expr],
+                    lambda x: pd.Series(x, index=[base_func], name=name),
+                    [result._expr],
                     requires_partition_by=partitionings.Singleton(),
                     preserves_partition_by=partitionings.Singleton()))
         else:
