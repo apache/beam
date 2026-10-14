@@ -17,6 +17,8 @@
 // for writing to PostgreSQL databases without Java Virtual Machine
 // (JVM) dependencies.
 //
+// This package is experimental. Its API may change in incompatible ways.
+//
 // # Required Privileges
 //
 // Writing needs SELECT, INSERT and, for the upsert, update and merge modes,

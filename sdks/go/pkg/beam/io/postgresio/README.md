@@ -22,11 +22,8 @@
 `postgresio` is a native Apache Beam Go SDK I/O connector providing high-throughput writing and upserts for PostgreSQL. It operates without Java Virtual Machine (JVM) dependencies or cross-language serialization overhead.
 
 > [!NOTE]
-> **Status: feature-complete with remediation stack applied.**
->
-> Core operational guardrails are active and verified: TLS defaults to `verify-full`, connection pooling prevents worker storms, and deadlocks are minimized via in-memory batch compaction, canonical primary key sorting, and an exponential backoff retry loop.
->
-> Read [Security & TLS Configuration](#security--tls-configuration) for production configuration best practices.
+> The connector is experimental. See [Known Limitations](#known-limitations).
+
 ---
 
 ## Table of Contents
@@ -37,17 +34,10 @@
 3. [Quickstart & Getting Started](#3-quickstart--getting-started)
    - [Native Go Write & Upsert](#native-go-write--upsert)
 4. [Configuration Reference](#4-configuration-reference)
-   - [WriteOptions](#writeoptions)
+   - [Options](#options)
    - [Required privileges](#required-privileges)
    - [Security & TLS Configuration](#security--tls-configuration)
    - [Known Limitations](#known-limitations)
-5. [Contributor Guide: Codebase Map & Invariants](#5-contributor-guide-codebase-map--invariants)
-   - [File Inventory & Responsibilities](#file-inventory--responsibilities)
-   - [Life of a Write Mutation](#life-of-a-write-mutation)
-   - [Serialization & Struct Tag Invariants](#serialization--struct-tag-invariants)
-   - [Memory Model & Allocation Constraints](#memory-model--allocation-constraints)
-6. [Testing & Verification Runbook](#6-testing--verification-runbook)
-   - [Unit Testing](#unit-testing)
 
 ---
 
@@ -204,7 +194,7 @@ func main() {
 
 ## 4. Configuration Reference
 
-### `WriteOptions`
+### Options
 
 | Option | Default | Purpose |
 | :--- | :--- | :--- |
@@ -223,6 +213,13 @@ func main() {
 | `WithFlushInterval(Duration)` | `1s` | Maximum time between micro-batch flushes |
 | `WithPgBouncer(bool)` | `false` | Avoids session state under PgBouncer transaction pooling (downgrades Staged COPY to parameterized UNNEST) |
 | `WithDialFunc(DialFunc)` | `nil` | Custom network dialer (e.g., Cloud SQL Go Connector, AWS RDS IAM socket) |
+
+### Column mapping
+
+Each exported struct field maps to one column. The name comes from the first
+of the `db`, `beam` and `json` tags that names one; a tag of `"-"` excludes
+the field. A field with none of these tags maps to the snake_case form of its
+Go name, so `CustomerID` maps to `customer_id`.
 
 ### Required privileges
 
@@ -290,107 +287,9 @@ Google Cloud SQL documents `sslmode=verify-full` and added per-instance CAs and 
 
 ### Known Limitations
 
-The connector is unreleased and experimental. The list below is what is still open.
+The connector is experimental. The list below is what is still open.
 
 | Area | Limitation | Impact |
 | :--- | :--- | :--- |
 | **`search_path`** | The write path pins `search_path=pg_catalog,pg_temp` on every pooled connection to close CVE-2018-1058, so an unqualified table name cannot resolve. | Table names must be written as `schema.table`. `postgresio.Write` rejects an unqualified name when the pipeline is constructed. |
 | **Driver** | Built on `lib/pq`. | Protocol features not implemented in `lib/pq` are unavailable. |
-
-## 5. Contributor Guide: Codebase Map & Invariants
-
-This section details internal design invariants for contributors maintaining or extending the package.
-
-### File Inventory & Responsibilities
-
-| File | Subsystem | Responsibility |
-| :--- | :--- | :--- |
-| [`write.go`](write.go) | Sink | `writeFn` implementation, `buildUnnestQuery`, parameterized `UNNEST` array upsert execution. |
-| [`compactor.go`](compactor.go) | Sink | `BatchCompactor` micro-batch accumulator, LWW deduplication, composite primary key canonical sort. |
-| [`options.go`](options.go) | Config | `WriteOptions` definition, functional options, identifier sanitization. |
-
-### Life of a Write Mutation
-
-```
-PCollection<T>
-      |
-      v
-+-------------------------------------------------------+
-| [writeFn.ProcessElement]                              |
-| 1. Intercept incoming record                          |
-| 2. Add to in-memory BatchCompactor                    |
-| 3. If size >= BatchSize or bytes >= MaxBatchBytes:    |
-|    Flush active batch                                 |
-+-------------------------------------------------------+
-      |
-      v
-+-------------------------------------------------------+
-| [BatchCompactor.CompactAndSort]                       |
-| 1. Deduplicate by composite primary key (LWW)         |
-| 2. Canonical lexicographical sort by primary key      |
-|    (Mitigates concurrent worker row-lock deadlocks)   |
-+-------------------------------------------------------+
-      |
-      v
-+-------------------------------------------------------+
-| [writeFn.buildUnnestQuery]                            |
-| 1. Reflect column types from struct tags (db, beam)   |
-| 2. Map Go types to PG array casts (bigint[], text[])  |
-| 3. Construct:                                         |
-|    INSERT INTO <table> (<cols>)                       |
-|    SELECT * FROM UNNEST($1::type[], $2::type[], ...)  |
-|    ON CONFLICT (<pks>) DO UPDATE SET <cols>           |
-+-------------------------------------------------------+
-      |
-      v
-+-------------------------------------------------------+
-| [writeFn.flushBatch]                                  |
-| 1. Execute query via pgxpool / database/sql           |
-| 2. On success: Emit rows to SuccessfulRows            |
-| 3. On failure: Wrap in FailedRow and emit to DLQ      |
-+-------------------------------------------------------+
-```
-
-### Serialization & Struct Tag Invariants
-
-When working with Beam Go DoFns and schema-registered types:
-
-1. **Interface and Function Exclusion**:
-   Beam Go tries to reconcile struct fields into Beam schemas at pipeline submission time (`beam.Init()`). Any struct field containing an interface (e.g. `TokenProvider`, `DialFunc`, `StreamFactory`) or a `func` **cannot be serialized into a Beam schema**.
-   * **Rule**: All interface, function, and dialer fields **must** include both `beam:"-"` and `json:"-"` struct tags.
-   ```go
-   type WriteOptions struct {
-       Host     string
-       DialFunc DialFunc `beam:"-" json:"-"`
-   }
-   ```
-2. **Struct Field Names vs Database Columns**:
-   `writeFn` resolves PostgreSQL table column names using the following fallback order:
-   1. `db:"col_name"`
-   2. `beam:"col_name"`
-   3. `json:"col_name"`
-   4. `strings.ToLower(field.Name)`
-   * **Rule**: When defining custom structs, always supply `db:"<column_name>"` or `beam:"<column_name>"` matching the exact snake_case name of the PostgreSQL column.
-
-3. **Types with Custom Coders**:
-   Types containing dynamic `any` fields (such as `ColumnValue` or `ChangeEvent`) must be registered using `beam.RegisterCoder`, **not** `beam.RegisterType`. `beam.RegisterType` instructs Beam to treat the type as a fixed-schema Row, which fails when encountering `interface{}`.
-
-### Memory Model & Allocation Constraints
-
-* **Connection Pool Bounding**: `WriteOptions.MaxConnections` defaults to 2 per worker, so that a pipeline scaling out to hundreds of Beam workers does not exhaust the server's `max_connections`. `WithMaxConnections` raises it; raise the server's budget to match before doing so.
-
----
-
-## 6. Testing & Verification Runbook
-
-### Unit Testing
-
-Run the full package unit test suite with the Go race detector enabled:
-
-```bash
-cd sdks/go/pkg/beam/io/postgresio
-go test -v -race -count=1 ./...
-```
-
-This includes unit tests for identifier sanitization against SQL injection, credential redaction, batch compaction collapse and deadlock-avoiding sort order, and primary key determinism.
-
