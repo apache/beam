@@ -21,6 +21,7 @@
 
 import dataclasses
 import types
+import typing
 import unittest
 
 import apache_beam as beam
@@ -501,18 +502,44 @@ class TrivialInferenceTest(unittest.TestCase):
       name: str
       tags: list[str]
       custom: BaseClass
+      opt_id: typing.Optional[int]
+      opt_custom: typing.Optional[BaseClass]
+      mapping: dict[str, int]
+      coord: tuple[float, float]
+      categories: set[str]
+      immutable: frozenset[int]
 
     self.assertReturnType(
-        typehints.Tuple[int, str, typehints.List[str], BaseClass],
+        typehints.Tuple[int,
+                        str,
+                        typehints.List[str],
+                        BaseClass,
+                        typehints.Optional[int],
+                        typehints.Optional[BaseClass],
+                        typehints.Dict[str, int],
+                        typehints.Tuple[float, float],
+                        typehints.Set[str],
+                        typehints.FrozenSet[int]],
         python_callable.PythonCallableWithSource(
-            "lambda x: (x.id, x.name, x.tags, x.custom)"), [MyDataClass])
+            "lambda x: (x.id, x.name, x.tags, x.custom, x.opt_id, x.opt_custom, "
+            "x.mapping, x.coord, x.categories, x.immutable)"), [MyDataClass])
 
     options = PipelineOptions(['--exclude_infer_dataclass_field_type'])
     with scoped_pipeline_options(options):
       self.assertReturnType(
-          typehints.Tuple[int, str, typehints.Any, typehints.Any],
+          typehints.Tuple[int,
+                          str,
+                          typehints.List[str],
+                          typehints.Any,
+                          typehints.Optional[int],
+                          typehints.Any,
+                          typehints.Dict[str, int],
+                          typehints.Tuple[float, float],
+                          typehints.Set[str],
+                          typehints.FrozenSet[int]],
           python_callable.PythonCallableWithSource(
-              "lambda x: (x.id, x.name, x.tags, x.custom)"), [MyDataClass])
+              "lambda x: (x.id, x.name, x.tags, x.custom, x.opt_id, x.opt_custom, "
+              "x.mapping, x.coord, x.categories, x.immutable)"), [MyDataClass])
 
 
 if __name__ == '__main__':
