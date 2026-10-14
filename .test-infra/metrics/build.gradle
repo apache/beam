@@ -110,7 +110,7 @@ task deploy {
 
     // All images have the same tag, it doesn't matter which we choose.
     String image = (stdout.toString().split(' ') as List)[0]
-    String currentImageTag = (image.split(':') as List)[1]
+    String currentImageTag = image.contains(':') ? (image.split(':') as List)[1] : 'latest'
     println "Current image tag: ${currentImageTag}"
     println "Last commit ID: ${lastCommitId}"
 
@@ -124,15 +124,15 @@ task deploy {
 
       exec {
         executable 'sh'
-        args '-c', "kubectl --namespace default set image deployment/beamgrafana \
-          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
-          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
-          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
+        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
       }
 
       exec {
         executable 'sh'
-        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
+        args '-c', "kubectl --namespace default set image deployment/beamgrafana \
+          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
+          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
+          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
       }
     } else {
       println 'Nothing to do, exiting.'
