@@ -549,7 +549,7 @@ public class SpannerIO {
         .setRealTimeCheckpointInterval(DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL)
         .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
         .setCancelQueryOnHeartbeat(false)
-        .setEnableOpenTelemetryTracing(false)
+        .setPerChangeRecordOpenTelemetryTracing(false)
         .build();
   }
 
@@ -1953,7 +1953,7 @@ public class SpannerIO {
 
     abstract boolean getCancelQueryOnHeartbeat();
 
-    abstract boolean getEnableOpenTelemetryTracing();
+    abstract boolean getPerChangeRecordOpenTelemetryTracing();
 
     abstract Builder toBuilder();
 
@@ -1990,7 +1990,7 @@ public class SpannerIO {
 
       abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
-      abstract Builder setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
+      abstract Builder setPerChangeRecordOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       /**
        * When caught up to real-time, checkpoint processing of change stream this often. This sets a
@@ -2047,10 +2047,11 @@ public class SpannerIO {
 
     /**
      * Specifies whether OpenTelemetry tracing should start trace and span on each change record.
-     * For Spanner Client library tracing config, use SpannerConfig (withSpannerConfig).
+     * Spanner Client library tracing can be enabled via the SpannerConfig passed to
+     * withSpannerConfig.
      */
-    public ReadChangeStream withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
-      return toBuilder().setEnableOpenTelemetryTracing(enableOpenTelemetryTracing).build();
+    public ReadChangeStream withPerChangeRecordOpenTelemetryTracing(boolean openTelemetryTracing) {
+      return toBuilder().setPerChangeRecordOpenTelemetryTracing(openTelemetryTracing).build();
     }
 
     /** Specifies the change stream name. */
@@ -2356,7 +2357,7 @@ public class SpannerIO {
               metrics,
               getRealTimeCheckpointInterval(),
               getCancelQueryOnHeartbeat(),
-              getEnableOpenTelemetryTracing());
+              getPerChangeRecordOpenTelemetryTracing());
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 

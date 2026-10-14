@@ -78,7 +78,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
   private final boolean cancelQueryOnHeartbeat;
-  private final boolean enableOpenTelemetryTracing;
+  private final boolean enablePerChangeRecordOpenTelemetryTracing;
 
   /**
    * Needs to be set through the {@link
@@ -105,7 +105,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
    * @param realTimeCheckpointInterval duration to be used for the next end timestamp
    * @param cancelQueryOnHeartbeat flag to improve low latency checkpointing
-   * @param enableOpenTelemetryTracing flag to enrich traces within SpannerIO DoFns
+   * @param enablePerChangeRecordOpenTelemetryTracing flag to add change records traces
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
@@ -114,7 +114,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       ChangeStreamMetrics metrics,
       Duration realTimeCheckpointInterval,
       boolean cancelQueryOnHeartbeat,
-      boolean enableOpenTelemetryTracing) {
+      boolean enablePerChangeRecordOpenTelemetryTracing) {
     this.daoFactory = daoFactory;
     this.actionFactory = actionFactory;
     this.mapperFactory = mapperFactory;
@@ -123,7 +123,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.realTimeCheckpointInterval = realTimeCheckpointInterval;
     this.cancelQueryOnHeartbeat = cancelQueryOnHeartbeat;
     this.throughputEstimator = new NullThroughputEstimator<>();
-    this.enableOpenTelemetryTracing = enableOpenTelemetryTracing;
+    this.enablePerChangeRecordOpenTelemetryTracing = enablePerChangeRecordOpenTelemetryTracing;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -241,7 +241,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             metrics,
             isMutableChangeStream,
             realTimeCheckpointInterval,
-            enableOpenTelemetryTracing
+            enablePerChangeRecordOpenTelemetryTracing
                 ? options.as(SdkHarnessOptions.class).getOpenTelemetry()
                 : OpenTelemetry.noop());
   }
