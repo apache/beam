@@ -2156,7 +2156,9 @@ class Regex(object):
   def all_matches(pcoll, regex):
     """
     Returns all matches (groups) if zero or more characters at the beginning
-    of string match the regular expression.
+    of string match the regular expression. Each output is a list of the
+    entire match followed by every group of the regex, with None for a group
+    that did not participate in the match.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -2166,7 +2168,7 @@ class Regex(object):
     def _process(element):
       m = regex.match(element)
       if m:
-        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+        yield [m.group(), *m.groups()]
 
     return pcoll | FlatMap(_process)
 
