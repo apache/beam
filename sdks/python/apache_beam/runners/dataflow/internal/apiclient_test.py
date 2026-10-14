@@ -1320,12 +1320,19 @@ class UtilTest(unittest.TestCase):
           self.assertFalse(template_obj.get('steps'))
           self.assertTrue(template_obj['stepsLocation'])
 
+  @mock.patch.dict(
+      os.environ, {'GOOGLE_CLOUD_UNIVERSE_DOMAIN': 'custom-universe.com'})
   def test_dataflow_endpoint_clean(self):
+    # An explicit endpoint is cleaned and passed as an api_endpoint override to
+    # every Dataflow client, regardless of GOOGLE_CLOUD_UNIVERSE_DOMAIN.
     endpoints_and_expectations = [
         # (input_endpoint, expected_endpoint, expected_transport)
         ('https://dataflow.googleapis.com/', 'dataflow.googleapis.com', None),
         ('https://dataflow.googleapis.com   ', 'dataflow.googleapis.com', None),
         ('dataflow.googleapis.com/', 'dataflow.googleapis.com', None),
+        ('https://dataflow.example.com/', 'dataflow.example.com', None),
+        ('https://dataflow.example.com   ', 'dataflow.example.com', None),
+        ('dataflow.example.com/', 'dataflow.example.com', None),
         ('http://localhost:8080/', 'http://localhost:8080', 'rest'),
         ('localhost:8080/', 'localhost:8080', 'rest'),
     ]
@@ -1341,20 +1348,56 @@ class UtilTest(unittest.TestCase):
           '--no_auth',
       ])
       with mock.patch('apache_beam.runners.dataflow.internal.apiclient.dataflow'
-                      '.JobsV1Beta3Client') as mock_jobs:
-        with mock.patch(
-            'apache_beam.runners.dataflow.internal.apiclient.dataflow'
-            '.MessagesV1Beta3Client'):
-          with mock.patch(
-              'apache_beam.runners.dataflow.internal.apiclient.dataflow'
-              '.MetricsV1Beta3Client'):
-            apiclient.DataflowApplicationClient(pipeline_options)
-            mock_jobs.assert_called_once()
-            called_kwargs = mock_jobs.call_args.kwargs
-            client_opts = called_kwargs.get('client_options')
-            self.assertIsNotNone(client_opts)
-            self.assertEqual(client_opts.api_endpoint, expected_ep)
-            self.assertEqual(called_kwargs.get('transport'), expected_transport)
+                      '.JobsV1Beta3Client') as mock_jobs, \
+          mock.patch('apache_beam.runners.dataflow.internal.apiclient.dataflow'
+                     '.MessagesV1Beta3Client') as mock_messages, \
+          mock.patch('apache_beam.runners.dataflow.internal.apiclient.dataflow'
+                     '.MetricsV1Beta3Client') as mock_metrics:
+        apiclient.DataflowApplicationClient(pipeline_options)
+        for mock_client in (mock_jobs, mock_messages, mock_metrics):
+          mock_client.assert_called_once()
+          called_kwargs = mock_client.call_args.kwargs
+          client_opts = called_kwargs.get('client_options')
+          self.assertIsNotNone(client_opts)
+          self.assertEqual(client_opts.api_endpoint, expected_ep)
+          self.assertEqual(called_kwargs.get('transport'), expected_transport)
+
+  @mock.patch.dict(
+      os.environ,
+      {
+          # Pin mTLS off so endpoint resolution doesn't depend on the host.
+          'GOOGLE_API_USE_CLIENT_CERTIFICATE': 'false',
+          'GOOGLE_API_USE_MTLS_ENDPOINT': 'never',
+      })
+  def test_dataflow_endpoint_unset_uses_client_library_default(self):
+    # Without an explicit endpoint, no api_endpoint override is passed, so the
+    # client library resolves the endpoint and honors
+    # GOOGLE_CLOUD_UNIVERSE_DOMAIN.
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test-project',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--no_auth',
+    ])
+    self.assertEqual(
+        pipeline_options.view_as(GoogleCloudOptions).dataflow_endpoint, '')
+
+    def resolved_endpoints():
+      client = apiclient.DataflowApplicationClient(pipeline_options)
+      return {
+          c.api_endpoint
+          for c in (
+              client._jobs_client,
+              client._messages_client,
+              client._metrics_client)
+      }
+
+    os.environ.pop('GOOGLE_CLOUD_UNIVERSE_DOMAIN', None)
+    self.assertEqual(resolved_endpoints(), {'dataflow.googleapis.com'})
+
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'custom-universe.com'
+    self.assertEqual(resolved_endpoints(), {'dataflow.custom-universe.com'})
 
   def test_stage_resources(self):
     pipeline_options = PipelineOptions([

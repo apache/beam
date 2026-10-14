@@ -1038,10 +1038,12 @@ class GoogleCloudOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--dataflow_endpoint',
-        default=cls.DATAFLOW_ENDPOINT,
+        default='',
         help=(
-            'The URL for the Dataflow API. If not set, the default public URL '
-            'will be used.'))
+            'The URL for the Dataflow API. If not set, the endpoint is '
+            'resolved by the Google Cloud client library, which honors '
+            'GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default '
+            'public URL (%s).' % cls.DATAFLOW_ENDPOINT))
     # Remote execution must check that this option is not None.
     parser.add_argument(
         '--project',

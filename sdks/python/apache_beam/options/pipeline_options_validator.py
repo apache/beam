@@ -168,9 +168,9 @@ class PipelineOptionsValidator(object):
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
-    if dataflow_endpoint is None:
-      return False
-    else:
+    # An unset endpoint means the default Dataflow service endpoint (resolved
+    # by the client library), so only an explicit localhost endpoint opts out.
+    if dataflow_endpoint:
       endpoint_parts = urlparse(dataflow_endpoint, allow_fragments=False)
       if endpoint_parts.netloc.startswith("localhost"):
         return False
@@ -274,10 +274,9 @@ class PipelineOptionsValidator(object):
       else:
         view.region = default_region
     dataflow_endpoint = view.dataflow_endpoint
-    if dataflow_endpoint is None:
-      errors.extend(
-          self._validate_error(self.ERR_MISSING_OPTION, dataflow_endpoint))
-    else:
+    # dataflow_endpoint is optional. When unset, the client library resolves
+    # the endpoint (honoring GOOGLE_CLOUD_UNIVERSE_DOMAIN).
+    if dataflow_endpoint:
       valid_endpoint = self.validate_endpoint_url(dataflow_endpoint)
       if valid_endpoint is False:
         errors.extend(
