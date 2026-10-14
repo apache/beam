@@ -45,7 +45,7 @@
 // unqualified name when the pipeline is constructed rather than letting a
 // worker fail later with "relation does not exist".
 //
-// 2. Deadlock Mitigation (Anti-40P01): Employs an in-memory BatchCompactor that
+// 2. Deadlock Mitigation (Anti-40P01): Employs an in-memory batchCompactor that
 // deduplicates micro-batches via Last-Write-Wins (LWW) and sorts records canonically
 // by composite primary key prior to database transmission, minimizing PostgreSQL
 // SQLState 40P01 deadlocks across distributed workers, backed by an exponential-backoff

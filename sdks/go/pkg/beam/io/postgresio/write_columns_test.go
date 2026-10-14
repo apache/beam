@@ -131,7 +131,7 @@ func TestInspectColumnsProducesSanitizableNames(t *testing.T) {
 	fn.inspectColumns(reflect.TypeOf(taggedRow{}))
 
 	for _, col := range fn.columns {
-		if _, err := SanitizeIdentifier(col); err != nil {
+		if _, err := sanitizeIdentifier(col); err != nil {
 			t.Errorf("derived column %q is not a usable identifier: %v", col, err)
 		}
 	}

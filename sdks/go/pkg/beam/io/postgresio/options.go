@@ -95,7 +95,7 @@ type WriteOptions struct {
 	//
 	// Names are matched against resolved column names exactly and
 	// case-sensitively; "Email" does not match the column email. This differs
-	// from the primary key lookup in ExtractPrimaryKeys, which falls back to a
+	// from the primary key lookup in extractPrimaryKeys, which falls back to a
 	// case-insensitive match. Write rejects a name that matches no column of
 	// the input type when the pipeline is constructed.
 	//
@@ -474,10 +474,10 @@ func quoteDSNValue(v string) string {
 	return b.String()
 }
 
-// SanitizeIdentifier validates that an identifier conforms to PostgreSQL naming rules,
+// sanitizeIdentifier validates that an identifier conforms to PostgreSQL naming rules,
 // rejects null bytes (\0) and quotation marks to prevent SQL injection, and wraps the
 // identifier in double quotes.
-func SanitizeIdentifier(ident string) (string, error) {
+func sanitizeIdentifier(ident string) (string, error) {
 	if strings.TrimSpace(ident) == "" {
 		return "", fmt.Errorf("postgresio: identifier cannot be empty")
 	}
@@ -493,9 +493,9 @@ func SanitizeIdentifier(ident string) (string, error) {
 	return `"` + ident + `"`, nil
 }
 
-// SanitizeTableIdentifier validates and escapes a qualified table identifier (e.g. "public.orders"
+// sanitizeTableIdentifier validates and escapes a qualified table identifier (e.g. "public.orders"
 // or "orders"), ensuring all schema and table components are safely enclosed in double quotes.
-func SanitizeTableIdentifier(table string) (string, error) {
+func sanitizeTableIdentifier(table string) (string, error) {
 	if strings.TrimSpace(table) == "" {
 		return "", fmt.Errorf("postgresio: table name cannot be empty")
 	}
@@ -505,7 +505,7 @@ func SanitizeTableIdentifier(table string) (string, error) {
 	}
 	sanitizedParts := make([]string, len(parts))
 	for i, part := range parts {
-		sanitized, err := SanitizeIdentifier(part)
+		sanitized, err := sanitizeIdentifier(part)
 		if err != nil {
 			return "", err
 		}

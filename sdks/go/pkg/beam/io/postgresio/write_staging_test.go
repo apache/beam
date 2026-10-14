@@ -25,18 +25,18 @@ import (
 // TestBuildCopyStatementDoesNotDoubleQuote is the regression test for the
 // identifier bug that pq.CopyIn caused.
 //
-// SanitizeTableIdentifier already returns a quoted identifier. pq.CopyIn
+// sanitizeTableIdentifier already returns a quoted identifier. pq.CopyIn
 // quoted it again, producing COPY """public"".""orders""" which PostgreSQL
 // parses as a single table literally named `"public"."orders"`.
 func TestBuildCopyStatementDoesNotDoubleQuote(t *testing.T) {
-	table, err := SanitizeTableIdentifier("public.orders")
+	table, err := sanitizeTableIdentifier("public.orders")
 	if err != nil {
-		t.Fatalf("SanitizeTableIdentifier() error: %v", err)
+		t.Fatalf("sanitizeTableIdentifier() error: %v", err)
 	}
 
-	col, err := SanitizeIdentifier("order_id")
+	col, err := sanitizeIdentifier("order_id")
 	if err != nil {
-		t.Fatalf("SanitizeIdentifier() error: %v", err)
+		t.Fatalf("sanitizeIdentifier() error: %v", err)
 	}
 
 	got, err := buildCopyStatement(table, []string{col})
@@ -59,9 +59,9 @@ func TestBuildCopyStatementDoesNotDoubleQuote(t *testing.T) {
 func TestBuildCopyStatementQuotesEveryColumn(t *testing.T) {
 	cols := make([]string, 0, 3)
 	for _, name := range []string{"id", "total_amount", "created_at"} {
-		q, err := SanitizeIdentifier(name)
+		q, err := sanitizeIdentifier(name)
 		if err != nil {
-			t.Fatalf("SanitizeIdentifier(%q) error: %v", name, err)
+			t.Fatalf("sanitizeIdentifier(%q) error: %v", name, err)
 		}
 		cols = append(cols, q)
 	}
@@ -124,7 +124,7 @@ func TestStagingTableNameIsAValidIdentifier(t *testing.T) {
 	if !strings.HasPrefix(name, "beam_stage_") {
 		t.Errorf("staging table name %q does not carry the beam_stage_ prefix", name)
 	}
-	if _, err := SanitizeIdentifier(name); err != nil {
+	if _, err := sanitizeIdentifier(name); err != nil {
 		t.Errorf("staging table name %q is not a valid unquoted identifier: %v", name, err)
 	}
 }

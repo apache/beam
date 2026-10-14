@@ -90,7 +90,7 @@ func Write(s beam.Scope, table string, opts WriteOptions, col beam.PCollection) 
 			table, "public."+table))
 	}
 
-	sanitizedTable, err := SanitizeTableIdentifier(table)
+	sanitizedTable, err := sanitizeTableIdentifier(table)
 	if err != nil {
 		panic(fmt.Sprintf("postgresio.Write: invalid table name %q: %v", table, err))
 	}
@@ -244,7 +244,7 @@ type writeFn struct {
 	PrimaryKeyCols []string         `json:"primary_key_cols"`
 
 	db        *sql.DB
-	compactor *BatchCompactor
+	compactor *batchCompactor
 	columns   []string
 	colTypes  map[string]string
 	workerID  string
@@ -287,7 +287,7 @@ func (fn *writeFn) Setup(ctx context.Context) error {
 	fn.applyPgBouncerCompatibility(ctx)
 
 	fn.db = db
-	fn.compactor = NewBatchCompactor(fn.Options.BatchSize, fn.Options.MaxBatchBytes, fn.Options.FlushInterval)
+	fn.compactor = newBatchCompactor(fn.Options.BatchSize, fn.Options.MaxBatchBytes, fn.Options.FlushInterval)
 	fn.inspectColumns(fn.Type.T)
 
 	// Write already rejects this at construction. Repeating it here covers a
@@ -347,7 +347,7 @@ var columnTagKeys = []string{"db", "beam", "json"}
 //
 // Tag values carry options after a comma -- `json:"customer_id,omitempty"` is
 // the common one. The whole value used to be taken as the column name, which
-// produced a column literally named `customer_id,omitempty`; SanitizeIdentifier
+// produced a column literally named `customer_id,omitempty`; sanitizeIdentifier
 // then rejected it with an error that pointed at the sanitizer rather than at
 // the tag.
 //
@@ -471,7 +471,7 @@ func structColumns(t reflect.Type) []string {
 // column the element type does not carry.
 //
 // UpdateFields is matched against resolved column names exactly and
-// case-sensitively, unlike the primary key lookup in ExtractPrimaryKeys, which
+// case-sensitively, unlike the primary key lookup in extractPrimaryKeys, which
 // falls back to a case-insensitive match. A name that resolves to nothing is
 // not inert: on the upsert path it is emitted verbatim into
 // ON CONFLICT DO UPDATE SET, so PostgreSQL rejects the whole batch at flush
@@ -533,12 +533,12 @@ func (fn *writeFn) inspectColumnTypes(ctx context.Context) error {
 }
 
 func (fn *writeFn) StartBundle(ctx context.Context, emitSuccess func(beam.X), emitFailed func(FailedRow)) error {
-	fn.compactor = NewBatchCompactor(fn.Options.BatchSize, fn.Options.MaxBatchBytes, fn.Options.FlushInterval)
+	fn.compactor = newBatchCompactor(fn.Options.BatchSize, fn.Options.MaxBatchBytes, fn.Options.FlushInterval)
 	return nil
 }
 
 func (fn *writeFn) ProcessElement(ctx context.Context, elem beam.X, emitSuccess func(beam.X), emitFailed func(FailedRow)) error {
-	entityKey, sortKey := ExtractPrimaryKeys(elem, fn.PrimaryKeyCols)
+	entityKey, sortKey := extractPrimaryKeys(elem, fn.PrimaryKeyCols)
 	fn.compactor.Add(entityKey, sortKey, elem, estimateElementSize(elem))
 
 	if fn.compactor.ShouldFlush() {
@@ -602,7 +602,7 @@ func (fn *writeFn) flushBatch(ctx context.Context, emitSuccess func(beam.X), emi
 // healthy pipeline.
 func (fn *writeFn) failBatch(ctx context.Context, batch []any, err error) {
 	sinkFailedRows.Inc(ctx, int64(len(batch)))
-	msg := SanitizeErrorMessage(err)
+	msg := sanitizeErrorMessage(err)
 	log.Errorf(ctx, "postgresio: %s", msg)
 }
 
@@ -703,7 +703,7 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 
 	// Permanent failure: route batch to Dead-Letter Queue (DLQ)
 	sinkFailedRows.Inc(ctx, int64(len(batch)))
-	sanitizedMsg := SanitizeErrorMessage(execErr)
+	sanitizedMsg := sanitizeErrorMessage(execErr)
 	log.Errorf(ctx, "postgresio: %s", sanitizedMsg)
 	for _, item := range batch {
 		emitFailed(FailedRow{
@@ -770,7 +770,7 @@ func retryOnDeadlock(ctx context.Context, onRetry func(), op func(context.Contex
 //
 // This replaces the deprecated lib/pq copy-statement helper, which quoted the
 // table name itself. Because the caller has already quoted the identifier via
-// SanitizeTableIdentifier, that helper produced a doubly-quoted name such as
+// sanitizeTableIdentifier, that helper produced a doubly-quoted name such as
 // COPY """public"".""orders""", which PostgreSQL reads as a single table
 // literally named `"public"."orders"`.
 //
@@ -811,7 +811,7 @@ func (fn *writeFn) executeStagedCopy(ctx context.Context, batch []any) error {
 
 	sanitizedCols := make([]string, len(fn.columns))
 	for i, col := range fn.columns {
-		san, err := SanitizeIdentifier(col)
+		san, err := sanitizeIdentifier(col)
 		if err != nil {
 			return err
 		}
@@ -944,7 +944,7 @@ func (fn *writeFn) executeStagedCopy(ctx context.Context, batch []any) error {
 func (fn *writeFn) buildStagedCopyMergeQuery(tempTable string) (string, error) {
 	sanitizedCols := make([]string, len(fn.columns))
 	for i, col := range fn.columns {
-		san, err := SanitizeIdentifier(col)
+		san, err := sanitizeIdentifier(col)
 		if err != nil {
 			return "", err
 		}
@@ -954,7 +954,7 @@ func (fn *writeFn) buildStagedCopyMergeQuery(tempTable string) (string, error) {
 	sanitizedPks := make([]string, len(fn.PrimaryKeyCols))
 	pkSet := make(map[string]bool)
 	for i, pk := range fn.PrimaryKeyCols {
-		san, err := SanitizeIdentifier(pk)
+		san, err := sanitizeIdentifier(pk)
 		if err != nil {
 			return "", err
 		}
@@ -969,7 +969,7 @@ func (fn *writeFn) buildStagedCopyMergeQuery(tempTable string) (string, error) {
 	updateClauses := make([]string, 0, len(colsToUpdate))
 	for _, col := range colsToUpdate {
 		if !pkSet[col] {
-			san, err := SanitizeIdentifier(col)
+			san, err := sanitizeIdentifier(col)
 			if err != nil {
 				return "", err
 			}
@@ -979,7 +979,7 @@ func (fn *writeFn) buildStagedCopyMergeQuery(tempTable string) (string, error) {
 
 	colList := strings.Join(sanitizedCols, ", ")
 	if fn.Options.WriteMode == WriteModeMerge {
-		sanitizedTemp, err := SanitizeTableIdentifier(tempTable)
+		sanitizedTemp, err := sanitizeTableIdentifier(tempTable)
 		if err != nil {
 			return "", err
 		}
@@ -992,7 +992,7 @@ func (fn *writeFn) buildStagedCopyMergeQuery(tempTable string) (string, error) {
 		setClauses := make([]string, 0, len(colsToUpdate))
 		for _, col := range colsToUpdate {
 			if !pkSet[col] {
-				san, err := SanitizeIdentifier(col)
+				san, err := sanitizeIdentifier(col)
 				if err != nil {
 					return "", err
 				}
@@ -1046,7 +1046,7 @@ func derefElement(item any) reflect.Value {
 // resolveColumn returns the value stored under a column name within a single
 // input element, along with its declared type where one exists.
 //
-// The sink accepts both structs and maps: ExtractPrimaryKeys has always
+// The sink accepts both structs and maps: extractPrimaryKeys has always
 // handled each, and the CDC decoders emit map[string]any for tables whose
 // shape is only known at runtime. Resolution has to branch on the element kind
 // because reflect panics when the accessor does not match the kind --
@@ -1256,7 +1256,7 @@ func (fn *writeFn) buildUnnestQueryForColumns(batch []any, columns []string) (st
 
 	sanitizedCols := make([]string, len(columns))
 	for i, col := range columns {
-		san, err := SanitizeIdentifier(col)
+		san, err := sanitizeIdentifier(col)
 		if err != nil {
 			return "", nil, err
 		}
@@ -1340,7 +1340,7 @@ func (fn *writeFn) buildUnnestQueryForColumns(batch []any, columns []string) (st
 		sanitizedPks := make([]string, len(fn.PrimaryKeyCols))
 		pkSet := make(map[string]bool)
 		for i, pk := range fn.PrimaryKeyCols {
-			san, err := SanitizeIdentifier(pk)
+			san, err := sanitizeIdentifier(pk)
 			if err != nil {
 				return "", nil, err
 			}
@@ -1358,7 +1358,7 @@ func (fn *writeFn) buildUnnestQueryForColumns(batch []any, columns []string) (st
 		var whereClauses []string
 
 		for i, col := range columns {
-			san, err := SanitizeIdentifier(col)
+			san, err := sanitizeIdentifier(col)
 			if err != nil {
 				return "", nil, err
 			}
@@ -1400,7 +1400,7 @@ func (fn *writeFn) buildUnnestQueryForColumns(batch []any, columns []string) (st
 			sanitizedPks := make([]string, len(fn.PrimaryKeyCols))
 			pkSet := make(map[string]bool)
 			for i, pk := range fn.PrimaryKeyCols {
-				san, err := SanitizeIdentifier(pk)
+				san, err := sanitizeIdentifier(pk)
 				if err != nil {
 					return "", nil, err
 				}
@@ -1415,7 +1415,7 @@ func (fn *writeFn) buildUnnestQueryForColumns(batch []any, columns []string) (st
 			updateClauses := make([]string, 0, len(colsToUpdate))
 			for _, col := range colsToUpdate {
 				if !pkSet[col] {
-					san, err := SanitizeIdentifier(col)
+					san, err := sanitizeIdentifier(col)
 					if err != nil {
 						return "", nil, err
 					}
@@ -1461,8 +1461,8 @@ func extractSqlState(err error) string {
 	return "UNKNOWN"
 }
 
-// ExplainPlanResult captures PostgreSQL JSON plan metrics from EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).
-type ExplainPlanResult struct {
+// explainPlanResult captures PostgreSQL JSON plan metrics from EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).
+type explainPlanResult struct {
 	PlanningTime  float64 `json:"Planning Time"`
 	ExecutionTime float64 `json:"Execution Time"`
 	Plan          struct {
@@ -1487,7 +1487,7 @@ func shouldSampleExplain(rate float64) bool {
 }
 
 func recordExplainTelemetry(ctx context.Context, planJSON []byte, targetTable string) {
-	var results []ExplainPlanResult
+	var results []explainPlanResult
 	if err := json.Unmarshal(planJSON, &results); err != nil || len(results) == 0 {
 		return
 	}
@@ -1521,7 +1521,7 @@ func stagingOpColumnDDL(tempTable string, mode WriteMode, opColumn string) (stri
 	if mode != WriteModeMerge || opColumn == "" {
 		return "", nil
 	}
-	sanOp, err := SanitizeIdentifier(opColumn)
+	sanOp, err := sanitizeIdentifier(opColumn)
 	if err != nil {
 		return "", err
 	}
@@ -1533,14 +1533,14 @@ func stagingOpColumnDDL(tempTable string, mode WriteMode, opColumn string) (stri
 //
 // Callers that already hold sanitized identifiers must use
 // buildMergeQueryForSanitizedTables instead. Sanitizing a second time fails:
-// SanitizeIdentifier rejects the quotation marks the first pass added, because
+// sanitizeIdentifier rejects the quotation marks the first pass added, because
 // it cannot distinguish them from an injection attempt.
 func buildMergeQuery(targetTable, sourceTable string, columns, pkCols []string, opCol, deleteOpVal string) (string, error) {
-	sanitizedTarget, err := SanitizeTableIdentifier(targetTable)
+	sanitizedTarget, err := sanitizeTableIdentifier(targetTable)
 	if err != nil {
 		return "", err
 	}
-	sanitizedSource, err := SanitizeTableIdentifier(sourceTable)
+	sanitizedSource, err := sanitizeTableIdentifier(sourceTable)
 	if err != nil {
 		return "", err
 	}
@@ -1557,7 +1557,7 @@ func buildMergeQueryForSanitizedTables(sanitizedTarget, sanitizedSource string, 
 	pkSet := make(map[string]bool)
 	var onConditions []string
 	for _, pk := range pkCols {
-		san, err := SanitizeIdentifier(pk)
+		san, err := sanitizeIdentifier(pk)
 		if err != nil {
 			return "", err
 		}
@@ -1570,7 +1570,7 @@ func buildMergeQueryForSanitizedTables(sanitizedTarget, sanitizedSource string, 
 	var insertVals []string
 
 	for _, col := range columns {
-		san, err := SanitizeIdentifier(col)
+		san, err := sanitizeIdentifier(col)
 		if err != nil {
 			return "", err
 		}
@@ -1592,7 +1592,7 @@ func buildMergeQueryForSanitizedTables(sanitizedTarget, sanitizedSource string, 
 	var sanOp string
 	if hasOp {
 		var err error
-		sanOp, err = SanitizeIdentifier(opCol)
+		sanOp, err = sanitizeIdentifier(opCol)
 		if err != nil {
 			return "", err
 		}

@@ -36,29 +36,29 @@ var (
 	ipRegex       = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
 )
 
-// RecordEntry represents an in-flight element buffered within a micro-batch.
-type RecordEntry struct {
+// recordEntry represents an in-flight element buffered within a micro-batch.
+type recordEntry struct {
 	EntityKey  string
 	SortKey    []any
 	Data       any
 	ByteLength int
 }
 
-// BatchCompactor manages micro-batch buffering, Last-Write-Wins (LWW) deduplication,
+// batchCompactor manages micro-batch buffering, Last-Write-Wins (LWW) deduplication,
 // and deterministic primary key sorting to minimize PostgreSQL SQLState 40P01 deadlocks.
-type BatchCompactor struct {
+type batchCompactor struct {
 	maxBatchSize  int
 	maxBatchBytes int
 	flushInterval time.Duration
 	lastFlushTime time.Time
 
-	buffer       []RecordEntry
+	buffer       []recordEntry
 	seenKeys     map[string]int // maps entity key to slice index for LWW deduplication
 	currentBytes int
 }
 
-// NewBatchCompactor initializes a BatchCompactor with configured threshold limits.
-func NewBatchCompactor(maxBatchSize, maxBatchBytes int, flushInterval time.Duration) *BatchCompactor {
+// newBatchCompactor initializes a batchCompactor with configured threshold limits.
+func newBatchCompactor(maxBatchSize, maxBatchBytes int, flushInterval time.Duration) *batchCompactor {
 	if maxBatchSize <= 0 {
 		maxBatchSize = 5000
 	}
@@ -68,18 +68,18 @@ func NewBatchCompactor(maxBatchSize, maxBatchBytes int, flushInterval time.Durat
 	if flushInterval <= 0 {
 		flushInterval = 1 * time.Second
 	}
-	return &BatchCompactor{
+	return &batchCompactor{
 		maxBatchSize:  maxBatchSize,
 		maxBatchBytes: maxBatchBytes,
 		flushInterval: flushInterval,
 		lastFlushTime: time.Now(),
-		buffer:        make([]RecordEntry, 0, maxBatchSize),
+		buffer:        make([]recordEntry, 0, maxBatchSize),
 		seenKeys:      make(map[string]int),
 	}
 }
 
 // Add buffers an entry with Last-Write-Wins deduplication if entityKey is non-empty.
-func (bc *BatchCompactor) Add(entityKey string, sortKey []any, data any, byteLength int) {
+func (bc *batchCompactor) Add(entityKey string, sortKey []any, data any, byteLength int) {
 	if byteLength <= 0 {
 		byteLength = 64
 	}
@@ -106,7 +106,7 @@ func (bc *BatchCompactor) Add(entityKey string, sortKey []any, data any, byteLen
 				return
 			}
 			bc.currentBytes -= existing.ByteLength
-			bc.buffer[existingIdx] = RecordEntry{
+			bc.buffer[existingIdx] = recordEntry{
 				EntityKey:  entityKey,
 				SortKey:    sortKey,
 				Data:       data,
@@ -118,7 +118,7 @@ func (bc *BatchCompactor) Add(entityKey string, sortKey []any, data any, byteLen
 		bc.seenKeys[entityKey] = len(bc.buffer)
 	}
 
-	bc.buffer = append(bc.buffer, RecordEntry{
+	bc.buffer = append(bc.buffer, recordEntry{
 		EntityKey:  entityKey,
 		SortKey:    sortKey,
 		Data:       data,
@@ -128,7 +128,7 @@ func (bc *BatchCompactor) Add(entityKey string, sortKey []any, data any, byteLen
 }
 
 // ShouldFlush evaluates the tri-trigger flush conditions: element count, byte volume, or duration.
-func (bc *BatchCompactor) ShouldFlush() bool {
+func (bc *batchCompactor) ShouldFlush() bool {
 	if len(bc.buffer) == 0 {
 		return false
 	}
@@ -146,7 +146,7 @@ func (bc *BatchCompactor) ShouldFlush() bool {
 
 // CompactAndSort returns the deduplicated records sorted canonically by composite primary key,
 // and resets the internal buffer for the next micro-batch.
-func (bc *BatchCompactor) CompactAndSort() []any {
+func (bc *batchCompactor) CompactAndSort() []any {
 	if len(bc.buffer) == 0 {
 		return nil
 	}
@@ -171,7 +171,7 @@ func (bc *BatchCompactor) CompactAndSort() []any {
 }
 
 // Len returns the current number of buffered elements.
-func (bc *BatchCompactor) Len() int {
+func (bc *batchCompactor) Len() int {
 	return len(bc.buffer)
 }
 
@@ -249,9 +249,9 @@ func compareSingleKey(a, b any) int {
 	return strings.Compare(fmt.Sprint(a), fmt.Sprint(b))
 }
 
-// SanitizeErrorMessage scrubs passwords, inline JDBC URL credentials, Bearer tokens,
+// sanitizeErrorMessage scrubs passwords, inline JDBC URL credentials, Bearer tokens,
 // and IP addresses from error strings prior to emission to metrics or Dead-Letter Queues.
-func SanitizeErrorMessage(err error) string {
+func sanitizeErrorMessage(err error) string {
 	if err == nil {
 		return ""
 	}
@@ -263,8 +263,8 @@ func SanitizeErrorMessage(err error) string {
 	return msg
 }
 
-// ExtractPrimaryKeys extracts primary key values from a struct or map based on column names.
-func ExtractPrimaryKeys(val any, pkCols []string) (string, []any) {
+// extractPrimaryKeys extracts primary key values from a struct or map based on column names.
+func extractPrimaryKeys(val any, pkCols []string) (string, []any) {
 	if len(pkCols) == 0 {
 		return "", nil
 	}

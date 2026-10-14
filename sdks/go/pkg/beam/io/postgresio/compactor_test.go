@@ -30,7 +30,7 @@ type TestOrder struct {
 }
 
 func TestBatchCompactorLastWriteWins(t *testing.T) {
-	bc := NewBatchCompactor(10, 1024, 1*time.Second)
+	bc := newBatchCompactor(10, 1024, 1*time.Second)
 
 	// Add order with ID 100, amount 50.0
 	bc.Add("100|", []any{int64(100)}, TestOrder{ID: 100, Region: "US", Amount: 50.0}, 64)
@@ -60,7 +60,7 @@ func TestBatchCompactorLastWriteWins(t *testing.T) {
 }
 
 func TestBatchCompactorCanonicalSortingAntiDeadlock(t *testing.T) {
-	bc := NewBatchCompactor(100, 1024*1024, 1*time.Second)
+	bc := newBatchCompactor(100, 1024*1024, 1*time.Second)
 
 	// Add keys in unsorted order: 40, 10, 50, 20, 30
 	ids := []int64{40, 10, 50, 20, 30}
@@ -80,7 +80,7 @@ func TestBatchCompactorCanonicalSortingAntiDeadlock(t *testing.T) {
 }
 
 func TestBatchCompactorCompositeKeySorting(t *testing.T) {
-	bc := NewBatchCompactor(100, 1024*1024, 1*time.Second)
+	bc := newBatchCompactor(100, 1024*1024, 1*time.Second)
 
 	// Add composite keys (ID, Region) in arbitrary order
 	bc.Add("2|US", []any{int64(2), "US"}, TestOrder{ID: 2, Region: "US"}, 32)
@@ -107,7 +107,7 @@ func TestBatchCompactorCompositeKeySorting(t *testing.T) {
 
 func TestBatchCompactorTriTriggerThresholds(t *testing.T) {
 	// 1. Element count trigger
-	bcCount := NewBatchCompactor(3, 1024*1024, 1*time.Hour)
+	bcCount := newBatchCompactor(3, 1024*1024, 1*time.Hour)
 	bcCount.Add("1", []any{1}, 1, 10)
 	bcCount.Add("2", []any{2}, 2, 10)
 	if bcCount.ShouldFlush() {
@@ -119,7 +119,7 @@ func TestBatchCompactorTriTriggerThresholds(t *testing.T) {
 	}
 
 	// 2. Byte volume trigger
-	bcBytes := NewBatchCompactor(1000, 100, 1*time.Hour)
+	bcBytes := newBatchCompactor(1000, 100, 1*time.Hour)
 	bcBytes.Add("1", []any{1}, 1, 50)
 	if bcBytes.ShouldFlush() {
 		t.Errorf("should not flush at 50 bytes when max is 100")
@@ -130,7 +130,7 @@ func TestBatchCompactorTriTriggerThresholds(t *testing.T) {
 	}
 
 	// 3. Duration trigger
-	bcTime := NewBatchCompactor(1000, 1024*1024, 5*time.Millisecond)
+	bcTime := newBatchCompactor(1000, 1024*1024, 5*time.Millisecond)
 	bcTime.Add("1", []any{1}, 1, 10)
 	time.Sleep(10 * time.Millisecond)
 	if !bcTime.ShouldFlush() {
@@ -140,7 +140,7 @@ func TestBatchCompactorTriTriggerThresholds(t *testing.T) {
 
 func TestSanitizeErrorMessage(t *testing.T) {
 	err := errors.New("pq: password authentication failed for user 'beam' with password='SecretPassword123' at host 192.168.1.50 using token Bearer mockSecretToken12345")
-	sanitized := SanitizeErrorMessage(err)
+	sanitized := sanitizeErrorMessage(err)
 
 	if strings.Contains(sanitized, "SecretPassword123") {
 		t.Errorf("sanitized message still contains plain password: %s", sanitized)
@@ -165,7 +165,7 @@ func TestSanitizeErrorMessage(t *testing.T) {
 func TestExtractPrimaryKeys(t *testing.T) {
 	order := TestOrder{ID: 42, Region: "US", Amount: 99.5}
 
-	entityKey, sortKeys := ExtractPrimaryKeys(order, []string{"id", "region"})
+	entityKey, sortKeys := extractPrimaryKeys(order, []string{"id", "region"})
 	if entityKey != "i:42|s:US|" {
 		t.Errorf("expected entity key 'i:42|s:US|', got %q", entityKey)
 	}
@@ -185,8 +185,8 @@ func TestExtractPrimaryKeysCollisionResistance(t *testing.T) {
 	item1 := KeyItem{PartA: "a|b", PartB: "c"}
 	item2 := KeyItem{PartA: "a", PartB: "b|c"}
 
-	key1, _ := ExtractPrimaryKeys(item1, []string{"part_a", "part_b"})
-	key2, _ := ExtractPrimaryKeys(item2, []string{"part_a", "part_b"})
+	key1, _ := extractPrimaryKeys(item1, []string{"part_a", "part_b"})
+	key2, _ := extractPrimaryKeys(item2, []string{"part_a", "part_b"})
 
 	if key1 == key2 {
 		t.Fatalf("expected distinct keys for pipe-containing fields, but both got %q", key1)
@@ -195,8 +195,8 @@ func TestExtractPrimaryKeysCollisionResistance(t *testing.T) {
 	// Test backslash escaping
 	item3 := KeyItem{PartA: `a\`, PartB: "b"}
 	item4 := KeyItem{PartA: "a", PartB: `\b`}
-	key3, _ := ExtractPrimaryKeys(item3, []string{"part_a", "part_b"})
-	key4, _ := ExtractPrimaryKeys(item4, []string{"part_a", "part_b"})
+	key3, _ := extractPrimaryKeys(item3, []string{"part_a", "part_b"})
+	key4, _ := extractPrimaryKeys(item4, []string{"part_a", "part_b"})
 
 	if key3 == key4 {
 		t.Fatalf("expected distinct keys for backslash-containing fields, but both got %q", key3)
@@ -283,8 +283,8 @@ func TestFormatPKPartUnwrapsValuer(t *testing.T) {
 // TestExtractPrimaryKeysAcceptsMapRows confirms map-shaped rows key the same
 // way as their struct equivalents, which is what lets CDC rows compact.
 func TestExtractPrimaryKeysAcceptsMapRows(t *testing.T) {
-	structKey, _ := ExtractPrimaryKeys(TestOrder{ID: 42, Region: "US"}, []string{"id", "region"})
-	mapKey, _ := ExtractPrimaryKeys(map[string]any{
+	structKey, _ := extractPrimaryKeys(TestOrder{ID: 42, Region: "US"}, []string{"id", "region"})
+	mapKey, _ := extractPrimaryKeys(map[string]any{
 		"id":     int64(42),
 		"region": "US",
 	}, []string{"id", "region"})
@@ -302,7 +302,7 @@ func TestExtractPrimaryKeysMapEdgeCases(t *testing.T) {
 		"ID":     int64(10),
 		"Region": "EU",
 	}
-	key, _ := ExtractPrimaryKeys(customMap, []string{"id", "region"})
+	key, _ := extractPrimaryKeys(customMap, []string{"id", "region"})
 	if key == "" {
 		t.Errorf("expected valid key from custom string-typed map, got empty string")
 	}
@@ -310,13 +310,13 @@ func TestExtractPrimaryKeysMapEdgeCases(t *testing.T) {
 	nonStringMap := map[int]string{
 		1: "one",
 	}
-	keyNonString, _ := ExtractPrimaryKeys(nonStringMap, []string{"id"})
+	keyNonString, _ := extractPrimaryKeys(nonStringMap, []string{"id"})
 	if keyNonString != "" {
 		t.Errorf("expected empty key from non-string keyed map, got %q", keyNonString)
 	}
 
 	var nilMap map[string]any
-	keyNil, _ := ExtractPrimaryKeys(nilMap, []string{"id"})
+	keyNil, _ := extractPrimaryKeys(nilMap, []string{"id"})
 	if keyNil != "" {
 		t.Errorf("expected empty key from nil map, got %q", keyNil)
 	}
@@ -336,13 +336,13 @@ func TestExtractPrimaryKeysAmbiguousCaseIsStable(t *testing.T) {
 		"iD": int64(3),
 	}
 
-	first, _ := ExtractPrimaryKeys(ambiguous, []string{"id"})
+	first, _ := extractPrimaryKeys(ambiguous, []string{"id"})
 	if first == "" {
 		t.Fatal("expected a key from a map whose only matches differ by case")
 	}
 	// A single run can pass by luck; Go randomizes map iteration per range.
 	for i := 0; i < 100; i++ {
-		got, _ := ExtractPrimaryKeys(ambiguous, []string{"id"})
+		got, _ := extractPrimaryKeys(ambiguous, []string{"id"})
 		if got != first {
 			t.Fatalf("iteration %d keyed %q but the first call keyed %q; the fallback is order-dependent", i, got, first)
 		}
@@ -353,7 +353,7 @@ func TestExtractPrimaryKeysAmbiguousCaseIsStable(t *testing.T) {
 		"ID": int64(1),
 		"id": int64(2),
 	}
-	exactKey, vals := ExtractPrimaryKeys(withExact, []string{"id"})
+	exactKey, vals := extractPrimaryKeys(withExact, []string{"id"})
 	if len(vals) != 1 || vals[0] != int64(2) {
 		t.Errorf("exact key lookup returned %v (key %q), want the value under \"id\"", vals, exactKey)
 	}

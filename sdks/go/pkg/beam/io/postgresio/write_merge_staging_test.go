@@ -176,7 +176,7 @@ func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 // Write sanitizes the table name once and stores the quoted result on writeFn,
 // and every statement executeStagedCopy builds interpolates that stored value
 // directly. The MERGE builder was the one exception: it sanitized its arguments
-// itself, so the stored value went through SanitizeTableIdentifier a second
+// itself, so the stored value went through sanitizeTableIdentifier a second
 // time and was rejected, because a quotation mark already present in the input
 // is indistinguishable from an injected one.
 //
@@ -185,9 +185,9 @@ func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 func TestMergeQueryUsesTheSanitizationStageTheSinkIsAt(t *testing.T) {
 	const raw = "public.accounts"
 
-	stored, err := SanitizeTableIdentifier(raw)
+	stored, err := sanitizeTableIdentifier(raw)
 	if err != nil {
-		t.Fatalf("SanitizeTableIdentifier(%q) failed: %v", raw, err)
+		t.Fatalf("sanitizeTableIdentifier(%q) failed: %v", raw, err)
 	}
 	if stored == raw {
 		t.Fatalf("precondition failed: sanitization left %q unchanged, so double sanitization would be harmless", raw)

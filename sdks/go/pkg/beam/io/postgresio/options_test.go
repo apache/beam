@@ -87,7 +87,7 @@ func TestWriteOptionsFunctionalBuilders(t *testing.T) {
 func TestSanitizeIdentifierValid(t *testing.T) {
 	valid := []string{"orders", "user_id", "_internal", "col$1", "Table123"}
 	for _, ident := range valid {
-		sanitized, err := SanitizeIdentifier(ident)
+		sanitized, err := sanitizeIdentifier(ident)
 		if err != nil {
 			t.Errorf("unexpected error sanitizing valid identifier %q: %v", ident, err)
 		}
@@ -108,7 +108,7 @@ func TestSanitizeIdentifierRejectsSqlInjection(t *testing.T) {
 		`table-dash`,
 	}
 	for _, ident := range injections {
-		_, err := SanitizeIdentifier(ident)
+		_, err := sanitizeIdentifier(ident)
 		if err == nil {
 			t.Errorf("expected error for malicious/invalid identifier %q, got nil", ident)
 		}
@@ -116,21 +116,21 @@ func TestSanitizeIdentifierRejectsSqlInjection(t *testing.T) {
 }
 
 func TestSanitizeIdentifierRejectsNullByte(t *testing.T) {
-	_, err := SanitizeIdentifier("orders\x00table")
+	_, err := sanitizeIdentifier("orders\x00table")
 	if err == nil {
 		t.Errorf("expected error for identifier containing null byte, got nil")
 	}
 }
 
 func TestSanitizeIdentifierRejectsEmpty(t *testing.T) {
-	_, err := SanitizeIdentifier("   ")
+	_, err := sanitizeIdentifier("   ")
 	if err == nil {
 		t.Errorf("expected error for empty identifier, got nil")
 	}
 }
 
 func TestSanitizeTableIdentifierQualified(t *testing.T) {
-	sanitized, err := SanitizeTableIdentifier("public.orders")
+	sanitized, err := sanitizeTableIdentifier("public.orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestSanitizeTableIdentifierQualified(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, sanitized)
 	}
 
-	sanitizedSingle, err := SanitizeTableIdentifier("orders")
+	sanitizedSingle, err := sanitizeTableIdentifier("orders")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestSanitizeTableIdentifierQualified(t *testing.T) {
 }
 
 func TestSanitizeTableIdentifierRejectsMultiPart(t *testing.T) {
-	_, err := SanitizeTableIdentifier("db.schema.table")
+	_, err := sanitizeTableIdentifier("db.schema.table")
 	if err == nil {
 		t.Errorf("expected error for 3-part identifier, got nil")
 	}

@@ -819,7 +819,7 @@ func TestExplainPlanParsingAndSampling(t *testing.T) {
 	// Ensure recordExplainTelemetry runs without panic or error
 	recordExplainTelemetry(context.Background(), planJSON, "public.orders")
 
-	var results []ExplainPlanResult
+	var results []explainPlanResult
 	if err := json.Unmarshal(planJSON, &results); err != nil {
 		t.Fatalf("failed to unmarshal plan JSON: %v", err)
 	}
@@ -840,11 +840,11 @@ func TestWriteReturnsErrorOnQueryFailure(t *testing.T) {
 		Options:        NewWriteOptions(),
 		Type:           beam.EncodedType{T: reflect.TypeOf(TestOrder{})},
 		PrimaryKeyCols: []string{"id"},
-		columns:        []string{""}, // Empty column name causes SanitizeIdentifier to fail
+		columns:        []string{""}, // Empty column name causes sanitizeIdentifier to fail
 	}
 
 	ctx := context.Background()
-	fn.compactor = NewBatchCompactor(10, 1024, 0)
+	fn.compactor = newBatchCompactor(10, 1024, 0)
 
 	// A batch that cannot be turned into a statement is a configuration fault,
 	// not a data fault: every later batch would fail identically. The bundle
@@ -981,7 +981,7 @@ func newRecordingWriteFn(rec *stmtRecorder, opts ...Option) *writeFn {
 		},
 		db: sql.OpenDB(recordingConnector{rec: rec}),
 	}
-	fn.compactor = NewBatchCompactor(10, 1024, 0)
+	fn.compactor = newBatchCompactor(10, 1024, 0)
 	return fn
 }
 
@@ -1175,7 +1175,7 @@ func TestWriteRoutesRejectedRowsToDLQOnExecFailure(t *testing.T) {
 	defer fn.db.Close()
 
 	ctx := context.Background()
-	fn.compactor = NewBatchCompactor(10, 1024, 0)
+	fn.compactor = newBatchCompactor(10, 1024, 0)
 
 	var succeeded []any
 	var failedRows []FailedRow
@@ -1329,7 +1329,7 @@ func TestWriteAcceptsEmptySSLModeAsDefault(t *testing.T) {
 }
 
 // TestWriteRejectsUnknownUpdateField covers the typo the reviewer described:
-// WithUpdateFields("emial") is a valid identifier, so SanitizeIdentifier passes
+// WithUpdateFields("emial") is a valid identifier, so sanitizeIdentifier passes
 // it through and PostgreSQL rejects the batch at flush time with `column
 // "emial" of relation "orders" does not exist`. The name is checkable against
 // the element type at construction, which is where every other write option is
@@ -1486,7 +1486,7 @@ func TestSetupRejectsUnknownUpdateField(t *testing.T) {
 }
 
 // TestExtractRowValuesFromMap covers the panic the reviewer found:
-// ExtractPrimaryKeys accepted maps, but extractRowValues called FieldByName
+// extractPrimaryKeys accepted maps, but extractRowValues called FieldByName
 // unconditionally, so a map-shaped element took down the bundle.
 func TestExtractRowValuesFromMap(t *testing.T) {
 	fn := &writeFn{columns: []string{"id", "region", "amount", "missing"}}
