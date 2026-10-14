@@ -198,25 +198,12 @@ ml_base_core = [
     # removed in setuptools 82. Without this cap, Python 3.12+ environments
     # (no bundled setuptools) resolve setuptools>=82 and TF tests are skipped.
     'setuptools<82',
-    # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
-    # processors.RobertaProcessing (and BertProcessing) from `cls` to
-    # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
-    # https://github.com/huggingface/tokenizers/pull/1928.
-    # transformers' slow CLIP tokenizer still calls
-    # `processors.RobertaProcessing(sep=..., cls=..., ...)` at
-    # transformers/models/clip/tokenization_clip.py, so model load fails with
-    # "RobertaProcessing.__new__() got an unexpected keyword argument 'cls'".
-    # The ml tox envs run with pip_pre=True (tox.ini:32), so even though no
-    # 0.23 stable has shipped yet, the rc gets resolved.
-    # Drop this cap once transformers updates the CLIP call site to
-    # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
-    'tokenizers<0.23',
     # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
     'torch<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
-    'tokenizers>=0.13.3,<0.22.0',
+    'tokenizers>=0.13.3,<0.23.0',
 ]
 
 ml_adk_dependency = [
@@ -620,9 +607,6 @@ if __name__ == '__main__':
               # ADK-only path.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p310_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
           # xgboost tests import datatable, which only has wheels for <=3.12.
           'p311_ml_test': [
             'datatable',
