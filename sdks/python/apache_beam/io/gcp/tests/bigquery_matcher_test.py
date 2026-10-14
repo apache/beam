@@ -195,6 +195,11 @@ class BigqueryTableMatcherTest(unittest.TestCase):
 class BigqueryFullResultStreamingMatcherTest(unittest.TestCase):
   def setUp(self):
     self.timeout = 0.01
+    # The matcher waits between polls. Skip that wait here.
+    sleep_patcher = mock.patch(
+        'apache_beam.io.gcp.tests.bigquery_matcher.time.sleep')
+    sleep_patcher.start()
+    self.addCleanup(sleep_patcher.stop)
 
   def test__get_query_result_timeout(self, mock_bigquery):
     mock_query = mock_bigquery.return_value.query

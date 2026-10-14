@@ -93,7 +93,7 @@ class BigqueryMatcher(BaseMatcher):
   def _matches(self, _):
     @retry.with_exponential_backoff(
         num_retries=1000,
-        initial_delay_secs=0.5,
+        initial_delay_secs=5,
         max_delay_secs=30,
         stop_after_secs=self.timeout_secs,
     )
@@ -219,7 +219,8 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
       if len(response) >= len(self.expected_data):
         return response
       _LOGGER.debug('Query result contains %d rows' % len(response))
-      time.sleep(1)
+      # Space out polls so repeated 404s do not hit BigQuery too often.
+      time.sleep(5)
     raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
 
 
