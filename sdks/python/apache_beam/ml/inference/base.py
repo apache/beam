@@ -568,6 +568,9 @@ class _ModelHandlerManager:
     self._max_models = None
     # Process ids that have already contributed to _max_models
     self._incremented_process_ids: set[int] = set()
+    # Guards _max_models and _incremented_process_ids, since the shared
+    # manager serves calls from several processes on separate threads.
+    self._max_models_lock = threading.Lock()
     # Map keys to model handlers
     self._mh_map: dict[str, ModelHandler] = mh_map
     # Map keys to the last updated model path for that key
@@ -634,13 +637,14 @@ class _ModelHandlerManager:
         only the first increment from each process is applied, since many
         copies of the model handler can share this manager within a process.
     """
-    if process_id is not None:
-      if process_id in self._incremented_process_ids:
-        return
-      self._incremented_process_ids.add(process_id)
-    if self._max_models is None:
-      self._max_models = 0
-    self._max_models += increment
+    with self._max_models_lock:
+      if process_id is not None:
+        if process_id in self._incremented_process_ids:
+          return
+        self._incremented_process_ids.add(process_id)
+      if self._max_models is None:
+        self._max_models = 0
+      self._max_models += increment
 
   def update_model_handler(self, key: str, model_path: str, previous_key: str):
     """
