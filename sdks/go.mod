@@ -32,12 +32,12 @@ require (
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/spanner v1.96.1
 	cloud.google.com/go/storage v1.69.0
-	github.com/aws/aws-sdk-go-v2 v1.47.2
+	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.8
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.8
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.23.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
-	github.com/aws/smithy-go v1.28.4
+	github.com/aws/smithy-go v1.28.5
 	github.com/docker/go-connections v0.8.1 // indirect
 	github.com/dustin/go-humanize v1.1.0
 	github.com/go-sql-driver/mysql v1.10.1
