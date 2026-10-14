@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,6 +59,12 @@ import org.slf4j.LoggerFactory;
  * <p>This is mostly a copy of {@link org.apache.iceberg.data.DeleteFilter}, but flipping the logic
  * to output deleted records instead of filtering them out.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public abstract class DeleteReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DeleteReader.class);
 

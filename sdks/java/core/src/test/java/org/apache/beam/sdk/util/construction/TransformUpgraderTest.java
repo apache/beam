@@ -18,13 +18,16 @@
 package org.apache.beam.sdk.util.construction;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
@@ -486,5 +489,41 @@ public class TransformUpgraderTest {
     assertTrue(TransformUpgrader.compareVersions("2.55.0", "2.53.0") > 0);
     assertTrue(TransformUpgrader.compareVersions("2.55.0-SNAPSHOT", "2.53.0") > 0);
     assertTrue(TransformUpgrader.compareVersions("2.55.0.dev", "2.53.0") > 0);
+  }
+
+  @Test
+  public void testFromByteArrayAllowedAndBlockedClasses() throws Exception {
+    byte[] stringBytes = TransformUpgrader.toByteArray("hello");
+    assertEquals("hello", TransformUpgrader.fromByteArray(stringBytes));
+
+    byte[] beamObjectBytes = TransformUpgrader.toByteArray(new TestTransform(5));
+    TestTransform deserializedTransform =
+        (TestTransform) TransformUpgrader.fromByteArray(beamObjectBytes);
+    assertEquals(Integer.valueOf(5), deserializedTransform.getTestParam());
+
+    byte[] disallowedPackageBytes = TransformUpgrader.toByteArray(URI.create("http://example.com"));
+    assertThrows(
+        InvalidClassException.class, () -> TransformUpgrader.fromByteArray(disallowedPackageBytes));
+
+    byte[] disallowedClassBytes = TransformUpgrader.toByteArray(ProcessBuilder.class);
+    assertThrows(
+        InvalidClassException.class, () -> TransformUpgrader.fromByteArray(disallowedClassBytes));
+  }
+
+  @Test
+  public void testFromByteArrayCustomFilterProperty() throws Exception {
+    URI uri = URI.create("http://example.com");
+    byte[] uriBytes = TransformUpgrader.toByteArray(uri);
+    byte[] largeArrayBytes = TransformUpgrader.toByteArray(new byte[100]);
+
+    try {
+      System.setProperty(
+          TransformUpgrader.DESERIALIZATION_FILTER_PROPERTY, "maxarray=10;java.net.**;!*");
+      assertEquals(uri, TransformUpgrader.fromByteArray(uriBytes));
+      assertThrows(
+          InvalidClassException.class, () -> TransformUpgrader.fromByteArray(largeArrayBytes));
+    } finally {
+      System.clearProperty(TransformUpgrader.DESERIALIZATION_FILTER_PROPERTY);
+    }
   }
 }

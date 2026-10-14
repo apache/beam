@@ -46,9 +46,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   GRADLE_JAVA_COMMAND_ARGUMENTS: |
     --manageResources=false
     --monitorJobs=true
@@ -129,7 +127,7 @@ jobs:
         with:
           gradle-command: :sdks:python:apache_beam:testing:benchmarks:nexmark:run
           arguments: |
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             "-Pnexmark.args=${{ env.GRADLE_PYTHON_COMMAND_ARGUMENTS }} \
             --query=${{ matrix.query }} \
             --input=gs://temp-storage-for-perf-tests/nexmark/eventFiles/beam_PostCommit_Python_Nexmark_Direct/query${{ matrix.query }}-\*"

@@ -1013,6 +1013,114 @@ class WriteStreamingTest(unittest.TestCase):
         1 * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
+  def test_write_streaming_rows_land_in_their_own_window(self):
+    # One add_elements call is delivered as one bundle spanning 3 windows.
+    # Regression test for the _ParquetSink file-handle bug: several writers
+    # may be open on the sink at once (one per window), so each writer must
+    # close its own file handle or the windowed files come out corrupted.
+    base = datetime(2021, 3, 1, tzinfo=pytz.UTC).timestamp()
+    offsets = [1, 11, 21, 3, 13, 23]
+    stream = TestStream().add_elements([
+        beam.window.TimestampedValue({'offset': o}, base + o) for o in offsets
+    ]).advance_watermark_to_infinity()
+    with TestPipeline() as p:
+      _ = (
+          p
+          | stream
+          | beam.WindowInto(beam.window.FixedWindows(10))
+          | beam.io.WriteToParquet(
+              file_path_prefix=self.tempdir + '/out',
+              file_name_suffix='.parquet',
+              num_shards=1,
+              schema=pa.schema([('offset', pa.int64())])))
+
+    pattern = re.compile(r'.*-\[(?P<start>[\d\.]+), [\d\.]+\)-.*\.parquet$')
+    rows_by_window = {}
+    for file_name in glob.glob(self.tempdir + '/out*'):
+      start = float(pattern.match(file_name).group('start')) - base
+      rows = pq.read_table(file_name).column('offset').to_pylist()
+      rows_by_window[start] = sorted(rows)
+    self.assertEqual({0: [1, 3], 10: [11, 13], 20: [21, 23]}, rows_by_window)
+
+
+@unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
+class RowDictionariesToArrowTableTest(unittest.TestCase):
+  """Unit tests for _RowDictionariesToArrowTable windowing behavior.
+
+  Regression tests for https://github.com/apache/beam/issues/40284: a single
+  bundle may contain elements from multiple windows (the convert_fn ParDo runs
+  before the window-grouping GroupByKey in WriteImpl._expand_unbounded), so
+  the DoFn must buffer and emit tables per window instead of attributing
+  every row to the last window seen.
+  """
+  def _make_dofn(self, **kwargs):
+    from apache_beam.io.parquetio import _RowDictionariesToArrowTable
+    schema = pa.schema([('id', pa.int64()), ('name', pa.string())])
+    return _RowDictionariesToArrowTable(schema, **kwargs)
+
+  def _drain(self, dofn, elements):
+    outputs = []
+    dofn.start_bundle()
+    for row, w in elements:
+      outputs.extend(dofn.process(row, w=w, pane=None))
+    outputs.extend(dofn.finish_bundle())
+    return outputs
+
+  def test_rows_are_buffered_per_window(self):
+    window = beam.transforms.window
+    w_a = window.IntervalWindow(0, 10)
+    w_b = window.IntervalWindow(10, 20)
+    outputs = self._drain(
+        self._make_dofn(),
+        [({
+            'id': 1, 'name': 'a1'
+        }, w_a), ({
+            'id': 2, 'name': 'b1'
+        }, w_b), ({
+            'id': 3, 'name': 'a2'
+        }, w_a)])
+    self.assertEqual(2, len(outputs))
+    by_window = {o.windows[0]: o.value.to_pydict() for o in outputs}
+    self.assertEqual({'id': [1, 3], 'name': ['a1', 'a2']}, by_window[w_a])
+    self.assertEqual({'id': [2], 'name': ['b1']}, by_window[w_b])
+    for o in outputs:
+      self.assertEqual(1, len(o.windows))
+      self.assertEqual(o.windows[0].end, o.timestamp)
+
+  def test_mid_bundle_flush_stays_within_window(self):
+    window = beam.transforms.window
+    w_a = window.IntervalWindow(0, 10)
+    w_b = window.IntervalWindow(10, 20)
+    outputs = self._drain(
+        self._make_dofn(record_batch_size=2),
+        [({
+            'id': 1, 'name': 'a1'
+        }, w_a), ({
+            'id': 2, 'name': 'a2'
+        }, w_a), ({
+            'id': 3, 'name': 'a3'
+        }, w_a), ({
+            'id': 4, 'name': 'b1'
+        }, w_b)])
+    ids_by_window = {}
+    for o in outputs:
+      ids_by_window.setdefault(o.windows[0],
+                               []).extend(o.value.to_pydict()['id'])
+    self.assertEqual([1, 2, 3], ids_by_window[w_a])
+    self.assertEqual([4], ids_by_window[w_b])
+
+  def test_global_window_emits_single_windowed_value(self):
+    window = beam.transforms.window
+    outputs = self._drain(
+        self._make_dofn(),
+        [({
+            'id': i, 'name': 'n%d' % i
+        }, window.GlobalWindow()) for i in range(3)])
+    self.assertEqual(1, len(outputs))
+    self.assertIsInstance(outputs[0].windows[0], window.GlobalWindow)
+    self.assertEqual([0, 1, 2], outputs[0].value.to_pydict()['id'])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

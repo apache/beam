@@ -360,8 +360,12 @@ public class StreamingWorkScheduler {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         initializeOutputBuilder(workItem.getKey(), workItem);
     outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
-    work.setState(Work.State.COMMIT_QUEUED);
-    work.queueCommit(outputBuilder.build(), computationState);
+    commitWorkBatch(
+        computationState,
+        ImmutableList.of(work),
+        ImmutableList.of(outputBuilder.build()),
+        ImmutableList.of(),
+        ImmutableList.of());
   }
 
   private StageInfo getStageInfo(ComputationState computationState) {

@@ -121,7 +121,7 @@ final class TableSetup implements Serializable {
     }
     @Nullable Dest existing = memo.get(destString);
     if (existing != null) {
-      requireResolvedPartitionSpec(destString, existing);
+      requireResolvedPartitionSpec(destString, existing, config.getSinkId());
       return existing;
     }
     Dest dest;
@@ -264,7 +264,7 @@ final class TableSetup implements Serializable {
    * Freshness is best-effort: the compared spec is the process-cached table's, refreshed only when
    * something in the process refreshes it.
    */
-  private static void requireResolvedPartitionSpec(String destString, Dest dest) {
+  private static void requireResolvedPartitionSpec(String destString, Dest dest, String sinkId) {
     if (dest.partitionShardPlan() == null) {
       return;
     }
@@ -273,17 +273,16 @@ final class TableSetup implements Serializable {
       throw new TableConfigException(
           "Table '"
               + destString
-              + "' changed its partition spec while the CDC sink was running with a "
-              + "shards_per_partition cap (spec id "
+              + "' changed its partition spec (spec id "
               + dest.spec().specId()
-              + " when the sink resolved the table, spec id "
+              + ", now spec id "
               + currentSpecId
-              + " now). Partition-block sharding derives each record's shard from the partition "
-              + "tuple under the resolved spec, so workers resolving different specs would split "
-              + "one primary key's window across shards and silently duplicate rows within a "
-              + "commit. "
-              + "Drain the pipeline before evolving the partition spec, and restart it "
-              + "afterwards.");
+              + ") while the CDC sink was running with shards_per_partition set. Cancel the "
+              + "pipeline, run rewrite_data_files on the table, then restart from the last "
+              + "committed change (snapshot summary key "
+              + CommitToken.MAX_COMMITTED_SEQ_PREFIX
+              + sinkId
+              + ").");
     }
   }
 

@@ -42,12 +42,15 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
@@ -62,9 +65,12 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -77,6 +83,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -914,5 +921,73 @@ public class GcsUtilV2Test {
         () ->
             withForbidden.remove(
                 ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
+  }
+
+  /**
+   * java-storage cannot batch rewrites, so V2 issues the files of a rename concurrently. Every
+   * rewrite here blocks until all of them have started, which only happens if they overlap.
+   */
+  @Test
+  public void testV2RenameRewritesFilesConcurrently() throws IOException {
+    int numFiles = 4;
+    CountDownLatch allStarted = new CountDownLatch(numFiles);
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.copy(any(CopyRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              allStarted.countDown();
+              assertTrue("rewrites did not overlap", allStarted.await(30, TimeUnit.SECONDS));
+              return Mockito.mock(CopyWriter.class);
+            });
+    when(storage.delete(any(BlobId.class))).thenReturn(true);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    List<String> srcs = new ArrayList<>();
+    List<String> dsts = new ArrayList<>();
+    for (int i = 0; i < numFiles; i++) {
+      srcs.add("gs://testbucket/src" + i);
+      dsts.add("gs://testbucket/dst" + i);
+    }
+
+    gcsUtil.rename(srcs, dsts);
+
+    verify(storage, Mockito.times(numFiles)).copy(any(CopyRequest.class));
+    for (int i = 0; i < numFiles; i++) {
+      verify(storage).delete(BlobId.of("testbucket", "src" + i));
+    }
+  }
+
+  /**
+   * Running the files concurrently must not change what a rename reports: a missing source is
+   * skipped or fails depending on IGNORE_MISSING_FILES, and other failures keep their type.
+   */
+  @Test
+  public void testV2RenameFailuresAreReportedPerFile() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.copy(any(CopyRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              String source = invocation.<CopyRequest>getArgument(0).getSource().getName();
+              if (source.equals("missing")) {
+                throw new StorageException(404, "Not Found");
+              }
+              if (source.equals("forbidden")) {
+                throw new StorageException(403, "Forbidden");
+              }
+              return Mockito.mock(CopyWriter.class);
+            });
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    List<String> okAndMissing = ImmutableList.of("gs://testbucket/ok", "gs://testbucket/missing");
+    List<String> okAndMissingDsts =
+        ImmutableList.of("gs://testbucket/ok.bak", "gs://testbucket/missing.bak");
+
+    gcsUtil.rename(okAndMissing, okAndMissingDsts, StandardMoveOptions.IGNORE_MISSING_FILES);
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.rename(okAndMissing, okAndMissingDsts));
+    assertThrows(
+        AccessDeniedException.class,
+        () ->
+            gcsUtil.rename(
+                ImmutableList.of("gs://testbucket/ok", "gs://testbucket/forbidden"),
+                ImmutableList.of("gs://testbucket/ok.bak", "gs://testbucket/forbidden.bak"),
+                StandardMoveOptions.IGNORE_MISSING_FILES));
   }
 }

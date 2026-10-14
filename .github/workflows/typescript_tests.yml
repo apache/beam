@@ -43,7 +43,7 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login}}'
   cancel-in-progress: true
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 jobs:
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'
@@ -110,7 +110,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install Java
         uses: actions/setup-java@v6
         with:
@@ -180,7 +180,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install Java
         uses: actions/setup-java@v6
         with:

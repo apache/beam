@@ -159,14 +159,17 @@ func (m *DataChannelManager) Close() {
 }
 
 func (m *DataChannelManager) closeInstruction(instID instructionID, ports []exec.Port) error {
+	// copy channels so removeInstruction can take ch.mu without holding m.mu.
+	var chans []*DataChannel
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	var firstNonNilError error
 	for _, port := range ports {
-		ch, ok := m.ports[port.URL]
-		if !ok {
-			continue
+		if ch, ok := m.ports[port.URL]; ok {
+			chans = append(chans, ch)
 		}
+	}
+	m.mu.Unlock()
+	var firstNonNilError error
+	for _, ch := range chans {
 		err := ch.removeInstruction(instID)
 		if err != nil && firstNonNilError == nil {
 			firstNonNilError = err
@@ -615,7 +618,10 @@ func (w *dataWriter) Close() error {
 			},
 		},
 	}
-	return w.send(msg)
+	if err := w.send(msg); err != nil {
+		return errors.Wrapf(err, "dataWriter[%v;%v].Close: sending last data", w.id, w.ch.id)
+	}
+	return nil
 }
 
 const largeBufferNotificationThreshold = 1024 * 1024 * 1024 // 1GB
@@ -723,7 +729,10 @@ func (w *timerWriter) Close() error {
 			},
 		},
 	}
-	return w.send(msg)
+	if err := w.send(msg); err != nil {
+		return errors.Wrapf(err, "timerWriter[%v;%v].Close: sending last timers", w.id, w.ch.id)
+	}
+	return nil
 }
 
 func (w *timerWriter) writeTimers(p []byte) error {
