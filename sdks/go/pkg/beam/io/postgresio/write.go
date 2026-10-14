@@ -152,6 +152,10 @@ func write(s beam.Scope, table string, opts writeOptions, col beam.PCollection) 
 	// cannot keep a session-scoped staging table alive between flushes. The
 	// two cannot both be satisfied, so the conflict is reported here rather
 	// than as a first-flush failure on every worker.
+	if opts.WriteMode == WriteModeMerge && opts.WriteMethod == WriteMethodUnnest {
+		panic("postgresio.Write: WriteModeMerge requires WriteMethodStagedCopy. The UNNEST " +
+			"method issues INSERT ... ON CONFLICT, which cannot express deletes.")
+	}
 	if opts.WriteMode == WriteModeMerge && opts.UsePgBouncer {
 		panic("postgresio.Write: WriteModeMerge cannot be combined with PgBouncer compatibility. " +
 			"MERGE is issued through the staged COPY path, which reuses a session-scoped staging table, " +
@@ -575,12 +579,10 @@ func (fn *writeFn) flushBatch(ctx context.Context, emitSuccess func(beam.X), emi
 	// set of columns present and each group written separately.
 	parts, err := partitionBatchByUnchangedColumns(batch, fn.columns)
 	if err != nil {
-		// A row type naming a column that does not exist is a defect in that
-		// type, not a transient fault, so the bundle fails rather than
-		// draining every batch to the dead-letter output under a
-		// misconfiguration that will repeat.
-		fn.failBatch(ctx, batch, err)
-		return err
+		// A row naming a column that does not exist cannot be written; its
+		// batch goes to the dead-letter output with the reason attached.
+		fn.emitFailedBatch(ctx, batch, err, emitFailed)
+		return nil
 	}
 
 	for _, part := range parts {
@@ -591,22 +593,25 @@ func (fn *writeFn) flushBatch(ctx context.Context, emitSuccess func(beam.X), emi
 	return nil
 }
 
-// failBatch logs an error and records metrics for a batch that cannot produce
-// a correct write. The caller returns an error to fail the bundle. It does not
-// emit to the dead-letter output because runner semantics discard bundle outputs
-// on error.
+// emitFailedBatch routes every row of batch to the dead-letter output,
+// annotated with err, counts them in the sink_failed_rows metric, and logs the
+// error once.
 //
-// This is deliberately distinct from the execution-failure path in
-// writePartition. A batch rejected here is rejected because the pipeline is
-// configured in a way that cannot ever produce a correct write, so retrying the
-// bundle against the same configuration would fail identically. Continuing
-// would drain every row of every batch into the dead-letter output while
-// reporting success, which hides a misconfiguration behind an apparently
-// healthy pipeline.
-func (fn *writeFn) failBatch(ctx context.Context, batch []any, err error) {
+// Emitting a row to the dead-letter output is a correct outcome of processing
+// it, so callers return nil and the bundle commits. Returning an error instead
+// would make the runner discard the bundle's outputs, including these.
+func (fn *writeFn) emitFailedBatch(ctx context.Context, batch []any, err error, emitFailed func(FailedRow)) {
 	sinkFailedRows.Inc(ctx, int64(len(batch)))
 	msg := sanitizeErrorMessage(err)
+	sqlState := extractSqlState(err)
 	log.Errorf(ctx, "postgresio: %s", msg)
+	for _, item := range batch {
+		emitFailed(FailedRow{
+			Row:          item,
+			ErrorMessage: msg,
+			SqlState:     sqlState,
+		})
+	}
 }
 
 func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emitSuccess func(beam.X), emitFailed func(FailedRow)) error {
@@ -618,8 +623,10 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 	// MERGE is expressible only by the staged-COPY path. The parameterized
 	// UNNEST path emits INSERT ... ON CONFLICT against the target, a statement
 	// with no DELETE arm, so a MERGE batch routed through it would apply the
-	// inserts and updates and silently discard every delete. A silently wrong
-	// result is worse than a failed bundle, so these cases fail loudly.
+	// inserts and updates and silently discard every delete. Such a batch is
+	// sent to the dead-letter output rather than written wrongly. Write already
+	// rejects MERGE with the UNNEST method at construction, so the first case
+	// is a defensive check.
 	mergeMode := fn.Options.WriteMode == WriteModeMerge
 	if mergeMode {
 		var err error
@@ -631,8 +638,8 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 				strings.Join(part.UnchangedColumns, ", "))
 		}
 		if err != nil {
-			fn.failBatch(ctx, batch, err)
-			return err
+			fn.emitFailedBatch(ctx, batch, err, emitFailed)
+			return nil
 		}
 	}
 
@@ -662,8 +669,8 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 		}
 		if mergeMode {
 			err := fmt.Errorf("postgresio: MERGE staged COPY failed: %w", copyErr)
-			fn.failBatch(ctx, batch, err)
-			return err
+			fn.emitFailedBatch(ctx, batch, err, emitFailed)
+			return nil
 		}
 		log.Warnf(ctx, "postgresio: staged COPY failed (%v), falling back to parameterized UNNEST", copyErr)
 	}
@@ -675,8 +682,8 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 		} else {
 			err = fmt.Errorf("postgresio: parameterized UNNEST build failed: %w", err)
 		}
-		fn.failBatch(ctx, batch, err)
-		return err
+		fn.emitFailedBatch(ctx, batch, err, emitFailed)
+		return nil
 	}
 
 	// Autocommit. A replication origin, when configured, is selected once per
@@ -704,17 +711,7 @@ func (fn *writeFn) writePartition(ctx context.Context, part writePartition, emit
 		execErr = fmt.Errorf("postgresio: write batch fallback failed with sqlstate %s: %w (original COPY error: %v)", sqlState, execErr, copyErr)
 	}
 
-	// Permanent failure: route batch to Dead-Letter Queue (DLQ)
-	sinkFailedRows.Inc(ctx, int64(len(batch)))
-	sanitizedMsg := sanitizeErrorMessage(execErr)
-	log.Errorf(ctx, "postgresio: %s", sanitizedMsg)
-	for _, item := range batch {
-		emitFailed(FailedRow{
-			Row:          item,
-			ErrorMessage: sanitizedMsg,
-			SqlState:     sqlState,
-		})
-	}
+	fn.emitFailedBatch(ctx, batch, execErr, emitFailed)
 	return nil
 }
 

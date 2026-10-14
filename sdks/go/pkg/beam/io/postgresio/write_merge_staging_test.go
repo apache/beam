@@ -240,21 +240,18 @@ func TestWritePartitionMergeRefusesUnnestFallback(t *testing.T) {
 		func(beam.X) { succeeded++ },
 		func(fr FailedRow) { failed = append(failed, fr) })
 
-	if err == nil {
-		t.Fatal("writePartition accepted a MERGE batch on the UNNEST write method; deletes would have been silently dropped")
-	}
-	if !strings.Contains(err.Error(), "cannot express deletes") {
-		t.Errorf("error does not explain the cause: %v", err)
+	// The batch is dead-lettered, not written and not a bundle failure.
+	if err != nil {
+		t.Fatalf("writePartition returned %v; a dead-lettered batch must let the bundle commit", err)
 	}
 	if succeeded != 0 {
-		t.Errorf("emitted %d rows as written", succeeded)
+		t.Errorf("emitted %d rows as written; deletes would have been silently dropped", succeeded)
 	}
-	// A configuration fault fails the bundle, and Beam discards a failed
-	// bundle's pending outputs. Emitting here would produce rows that no
-	// downstream transform ever observes, which reads as a fallback and is
-	// not one. The returned error is the only outcome.
-	if len(failed) != 0 {
-		t.Errorf("emitted %d rows to the failed output on a bundle-failing path; those outputs are discarded with the bundle", len(failed))
+	if got, want := len(failed), 1; got != want {
+		t.Fatalf("got %d dead-lettered rows, want %d", got, want)
+	}
+	if got := failed[0].ErrorMessage; !strings.Contains(got, "cannot express deletes") {
+		t.Errorf("dead-letter annotation %q does not explain the cause", got)
 	}
 }
 
@@ -287,19 +284,17 @@ func TestWritePartitionMergeRefusesPartialRows(t *testing.T) {
 		func(beam.X) { succeeded++ },
 		func(fr FailedRow) { failed = append(failed, fr) })
 
-	if err == nil {
-		t.Fatal("writePartition accepted a partial row in MERGE mode")
-	}
-	if !strings.Contains(err.Error(), "name") {
-		t.Errorf("error does not name the omitted column: %v", err)
+	if err != nil {
+		t.Fatalf("writePartition returned %v; a dead-lettered batch must let the bundle commit", err)
 	}
 	if succeeded != 0 {
 		t.Errorf("emitted %d rows as written", succeeded)
 	}
-	// As above: a configuration fault fails the bundle, so nothing is
-	// emitted to the dead-letter output.
-	if len(failed) != 0 {
-		t.Errorf("emitted %d rows to the failed output on a bundle-failing path; those outputs are discarded with the bundle", len(failed))
+	if got, want := len(failed), 1; got != want {
+		t.Fatalf("got %d dead-lettered rows, want %d", got, want)
+	}
+	if got := failed[0].ErrorMessage; !strings.Contains(got, "name") {
+		t.Errorf("dead-letter annotation %q does not name the omitted column", got)
 	}
 }
 

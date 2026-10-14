@@ -834,7 +834,7 @@ func TestExplainPlanParsingAndSampling(t *testing.T) {
 	}
 }
 
-func TestWriteReturnsErrorOnQueryFailure(t *testing.T) {
+func TestWriteDeadLettersUnbuildableBatch(t *testing.T) {
 	fn := &writeFn{
 		Table:          `"public"."orders"`,
 		Options:        newWriteOptions(),
@@ -846,26 +846,22 @@ func TestWriteReturnsErrorOnQueryFailure(t *testing.T) {
 	ctx := context.Background()
 	fn.compactor = newBatchCompactor(10, 1024, 0)
 
-	// A batch that cannot be turned into a statement is a configuration fault,
-	// not a data fault: every later batch would fail identically. The bundle
-	// must fail rather than silently draining the input into the dead-letter
-	// output. Nothing is emitted there, because a runner discards a failed
-	// bundle's pending outputs, so an emit on this path produces rows that no
-	// downstream transform ever observes.
+	// A batch that cannot be turned into a statement goes to the dead-letter
+	// output with the reason attached, and the bundle commits.
 	var failedRows []FailedRow
 	emitFailed := func(f FailedRow) { failedRows = append(failedRows, f) }
 
 	_ = fn.ProcessElement(ctx, TestOrder{ID: 1}, func(v beam.X) {}, emitFailed)
 	err := fn.FinishBundle(ctx, func(v beam.X) {}, emitFailed)
 
-	if err == nil {
-		t.Fatalf("expected FinishBundle to return error when query building fails, got nil")
+	if err != nil {
+		t.Fatalf("FinishBundle returned %v; a dead-lettered batch must let the bundle commit", err)
 	}
-	if !strings.Contains(err.Error(), "identifier cannot be empty") {
-		t.Errorf("expected error to contain 'identifier cannot be empty', got: %v", err)
+	if got, want := len(failedRows), 1; got != want {
+		t.Fatalf("got %d dead-lettered rows, want %d", got, want)
 	}
-	if len(failedRows) != 0 {
-		t.Errorf("emitted %d rows to the failed output on a bundle-failing path; those outputs are discarded with the bundle", len(failedRows))
+	if got := failedRows[0].ErrorMessage; !strings.Contains(got, "identifier cannot be empty") {
+		t.Errorf("dead-letter annotation %q does not explain the cause", got)
 	}
 }
 
@@ -1562,5 +1558,22 @@ func TestBuildUnnestQueryFromMapElements(t *testing.T) {
 	}
 	if len(args) != 2 {
 		t.Fatalf("expected one array argument per column, got %d", len(args))
+	}
+}
+
+// TestWriteRejectsMergeWithUnnest checks that MERGE with the UNNEST method is
+// rejected when the pipeline is built. UNNEST issues INSERT ... ON CONFLICT,
+// which has no way to apply a delete.
+func TestWriteRejectsMergeWithUnnest(t *testing.T) {
+	opts := validWriteOpts()
+	opts.WriteMode = WriteModeMerge
+	opts.WriteMethod = WriteMethodUnnest
+
+	msg := writePanic(t, opts)
+	if msg == "" {
+		t.Fatal("Write accepted WriteModeMerge with WriteMethodUnnest")
+	}
+	if !strings.Contains(msg, "WriteMethodStagedCopy") {
+		t.Errorf("panic %q does not name the method MERGE needs", msg)
 	}
 }
