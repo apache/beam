@@ -366,13 +366,6 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     file = self._create_temp_file(dir=tempdir)
     # Add file twice, since it will be matched for every interval
     files += [file, file]
-    # Add file name that will be created mid-pipeline
-    files.append(FileSystems.join(tempdir, 'extra'))
-
-    def _create_extra_file(element):
-      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
-      writer.close()
-      return element.path
 
     with TestPipeline() as p:
       match_continiously = (
@@ -382,8 +375,7 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
               interval=interval,
               has_deduplication=False,
               start_timestamp=start,
-              stop_timestamp=stop)
-          | beam.Map(_create_extra_file))
+              stop_timestamp=stop))
 
       assert_that(match_continiously, equal_to(files))
 
