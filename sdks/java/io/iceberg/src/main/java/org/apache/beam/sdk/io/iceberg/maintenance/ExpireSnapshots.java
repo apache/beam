@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -55,17 +57,17 @@ import org.checkerframework.dataflow.qual.Pure;
 /**
  * Distributed snapshot expiration maintenance operation for Apache Iceberg tables.
  *
- * <p>Prunes snapshots older than a configured retention threshold, retains the last $N$ ancestors,
+ * <p>Prunes snapshots older than a configured retention threshold, retains the last N ancestors,
  * removes unreferenced manifests and manifest lists, and physically deletes obsolete data and
  * delete files from storage.
  *
  * <h2>Execution Model</h2>
  *
  * <ol>
- *   <li><b>Phase 1 (Planning)</b>: Runs inside an initial worker {@link PlanExpireSnapshotsDoFn}.
- *       Validates table GC settings and commits the metadata change via {@code
- *       table.expireSnapshots().cleanExpiredFiles(false).commit()}. Zero file deletions happen on
- *       the driver.
+ *   <li><b>Phase 1 (Planning)</b>: Table identifiers are deduplicated, then each table is planned
+ *       on a worker by {@link PlanExpireSnapshotsDoFn}. Validates table GC settings and commits the
+ *       metadata change via {@code table.expireSnapshots().cleanExpiredFiles(false).commit()}. No
+ *       file deletions happen during planning.
  *   <li><b>Phase 2 (Manifest Scanning)</b>: Manifest files from candidate and retained snapshots
  *       are redistributed and read in parallel across workers via {@link ReadManifestDoFn}.
  *   <li><b>Phase 3 (Anti-Join)</b>: Candidate and retained files are keyed by file path and
@@ -77,6 +79,13 @@ import org.checkerframework.dataflow.qual.Pure;
  *   <li><b>Phase 5 (Aggregation)</b>: Deletion counts and expired snapshot counts are merged into a
  *       single {@link ExpireSnapshotsResult}.
  * </ol>
+ *
+ * <h2>Failure Semantics</h2>
+ *
+ * <p>The metadata commit in Phase 1 is a non-idempotent side effect. If a planning bundle fails
+ * after the commit succeeds and is retried, the retry observes the already-expired table state and
+ * plans no deletions, so files unreferenced by that commit are left in storage. Such files are
+ * orphans and can be reclaimed by a subsequent orphan file cleanup.
  */
 public class ExpireSnapshots
     extends PTransform<PCollection<String>, PCollection<ExpireSnapshotsResult>> {
@@ -105,8 +114,8 @@ public class ExpireSnapshots
     builder.addIfNotNull(
         DisplayData.item("expireOlderThan", config.getExpireOlderThan())
             .withLabel("Expire Older Than (Millis)"));
-    builder.add(
-        DisplayData.item("retainLast", config.retainLast()).withLabel("Retain Last Snapshots"));
+    builder.addIfNotNull(
+        DisplayData.item("retainLast", config.getRetainLast()).withLabel("Retain Last Snapshots"));
     builder.add(
         DisplayData.item("cleanFiles", config.cleanFiles())
             .withLabel("Clean Files (Physical Deletion)"));
@@ -141,15 +150,18 @@ public class ExpireSnapshots
 
     KvCoder<String, FileInfo> kvFileInfoCoder = KvCoder.of(StringUtf8Coder.of(), fileInfoCoder);
 
-    // Phase 1: Planning and metadata commit
+    // Phase 1: Planning and metadata commit. Duplicate identifiers are removed so that each table
+    // is committed against exactly once.
     PCollectionTuple planned =
-        tableIdentifiers.apply(
-            "Plan Expire Snapshots",
-            ParDo.of(new PlanExpireSnapshotsDoFn(catalogConfig, config))
-                .withOutputTags(
-                    PlanExpireSnapshotsDoFn.PLAN_SUMMARY,
-                    TupleTagList.of(PlanExpireSnapshotsDoFn.MANIFESTS)
-                        .and(PlanExpireSnapshotsDoFn.DIRECT_FILES)));
+        tableIdentifiers
+            .apply("Deduplicate Table Identifiers", Distinct.create())
+            .apply(
+                "Plan Expire Snapshots",
+                ParDo.of(new PlanExpireSnapshotsDoFn(catalogConfig, config))
+                    .withOutputTags(
+                        PlanExpireSnapshotsDoFn.PLAN_SUMMARY,
+                        TupleTagList.of(PlanExpireSnapshotsDoFn.MANIFESTS)
+                            .and(PlanExpireSnapshotsDoFn.DIRECT_FILES)));
 
     PCollection<ExpireSnapshotsResult> planSummary =
         planned.get(PlanExpireSnapshotsDoFn.PLAN_SUMMARY).setCoder(resultCoder);
@@ -184,11 +196,8 @@ public class ExpireSnapshots
                 "Key for Batching",
                 MapElements.into(
                         TypeDescriptors.kvs(
-                            TypeDescriptors.strings(),
-                            org.apache.beam.sdk.values.TypeDescriptor.of(FileInfo.class)))
-                    .via(
-                        file ->
-                            KV.of(MoreObjects.firstNonNull(file.getTableIdentifier(), ""), file)))
+                            TypeDescriptors.strings(), TypeDescriptor.of(FileInfo.class)))
+                    .via(file -> KV.of(file.getTableIdentifier(), file)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), fileInfoCoder))
             .apply(
                 "Batch Files",
@@ -239,18 +248,19 @@ public class ExpireSnapshots
 
     public static Builder builder() {
       return new AutoValue_ExpireSnapshots_Configuration.Builder()
-          .setRetainLast(1)
           .setCleanFiles(true)
           .setDeleteBatchSize(10_000);
     }
 
     @SchemaFieldDescription(
-        "Cutoff timestamp in milliseconds. Snapshots older than this are expired.")
+        "Cutoff timestamp in milliseconds. Snapshots older than this are expired. If unset, the"
+            + " table's history.expire.max-snapshot-age-ms property is used.")
     @Pure
     public abstract @Nullable Long getExpireOlderThan();
 
     @SchemaFieldDescription(
-        "Safety floor: minimum number of ancestor snapshots to retain. Must be >= 1.")
+        "Safety floor: minimum number of ancestor snapshots to retain. Must be >= 1. If unset, the"
+            + " table's history.expire.min-snapshots-to-keep property is used.")
     @Pure
     public abstract @Nullable Integer getRetainLast();
 
@@ -264,17 +274,15 @@ public class ExpireSnapshots
     public abstract @Nullable Boolean getCleanExpiredMetadata();
 
     @SchemaFieldDescription(
-        "Whether to physically delete unreferenced files from storage. If false, acts as a dry run.")
+        "Whether to physically delete unreferenced files from storage. If false, snapshots are"
+            + " still expired from table metadata and unreferenced files are reported in the result,"
+            + " but are left in storage.")
     @Pure
     public abstract @Nullable Boolean getCleanFiles();
 
     @SchemaFieldDescription("Batch size for bulk file deletion calls. Default is 10,000.")
     @Pure
     public abstract @Nullable Integer getDeleteBatchSize();
-
-    public int retainLast() {
-      return MoreObjects.firstNonNull(getRetainLast(), 1);
-    }
 
     public boolean cleanExpiredMetadata() {
       return MoreObjects.firstNonNull(getCleanExpiredMetadata(), false);

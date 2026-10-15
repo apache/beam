@@ -28,8 +28,9 @@ import org.apache.beam.sdk.transforms.Combine;
  * Structured summary metrics of an {@link ExpireSnapshots} run.
  *
  * <p>All counts default to 0. An empty or no-op run produces an all-zeros result. When {@code
- * cleanFiles} is set to {@code false} (dry run mode), file counts reflect unreferenced candidate
- * files identified for deletion rather than files actually deleted from storage.
+ * cleanFiles} is set to {@code false}, snapshots are still expired from table metadata, but file
+ * counts reflect the unreferenced files identified for deletion rather than files actually deleted
+ * from storage.
  */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)

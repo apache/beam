@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg.maintenance;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.io.iceberg.TestFixtures;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -41,10 +45,13 @@ import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -290,8 +297,8 @@ public class ExpireSnapshotsTest {
   }
 
   @Test
-  public void testDryRunDoesNotDeleteFromStorage() throws IOException {
-    TableIdentifier tableId = TableIdentifier.of("default", "dry_run_" + System.nanoTime());
+  public void testCleanFilesDisabledExpiresMetadataButKeepsFiles() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "no_clean_" + System.nanoTime());
     Table table = ExpireSnapshotsTestFixtures.createTableWithOverwrites(warehouse, tableId);
 
     List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
@@ -302,7 +309,144 @@ public class ExpireSnapshotsTest {
         ExpireSnapshots.Configuration.builder()
             .setExpireOlderThan(cutoff)
             .setRetainLast(1)
-            .setCleanFiles(false) // Dry run
+            .setCleanFiles(false)
+            .build();
+
+    PCollection<ExpireSnapshotsResult> result =
+        pipeline
+            .apply(Create.of(tableId.toString()))
+            .apply(ExpireSnapshots.create(getCatalogConfig(), config));
+
+    PAssert.that(result)
+        .satisfies(
+            results -> {
+              ExpireSnapshotsResult r = results.iterator().next();
+              assertEquals(2L, r.getExpiredSnapshotsCount());
+              // Reports the unreferenced file even though it is not deleted
+              assertEquals(1L, r.getDeletedDataFilesCount());
+              return null;
+            });
+
+    pipeline.run();
+
+    // Snapshots are still expired from metadata
+    table.refresh();
+    assertEquals(1, Lists.newArrayList(table.snapshots()).size());
+    // Files must still physically exist on storage
+    assertTrue("File A must still exist when cleanFiles=false", fileExists(fileAPath));
+  }
+
+  @Test
+  public void testUnsetRetainLastHonorsTableProperty() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "min_keep_prop_" + System.nanoTime());
+    Table table = ExpireSnapshotsTestFixtures.createTableWithMultiSnapshots(warehouse, tableId);
+    table.updateProperties().set(TableProperties.MIN_SNAPSHOTS_TO_KEEP, "3").commit();
+    table.refresh();
+
+    // All 3 snapshots are older than the cutoff, but the table requires keeping 3.
+    ExpireSnapshots.Configuration config =
+        ExpireSnapshots.Configuration.builder()
+            .setExpireOlderThan(System.currentTimeMillis() + 100_000L)
+            .build();
+
+    PCollection<ExpireSnapshotsResult> result =
+        pipeline
+            .apply(Create.of(tableId.toString()))
+            .apply(ExpireSnapshots.create(getCatalogConfig(), config));
+
+    PAssert.that(result).containsInAnyOrder(ExpireSnapshotsResult.zeros());
+    pipeline.run();
+
+    table.refresh();
+    assertEquals(3, Lists.newArrayList(table.snapshots()).size());
+  }
+
+  @Test
+  public void testDuplicateTableIdentifiersAreExpiredOnce() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "dup_ids_" + System.nanoTime());
+    Table table = ExpireSnapshotsTestFixtures.createTableWithOverwrites(warehouse, tableId);
+
+    List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
+    long cutoff = snapshots.get(2).timestampMillis();
+    ExpireSnapshots.Configuration config =
+        ExpireSnapshots.Configuration.builder().setExpireOlderThan(cutoff).setRetainLast(1).build();
+
+    PCollection<ExpireSnapshotsResult> result =
+        pipeline
+            .apply(Create.of(tableId.toString(), tableId.toString(), tableId.toString()))
+            .apply(ExpireSnapshots.create(getCatalogConfig(), config));
+
+    PAssert.that(result)
+        .satisfies(
+            results -> {
+              ExpireSnapshotsResult r = results.iterator().next();
+              assertEquals(2L, r.getExpiredSnapshotsCount());
+              assertEquals(1L, r.getDeletedDataFilesCount());
+              return null;
+            });
+
+    pipeline.run();
+
+    table.refresh();
+    assertEquals(1, Lists.newArrayList(table.snapshots()).size());
+  }
+
+  @Test
+  public void testCleanExpiredMetadataReadsManifestsOfRemovedSpecs() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "removed_spec_" + System.nanoTime());
+    Table table =
+        warehouse.createTable(
+            tableId,
+            TestFixtures.SCHEMA,
+            PartitionSpec.unpartitioned(),
+            ImmutableMap.of(TableProperties.FORMAT_VERSION, "2"));
+
+    // S1: File A under the unpartitioned spec (spec 0)
+    DataFile fileA =
+        warehouse.writeRecords(
+            "file_a_" + System.nanoTime() + ".parquet",
+            table.schema(),
+            Collections.singletonList(ExpireSnapshotsTestFixtures.createRecord(0L, "a")));
+    table.newAppend().appendFile(fileA).commit();
+    table.refresh();
+    int originalSpecId = table.spec().specId();
+
+    // Evolve to a partitioned spec (spec 1)
+    table.updateSpec().addField("data").commit();
+    table.refresh();
+    PartitionSpec newSpec = table.spec();
+
+    // S2: Delete File A
+    ExpireSnapshotsTestFixtures.waitUntilAfter(table.currentSnapshot().timestampMillis());
+    table.newDelete().deleteFile(fileA).commit();
+    table.refresh();
+
+    // S3: File B under the partitioned spec
+    Record recordB = ExpireSnapshotsTestFixtures.createRecord(1L, "b");
+    PartitionKey partitionKey = new PartitionKey(newSpec, table.schema());
+    partitionKey.partition(recordB);
+    DataFile fileB =
+        warehouse.writeRecords(
+            "file_b_" + System.nanoTime() + ".parquet",
+            table.schema(),
+            newSpec,
+            partitionKey,
+            Collections.singletonList(recordB));
+    ExpireSnapshotsTestFixtures.waitUntilAfter(table.currentSnapshot().timestampMillis());
+    table.newAppend().appendFile(fileB).commit();
+    table.refresh();
+
+    String fileAPath = fileA.path().toString();
+    String fileBPath = fileB.path().toString();
+    List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
+    assertEquals(3, snapshots.size());
+    long cutoff = snapshots.get(2).timestampMillis();
+
+    ExpireSnapshots.Configuration config =
+        ExpireSnapshots.Configuration.builder()
+            .setExpireOlderThan(cutoff)
+            .setRetainLast(1)
+            .setCleanExpiredMetadata(true)
             .build();
 
     PCollection<ExpireSnapshotsResult> result =
@@ -321,8 +465,24 @@ public class ExpireSnapshotsTest {
 
     pipeline.run();
 
-    // Files must still physically exist on storage after dry run!
-    assertTrue("File A must still exist after dry run", fileExists(fileAPath));
+    table.refresh();
+    assertFalse(
+        "Original spec must have been removed by expired metadata cleanup",
+        table.specs().containsKey(originalSpecId));
+    assertFalse("File A must be deleted", fileExists(fileAPath));
+    assertTrue("File B must be preserved", fileExists(fileBPath));
+  }
+
+  @Test
+  public void testDisplayData() {
+    ExpireSnapshots.Configuration config =
+        ExpireSnapshots.Configuration.builder().setExpireOlderThan(1234L).build();
+    DisplayData displayData = DisplayData.from(ExpireSnapshots.create(getCatalogConfig(), config));
+
+    assertThat(displayData, hasDisplayItem("expireOlderThan", 1234L));
+    assertThat(displayData, hasDisplayItem("cleanFiles", true));
+    assertThat(displayData, hasDisplayItem("deleteBatchSize", 10_000));
+    assertThat(displayData, not(hasDisplayItem("retainLast")));
   }
 
   @Test
