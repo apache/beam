@@ -89,7 +89,7 @@ abstract class FlinkMetricContainerBase {
    * Update Flink's internal metrics ({@link this#flinkCounterCache}) with the latest metrics for a
    * given step.
    */
-  void updateMetrics(String stepName) {
+  public void updateMetrics(String stepName) {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainers);
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());

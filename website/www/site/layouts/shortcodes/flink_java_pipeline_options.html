@@ -188,6 +188,11 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>sortedBatchCombine</code></td>
+  <td>Batch only. Use a dedicated operator for the final step of GroupByKey and Combine in the global window with the default trigger. It relies on Flink sorting the input by key and does not use keyed state or timers. Has no effect in streaming mode. Enabled by default; set to false to disable.</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
   <td><code>sourceStaticSplitThresholdMb</code></td>
   <td>Static split assignment threshold in MiB per source reader for bounded sources in Flink DataStream mode. The default of 0 always uses lazy assignment. A positive value selects static round-robin assignment for sources with a known, positive estimate below the threshold and lazy assignment otherwise. Any negative value always uses static assignment.</td>
   <td>Default: <code>0</code></td>
