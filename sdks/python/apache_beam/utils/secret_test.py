@@ -59,6 +59,18 @@ class SecretTest(unittest.TestCase):
       param(
           secret_string='type:awssecreT;name:my_aws_secret;version:v1',
           secret=AwsSecret('my_aws_secret', version_id='v1')),
+      param(
+          secret_string=(
+              'type:AwsSecret;'
+              'name:arn:aws:secretsmanager:us-east-1:123:secret:my-secret'),
+          secret=AwsSecret(
+              'arn:aws:secretsmanager:us-east-1:123:secret:my-secret')),
+      param(
+          secret_string=(
+              'type:AwsSecret;name:my_aws_secret;'
+              'endpoint_url:http://localhost:4566;'),
+          secret=AwsSecret(
+              'my_aws_secret', endpoint_url='http://localhost:4566')),
   ])
   def test_secret_manager_parses_correctly(self, secret_string, secret):
     self.assertEqual(secret, Secret.parse_secret_option(secret_string))
@@ -73,6 +85,9 @@ class SecretTest(unittest.TestCase):
       param(
           secret_string='type:gcpsecreT;version_name:foo;extra:val',
           exception_str='Invalid secret parameter extra'),
+      param(
+          secret_string='type:gcpsecreT;version_name:foo;extra',
+          exception_str="Invalid secret parameter 'extra'"),
       param(
           secret_string='type:awssecreT',
           exception_str='Secret ID or name must be specified in secret spec'),
