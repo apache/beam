@@ -299,6 +299,12 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
     return _PollWatermarkEstimator(estimator_state)
 
 
+def _quote_identifier(name: str) -> str:
+  if '`' in name:
+    raise ValueError(f'Invalid column name (contains backtick): {name!r}')
+  return f'`{name}`'
+
+
 def build_changes_query(
     table: str,
     start: Timestamp,
@@ -334,12 +340,18 @@ def build_changes_query(
   # destination tables with their original names. Rename them so they can
   # be persisted to the temp table for Storage Read API reading.
   pseudo = (
-      f"_CHANGE_TYPE AS {change_type_column}, "
-      f"_CHANGE_TIMESTAMP AS {change_timestamp_column}")
+      f"_CHANGE_TYPE AS {_quote_identifier(change_type_column)}, "
+      f"_CHANGE_TIMESTAMP AS {_quote_identifier(change_timestamp_column)}")
   if columns is None:
-    select = f"SELECT * EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP), {pseudo}"
+    hidden = "_CHANGE_TYPE, _CHANGE_TIMESTAMP"
+    if change_function == 'CHANGES':
+      hidden += ", _CHANGE_IS_FOR_UPDATE"
+    select = f"SELECT * EXCEPT({hidden}), {pseudo}"
+  elif columns:
+    quoted = ', '.join(_quote_identifier(c) for c in columns)
+    select = f"SELECT {quoted}, {pseudo}"
   else:
-    select = f"SELECT {', '.join(columns)}, {pseudo}"
+    select = f"SELECT {pseudo}"
   from_clause = (
       f"FROM {change_function}"
       f"(TABLE `{table}`, "
@@ -499,8 +511,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       self,
       start_ts: Timestamp,
       end_ts: Timestamp,
-      watermark_estimator: _PollWatermarkEstimator
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
+      watermark_estimator: _PollWatermarkEstimator):
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(
@@ -527,9 +538,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       _: _PollConfig,
       restriction_tracker=beam.DoFn.RestrictionParam(),
       watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
-          _PollWatermarkEstimatorProvider())
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
-
+          _PollWatermarkEstimatorProvider())):
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()
 
@@ -1041,10 +1050,7 @@ class _DecompressArrowBatchesFn(beam.DoFn):
   def __init__(self, change_timestamp_column: str = 'change_timestamp') -> None:
     self._change_timestamp_column = change_timestamp_column
 
-  def process(
-      self,
-      element: tuple[bytes,
-                     bytes]) -> Iterable[TimestampedValue[dict[str, Any]]]:
+  def process(self, element: tuple[bytes, bytes]):
     schema_bytes, batch_bytes = element
     schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
     batch = pyarrow.ipc.read_record_batch(
@@ -1294,20 +1300,22 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     # [start_time, now - buffer) in a single poll.
     config = _PollConfig(start_time=start_time)
 
+    poll = beam.ParDo(
+        _PollChangeHistoryFn(
+            table=self._table,
+            project=project,
+            change_function=self._change_function,
+            buffer=buffer,
+            start_time=start_time,
+            stop_time=stop_time,
+            poll_interval=poll_interval,
+            location=self._location,
+            quota_project_id=quota_project_id)).with_output_types(_QueryRange)
+
     query_ranges = (
         pbegin
         | 'CreatePollConfig' >> beam.Create([config])
-        | 'PollChangeHistory' >> beam.ParDo(
-            _PollChangeHistoryFn(
-                table=self._table,
-                project=project,
-                change_function=self._change_function,
-                buffer=buffer,
-                start_time=start_time,
-                stop_time=stop_time,
-                poll_interval=poll_interval,
-                location=self._location,
-                quota_project_id=quota_project_id)))
+        | 'PollChangeHistory' >> poll)
 
     # CommitQueryResults: Reshuffle commits _QueryResult (temp table ref)
     # so that if the Read SDF retries, it re-reads the existing temp table
@@ -1359,12 +1367,13 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     if emit_raw:
       # Reshuffle raw Arrow batches for fan-out, then decompress and
       # convert to timestamped row dicts in a separate DoFn.
+      decompress_fn = _DecompressArrowBatchesFn(
+          change_timestamp_column=self._change_timestamp_column)
+      decompress = beam.ParDo(decompress_fn).with_output_types(dict[str, Any])
       rows = (
           read_outputs['rows']
           | 'ReshuffleForFanout' >> beam.Reshuffle()
-          | 'DecompressBatches' >> beam.ParDo(
-              _DecompressArrowBatchesFn(
-                  change_timestamp_column=(self._change_timestamp_column))))
+          | 'DecompressBatches' >> decompress)
       return rows
     else:
       return read_outputs['rows']
