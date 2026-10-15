@@ -431,15 +431,11 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       num_retries: the maximum number of times to retry a request on retriable
         errors before failing
       throttle_delay_secs: the amount of time to throttle when the client-side
-        elects to throttle. A throttled request is delayed once by this amount
-        and then sent.
+        elects to throttle
       retry_filter: a function accepting an exception as an argument and
         returning a boolean. On a true return, the run_inference call will
         be retried. Defaults to always retrying.
       window_ms: length of history to consider, in ms, to set throttling.
-        Should be much larger than throttle_delay_secs and the retry backoff,
-        otherwise failures expire from the history before they can influence
-        throttling.
       bucket_ms: granularity of time buckets that we store data in, in ms.
       overload_ratio: the target ratio between requests sent and successful
         requests. This is "K" in the formula in

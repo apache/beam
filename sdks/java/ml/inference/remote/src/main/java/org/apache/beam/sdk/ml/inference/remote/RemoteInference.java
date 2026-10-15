@@ -143,9 +143,7 @@ public class RemoteInference {
 
     /**
      * Configures the length of history to consider when setting throttling probability. Defaults to
-     * a sample period of 120000ms. Should be much larger than the throttle delay and the retry
-     * backoff, otherwise failures expire from the history before they can influence throttling. For
-     * more context, see {@link AdaptiveThrottler}
+     * a sample period of 120000ms. For more context, see {@link AdaptiveThrottler}
      */
     public Invoke<InputT, OutputT> withSamplePeriodMs(long samplePeriodMs) {
       checkArgument(samplePeriodMs > 0, "samplePeriodMs must be positive");
