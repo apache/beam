@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.FIELD_ID_ERROR;
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.NOT_PARQUET_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.PREFIX_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.UNKNOWN_PARTITION_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.getPartitionFromMetrics;
@@ -448,6 +449,105 @@ public class AddFilesTest {
                 .build());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** Hive names its output files like {@code 000000_0}, with no extension. */
+  @Test
+  public void testExtensionlessParquetFileRegisters() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String file = root + "000000_0";
+    DataWriter<Record> writer = createWriter(file);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    List<DataFile> registered = new ArrayList<>();
+    for (FileScanTask task : catalog.loadTable(tableId).newScan().planFiles()) {
+      registered.add(task.file());
+    }
+    assertEquals(1, registered.size());
+    assertEquals(file, registered.get(0).location());
+    assertEquals(FileFormat.PARQUET, registered.get(0).format());
+    assertEquals(1L, registered.get(0).recordCount());
+  }
+
+  /**
+   * A _SUCCESS marker has no extension either. It must become an error row rather than seed the
+   * missing table, where a failed footer read would fail the job.
+   */
+  @Test
+  public void testExtensionlessFileThatIsNotParquetIsAnErrorRow() throws Exception {
+    File marker = temp.newFile("_SUCCESS");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(marker.getAbsolutePath()))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    assertNotParquetErrorFor(output, marker.getAbsolutePath());
+
+    pipeline.run().waitUntilFinish();
+
+    assertFalse("the marker must not create the table", catalog.tableExists(tableId));
+  }
+
+  @Test
+  public void testMissingTableIsCreatedFromAnExtensionlessFile() throws Exception {
+    String file = writeWithoutFieldIds("000000_0", icebergSchema, record(1, "a", 1));
+    File marker = temp.newFile("_SUCCESS");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file, marker.getAbsolutePath()))
+            .apply(addFiles(ADDITIONS));
+    assertNotParquetErrorFor(output, marker.getAbsolutePath());
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(Arrays.asList("id=1 name=a age=1"), readRows("id", "name", "age"));
+    assertEquals(
+        "the marker is an unknown format, not a footer that failed to read",
+        0,
+        counted(result, ReadFooterSchema.class, ReadFooterSchema.FOOTER_READ_ERRORS_COUNTER));
+  }
+
+  /** Only a name with no extension is left to its contents; inferFormat stays strict. */
+  @Test
+  public void testOnlyAnExtensionlessNameIsReadForItsFormat() {
+    assertTrue(AddFiles.hasNoExtension("gs://b/wh/sales.db/orders/000000_0"));
+    assertTrue(AddFiles.hasNoExtension("gs://b/t/part-00000-1a2b3c-c000"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/data.txt"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/.hidden"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/"));
+    assertEquals(FileFormat.PARQUET, AddFiles.inferFormat("gs://b/t/data.PARQUET"));
+    assertEquals(FileFormat.ORC, AddFiles.inferFormat("gs://b/t/data.orc"));
+    assertThrows(
+        AddFiles.UnknownFormatException.class, () -> AddFiles.inferFormat("gs://b/t/000000_0"));
+    assertThrows(
+        AddFiles.UnknownFormatException.class, () -> AddFiles.inferFormat("gs://b/t/data.txt"));
+  }
+
+  private static void assertNotParquetErrorFor(PCollectionRowTuple output, String file) {
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              String error = String.valueOf(row.getString("error"));
+              assertEquals(file, row.getString("file"));
+              assertTrue(error, error.startsWith(NOT_PARQUET_ERROR));
+              return null;
+            });
   }
 
   @Test
