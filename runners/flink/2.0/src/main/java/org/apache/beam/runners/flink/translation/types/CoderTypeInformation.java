@@ -85,7 +85,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public TypeSerializer<T> createSerializer(SerializerConfig config) {
-    return new CoderTypeSerializer<>(coder, pipelineOptions);
+    return CoderTypeSerializer.forTypeInformation(coder, pipelineOptions);
   }
 
   @Override
