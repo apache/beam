@@ -483,11 +483,6 @@ class BeamModulePlugin implements Plugin<Project> {
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
    * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
-   *
-   * Note: `--release X` is intentionally replaced with `-source X -target X`. When javac is forked with a
-   * different javaHome, Error Prone's `--add-exports=jdk.compiler/...` flags end up passed to javac as compiler
-   * args, and javac rejects exporting packages from system modules when `--release` is set
-   * (see https://github.com/apache/beam/pull/28291).
    */
   static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
     boolean foundS = false, foundT = false
