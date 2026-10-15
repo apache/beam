@@ -105,6 +105,9 @@ class Secret(abc.ABC):
     The secret string should be formatted like:
     'type:<secret_type>;<secret_param>:<value>'
 
+    Only the first ':' of each parameter separates the name from the value, so
+    values may contain ':' (e.g. ARNs or URLs), but not ';'.
+
     For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
     would return a GcpSecret initialized with 'my_secret/versions/latest'.
 
@@ -115,9 +118,14 @@ class Secret(abc.ABC):
     """
     param_map = {}
     for param in secret.split(';'):
-      parts = param.split(':')
-      if len(parts) == 2:
-        param_map[parts[0]] = parts[1]
+      if not param:
+        continue
+      if ':' not in param:
+        raise ValueError(
+            f"Invalid secret parameter '{param}', expected "
+            "'<secret_param>:<value>'")
+      key, value = param.split(':', 1)
+      param_map[key] = value
 
     if 'type' not in param_map:
       raise ValueError('Secret string must contain a valid type parameter')
