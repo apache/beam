@@ -796,6 +796,15 @@ class DeferredFrameTest(_AbstractFrameTest):
             value_counts(dropna=dropna, normalize=normalize),
             df)
 
+  def test_series_value_counts_with_bins(self):
+    s = pd.Series([1, 2, 2, 3, 5, 8, 8, 9, np.nan])
+
+    self._run_test(lambda s: s.value_counts(bins=3), s, nonparallel=True)
+    self._run_test(
+        lambda s: s.value_counts(bins=3, normalize=True), s, nonparallel=True)
+    self._run_test(
+        lambda s: s.value_counts(bins=[0, 5, 10]), s, nonparallel=True)
+
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
         'num_legs': [2, 4, 4, 6, np.nan, np.nan],
@@ -2180,6 +2189,12 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda s: s.agg(['sum', 'mean']), s)
     self._run_test(lambda s: s.agg(['mean']), s)
     self._run_test(lambda s: s.agg('mean'), s)
+
+  def test_series_agg_list_keeps_name(self):
+    s = pd.Series(list(range(16)), name='x')
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['std', 'var']), s)
 
   def test_dataframe_agg_modes(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
