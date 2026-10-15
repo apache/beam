@@ -49,6 +49,22 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private final boolean fasterCopy;
 
+  /**
+   * Creates the serializer to use for a {@link CoderTypeInformation}: a {@link
+   * LengthPrefixedCoderTypeSerializer} in batch mode when {@link
+   * FlinkPipelineOptions#getLengthPrefixBatchRecords()} is set, a {@link CoderTypeSerializer}
+   * otherwise.
+   */
+  public static <T> CoderTypeSerializer<T> forTypeInformation(
+      Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
+    FlinkPipelineOptions options =
+        Preconditions.checkNotNull(pipelineOptions).get().as(FlinkPipelineOptions.class);
+    if (!options.isStreaming() && options.getLengthPrefixBatchRecords()) {
+      return new LengthPrefixedCoderTypeSerializer<>(coder, options.getFasterCopy());
+    }
+    return new CoderTypeSerializer<>(coder, options.getFasterCopy());
+  }
+
   public CoderTypeSerializer(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
     this(
         coder,
@@ -142,7 +158,12 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     }
 
     CoderTypeSerializer that = (CoderTypeSerializer) o;
-    return coder.equals(that.coder);
+    return isLengthPrefixed() == that.isLengthPrefixed() && coder.equals(that.coder);
+  }
+
+  /** Whether serialized records carry a length prefix, i.e. use a different binary format. */
+  boolean isLengthPrefixed() {
+    return false;
   }
 
   @Override

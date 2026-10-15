@@ -103,6 +103,7 @@
 
 * Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
 * Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Flink runner: the batch-only `--lengthPrefixBatchRecords` option is enabled by default (disable it with `--lengthPrefixBatchRecords=false`). Each record is prefixed with its encoded length, so Flink's sorter can spill records to disk without decoding and re-encoding them ([#X](https://github.com/apache/beam/issues/X)).
 * (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 
 ## Breaking Changes
