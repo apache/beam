@@ -2395,6 +2395,105 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
       assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
 
 
+class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):
+  """Predicts the lengths of the examples in the batch of each example."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    lengths = tuple(len(example) for example in batch)
+    return [lengths] * len(batch)
+
+
+class RunInferenceWeightedBatchingTest(unittest.TestCase):
+  """End-to-end tests for max_batch_weight and element_size_fn."""
+  def _handler(self, **kwargs):
+    # At most 2 examples of length 4 fit within max_batch_weight.
+    return BatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len,
+        **kwargs)
+
+  def test_max_batch_weight(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6, reshuffle=False)
+          | base.RunInference(self._handler()))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_max_batch_weight_with_max_batch_duration_secs(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6)
+          | base.RunInference(self._handler(max_batch_duration_secs=60)))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_keyed_model_handler_sizes_examples(self):
+    # element_size_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create([(i, 'aaaa') for i in range(6)], reshuffle=False)
+          | base.RunInference(handler)
+          | beam.Values())
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_maybe_keyed_model_handler_sizes_examples(self):
+    handler = base.MaybeKeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      keyed = (
+          p
+          | 'CreateKeyed' >> beam.Create([(i, 'aaaa') for i in range(6)],
+                                         reshuffle=False)
+          | 'RunInferenceKeyed' >> base.RunInference(handler)
+          | beam.Values())
+      assert_that(keyed, equal_to([(4, 4)] * 6), label='CheckKeyed')
+      unkeyed = (
+          p
+          | 'CreateUnkeyed' >> beam.Create(['aaaa'] * 6, reshuffle=False)
+          | 'RunInferenceUnkeyed' >> base.RunInference(handler))
+      assert_that(unkeyed, equal_to([(4, 4)] * 6), label='CheckUnkeyed')
+
+  def test_keyed_model_handler_buckets_examples(self):
+    # batch_length_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(
+        PaddingReportingStringModelHandler(
+            min_batch_size=2,
+            max_batch_size=2,
+            max_batch_duration_secs=60,
+            batch_length_fn=len,
+            batch_bucket_boundaries=[5]))
+    examples = [('k1', 'a'), ('k2', 'cccccc'), ('k3', 'bb'), ('k4', 'ddddddd')]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([('k1', 'a:2'), ('k2', 'cccccc:7'), ('k3', 'bb:2'),
+                    ('k4', 'ddddddd:7')]))
+
+  def test_keyed_batch_elements_kwargs(self):
+    unkeyed = FakeModelHandlerForBatching(
+        min_batch_size=2, element_size_fn=len, batch_length_fn=len)
+    keyed_kwargs = base.KeyedModelHandler(unkeyed).batch_elements_kwargs()
+    self.assertEqual(keyed_kwargs['min_batch_size'], 2)
+    self.assertEqual(keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(keyed_kwargs['length_fn'](('key', 'abc')), 3)
+    maybe_keyed_kwargs = base.MaybeKeyedModelHandler(
+        unkeyed).batch_elements_kwargs()
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn']('abc'), 3)
+    # The kwargs of the unkeyed ModelHandler are unchanged.
+    self.assertIs(unkeyed.batch_elements_kwargs()['element_size_fn'], len)
+
+
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def load_model(self):
     return FakeModel()

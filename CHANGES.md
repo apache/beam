@@ -111,6 +111,7 @@
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
 * (Python) Setting `max_batch_weight` on a RunInference `ModelHandler` no longer fails with a `TypeError`: `BatchElements` now supports `max_batch_weight`, which limits the total `element_size_fn` of a batch in addition to its number of elements ([#ISSUE](https://github.com/apache/beam/issues/ISSUE)).
 * (Python) `BatchElements` now honors `element_size_fn` when `max_batch_duration_secs` is set, and no longer emits an empty batch before an element that exceeds the batch size on its own ([#ISSUE](https://github.com/apache/beam/issues/ISSUE)).
+* (Python) `KeyedModelHandler` and `MaybeKeyedModelHandler` now apply the `element_size_fn` and `batch_length_fn` of the wrapped `ModelHandler` to examples, instead of to `(key, example)` pairs ([#ISSUE](https://github.com/apache/beam/issues/ISSUE)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
