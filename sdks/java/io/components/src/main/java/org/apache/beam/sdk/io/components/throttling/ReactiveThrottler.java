@@ -28,9 +28,12 @@ import org.slf4j.LoggerFactory;
  * <p>For usage, instantiate one instance of a ReactiveThrottler class for a PTransform. When making
  * remote calls to a service, preface that call with the throttle() method to potentially
  * pre-emptively throttle the request. This will throttle future calls based on the failure rate of
- * preceding calls, with higher failure rates leading to longer periods of throttling to allow
- * system recovery. capture the timestamp of the attempted request, then execute the request code.
- * On a success, call successfulRequest(timestamp) to report the success to the throttler.
+ * preceding calls, with higher failure rates making it more likely that a call is delayed, to allow
+ * system recovery. A throttled call is delayed once by throttleDelaySecs and then proceeds; it is
+ * never dropped. Call throttle() exactly once per attempt (including retries), since each call is
+ * recorded as one request attempt. Then capture the timestamp of the attempted request and execute
+ * the request code. On a success, call successfulRequest(timestamp) to report the success to the
+ * throttler; attempts that are not reported as successful count as failures.
  */
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
@@ -70,10 +73,13 @@ public class ReactiveThrottler extends AdaptiveThrottler {
   }
 
   /**
-   * Stops request code from advancing while the underlying AdaptiveThrottler is signaling to
-   * preemptively throttle the request. Automatically handles logging the throttling and signaling
-   * to the SDK harness that the request is being throttled. This should be called in any context
-   * where a call to a remote service is being contacted prior to the call being performed.
+   * Delays the request by throttleDelaySecs if the underlying AdaptiveThrottler elects to
+   * preemptively throttle it, based on the failure rate of recent requests. Automatically handles
+   * logging the throttling and signaling to the SDK harness that the request is being throttled.
+   *
+   * <p>This should be called once for each attempt to contact a remote service (including
+   * retries), prior to the call being performed. Each call is recorded as one request attempt, and
+   * delays the request at most once.
    */
   public void throttle() throws InterruptedException {
     if (throttleRequest(System.currentTimeMillis())) {

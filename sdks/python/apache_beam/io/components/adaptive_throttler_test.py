@@ -19,9 +19,11 @@
 
 import unittest
 
+from mock import MagicMock
 from mock import patch
 
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.components.adaptive_throttler import ReactiveThrottler
 
 
 class AdaptiveThrottlerTest(unittest.TestCase):
@@ -103,6 +105,61 @@ class AdaptiveThrottlerTest(unittest.TestCase):
         # Given the mocked random numbers, we expect 10..13 to be throttled and
         # 14+ to be unthrottled.
         self.assertEqual(t < AdaptiveThrottlerTest.START_TIME + 14, throttled)
+
+
+class ReactiveThrottlerTest(unittest.TestCase):
+
+  START_TIME_SECS = 1500000000
+  THROTTLE_DELAY_SECS = 5
+
+  def setUp(self):
+    self._throttler = ReactiveThrottler(
+        window_ms=60000,
+        bucket_ms=1000,
+        overload_ratio=2,
+        namespace='ReactiveThrottlerTest',
+        throttle_delay_secs=ReactiveThrottlerTest.THROTTLE_DELAY_SECS)
+    self._mock_signaler = MagicMock()
+    self._throttler.throttling_signaler = self._mock_signaler
+    sleep_patcher = patch(
+        'apache_beam.io.components.adaptive_throttler.time.sleep')
+    self._mock_sleep = sleep_patcher.start()
+    self.addCleanup(sleep_patcher.stop)
+
+  def test_throttle_does_not_delay_unthrottled_request(self):
+    with patch.object(self._throttler, 'throttle_request', return_value=False):
+      self._throttler.throttle()
+    self._mock_sleep.assert_not_called()
+    self._mock_signaler.signal_throttled.assert_not_called()
+
+  def test_throttle_delays_throttled_request_once(self):
+    with patch.object(self._throttler,
+                      'throttle_request',
+                      side_effect=[True, False]) as mock_throttle_request:
+      self._throttler.throttle()
+    mock_throttle_request.assert_called_once()
+    self._mock_sleep.assert_called_once_with(
+        ReactiveThrottlerTest.THROTTLE_DELAY_SECS)
+    self._mock_signaler.signal_throttled.assert_called_once_with(
+        ReactiveThrottlerTest.THROTTLE_DELAY_SECS)
+
+  def test_throttle_records_one_request_per_call(self):
+    # Throttle whenever the throttling probability is positive. The finite
+    # side_effect makes an implementation that re-checks after the delay fail
+    # fast instead of looping forever.
+    self._throttler._random = MagicMock()
+    self._throttler._random.uniform.side_effect = [0.0] * 3
+    with patch('apache_beam.io.components.adaptive_throttler.time.time',
+               return_value=ReactiveThrottlerTest.START_TIME_SECS):
+      # None of the requests succeed, i.e. successful_request() is not called.
+      for _ in range(3):
+        self._throttler.throttle()
+
+    now_ms = ReactiveThrottlerTest.START_TIME_SECS * 1000
+    self.assertEqual(3, self._throttler._all_requests.sum(now_ms))
+    self.assertEqual(0.75, self._throttler._throttling_probability(now_ms))
+    # The first request has no history to be throttled on.
+    self.assertEqual(2, self._mock_sleep.call_count)
 
 
 if __name__ == '__main__':

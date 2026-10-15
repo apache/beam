@@ -98,6 +98,11 @@ class AdaptiveThrottler(object):
     it returns true, drop or delay that request (calling this function again
     after the delay).
 
+    Every call is recorded as one request attempt, including calls that return
+    True: requests rejected locally by the client still
+    count towards "requests". A caller that re-checks a delayed request
+    therefore records an additional attempt on every check.
+
     Args:
       now: int, time in ms since the epoch
     Returns:
@@ -127,16 +132,21 @@ class ReactiveThrottler(AdaptiveThrottler):
   PTransform. When making remote calls to a service, preface that call with
   the throttle() method to potentially pre-emptively throttle the request.
   This will throttle future calls based on the failure rate of preceding calls,
-  with higher failure rates leading to longer periods of throttling to allow
-  system recovery. capture the timestamp of the attempted request, then execute
-  the request code. On a success, call successful_request(timestamp) to report
-  the success to the throttler. This flow looks like the following:
+  with higher failure rates making it more likely that a call is delayed, to
+  allow system recovery. A throttled call is delayed once by
+  throttle_delay_secs and then proceeds; it is never dropped. Call throttle()
+  once per attempt (including retries), since each call is recorded as
+  one request attempt. Then capture the timestamp of the attempted request (in
+  milliseconds since the epoch) and execute the request code. On a success,
+  call successful_request(timestamp) to report the success to the throttler;
+  attempts that are not reported as successful count as failures. This flow
+  looks like the following:
   
   def remote_call():
     throttler.throttle()
 
     try:
-      timestamp = time.time()
+      timestamp = time.time() * 1000
       result = make_request()
       throttler.successful_request(timestamp)
       return result
@@ -155,7 +165,9 @@ class ReactiveThrottler(AdaptiveThrottler):
 
     Args:
       window_ms: int, length of history to consider, in ms, to set
-        throttling.
+        throttling. Should be much larger than throttle_delay_secs and any
+        retry backoff between attempts, otherwise failures expire from the
+        history before they can influence throttling.
       bucket_ms: int, granularity of time buckets that we store data in, in
         ms.
       overload_ratio: float, the target ratio between requests sent and
@@ -163,8 +175,8 @@ class ReactiveThrottler(AdaptiveThrottler):
         https://landing.google.com/sre/book/chapters/handling-overload.html.
       namespace: str, the namespace to use for logging and signaling
         throttling is occurring
-      throttle_delay_secs: int, the amount of time in seconds to wait
-        after preemptively throttled requests
+      throttle_delay_secs: int, the amount of time in seconds to delay a
+        request that is preemptively throttled
     """
     self.throttling_signaler = ThrottlingSignaler(namespace=namespace)
     self.logger = logging.getLogger(namespace)
@@ -173,14 +185,16 @@ class ReactiveThrottler(AdaptiveThrottler):
         window_ms=window_ms, bucket_ms=bucket_ms, overload_ratio=overload_ratio)
 
   def throttle(self):
-    """ Stops request code from advancing while the underlying
-    AdaptiveThrottler is signaling to preemptively throttle the request.
-    Automatically handles logging the throttling and signaling to the SDK
-    harness that the request is being throttled. This should be called in any
-    context where a call to a remote service is being contacted prior to the
-    call being performed.
+    """ Delays the request by throttle_delay_secs if the underlying
+    AdaptiveThrottler elects to preemptively throttle it, based on the failure
+    rate of recent requests. Automatically handles logging the throttling and
+    signaling to the SDK harness that the request is being throttled.
+
+    This should be called once for each attempt to contact a remote
+    service (including retries), prior to the call being performed. Each call
+    is recorded as one request attempt, and delays the request at most once.
     """
-    while self.throttle_request(time.time() * _SECONDS_TO_MILLISECONDS):
+    if self.throttle_request(time.time() * _SECONDS_TO_MILLISECONDS):
       self.logger.info(
           "Delaying request for %d seconds due to previous failures",
           self.throttle_delay_secs)

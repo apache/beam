@@ -1989,7 +1989,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
     super().__init__(
         namespace='FakeRemoteModelHandler',
         retry_filter=retry_filter,
-        num_retries=2,
+        num_retries=1,
         throttle_delay_secs=1)
 
   def create_client(self):
