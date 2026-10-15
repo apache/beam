@@ -121,6 +121,8 @@
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) `ConcatSource` no longer raises `ZeroDivisionError` when every source bundle reports a weight of 0, e.g. bundles smaller than 1 MB ([#21316](https://github.com/apache/beam/issues/21316)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
+* (Python) Setting `max_batch_weight` on a RunInference `ModelHandler` no longer fails with a `TypeError`: `BatchElements` now supports `max_batch_weight`, which limits the total `element_size_fn` of a batch in addition to its number of elements ([#ISSUE](https://github.com/apache/beam/issues/ISSUE)).
+* (Python) `BatchElements` now honors `element_size_fn` when `max_batch_duration_secs` is set, and no longer emits an empty batch before an element that exceeds the batch size on its own ([#ISSUE](https://github.com/apache/beam/issues/ISSUE)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
