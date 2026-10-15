@@ -23,8 +23,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.SchemaParser;
+import org.apache.iceberg.util.ByteBuffers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -48,6 +53,11 @@ public class ManifestFileBean implements ManifestFile, Serializable {
   private final long sequenceNumber;
   private final long minSequenceNumber;
   private final boolean valid;
+  private final byte @Nullable [] keyMetadata;
+  private final @Nullable String partitionSpecJson;
+  private final @Nullable String partitionSchemaJson;
+
+  private transient @Nullable PartitionSpec cachedPartitionSpec;
 
   public ManifestFileBean(
       String path,
@@ -88,6 +98,44 @@ public class ManifestFileBean implements ManifestFile, Serializable {
       long sequenceNumber,
       long minSequenceNumber,
       boolean valid) {
+    this(
+        path,
+        length,
+        partitionSpecId,
+        content,
+        snapshotId,
+        addedFilesCount,
+        addedRowsCount,
+        existingFilesCount,
+        existingRowsCount,
+        deletedFilesCount,
+        deletedRowsCount,
+        sequenceNumber,
+        minSequenceNumber,
+        valid,
+        null,
+        null,
+        null);
+  }
+
+  private ManifestFileBean(
+      String path,
+      long length,
+      int partitionSpecId,
+      ManifestContent content,
+      @Nullable Long snapshotId,
+      @Nullable Integer addedFilesCount,
+      @Nullable Long addedRowsCount,
+      @Nullable Integer existingFilesCount,
+      @Nullable Long existingRowsCount,
+      @Nullable Integer deletedFilesCount,
+      @Nullable Long deletedRowsCount,
+      long sequenceNumber,
+      long minSequenceNumber,
+      boolean valid,
+      byte @Nullable [] keyMetadata,
+      @Nullable String partitionSpecJson,
+      @Nullable String partitionSchemaJson) {
     this.path = path;
     this.length = length;
     this.partitionSpecId = partitionSpecId;
@@ -102,9 +150,13 @@ public class ManifestFileBean implements ManifestFile, Serializable {
     this.sequenceNumber = sequenceNumber;
     this.minSequenceNumber = minSequenceNumber;
     this.valid = valid;
+    this.keyMetadata = keyMetadata;
+    this.partitionSpecJson = partitionSpecJson;
+    this.partitionSchemaJson = partitionSchemaJson;
   }
 
   public static ManifestFileBean fromManifestFile(ManifestFile manifest, boolean valid) {
+    ByteBuffer manifestKeyMetadata = manifest.keyMetadata();
     return new ManifestFileBean(
         manifest.path(),
         manifest.length(),
@@ -119,7 +171,54 @@ public class ManifestFileBean implements ManifestFile, Serializable {
         manifest.deletedRowsCount(),
         manifest.sequenceNumber(),
         manifest.minSequenceNumber(),
-        valid);
+        valid,
+        manifestKeyMetadata != null ? ByteBuffers.toByteArray(manifestKeyMetadata) : null,
+        null,
+        null);
+  }
+
+  /**
+   * Returns a copy of this bean that carries the given partition spec. Used for manifests whose
+   * spec may no longer be present in the table metadata (e.g. after expired metadata cleanup), so
+   * that the manifest can still be read on workers.
+   */
+  public ManifestFileBean withPartitionSpec(PartitionSpec spec) {
+    Preconditions.checkArgument(
+        spec.specId() == partitionSpecId,
+        "Partition spec id %s does not match manifest spec id %s",
+        spec.specId(),
+        partitionSpecId);
+    return new ManifestFileBean(
+        path,
+        length,
+        partitionSpecId,
+        content,
+        snapshotId,
+        addedFilesCount,
+        addedRowsCount,
+        existingFilesCount,
+        existingRowsCount,
+        deletedFilesCount,
+        deletedRowsCount,
+        sequenceNumber,
+        minSequenceNumber,
+        valid,
+        keyMetadata,
+        PartitionSpecParser.toJson(spec),
+        SchemaParser.toJson(spec.schema()));
+  }
+
+  /**
+   * Returns the partition spec carried by this bean, or {@code null} if none was attached via
+   * {@link #withPartitionSpec(PartitionSpec)}.
+   */
+  public @Nullable PartitionSpec partitionSpec() {
+    if (cachedPartitionSpec == null && partitionSpecJson != null && partitionSchemaJson != null) {
+      cachedPartitionSpec =
+          PartitionSpecParser.fromJson(
+              SchemaParser.fromJson(partitionSchemaJson), partitionSpecJson);
+    }
+    return cachedPartitionSpec;
   }
 
   public boolean isValid() {
@@ -188,7 +287,7 @@ public class ManifestFileBean implements ManifestFile, Serializable {
 
   @Override
   public @Nullable ByteBuffer keyMetadata() {
-    return null;
+    return keyMetadata != null ? ByteBuffer.wrap(keyMetadata).asReadOnlyBuffer() : null;
   }
 
   @Override
