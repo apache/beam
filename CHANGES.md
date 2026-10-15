@@ -106,6 +106,7 @@
 
 ## New Features / Improvements
 
+* (Python) Reduced runtime type-check overhead by combining input and output checks into a single wrapper ([#20226](https://github.com/apache/beam/issues/20226)).
 * (Java) Flink runner: sources now forward Beam metrics to Flink at most once per second instead of after every record, which was a significant share of the CPU of reading. Metrics in the pipeline result are not affected ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
@@ -318,7 +319,6 @@
 * (YAML) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
 * (Java) Flink 2.1 and 2.2 support is added ([#38947](https://github.com/apache/beam/issues/38947)) ([#38978](https://github.com/apache/beam/issues/38978)); Flink 1.17 and 1.18 support is dropped.
 * (Python) MqttIO is now supported in Python via cross-language ([#21060](https://github.com/apache/beam/issues/21060)).
-* (Python) Reduced runtime type-check overhead by combining input and output checks into a single wrapper ([#20226](https://github.com/apache/beam/issues/20226)).
 
 ## Breaking Changes
 
