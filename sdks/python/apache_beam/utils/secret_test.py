@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
+import base64
 import json
+import pickle
 import unittest
 from unittest import mock
 
@@ -23,6 +25,7 @@ from parameterized import param
 from parameterized import parameterized
 
 from apache_beam.utils.annotations import BeamDeprecationWarning
+from apache_beam.utils.secret import AwsSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
 from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import RawSecret
@@ -32,6 +35,11 @@ try:
   from google.cloud import secretmanager
 except ImportError:
   secretmanager = None  # type: ignore[assignment]
+
+try:
+  import boto3
+except ImportError:
+  boto3 = None  # type: ignore[assignment]
 
 
 class SecretTest(unittest.TestCase):
@@ -45,6 +53,12 @@ class SecretTest(unittest.TestCase):
       param(
           secret_string='type:gcpsecreT;version_name:my_secret/versions/latest',
           secret=GcpSecret('my_secret/versions/latest')),
+      param(
+          secret_string='type:AwsSecret;secret_id:my_aws_secret',
+          secret=AwsSecret('my_aws_secret')),
+      param(
+          secret_string='type:awssecreT;name:my_aws_secret;version:v1',
+          secret=AwsSecret('my_aws_secret', version_id='v1')),
   ])
   def test_secret_manager_parses_correctly(self, secret_string, secret):
     self.assertEqual(secret, Secret.parse_secret_option(secret_string))
@@ -59,6 +73,15 @@ class SecretTest(unittest.TestCase):
       param(
           secret_string='type:gcpsecreT;version_name:foo;extra:val',
           exception_str='Invalid secret parameter extra'),
+      param(
+          secret_string='type:awssecreT',
+          exception_str='Secret ID or name must be specified in secret spec'),
+      param(
+          secret_string='type:awssecreT;name:foo;invalid_key:bar',
+          exception_str='Invalid secret parameter invalid_key'),
+      param(
+          secret_string='type:awssecreT;name:foo;access_key_id:bar',
+          exception_str='Use the --aws_access_key_id pipeline option'),
   ])
   def test_secret_manager_throws_on_invalid(self, secret_string, exception_str):
     with self.assertRaisesRegex(Exception, exception_str):
@@ -348,6 +371,105 @@ class GcpHsmGeneratedSecretTest(unittest.TestCase):
     self.assertIsNone(state["_cached_secret_bytes"])
 
 
+@unittest.skipIf(boto3 is None, 'AWS dependencies are not installed')
+class AwsSecretTest(unittest.TestCase):
+  def setUp(self):
+    from apache_beam.io.aws.clients import client_options
+    client_options._fetch_secret.cache_clear()
+    patcher = mock.patch('boto3.client')
+    self.mock_boto3_client = patcher.start()
+    self.addCleanup(patcher.stop)
+    self.mock_sm = self.mock_boto3_client.return_value
+    self.mock_sm.get_secret_value.return_value = {'SecretString': 'aws-value'}
+
+  def _options(self, *flags):
+    from apache_beam.options.pipeline_options import PipelineOptions
+    return PipelineOptions(list(flags))
+
+  def _client_kwargs(self):
+    args, kwargs = self.mock_boto3_client.call_args
+    self.assertEqual(args, ('secretsmanager', ))
+    return kwargs
+
+  def test_get_secret_string_cached(self):
+    secret = AwsSecret('my-secret')
+    self.assertEqual(secret.get_str(cacheSecret=True), 'aws-value')
+    self.assertEqual(secret.get_bytes(cacheSecret=True), b'aws-value')
+    self.mock_boto3_client.assert_called_once_with('secretsmanager')
+    self.mock_sm.get_secret_value.assert_called_once_with(SecretId='my-secret')
+    self.assertIsNone(secret.__getstate__()['_cached_secret_bytes'])
+
+    # Keyword settings apply without pipeline options.
+    AwsSecret('my-secret', region_name='eu-west-1').get_str()
+    self.assertEqual(
+        self._client_kwargs(), {
+            'region_name': 'eu-west-1', 'use_ssl': True
+        })
+
+    AwsSecret.from_dict({
+        'name': 'my-secret', 'version_id': 'v-12345', 'stage': 'AWSCURRENT'
+    }).get_str()
+    self.mock_sm.get_secret_value.assert_called_with(
+        SecretId='my-secret', VersionId='v-12345', VersionStage='AWSCURRENT')
+
+  def test_get_secret_binary(self):
+    self.mock_sm.get_secret_value.return_value = {'SecretBinary': b'binary'}
+    self.assertEqual(AwsSecret('my-secret').get_bytes(), b'binary')
+
+    # A base64-encoded string payload is decoded.
+    self.mock_sm.get_secret_value.return_value = {
+        'SecretBinary': base64.b64encode(b'binary').decode('utf-8')
+    }
+    self.assertEqual(AwsSecret('my-secret').get_bytes(), b'binary')
+
+  def test_fetch_failure_raises_runtime_error(self):
+    self.mock_sm.get_secret_value.side_effect = Exception('Secret not found')
+    with self.assertRaisesRegex(RuntimeError, 'Secret not found'):
+      AwsSecret('my-secret').get_str()
+
+    self.mock_sm.get_secret_value.side_effect = None
+    self.mock_sm.get_secret_value.return_value = {}
+    with self.assertRaisesRegex(
+        RuntimeError, 'contains neither SecretString nor SecretBinary'):
+      AwsSecret('my-secret').get_str()
+
+  def test_aws_options_and_spec_overrides(self):
+    secret = Secret.parse_secret_option(
+        'type:awssecret;name:my-secret;region_name:us-west-2;disable_ssl:true',
+        self._options(
+            '--aws_access_key_id=AKIDEXAMPLE',
+            '--aws_secret_access_key=SECRETEXAMPLE',
+            '--aws_region_name=us-east-2',
+            '--aws_endpoint_url=http://localhost:4566',
+            '--s3_region_name=eu-west-1'))
+    restored = pickle.loads(pickle.dumps(secret))
+    self.assertEqual(restored, secret)
+    self.assertNotEqual(secret, AwsSecret('my-secret', region_name='us-west-2'))
+    self.assertEqual(restored.get_str(), 'aws-value')
+    self.assertEqual(
+        self._client_kwargs(),
+        {
+            'aws_access_key_id': 'AKIDEXAMPLE',
+            'aws_secret_access_key': 'SECRETEXAMPLE',
+            'region_name': 'us-west-2',
+            'endpoint_url': 'http://localhost:4566',
+            'use_ssl': False,
+        })
+
+  def test_credentials_in_aws_secrets_manager_rejected(self):
+    # Credential specs are resolved lazily, so construction succeeds and the
+    # error is only raised on fetch.
+    secret = Secret.from_json(
+        '{"name": "my-secret"}',
+        'AwsSecretsManager',
+        self._options(
+            '--aws_credentials_secret_manager=AwsSecretsManager',
+            '--aws_access_key_id={"name": "key-id"}'))
+    with self.assertRaisesRegex(RuntimeError, 'cannot be AWS Secrets Manager'):
+      secret.get_str()
+    self.mock_boto3_client.assert_not_called()
+
+
 class RawSecretTest(unittest.TestCase):
   def test_raw_secret_str(self):
     secret = RawSecret("STATIC_SECRET_")
@@ -403,6 +525,33 @@ class SecretFactoryTest(unittest.TestCase):
           spec=spec_dict,  # type: ignore[arg-type]
           secret_manager="GoogleCloudSecretManager")
 
+  def test_secret_factory_aws(self):
+    spec = json.dumps({"name": "test-aws-secret", "version": "v1"})
+
+    secret_aws = Secret.from_json(spec=spec, secret_manager="AwsSecretsManager")
+    self.assertIsInstance(secret_aws, AwsSecret)
+    self.assertEqual(secret_aws._secret_id, "test-aws-secret")
+    self.assertEqual(secret_aws._version_id, "v1")
+
+    # When spec is a plain string
+    secret_plain = Secret.from_json(
+        spec="my-secret-arn", secret_manager="AwsSecretsManager")
+    self.assertIsInstance(secret_plain, AwsSecret)
+    self.assertEqual(secret_plain._secret_id, "my-secret-arn")
+
+    # When pipeline options are provided
+    secret_with_options = Secret.from_json(
+        spec=json.dumps({
+            "name": "test-aws-secret", "region_name": "us-west-2"
+        }),
+        secret_manager="AwsSecretsManager",
+        options={"aws_region_name": "us-east-2"})
+    self.assertIsInstance(secret_with_options, AwsSecret)
+    self.assertEqual(
+        secret_with_options._aws_options, {"aws_region_name": "us-east-2"})
+    self.assertEqual(
+        secret_with_options._client_settings, {"region_name": "us-west-2"})
+
   def test_secret_factory_hsm(self):
     hsm_spec = json.dumps({
         "project_id": "p",
@@ -441,6 +590,14 @@ class SecretFactoryTest(unittest.TestCase):
     self.assertEqual(gcp1, gcp2)
     self.assertNotEqual(gcp1, gcp3)
     self.assertNotEqual(gcp1, raw1)
+
+    aws1 = AwsSecret.from_dict({"name": "sec", "version": "v1"})
+    aws2 = AwsSecret.from_dict({"name": "sec", "version": "v1"})
+    aws3 = AwsSecret.from_dict({"name": "other", "version": "v1"})
+    self.assertEqual(aws1, aws2)
+    self.assertNotEqual(aws1, aws3)
+    self.assertNotEqual(aws1, gcp1)
+    self.assertNotEqual(aws1, raw1)
 
     hsm1 = GcpHsmGeneratedSecret("p", "l", "r", "k", "j")
     hsm2 = GcpHsmGeneratedSecret("p", "l", "r", "k", "j")

@@ -44,28 +44,50 @@ export class ReviewerConfig {
   }
 
   // Given a list of labels and an exclusion list of reviewers not to include (e.g. the author)
-  // returns all possible reviewers for each label
+  // returns all possible reviewers for the single highest-priority matching label
+  // (lower priority number = higher priority; ties broken randomly).
   getReviewersForLabels(
     labels: Label[],
     exclusionList: string[]
   ): { [key: string]: string[] } {
-    let reviewersFound = false;
-    let labelToReviewerMapping = {};
-    labels.forEach((label) => {
+    let labelToReviewerMapping: { [key: string]: string[] } = {};
+    let bestPriority: number = Number.MAX_SAFE_INTEGER;
+    let bestMatches: { label: string; reviewers: string[] }[] = [];
+
+    for (const label of labels || []) {
       let reviewers = this.getReviewersForLabel(label.name, exclusionList);
       if (reviewers.length > 0) {
-        labelToReviewerMapping[label.name] = reviewers;
-        reviewersFound = true;
+        const priority = this.getPriorityForLabel(label.name);
+        if (bestMatches.length === 0 || priority < bestPriority) {
+          bestPriority = priority;
+          bestMatches = [{ label: label.name, reviewers }];
+        } else if (priority === bestPriority) {
+          bestMatches.push({ label: label.name, reviewers });
+        }
       }
-    });
-    if (!reviewersFound) {
+    }
+    if (bestMatches.length > 0) {
+      const chosenMatch =
+        bestMatches[Math.floor(Math.random() * bestMatches.length)];
+      labelToReviewerMapping[chosenMatch.label] = chosenMatch.reviewers;
+    } else {
       const fallbackReviewers = this.getFallbackReviewers(exclusionList);
       if (fallbackReviewers.length > 0) {
-        labelToReviewerMapping[NO_MATCHING_LABEL] =
-          this.getFallbackReviewers(exclusionList);
+        labelToReviewerMapping[NO_MATCHING_LABEL] = fallbackReviewers;
       }
     }
     return labelToReviewerMapping;
+  }
+
+  getPriorityForLabel(label: string): number {
+    const labelObjects = this.config.labels;
+    const labelObject = labelObjects.find(
+      (labelObject) => labelObject.name.toLowerCase() === label.toLowerCase()
+    );
+    if (!labelObject || typeof labelObject.priority !== "number") {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    return labelObject.priority;
   }
 
   // Get possible reviewers excluding the author.
@@ -106,6 +128,8 @@ export class ReviewerConfig {
 # add yourself to that label's exclusionList
 # FallbackReviewers is for reviewers who can review any area of the code base that might
 # not receive a label. These should generally be more experienced committers.
+# Priority determines which label is used to select a reviewer when a PR has multiple labels
+# (lower number = higher priority).
 ${yaml.dump(this.config)}`;
 
     fs.writeFileSync(this.configPath, contents, { encoding: "utf-8" });

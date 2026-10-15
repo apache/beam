@@ -107,6 +107,7 @@ from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.utils import retry
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
@@ -410,6 +411,15 @@ def temp_mongodb_table():
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
+
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    @retry.with_exponential_backoff(num_retries=5, initial_delay_secs=1)
+    def _wait_for_mongo():
+      mongo_client = mongo_container.get_connection_client()
+      mongo_client.admin.command('ping')
+
+    _wait_for_mongo()
 
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
@@ -1275,6 +1285,40 @@ def temp_delta_cdc_table():
     # Version 1 commit
     table_data_1 = pa.table({"name": ["c"]})
     write_deltalake(temp_dir, table_data_1, mode="append")
+
+    yield temp_dir
+
+
+@contextlib.contextmanager
+def temp_delta_cdc_table_with_updates():
+  try:
+    from deltalake import DeltaTable
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  # The CDC sink needs a non-null key.
+  schema = pa.schema([
+      pa.field("id", pa.int64(), nullable=False),
+      pa.field("item", pa.string()),
+      pa.field("qty", pa.int64()),
+  ])
+
+  def orders(*rows):
+    return pa.Table.from_pylist([dict(zip(schema.names, row)) for row in rows],
+                                schema=schema)
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0: three new orders.
+    write_deltalake(
+        temp_dir,
+        orders((1, "apple", 3), (2, "pear", 5), (3, "plum", 2)),
+        configuration={"delta.enableChangeDataFeed": "true"})
+    # Versions 1 to 3: update order 1, delete order 2, add order 4.
+    table = DeltaTable(temp_dir)
+    table.update(updates={"qty": "4"}, predicate="id = 1")
+    table.delete("id = 2")
+    write_deltalake(temp_dir, orders((4, "kiwi", 1)), mode="append")
 
     yield temp_dir
 

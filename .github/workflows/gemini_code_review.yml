@@ -1,0 +1,248 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Gemini Enterprise Code Review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to review'
+        required: true
+        type: number
+
+permissions: read-all
+
+concurrency:
+  group: gemini-code-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  gemini-review:
+    name: Gemini Enterprise PR Review
+    if: >-
+      github.repository == 'apache/beam' &&
+      (
+        (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/gemini review')) ||
+        github.event_name == 'workflow_dispatch'
+      )
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check for existing Gemini review from draft
+        id: check_draft_review
+        if: github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review'
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+            const reviewedInDraft = reviews.some(
+              r =>
+                r.user &&
+                r.user.login === 'github-actions[bot]' &&
+                typeof r.body === 'string' &&
+                r.body.includes('/gemini review')
+            );
+            if (reviewedInDraft) {
+              core.info(`PR #${prNumber} was already reviewed by Gemini while in draft; skipping automatic review on ready_for_review.`);
+            }
+            core.setOutput('reviewed_in_draft', reviewedInDraft ? 'true' : 'false');
+
+      - name: Setup Node.js
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Run Gemini Enterprise Code Review Agent
+        id: gemini_review
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
+        shell: bash
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GEMINI_FORCE_FILE_STORAGE: 'true'
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
+          GOOGLE_CLOUD_LOCATION: 'global'
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-argon' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PR_URL="https://github.com/${REPOSITORY}/pull/${PR_NUMBER}"
+
+          mkdir -p .gemini
+          cat << 'EOF' > .gemini/settings.json
+          {
+            "model": {
+              "maxSessionTurns": 25
+            },
+            "experimental": {
+              "directWebFetch": true
+            },
+            "tools": {
+              "core": [
+                "web_fetch"
+              ]
+            }
+          }
+          EOF
+
+          cat << 'EOF' > prompt_template.txt
+          You are an autonomous Apache Beam code review agent running on the Gemini Enterprise Agent Platform.
+          Review Pull Request: __PR_URL__
+
+          Respond with ONLY a single valid JSON object matching this exact schema (no markdown prose outside the JSON):
+          {
+            "summary": "## 📋 Review Summary\n\n2-3 sentence high-level assessment.\n\n## 🔍 General Feedback\n- Key architectural or cross-file observations.",
+            "comments": [
+              {
+                "path": "relative/path/to/file.ext",
+                "line": 123,
+                "side": "RIGHT",
+                "severity": "🟠 High",
+                "body": "Clear explanation of why this is an issue and how to fix it.",
+                "suggestion": "optional exact replacement for the single target line without backticks, or null"
+              }
+            ]
+          }
+          EOF
+          sed "s|__PR_URL__|${PR_URL}|g" prompt_template.txt > prompt.txt
+
+          npx --yes @google/gemini-cli@0.37.1 \
+            --yolo \
+            --model "${GEMINI_MODEL}" \
+            --prompt "$(cat prompt.txt)" \
+            --output-format json \
+            < /dev/null \
+            > gemini_raw_output.json
+
+          if jq -e . gemini_raw_output.json >/dev/null 2>&1; then
+            jq -r '.response // ""' gemini_raw_output.json > gemini_response.txt
+          else
+            cp gemini_raw_output.json gemini_response.txt
+          fi
+
+      - name: Post PR Review to GitHub
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = Number(process.env.PR_NUMBER);
+            const rawResponse = fs.existsSync('gemini_response.txt')
+              ? fs.readFileSync('gemini_response.txt', 'utf8').trim()
+              : '';
+            if (!rawResponse) {
+              core.warning('Gemini agent returned an empty response; skipping PR review submission.');
+              return;
+            }
+
+            let parsed;
+            const fencedMatch = rawResponse.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
+            const candidateJson = fencedMatch ? fencedMatch[1].trim() : rawResponse;
+            try {
+              parsed = JSON.parse(candidateJson);
+            } catch (firstErr) {
+              const firstBrace = rawResponse.indexOf('{');
+              const lastBrace = rawResponse.lastIndexOf('}');
+              if (firstBrace !== -1 && lastBrace > firstBrace) {
+                try {
+                  parsed = JSON.parse(rawResponse.slice(firstBrace, lastBrace + 1));
+                } catch {
+                  parsed = { summary: rawResponse, comments: [] };
+                }
+              } else {
+                parsed = { summary: rawResponse, comments: [] };
+              }
+            }
+
+            const inlineComments = [];
+            if (Array.isArray(parsed.comments)) {
+              for (const item of parsed.comments) {
+                if (!item || !item.path || !item.body || !Number.isInteger(Number(item.line)) || Number(item.line) <= 0) {
+                  continue;
+                }
+                const side = item.side === 'LEFT' ? 'LEFT' : 'RIGHT';
+                const line = Number(item.line);
+                const severityPrefix = item.severity ? `**${item.severity}**: ` : '';
+                let commentBody = `${severityPrefix}${item.body.trim()}`;
+
+                if (item.suggestion && String(item.suggestion).trim() !== '' && item.suggestion !== 'null') {
+                  commentBody += `\n\n\`\`\`suggestion\n${String(item.suggestion).replace(/\r\n/g, '\n')}\n\`\`\``;
+                }
+
+                inlineComments.push({
+                  path: item.path,
+                  line,
+                  side,
+                  body: commentBody,
+                });
+              }
+            }
+
+            const baseSummary = parsed.summary
+              ? String(parsed.summary).trim()
+              : '## 📋 Review Summary\n\nAutomated code review completed.';
+            const reviewBody = `${baseSummary}\n\n---\n*💡 Tip: Comment \`/gemini review\` on this pull request to trigger a new Gemini code review.*`;
+
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                event: 'COMMENT',
+                body: reviewBody,
+                comments: inlineComments,
+              });
+              core.info(`Posted Gemini review on PR #${prNumber} with ${inlineComments.length} inline comment(s).`);
+            } catch (reviewErr) {
+              core.warning(`Failed to post inline review comments (${reviewErr.message}); falling back to summary-only review.`);
+              const allNotes = inlineComments.map(
+                c => `- **\`${c.path}\` (line ${c.line})**: ${c.body}`
+              );
+              const fallbackBody = [
+                reviewBody,
+                allNotes.length > 0 ? '## 💬 Inline Findings\n\n' + allNotes.join('\n\n') : '',
+              ].filter(Boolean).join('\n\n');
+
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                event: 'COMMENT',
+                body: fallbackBody,
+              });
+            }
