@@ -1003,7 +1003,7 @@ public class JmsIO {
     }
 
     @Override
-    @SuppressWarnings("Finalize")
+    @SuppressWarnings({"Finalize", "removal"})
     protected void finalize() {
       doClose();
     }

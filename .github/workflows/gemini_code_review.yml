@@ -50,13 +50,42 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Check for existing Gemini review from draft
+        id: check_draft_review
+        if: github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review'
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+            const reviewedInDraft = reviews.some(
+              r =>
+                r.user &&
+                r.user.login === 'github-actions[bot]' &&
+                typeof r.body === 'string' &&
+                r.body.includes('/gemini review')
+            );
+            if (reviewedInDraft) {
+              core.info(`PR #${prNumber} was already reviewed by Gemini while in draft; skipping automatic review on ready_for_review.`);
+            }
+            core.setOutput('reviewed_in_draft', reviewedInDraft ? 'true' : 'false');
+
       - name: Setup Node.js
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Run Gemini Enterprise Code Review Agent
         id: gemini_review
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
         shell: bash
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
@@ -125,6 +154,7 @@ jobs:
           fi
 
       - name: Post PR Review to GitHub
+        if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
         uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}

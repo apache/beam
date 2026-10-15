@@ -2190,6 +2190,12 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda s: s.agg(['mean']), s)
     self._run_test(lambda s: s.agg('mean'), s)
 
+  def test_series_agg_list_keeps_name(self):
+    s = pd.Series(list(range(16)), name='x')
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['std', 'var']), s)
+
   def test_dataframe_agg_modes(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
