@@ -482,32 +482,19 @@ class BeamModulePlugin implements Plugin<Project> {
   /*
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
-   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
+   * Replace `--release X` option if already existed in compilerArgs.
    */
   static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
-    boolean foundS = false, foundT = false
-    int foundR = -1
+    boolean foundR = false
     logger.fine("set java ver ${ver} to compiler args")
-    for (int i = 0; i < compilerArgs.size()-1; ++i) {
-      if (compilerArgs.get(i) == '-source') {
-        foundS = true
-        compilerArgs.set(i+1, ver)
-      } else if (compilerArgs.get(i) == '-target')  {
-        foundT = true
-        compilerArgs.set(i+1, ver)
-      } else if (compilerArgs.get(i) == '--release') {
-        foundR = i
+    for (int i = 0; i < compilerArgs.size() - 1; ++i) {
+      if (compilerArgs.get(i) == '--release') {
+        foundR = true
+        compilerArgs.set(i + 1, ver)
       }
     }
-    if (foundR != -1) {
-      compilerArgs.removeAt(foundR + 1)
-      compilerArgs.removeAt(foundR)
-    }
-    if (!foundS) {
-      compilerArgs.addAll('-source', ver)
-    }
-    if (!foundT) {
-      compilerArgs.addAll('-target', ver)
+    if (!foundR) {
+      compilerArgs.addAll('--release', ver)
     }
   }
 
@@ -1032,10 +1019,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.fork = true
         options.forkOptions.javaHome = java17Home as File
         options.compilerArgs += ['-Xlint:-path']
-        // Error prone requires some packages to be exported/opened for Java 17
-        // Disabling checks since this property is only used for tests
-        // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
       } else if (ver == '21' || ver == '25') {
@@ -1047,19 +1030,16 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-this-escape'
         ]
         if (ver == '25') {
+         // TODO: Upgrade errorprone and checkerFramework when Beam move to Java17+ and enable it in Java 25+
+          options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+          project.checkerFramework {
+            skipCheckerFramework = true
+          }
           options.compilerArgs += [
             '-Xlint:-dangling-doc-comments'
           ]
         }
-        // Error prone requires some packages to be exported/opened for Java 17+
-        // Disabling checks since this property is only used for tests
-        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-        // TODO(https://github.com/apache/beam/issues/28963)
-        // upgrade checkerFramework to enable it in Java 21+
-        project.checkerFramework {
-          skipCheckerFramework = true
-        }
       } else {
         throw new GradleException("Unknown Java Version ${ver} for setting additional java options")
       }
