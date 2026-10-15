@@ -26,6 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 import datetime
 import re
 import time
+import zoneinfo
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -166,7 +167,8 @@ class Timestamp(object):
           "dt has no timezone info " +
           "(https://docs.python.org/3/library/datetime.html" +
           "#aware-and-naive-objects): %s" % dt)
-    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
+    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc and dt.tzinfo != zoneinfo.ZoneInfo(  # pylint: disable=line-too-long
+        "UTC"):
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     # Avoid total_seconds(): its float result can be off by a microsecond.
