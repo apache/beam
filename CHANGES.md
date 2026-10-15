@@ -65,6 +65,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
+
 
 ## New Features / Improvements
 
