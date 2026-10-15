@@ -156,8 +156,7 @@ def _is_pickling_error(e: BaseException) -> bool:
   # typically surface as TypeError or AttributeError, for example
   # "cannot pickle 'X' object" or "Can't pickle local object ...".
   return (
-      isinstance(e, (TypeError, AttributeError)) and
-      'pickle' in str(e).lower())
+      isinstance(e, (TypeError, AttributeError)) and 'pickle' in str(e).lower())
 
 
 @dataclass(frozen=True)
