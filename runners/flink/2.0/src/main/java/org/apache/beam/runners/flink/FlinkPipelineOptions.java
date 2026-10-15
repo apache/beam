@@ -351,6 +351,26 @@ public interface FlinkPipelineOptions
   void setFasterCopy(Boolean fasterCopy);
 
   @Description(
+      "Batch only. Prefix every record exchanged or sorted by Flink with its encoded length, so "
+          + "that Flink can copy records (e.g. when spilling sorted data to disk) without "
+          + "decoding and re-encoding them. Has no effect in streaming mode. "
+          + "Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getLengthPrefixBatchRecords();
+
+  void setLengthPrefixBatchRecords(Boolean lengthPrefixBatchRecords);
+
+  @Description(
+      "Batch only. Decode the values of records sent to GroupByKey and Combine operators lazily, "
+          + "so that records are passed from the network to Flink's sorter without decoding and "
+          + "re-encoding their values. Has no effect in streaming mode. "
+          + "Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getLazyBatchGroupingInputs();
+
+  void setLazyBatchGroupingInputs(Boolean lazyBatchGroupingInputs);
+
+  @Description(
       "Directory containing Flink YAML configuration files. "
           + "These properties will be set to all jobs submitted to Flink and take precedence "
           + "over configurations in FLINK_CONF_DIR.")

@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import java.nio.ByteBuffer;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
+import org.apache.beam.runners.flink.translation.types.LazyKvWindowedValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -42,6 +44,10 @@ public class KvToFlinkKeyKeySelector<K, V>
 
   @Override
   public FlinkKey getKey(WindowedValue<KV<K, V>> value) {
+    if (value instanceof LazyKvWindowedValue) {
+      // Avoids decoding the value of the KV.
+      return FlinkKey.of(ByteBuffer.wrap(((LazyKvWindowedValue<K, V>) value).getEncodedKey()));
+    }
     K key = value.getValue().getKey();
     return FlinkKey.of(key, keyCoder);
   }

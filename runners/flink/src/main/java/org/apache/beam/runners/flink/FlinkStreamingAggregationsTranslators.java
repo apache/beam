@@ -297,6 +297,11 @@ public class FlinkStreamingAggregationsTranslators {
 
     CoderTypeInformation<WindowedValue<KV<K, AccumT>>> partialTypeInfo =
         new CoderTypeInformation<>(windowedAccumCoder, context.getPipelineOptions());
+    if (context.getPipelineOptions().as(FlinkPipelineOptions.class).getLazyBatchGroupingInputs()) {
+      // Records are only moved from the network to the sorter before being combined, so their
+      // values do not need to be decoded until then.
+      partialTypeInfo = partialTypeInfo.withLazyKvValues();
+    }
 
     PartialReduceBundleOperator<K, InputT, ?, AccumT> partialDoFnOperator =
         new PartialReduceBundleOperator<>(
