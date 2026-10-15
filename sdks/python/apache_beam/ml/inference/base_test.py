@@ -17,6 +17,7 @@
 
 """Tests for apache_beam.ml.base."""
 import gc
+import inspect
 import math
 import multiprocessing
 import os
@@ -610,6 +611,185 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
+
+  def test_run_inference_keyed_many_mhs_with_pre_and_post_processing(self):
+    def mult_two_keyed(element):
+      return (element[0], element[1] * 2)
+
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    # Key 0 maps to a stateful model which always returns 200, the remaining
+    # keys map to a model which returns example + 1.
+    expected = [(0, 400)] + [(i, ((example * 2) + 1) * 2)
+                             for i, example in enumerate(examples)][1:]
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    actual = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs).with_preprocess_fn(
+            mult_two_keyed).with_postprocess_fn(mult_two_keyed),
+        metrics_namespace='test_namespace')
+    assert_that(actual, equal_to(expected), label='assert:inferences')
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    # Per-key metrics are still reported by the wrapped KeyedModelHandler.
+    metrics_filter = MetricsFilter().with_name('0-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    self.assertEqual(metrics['counters'][0].committed, 1)
+    metrics_filter = MetricsFilter().with_name('1-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    self.assertEqual(metrics['counters'][0].committed, 3)
+
+  def test_run_inference_keyed_many_mhs_with_no_batching(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      expected[0] = (0, 200)
+      mhs = [
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
+      ]
+      # Each element is a pre-batched list of keyed examples.
+      pcoll = pipeline | 'start' >> beam.Create([keyed_examples])
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(mhs).with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_wrapped_keyed_many_mhs_delegates_hooks(self):
+    class FakeModelManager:
+      def __init__(self):
+        self.updates = []
+
+      def update_model_handler(self, key, model_path, previous_key):
+        self.updates.append((key, model_path, previous_key))
+
+    wrappers = {
+        'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
+        'postprocess': lambda mh: mh.with_postprocess_fn(lambda x: x),
+        'no_batching': lambda mh: mh.with_no_batching(),
+    }
+    for name, wrap in wrappers.items():
+      with self.subTest(wrapper=name):
+        keyed_mh = base.KeyedModelHandler([
+            base.KeyModelMapping([0],
+                                 FakeModelHandler(multi_process_shared=True)),
+            base.KeyModelMapping([1, 2],
+                                 FakeModelHandler(multi_process_shared=True))
+        ])
+        wrapped = wrap(keyed_mh)
+
+        self.assertTrue(wrapped.override_metrics('test_namespace'))
+        self.assertEqual(set(keyed_mh._metrics_collectors), {0, 1})
+        self.assertIsNotNone(keyed_mh._default_metrics_collector)
+        self.assertFalse(wrapped.should_garbage_collect_on_timeout())
+
+        manager = FakeModelManager()
+        wrapped.update_model_paths(
+            manager,
+            [
+                base.KeyModelPathMapping(keys=[0], update_path='path/0'),
+                base.KeyModelPathMapping(keys=[1, 2], update_path='path/1'),
+            ])
+        self.assertEqual(manager.updates, [(0, 'path/0', 0), (1, 'path/1', 1)])
+
+  def test_wrapper_model_handlers_delegate_hooks(self):
+    class HookRecordingModelHandler(FakeModelHandler):
+      def __init__(self):
+        super().__init__(multi_process_shared=True)
+        self.metrics_namespace = None
+        self.model_paths = None
+
+      def override_metrics(self, metrics_namespace=''):
+        self.metrics_namespace = metrics_namespace
+        return True
+
+      def should_garbage_collect_on_timeout(self):
+        return False
+
+      def update_model_paths(self, model, model_paths=None):
+        self.model_paths = model_paths
+
+    wrappers = {
+        'maybe_keyed': base.MaybeKeyedModelHandler,
+        'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
+        'postprocess': lambda mh: mh.with_postprocess_fn(lambda x: x),
+        'no_batching': lambda mh: mh.with_no_batching(),
+    }
+    for name, wrap in wrappers.items():
+      with self.subTest(wrapper=name):
+        inner = HookRecordingModelHandler()
+        wrapped = wrap(inner)
+        self.assertTrue(wrapped.override_metrics('test_namespace'))
+        self.assertEqual(inner.metrics_namespace, 'test_namespace')
+        self.assertFalse(wrapped.should_garbage_collect_on_timeout())
+        wrapped.update_model_paths(None, 'new/path')
+        self.assertEqual(inner.model_paths, 'new/path')
+
+  def test_wrapper_model_handlers_override_all_model_handler_methods(self):
+    # Wrappers must forward every ModelHandler hook to the handler they wrap,
+    # otherwise behavior of the wrapped handler is silently dropped.
+    not_forwarded = {
+        'with_preprocess_fn',
+        'with_postprocess_fn',
+        'with_no_batching',
+        'set_environment_vars',  # Wrappers copy _env_vars instead.
+    }
+    methods = [
+        name for name, _ in inspect.getmembers(
+            base.ModelHandler, inspect.isfunction)
+        if not name.startswith('_') and name not in not_forwarded
+    ]
+    for cls in (base.MaybeKeyedModelHandler,
+                base._PrebatchedModelHandler,
+                base._PreProcessingModelHandler,
+                base._PostProcessingModelHandler):
+      for name in methods:
+        with self.subTest(cls=cls.__name__, method=name):
+          self.assertIsNot(
+              getattr(cls, name),
+              getattr(base.ModelHandler, name),
+              f'{cls.__name__} must forward {name}() to the wrapped handler')
+
+  def test_keyed_model_handler_respects_inner_no_batching(self):
+    self.assertTrue(
+        base.KeyedModelHandler(
+            FakeModelHandler().with_no_batching()).should_skip_batching())
+    self.assertFalse(
+        base.KeyedModelHandler(FakeModelHandler()).should_skip_batching())
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      # Each element is a pre-batched list of keyed examples.
+      pcoll = pipeline | 'start' >> beam.Create(
+          [keyed_examples[:2], keyed_examples[2:]])
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler().with_no_batching()))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_keyed_many_mhs_ignores_inner_no_batching_with_warning(self):
+    mhs = [
+        base.KeyModelMapping(
+            [0],
+            FakeModelHandler(multi_process_shared=True).with_no_batching()),
+        base.KeyModelMapping([1], FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertLogs(level='WARNING') as logs:
+      mh = base.KeyedModelHandler(mhs)
+    self.assertFalse(mh.should_skip_batching())
+    self.assertTrue(any('skips batching' in line for line in logs.output))
 
   def test_keyed_model_handler_get_num_bytes(self):
     mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
