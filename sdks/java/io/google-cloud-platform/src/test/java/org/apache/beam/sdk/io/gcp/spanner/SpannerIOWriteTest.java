@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -348,6 +349,30 @@ public class SpannerIOWriteTest implements Serializable {
                   Options options = OptionsImposter.fromTransactionOptions(opts);
                   return Boolean.TRUE.equals(
                       OptionsImposter.withExcludeTxnFromChangeStreams(options));
+                }));
+  }
+
+  @Test
+  public void runBatchQueryTestWithExcludeTxnFromChangeStreamsFalse() {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withExcludeTxnFromChangeStreams(false);
+    assertFalse(write.getSpannerConfig().getExcludeTxnFromChangeStreams().get());
+
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    mutations.apply(write);
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(mutation)),
+            argThat(
+                (Options.TransactionOption opt) -> {
+                  Options options = OptionsImposter.fromTransactionOptions(opt);
+                  return OptionsImposter.withExcludeTxnFromChangeStreams(options) == null;
                 }));
   }
 
