@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -56,7 +57,7 @@ public class FlinkSourceSplitEnumeratorTest {
 
   @Test
   public void testSelectsAssignmentModeFromEstimatedSizeAndConfiguration() throws Exception {
-    assertEquals(0L, (long) FlinkPipelineOptions.defaults().getSourceStaticSplitThresholdMb());
+    assertNull(FlinkPipelineOptions.defaults().getSourceStaticSplitThresholdMb());
 
     long thresholdBytes = STATIC_SPLIT_THRESHOLD_MB * MEBIBYTE;
     long largeEstimate = 1024L * MEBIBYTE;
@@ -522,7 +523,7 @@ public class FlinkSourceSplitEnumeratorTest {
         long desiredBundleSizeBytes, PipelineOptions options) {
       List<TestEstimatedSizeBoundedSource> splits = new ArrayList<>(generatedSplits);
       for (int i = 0; i < generatedSplits; i++) {
-        splits.add(new TestEstimatedSizeBoundedSource(1L, 1, estimationCalls));
+        splits.add(new TestEstimatedSizeBoundedSource(1L, 1, new AtomicInteger()));
       }
       return splits;
     }
