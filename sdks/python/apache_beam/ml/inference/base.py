@@ -201,8 +201,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
         before emitting; used in streaming contexts.
-      max_batch_weight: the maximum weight of a batch. Requires element_size_fn.
+      max_batch_weight: the maximum total weight of a batch, where the weight
+        of an element is given by element_size_fn, which must be set. The
+        batch size limits (min_batch_size and max_batch_size) then count
+        elements.
       element_size_fn: a function that returns the size (weight) of an element.
+        Without max_batch_weight, the batch size limits are expressed in this
+        size instead of in number of elements.
       batch_length_fn: a callable mapping an element to its length (int). When
         set together with max_batch_duration_secs, enables length-aware bucketed
         keying so that elements of similar length are batched together, reducing
@@ -699,6 +704,35 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
     self.mh = mh
 
 
+class _ApplyToExample:
+  """Applies a function of an example to a (key, example) pair.
+
+  The element_size_fn and batch_length_fn of a ModelHandler take examples, but
+  BatchElements sees (key, example) pairs when the ModelHandler is wrapped in a
+  KeyedModelHandler or a MaybeKeyedModelHandler.
+  """
+  def __init__(self, fn: Callable[[Any], Any], maybe_keyed: bool = False):
+    self._fn = fn
+    self._maybe_keyed = maybe_keyed
+
+  def __call__(self, element):
+    # Like MaybeKeyedModelHandler.run_inference, consider tuples to be keyed.
+    if self._maybe_keyed and not isinstance(element, tuple):
+      return self._fn(element)
+    return self._fn(element[1])
+
+
+def _keyed_batch_elements_kwargs(
+    batch_elements_kwargs: Mapping[str, Any],
+    maybe_keyed: bool = False) -> dict[str, Any]:
+  """Adapts the BatchElements kwargs of a ModelHandler to keyed examples."""
+  kwargs = dict(batch_elements_kwargs)
+  for name in ('element_size_fn', 'length_fn'):
+    if kwargs.get(name) is not None:
+      kwargs[name] = _ApplyToExample(kwargs[name], maybe_keyed)
+  return kwargs
+
+
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[tuple[KeyT, ExampleT],
                                      tuple[KeyT, PredictionT],
@@ -963,7 +997,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def batch_elements_kwargs(self):
     if self._single_model:
-      return self._unkeyed.batch_elements_kwargs()
+      return _keyed_batch_elements_kwargs(self._unkeyed.batch_elements_kwargs())
     return {}
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
@@ -1173,7 +1207,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.get_resource_hints()
 
   def batch_elements_kwargs(self):
-    return self._unkeyed.batch_elements_kwargs()
+    return _keyed_batch_elements_kwargs(
+        self._unkeyed.batch_elements_kwargs(), maybe_keyed=True)
 
   def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
