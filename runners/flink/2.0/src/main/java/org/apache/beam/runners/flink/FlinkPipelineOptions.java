@@ -351,6 +351,16 @@ public interface FlinkPipelineOptions
   void setFasterCopy(Boolean fasterCopy);
 
   @Description(
+      "Batch only. Use a dedicated operator for the final step of GroupByKey and Combine in the "
+          + "global window with the default trigger. It relies on Flink sorting the input by key "
+          + "and does not use keyed state or timers. Has no effect in streaming mode. "
+          + "Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getSortedBatchCombine();
+
+  void setSortedBatchCombine(Boolean sortedBatchCombine);
+
+  @Description(
       "Directory containing Flink YAML configuration files. "
           + "These properties will be set to all jobs submitted to Flink and take precedence "
           + "over configurations in FLINK_CONF_DIR.")
