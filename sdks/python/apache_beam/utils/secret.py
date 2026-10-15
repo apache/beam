@@ -126,9 +126,11 @@ class Secret(abc.ABC):
     secret_type = raw_type.lower()
     secret_manager = _SECRET_TYPE_TO_SECRET_MANAGER.get(secret_type)
     if not secret_manager:
+      supported = ', '.join(
+          getattr(cls, '__name__', cls) for cls in _SECRET_CLASSES.values())
       raise ValueError(
-          f'Invalid secret type {secret_type}, currently only '
-          'GcpSecret, GcpHsmGeneratedSecret, and AwsSecret are supported')
+          f'Invalid secret type {secret_type}, currently supported types: '
+          f'{supported}')
 
     return cls.from_json(json.dumps(param_map), secret_manager, options)
 
@@ -193,9 +195,11 @@ class Secret(abc.ABC):
         else:
           return secret_cls(spec)
       else:
+        supported = ', '.join(
+            f"'{name}'" for name in _SECRET_TYPE_TO_SECRET_MANAGER.values())
         raise ValueError(
-            f"Unsupported secret manager: '{secret_manager_name}'. Currently supported options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager', 'AwsSecretsManager'."
-        )
+            f"Unsupported secret manager: '{secret_manager_name}'. "
+            f"Currently supported options: {supported}.")
 
     # If secret_manager is not set or empty, check if spec is a JSON specification dict
     if spec_dict is not None:
