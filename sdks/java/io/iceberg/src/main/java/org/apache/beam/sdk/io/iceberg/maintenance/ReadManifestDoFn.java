@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.iceberg.maintenance;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.TableCache;
@@ -34,12 +34,16 @@ import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Worker DoFn that reads entries from a manifest file and emits tagged {@link FileInfo} records.
+ *
+ * <p>Partition specs are resolved from the spec carried on the {@link ManifestFileBean} when
+ * present (for manifests whose spec was removed from table metadata), otherwise from the cached
+ * table, refreshing the table if the manifest references a spec newer than the cached metadata.
  */
 public class ReadManifestDoFn extends DoFn<KV<String, ManifestFileBean>, KV<String, FileInfo>> {
 
@@ -47,11 +51,6 @@ public class ReadManifestDoFn extends DoFn<KV<String, ManifestFileBean>, KV<Stri
       ImmutableList.of(DataFile.FILE_PATH.name(), DataFile.CONTENT.name());
 
   private final IcebergCatalogConfig catalogConfig;
-
-  private transient @Nullable String cachedTableIdString;
-  private transient @Nullable Table cachedTable;
-  private transient @Nullable FileIO cachedIo;
-  private transient @Nullable Map<Integer, PartitionSpec> cachedSpecs;
 
   public ReadManifestDoFn(IcebergCatalogConfig catalogConfig) {
     this.catalogConfig = catalogConfig;
@@ -64,27 +63,10 @@ public class ReadManifestDoFn extends DoFn<KV<String, ManifestFileBean>, KV<Stri
     String tableIdString = element.getKey();
     ManifestFileBean manifest = element.getValue();
 
-    Table table;
-    FileIO io;
-    Map<Integer, PartitionSpec> specs;
-    if (Objects.equals(cachedTableIdString, tableIdString)
-        && cachedTable != null
-        && cachedIo != null
-        && cachedSpecs != null) {
-      table = cachedTable;
-      io = cachedIo;
-      specs = cachedSpecs;
-    } else {
-      table =
-          TableCache.getAndRefreshIfStale(
-              catalogConfig, IcebergUtils.parseTableIdentifier(tableIdString));
-      io = table.io();
-      specs = table.specs();
-      cachedTableIdString = tableIdString;
-      cachedTable = table;
-      cachedIo = io;
-      cachedSpecs = specs;
-    }
+    TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
+    Table table = TableCache.get(catalogConfig, tableId);
+    Map<Integer, PartitionSpec> specs = resolveSpecs(table, tableId, manifest);
+    FileIO io = table.io();
 
     ManifestContent content = manifest.content();
     if (content == ManifestContent.DATA) {
@@ -111,5 +93,31 @@ public class ReadManifestDoFn extends DoFn<KV<String, ManifestFileBean>, KV<Stri
     } else {
       throw new IllegalArgumentException("Unsupported manifest content: " + content);
     }
+  }
+
+  private Map<Integer, PartitionSpec> resolveSpecs(
+      Table table, TableIdentifier tableId, ManifestFileBean manifest) {
+    int specId = manifest.partitionSpecId();
+    Map<Integer, PartitionSpec> specs = table.specs();
+    if (specs.containsKey(specId)) {
+      return specs;
+    }
+
+    PartitionSpec carriedSpec = manifest.partitionSpec();
+    if (carriedSpec != null) {
+      Map<Integer, PartitionSpec> merged = new HashMap<>(specs);
+      merged.put(specId, carriedSpec);
+      return merged;
+    }
+
+    // The cached table may predate the spec referenced by this manifest.
+    specs = TableCache.getRefreshed(catalogConfig, tableId).specs();
+    if (!specs.containsKey(specId)) {
+      throw new IllegalStateException(
+          String.format(
+              "Cannot read manifest %s: partition spec %s not found in table %s",
+              manifest.path(), specId, tableId));
+    }
+    return specs;
   }
 }

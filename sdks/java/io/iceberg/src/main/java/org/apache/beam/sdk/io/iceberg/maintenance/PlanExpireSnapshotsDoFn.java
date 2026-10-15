@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.iceberg.maintenance;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
@@ -28,6 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatisticsFile;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StatisticsFile;
@@ -45,6 +48,10 @@ import org.slf4j.LoggerFactory;
  * <p>Validates {@code GC_ENABLED}, invokes {@code
  * table.expireSnapshots().cleanExpiredFiles(false).commit()} to atomically prune snapshots from
  * metadata, and emits candidate and valid file descriptors for distributed content resolution.
+ *
+ * <p>The metadata commit is a non-idempotent side effect: if the bundle is retried after a
+ * successful commit, the retry plans no deletions and the files unreferenced by the original commit
+ * remain in storage as orphans.
  */
 public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult> {
 
@@ -66,7 +73,9 @@ public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult>
   @ProcessElement
   public void processElement(@Element String tableIdString, MultiOutputReceiver out) {
     TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
-    Table table = TableCache.getAndRefreshIfStale(catalogConfig, tableId);
+    // Planning must start from the latest table metadata so that the expired snapshot set (and
+    // therefore the reported counts and deletion candidates) is computed against current state.
+    Table table = TableCache.getRefreshed(catalogConfig, tableId);
 
     boolean gcEnabled =
         PropertyUtil.propertyAsBoolean(
@@ -85,14 +94,18 @@ public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult>
     }
 
     org.apache.iceberg.ExpireSnapshots expire = table.expireSnapshots();
-    if (config.getExpireOlderThan() != null) {
-      expire = expire.expireOlderThan(config.getExpireOlderThan());
+    Long expireOlderThan = config.getExpireOlderThan();
+    if (expireOlderThan != null) {
+      expire = expire.expireOlderThan(expireOlderThan);
     }
-    if (config.getRetainLast() != null) {
-      expire = expire.retainLast(config.retainLast());
+    // Only override the table's history.expire.min-snapshots-to-keep property when explicitly set.
+    Integer retainLast = config.getRetainLast();
+    if (retainLast != null) {
+      expire = expire.retainLast(retainLast);
     }
-    if (config.getSnapshotIds() != null) {
-      for (Long id : config.getSnapshotIds()) {
+    List<Long> snapshotIds = config.getSnapshotIds();
+    if (snapshotIds != null) {
+      for (Long id : snapshotIds) {
         expire = expire.expireSnapshotId(id);
       }
     }
@@ -100,6 +113,9 @@ public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult>
       expire = expire.cleanExpiredMetadata(config.cleanExpiredMetadata());
     }
 
+    // Capture pre-commit metadata. Expired manifests must be read with their original partition
+    // specs, which may be removed from table metadata when cleanExpiredMetadata is enabled.
+    Map<Integer, PartitionSpec> originalSpecs = new HashMap<>(table.specs());
     List<StatisticsFile> originalStats = Lists.newArrayList(table.statisticsFiles());
     List<PartitionStatisticsFile> originalPartitionStats =
         Lists.newArrayList(table.partitionStatisticsFiles());
@@ -210,6 +226,7 @@ public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult>
     }
 
     Set<String> candidateManifestPaths = new HashSet<>();
+    Map<Integer, PartitionSpec> currentSpecs = table.specs();
     for (Snapshot s : originalSnapshots) {
       if (deletedSnapshotIds.contains(s.snapshotId())) {
         for (ManifestFile m : s.allManifests(table.io())) {
@@ -221,8 +238,15 @@ public class PlanExpireSnapshotsDoFn extends DoFn<String, ExpireSnapshotsResult>
                         FileInfo.of(m.path(), FileCategory.MANIFEST, false, tableIdString)));
             // If the manifest is already part of a retained snapshot, its files are all valid
             if (!validManifestPaths.contains(m.path())) {
-              out.get(MANIFESTS)
-                  .output(KV.of(tableIdString, ManifestFileBean.fromManifestFile(m, false)));
+              ManifestFileBean bean = ManifestFileBean.fromManifestFile(m, false);
+              // Carry the original spec for manifests whose spec was removed by the commit
+              if (!currentSpecs.containsKey(m.partitionSpecId())) {
+                PartitionSpec originalSpec = originalSpecs.get(m.partitionSpecId());
+                if (originalSpec != null) {
+                  bean = bean.withPartitionSpec(originalSpec);
+                }
+              }
+              out.get(MANIFESTS).output(KV.of(tableIdString, bean));
             }
           }
         }

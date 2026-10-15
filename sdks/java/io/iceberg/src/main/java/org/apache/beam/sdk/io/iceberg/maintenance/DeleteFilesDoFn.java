@@ -25,11 +25,12 @@ import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.TableCache;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
-import org.apache.iceberg.Table;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.BulkDeletionFailureException;
 import org.apache.iceberg.io.FileIO;
@@ -40,11 +41,18 @@ import org.slf4j.LoggerFactory;
 /**
  * Worker DoFn that deletes batched unreferenced files from storage and emits partial deletion
  * metrics.
+ *
+ * <p>When {@code cleanFiles} is disabled, no files are deleted and the emitted counts reflect the
+ * unreferenced files that were identified for deletion.
  */
 public class DeleteFilesDoFn
     extends DoFn<KV<ShardedKey<String>, Iterable<FileInfo>>, ExpireSnapshotsResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DeleteFilesDoFn.class);
+  private static final Counter DELETED_FILES =
+      Metrics.counter(DeleteFilesDoFn.class, "deleted_files");
+  private static final Counter FAILED_FILE_DELETIONS =
+      Metrics.counter(DeleteFilesDoFn.class, "failed_file_deletions");
 
   private final IcebergCatalogConfig catalogConfig;
   private final ExpireSnapshots.Configuration config;
@@ -59,14 +67,9 @@ public class DeleteFilesDoFn
       @Element KV<ShardedKey<String>, Iterable<FileInfo>> element,
       OutputReceiver<ExpireSnapshotsResult> out) {
     String tableIdString = element.getKey().getKey();
-    if (tableIdString == null || tableIdString.isEmpty()) {
-      return;
-    }
-
-    Table table =
-        TableCache.getAndRefreshIfStale(
-            catalogConfig, IcebergUtils.parseTableIdentifier(tableIdString));
-    FileIO io = table.io();
+    Preconditions.checkState(
+        tableIdString != null && !tableIdString.isEmpty(),
+        "Received a file batch without a table identifier");
 
     List<FileInfo> fileList = new ArrayList<>();
     List<String> paths = new ArrayList<>();
@@ -81,15 +84,19 @@ public class DeleteFilesDoFn
 
     Set<String> failedPaths = Collections.emptySet();
     if (config.cleanFiles()) {
+      FileIO io =
+          TableCache.get(catalogConfig, IcebergUtils.parseTableIdentifier(tableIdString)).io();
       failedPaths = deletePaths(io, paths);
+      DELETED_FILES.inc(paths.size() - failedPaths.size());
       if (!failedPaths.isEmpty()) {
-        Metrics.counter(DeleteFilesDoFn.class, "failed_file_deletions").inc(failedPaths.size());
+        FAILED_FILE_DELETIONS.inc(failedPaths.size());
       }
     } else {
       LOG.info(
           ExpireSnapshots.PREFIX
-              + "Dry run enabled (cleanFiles=false); skipping physical deletion of {} file(s).",
-          paths.size());
+              + "cleanFiles=false; leaving {} unreferenced file(s) of table '{}' in storage.",
+          paths.size(),
+          tableIdString);
     }
 
     long dataCount = 0;
