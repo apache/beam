@@ -897,8 +897,7 @@ class DataflowApplicationClient(object):
           'HTTP status %d trying to create job'
           ' at dataflow service endpoint %s',
           e.code,
-          self.google_cloud_options.dataflow_endpoint or
-          '<client library default>')
+          self._jobs_client.api_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
 
