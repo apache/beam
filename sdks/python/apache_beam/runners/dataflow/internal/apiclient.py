@@ -180,12 +180,7 @@ class Environment(object):
               name=package))
 
     pool = dataflow.WorkerPool(
-        kind='local' if self.local else 'harness',
-        packages=package_descriptors,
-        taskrunner_settings=dataflow.TaskRunnerSettings(
-            parallel_worker_settings=dataflow.WorkerSettings(
-                base_url=GoogleCloudOptions.DATAFLOW_ENDPOINT,
-                service_path=self.google_cloud_options.dataflow_endpoint)))
+        kind='local' if self.local else 'harness', packages=package_descriptors)
 
     pool.autoscaling_settings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
@@ -902,7 +897,7 @@ class DataflowApplicationClient(object):
           'HTTP status %d trying to create job'
           ' at dataflow service endpoint %s',
           e.code,
-          self.google_cloud_options.dataflow_endpoint)
+          self._jobs_client.api_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
 
