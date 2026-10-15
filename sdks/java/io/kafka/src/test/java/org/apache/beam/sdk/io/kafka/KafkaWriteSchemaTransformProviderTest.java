@@ -282,15 +282,24 @@ public class KafkaWriteSchemaTransformProviderTest {
                 + "  name: my_record\n"
                 + "  fields:\n"
                 + "    - name: str\n"
-                + "      type: string");
+                + "      type: string",
+            "topic: topic_6\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: JSON\n"
+                + "schema:\n"
+                + "  type: \"object\"\n"
+                + "  properties:\n"
+                + "    value: { type: \"string\" }");
 
     for (String config : configs) {
+      Schema inputSchema =
+          config.contains("format: JSON")
+              ? Schema.builder().addStringField("value").build()
+              : Schema.builder().addByteArrayField("bytes").build();
       // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand
       Managed.write(Managed.KAFKA)
           .withConfig(YamlUtils.yamlStringToMap(config))
-          .expand(
-              Pipeline.create()
-                  .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
+          .expand(Pipeline.create().apply(Create.empty(inputSchema)));
     }
   }
 
