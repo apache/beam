@@ -68,6 +68,7 @@
 
 ## New Features / Improvements
 
+* (Java) Flink runner: the batch-only `--sortedBatchCombine` option is enabled by default (disable it with `--sortedBatchCombine=false`). GroupByKey and Combine in the global window with the default trigger then finish with a dedicated operator that relies on Flink sorting its input by key, instead of keyed state and timers ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).

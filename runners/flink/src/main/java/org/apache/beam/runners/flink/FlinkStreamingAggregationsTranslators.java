@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -31,6 +32,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToFlinkKeyKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.PartialReduceBundleOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SortedBatchCombineOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -38,12 +40,15 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -61,6 +66,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 
@@ -279,7 +285,8 @@ public class FlinkStreamingAggregationsTranslators {
           List<PCollectionView<?>> sideInputs,
           Coder<WindowedValue<KV<K, AccumT>>> windowedAccumCoder,
           CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
-          WindowDoFnOperator<K, AccumT, OutputT> finalDoFnOperator,
+          OneInputStreamOperator<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>>
+              finalDoFnOperator,
           TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo) {
 
     String fullName = FlinkStreamingTransformTranslators.getCurrentTransformName(context);
@@ -348,7 +355,7 @@ public class FlinkStreamingAggregationsTranslators {
           partialyCombinedStream.keyBy(accumKeySelector),
           transformSideInputs.f1,
           fullName,
-          finalDoFnOperator,
+          (WindowDoFnOperator<K, AccumT, OutputT>) finalDoFnOperator,
           outputTypeInfo);
     }
   }
@@ -400,9 +407,23 @@ public class FlinkStreamingAggregationsTranslators {
             serializablePipelineOptions);
 
     // final aggregation
-    WindowDoFnOperator<K, Iterable<InputT>, Iterable<Iterable<InputT>>> finalDoFnOperator =
-        getWindowedAccumulateDoFnOperator(
-            context, transform, accumKvCoder, outputCoder, sideInputTagMapping, sideInputs);
+    OneInputStreamOperator<
+            WindowedValue<KV<K, Iterable<InputT>>>,
+            WindowedValue<KV<K, Iterable<Iterable<InputT>>>>>
+        finalDoFnOperator =
+            getFinalAggregationOperator(
+                context,
+                input,
+                sideInputs,
+                new SortedBatchCombineOperator.BufferingCombiner<>(),
+                () ->
+                    getWindowedAccumulateDoFnOperator(
+                        context,
+                        transform,
+                        accumKvCoder,
+                        outputCoder,
+                        sideInputTagMapping,
+                        sideInputs));
 
     return getBatchCombinePerKeyOperator(
             context,
@@ -441,6 +462,47 @@ public class FlinkStreamingAggregationsTranslators {
         context, transform, accumKvCoder, outputCoder, reduceFn, sideInputTagMapping, sideInputs);
   }
 
+  /**
+   * The operator for the final step of a batch GroupByKey or Combine: a {@link
+   * SortedBatchCombineOperator} using {@code sortedCombiner} when {@link #useSortedBatchCombine}
+   * allows it, otherwise the {@link WindowDoFnOperator} from {@code windowDoFnOperator}.
+   */
+  private static <K, AccumT, OutputT>
+      OneInputStreamOperator<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>>
+          getFinalAggregationOperator(
+              FlinkStreamingTranslationContext context,
+              PCollection<?> input,
+              List<PCollectionView<?>> sideInputs,
+              SortedBatchCombineOperator.KeyCombiner<AccumT, OutputT> sortedCombiner,
+              Supplier<WindowDoFnOperator<K, AccumT, OutputT>> windowDoFnOperator) {
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    if (useSortedBatchCombine(context.getPipelineOptions(), windowingStrategy, sideInputs)) {
+      return new SortedBatchCombineOperator<>(
+          FlinkStreamingTransformTranslators.getCurrentTransformName(context),
+          sortedCombiner,
+          windowingStrategy.getTimestampCombiner(),
+          new SerializablePipelineOptions(context.getPipelineOptions()));
+    } else {
+      return windowDoFnOperator.get();
+    }
+  }
+
+  /**
+   * Whether the final step of a batch GroupByKey or Combine can use a {@link
+   * SortedBatchCombineOperator} instead of a {@link WindowDoFnOperator}.
+   */
+  static boolean useSortedBatchCombine(
+      PipelineOptions pipelineOptions,
+      WindowingStrategy<?, ?> windowingStrategy,
+      List<PCollectionView<?>> sideInputs) {
+    FlinkPipelineOptions options = pipelineOptions.as(FlinkPipelineOptions.class);
+    return !options.isStreaming()
+        && options.getSortedBatchCombine()
+        && sideInputs.isEmpty()
+        && windowingStrategy.getWindowFn() instanceof GlobalWindows
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger;
+  }
+
   public static <K, InputT, AccumT, OutputT>
       SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> batchCombinePerKey(
           FlinkStreamingTranslationContext context,
@@ -476,15 +538,22 @@ public class FlinkStreamingAggregationsTranslators {
     }
 
     // final aggregation from AccumT to OutputT
-    WindowDoFnOperator<K, AccumT, OutputT> finalDoFnOperator =
-        getWindowedAggregateDoFnOperator(
-            context,
-            transform,
-            accumKvCoder,
-            outputCoder,
-            toFinalFlinkCombineFn(combineFn, inputKvCoder.getValueCoder()),
-            sideInputTagMapping,
-            sideInputs);
+    OneInputStreamOperator<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>>
+        finalDoFnOperator =
+            getFinalAggregationOperator(
+                context,
+                input,
+                sideInputs,
+                new SortedBatchCombineOperator.MergingCombiner<>(combineFn),
+                () ->
+                    getWindowedAggregateDoFnOperator(
+                        context,
+                        transform,
+                        accumKvCoder,
+                        outputCoder,
+                        toFinalFlinkCombineFn(combineFn, inputKvCoder.getValueCoder()),
+                        sideInputTagMapping,
+                        sideInputs));
 
     return getBatchCombinePerKeyOperator(
         context,
