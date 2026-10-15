@@ -23,6 +23,10 @@ import java.io.EOFException;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,10 +41,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The format differs from {@link CoderTypeSerializer}, so this serializer must only be used for
  * data that is never persisted across job versions, i.e. in batch execution.
+ *
+ * <p>With {@code lazyKvValues}, records are deserialized as {@link LazyKvWindowedValue}s. This
+ * requires a {@link WindowedValues.FullWindowedValueCoder} of a {@link KvCoder}. Records whose
+ * value was never accessed are serialized again by copying their original bytes.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
+  "unchecked"
 })
 public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T> {
 
@@ -53,23 +62,63 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
 
   private final boolean fasterCopy;
 
+  private final boolean lazyKvValues;
+
+  /** Decodes the windowing information of a record, see {@link LazyKvWindowedValue}. */
+  private final WindowedValues.@Nullable WindowedValueCoder<Void> headerCoder;
+
+  private final @Nullable KvCoder<?, ?> kvCoder;
+
   private transient @Nullable ExposedByteArrayOutputStream encodeBuffer;
 
   private transient byte @Nullable [] decodeBuffer;
 
   public LengthPrefixedCoderTypeSerializer(Coder<T> coder, boolean fasterCopy) {
+    this(coder, fasterCopy, false);
+  }
+
+  public LengthPrefixedCoderTypeSerializer(
+      Coder<T> coder, boolean fasterCopy, boolean lazyKvValues) {
     super(coder, fasterCopy);
     this.coder = coder;
     this.fasterCopy = fasterCopy;
+    this.lazyKvValues = lazyKvValues;
+    if (lazyKvValues) {
+      Preconditions.checkArgument(
+          supportsLazyKvValues(coder),
+          "Lazy values require a FullWindowedValueCoder of a KvCoder, got %s",
+          coder);
+      WindowedValues.FullWindowedValueCoder<?> windowedCoder =
+          (WindowedValues.FullWindowedValueCoder<?>) coder;
+      this.headerCoder = windowedCoder.withValueCoder(VoidCoder.of());
+      this.kvCoder = (KvCoder<?, ?>) windowedCoder.getValueCoder();
+    } else {
+      this.headerCoder = null;
+      this.kvCoder = null;
+    }
+  }
+
+  /** Whether {@code coder} can be used with lazily decoded values. */
+  public static boolean supportsLazyKvValues(Coder<?> coder) {
+    return coder instanceof WindowedValues.FullWindowedValueCoder
+        && ((WindowedValues.FullWindowedValueCoder<?>) coder).getValueCoder() instanceof KvCoder;
   }
 
   @Override
   public LengthPrefixedCoderTypeSerializer<T> duplicate() {
-    return new LengthPrefixedCoderTypeSerializer<>(coder, fasterCopy);
+    return new LengthPrefixedCoderTypeSerializer<>(coder, fasterCopy, lazyKvValues);
   }
 
   @Override
   public void serialize(T t, DataOutputView dataOutputView) throws IOException {
+    byte[] encodedRecord =
+        t instanceof LazyKvWindowedValue ? ((LazyKvWindowedValue<?, ?>) t).encodedRecord() : null;
+    if (encodedRecord != null) {
+      // The value was never decoded, so the original bytes are still valid.
+      dataOutputView.writeInt(encodedRecord.length);
+      dataOutputView.write(encodedRecord);
+      return;
+    }
     ExposedByteArrayOutputStream buffer = encodeBuffer;
     if (buffer == null) {
       buffer = new ExposedByteArrayOutputStream();
@@ -88,6 +137,12 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
   @Override
   public T deserialize(DataInputView dataInputView) throws IOException {
     int length = dataInputView.readInt();
+    if (headerCoder != null) {
+      // The lazy value keeps the record, so it needs its own array.
+      byte[] encodedRecord = new byte[length];
+      dataInputView.readFully(encodedRecord);
+      return (T) new LazyKvWindowedValue<>(encodedRecord, headerCoder, kvCoder);
+    }
     byte[] buffer = decodeBuffer;
     if (buffer == null || buffer.length < length) {
       buffer = new byte[Math.max(length, 64)];
@@ -131,8 +186,18 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
   }
 
   @Override
+  boolean isLazyKvValues() {
+    return lazyKvValues;
+  }
+
+  @Override
   public String toString() {
-    return "LengthPrefixedCoderTypeSerializer{" + "coder=" + coder + '}';
+    return "LengthPrefixedCoderTypeSerializer{"
+        + "coder="
+        + coder
+        + ", lazyKvValues="
+        + lazyKvValues
+        + '}';
   }
 
   /** A {@link ByteArrayOutputStream} that exposes its buffer to avoid copying it. */

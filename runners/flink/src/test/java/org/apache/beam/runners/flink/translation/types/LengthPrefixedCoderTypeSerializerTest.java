@@ -201,6 +201,6 @@ public class LengthPrefixedCoderTypeSerializerTest implements Serializable {
     options.setStreaming(streaming);
     options.setLengthPrefixBatchRecords(lengthPrefix);
     return CoderTypeSerializer.forTypeInformation(
-        StringUtf8Coder.of(), new SerializablePipelineOptions(options));
+        StringUtf8Coder.of(), new SerializablePipelineOptions(options), false);
   }
 }
