@@ -54,8 +54,7 @@ def main(argv=None):
       required=True,
       help='Name of the secret in AWS Secrets Manager.')
   parser.add_argument(
-      '--secret_arn',
-      help='Optional ARN of the secret in AWS Secrets Manager.')
+      '--secret_arn', help='Optional ARN of the secret in AWS Secrets Manager.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   options = PipelineOptions(pipeline_args)
 
