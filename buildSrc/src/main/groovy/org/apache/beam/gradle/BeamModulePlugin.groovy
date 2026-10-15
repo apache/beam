@@ -482,19 +482,33 @@ class BeamModulePlugin implements Plugin<Project> {
   /*
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
-   * Replace `--release X` option if already existed in compilerArgs.
+   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
    */
   static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
-    boolean foundR = false
+    boolean foundS = false, foundT = false
+    int foundR = -1
     logger.fine("set java ver ${ver} to compiler args")
-    for (int i = 0; i < compilerArgs.size() - 1; ++i) {
-      if (compilerArgs.get(i) == '--release') {
-        foundR = true
-        compilerArgs.set(i + 1, ver)
+    for (int i = 0; i < compilerArgs.size()-1; ++i) {
+      if (compilerArgs.get(i) == '-source') {
+        foundS = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '-target')  {
+        foundT = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '--release') {
+        foundR = i
       }
     }
-    if (!foundR) {
-      compilerArgs.addAll('--release', ver)
+    // Remove "--release" and replace with '-source -target' due to errorprone compatibility and Gradle issue #22747
+    if (foundR != -1) {
+      compilerArgs.removeAt(foundR + 1)
+      compilerArgs.removeAt(foundR)
+    }
+    if (!foundS) {
+      compilerArgs.addAll('-source', ver)
+    }
+    if (!foundT) {
+      compilerArgs.addAll('-target', ver)
     }
   }
 
@@ -994,7 +1008,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // set compiler options for java version overrides to compile with a different java version
     project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
-      if (!project.findProperty("java${ver}Home")) {
+      def javaVerHome = project.findProperty("java${ver}Home")
+      if (!javaVerHome) {
         return
       }
       // TODO(yathu): remove this once generated code (antlr) no longer trigger "this-escape", see above
@@ -1004,31 +1019,12 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-this-escape',
         ]
       }
-      if (ver == '8') {
-        def java8Home = project.findProperty("java8Home")
-        options.fork = true
-        options.forkOptions.javaHome = java8Home as File
-        options.compilerArgs += ['-Xlint:-path']
-      } else if (ver == '11') {
-        def java11Home = project.findProperty("java11Home")
-        options.fork = true
-        options.forkOptions.javaHome = java11Home as File
-        options.compilerArgs += ['-Xlint:-path']
-      } else if (ver == '17') {
-        def java17Home = project.findProperty("java17Home")
-        options.fork = true
-        options.forkOptions.javaHome = java17Home as File
-        options.compilerArgs += ['-Xlint:-path']
-        // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
+      options.fork = true
+      options.forkOptions.javaHome = javaVerHome as File
+      if (ver == '17') {
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
       } else if (ver == '21' || ver == '25') {
-        def javaVerHome = project.findProperty("java${ver}Home")
-        options.fork = true
-        options.forkOptions.javaHome = javaVerHome as File
-        options.compilerArgs += [
-          '-Xlint:-path',
-          '-Xlint:-this-escape'
-        ]
+        options.compilerArgs += ['-Xlint:-this-escape']
         if (ver == '25') {
          // TODO: Upgrade errorprone and checkerFramework when Beam move to Java17+ and enable it in Java 25+
           options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
@@ -1208,6 +1204,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'classfile',
         'deprecation',
         'fallthrough',
+        'path',
         'processing',
         'serial',
         'try',
