@@ -17,12 +17,19 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
@@ -50,6 +57,39 @@ public class SourceInputFormatTest {
 
     sourceInputFormat.close();
     Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
+  }
+
+  @Test
+  public void testStaticSplitAssignmentByDefault() throws Exception {
+    SourceInputFormat<Long> sourceInputFormat =
+        new TestSourceInputFormat<>(
+            "step", CountingSource.upTo(1000), PipelineOptionsFactory.create());
+
+    SourceInputSplit<Long>[] splits = sourceInputFormat.createInputSplits(2);
+    InputSplitAssigner assigner = sourceInputFormat.getInputSplitAssigner(splits);
+    assertTrue(assigner instanceof SourceInputFormat.StaticInputSplitAssigner);
+
+    int assigned = 0;
+    for (int taskId = 0; taskId < 2; taskId++) {
+      InputSplit split;
+      while ((split = assigner.getNextInputSplit("host", taskId)) != null) {
+        assertEquals(taskId, split.getSplitNumber() % 2);
+        assigned++;
+      }
+    }
+    assertEquals(splits.length, assigned);
+  }
+
+  @Test
+  public void testLazySplitAssignmentWhenRequested() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(FlinkPipelineOptions.class).setSourceStaticSplitThresholdMb(0L);
+    SourceInputFormat<Long> sourceInputFormat =
+        new TestSourceInputFormat<>("step", CountingSource.upTo(1000), options);
+
+    SourceInputSplit<Long>[] splits = sourceInputFormat.createInputSplits(2);
+    assertTrue(
+        sourceInputFormat.getInputSplitAssigner(splits) instanceof DefaultInputSplitAssigner);
   }
 
   private static class TestSourceInputFormat<T> extends SourceInputFormat<T> {

@@ -93,6 +93,7 @@
 
 ### New Feature
 
+* (Java) Flink runner: bounded sources in batch are re-split and balanced, so that work is evenly distributed over the source readers even when sources return too few or unevenly sized splits, e.g. BigQuery exports ([#40607](https://github.com/apache/beam/issues/40607)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
@@ -108,6 +109,7 @@
 ## Breaking Changes
 
 * [comment]: generic breaking changes if not covered in following sections.
+* (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ### Package upgrades
