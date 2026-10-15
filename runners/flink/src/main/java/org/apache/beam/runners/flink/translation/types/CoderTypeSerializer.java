@@ -50,17 +50,22 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   private final boolean fasterCopy;
 
   /**
-   * Creates the serializer to use for a {@link CoderTypeInformation}: a {@link
-   * LengthPrefixedCoderTypeSerializer} in batch mode when {@link
-   * FlinkPipelineOptions#getLengthPrefixBatchRecords()} is set, a {@link CoderTypeSerializer}
-   * otherwise.
+   * Creates the serializer to use for a {@link CoderTypeInformation}. In batch mode, this is a
+   * {@link LengthPrefixedCoderTypeSerializer} if {@code lazyKvValues} is set and supported by the
+   * coder, or if {@link FlinkPipelineOptions#getLengthPrefixBatchRecords()} is set. Otherwise, it
+   * is a {@link CoderTypeSerializer}.
    */
   public static <T> CoderTypeSerializer<T> forTypeInformation(
-      Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
+      Coder<T> coder, SerializablePipelineOptions pipelineOptions, boolean lazyKvValues) {
     FlinkPipelineOptions options =
         Preconditions.checkNotNull(pipelineOptions).get().as(FlinkPipelineOptions.class);
-    if (!options.isStreaming() && options.getLengthPrefixBatchRecords()) {
-      return new LengthPrefixedCoderTypeSerializer<>(coder, options.getFasterCopy());
+    if (!options.isStreaming()) {
+      if (lazyKvValues && LengthPrefixedCoderTypeSerializer.supportsLazyKvValues(coder)) {
+        return new LengthPrefixedCoderTypeSerializer<>(coder, options.getFasterCopy(), true);
+      }
+      if (options.getLengthPrefixBatchRecords()) {
+        return new LengthPrefixedCoderTypeSerializer<>(coder, options.getFasterCopy());
+      }
     }
     return new CoderTypeSerializer<>(coder, options.getFasterCopy());
   }
@@ -158,11 +163,18 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     }
 
     CoderTypeSerializer that = (CoderTypeSerializer) o;
-    return isLengthPrefixed() == that.isLengthPrefixed() && coder.equals(that.coder);
+    return isLengthPrefixed() == that.isLengthPrefixed()
+        && isLazyKvValues() == that.isLazyKvValues()
+        && coder.equals(that.coder);
   }
 
   /** Whether serialized records carry a length prefix, i.e. use a different binary format. */
   boolean isLengthPrefixed() {
+    return false;
+  }
+
+  /** Whether records are deserialized as {@link LazyKvWindowedValue}s. */
+  boolean isLazyKvValues() {
     return false;
   }
 

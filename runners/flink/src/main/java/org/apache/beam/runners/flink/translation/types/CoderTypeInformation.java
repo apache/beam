@@ -40,16 +40,33 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   private final Coder<T> coder;
   private final SerializablePipelineOptions pipelineOptions;
+  private final boolean lazyKvValues;
 
   public CoderTypeInformation(Coder<T> coder, PipelineOptions pipelineOptions) {
     this(coder, new SerializablePipelineOptions(pipelineOptions));
   }
 
   public CoderTypeInformation(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
+    this(coder, pipelineOptions, false);
+  }
+
+  private CoderTypeInformation(
+      Coder<T> coder, SerializablePipelineOptions pipelineOptions, boolean lazyKvValues) {
     checkNotNull(coder);
     checkNotNull(pipelineOptions);
     this.coder = coder;
     this.pipelineOptions = pipelineOptions;
+    this.lazyKvValues = lazyKvValues;
+  }
+
+  /**
+   * Returns a copy of this type information whose serializer decodes {@link
+   * org.apache.beam.sdk.values.KV} values lazily in batch mode, see {@link LazyKvWindowedValue}.
+   * Only use this for streams whose records are mostly moved around by Flink without their value
+   * being accessed, e.g. the input of a grouping operator.
+   */
+  public CoderTypeInformation<T> withLazyKvValues() {
+    return new CoderTypeInformation<>(coder, pipelineOptions, true);
   }
 
   public Coder<T> getCoder() {
@@ -84,7 +101,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-    return CoderTypeSerializer.forTypeInformation(coder, pipelineOptions);
+    return CoderTypeSerializer.forTypeInformation(coder, pipelineOptions, lazyKvValues);
   }
 
   @Override
@@ -101,7 +118,8 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
    * @return New type information.
    */
   public CoderTypeInformation<T> withPipelineOptions(PipelineOptions pipelineOptions) {
-    return new CoderTypeInformation<>(getCoder(), pipelineOptions);
+    return new CoderTypeInformation<>(
+        getCoder(), new SerializablePipelineOptions(pipelineOptions), lazyKvValues);
   }
 
   @Override
@@ -115,7 +133,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
     CoderTypeInformation that = (CoderTypeInformation) o;
 
-    return coder.equals(that.coder);
+    return lazyKvValues == that.lazyKvValues && coder.equals(that.coder);
   }
 
   @Override
