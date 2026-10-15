@@ -107,6 +107,7 @@ from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.utils import retry
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
@@ -410,6 +411,15 @@ def temp_mongodb_table():
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
+
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    @retry.with_exponential_backoff(num_retries=5, initial_delay_secs=1)
+    def _wait_for_mongo():
+      mongo_client = mongo_container.get_connection_client()
+      mongo_client.admin.command('ping')
+
+    _wait_for_mongo()
 
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
