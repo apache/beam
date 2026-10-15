@@ -115,6 +115,9 @@
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
+* (Python) `ReadBigQueryChangeHistory` no longer fails at pipeline construction with `TypeCheckError: The transform 'ExecuteQueries' requires PCollections of type ... _QueryRange` when pipeline type checking is enabled (the default); a regression in 2.76.0 ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `ReadBigQueryChangeHistory` with `change_function='CHANGES'` no longer fails reading its temp table with a Storage Read API `500 InternalServerError`: the `_CHANGE_IS_FOR_UPDATE` pseudo-column is now excluded from the query instead of being written to the temp table ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `ReadBigQueryChangeHistory` now backtick-quotes the column names it puts in the generated CHANGES/APPENDS query (`columns`, `change_type_column`, `change_timestamp_column`), so reserved words and names with spaces work, and `columns=[]` selects only the pseudo-columns instead of generating invalid SQL ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
