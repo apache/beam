@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 16
+          node-version: 24
       - name: Install pr-bot npm dependencies
         run: npm ci
         working-directory: 'scripts/ci/pr-bot'

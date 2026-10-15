@@ -81,7 +81,7 @@ jobs:
         if: steps.check_draft_review.outputs.reviewed_in_draft != 'true'
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Run Gemini Enterprise Code Review Agent
         id: gemini_review
