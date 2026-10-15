@@ -3101,7 +3101,7 @@ public class SpannerIO {
               commitStats ? Options.commitStats() : null,
               spannerConfig.getExcludeTxnFromChangeStreams() != null
                       && Boolean.TRUE.equals(spannerConfig.getExcludeTxnFromChangeStreams().get())
-                      ? Options.excludeTxnFromChangeStreams()
+                  ? Options.excludeTxnFromChangeStreams()
                   : null,
               spannerConfig.getTransactionTag() != null
                       && !Strings.isNullOrEmpty(spannerConfig.getTransactionTag().get())

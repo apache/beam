@@ -36,7 +36,7 @@ public class OptionsImposter {
   public static CommitResponse createCommitResponse(com.google.spanner.v1.CommitResponse proto) {
     return new CommitResponse(proto);
   }
-  
+
   public static Boolean withExcludeTxnFromChangeStreams(Options options) {
     return options.withExcludeTxnFromChangeStreams();
   }
