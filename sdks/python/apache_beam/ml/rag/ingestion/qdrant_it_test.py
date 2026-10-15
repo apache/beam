@@ -134,6 +134,31 @@ class TestQdrantIngestion(unittest.TestCase):
       )
       self.assertEqual(expected_record, points_by_id[int(item.id)])
 
+  def test_write_with_content_payload_key(self):
+    write_config = QdrantWriteConfig(
+        connection_params=self._connection_params,
+        collection_name=self._collection_name,
+        batch_size=len(TEST_CORPUS),
+        content_payload_key="content",
+    )
+
+    with TestPipeline(is_integration_test=True) as p:
+      _ = p | beam.Create(TEST_CORPUS) | write_config.create_write_transform()
+
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=False,
+    )
+    points_by_id = {p.id: p for p in points}
+    self.assertEqual(len(points_by_id), len(TEST_CORPUS))
+
+    for item in TEST_CORPUS:
+      expected_payload = dict(item.metadata or {})
+      expected_payload["content"] = item.content_string
+      self.assertEqual(expected_payload, points_by_id[int(item.id)].payload)
+
   def test_write_sparse_embeddings_only(self):
     sparse_corpus = [
         EmbeddableItem(
