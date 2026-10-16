@@ -219,4 +219,41 @@ func TestOrderedListState(t *testing.T) {
 			t.Errorf("OrderedList int32 \n%v", d)
 		}
 	})
+	t.Run("clear_uninitialized", func(t *testing.T) {
+		d := TentativeData{
+			stateTypeLen: map[LinkID]func([]byte) int{
+				linkID: func(_ []byte) int {
+					return 1
+				},
+			},
+		}
+
+		// 1. d.state is nil.
+		d.ClearOrderedListState(linkID, wKey, uKey, math.MinInt64, math.MaxInt64)
+		if d.state != nil {
+			t.Fatalf("ClearOrderedListState on empty TentativeData allocated state map: %v", d.state)
+		}
+
+		// 2. d.state is non-nil, but has no entry for linkID.
+		otherLink := LinkID{Transform: "dofn", Local: "otherState"}
+		d.AppendBagState(otherLink, wKey, uKey, []byte{1})
+		d.ClearOrderedListState(linkID, wKey, uKey, 0, 100)
+		if _, ok := d.state[linkID]; ok {
+			t.Fatalf("ClearOrderedListState created entry for uninitialized stateID %v", linkID)
+		}
+
+		// 3. d.state[linkID] exists for an interval window, but not for the global window.
+		// An SDK that flushes range clears before appends on the first bundle in a window
+		// must not panic and must preserve subsequent appends.
+		iwKey := make([]byte, 16)
+		binary.BigEndian.PutUint64(iwKey[0:8], uint64(1000)^0x8000000000000000)
+		d.AppendOrderedListState(linkID, iwKey, uKey, cc(time1, 1))
+		d.ClearOrderedListState(linkID, wKey, uKey, 0, 30)
+		d.AppendOrderedListState(linkID, wKey, uKey, cc(time2, 1))
+		got := d.GetOrderedListState(linkID, wKey, uKey, 0, 60)
+		want := [][]byte{cc(time2, 1)}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("OrderedList after clear_uninitialized + append:\n%v", diff)
+		}
+	})
 }
