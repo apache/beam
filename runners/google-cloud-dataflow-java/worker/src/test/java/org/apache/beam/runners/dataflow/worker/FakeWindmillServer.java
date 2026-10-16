@@ -532,7 +532,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public void waitForEmptyWorkQueue() {
     while (!workToOffer.isEmpty()) {
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -542,7 +542,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant waitStart = Instant.now();
     while (commitsReceived.size() < commitsRequested + numCommits
         && Instant.now().isBefore(waitStart.plus(timeout))) {
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
     commitsRequested += numCommits;
     return commitsReceived;
@@ -550,9 +550,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public Map<Long, WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
     LOG.debug("waitForAndGetCommitsRequest: {}", numCommits);
-    int maxTries = 100;
+    int maxTries = 1000;
     while (maxTries-- > 0 && commitsReceived.size() < commitsRequested + numCommits) {
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
 
     assertFalse(
@@ -588,9 +588,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
       int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
-    int maxTries = 100;
+    int maxTries = 1000;
     while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
     assertEquals(droppedCommits, droppedStreamingCommits.size());
     return droppedStreamingCommits;

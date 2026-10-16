@@ -1656,7 +1656,6 @@ public class WindmillStateInternalsTest {
             new Iterator<Map.Entry<ByteString, Iterable<Integer>>>() {
               final int targetEntries = 1_000_000; // return 1 million entries, which is 10 GBs
               final byte[] entryKey = new byte[10_000]; // each key is 10KB
-              final Random rand = new Random();
               int returnedEntries = 0;
 
               @Override
@@ -1667,7 +1666,10 @@ public class WindmillStateInternalsTest {
               @Override
               public Map.Entry<ByteString, Iterable<Integer>> next() {
                 returnedEntries++;
-                rand.nextBytes(entryKey);
+                entryKey[0] = (byte) (returnedEntries >> 24);
+                entryKey[1] = (byte) (returnedEntries >> 16);
+                entryKey[2] = (byte) (returnedEntries >> 8);
+                entryKey[3] = (byte) returnedEntries;
                 return multimapEntry(entryKey, 1);
               }
             },
@@ -1696,7 +1698,6 @@ public class WindmillStateInternalsTest {
             new Iterator<Map.Entry<ByteString, Iterable<Integer>>>() {
               final int targetEntries = 1_000_000; // return 1 million entries, which is 10 GBs
               final byte[] entryKey = new byte[10_000]; // each key is 10KB
-              final Random rand = new Random();
               int returnedEntries = 0;
 
               @Override
@@ -1707,7 +1708,10 @@ public class WindmillStateInternalsTest {
               @Override
               public Map.Entry<ByteString, Iterable<Integer>> next() {
                 returnedEntries++;
-                rand.nextBytes(entryKey);
+                entryKey[0] = (byte) (returnedEntries >> 24);
+                entryKey[1] = (byte) (returnedEntries >> 16);
+                entryKey[2] = (byte) (returnedEntries >> 8);
+                entryKey[3] = (byte) returnedEntries;
                 return multimapEntry(entryKey);
               }
             },
@@ -1744,7 +1748,6 @@ public class WindmillStateInternalsTest {
             new Iterator<byte[]>() {
               final int targetValues = 1_000_000; // return 1 million values, which is 10 GBs
               final byte[] value = new byte[10_000]; // each value is 10KB
-              final Random rand = new Random();
               int returnedValues = 0;
 
               @Override
@@ -1755,7 +1758,10 @@ public class WindmillStateInternalsTest {
               @Override
               public byte[] next() {
                 returnedValues++;
-                rand.nextBytes(value);
+                value[0] = (byte) (returnedValues >> 24);
+                value[1] = (byte) (returnedValues >> 16);
+                value[2] = (byte) (returnedValues >> 8);
+                value[3] = (byte) returnedValues;
                 return value;
               }
             };

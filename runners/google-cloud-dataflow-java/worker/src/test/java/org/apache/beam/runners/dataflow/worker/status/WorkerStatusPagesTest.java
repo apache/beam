@@ -95,7 +95,8 @@ public class WorkerStatusPagesTest {
   }
 
   private String getPage(String requestURL) throws Exception {
-    String request = String.format("GET %s HTTP/1.1\nhost: localhost\n\n", requestURL);
+    String request =
+        String.format("GET %s HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n", requestURL);
     return connector.getResponses(request);
   }
 }

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -33,12 +34,14 @@ import org.junit.runners.JUnit4;
 public class StreamDebugMetricsTest {
 
   @Test
-  public void testSummaryMetrics_noRestarts() throws InterruptedException {
-    StreamDebugMetrics streamDebugMetrics = StreamDebugMetrics.forTesting(Instant::now);
+  public void testSummaryMetrics_noRestarts() {
+    AtomicLong nowMs = new AtomicLong(1000L);
+    StreamDebugMetrics streamDebugMetrics =
+        StreamDebugMetrics.forTesting(() -> new Instant(nowMs.get()));
     streamDebugMetrics.recordStart();
     streamDebugMetrics.recordSend();
     streamDebugMetrics.recordResponse();
-    Thread.sleep(1000);
+    nowMs.addAndGet(100);
     StreamDebugMetrics.Snapshot metricsSnapshot = streamDebugMetrics.getSummaryMetrics();
     assertFalse(metricsSnapshot.shutdownTime().isPresent());
     assertTrue(metricsSnapshot.sleepLeft() <= 0);
