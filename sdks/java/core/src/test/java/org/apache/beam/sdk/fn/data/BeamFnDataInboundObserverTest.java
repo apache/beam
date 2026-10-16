@@ -19,7 +19,6 @@ package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -294,7 +293,8 @@ public class BeamFnDataInboundObserverTest {
 
     assertThrows(RuntimeException.class, observer::awaitCompletion);
 
-    assertFalse(callback1.get());
+    // callback1 belongs to the element that was being processed when the consumer threw.
+    assertTrue(callback1.get());
     assertTrue(callback2.get());
   }
 

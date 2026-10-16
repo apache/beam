@@ -477,24 +477,22 @@ public class BeamFnDataGrpcMultiplexerTest {
 
     assertThat(received, Matchers.contains(elements));
 
-    // Registering twice throws IllegalArgumentException wrapped in RuntimeException
-    RuntimeException e =
-        assertThrows(
-            RuntimeException.class,
-            () ->
-                multiplexer.registerConsumer(
-                    instructionId,
-                    new CloseableFnDataReceiver<BeamFnApi.Elements>() {
-                      @Override
-                      public void accept(BeamFnApi.Elements input) {}
+    // Registering twice throws IllegalArgumentException.
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            multiplexer.registerConsumer(
+                instructionId,
+                new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                  @Override
+                  public void accept(BeamFnApi.Elements input) {}
 
-                      @Override
-                      public void flush() {}
+                  @Override
+                  public void flush() {}
 
-                      @Override
-                      public void close() {}
-                    }));
-    assertThat(e.getCause(), Matchers.instanceOf(IllegalArgumentException.class));
+                  @Override
+                  public void close() {}
+                }));
   }
 
   @Test
@@ -593,8 +591,18 @@ public class BeamFnDataGrpcMultiplexerTest {
 
     multiplexer.poisonInstructionId(instructionId);
     assertTrue(closed.get());
+    assertFalse(multiplexer.hasConsumer(instructionId));
 
-    // Registering consumer for poisoned instruction fails
+    // Late elements for the poisoned instruction are dropped and leave no entry behind.
+    multiplexer
+        .getInboundObserver()
+        .onNext(
+            BeamFnApi.Elements.newBuilder()
+                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
+                .build());
+    assertFalse(multiplexer.hasConsumer(instructionId));
+
+    // Registering a consumer for the poisoned instruction still fails after the late data.
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -610,14 +618,7 @@ public class BeamFnDataGrpcMultiplexerTest {
                   @Override
                   public void close() {}
                 }));
-
-    // Subsequent elements for poisoned instruction are dropped
-    multiplexer
-        .getInboundObserver()
-        .onNext(
-            BeamFnApi.Elements.newBuilder()
-                .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId(instructionId))
-                .build());
+    assertFalse(multiplexer.hasConsumer(instructionId));
   }
 
   @Test
@@ -844,5 +845,134 @@ public class BeamFnDataGrpcMultiplexerTest {
       assertEquals(expected, received);
       multiplexer.unregisterConsumer(instructionId);
     }
+  }
+
+  /** A multiplexer whose inbound stream is a mock, so a test can count {@code request(1)} calls. */
+  @SuppressWarnings("unchecked")
+  private static ClientCallStreamObserver<BeamFnApi.Elements> startWithMockStream(
+      BeamFnDataGrpcMultiplexer multiplexer) {
+    ClientCallStreamObserver<BeamFnApi.Elements> stream = mock(ClientCallStreamObserver.class);
+    ((ClientResponseObserver<BeamFnApi.Elements, BeamFnApi.Elements>)
+            multiplexer.getInboundObserver())
+        .beforeStart(stream);
+    return stream;
+  }
+
+  private static BeamFnApi.Elements dataFor(String instructionId, String transformId)
+      throws Exception {
+    Coder<WindowedValue<String>> coder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    coder.encode(WindowedValues.valueInGlobalWindow("v"), out);
+    return BeamFnApi.Elements.newBuilder()
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(instructionId)
+                .setTransformId(transformId)
+                .setData(out.toByteString()))
+        .build();
+  }
+
+  private static BeamFnDataGrpcMultiplexer newMultiplexer() {
+    return new BeamFnDataGrpcMultiplexer(
+        DESCRIPTOR,
+        OutboundObserverFactory.clientDirect(),
+        inboundObserver -> TestStreams.withOnNext((BeamFnApi.Elements val) -> {}).build());
+  }
+
+  /**
+   * Each inbound message releases its flow-control permit once, which asks gRPC for one more
+   * message. A bundle whose consumer throws must release the permit of the message it was
+   * processing as well as of the messages still queued.
+   */
+  @Test
+  public void testPermitsReleasedWhenBundleFails() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer = newMultiplexer();
+    ClientCallStreamObserver<BeamFnApi.Elements> stream = startWithMockStream(multiplexer);
+    String instructionId = "failing_bundle";
+    Coder<WindowedValue<String>> coder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(
+                DataEndpoint.create(
+                    "t1",
+                    coder,
+                    value -> {
+                      throw new IllegalStateException("consumer failed");
+                    })),
+            Collections.emptyList());
+    multiplexer.registerConsumer(instructionId, observer);
+
+    for (int i = 0; i < 3; i++) {
+      multiplexer.getInboundObserver().onNext(dataFor(instructionId, "t1"));
+    }
+    assertThrows(IllegalStateException.class, observer::awaitCompletion);
+    multiplexer.poisonInstructionId(instructionId);
+
+    verify(stream, times(3)).request(1);
+    assertFalse(multiplexer.hasConsumer(instructionId));
+  }
+
+  @Test
+  public void testPermitsReleasedForLateDataOfPoisonedInstruction() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer = newMultiplexer();
+    ClientCallStreamObserver<BeamFnApi.Elements> stream = startWithMockStream(multiplexer);
+    String instructionId = "poisoned_late_data";
+    multiplexer.poisonInstructionId(instructionId);
+
+    for (int i = 0; i < 3; i++) {
+      multiplexer.getInboundObserver().onNext(dataFor(instructionId, "t1"));
+    }
+
+    verify(stream, times(3)).request(1);
+    assertFalse(multiplexer.hasConsumer(instructionId));
+  }
+
+  @Test
+  public void testPermitsReleasedWhenReceiverThrowsOnBufferedElements() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer = newMultiplexer();
+    ClientCallStreamObserver<BeamFnApi.Elements> stream = startWithMockStream(multiplexer);
+    String instructionId = "throwing_receiver";
+    for (int i = 0; i < 3; i++) {
+      multiplexer.getInboundObserver().onNext(dataFor(instructionId, "t1"));
+    }
+    verify(stream, times(0)).request(1);
+
+    // The receiver's own exception reaches the caller, not a wrapped one.
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            multiplexer.registerConsumer(
+                instructionId,
+                new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                  @Override
+                  public void accept(BeamFnApi.Elements input) {
+                    throw new IllegalStateException("receiver failed");
+                  }
+
+                  @Override
+                  public void flush() {}
+
+                  @Override
+                  public void close() {}
+                }));
+
+    verify(stream, times(3)).request(1);
+  }
+
+  @Test
+  public void testRequestInboundReleasesCount() {
+    BeamFnDataGrpcMultiplexer multiplexer = newMultiplexer();
+    ClientCallStreamObserver<BeamFnApi.Elements> stream = startWithMockStream(multiplexer);
+    // Three stalled polls open three messages beyond the steady-state window.
+    multiplexer.onStalledPoll();
+    multiplexer.onStalledPoll();
+    multiplexer.onStalledPoll();
+    verify(stream, times(3)).request(1);
+
+    // Releasing five brings the window two below steady state, so it asks for two more.
+    multiplexer.requestInbound(5);
+    verify(stream, times(5)).request(1);
   }
 }

@@ -155,20 +155,35 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       }
     }
 
+    /**
+     * Sets the receiver and hands it the buffered elements. Returns false if the holder already has
+     * a receiver or is poisoned. Every buffered callback runs, even if the receiver throws.
+     */
     synchronized boolean complete(CloseableFnDataReceiver<BeamFnApi.Elements> receiver)
         throws Exception {
-      if (this.receiver != null) {
+      if (this.receiver != null || poisoned) {
         return false;
       }
       this.receiver = receiver;
       if (receiver instanceof BeamFnDataInboundObserver) {
         drainPending();
       } else {
-        for (PendingElement p : pending) {
-          receiver.accept(p.elements);
-          p.callback.run();
+        try {
+          while (!pending.isEmpty()) {
+            PendingElement p = pending.removeFirst();
+            try {
+              receiver.accept(p.elements);
+            } finally {
+              p.callback.run();
+            }
+          }
+        } finally {
+          // If the receiver threw, release the callbacks of the elements it did not see.
+          for (PendingElement p : pending) {
+            p.callback.run();
+          }
+          pending.clear();
         }
-        pending.clear();
       }
       return true;
     }
@@ -183,6 +198,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
     synchronized boolean isDone() {
       return receiver != null || poisoned;
+    }
+
+    synchronized boolean isPoisoned() {
+      return poisoned;
     }
 
     synchronized void close() throws Exception {
@@ -227,7 +246,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    * STEADY_STATE_INBOUND_WINDOW} messages are open again.
    */
   public void requestInbound(int count) {
-    inFlightInbound.decrementAndGet();
+    inFlightInbound.addAndGet(-count);
     synchronized (inboundObserver) {
       while (inFlightInbound.get() < STEADY_STATE_INBOUND_WINDOW) {
         inFlightInbound.incrementAndGet();
@@ -261,27 +280,33 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         instructionId,
         (unused, existing) -> {
           if (existing != null) {
-            try {
-              if (!existing.complete(receiver)) {
-                throw new IllegalArgumentException("Instruction id was registered twice");
-              }
-            } catch (Exception e) {
-              throw new RuntimeException(e);
+            if (existing.isPoisoned()) {
+              throw new IllegalArgumentException("Instruction id was poisoned");
             }
-
+            if (!complete(existing, receiver)) {
+              throw new IllegalArgumentException("Instruction id was registered twice");
+            }
             return existing;
           }
           if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
             throw new IllegalArgumentException("Instruction id was poisoned");
           }
           ReceiverHolder h = new ReceiverHolder();
-          try {
-            h.complete(receiver);
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
+          complete(h, receiver);
           return h;
         });
+  }
+
+  /** {@link ReceiverHolder#complete} that rethrows runtime exceptions as they are. */
+  private static boolean complete(
+      ReceiverHolder holder, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+    try {
+      return holder.complete(receiver);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Unregisters a previously registered consumer. */
@@ -447,17 +472,21 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       }
     }
 
+    // computeIfAbsent documents that a null result inserts no mapping; the nullness checker's
+    // model of the function does not allow null. The poison check stays inside computeIfAbsent so
+    // it cannot race with poisonInstructionId.
+    @SuppressWarnings("return")
     private boolean forwardToConsumerForInstructionId(
         String instructionId, BeamFnApi.Elements value, Runnable callback) {
       try {
-        ReceiverHolder consumerFuture =
+        // computeIfAbsent inserts nothing when the function returns null, so data for a poisoned
+        // instruction leaves no entry in receivers.
+        @Nullable ReceiverHolder consumerFuture =
             receivers.computeIfAbsent(
                 instructionId,
                 (unused) -> {
                   if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
-                    ReceiverHolder h = new ReceiverHolder();
-                    h.poison();
-                    return h;
+                    return null;
                   }
                   LOG.debug(
                       "Received data for instruction {} without consumer ready. "
@@ -465,6 +494,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
                       instructionId);
                   return new ReceiverHolder();
                 });
+        if (consumerFuture == null) {
+          LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
+          return false;
+        }
         return consumerFuture.accept(value, callback);
       } catch (Exception e) {
         poisonInstructionId(instructionId);
