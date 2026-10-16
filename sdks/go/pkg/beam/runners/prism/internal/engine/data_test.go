@@ -228,13 +228,13 @@ func TestOrderedListState(t *testing.T) {
 			},
 		}
 
-		// 1. d.state is nil.
+		// d.state is nil.
 		d.ClearOrderedListState(linkID, wKey, uKey, math.MinInt64, math.MaxInt64)
 		if d.state != nil {
 			t.Fatalf("ClearOrderedListState on empty TentativeData allocated state map: %v", d.state)
 		}
 
-		// 2. d.state is non-nil, but has no entry for linkID.
+		// d.state is non-nil, but has no entry for linkID.
 		otherLink := LinkID{Transform: "dofn", Local: "otherState"}
 		d.AppendBagState(otherLink, wKey, uKey, []byte{1})
 		d.ClearOrderedListState(linkID, wKey, uKey, 0, 100)
@@ -242,7 +242,7 @@ func TestOrderedListState(t *testing.T) {
 			t.Fatalf("ClearOrderedListState created entry for uninitialized stateID %v", linkID)
 		}
 
-		// 3. d.state[linkID] exists for an interval window, but not for the global window.
+		// d.state[linkID] exists for an interval window, but not for the global window.
 		// An SDK that flushes range clears before appends on the first bundle in a window
 		// must not panic and must preserve subsequent appends.
 		iwKey := make([]byte, 16)
