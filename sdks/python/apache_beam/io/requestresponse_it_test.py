@@ -33,6 +33,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
+  import docker
   from testcontainers.redis import RedisContainer
 
   from apache_beam.io.requestresponse import Caller
@@ -206,6 +207,15 @@ class FakeCallerForCache(Caller[str, str]):
 
 @pytest.mark.uses_testcontainer
 class TestRedisCache(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls) -> None:
+    try:
+      client = docker.from_env()
+      client.ping()
+      client.close()
+    except Exception as e:  # pylint: disable=broad-except
+      raise unittest.SkipTest(f'Docker is not available: {e}')
+
   def setUp(self) -> None:
     self.retries = 5
     self._start_container()
