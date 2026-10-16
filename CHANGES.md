@@ -66,7 +66,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
-* (Python) The BigQuery IO writer now allows the `WRITE_TRUNCATE_DATA` write_disposition
+* (Python) The BigQuery IO writer now allows the `WRITE_TRUNCATE_DATA` write_disposition ([#40622](https://github.com/apache/beam/pull/40622)).
 
 ## New Features / Improvements
 
