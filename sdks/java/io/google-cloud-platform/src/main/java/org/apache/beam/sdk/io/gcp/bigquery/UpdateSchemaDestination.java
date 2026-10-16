@@ -259,6 +259,9 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
         && !loadConfig
             .getWriteDisposition()
+            .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE_DATA.toString()
+        && !loadConfig
+            .getWriteDisposition()
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
       return null;
     }

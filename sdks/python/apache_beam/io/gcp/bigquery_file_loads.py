@@ -419,7 +419,11 @@ class UpdateDestinationSchema(beam.DoFn):
     # When writing to normal tables WRITE_TRUNCATE will overwrite the schema but
     # when writing to a partition, care needs to be taken to update the schema
     # even on WRITE_TRUNCATE.
-    if (self._write_disposition not in ('WRITE_TRUNCATE', 'WRITE_APPEND') or
+    if (self._write_disposition not in (
+        'WRITE_TRUNCATE',
+        'WRITE_TRUNCATE_DATA',
+        'WRITE_APPEND'
+      ) or
         not additional_parameters or
         not additional_parameters.get("schemaUpdateOptions")):
       # No need to modify schema of destination table
@@ -619,11 +623,12 @@ class TriggerCopyJobs(beam.DoFn):
     Determines the write disposition for a BigQuery copy job,
      based on destination.
 
-    When the write_disposition for a job is WRITE_TRUNCATE, multiple copy jobs
-    to the same destination can interfere with each other, truncate data, and
-    write to the BigQuery table repeatedly. To prevent this, the first copy job
-    runs with the user's specified write_disposition, but subsequent jobs must
-    always use WRITE_APPEND. This ensures that subsequent copy jobs do not
+    When the write_disposition for a job is WRITE_TRUNCATE or 
+    WRITE_TRUNCATE_DATA, multiple copy jobs to the same destination can 
+    interfere with each other, truncate data, and write to the BigQuery 
+    table repeatedly. To prevent this, the first copy job runs with the 
+    user's specified write_disposition, but subsequent jobs must always
+    use WRITE_APPEND. This ensures that subsequent copy jobs do not
     clear out data appended by previous jobs.
 
     Args:
@@ -1242,7 +1247,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 quota_project_id=self.quota_project_id),
             schema_mod_job_name_pcv))
 
-    if self.write_disposition in ('WRITE_EMPTY', 'WRITE_TRUNCATE'):
+    if self.write_disposition in (
+        'WRITE_EMPTY', 'WRITE_TRUNCATE', 'WRITE_TRUNCATE_DATA'
+      ):
       # All loads going to the same table must be processed together so that
       # the truncation happens only once. See
       # https://github.com/apache/beam/issues/24535.

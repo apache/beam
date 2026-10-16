@@ -138,7 +138,8 @@ public abstract class BigQueryWriteConfiguration {
   @SchemaFieldDescription(
       "Specifies the action that occurs if the destination table already exists. "
           + "The following values are supported: "
-          + "WRITE_TRUNCATE (overwrites the table data), "
+          + "WRITE_TRUNCATE (overwrites the table data and schema), "
+          + "WRITE_TRUNCATE_DATA (overwrites the table data), "
           + "WRITE_APPEND (append the data to the table), "
           + "WRITE_EMPTY (job must fail if the table is not empty).")
   @Pure
