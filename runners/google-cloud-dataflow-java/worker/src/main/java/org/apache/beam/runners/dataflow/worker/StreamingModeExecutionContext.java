@@ -68,6 +68,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
@@ -796,19 +798,35 @@ public class StreamingModeExecutionContext
     return outputBuilder;
   }
 
-  private final long computeSourceBytesProcessed(String sourceBytesCounterName) {
+  @VisibleForTesting
+  long computeSourceBytesProcessed(String sourceBytesCounterName) {
     if (!(workExecutor instanceof DataflowMapTaskExecutor)) {
       return 0L;
     }
-    HashMap<String, ElementCounter> counters =
-        ((DataflowMapTaskExecutor) workExecutor)
-            .getReadOperation()
-            .receivers[0]
-            .getOutputCounters();
-
-    return Optional.ofNullable(counters.get(sourceBytesCounterName))
-        .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
-        .orElse(0L);
+    DataflowMapTaskExecutor mapTaskExecutor = (DataflowMapTaskExecutor) workExecutor;
+    long totalBytes = 0L;
+    ReadOperation readOperation = mapTaskExecutor.getReadOperation();
+    if (readOperation != null
+        && readOperation.receivers != null
+        && readOperation.receivers.length > 0) {
+      HashMap<String, ElementCounter> readOpCounters =
+          readOperation.receivers[0].getOutputCounters();
+      totalBytes +=
+          Optional.ofNullable(readOpCounters.get(sourceBytesCounterName))
+              .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
+              .orElse(0L);
+    }
+    for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
+      if (parDoOp.receivers != null && parDoOp.receivers.length > 0) {
+        HashMap<String, ElementCounter> splittableProcessOpCounters =
+            parDoOp.receivers[0].getOutputCounters();
+        totalBytes +=
+            Optional.ofNullable(splittableProcessOpCounters.get(sourceBytesCounterName))
+                .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
+                .orElse(0L);
+      }
+    }
+    return totalBytes;
   }
 
   public boolean advance() throws CoderException {

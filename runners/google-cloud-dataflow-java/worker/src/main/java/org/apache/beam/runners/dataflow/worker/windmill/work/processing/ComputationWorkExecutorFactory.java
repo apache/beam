@@ -54,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -185,6 +186,30 @@ final class ComputationWorkExecutorFactory {
             .countBytes(counterName));
   }
 
+  private static void trackAutoscalingParDoBytesRead(
+      MapTask mapTask,
+      Nodes.ParallelInstructionNode readNode,
+      Coder<?> splittableProcessCoder,
+      ParDoOperation splittableParDoOp,
+      MapTaskExecutor mapTaskExecutor,
+      String counterName) {
+    NameContext nameContext =
+        NameContext.create(
+            mapTask.getStageName(),
+            readNode.getParallelInstruction().getOriginalName(),
+            readNode.getParallelInstruction().getSystemName(),
+            readNode.getParallelInstruction().getName());
+    splittableParDoOp.receivers[0].addOutputCounter(
+        counterName,
+        new OutputObjectAndByteCounter(
+                new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                    splittableProcessCoder),
+                mapTaskExecutor.getOutputCounters(),
+                nameContext)
+            .setSamplingPeriod(100)
+            .countBytes(counterName));
+  }
+
   private static ReadOperation getValidatedReadOperation(MapTaskExecutor mapTaskExecutor) {
     ReadOperation readOperation = mapTaskExecutor.getReadOperation();
     // Disable progress updates since its results are unused for streaming
@@ -234,6 +259,22 @@ final class ComputationWorkExecutorFactory {
           readOperation,
           mapTaskExecutor,
           computationState.sourceBytesProcessCounterName());
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
+        Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder();
+        if (parDoOp.receivers != null
+            && parDoOp.receivers.length > 0
+            && parDoOp.receivers[0] != null
+            && bytesReadCoder != null) {
+          trackAutoscalingParDoBytesRead(
+              mapTask,
+              readNode,
+              bytesReadCoder,
+              parDoOp,
+              mapTaskExecutor,
+              computationState.sourceBytesProcessCounterName());
+        }
+      }
     }
 
     ComputationWorkExecutor.Builder executionStateBuilder =

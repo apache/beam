@@ -18,16 +18,29 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A ParDo mapping function. */
 public class ParDoOperation extends ReceivingOperation {
   private final ParDoFn fn;
+  // If present, this ParDo should report the amount of bytes read using this coder to serialize
+  // elements.
+  private final @Nullable Coder<?> bytesReadCoder;
 
   public ParDoOperation(ParDoFn fn, OutputReceiver[] outputReceivers, OperationContext context) {
+    this(fn, outputReceivers, context, null);
+  }
+
+  public ParDoOperation(
+      ParDoFn fn,
+      OutputReceiver[] outputReceivers,
+      OperationContext context,
+      @Nullable Coder<?> bytesReadCoder) {
     super(outputReceivers, context);
     this.fn = fn;
+    this.bytesReadCoder = bytesReadCoder;
   }
 
   @Override
@@ -81,5 +94,13 @@ public class ParDoOperation extends ReceivingOperation {
   @VisibleForTesting
   public ParDoFn getFn() throws Exception {
     return fn;
+  }
+
+  public boolean shouldReportBytesRead() {
+    return bytesReadCoder != null;
+  }
+
+  public @Nullable Coder<?> getBytesReadCoder() {
+    return bytesReadCoder;
   }
 }

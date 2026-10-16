@@ -62,6 +62,8 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils.TestReader;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -572,5 +574,37 @@ public class MapTaskExecutorTest {
     Mockito.verifyNoMoreInteractions(o1);
     // Closing after already closed should not call abort again.
     executor.close();
+  }
+
+  @Test
+  public void testGetReadReportingParDoOperations() throws Exception {
+    TestOutputReceiver receiver =
+        new TestOutputReceiver(counterSet, NameContextsForTests.nameContextForTest());
+    ReadOperation readOp = new TestReadOperation(receiver, createContext("ReadOperation"));
+    ParDoOperation regularParDo =
+        new ParDoOperation(
+            new NoopParDoFn(), new OutputReceiver[0], createContext("RegularParDo"), null);
+    ParDoOperation reportingParDo1 =
+        new ParDoOperation(
+            new NoopParDoFn(),
+            new OutputReceiver[0],
+            createContext("ReportingParDo1"),
+            StringUtf8Coder.of());
+    ParDoOperation reportingParDo2 =
+        new ParDoOperation(
+            new NoopParDoFn(),
+            new OutputReceiver[0],
+            createContext("ReportingParDo2"),
+            VarIntCoder.of());
+
+    List<Operation> operations =
+        Arrays.asList(readOp, regularParDo, reportingParDo1, reportingParDo2);
+    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
+      List<ParDoOperation> reportingOps = executor.getReadReportingParDoOperations();
+      assertThat(reportingOps, contains(reportingParDo1, reportingParDo2));
+      assertEquals(StringUtf8Coder.of(), reportingOps.get(0).getBytesReadCoder());
+      assertEquals(VarIntCoder.of(), reportingOps.get(1).getBytesReadCoder());
+    }
   }
 }
