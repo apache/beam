@@ -31,11 +31,10 @@ Usage (DataflowRunner): add the following flags to the command above.
       --project=my-project \
       --region=us-central1 \
       --temp_location=gs://my-gcs-bucket/temp \
-      --requirements_file=requirements.txt
+      --requirements_file=apache_beam/examples/secret_manager/aws_credentials_requirements.txt
 
-where requirements.txt contains:
-  boto3
-  google-cloud-secret-manager
+where aws_credentials_requirements.txt (in the same directory as this example)
+lists the packages the workers need: boto3 and google-cloud-secret-manager.
 
 Required permissions:
   * The AWS IAM user that owns the access key needs ``s3:ListBucket`` on the
