@@ -446,6 +446,22 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		transformSet[tid] = true
 	}
 
+	// Any ParDo in the stage can register bundle finalization callbacks, not only the
+	// transforms that consume the stage's inputs, so every one of them must be checked.
+	for _, tid := range stg.transforms {
+		t := comps.GetTransforms()[tid]
+		switch t.GetSpec().GetUrn() {
+		case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
+			pardo := &pipepb.ParDoPayload{}
+			if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
+				return fmt.Errorf("unable to decode ParDoPayload for %v", tid)
+			}
+			if pardo.GetRequestsFinalization() {
+				stg.finalize = true
+			}
+		}
+	}
+
 	// Now we can see which consumers (inputs) aren't covered by the producers (outputs).
 	mainInputs := map[string]string{}
 	var sideInputs []engine.LinkID
@@ -467,9 +483,6 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				pardo := &pipepb.ParDoPayload{}
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
-				}
-				if pardo.GetRequestsFinalization() {
-					stg.finalize = true
 				}
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
