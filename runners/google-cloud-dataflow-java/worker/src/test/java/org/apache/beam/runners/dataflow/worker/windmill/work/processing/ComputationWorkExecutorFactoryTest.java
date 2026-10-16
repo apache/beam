@@ -227,9 +227,9 @@ public class ComputationWorkExecutorFactoryTest {
             mock(FailureTracker.class),
             IdGenerators.decrementingLongs(),
             new StreamingGlobalConfigHandleImpl(),
-            new HotKeyLogger(),
+            mock(HotKeyLogger.class),
             mock(SideInputStateFetcherFactory.class),
-            MultiKeyBundleOptions.EMPTY);
+            MultiKeyBundleOptions.fromOptions(options));
 
     Coder<WindowedValue<String>> windowedStringCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
