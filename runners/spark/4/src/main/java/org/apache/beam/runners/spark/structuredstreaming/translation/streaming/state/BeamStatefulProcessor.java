@@ -25,29 +25,20 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
-import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.StatefulDoFnRunner;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals.StateCells;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
-import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -67,43 +58,46 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import scala.collection.Iterator;
 
-/** Runs a stateful {@link DoFn} within Spark 4 Structured Streaming {@code transformWithState}. */
-public class BeamStatefulProcessor<K, V, OutputT>
+/** Base stateful processor bridging Beam state and timers over Spark transformWithState. */
+public abstract class BeamStatefulProcessor<K, V, OutputT>
     extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
   private static final String BEAM_WATERMARK = "beamWatermark";
 
-  private final DoFn<KV<K, V>, OutputT> doFn;
-  private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
-  private final KvCoder<K, V> inputCoder;
-  private final WindowingStrategy<?, ?> windowingStrategy;
-  private final Supplier<PipelineOptions> optionsSupplier;
-  private final MetricsAccumulator metrics;
-  private final Coder<BoundedWindow> windowCoder;
+  protected final KvCoder<K, V> inputCoder;
+  protected final WindowingStrategy<?, ?> windowingStrategy;
+  protected final Coder<BoundedWindow> windowCoder;
   private final TimerDataCoderV2 timerDataCoder;
-  private final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
+  protected final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
 
   private transient @Nullable MapState<String, byte[]> beamState;
   private transient @Nullable ValueState<byte[]> beamTimers;
   private transient @Nullable ValueState<Long> beamWatermark;
   private transient @Nullable List<WindowedValue<OutputT>> currentOutputs;
-  private transient boolean needsBundleStart;
+
+  private transient @Nullable WindowedValueMultiReceiver outputReceiver;
+
+  protected WindowedValueMultiReceiver outputReceiver() {
+    if (outputReceiver == null) {
+      outputReceiver =
+          new WindowedValueMultiReceiver() {
+            @Override
+            public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+              @SuppressWarnings("unchecked")
+              WindowedValue<OutputT> out = (WindowedValue<OutputT>) output;
+              checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(out);
+            }
+          };
+    }
+    return outputReceiver;
+  }
 
   public BeamStatefulProcessor(
-      DoFn<KV<K, V>, OutputT> doFn,
-      DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
-      KvCoder<K, V> inputCoder,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Supplier<PipelineOptions> optionsSupplier,
-      MetricsAccumulator metrics) {
-    this.doFn = doFn;
-    this.runnerFactory = runnerFactory;
+      KvCoder<K, V> inputCoder, WindowingStrategy<?, ?> windowingStrategy) {
     this.inputCoder = inputCoder;
     this.windowingStrategy = windowingStrategy;
-    this.optionsSupplier = optionsSupplier;
-    this.metrics = metrics;
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
@@ -151,16 +145,12 @@ public class BeamStatefulProcessor<K, V, OutputT>
       byte[] keyBytes, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
     K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
+    this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
 
-    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
-    while (rows.hasNext()) {
-      runner.processElement(rows.next());
-    }
+    processElements(key, rows, timerInternals);
     timerInternals.advanceWatermark();
-    // The next bundle opens in keyRunner.
-    runner.finishBundle();
-    needsBundleStart = true;
+    processTimers(key, timerInternals);
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, null);
@@ -173,14 +163,11 @@ public class BeamStatefulProcessor<K, V, OutputT>
       byte[] keyBytes, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
     K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
+    this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
     timerInternals.advanceWatermark();
 
-    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
-    fireDueTimers(key, timerInternals.currentInputWatermarkTime(), timerInternals, runner);
-    // The next bundle opens in keyRunner.
-    runner.finishBundle();
-    needsBundleStart = true;
+    processTimers(key, timerInternals);
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, expiredTimerInfo.getExpiryTimeInMs());
@@ -193,65 +180,24 @@ public class BeamStatefulProcessor<K, V, OutputT>
     taskRunner.teardownOnce();
   }
 
-  /** Creates the task runner on first use, {@code create} opens the first bundle. */
-  private DoFnRunnerWithTeardown<KV<K, V>, OutputT> baseRunner(
-      SparkStateInternals<K> stateInternals, SparkTimerInternals timerInternals) {
-    return taskRunner.getOrCreate(
-        ctx -> {
-          ctx.set(stateInternals, timerInternals);
-          return runnerFactory.create(
-              optionsSupplier.get(),
-              metrics,
-              new WindowedValueMultiReceiver() {
-                @Override
-                public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-                  @SuppressWarnings("unchecked")
-                  WindowedValue<OutputT> out = (WindowedValue<OutputT>) output;
-                  checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(out);
-                }
-              },
-              ctx);
-        });
+  protected SparkStateInternals<K> stateInternals(K key) {
+    return SparkStateInternals.forKey(
+        key, new MapStateAdapter(checkStateNotNull(beamState, "beamState not initialized")));
   }
 
-  private DoFnRunner<KV<K, V>, OutputT> keyRunner(
-      K key, SparkTimerInternals timerInternals, List<WindowedValue<OutputT>> outputs) {
-    this.currentOutputs = outputs;
-    MapState<String, byte[]> state = checkStateNotNull(beamState);
-    SparkStateInternals<K> stateInternals =
-        SparkStateInternals.forKey(key, new MapStateAdapter(state));
-    DoFnRunnerWithTeardown<KV<K, V>, OutputT> base = baseRunner(stateInternals, timerInternals);
-    taskRunner.stepContext().set(stateInternals, timerInternals);
-
-    // Closed in handleInputRows and handleExpiredTimer.
-    if (needsBundleStart) {
-      needsBundleStart = false;
-      base.startBundle();
-    }
-
-    StatefulDoFnRunner.CleanupTimer<KV<K, V>> cleanupTimer =
-        new StatefulDoFnRunner.TimeInternalsCleanupTimer<KV<K, V>>(
-            timerInternals, windowingStrategy) {
-          @Override
-          public void setForWindow(KV<K, V> input, BoundedWindow window) {
-            // GlobalWindow state is never garbage collected, as in the Flink runner.
-            if (!window.equals(GlobalWindow.INSTANCE)) {
-              super.setForWindow(input, window);
-            }
-          }
-        };
-    StatefulDoFnRunner.StateCleaner<BoundedWindow> stateCleaner =
-        new StatefulDoFnRunner.StateInternalsStateCleaner<>(doFn, stateInternals, windowCoder);
-
-    return DoFnRunners.defaultStatefulDoFnRunner(
-        doFn,
-        inputCoder,
-        base,
-        taskRunner.stepContext(),
-        windowingStrategy,
-        cleanupTimer,
-        stateCleaner);
+  protected List<TimerData> dueEventTimeTimers(SparkTimerInternals timerInternals) {
+    Instant watermark = timerInternals.currentInputWatermarkTime();
+    return timerInternals.getTimers().stream()
+        .filter(
+            t -> t.getDomain().equals(TimeDomain.EVENT_TIME) && watermark.isAfter(t.getTimestamp()))
+        .sorted(Comparator.comparing(TimerData::getTimestamp))
+        .collect(Collectors.toList());
   }
+
+  protected abstract void processElements(
+      K key, Iterator<WindowedValue<KV<K, V>>> rows, SparkTimerInternals timerInternals);
+
+  protected abstract void processTimers(K key, SparkTimerInternals timerInternals);
 
   private void restoreTimers(SparkTimerInternals timerInternals) {
     ValueState<byte[]> timersState = checkStateNotNull(beamTimers);
@@ -275,28 +221,6 @@ public class BeamStatefulProcessor<K, V, OutputT>
     } else {
       timersState.update(
           CoderHelpers.toByteArray(new ArrayList<>(timers), ListCoder.of(timerDataCoder)));
-    }
-  }
-
-  private void fireDueTimers(
-      K key,
-      Instant watermark,
-      SparkTimerInternals timerInternals,
-      DoFnRunner<KV<K, V>, OutputT> runner) {
-    while (true) {
-      TimerData next =
-          timerInternals.getTimers().stream()
-              .filter(
-                  t ->
-                      t.getDomain().equals(TimeDomain.EVENT_TIME)
-                          && watermark.isAfter(t.getTimestamp()))
-              .min(Comparator.comparing(TimerData::getTimestamp))
-              .orElse(null);
-      if (next == null) {
-        break;
-      }
-      timerInternals.deleteTimer(next);
-      StatefulTaskRunner.fireTimer(runner, key, next);
     }
   }
 
