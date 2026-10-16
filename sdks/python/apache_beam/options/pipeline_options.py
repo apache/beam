@@ -1198,6 +1198,17 @@ class GoogleCloudOptions(PipelineOptions):
         help='Throttling counter in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counter to avoid it.')
     parser.add_argument(
+        '--quota_project_id',
+        default=None,
+        help='GCP project ID used for quota and billing attribution of Google '
+        'Cloud API requests (sets the x-goog-user-project header), if '
+        'different from the project the data resides in. Currently honored '
+        'by BigQuery IO transforms (ReadFromBigQuery, ReadAllFromBigQuery, '
+        'WriteToBigQuery with FILE_LOADS or STREAMING_INSERTS, '
+        'ReadBigQueryChangeHistory); STORAGE_WRITE_API (Java-backed) and '
+        'other GCP IOs do not use it yet. The credentials used must have the '
+        'serviceusage.services.use permission on this project.')
+    parser.add_argument(
         '--enable_gcsio_blob_generation',
         default=False,
         action='store_true',
