@@ -31,7 +31,7 @@ import shutil
 import struct
 import sys
 import tempfile
-import unittest
+from unittest import SkipTest
 
 import numpy as np
 
@@ -204,9 +204,9 @@ def require_linux_docker():
     finally:
       client.close()
   except Exception as e:  # pylint: disable=broad-except
-    raise unittest.SkipTest(f'Docker is not available: {e}')
+    raise SkipTest(f'Docker is not available: {e}')
   if os_type != 'linux':
-    raise unittest.SkipTest(
+    raise SkipTest(
         f'Docker daemon runs {os_type} containers; '
         'Linux containers are required.')
 
