@@ -80,6 +80,7 @@ defined, or before importing a module containing type-hinted functions.
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import functools
 import inspect
 import itertools
 import logging
@@ -130,6 +131,67 @@ _MethodDescriptorType = type(str.upper)
 _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
 _disable_from_callable = False  # pylint: disable=invalid-name
+
+
+def _contains_forward_ref(annotation):
+  if isinstance(annotation, (str, typing.ForwardRef)):
+    return True
+  origin = get_origin(annotation)
+  if origin is Literal:
+    # Literal strings are values, not type names.
+    return False
+  args = get_args(annotation)
+  if origin is typing.Annotated:
+    args = args[:1]  # The remaining arguments are metadata.
+  return any(_contains_forward_ref(arg) for arg in args)
+
+
+def _annotation_namespaces(fn):
+  """Find the implementation and namespaces behind inspect.signature(fn)."""
+  target = fn
+  while isinstance(target, functools.partial):
+    target = target.func
+  localns = None
+  if inspect.isclass(target):
+    localns = dict(vars(target))
+    localns[target.__name__] = target
+    if target.__init__ is not object.__init__:
+      target = target.__init__
+    else:
+      target = target.__new__
+  elif inspect.ismethod(target):
+    owner = target.__self__
+    owner = owner if inspect.isclass(owner) else type(owner)
+    localns = dict(vars(owner))
+    localns[owner.__name__] = owner
+  elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
+    owner = type(target)
+    target = target.__call__
+    localns = dict(vars(owner))
+    localns[owner.__name__] = owner
+  target = inspect.unwrap(target)
+  if inspect.ismethod(target):
+    target = target.__func__
+  return getattr(target, '__globals__', {}), localns
+
+
+def _resolve_annotation(annotation, globalns, localns):
+  if not _contains_forward_ref(annotation):
+    return annotation
+
+  # get_type_hints resolves nested ForwardRefs and uses public typing APIs.
+  # A one-hint callable lets an unresolved name leave other hints intact.
+  def one_hint():
+    pass
+
+  one_hint.__annotations__ = {'value': annotation}
+  try:
+    return typing.get_type_hints(
+        one_hint, globalns=globalns, localns=localns,
+        include_extras=True)['value']
+  except (AttributeError, NameError, SyntaxError, TypeError):
+    # convert_to_beam_type maps unresolved strings and ForwardRefs to Any.
+    return annotation
 
 
 def get_signature(func):
@@ -335,26 +397,19 @@ class IOTypeHints(NamedTuple):
             for param in signature.parameters.values()) and
         signature.return_annotation == signature.empty):
       return None
-    if (any(isinstance(param.annotation, str)
+    if (any(_contains_forward_ref(param.annotation)
             for param in signature.parameters.values()) or
-        isinstance(signature.return_annotation, str)):
-      try:
-        resolved = typing.get_type_hints(
-            fn.__init__ if inspect.isclass(fn) else fn)
-      except (AttributeError, NameError, SyntaxError, TypeError):
-        # Keep unresolved annotations on the existing Any fallback path.
-        resolved = {}
+        _contains_forward_ref(signature.return_annotation)):
+      globalns, localns = _annotation_namespaces(fn)
       signature = signature.replace(
           parameters=[
               param.replace(
-                  annotation=resolved.get(param.name, param.annotation))
-              if isinstance(param.annotation, str) else param
+                  annotation=_resolve_annotation(
+                      param.annotation, globalns, localns))
               for param in signature.parameters.values()
           ],
-          return_annotation=(
-              resolved.get('return', signature.return_annotation) if isinstance(
-                  signature.return_annotation, str) else
-              signature.return_annotation))
+          return_annotation=_resolve_annotation(
+              signature.return_annotation, globalns, localns))
     input_args = []
     input_kwargs = {}
     for param in signature.parameters.values():

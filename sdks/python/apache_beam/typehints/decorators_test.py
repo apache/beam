@@ -264,6 +264,14 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((List[str], ), {}))
 
+  def test_from_callable_pardo_output_is_an_iterable_of_elements(self):
+    def do_fn(element: 'int') -> 'typehints.List[typehints.List[str]]':
+      return [[str(element)] * 2]
+
+    th = decorators.IOTypeHints.from_callable(do_fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.strip_iterable().output_types, ((List[str], ), {}))
+
   def test_from_callable_resolves_future_annotations(self):
     namespace = {'typehints': typehints}
     exec(
@@ -300,7 +308,142 @@ class IOTypeHintsTest(unittest.TestCase):
 
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertEqual(th.input_types, ((Any, ), {}))
-    self.assertEqual(th.output_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_resolves_other_hints_after_missing_name(self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'def fn(missing: MissingType, value: int, *, name: str) -> int:\n'
+        '  return value\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((Any, int), {'name': str}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_resolves_nested_forward_references(self):
+    def fn(
+        values: typing.List['int'],
+        pair: typing.Tuple['str', int],
+        builtin: list['int'],
+        nested: typing.Dict[str, typing.List[typing.ForwardRef('int')]],
+        resolved: typing.List[int]) -> typing.List['str']:
+      return [str(values[0])]
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types,
+        ((
+            List[int],
+            Tuple[str, int],
+            List[int],
+            Dict[str, List[int]],
+            List[int]), {}))
+    self.assertEqual(th.output_types, ((List[str], ), {}))
+
+  def test_from_callable_unresolved_nested_reference_falls_back_to_any(self):
+    def fn(values: typing.List['MissingType']) -> 'int':
+      return len(values)
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((List[Any], ), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_partial_with_string_annotations(self):
+    def fn(bound: 'int', value: 'str', *, option: 'int') -> 'str':
+      return value
+
+    th = decorators.IOTypeHints.from_callable(functools.partial(fn, 1))
+    self.assertEqual(th.input_types, ((str, ), {
+        'option': int
+    }))
+    self.assertEqual(th.output_types, ((str, ), {}))
+
+  def test_from_callable_bound_and_unbound_methods_with_strings(self):
+    class Processor:
+      def process(self, value: 'int', *, label: 'str') -> 'str':
+        return label
+
+    unbound = decorators.IOTypeHints.from_callable(Processor.process)
+    self.assertEqual(unbound.input_types, ((Any, int), {'label': str}))
+    self.assertEqual(unbound.output_types, ((str, ), {}))
+    bound = decorators.IOTypeHints.from_callable(Processor().process)
+    self.assertEqual(bound.input_types, ((int, ), {
+        'label': str
+    }))
+    self.assertEqual(bound.output_types, ((str, ), {}))
+
+  def test_from_callable_varargs_and_kwargs_with_strings(self):
+    def fn(
+        value: 'int',
+        *args: 'typing.Tuple[str]',
+        required: 'str',
+        **kwargs: 'typing.Dict[str, int]') -> 'int':
+      return value
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types, ((int, Tuple[str]), {
+            'required': str, 'kwargs': Dict[str, int]
+        }))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_callable_instance_with_string_annotations(self):
+    class CallableClass:
+      def __call__(self, value: 'int') -> 'str':
+        return str(value)
+
+    th = decorators.IOTypeHints.from_callable(CallableClass())
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((str, ), {}))
+
+  def test_from_callable_wrapped_function_uses_original_namespace(self):
+    namespace = {'Alias': str}
+    exec('def original(value: "Alias") -> "int":\n  return 1\n', namespace)
+
+    @functools.wraps(namespace['original'])
+    def wrapper(*args, **kwargs):
+      return namespace['original'](*args, **kwargs)
+
+    th = decorators.IOTypeHints.from_callable(wrapper)
+    self.assertEqual(th.input_types, ((str, ), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_class_new_and_inherited_init(self):
+    class WithNew:
+      def __new__(cls, value: 'int'):
+        return super().__new__(cls)
+
+    class NoConstructor:
+      pass
+
+    th = decorators.IOTypeHints.from_callable(WithNew)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((WithNew, ), {}))
+    th = decorators.IOTypeHints.from_callable(NoConstructor)
+    self.assertEqual(th.input_types, ((), {}))
+    self.assertEqual(th.output_types, ((NoConstructor, ), {}))
+
+  def test_from_callable_resolves_class_local_names(self):
+    class Node:
+      def __init__(self, previous: 'Node'):
+        self.previous = previous
+
+      def link(self, next_node: 'Node') -> 'Node':
+        return next_node
+
+    th = decorators.IOTypeHints.from_callable(Node)
+    self.assertEqual(th.input_types, ((Node, ), {}))
+    self.assertEqual(th.output_types, ((Node, ), {}))
+    th = decorators.IOTypeHints.from_callable(Node(None).link)
+    self.assertEqual(th.input_types, ((Node, ), {}))
+    self.assertEqual(th.output_types, ((Node, ), {}))
+
+  def test_from_callable_annotated_preserves_metadata_during_resolution(self):
+    annotation = typing.Annotated[typing.List['int'], 'metadata']
+    resolved = decorators._resolve_annotation(annotation, globals(), locals())
+    self.assertEqual(resolved, typing.Annotated[typing.List[int], 'metadata'])
 
   def test_from_callable_partial(self):
     def fn(a: int) -> int:
