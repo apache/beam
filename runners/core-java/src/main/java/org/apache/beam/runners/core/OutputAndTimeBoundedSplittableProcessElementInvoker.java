@@ -182,7 +182,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           @Override
           public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
             return DoFnOutputReceivers.windowedReceiver(
-                processContext, OutputBuilderSuppliers.supplierForElement(element), null);
+                processContext, OutputBuilderSuppliers.supplierForElement(element), mainOutputTag);
           }
 
           @Override

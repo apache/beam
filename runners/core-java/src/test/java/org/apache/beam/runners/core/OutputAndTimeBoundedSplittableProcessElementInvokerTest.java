@@ -27,7 +27,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -286,5 +289,72 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     // GetSizeFn claims 2 elements and finishes.
     assertEquals(0.0, res.getBacklogBytes(), 0.001);
     assertNull(res.getResidualRestriction());
+  }
+
+  private static class OutputReceiverFn extends DoFn<Void, String> {
+    @ProcessElement
+    public ProcessContinuation process(
+        OutputReceiver<String> receiver, RestrictionTracker<OffsetRange, Long> tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        receiver.output(String.valueOf(i));
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Void element) {
+      return new OffsetRange(0, 3);
+    }
+  }
+
+  @Test
+  public void testInvokeProcessElementWithOutputReceiverUsesMainOutputTag() throws Exception {
+    OutputReceiverFn fn = new OutputReceiverFn();
+    TupleTag<String> mainOutputTag = new TupleTag<>("mainOutputTag");
+    List<KV<TupleTag<?>, String>> outputs = new ArrayList<>();
+
+    SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void> invoker =
+        new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
+            fn,
+            PipelineOptionsFactory.create(),
+            new WindowedValueMultiReceiver() {
+              @Override
+              public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
+                outputs.add(KV.of(tag, (String) output.getValue()));
+              }
+            },
+            mainOutputTag,
+            NullSideInputReader.empty(),
+            Executors.newSingleThreadScheduledExecutor(),
+            1000,
+            Duration.standardMinutes(3),
+            () -> {
+              throw new UnsupportedOperationException("BundleFinalizer not configured for test.");
+            });
+
+    SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result res =
+        invoker.invokeProcessElement(
+            DoFnInvokers.invokerFor(fn),
+            WindowedValues.of(null, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            new OffsetRangeTracker(new OffsetRange(0, 3)),
+            new WatermarkEstimator<Void>() {
+              @Override
+              public Instant currentWatermark() {
+                return GlobalWindow.TIMESTAMP_MIN_VALUE;
+              }
+
+              @Override
+              public Void getState() {
+                return null;
+              }
+            },
+            Collections.emptyMap());
+
+    assertFalse(res.getContinuation().shouldResume());
+    assertNull(res.getResidualRestriction());
+    assertEquals(3, outputs.size());
+    assertEquals(KV.of(mainOutputTag, "0"), outputs.get(0));
+    assertEquals(KV.of(mainOutputTag, "1"), outputs.get(1));
+    assertEquals(KV.of(mainOutputTag, "2"), outputs.get(2));
   }
 }
