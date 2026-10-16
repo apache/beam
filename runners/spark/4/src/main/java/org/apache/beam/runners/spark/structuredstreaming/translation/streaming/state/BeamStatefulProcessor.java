@@ -31,7 +31,6 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals.StateCells;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
@@ -39,8 +38,10 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumula
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -68,7 +69,7 @@ import scala.collection.Iterator;
 
 /** Runs a stateful {@link DoFn} within Spark 4 Structured Streaming {@code transformWithState}. */
 public class BeamStatefulProcessor<K, V, OutputT>
-    extends StatefulProcessor<K, WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+    extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
@@ -76,7 +77,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   private final DoFn<KV<K, V>, OutputT> doFn;
   private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
-  private final Coder<KV<K, V>> inputCoder;
+  private final KvCoder<K, V> inputCoder;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Supplier<PipelineOptions> optionsSupplier;
   private final MetricsAccumulator metrics;
@@ -93,7 +94,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
   public BeamStatefulProcessor(
       DoFn<KV<K, V>, OutputT> doFn,
       DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
-      Coder<KV<K, V>> inputCoder,
+      KvCoder<K, V> inputCoder,
       WindowingStrategy<?, ?> windowingStrategy,
       Supplier<PipelineOptions> optionsSupplier,
       MetricsAccumulator metrics) {
@@ -138,7 +139,8 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleInputRows(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+      byte[] keyBytes, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     SparkTimerInternals timerInternals = timerInternals(timerValues);
 
@@ -159,7 +161,8 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleExpiredTimer(
-      K key, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+      byte[] keyBytes, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     SparkTimerInternals timerInternals = timerInternals(timerValues);
     timerInternals.advanceWatermark();

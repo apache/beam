@@ -21,6 +21,7 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumula
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state.BeamStatefulProcessor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.TimeMode;
 
@@ -57,7 +58,7 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
     DoFn<KV<K, V>, OutputT> doFn = transform.getFn();
 
     KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
-    Encoder<K> keyEnc = cxt.keyEncoderOf(inputCoder);
+    Coder<K> keyCoder = inputCoder.getKeyCoder();
     TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
     PCollection<OutputT> output = cxt.getOutput(mainOutputTag);
     Coder<OutputT> outputCoder = output.getCoder();
@@ -71,10 +72,11 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
         new BeamStatefulProcessor<>(
             doFn, runnerFactory, inputCoder, windowing, cxt.getOptionsSupplier(), metrics);
 
-    MapFunction<WindowedValue<KV<K, V>>, K> keyFn = v -> v.getValue().getKey();
+    MapFunction<WindowedValue<KV<K, V>>, byte[]> keyFn =
+        v -> CoderHelpers.toByteArray(v.getValue().getKey(), keyCoder);
     Dataset<WindowedValue<OutputT>> result =
         cxt.getDataset(input)
-            .groupByKey(keyFn, keyEnc)
+            .groupByKey(keyFn, Encoders.BINARY())
             .transformWithState(
                 processor,
                 TimeMode.EventTime(),
