@@ -59,7 +59,7 @@ final class KeyGroupWorkIndex {
     if (work.isClaimed()) {
       return;
     }
-    QueueKey queueKey = work.queueKey();
+    QueueKey queueKey = work.getQueueKey();
     shardFor(queueKey).add(queueKey, work);
   }
 
@@ -70,7 +70,7 @@ final class KeyGroupWorkIndex {
    */
   void drainClaimed(QueuedWork completedWork) {
     checkArgument(completedWork.isClaimed());
-    QueueKey queueKey = completedWork.queueKey();
+    QueueKey queueKey = completedWork.getQueueKey();
     shardFor(queueKey).drainClaimed(queueKey);
   }
 
@@ -96,7 +96,7 @@ final class KeyGroupWorkIndex {
     @GuardedBy("this")
     private final Map<QueueKey, ArrayDeque<QueuedWork>> queuesByKeyGroup = new HashMap<>();
 
-    synchronized void add(QueueKey queueKey, QueuedWork work) {
+    private synchronized void add(QueueKey queueKey, QueuedWork work) {
       if (work.isClaimed()) {
         return;
       }
@@ -107,7 +107,7 @@ final class KeyGroupWorkIndex {
       queue.addLast(work);
     }
 
-    synchronized void drainClaimed(QueueKey queueKey) {
+    private synchronized void drainClaimed(QueueKey queueKey) {
       @Nullable ArrayDeque<QueuedWork> queue = queuesByKeyGroup.get(queueKey);
       if (queue == null) {
         return;
@@ -118,7 +118,7 @@ final class KeyGroupWorkIndex {
       }
     }
 
-    synchronized @Nullable QueuedWork pollAndClaim(QueueKey queueKey) {
+    private synchronized @Nullable QueuedWork pollAndClaim(QueueKey queueKey) {
       @Nullable ArrayDeque<QueuedWork> queue = queuesByKeyGroup.get(queueKey);
       if (queue == null) {
         return null;
@@ -137,7 +137,7 @@ final class KeyGroupWorkIndex {
       return claimed;
     }
 
-    synchronized boolean isEmpty() {
+    private synchronized boolean isEmpty() {
       return queuesByKeyGroup.isEmpty();
     }
 

@@ -694,6 +694,8 @@ public class BoundedQueueExecutorTest {
     for (int i = 0; i < numStolenByBundle1; i++) {
       assertNotNull(testExecutor.pollWork("compA", keyGroup, bundle1, FAILING_FAILED_WORK_HANDLER));
     }
+    // 2 = bundle1 + bundle2.
+    assertEquals(2 + numWorks, testExecutor.elementsOutstanding());
     assertEquals(numWorks, testExecutor.rawQueueSizeForTesting());
 
     // Closing bundle1 leaves its 6 stale shells uncounted. The executor queue now exceeds
@@ -702,6 +704,8 @@ public class BoundedQueueExecutorTest {
     bundle1.close();
     int numStolenByBundle2 = 1;
     assertNotNull(testExecutor.pollWork("compA", keyGroup, bundle2, FAILING_FAILED_WORK_HANDLER));
+    // 1 = bundle2.
+    assertEquals(1 + numWorks - numStolenByBundle1, testExecutor.elementsOutstanding());
     assertEquals(
         numWorks - numStolenByBundle1 - numStolenByBundle2, testExecutor.rawQueueSizeForTesting());
 

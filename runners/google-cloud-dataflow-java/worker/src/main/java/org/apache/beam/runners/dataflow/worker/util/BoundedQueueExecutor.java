@@ -392,19 +392,21 @@ public class BoundedQueueExecutor {
       }
     }
 
-    public ExecutableWork getWork() {
+    @VisibleForTesting
+    ExecutableWork getWork() {
       return checkStateNotNull(work, "QueuedWork was already claimed.");
     }
 
-    public BoundedQueueExecutorWorkHandleImpl getHandle() {
+    private BoundedQueueExecutorWorkHandleImpl getHandle() {
       return checkStateNotNull(handle, "QueuedWork was already claimed.");
     }
 
+    @VisibleForTesting
     boolean isStealable() {
       return keyGroupWorkIndex != null;
     }
 
-    KeyGroupWorkIndex.QueueKey queueKey() {
+    KeyGroupWorkIndex.QueueKey getQueueKey() {
       return checkStateNotNull(queueKey);
     }
 
@@ -416,6 +418,7 @@ public class BoundedQueueExecutor {
       return state == STOLEN;
     }
 
+    @VisibleForTesting
     boolean tryClaimForExecution() {
       return STATE.compareAndSet(this, QUEUED, STARTED);
     }
@@ -528,6 +531,12 @@ public class BoundedQueueExecutor {
   /**
    * Purges stale shells in bulk if they accumulate while all executor threads are busy running
    * multi-key bundles.
+   *
+   * <p>{@code forceExecute} can queue more than {@code maximumElementsOutstanding} unstarted items
+   * (e.g. retries or finalizations). {@code elementsOutstanding} counts non-shell work items, so
+   * comparing {@code workQueue.size()} against {@code elementsOutstanding +
+   * maximumElementsOutstanding} allows up to {@code maximumElementsOutstanding} closed stale shells
+   * before running an O(n) {@code removeIf}.
    */
   private void onWorkStolen() {
     if (workQueue.size() <= (long) elementsOutstanding.get() + maximumElementsOutstanding
