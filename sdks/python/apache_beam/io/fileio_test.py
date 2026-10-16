@@ -375,8 +375,8 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
               interval=interval,
               has_deduplication=False,
               start_timestamp=start,
-              stop_timestamp=stop))
-
+              stop_timestamp=stop)
+          | beam.Map(lambda element: element.path))
       assert_that(match_continiously, equal_to(files))
 
   def test_match_updated_files(self):
