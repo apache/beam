@@ -1570,7 +1570,7 @@ class BigQueryWriteFn(DoFn):
         - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
       write_disposition: A string describing what happens if the table has
         already some data. Possible values are:
-        -  BigQueryDisposition.WRITE_TRUNCATE_DATA: delete table data but preserve table metadata.
+        -  BigQueryDisposition.WRITE_TRUNCATE_DATA: delete rows, keep schema.
         -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
         -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
