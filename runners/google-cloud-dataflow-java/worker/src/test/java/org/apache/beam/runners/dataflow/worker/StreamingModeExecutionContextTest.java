@@ -1085,6 +1085,10 @@ public class StreamingModeExecutionContextTest {
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
+    sdfParDoOp1.start();
+    sdfParDoOp2.start();
+    regularParDoOp.start();
+
     start(work);
     executionContext.finishKey();
     ExecuteWorkResult result = executionContext.flushStateAndReset();

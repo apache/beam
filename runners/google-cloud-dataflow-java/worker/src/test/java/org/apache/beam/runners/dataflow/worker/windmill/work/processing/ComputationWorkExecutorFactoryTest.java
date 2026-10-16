@@ -49,7 +49,8 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -226,9 +227,9 @@ public class ComputationWorkExecutorFactoryTest {
             StreamingCounters.create(),
             mock(FailureTracker.class),
             IdGenerators.decrementingLongs(),
-            new StreamingGlobalConfigHandleImpl(),
+            new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build()),
             mock(HotKeyLogger.class),
-            mock(SideInputStateFetcherFactory.class),
+            SideInputStateFetcherFactory.fromOptions(options),
             MultiKeyBundleOptions.fromOptions(options));
 
     Coder<WindowedValue<String>> windowedStringCoder =
@@ -286,10 +287,17 @@ public class ComputationWorkExecutorFactoryTest {
     List<ParDoOperation> readReportingOps = mapTaskExecutor.getReadReportingParDoOperations();
     assertEquals(2, readReportingOps.size());
 
-    ParDoOperation stringSplittableOp = readReportingOps.get(0);
-    ParDoOperation intSplittableOp = readReportingOps.get(1);
-    assertEquals(windowedStringCoder, stringSplittableOp.getBytesReadCoder());
-    assertEquals(windowedIntCoder, intSplittableOp.getBytesReadCoder());
+    ParDoOperation stringSplittableOp =
+        readReportingOps.stream()
+            .filter(op -> windowedStringCoder.equals(op.getBytesReadCoder()))
+            .findFirst()
+            .orElseThrow(
+                () -> new AssertionError("Expected ParDoOperation with windowedStringCoder"));
+    ParDoOperation intSplittableOp =
+        readReportingOps.stream()
+            .filter(op -> windowedIntCoder.equals(op.getBytesReadCoder()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Expected ParDoOperation with windowedIntCoder"));
 
     String counterName = computationState.sourceBytesProcessCounterName();
     assertNotNull(stringSplittableOp.receivers[0].getOutputCounters().get(counterName));
@@ -299,7 +307,11 @@ public class ComputationWorkExecutorFactoryTest {
     List<ParDoOperation> allParDoOps =
         ImmutableList.copyOf(Iterables.filter(mapTaskExecutor.operations, ParDoOperation.class));
     assertEquals(3, allParDoOps.size());
-    ParDoOperation regularParDoOp = allParDoOps.get(2);
+    ParDoOperation regularParDoOp =
+        allParDoOps.stream()
+            .filter(op -> !op.shouldReportBytesRead())
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Expected non-reporting ParDoOperation"));
     assertNull(regularParDoOp.getBytesReadCoder());
     assertNull(regularParDoOp.receivers[0].getOutputCounters().get(counterName));
 
@@ -310,8 +322,10 @@ public class ComputationWorkExecutorFactoryTest {
     intSplittableOp.receivers[0].process(intElem);
     regularParDoOp.receivers[0].process(stringElem);
 
-    long expectedStringBytes = CoderUtils.encodeToByteArray(windowedStringCoder, stringElem).length;
-    long expectedIntBytes = CoderUtils.encodeToByteArray(windowedIntCoder, intElem).length;
+    long expectedStringBytes =
+        CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
+    long expectedIntBytes =
+        CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
 
     @SuppressWarnings("unchecked")
     Counter<Long, Long> bytesReadCounter =
