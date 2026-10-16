@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.fromTableSchema;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -54,13 +53,7 @@ import org.slf4j.LoggerFactory;
   "argument",
   "return"
 })
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class SchemasUtils {
+public final class SchemasUtils {
 
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(SchemasUtils.class);
