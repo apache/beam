@@ -2397,9 +2397,9 @@ public abstract class StreamingDataflowWorkerTest {
     server.waitForEmptyWorkQueue();
 
     // Wait until the worker has given up.
-    int maxTries = 100;
+    int maxTries = 1000;
     while (maxTries-- > 0 && !worker.workExecutorIsEmpty()) {
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     }
     assertTrue(worker.workExecutorIsEmpty());
 
@@ -5965,7 +5965,7 @@ public abstract class StreamingDataflowWorkerTest {
     @ProcessElement
     public void processElement(ProcessContext c, @StateId("state") ValueState<String> state) {
       try {
-        Thread.sleep(1000);
+        Thread.sleep(10);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }

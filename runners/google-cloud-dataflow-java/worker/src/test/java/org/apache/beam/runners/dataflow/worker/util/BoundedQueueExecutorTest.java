@@ -316,7 +316,7 @@ public class BoundedQueueExecutorTest {
     stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
-      Thread.sleep(200);
+      Thread.sleep(10);
     }
     // Max pool size was reached so the allThreadsActiveTime() was updated.
     assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
@@ -357,7 +357,7 @@ public class BoundedQueueExecutorTest {
     stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
-      Thread.sleep(200);
+      Thread.sleep(10);
     }
     // Max pool size was updated during execution but allThreadsActiveTime() was still recorded
     // for the thread which reached the old max pool size.
@@ -393,7 +393,7 @@ public class BoundedQueueExecutorTest {
     processStop1.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
-      Thread.sleep(200);
+      Thread.sleep(10);
     }
 
     // Reduce max pool size to 1
@@ -409,7 +409,7 @@ public class BoundedQueueExecutorTest {
 
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
-      Thread.sleep(200);
+      Thread.sleep(10);
     }
 
     // allThreadsActiveTime() should be recorded
