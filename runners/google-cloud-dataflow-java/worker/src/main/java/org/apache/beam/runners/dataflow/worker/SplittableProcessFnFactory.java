@@ -151,11 +151,11 @@ class SplittableProcessFnFactory {
               mainOutputTag,
               sideInputReader,
               ses.get(),
-              // Commit at least once every 5 seconds or 10k records.  This keeps the watermark
+              // Commit at least once every 10 seconds or 10k records.  This keeps the watermark
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.
               10000,
-              Duration.standardSeconds(5),
+              Duration.standardSeconds(10),
               stepContext::bundleFinalizer));
       processFn.setBacklogBytesCallback(userStepContext::setBacklogBytes);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
