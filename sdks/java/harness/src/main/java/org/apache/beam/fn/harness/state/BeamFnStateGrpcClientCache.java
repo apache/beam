@@ -18,7 +18,9 @@
 package org.apache.beam.fn.harness.state;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class BeamFnStateGrpcClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);
 
-  private final Map<ApiServiceDescriptor, BeamFnStateClient> cache;
+  private final Map<ApiServiceDescriptor, GrpcStateClient> cache;
   private final ManagedChannelFactory channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
   private final IdGenerator idGenerator;
@@ -71,7 +73,7 @@ public class BeamFnStateGrpcClientCache {
     // We specifically are synchronized so that we only create one GrpcStateClient at a time
     // preventing a race where multiple GrpcStateClient objects might be constructed at the same
     // for the same ApiServiceDescriptor.
-    BeamFnStateClient rval;
+    GrpcStateClient rval;
     synchronized (cache) {
       rval = cache.get(apiServiceDescriptor);
     }
@@ -85,6 +87,18 @@ public class BeamFnStateGrpcClientCache {
       }
     }
     return rval;
+  }
+
+  /** Shuts down the underlying channels of all cached state clients. */
+  public void close() {
+    List<GrpcStateClient> clients;
+    synchronized (cache) {
+      clients = new ArrayList<>(cache.values());
+      cache.clear();
+    }
+    for (GrpcStateClient client : clients) {
+      client.channel.shutdown();
+    }
   }
 
   /** A {@link BeamFnStateClient} for a given {@link ApiServiceDescriptor}. */
@@ -111,6 +125,7 @@ public class BeamFnStateGrpcClientCache {
       synchronized (lock) {
         if (errorDuringConstruction) {
           outboundObserver.onCompleted();
+          channel.shutdown();
         }
       }
     }
@@ -160,6 +175,7 @@ public class BeamFnStateGrpcClientCache {
           errorDuringConstruction = true;
         } else {
           outboundObserver.onCompleted();
+          channel.shutdown();
         }
       }
     }
