@@ -256,6 +256,51 @@ class IOTypeHintsTest(unittest.TestCase):
         }))
     self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
 
+  def test_from_callable_resolves_string_annotations(self):
+    def fn(value: 'int') -> 'typehints.List[str]':
+      return [str(value)]
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((List[str], ), {}))
+
+  def test_from_callable_resolves_future_annotations(self):
+    namespace = {'typehints': typehints}
+    exec(
+        'from __future__ import annotations\n'
+        'def fn(value: int) -> typehints.List[str]:\n'
+        '  return [str(value)]\n', namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((List[str], ), {}))
+
+  def test_from_callable_resolves_class_constructor_string_annotations(self):
+    class Class(object):
+      def __init__(self, value: 'int'):
+        self.value = value
+
+    th = decorators.IOTypeHints.from_callable(Class)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Class, ), {}))
+
+  def test_from_callable_resolves_method_string_annotations(self):
+    class Class(object):
+      def process(self, value: 'int') -> 'typehints.List[str]':
+        return [str(value)]
+
+    th = decorators.IOTypeHints.from_callable(Class().process)
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((List[str], ), {}))
+
+  def test_from_callable_unresolved_string_annotations_fall_back_to_any(self):
+    def fn(value: 'MissingType') -> 'int':
+      return 1
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
   def test_from_callable_partial(self):
     def fn(a: int) -> int:
       return a

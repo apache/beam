@@ -85,6 +85,7 @@ import itertools
 import logging
 import traceback
 import types
+import typing
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -334,6 +335,25 @@ class IOTypeHints(NamedTuple):
             for param in signature.parameters.values()) and
         signature.return_annotation == signature.empty):
       return None
+    if (any(isinstance(param.annotation, str)
+            for param in signature.parameters.values()) or
+        isinstance(signature.return_annotation, str)):
+      try:
+        resolved = typing.get_type_hints(
+            fn.__init__ if inspect.isclass(fn) else fn)
+      except (AttributeError, NameError, SyntaxError, TypeError):
+        # Keep unresolved annotations on the existing Any fallback path.
+        resolved = {}
+      signature = signature.replace(
+          parameters=[
+              param.replace(
+                  annotation=resolved.get(param.name, param.annotation))
+              if isinstance(param.annotation, str) else param
+              for param in signature.parameters.values()
+          ],
+          return_annotation=(resolved.get('return', signature.return_annotation)
+                             if isinstance(signature.return_annotation, str) else
+                             signature.return_annotation))
     input_args = []
     input_kwargs = {}
     for param in signature.parameters.values():
