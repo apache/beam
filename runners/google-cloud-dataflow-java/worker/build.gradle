@@ -156,6 +156,8 @@ applyJavaNature(
 // Configure the worker root project
 
 tasks.withType(Test).configureEach {
+  maxParallelForks 4
+
   // WindmillStateTestUtils.assertNoReference walks every object reachable from the Windmill
   // state cache (Guava Cache / ConcurrentHashMap) to ensure no per-work-item WindmillStateReader
   // leaks into the global cache. It uses reflection (Field.setAccessible) into JDK internals
