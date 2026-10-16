@@ -303,7 +303,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((List[str], ), {}))
 
   def test_from_callable_unresolved_string_annotations_fall_back_to_any(self):
-    def fn(value: 'MissingType') -> 'int':
+    def fn(value: 'MissingType') -> 'int':  # noqa: F821
       return 1
 
     th = decorators.IOTypeHints.from_callable(fn)
@@ -343,7 +343,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((List[str], ), {}))
 
   def test_from_callable_unresolved_nested_reference_falls_back_to_any(self):
-    def fn(values: typing.List['MissingType']) -> 'int':
+    def fn(values: typing.List['MissingType']) -> 'int':  # noqa: F821
       return len(values)
 
     th = decorators.IOTypeHints.from_callable(fn)
