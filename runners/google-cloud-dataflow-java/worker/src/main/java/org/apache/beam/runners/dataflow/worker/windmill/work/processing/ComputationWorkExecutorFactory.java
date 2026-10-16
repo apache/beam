@@ -175,19 +175,19 @@ final class ComputationWorkExecutorFactory {
         && operation.receivers.length > 0
         && operation.receivers[0] != null) {
       NameContext nameContext =
-        NameContext.create(
-          mapTask.getStageName(),
-          readNode.getParallelInstruction().getOriginalName(),
-          readNode.getParallelInstruction().getSystemName(),
-          readNode.getParallelInstruction().getName());
+          NameContext.create(
+              mapTask.getStageName(),
+              readNode.getParallelInstruction().getOriginalName(),
+              readNode.getParallelInstruction().getSystemName(),
+              readNode.getParallelInstruction().getName());
       operation.receivers[0].addOutputCounter(
-        counterName,
-        new OutputObjectAndByteCounter(
-          new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
-          mapTaskExecutor.getOutputCounters(),
-          nameContext)
-          .setSamplingPeriod(100)
-          .countBytes(counterName));
+          counterName,
+          new OutputObjectAndByteCounter(
+                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
+                  mapTaskExecutor.getOutputCounters(),
+                  nameContext)
+              .setSamplingPeriod(100)
+              .countBytes(counterName));
     }
   }
 
