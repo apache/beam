@@ -3038,6 +3038,17 @@ public class BigQueryIO {
        */
       WRITE_TRUNCATE,
 
+      /**
+       * Specifies that write should replace a table, but not the table schema.
+       *
+       * <p>The replacement may occur in multiple steps - for instance by first removing the
+       * existing table, then creating a replacement, then filling it in. This is not an atomic
+       * operation, and external programs may see the table in any of these intermediate steps.
+       *
+       * <p>Note: This write disposition is only supported for the FILE_LOADS write method.
+       */
+      WRITE_TRUNCATE_DATA,
+      
       /** Specifies that rows may be appended to an existing table. */
       WRITE_APPEND,
 
@@ -3973,8 +3984,9 @@ public class BigQueryIO {
             getBigLakeConfiguration() == null,
             "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
       } else {
-        if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
-          LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        WriteDisposition disposition = getWriteDisposition() 
+        if (disposition == WriteDisposition.WRITE_TRUNCATE || disposition == WriteDisposition.WRITE_TRUNCATE_DATA) {
+          LOG.error("The Storage API sink does not support the "+disposition.toString()+" write disposition.");
         }
         Map<String, String> bigLakeConfiguration = getBigLakeConfiguration();
         if (bigLakeConfiguration != null) {
@@ -4229,6 +4241,9 @@ public class BigQueryIO {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection.");
+        checkArgument(
+            getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE_DATA,
+            "WriteDisposition.WRITE_TRUNCATE_DATA is not supported for an unbounded PCollection.");
         InsertRetryPolicy retryPolicy =
             MoreObjects.firstNonNull(getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
 
