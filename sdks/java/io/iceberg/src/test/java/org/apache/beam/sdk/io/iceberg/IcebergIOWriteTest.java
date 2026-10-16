@@ -1071,9 +1071,8 @@ public class IcebergIOWriteTest implements Serializable {
             .advanceProcessingTime(Duration.standardSeconds(10))
             .advanceWatermarkToInfinity();
 
-    // Even with directWriteByteLimit = 1 (which would normally lift large bundles to
-    // WriteDirectRowsToFiles), enabling withSortedWrites() skips bundle lifting so all streamed
-    // batches are sorted before writing.
+    // With directWriteByteLimit = 1, BundleLifter lifts the bundle to WriteDirectRowsToFiles,
+    // which sorts the bundle locally in finishBundle before writing.
     testPipeline
         .apply(stream)
         .apply(
@@ -1087,6 +1086,163 @@ public class IcebergIOWriteTest implements Serializable {
     Table table = warehouse.loadTable(tableId);
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertEquals(4, writtenRecords.size());
+    assertFilesAreInternallySorted(table);
+  }
+
+  @Test
+  public void testRangeDistributionDynamicQuantileShards() throws Exception {
+    assumeTrue(distributionMode.equals(NONE));
+
+    Schema schema = Schema.builder().addInt64Field("id").addStringField("name").build();
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "range_dynamic_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    catalog
+        .catalog()
+        .buildTable(tableId, icebergSchema)
+        .withPartitionSpec(PartitionSpec.unpartitioned())
+        .withSortOrder(SortOrder.builderFor(icebergSchema).asc("name").desc("id").build())
+        .create();
+
+    List<Row> scrambledRows = new java.util.ArrayList<>();
+    for (long i = 0; i < 40; i++) {
+      scrambledRows.add(
+          Row.withSchema(schema).addValues(i, String.format("key_%03d", 39 - i)).build());
+    }
+
+    // Use PortableIcebergDestinations (whose createConfig is non-null with null partitionFields
+    // and sortFields) to verify that DestinationMetadataResolver loads the pre-existing table's
+    // SortOrder from TableCache.
+    DynamicDestinations dynamicDestinations =
+        new PortableIcebergDestinations(
+            tableId.toString(),
+            FileFormat.PARQUET.toString(),
+            schema,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+
+    // Target 150 bytes per range shard so the 40 rows (~800+ bytes) dynamically split into
+    // multiple non-overlapping quantile shards without any user-provided distributionFunction.
+    PCollection<KV<Row, Row>> assigned =
+        testPipeline
+            .apply("CreateScrambled", Create.of(scrambledRows).withRowSchema(schema))
+            .apply(
+                "DynamicRangeAssign",
+                new AssignDestinationsAndPartitions(
+                    dynamicDestinations, catalog, null, DistributionMode.RANGE, null, 150L));
+
+    assigned.apply(
+        "WriteRangeShards",
+        new WriteToPartitions(catalog, dynamicDestinations, null, false, null, null, true));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+    List<org.apache.iceberg.FileScanTask> tasks = ImmutableList.copyOf(table.newScan().planFiles());
+    assertTrue(
+        "Expected multiple dynamically range-sharded files, got " + tasks.size(), tasks.size() > 1);
+    assertFilesAreInternallySorted(table);
+
+    List<String[]> fileNameRanges = new java.util.ArrayList<>();
+    for (org.apache.iceberg.FileScanTask task : tasks) {
+      String path = task.file().path().toString();
+      try (org.apache.iceberg.io.CloseableIterable<Record> reader =
+          Parquet.read(table.io().newInputFile(path))
+              .project(table.schema())
+              .createReaderFunc(org.apache.iceberg.data.parquet.GenericParquetReaders::buildReader)
+              .build()) {
+        List<Record> records = Lists.newArrayList(reader.iterator());
+        String minName = (String) records.get(0).getField("name");
+        String maxName = (String) records.get(records.size() - 1).getField("name");
+        fileNameRanges.add(new String[] {minName, maxName});
+      }
+    }
+    fileNameRanges.sort(java.util.Comparator.comparing(r -> r[0]));
+    for (int i = 1; i < fileNameRanges.size(); i++) {
+      String prevMax = fileNameRanges.get(i - 1)[1];
+      String currMin = fileNameRanges.get(i)[0];
+      assertTrue(
+          "Dynamic range-sharded files have overlapping sort key ranges: "
+              + prevMax
+              + " >= "
+              + currMin,
+          prevMax.compareTo(currMin) < 0);
+    }
+  }
+
+  @Test
+  public void testWriteUngroupedRowsToFilesSortsWithoutSpilling() throws Exception {
+    assumeTrue(distributionMode.equals(NONE));
+
+    Schema schema = Schema.builder().addInt64Field("id").addStringField("name").build();
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "ungrouped_sorted_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    catalog
+        .catalog()
+        .buildTable(tableId, icebergSchema)
+        .withPartitionSpec(PartitionSpec.unpartitioned())
+        .withSortOrder(SortOrder.builderFor(icebergSchema).asc("name").desc("id").build())
+        .create();
+
+    String tableIdString = IcebergUtils.tableIdentifierToString(tableId);
+    List<KV<String, Row>> inputKVs =
+        Arrays.asList(
+            KV.of(tableIdString, Row.withSchema(schema).addValues(40L, "delta").build()),
+            KV.of(tableIdString, Row.withSchema(schema).addValues(20L, "bravo").build()),
+            KV.of(tableIdString, Row.withSchema(schema).addValues(10L, "alpha").build()),
+            KV.of(tableIdString, Row.withSchema(schema).addValues(30L, "charlie").build()));
+
+    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, schema);
+
+    WriteUngroupedRowsToFiles.Result result =
+        testPipeline
+            .apply(
+                "CreateUngrouped",
+                Create.of(inputKVs)
+                    .withCoder(
+                        KvCoder.of(
+                            org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+                            org.apache.beam.sdk.coders.RowCoder.of(schema))))
+            .apply(
+                "FastPathSortedWrite",
+                new WriteUngroupedRowsToFiles(
+                    catalog, dynamicDestinations, "fast-sorted", 1L, null, null, true));
+
+    org.apache.beam.sdk.testing.PAssert.that(result.getSpilledRows()).empty();
+    result.getWrittenFiles().apply("CommitFiles", new AppendFilesToTables(catalog, "fast-sorted"));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
     assertFilesAreInternallySorted(table);
   }
 

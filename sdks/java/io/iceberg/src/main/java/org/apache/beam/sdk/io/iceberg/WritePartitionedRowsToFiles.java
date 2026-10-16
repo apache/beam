@@ -38,26 +38,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.Namespace;
-import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.exceptions.AlreadyExistsException;
-import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class WritePartitionedRowsToFiles
     extends PTransform<PCollection<KV<Row, Iterable<Row>>>, PCollection<FileWriteResult>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WritePartitionedRowsToFiles.class);
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
@@ -169,41 +159,6 @@ class WritePartitionedRowsToFiles
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         String filePrefix,
-        Schema dataSchema,
-        @Nullable Map<String, String> writeProperties) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          filePrefix,
-          WriteToPartitions.DEFAULT_BYTES_PER_FILE,
-          dataSchema,
-          writeProperties,
-          null,
-          false);
-    }
-
-    WriteDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        String filePrefix,
-        Schema dataSchema,
-        @Nullable Map<String, String> writeProperties,
-        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          filePrefix,
-          WriteToPartitions.DEFAULT_BYTES_PER_FILE,
-          dataSchema,
-          writeProperties,
-          metadataView,
-          false);
-    }
-
-    WriteDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        String filePrefix,
         long maxFileSize,
         Schema dataSchema,
         @Nullable Map<String, String> writeProperties,
@@ -274,14 +229,16 @@ class WritePartitionedRowsToFiles
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
           writer.write(record);
         }
+        if (writer != null) {
+          RecordWriter finishedWriter = writer;
+          writer = null;
+          finishedWriter.close();
+          writtenFiles.add(SerializableDataFile.from(finishedWriter.getDataFile(), table.specs()));
+        }
       } finally {
         if (writer != null) {
           writer.close();
         }
-      }
-
-      if (writer != null) {
-        writtenFiles.add(SerializableDataFile.from(writer.getDataFile(), table.specs()));
       }
 
       for (SerializableDataFile sdf : writtenFiles) {
@@ -312,81 +269,12 @@ class WritePartitionedRowsToFiles
         IcebergDestination destination,
         Schema dataSchema,
         @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
-      TableIdentifier identifier = destination.getTableIdentifier();
-      String tableIdString = IcebergUtils.tableIdentifierToString(identifier);
-      if (sideInputTableSpecs != null && sideInputTableSpecs.containsKey(tableIdString)) {
-        SerializableTableSpec spec = sideInputTableSpecs.get(tableIdString);
-        if (spec != null) {
-          return new SideInputTable(spec, catalogConfig);
-        }
-      }
-      return TableCache.getAndRefreshIfStale(
-          catalogConfig,
-          identifier,
-          () -> loadOrCreateTable(catalogConfig.catalog(), destination, dataSchema));
+      return RecordWriterManager.getOrCreateTable(
+          catalogConfig, destination, dataSchema, sideInputTableSpecs);
     }
 
     Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
       return getOrCreateTable(destination, dataSchema, null);
-    }
-
-    private Table loadOrCreateTable(
-        Catalog catalog, IcebergDestination destination, Schema dataSchema) {
-      TableIdentifier identifier = destination.getTableIdentifier();
-      Namespace namespace = identifier.namespace();
-      @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
-      PartitionSpec partitionSpec =
-          createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
-      SortOrder sortOrder =
-          createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
-      Map<String, String> tableProperties =
-          createConfig != null && createConfig.getTableProperties() != null
-              ? createConfig.getTableProperties()
-              : Maps.newHashMap();
-
-      // Create namespace if it does not exist yet
-      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
-        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
-        if (!supportsNamespaces.namespaceExists(namespace)) {
-          try {
-            supportsNamespaces.createNamespace(namespace);
-            LOG.info("Created new namespace '{}'.", namespace);
-          } catch (AlreadyExistsException ignored) {
-            // race condition: another worker already created this namespace
-            LOG.info("Namespace '{}' already exists.", namespace);
-          }
-        }
-      }
-
-      // If table exists, just load it
-      // Note: the implementation of catalog.tableExists() will load the table to check its
-      // existence. We don't use it here to avoid double loadTable() calls.
-      try {
-        return catalog.loadTable(identifier);
-      } catch (NoSuchTableException e) { // Otherwise, create the table
-        org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
-        try {
-          Table table =
-              catalog
-                  .buildTable(identifier, tableSchema)
-                  .withPartitionSpec(partitionSpec)
-                  .withSortOrder(sortOrder)
-                  .withProperties(tableProperties)
-                  .create();
-          LOG.info(
-              "Created Iceberg table '{}' with schema: {}\n"
-                  + ", partition spec: {}, sort order: {}, table properties: {}",
-              identifier,
-              tableSchema,
-              partitionSpec,
-              sortOrder,
-              tableProperties);
-          return table;
-        } catch (AlreadyExistsException ignored) {
-          // race condition: another worker already created this table
-          return catalog.loadTable(identifier);
-        }
-      }
     }
   }
 }

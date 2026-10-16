@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -32,9 +32,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteGroupedRowsToFiles
@@ -102,7 +99,6 @@ class WriteGroupedRowsToFiles
   @Override
   public PCollection<FileWriteResult> expand(
       PCollection<KV<ShardedKey<String>, Iterable<Row>>> input) {
-    Schema dataSchema = dynamicDestinations.getDataSchema();
     ParDo.SingleOutput<KV<ShardedKey<String>, Iterable<Row>>, FileWriteResult> parDo =
         ParDo.of(
             new WriteGroupedRowsToFilesDoFn(
@@ -110,7 +106,6 @@ class WriteGroupedRowsToFiles
                 dynamicDestinations,
                 maxBytesPerFile,
                 filePrefix,
-                dataSchema,
                 writeProperties,
                 metadataView,
                 sortedWrites));
@@ -127,7 +122,6 @@ class WriteGroupedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final long maxFileSize;
-    private final Schema dataSchema;
     private final @Nullable Map<String, String> writeProperties;
     private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
     private final boolean sortedWrites;
@@ -137,44 +131,6 @@ class WriteGroupedRowsToFiles
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
         String filePrefix,
-        Schema dataSchema,
-        @Nullable Map<String, String> writeProperties) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          maxFileSize,
-          filePrefix,
-          dataSchema,
-          writeProperties,
-          null,
-          false);
-    }
-
-    WriteGroupedRowsToFilesDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        long maxFileSize,
-        String filePrefix,
-        Schema dataSchema,
-        @Nullable Map<String, String> writeProperties,
-        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          maxFileSize,
-          filePrefix,
-          dataSchema,
-          writeProperties,
-          metadataView,
-          false);
-    }
-
-    WriteGroupedRowsToFilesDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        long maxFileSize,
-        String filePrefix,
-        Schema dataSchema,
         @Nullable Map<String, String> writeProperties,
         @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
         boolean sortedWrites) {
@@ -182,7 +138,6 @@ class WriteGroupedRowsToFiles
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
-      this.dataSchema = dataSchema;
       this.writeProperties = writeProperties;
       this.metadataView = metadataView;
       this.sortedWrites = sortedWrites;
@@ -210,22 +165,18 @@ class WriteGroupedRowsToFiles
               maxFileSize,
               Integer.MAX_VALUE,
               writeProperties,
-              sideInputs)) {
+              sideInputs,
+              sortedWrites)) {
         writer = openWriter;
-        Table table = sortedWrites ? openWriter.getOrCreateTable(destination, dataSchema) : null;
-        try (CloseableIterable<Row> sortedOrUnsortedRows =
-            table != null && table.sortOrder().isSorted()
-                ? IcebergRowSorter.sortRows(
-                    element.getValue(), table.sortOrder(), table.schema(), dataSchema)
-                : CloseableIterable.withNoopClose(element.getValue())) {
-          for (Row e : sortedOrUnsortedRows) {
-            writer.write(windowedDestination, e);
-          }
+        for (Row e : element.getValue()) {
+          writer.write(windowedDestination, e);
         }
       }
 
       List<SerializableDataFile> serializableDataFiles =
-          Preconditions.checkNotNull(writer.getSerializableDataFiles().get(windowedDestination));
+          writer
+              .getSerializableDataFiles()
+              .getOrDefault(windowedDestination, Collections.emptyList());
       for (SerializableDataFile dataFile : serializableDataFiles) {
         c.output(
             FileWriteResult.builder()

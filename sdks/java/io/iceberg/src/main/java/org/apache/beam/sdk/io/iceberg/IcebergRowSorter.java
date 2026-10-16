@@ -41,8 +41,10 @@ import java.util.UUID;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.ExternalSorter;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortDirection;
@@ -63,11 +65,192 @@ import org.slf4j.LoggerFactory;
  * A utility class to sort Beam {@link Row}s based on an Iceberg {@link SortOrder}. Leverages {@link
  * BufferedExternalSorter} to spill to local disk when elements exceed memory limit.
  */
-class IcebergRowSorter {
+class IcebergRowSorter implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergRowSorter.class);
 
   /** Width of an encoded decimal key. 16 bytes covers Iceberg's maximum precision of 38 digits. */
   private static final int DECIMAL_KEY_BYTES = 16;
+
+  /** Default in-memory buffer limit (in MB) before spilling sorted keys/rows to local disk. */
+  static final int DEFAULT_SORTER_MEMORY_MB = 64;
+
+  private final Path sortTempDir;
+  private final BufferedExternalSorter sorter;
+  private final RowCoder rowCoder;
+  private final KeyEncoder keyEncoder;
+  private final ByteArrayOutputStream keyBaos = new ByteArrayOutputStream();
+  private final ByteArrayOutputStream valBaos = new ByteArrayOutputStream();
+
+  /**
+   * Pre-bound encoder for an Iceberg {@link SortOrder} that avoids re-binding transforms and field
+   * name lookups per row.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  static class KeyEncoder {
+    private final SortOrder sortOrder;
+    private final String[] columnNames;
+    private final int[] beamFieldIndices;
+    private final @Nullable EnumerationType[] enumTypes;
+    private final Type[] sourceTypes;
+    private final Type[] resultTypes;
+    private final @Nullable SerializableFunction<Object, Object>[] boundTransforms;
+
+    KeyEncoder(SortOrder sortOrder, Schema icebergSchema) {
+      this(sortOrder, icebergSchema, null);
+    }
+
+    KeyEncoder(
+        SortOrder sortOrder,
+        Schema icebergSchema,
+        org.apache.beam.sdk.schemas.@Nullable Schema beamSchema) {
+      this.sortOrder = sortOrder;
+      List<SortField> fields = sortOrder.fields();
+      this.columnNames = new String[fields.size()];
+      this.beamFieldIndices = new int[fields.size()];
+      this.enumTypes = new EnumerationType[fields.size()];
+      this.sourceTypes = new Type[fields.size()];
+      this.resultTypes = new Type[fields.size()];
+      this.boundTransforms = new SerializableFunction[fields.size()];
+      for (int i = 0; i < fields.size(); i++) {
+        SortField field = fields.get(i);
+        String colName = icebergSchema.findColumnName(field.sourceId());
+        columnNames[i] = colName;
+        if (beamSchema != null && beamSchema.hasField(colName)) {
+          beamFieldIndices[i] = beamSchema.indexOf(colName);
+          org.apache.beam.sdk.schemas.Schema.FieldType fieldType =
+              beamSchema.getField(beamFieldIndices[i]).getType();
+          if (fieldType.isLogicalType(EnumerationType.IDENTIFIER)) {
+            enumTypes[i] = fieldType.getLogicalType(EnumerationType.class);
+          }
+        } else {
+          beamFieldIndices[i] = -1;
+        }
+        Type sourceType = icebergSchema.findType(field.sourceId());
+        sourceTypes[i] = sourceType;
+        if (field.transform().isIdentity()) {
+          resultTypes[i] = sourceType;
+          boundTransforms[i] = null;
+        } else {
+          Transform<Object, Object> transform = (Transform<Object, Object>) field.transform();
+          resultTypes[i] = transform.getResultType(sourceType);
+          boundTransforms[i] = transform.bind(sourceType);
+        }
+      }
+    }
+
+    void encode(Row row, ByteArrayOutputStream baos) throws IOException {
+      encodeSortKey(
+          row,
+          sortOrder,
+          columnNames,
+          beamFieldIndices,
+          enumTypes,
+          sourceTypes,
+          resultTypes,
+          boundTransforms,
+          baos);
+    }
+
+    byte[] encodeToBytes(Row row, ByteArrayOutputStream reusableBaos) throws IOException {
+      reusableBaos.reset();
+      encode(row, reusableBaos);
+      return reusableBaos.toByteArray();
+    }
+  }
+
+  IcebergRowSorter(
+      SortOrder sortOrder, Schema icebergSchema, org.apache.beam.sdk.schemas.Schema beamSchema) {
+    this(sortOrder, icebergSchema, beamSchema, DEFAULT_SORTER_MEMORY_MB);
+  }
+
+  IcebergRowSorter(
+      SortOrder sortOrder,
+      Schema icebergSchema,
+      org.apache.beam.sdk.schemas.Schema beamSchema,
+      int memoryMb) {
+    try {
+      this.sortTempDir = Files.createTempDirectory("iceberg-row-sorter-");
+      this.sortTempDir.toFile().deleteOnExit();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to create temporary directory for IcebergRowSorter", e);
+    }
+    BufferedExternalSorter.Options sorterOptions =
+        BufferedExternalSorter.options()
+            .withTempLocation(sortTempDir.toString())
+            .withMemoryMB(memoryMb)
+            .withExternalSorterType(ExternalSorter.Options.SorterType.NATIVE);
+    this.sorter = BufferedExternalSorter.create(sorterOptions);
+    this.rowCoder = RowCoder.of(beamSchema);
+    this.keyEncoder = new KeyEncoder(sortOrder, icebergSchema, beamSchema);
+  }
+
+  /**
+   * Adds a row to the sorter, optionally prefixing the sort key with {@code partitionPath} so that
+   * rows are grouped by partition first and sorted by the table's {@link SortOrder} within each
+   * partition.
+   */
+  public void add(@Nullable String partitionPath, Row row) {
+    try {
+      keyBaos.reset();
+      valBaos.reset();
+      if (partitionPath != null) {
+        writeString(partitionPath, keyBaos, false);
+      }
+      keyEncoder.encode(row, keyBaos);
+      byte[] keyBytes = keyBaos.toByteArray();
+
+      rowCoder.encode(row, valBaos);
+      byte[] valBytes = valBaos.toByteArray();
+      sorter.add(KV.of(keyBytes, valBytes));
+    } catch (IOException | RuntimeException e) {
+      deleteTempDir(sortTempDir);
+      throw new RuntimeException("Failed to add row to external sorter", e);
+    }
+  }
+
+  /**
+   * Returns a sorted {@link CloseableIterable} over all added rows. Closing the returned iterable
+   * cleans up the temporary spill directory.
+   */
+  public CloseableIterable<Row> sort() {
+    try {
+      Iterable<KV<byte[], byte[]>> sortedKVs = sorter.sort();
+      Iterable<Row> decodedRows =
+          new Iterable<Row>() {
+            @Override
+            public Iterator<Row> iterator() {
+              final Iterator<KV<byte[], byte[]>> it = sortedKVs.iterator();
+              return new Iterator<Row>() {
+                @Override
+                public boolean hasNext() {
+                  return it.hasNext();
+                }
+
+                @Override
+                public Row next() {
+                  KV<byte[], byte[]> next = it.next();
+                  try {
+                    return rowCoder.decode(new ByteArrayInputStream(next.getValue()));
+                  } catch (IOException e) {
+                    deleteTempDir(sortTempDir);
+                    throw new RuntimeException("Failed to decode Row during sorting", e);
+                  }
+                }
+              };
+            }
+          };
+
+      return CloseableIterable.combine(decodedRows, () -> deleteTempDir(sortTempDir));
+    } catch (IOException | RuntimeException e) {
+      deleteTempDir(sortTempDir);
+      throw new RuntimeException("Failed to sort rows with external sorter", e);
+    }
+  }
+
+  @Override
+  public void close() {
+    deleteTempDir(sortTempDir);
+  }
 
   /**
    * Best-effort cleanup of a temporary spill directory. Failures are logged rather than propagated.
@@ -106,7 +289,6 @@ class IcebergRowSorter {
    * <p>Note that spilled rows are written unencrypted to the worker's local disk, in a directory
    * created with owner-only permissions.
    */
-  @SuppressWarnings({"unchecked", "rawtypes"})
   public static CloseableIterable<Row> sortRows(
       Iterable<Row> rows,
       SortOrder sortOrder,
@@ -117,121 +299,23 @@ class IcebergRowSorter {
       return CloseableIterable.withNoopClose(rows);
     }
 
-    final Path sortTempDir;
-    try {
-      sortTempDir = Files.createTempDirectory("iceberg-row-sorter-");
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to create temporary directory for IcebergRowSorter", e);
-    }
-
-    BufferedExternalSorter.Options sorterOptions =
-        BufferedExternalSorter.options()
-            .withTempLocation(sortTempDir.toString())
-            .withExternalSorterType(ExternalSorter.Options.SorterType.NATIVE);
-    BufferedExternalSorter sorter = BufferedExternalSorter.create(sorterOptions);
-    RowCoder rowCoder = RowCoder.of(beamSchema);
-
-    List<SortField> fields = sortOrder.fields();
-    String[] columnNames = new String[fields.size()];
-    Type[] sourceTypes = new Type[fields.size()];
-    Type[] resultTypes = new Type[fields.size()];
-    @Nullable SerializableFunction<Object, Object>[] boundTransforms =
-        new SerializableFunction[fields.size()];
-    for (int i = 0; i < fields.size(); i++) {
-      SortField field = fields.get(i);
-      columnNames[i] = icebergSchema.findColumnName(field.sourceId());
-      Type sourceType = icebergSchema.findType(field.sourceId());
-      sourceTypes[i] = sourceType;
-      if (field.transform().isIdentity()) {
-        resultTypes[i] = sourceType;
-        boundTransforms[i] = null;
-      } else {
-        Transform<Object, Object> transform = (Transform<Object, Object>) field.transform();
-        resultTypes[i] = transform.getResultType(sourceType);
-        boundTransforms[i] = transform.bind(sourceType);
-      }
-    }
-
-    // Create reusable ByteArrayOutputStreams for key and value encoding
-    ByteArrayOutputStream keyBaos = new ByteArrayOutputStream();
-    ByteArrayOutputStream valBaos = new ByteArrayOutputStream();
-
+    IcebergRowSorter rowSorter = new IcebergRowSorter(sortOrder, icebergSchema, beamSchema);
     try {
       for (Row row : rows) {
-        keyBaos.reset();
-        valBaos.reset();
-        encodeSortKey(
-            row, sortOrder, columnNames, sourceTypes, resultTypes, boundTransforms, keyBaos);
-        byte[] keyBytes = keyBaos.toByteArray();
-
-        rowCoder.encode(row, valBaos);
-        byte[] valBytes = valBaos.toByteArray();
-        sorter.add(KV.of(keyBytes, valBytes));
+        rowSorter.add(null, row);
       }
-
-      Iterable<KV<byte[], byte[]>> sortedKVs = sorter.sort();
-      Iterable<Row> decodedRows =
-          new Iterable<Row>() {
-            @Override
-            public Iterator<Row> iterator() {
-              final Iterator<KV<byte[], byte[]>> it = sortedKVs.iterator();
-              return new Iterator<Row>() {
-                @Override
-                public boolean hasNext() {
-                  return it.hasNext();
-                }
-
-                @Override
-                public Row next() {
-                  KV<byte[], byte[]> next = it.next();
-                  try {
-                    return rowCoder.decode(new ByteArrayInputStream(next.getValue()));
-                  } catch (IOException e) {
-                    deleteTempDir(sortTempDir);
-                    throw new RuntimeException("Failed to decode Row during sorting", e);
-                  }
-                }
-              };
-            }
-          };
-
-      return CloseableIterable.combine(decodedRows, () -> deleteTempDir(sortTempDir));
-
-    } catch (IOException | RuntimeException e) {
-      deleteTempDir(sortTempDir);
-      throw new RuntimeException("Failed to sort rows with external sorter", e);
+      return rowSorter.sort();
+    } catch (RuntimeException e) {
+      rowSorter.close();
+      throw e;
     }
   }
 
-  @SuppressWarnings({"nullness", "unchecked", "rawtypes"})
-  public static void encodeSortKey(
-      Row row,
-      SortOrder sortOrder,
-      String[] columnNames,
-      ByteArrayOutputStream baos,
-      Schema icebergSchema,
-      org.apache.beam.sdk.schemas.Schema beamSchema)
+  @VisibleForTesting
+  static void encodeSortKey(
+      Row row, SortOrder sortOrder, ByteArrayOutputStream baos, Schema icebergSchema)
       throws IOException {
-
-    List<SortField> fields = sortOrder.fields();
-    Type[] sourceTypes = new Type[fields.size()];
-    Type[] resultTypes = new Type[fields.size()];
-    @Nullable SerializableFunction<Object, Object>[] boundTransforms =
-        new SerializableFunction[fields.size()];
-    for (int i = 0; i < fields.size(); i++) {
-      SortField field = fields.get(i);
-      Type sourceType = icebergSchema.findType(field.sourceId());
-      sourceTypes[i] = sourceType;
-      if (field.transform().isIdentity()) {
-        resultTypes[i] = sourceType;
-        boundTransforms[i] = null;
-      } else {
-        Transform<Object, Object> transform = (Transform<Object, Object>) field.transform();
-        resultTypes[i] = transform.getResultType(sourceType);
-        boundTransforms[i] = transform.bind(sourceType);
-      }
-    }
-    encodeSortKey(row, sortOrder, columnNames, sourceTypes, resultTypes, boundTransforms, baos);
+    new KeyEncoder(sortOrder, icebergSchema, row.getSchema()).encode(row, baos);
   }
 
   @SuppressWarnings("nullness")
@@ -239,6 +323,8 @@ class IcebergRowSorter {
       Row row,
       SortOrder sortOrder,
       String[] columnNames,
+      int[] beamFieldIndices,
+      @Nullable EnumerationType[] enumTypes,
       Type[] sourceTypes,
       Type[] resultTypes,
       @Nullable SerializableFunction<Object, Object>[] boundTransforms,
@@ -249,13 +335,24 @@ class IcebergRowSorter {
 
     for (int i = 0; i < fields.size(); i++) {
       SortField field = fields.get(i);
-      String colName = columnNames[i];
 
       // Normalize into the Iceberg value domain up front so that the encoder only ever deals with
       // Iceberg's representation, regardless of which Beam logical type the row carried.
       Type sourceType = sourceTypes[i];
       Type valueType = resultTypes[i];
-      Object val = IcebergUtils.beamValueToIcebergValue(sourceType, row.getValue(colName));
+      int fieldIdx = beamFieldIndices[i];
+      Object rawVal = fieldIdx >= 0 ? row.getValue(fieldIdx) : row.getValue(columnNames[i]);
+      if (rawVal instanceof EnumerationType.Value) {
+        EnumerationType enumType =
+            enumTypes[i] != null
+                ? enumTypes[i]
+                : row.getSchema()
+                    .getField(columnNames[i])
+                    .getType()
+                    .getLogicalType(EnumerationType.class);
+        rawVal = enumType.toString((EnumerationType.Value) rawVal);
+      }
+      Object val = IcebergUtils.beamValueToIcebergValue(sourceType, rawVal);
 
       SerializableFunction<Object, Object> boundTransform = boundTransforms[i];
       if (boundTransform != null && val != null) {
@@ -392,7 +489,7 @@ class IcebergRowSorter {
     } else if (val instanceof LocalDate) {
       writeLong(((LocalDate) val).toEpochDay() ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof LocalTime) {
-      writeLong(((LocalTime) val).toNanoOfDay() ^ Long.MIN_VALUE, baos, invert);
+      writeLong(DateTimeUtil.microsFromTime((LocalTime) val) ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof LocalDateTime) {
       writeLong(
           DateTimeUtil.microsFromTimestamp((LocalDateTime) val) ^ Long.MIN_VALUE, baos, invert);
@@ -400,11 +497,11 @@ class IcebergRowSorter {
       writeLong(
           DateTimeUtil.microsFromTimestamptz((OffsetDateTime) val) ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof ReadableInstant) {
-      writeLong(((ReadableInstant) val).getMillis() ^ Long.MIN_VALUE, baos, invert);
+      writeLong((((ReadableInstant) val).getMillis() * 1000L) ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof Instant) {
-      writeLong(((Instant) val).toEpochMilli() ^ Long.MIN_VALUE, baos, invert);
+      writeLong(DateTimeUtil.microsFromInstant((Instant) val) ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof Date) {
-      writeLong(((Date) val).getTime() ^ Long.MIN_VALUE, baos, invert);
+      writeLong((((Date) val).getTime() * 1000L) ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof UUID) {
       // Iceberg orders UUIDs by their 16-byte big-endian representation, so flip the sign bit of
       // each half to turn Java's signed longs into an unsigned lexicographic ordering.

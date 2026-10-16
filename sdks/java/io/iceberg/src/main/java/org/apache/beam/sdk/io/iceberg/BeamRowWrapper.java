@@ -32,9 +32,11 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.Date;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.Time;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
@@ -158,7 +160,8 @@ public class BeamRowWrapper implements StructLike {
         BeamRowWrapper nestedWrapper = new BeamRowWrapper(beamSchema, structType);
         return (row, pos) -> nestedWrapper.wrap(row.getRow(pos));
       case LOGICAL_TYPE:
-        if (beamType.isLogicalType(MicrosInstant.IDENTIFIER)) {
+        if (beamType.isLogicalType(MicrosInstant.IDENTIFIER)
+            || beamType.isLogicalType(Timestamp.IDENTIFIER)) {
           return (row, pos) -> {
             Instant instant = checkStateNotNull(row.getLogicalTypeValue(pos, Instant.class));
             return TimeUnit.SECONDS.toMicros(instant.getEpochSecond()) + instant.getNano() / 1000;
@@ -177,6 +180,11 @@ public class BeamRowWrapper implements StructLike {
                   checkStateNotNull(row.getLogicalTypeValue(pos, LocalTime.class)));
         } else if (beamType.isLogicalType(FixedPrecisionNumeric.IDENTIFIER)) {
           return (row, pos) -> row.getLogicalTypeValue(pos, BigDecimal.class);
+        } else if (beamType.isLogicalType(EnumerationType.IDENTIFIER)) {
+          EnumerationType enumType = beamType.getLogicalType(EnumerationType.class);
+          return (row, pos) ->
+              enumType.toString(
+                  checkStateNotNull(row.getLogicalTypeValue(pos, EnumerationType.Value.class)));
         } else {
           return null;
         }

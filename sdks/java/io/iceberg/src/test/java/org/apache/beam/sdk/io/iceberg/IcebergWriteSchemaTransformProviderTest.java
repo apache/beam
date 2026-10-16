@@ -90,7 +90,10 @@ import org.yaml.snakeyaml.Yaml;
 public class IcebergWriteSchemaTransformProviderTest {
   @Parameterized.Parameters
   public static Iterable<Object[]> data() {
-    return asList(new Object[][] {{DistributionMode.NONE}, {DistributionMode.HASH}});
+    return asList(
+        new Object[][] {
+          {DistributionMode.NONE}, {DistributionMode.HASH}, {DistributionMode.RANGE}
+        });
   }
 
   @Parameterized.Parameter(0)

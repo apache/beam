@@ -194,13 +194,16 @@ public class IcebergWriteSchemaTransformProvider
 
     @SchemaFieldDescription(
         "When true, physically sorts records within each written data file according to the target"
-            + " table's sort order. Defaults to false.")
+            + " table's sort order. Automatically enabled when distribution_mode is set to 'range'."
+            + " Defaults to false.")
     public abstract @Nullable Boolean getSortOnWrite();
 
     @SchemaFieldDescription(
         "Defines distribution of write data. Supported distributions:"
             + "\n- none: don't shuffle rows (default)"
-            + "\n- hash: shuffle rows by partition key before writing data")
+            + "\n- hash: shuffle rows by partition key before writing data"
+            + "\n- range: shuffle rows into non-overlapping sort-key ranges per partition and sort"
+            + " within each file")
     public abstract @Nullable String getDistributionMode();
 
     @SchemaFieldDescription(
@@ -425,6 +428,7 @@ public class IcebergWriteSchemaTransformProvider
       requireMode(Mode.APPEND, "direct_write_byte_limit", getDirectWriteByteLimit(), unsupported);
       requireMode(Mode.APPEND, "distribution_mode", getDistributionMode(), unsupported);
       requireMode(Mode.APPEND, "autosharding", getAutosharding(), unsupported);
+      requireMode(Mode.APPEND, "sort_on_write", getSortOnWrite(), unsupported);
       requireMode(Mode.APPEND, "write_properties", getWriteProperties(), unsupported);
       requireMode(
           Mode.APPEND, "using_side_input_table_cache", getUseSideInputTableCache(), unsupported);

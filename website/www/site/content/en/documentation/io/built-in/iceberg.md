@@ -307,6 +307,55 @@ pipeline:
         catalog_properties: *catalog_props
 {{< /highlight >}}
 
+### Sorting and Distribution Modes
+
+You can control how records are partitioned, sharded, and sorted before writing to Iceberg data files using `partition_fields`, `sort_fields`, `sort_on_write`, `distribution_mode`, and `autosharding`:
+
+- **`distribution_mode`**:
+  - `none` (default): Writes directly from worker bundles without a shuffle. When combined with `sort_on_write: true`, each worker locally sorts its bundle per partition (producing sorted files whose min/max key ranges may overlap across workers).
+  - `hash`: Shuffles records by Iceberg partition key before writing, consolidating files per partition.
+  - `range`: Shuffles records by partition key and sort-order key. In batch mode, `range` automatically samples sort keys per partition to compute balanced quantile boundaries sized to `write.target-file-size-bytes`. When combined with `sort_on_write: true`, files within each partition have non-overlapping sort-key ranges.
+- **`sort_fields`**: List of sort expressions applied when creating a new table (for example, `["ts DESC NULLS LAST", "id ASC"]` or `"bucket(id, 16) ASC"`).
+- **`sort_on_write`**: When `true`, sorts records within each output file using the table's Iceberg `SortOrder` via an external merge sort that spills to local disk when needed.
+- **`autosharding`**: Dynamically scales the number of parallel writers per partition when using `hash` or `range`.
+
+{{< highlight java >}}
+Map<String, Object> config = Map.of(
+    "table", "my_db.my_table",
+    "catalog_properties", catalogProps,
+    "partition_fields", List.of("truncate(name, 1)"),
+    "sort_fields", List.of("age ASC NULLS LAST", "id ASC"),
+    "sort_on_write", true,
+    "distribution_mode", "range");
+
+pipeline.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+{{< /highlight >}}
+{{< highlight py >}}
+pipeline | beam.managed.Write(
+    beam.managed.ICEBERG,
+    config={
+        "table": "my_db.my_table",
+        "catalog_properties": catalog_props,
+        "partition_fields": ["truncate(name, 1)"],
+        "sort_fields": ["age ASC NULLS LAST", "id ASC"],
+        "sort_on_write": True,
+        "distribution_mode": "range",
+    })
+{{< /highlight >}}
+{{< highlight yaml >}}
+- type: WriteToIceberg
+  config:
+    table: "my_db.my_table"
+    catalog_properties: *catalog_props
+    partition_fields:
+      - "truncate(name, 1)"
+    sort_fields:
+      - "age ASC NULLS LAST"
+      - "id ASC"
+    sort_on_write: true
+    distribution_mode: "range"
+{{< /highlight >}}
+
 ### View Namespaces and Tables
 
 If you're on Beam SQL, you can view the newly created resources:

@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -122,7 +120,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     PCollection<FileWriteResult> writtenFiles;
     if (IcebergUtils.isUnbounded(input)) {
       writtenFiles =
-          IcebergUtils.validDirectWriteLimit(directWriteByteLimit) && !sortedWrites
+          IcebergUtils.validDirectWriteLimit(directWriteByteLimit)
               ? writeTriggeredWithBundleLifting(input)
               : writeTriggered(input);
     } else {
@@ -211,7 +209,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
                 writeProperties,
-                metadataView));
+                metadataView,
+                sortedWrites));
 
     PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
@@ -279,45 +278,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private static class RowSizer implements SerializableFunction<KV<String, Row>, Integer> {
     @Override
     public Integer apply(KV<String, Row> element) {
-      return estimateRowSize(element.getValue());
-    }
-
-    private int estimateRowSize(Row row) {
-      if (row == null) {
-        return 0;
-      }
-      int size = 0;
-      for (Object value : row.getValues()) {
-        size += estimateObjectSize(value);
-      }
-      return size;
-    }
-
-    private int estimateObjectSize(@Nullable Object value) {
-      if (value == null) {
-        return 0;
-      }
-      if (value instanceof String) {
-        return ((String) value).getBytes(UTF_8).length;
-      } else if (value instanceof byte[]) {
-        return ((byte[]) value).length;
-      } else if (value instanceof Row) {
-        return estimateRowSize((Row) value);
-      } else if (value instanceof List) {
-        int listSize = 0;
-        for (Object item : (List) value) {
-          listSize += estimateObjectSize(item);
-        }
-        return listSize;
-      } else if (value instanceof Map) {
-        int mapSize = 0;
-        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-          mapSize += estimateObjectSize(entry.getKey()) + estimateObjectSize(entry.getValue());
-        }
-        return mapSize;
-      } else {
-        return 8; // Approximation for other fields
-      }
+      return IcebergUtils.estimateRowBytes(element.getValue());
     }
   }
 }

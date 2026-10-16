@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -40,10 +41,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
-import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
@@ -57,6 +58,7 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -72,11 +74,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link DestinationState} maintains its writers in a {@link Cache}. If a {@link RecordWriter}
  * is inactive for 1 minute, the {@link DestinationState} will automatically close it to free up
- * resources. When a data writer is closed, its resulting {@link DataFile} gets written. Calling
- * {@link #close()} on this {@link RecordWriterManager} will do the following for each {@link
- * DestinationState}:
+ * resources. When a data writer is closed, its resulting {@link DataFile} gets written. When {@code
+ * sortedWrites} is enabled on a sorted table, incoming rows are buffered in an {@link
+ * IcebergRowSorter} during {@link #write} without opening any {@link RecordWriter}s, and flushed
+ * one partition at a time during {@link #close()}. Calling {@link #close()} on this {@link
+ * RecordWriterManager} will do the following for each {@link DestinationState}:
  *
  * <ol>
+ *   <li>Flush any buffered sorted rows one partition at a time, rolling at {@code maxFileSize}
  *   <li>Close all underlying {@link RecordWriter}s
  *   <li>Collect all {@link DataFile}s as {@link SerializableDataFile}s (a more Beam-friendly type)
  * </ol>
@@ -86,6 +91,12 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+
+  /**
+   * Per-destination in-memory buffer limit (in MB) before {@link IcebergRowSorter} spills to local
+   * disk when multiple destinations are buffered concurrently within a bundle.
+   */
+  private static final int DEFAULT_SORTER_MEMORY_MB = 16;
 
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
@@ -107,6 +118,8 @@ class RecordWriterManager implements AutoCloseable {
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
     private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
+    private @Nullable BeamRowWrapper beamRowWrapper;
+    private @Nullable IcebergRowSorter rowSorter;
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
@@ -167,6 +180,70 @@ class RecordWriterManager implements AutoCloseable {
       writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
       return true;
+    }
+
+    boolean isSorted() {
+      return sortedWrites && table.sortOrder().isSorted();
+    }
+
+    boolean bufferForSortedWrite(Row row) {
+      IcebergRowSorter sorter = rowSorter;
+      if (sorter == null) {
+        if (openWriters >= maxNumWriters) {
+          writers.cleanUp();
+          if (openWriters >= maxNumWriters) {
+            return false;
+          }
+        }
+        sorter =
+            new IcebergRowSorter(
+                table.sortOrder(), schema, row.getSchema(), DEFAULT_SORTER_MEMORY_MB);
+        rowSorter = sorter;
+        openWriters++;
+      }
+      BeamRowWrapper rowWrapper = beamRowWrapper;
+      if (rowWrapper == null) {
+        rowWrapper = new BeamRowWrapper(row.getSchema(), schema.asStruct());
+        beamRowWrapper = rowWrapper;
+      }
+      routingPartitionKey.partition(rowWrapper.wrap(row));
+      sorter.add(routingPartitionKey.toPath(), row);
+      return true;
+    }
+
+    void flushSortedRows() throws IOException {
+      IcebergRowSorter sorter = rowSorter;
+      if (sorter == null) {
+        return;
+      }
+      rowSorter = null;
+      openWriters--;
+      try (CloseableIterable<Row> sortedRows = sorter.sort()) {
+        String activePartitionPath = null;
+        for (Row row : sortedRows) {
+          Record record = IcebergUtils.beamRowToIcebergRecord(schema, row);
+          routingPartitionKey.partition(wrapper.wrap(record));
+          String partitionPath = routingPartitionKey.toPath();
+          if (activePartitionPath != null && !partitionPath.equals(activePartitionPath)) {
+            // Rows are ordered by partitionPath first; once the partition path changes, the
+            // previous partition group is complete and its writer(s) can be closed immediately so
+            // only the active partition's writer stays open in memory at a time.
+            writers.invalidateAll();
+          }
+          activePartitionPath = partitionPath;
+          @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
+          writer = fetchWriterForPartition(routingPartitionKey, writer);
+          writer.write(record);
+        }
+      }
+    }
+
+    void closeSorterQuietly() {
+      if (rowSorter != null) {
+        rowSorter.close();
+        rowSorter = null;
+        openWriters--;
+      }
     }
 
     /**
@@ -251,6 +328,7 @@ class RecordWriterManager implements AutoCloseable {
   private final long maxFileSize;
   private final int maxNumWriters;
   private final @Nullable Map<String, String> writeProperties;
+  private final boolean sortedWrites;
   private volatile @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs;
   @VisibleForTesting int openWriters = 0;
 
@@ -264,7 +342,7 @@ class RecordWriterManager implements AutoCloseable {
 
   RecordWriterManager(
       IcebergCatalogConfig catalogConfig, String filePrefix, long maxFileSize, int maxNumWriters) {
-    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null, null);
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null, null, false);
   }
 
   RecordWriterManager(
@@ -273,7 +351,7 @@ class RecordWriterManager implements AutoCloseable {
       long maxFileSize,
       int maxNumWriters,
       @Nullable Map<String, String> writeProperties) {
-    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, writeProperties, null);
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, writeProperties, null, false);
   }
 
   RecordWriterManager(
@@ -283,12 +361,31 @@ class RecordWriterManager implements AutoCloseable {
       int maxNumWriters,
       @Nullable Map<String, String> writeProperties,
       @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
+    this(
+        catalogConfig,
+        filePrefix,
+        maxFileSize,
+        maxNumWriters,
+        writeProperties,
+        sideInputTableSpecs,
+        false);
+  }
+
+  RecordWriterManager(
+      IcebergCatalogConfig catalogConfig,
+      String filePrefix,
+      long maxFileSize,
+      int maxNumWriters,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs,
+      boolean sortedWrites) {
     this.catalogConfig = catalogConfig;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
     this.writeProperties = writeProperties;
     this.sideInputTableSpecs = sideInputTableSpecs;
+    this.sortedWrites = sortedWrites;
   }
 
   @VisibleForTesting
@@ -307,8 +404,8 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  @VisibleForTesting
-  Table getOrCreateTable(
+  static Table getOrCreateTable(
+      IcebergCatalogConfig catalogConfig,
       IcebergDestination destination,
       Schema dataSchema,
       @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
@@ -321,15 +418,24 @@ class RecordWriterManager implements AutoCloseable {
       }
     }
     return TableCache.getAndRefreshIfStale(
-        catalogConfig, identifier, () -> loadOrCreateTable(destination, dataSchema));
+        catalogConfig, identifier, () -> loadOrCreateTable(catalogConfig, destination, dataSchema));
+  }
+
+  @VisibleForTesting
+  Table getOrCreateTable(
+      IcebergDestination destination,
+      Schema dataSchema,
+      @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
+    return getOrCreateTable(catalogConfig, destination, dataSchema, sideInputTableSpecs);
   }
 
   @VisibleForTesting
   Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
-    return getOrCreateTable(destination, dataSchema, this.sideInputTableSpecs);
+    return getOrCreateTable(catalogConfig, destination, dataSchema, this.sideInputTableSpecs);
   }
 
-  private Table loadOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+  private static Table loadOrCreateTable(
+      IcebergCatalogConfig catalogConfig, IcebergDestination destination, Schema dataSchema) {
     Catalog catalog = catalogConfig.catalog();
     TableIdentifier identifier = destination.getTableIdentifier();
     Namespace namespace = identifier.namespace();
@@ -420,13 +526,17 @@ class RecordWriterManager implements AutoCloseable {
               return new DestinationState(dest, table);
             });
 
+    if (destinationState.isSorted()) {
+      return destinationState.bufferForSortedWrite(row);
+    }
+
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
     return destinationState.write(icebergRecord);
   }
 
   /**
-   * Closes all remaining writers and collects all their {@link DataFile}s. Writes one {@link
-   * ManifestFile} per windowed table destination.
+   * Flushes any buffered sorted rows, closes all remaining writers, and collects all produced
+   * {@link DataFile}s as {@link SerializableDataFile}s per windowed table destination.
    */
   @Override
   public void close() throws IOException {
@@ -434,6 +544,8 @@ class RecordWriterManager implements AutoCloseable {
       for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
           windowedDestinationAndState : destinations.entrySet()) {
         DestinationState state = windowedDestinationAndState.getValue();
+
+        state.flushSortedRows();
 
         // removing writers from the state's cache will trigger the logic to collect each writer's
         // data file.
@@ -458,6 +570,10 @@ class RecordWriterManager implements AutoCloseable {
         state.dataFiles.clear();
       }
     } finally {
+      for (DestinationState state : destinations.values()) {
+        state.closeSorterQuietly();
+        state.writers.invalidateAll();
+      }
       destinations.clear();
     }
     checkArgument(
@@ -479,5 +595,30 @@ class RecordWriterManager implements AutoCloseable {
         "Please close this %s before retrieving its data files.",
         getClass().getSimpleName());
     return totalSerializableDataFiles;
+  }
+
+  /**
+   * Closes {@code manager} and emits all produced {@link SerializableDataFile}s to {@code context}.
+   */
+  static void closeAndOutputFiles(
+      @Nullable RecordWriterManager manager, DoFn<?, FileWriteResult>.FinishBundleContext context)
+      throws IOException {
+    if (manager == null) {
+      return;
+    }
+    manager.close();
+    for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+        destinationAndFiles : manager.getSerializableDataFiles().entrySet()) {
+      WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
+      for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
+        context.output(
+            FileWriteResult.builder()
+                .setSerializableDataFile(dataFile)
+                .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
+                .build(),
+            windowedDestination.getTimestamp(),
+            Iterables.getFirst(windowedDestination.getWindows(), null));
+      }
+    }
   }
 }

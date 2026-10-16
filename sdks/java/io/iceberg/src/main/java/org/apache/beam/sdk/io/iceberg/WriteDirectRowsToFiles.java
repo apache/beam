@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteDirectRowsToFiles
@@ -43,6 +41,7 @@ class WriteDirectRowsToFiles
   private final long maxBytesPerFile;
   private final @Nullable Map<String, String> writeProperties;
   private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+  private final boolean sortedWrites;
 
   WriteDirectRowsToFiles(
       IcebergCatalogConfig catalogConfig,
@@ -50,7 +49,14 @@ class WriteDirectRowsToFiles
       String filePrefix,
       long maxBytesPerFile,
       @Nullable Map<String, String> writeProperties) {
-    this(catalogConfig, dynamicDestinations, filePrefix, maxBytesPerFile, writeProperties, null);
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        filePrefix,
+        maxBytesPerFile,
+        writeProperties,
+        null,
+        false);
   }
 
   WriteDirectRowsToFiles(
@@ -60,12 +66,31 @@ class WriteDirectRowsToFiles
       long maxBytesPerFile,
       @Nullable Map<String, String> writeProperties,
       @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        filePrefix,
+        maxBytesPerFile,
+        writeProperties,
+        metadataView,
+        false);
+  }
+
+  WriteDirectRowsToFiles(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix,
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+      boolean sortedWrites) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.maxBytesPerFile = maxBytesPerFile;
     this.writeProperties = writeProperties;
     this.metadataView = metadataView;
+    this.sortedWrites = sortedWrites;
   }
 
   @Override
@@ -78,7 +103,8 @@ class WriteDirectRowsToFiles
                 maxBytesPerFile,
                 filePrefix,
                 writeProperties,
-                metadataView));
+                metadataView,
+                sortedWrites));
     if (metadataView != null) {
       parDo = parDo.withSideInputs(metadataView);
     }
@@ -93,6 +119,7 @@ class WriteDirectRowsToFiles
     private final long maxFileSize;
     private final @Nullable Map<String, String> writeProperties;
     private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+    private final boolean sortedWrites;
     private transient @Nullable RecordWriterManager recordWriterManager;
 
     WriteDirectRowsToFilesDoFn(
@@ -100,23 +127,16 @@ class WriteDirectRowsToFiles
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
         String filePrefix,
-        @Nullable Map<String, String> writeProperties) {
-      this(catalogConfig, dynamicDestinations, maxFileSize, filePrefix, writeProperties, null);
-    }
-
-    WriteDirectRowsToFilesDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        long maxFileSize,
-        String filePrefix,
         @Nullable Map<String, String> writeProperties,
-        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+        boolean sortedWrites) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
       this.writeProperties = writeProperties;
       this.metadataView = metadataView;
+      this.sortedWrites = sortedWrites;
       this.recordWriterManager = null;
     }
 
@@ -124,7 +144,13 @@ class WriteDirectRowsToFiles
     public void startBundle() {
       recordWriterManager =
           new RecordWriterManager(
-              catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE, writeProperties);
+              catalogConfig,
+              filePrefix,
+              maxFileSize,
+              Integer.MAX_VALUE,
+              writeProperties,
+              null,
+              sortedWrites);
     }
 
     @ProcessElement
@@ -140,34 +166,23 @@ class WriteDirectRowsToFiles
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
       Map<String, SerializableTableSpec> sideInputs =
           metadataView != null ? context.sideInput(metadataView) : null;
-      Preconditions.checkNotNull(recordWriterManager)
-          .write(windowedDestination, element.getValue(), sideInputs);
+      try {
+        Preconditions.checkNotNull(recordWriterManager)
+            .write(windowedDestination, element.getValue(), sideInputs);
+      } catch (Exception e) {
+        try {
+          Preconditions.checkNotNull(recordWriterManager).close();
+        } catch (Exception closeException) {
+          e.addSuppressed(closeException);
+        }
+        recordWriterManager = null;
+        throw e;
+      }
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
-      if (recordWriterManager == null) {
-        return;
-      }
-      recordWriterManager.close();
-
-      for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
-          destinationAndFiles :
-              Preconditions.checkNotNull(recordWriterManager)
-                  .getSerializableDataFiles()
-                  .entrySet()) {
-        WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
-
-        for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
-          context.output(
-              FileWriteResult.builder()
-                  .setSerializableDataFile(dataFile)
-                  .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
-                  .build(),
-              windowedDestination.getTimestamp(),
-              Iterables.getFirst(windowedDestination.getWindows(), null));
-        }
-      }
+      RecordWriterManager.closeAndOutputFiles(recordWriterManager, context);
       recordWriterManager = null;
     }
   }

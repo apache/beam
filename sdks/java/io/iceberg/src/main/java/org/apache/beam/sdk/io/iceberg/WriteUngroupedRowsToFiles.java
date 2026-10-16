@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
@@ -47,9 +46,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.iceberg.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -248,47 +244,9 @@ class WriteUngroupedRowsToFiles
     private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
     private final boolean sortedWrites;
     private transient @Nullable RecordWriterManager recordWriterManager;
-    private transient @Nullable Map<String, Boolean> destinationIsSorted;
     private int spilledShardNumber;
 
-    public WriteUngroupedRowsToFilesDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        String filename,
-        int maximumWritersPerBundle,
-        long maxFileSize,
-        @Nullable Map<String, String> writeProperties) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          filename,
-          maximumWritersPerBundle,
-          maxFileSize,
-          writeProperties,
-          null,
-          false);
-    }
-
-    public WriteUngroupedRowsToFilesDoFn(
-        IcebergCatalogConfig catalogConfig,
-        DynamicDestinations dynamicDestinations,
-        String filename,
-        int maximumWritersPerBundle,
-        long maxFileSize,
-        @Nullable Map<String, String> writeProperties,
-        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
-      this(
-          catalogConfig,
-          dynamicDestinations,
-          filename,
-          maximumWritersPerBundle,
-          maxFileSize,
-          writeProperties,
-          metadataView,
-          false);
-    }
-
-    public WriteUngroupedRowsToFilesDoFn(
+    WriteUngroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         String filename,
@@ -311,8 +269,13 @@ class WriteUngroupedRowsToFiles
     public void startBundle() {
       recordWriterManager =
           new RecordWriterManager(
-              catalogConfig, filename, maxFileSize, maxWritersPerBundle, writeProperties);
-      destinationIsSorted = Maps.newHashMap();
+              catalogConfig,
+              filename,
+              maxFileSize,
+              maxWritersPerBundle,
+              writeProperties,
+              null,
+              sortedWrites);
       this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 
@@ -334,25 +297,14 @@ class WriteUngroupedRowsToFiles
           metadataView != null ? c.sideInput(metadataView) : null;
 
       // Attempt to write record. If the writer is saturated and cannot accept
-      // the record, or if sorted writes are enabled and the target table is sorted,
-      // spill it over to WriteGroupedRowsToFiles
-      boolean writeSuccess = false;
+      // the record, spill it over to WriteGroupedRowsToFiles. When sortedWrites
+      // is enabled, RecordWriterManager buffers into IcebergRowSorter during
+      // processElement and flushes one partition at a time in finishBundle.
+      boolean writeSuccess;
       try {
-        RecordWriterManager writerManager = Preconditions.checkNotNull(recordWriterManager);
-        boolean mustSpillForSorting = false;
-        if (sortedWrites) {
-          Map<String, Boolean> isSortedCache = Preconditions.checkNotNull(destinationIsSorted);
-          Boolean isSorted = isSortedCache.get(dest);
-          if (isSorted == null) {
-            Table table = writerManager.getOrCreateTable(destination, data.getSchema(), sideInputs);
-            isSorted = table.sortOrder().isSorted();
-            isSortedCache.put(dest, isSorted);
-          }
-          mustSpillForSorting = isSorted;
-        }
-        if (!mustSpillForSorting) {
-          writeSuccess = writerManager.write(windowedDestination, data, sideInputs);
-        }
+        writeSuccess =
+            Preconditions.checkNotNull(recordWriterManager)
+                .write(windowedDestination, data, sideInputs);
       } catch (Exception e) {
         try {
           Preconditions.checkNotNull(recordWriterManager).close();
@@ -373,28 +325,7 @@ class WriteUngroupedRowsToFiles
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      if (recordWriterManager == null) {
-        return;
-      }
-      recordWriterManager.close();
-
-      for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
-          destinationAndFiles :
-              Preconditions.checkNotNull(recordWriterManager)
-                  .getSerializableDataFiles()
-                  .entrySet()) {
-        WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
-
-        for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
-          c.output(
-              FileWriteResult.builder()
-                  .setSerializableDataFile(dataFile)
-                  .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
-                  .build(),
-              windowedDestination.getTimestamp(),
-              Iterables.getFirst(windowedDestination.getWindows(), null));
-        }
-      }
+      RecordWriterManager.closeAndOutputFiles(recordWriterManager, c);
       recordWriterManager = null;
     }
   }

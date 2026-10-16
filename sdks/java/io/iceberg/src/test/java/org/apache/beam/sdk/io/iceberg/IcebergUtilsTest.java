@@ -369,6 +369,32 @@ public class IcebergUtilsTest {
 
       assertEquals(null, record.getField("v"));
     }
+
+    @Test
+    public void testEstimateRowBytes() {
+      Schema nestedSchema = Schema.builder().addInt64Field("x").addStringField("s").build();
+      Schema outerSchema =
+          Schema.builder()
+              .addNullableField("nullable_str", Schema.FieldType.STRING)
+              .addByteArrayField("bytes")
+              .addRowField("nested", nestedSchema)
+              .addArrayField("arr", Schema.FieldType.INT32)
+              .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.INT32)
+              .build();
+      Row nested = Row.withSchema(nestedSchema).addValues(42L, "hello").build();
+      Row outer =
+          Row.withSchema(outerSchema)
+              .addValues(
+                  null,
+                  new byte[] {1, 2, 3},
+                  nested,
+                  Arrays.asList(10, 20),
+                  ImmutableMap.of("k", 99))
+              .build();
+
+      // null (1) + byte[3] (3) + nested (8 + 5) + array (8 + 8) + map ("k"=1 + 8) = 42
+      assertEquals(42L, IcebergUtils.estimateRowBytes(outer));
+    }
   }
 
   @RunWith(JUnit4.class)

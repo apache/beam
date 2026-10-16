@@ -70,13 +70,8 @@ public class IcebergRowSorterTest {
           .lexicographicalComparator();
 
   private static byte[] encodeSortKeyHelper(Row row, SortOrder sortOrder) throws Exception {
-    java.util.List<org.apache.iceberg.SortField> fields = sortOrder.fields();
-    String[] columnNames = new String[fields.size()];
-    for (int i = 0; i < fields.size(); i++) {
-      columnNames[i] = ICEBERG_SCHEMA.findColumnName(fields.get(i).sourceId());
-    }
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    IcebergRowSorter.encodeSortKey(row, sortOrder, columnNames, baos, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    IcebergRowSorter.encodeSortKey(row, sortOrder, baos, ICEBERG_SCHEMA);
     return baos.toByteArray();
   }
 
@@ -171,7 +166,7 @@ public class IcebergRowSorterTest {
   }
 
   @Test
-  public void testEndToEndSorting() {
+  public void testEndToEndSorting() throws Exception {
     SortOrder sortOrder = SortOrder.builderFor(ICEBERG_SCHEMA).asc("name").desc("id").build();
 
     List<Row> input =
@@ -181,9 +176,11 @@ public class IcebergRowSorterTest {
             Row.withSchema(BEAM_SCHEMA).addValues(5, "apple", 1.5, true).build(),
             Row.withSchema(BEAM_SCHEMA).addValues(10, "cherry", 3.0, false).build());
 
-    Iterable<Row> sorted = IcebergRowSorter.sortRows(input, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    List<Row> sortedList =
-        StreamSupport.stream(sorted.spliterator(), false).collect(Collectors.toList());
+    List<Row> sortedList;
+    try (CloseableIterable<Row> sorted =
+        IcebergRowSorter.sortRows(input, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA)) {
+      sortedList = StreamSupport.stream(sorted.spliterator(), false).collect(Collectors.toList());
+    }
 
     assertEquals(4, sortedList.size());
 
@@ -201,7 +198,7 @@ public class IcebergRowSorterTest {
   }
 
   @Test
-  public void testScaleAndExternalDiskSpill() {
+  public void testScaleAndExternalDiskSpill() throws Exception {
     SortOrder sortOrder = SortOrder.builderFor(ICEBERG_SCHEMA).asc("id").build();
 
     int count = 5000;
@@ -213,9 +210,11 @@ public class IcebergRowSorterTest {
       input.add(Row.withSchema(BEAM_SCHEMA).addValues(randomId, "item" + i, 1.0, true).build());
     }
 
-    Iterable<Row> sorted = IcebergRowSorter.sortRows(input, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    List<Row> sortedList =
-        StreamSupport.stream(sorted.spliterator(), false).collect(Collectors.toList());
+    List<Row> sortedList;
+    try (CloseableIterable<Row> sorted =
+        IcebergRowSorter.sortRows(input, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA)) {
+      sortedList = StreamSupport.stream(sorted.spliterator(), false).collect(Collectors.toList());
+    }
 
     assertEquals(count, sortedList.size());
 
@@ -256,8 +255,7 @@ public class IcebergRowSorterTest {
 
     Row row = Row.withSchema(beamSchema).addValue(value).build();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    IcebergRowSorter.encodeSortKey(
-        row, sortOrder, new String[] {"v"}, baos, icebergSchema, beamSchema);
+    IcebergRowSorter.encodeSortKey(row, sortOrder, baos, icebergSchema);
     return baos.toByteArray();
   }
 
@@ -330,6 +328,17 @@ public class IcebergRowSorterTest {
   }
 
   @Test
+  public void testEnumerationTypeKeyOrdering() throws Exception {
+    org.apache.beam.sdk.schemas.logicaltypes.EnumerationType enumType =
+        org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.create("ALPHA", "BETA", "GAMMA");
+    assertOrdered(
+        Schema.FieldType.logicalType(enumType),
+        Types.StringType.get(),
+        enumType.valueOf("ALPHA"),
+        enumType.valueOf("GAMMA"));
+  }
+
+  @Test
   public void testUuidKeyEncodingIsDeterministic() throws Exception {
     byte[] first =
         encodeSingle(Schema.FieldType.BYTES, Types.UUIDType.get(), new byte[] {1, 2}, false);
@@ -340,6 +349,20 @@ public class IcebergRowSorterTest {
 
     assertEquals(0, BYTE_ARR_COMPARATOR.compare(first, repeat));
     assertTrue(BYTE_ARR_COMPARATOR.compare(first, other) != 0);
+  }
+
+  @Test
+  public void testFixedAndBinaryKeyOrdering() throws Exception {
+    assertOrdered(
+        Schema.FieldType.BYTES,
+        Types.FixedType.ofLength(4),
+        new byte[] {0x00, 0x01, 0x02, 0x03},
+        new byte[] {0x00, 0x01, 0x02, 0x04});
+    assertOrdered(
+        Schema.FieldType.BYTES,
+        Types.BinaryType.get(),
+        new byte[] {0x00, 0x01},
+        new byte[] {0x00, 0x01, 0x00});
   }
 
   @Test

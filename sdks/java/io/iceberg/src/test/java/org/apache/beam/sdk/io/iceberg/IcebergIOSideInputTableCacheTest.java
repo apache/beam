@@ -122,7 +122,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
       write = write.withAutosharding();
     }
     if (distributionMode.equals(RANGE)) {
-      write = write.withDistributionMode(DistributionMode.RANGE).withDistributionFunction(row -> 0);
+      write = write.withDistributionMode(DistributionMode.RANGE);
     }
     return write;
   }
