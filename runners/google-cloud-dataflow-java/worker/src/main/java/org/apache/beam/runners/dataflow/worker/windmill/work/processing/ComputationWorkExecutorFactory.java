@@ -53,7 +53,9 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -166,23 +168,27 @@ final class ComputationWorkExecutorFactory {
       MapTask mapTask,
       Nodes.ParallelInstructionNode readNode,
       Coder<?> readCoder,
-      ReadOperation readOperation,
+      Operation operation,
       MapTaskExecutor mapTaskExecutor,
       String counterName) {
-    NameContext nameContext =
-        NameContext.create(
-            mapTask.getStageName(),
-            readNode.getParallelInstruction().getOriginalName(),
-            readNode.getParallelInstruction().getSystemName(),
-            readNode.getParallelInstruction().getName());
-    readOperation.receivers[0].addOutputCounter(
-        counterName,
-        new OutputObjectAndByteCounter(
-                new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
-                mapTaskExecutor.getOutputCounters(),
-                nameContext)
-            .setSamplingPeriod(100)
-            .countBytes(counterName));
+    if (operation.receivers != null
+        && operation.receivers.length > 0
+        && operation.receivers[0] != null) {
+      NameContext nameContext =
+          NameContext.create(
+              mapTask.getStageName(),
+              readNode.getParallelInstruction().getOriginalName(),
+              readNode.getParallelInstruction().getSystemName(),
+              readNode.getParallelInstruction().getName());
+      operation.receivers[0].addOutputCounter(
+          counterName,
+          new OutputObjectAndByteCounter(
+                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
+                  mapTaskExecutor.getOutputCounters(),
+                  nameContext)
+              .setSamplingPeriod(100)
+              .countBytes(counterName));
+    }
   }
 
   private static ReadOperation getValidatedReadOperation(MapTaskExecutor mapTaskExecutor) {
@@ -234,6 +240,19 @@ final class ComputationWorkExecutorFactory {
           readOperation,
           mapTaskExecutor,
           computationState.sourceBytesProcessCounterName());
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
+        Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder();
+        if (bytesReadCoder != null) {
+          trackAutoscalingBytesRead(
+              mapTask,
+              readNode,
+              bytesReadCoder,
+              parDoOp,
+              mapTaskExecutor,
+              computationState.sourceBytesProcessCounterName());
+        }
+      }
     }
 
     ComputationWorkExecutor.Builder executionStateBuilder =

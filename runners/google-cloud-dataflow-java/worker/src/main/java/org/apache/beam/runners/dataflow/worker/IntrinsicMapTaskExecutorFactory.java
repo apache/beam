@@ -141,11 +141,9 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
         Iterables.filter(Networks.topologicalOrder(network), OperationNode.class)) {
       topoSortedOperations.add(node.getOperation());
 
-      for (Node predecessor :
+      for (OutputReceiverNode predecessor :
           Iterables.filter(network.predecessors(node), OutputReceiverNode.class)) {
-        ((OutputReceiverNode) predecessor)
-            .getOutputReceiver()
-            .addOutput((Receiver) node.getOperation());
+        predecessor.getOutputReceiver().addOutput((Receiver) node.getOperation());
       }
     }
 
@@ -248,7 +246,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     return OperationNode.create(WriteOperation.create(sink, EMPTY_OUTPUT_RECEIVER_ARRAY, context));
   }
 
-  private ParDoFnFactory parDoFnFactory = new DefaultParDoFnFactory();
+  private final ParDoFnFactory parDoFnFactory = new DefaultParDoFnFactory();
 
   private OperationNode createParDoOperation(
       Network<Node, Edge> network,
@@ -272,18 +270,29 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       }
       successorOffset += 1;
     }
+    CloudObject cloudUserFn = CloudObject.fromSpec(parDo.getUserFn());
     ParDoFn fn =
         parDoFnFactory.create(
             options,
-            CloudObject.fromSpec(parDo.getUserFn()),
+            cloudUserFn,
             parDo.getSideInputs(),
             mainOutputTag,
             outputTagsToReceiverIndicesBuilder.build(),
             executionContext,
             operationContext);
 
+    // An SDF's SplittableProcessFn behaves like a source, so we need to report its bytes read even
+    // though it's not a read operator for autoscaling to work properly.
+    Coder<?> bytesReadCoder = null;
+    if ("SplittableProcessFn".equals(cloudUserFn.getClassName())) {
+      Node firstOutput = Iterables.getFirst(network.successors(node), null);
+      if (firstOutput instanceof OutputReceiverNode) {
+        bytesReadCoder = ((OutputReceiverNode) firstOutput).getCoder();
+      }
+    }
     OutputReceiver[] receivers = getOutputReceivers(network, node);
-    return OperationNode.create(new ParDoOperation(fn, receivers, operationContext));
+    return OperationNode.create(
+        new ParDoOperation(fn, receivers, operationContext, bytesReadCoder));
   }
 
   private static <V> TupleTag<V> tupleTag(MultiOutputInfo multiOutputInfo) {
