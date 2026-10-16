@@ -22,18 +22,15 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.fnexecution.control.DefaultExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableStageContextFactory;
+import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 
 /** Singleton class that contains one {@link ExecutableStageContext.Factory} per job. */
 public class FlinkExecutableStageContextFactory implements ExecutableStageContext.Factory {
 
   private static final FlinkExecutableStageContextFactory instance =
       new FlinkExecutableStageContextFactory();
-  // This map should only ever have a single element, as each job will have its own
-  // classloader and therefore its own instance of FlinkExecutableStageContextFactory. This
-  // code supports multiple JobInfos in order to provide a sensible implementation of
-  // Factory.get(JobInfo), which in theory could be called with different JobInfos.
   private static final ConcurrentMap<String, ExecutableStageContext.Factory> jobFactories =
       new ConcurrentHashMap<>();
 
@@ -48,16 +45,37 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
     ExecutableStageContext.Factory jobFactory =
         jobFactories.computeIfAbsent(
             jobInfo.jobId(),
-            k -> {
-              return ReferenceCountingExecutableStageContextFactory.create(
-                  DefaultExecutableStageContext::create,
-                  // Clean up context immediately if its class is not loaded on Flink parent
-                  // classloader.
-                  (caller) ->
-                      caller.getClass().getClassLoader()
-                          != StreamExecutionEnvironment.class.getClassLoader());
-            });
-
+            k ->
+                ReferenceCountingExecutableStageContextFactory.create(
+                    info -> new JobScopedExecutableStageContext(info, k),
+                    // Release the context synchronously once its reference count drops to zero.
+                    caller -> true));
     return jobFactory.get(jobInfo);
+  }
+
+  private static class JobScopedExecutableStageContext implements ExecutableStageContext {
+    private final DefaultExecutableStageContext delegate;
+    private final String jobId;
+
+    private JobScopedExecutableStageContext(JobInfo jobInfo, String jobId) {
+      this.delegate = DefaultExecutableStageContext.create(jobInfo);
+      this.jobId = jobId;
+    }
+
+    @Override
+    public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
+      return delegate.getStageBundleFactory(executableStage);
+    }
+
+    @Override
+    public void close() throws Exception {
+      try {
+        delegate.close();
+      } finally {
+        // Drop the per-job factory entry so a long-lived JVM that runs many jobs does not
+        // accumulate one entry per finished job.
+        jobFactories.remove(jobId);
+      }
+    }
   }
 }
