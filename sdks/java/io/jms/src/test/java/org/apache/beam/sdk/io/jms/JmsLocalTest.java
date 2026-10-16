@@ -170,6 +170,37 @@ public class JmsLocalTest {
     assertEquals(0, activeCheckpoints.get());
   }
 
+  @Test
+  public void testRestoredCheckpointMarkAcknowledgesLiveMessages() throws Exception {
+    Message msg = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg);
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(
+            null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
+    int live = JmsCheckpointMark.liveCheckpointCount();
+
+    // serialize/deserialize drops the transient state, as when a runner restores the mark
+    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes)) {
+      out.writeObject(mark);
+    }
+    JmsCheckpointMark restored;
+    try (java.io.ObjectInputStream in =
+        new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
+      restored = (JmsCheckpointMark) in.readObject();
+    }
+    assertNull(restored.getMessages());
+
+    restored.finalizeCheckpoint();
+
+    Mockito.verify(msg, Mockito.times(1)).acknowledge();
+    assertEquals(0, activeCheckpoints.get());
+    assertEquals(live - 1, JmsCheckpointMark.liveCheckpointCount());
+  }
+
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {

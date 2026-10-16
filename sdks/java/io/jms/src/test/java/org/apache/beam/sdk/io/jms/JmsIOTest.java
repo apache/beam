@@ -599,6 +599,39 @@ public class JmsIOTest {
   }
 
   @Test
+  public void testRestoredCheckpointMarkFinalizedAfterReaderRecreation() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+    assertTrue(startWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+
+    JmsCheckpointMark mark = (JmsCheckpointMark) reader.getCheckpointMark();
+    assertEquals(10, count(QUEUE));
+
+    // the runner serializes the mark and recreates the reader from it
+    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes)) {
+      out.writeObject(mark);
+    }
+    JmsCheckpointMark restored;
+    try (java.io.ObjectInputStream in =
+        new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
+      restored = (JmsCheckpointMark) in.readObject();
+    }
+    reader.close();
+    UnboundedJmsReader recreated =
+        (UnboundedJmsReader)
+            ((JmsIO.UnboundedJmsSource<?>) reader.getCurrentSource())
+                .createReader(PipelineOptionsFactory.create(), restored);
+    assertTrue(startWithRetry(recreated));
+
+    // finalizing the restored copy acks the messages read by the original reader
+    restored.finalizeCheckpoint();
+
+    assertEquals(7, count(QUEUE));
+  }
+
+  @Test
   public void testCheckpointMarkAndFinalizeSeparatelyIndividualAcknowledge() throws Exception {
     UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
 
