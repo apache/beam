@@ -1133,8 +1133,8 @@ public final class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.executorQueueIsEmpty();
+  public boolean workExecutorIsEmptyForTesting() {
+    return workUnitExecutor.executorQueueIsEmptyForTesting();
   }
 
   @VisibleForTesting

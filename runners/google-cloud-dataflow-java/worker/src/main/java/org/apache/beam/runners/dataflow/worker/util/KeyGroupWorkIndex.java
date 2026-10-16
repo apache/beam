@@ -17,16 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.QueuedWork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -39,18 +40,17 @@ final class KeyGroupWorkIndex {
   private static final int NUM_SHARDS = 64;
   private static final int INITIAL_QUEUE_CAPACITY = 4;
 
-  // Each shard map and its queues are guarded by synchronized (shard).
-  private final List<Map<QueueKey, ArrayDeque<QueuedWork>>> shards;
+  private final ImmutableList<Shard> shards;
 
   KeyGroupWorkIndex() {
-    List<Map<QueueKey, ArrayDeque<QueuedWork>>> list = new ArrayList<>(NUM_SHARDS);
+    ImmutableList.Builder<Shard> builder = ImmutableList.builderWithExpectedSize(NUM_SHARDS);
     for (int i = 0; i < NUM_SHARDS; i++) {
-      list.add(new HashMap<>());
+      builder.add(new Shard());
     }
-    this.shards = Collections.unmodifiableList(list);
+    this.shards = builder.build();
   }
 
-  private Map<QueueKey, ArrayDeque<QueuedWork>> shardFor(QueueKey queueKey) {
+  private Shard shardFor(QueueKey queueKey) {
     return shards.get(Math.floorMod(queueKey.hashCode(), NUM_SHARDS));
   }
 
@@ -60,16 +60,7 @@ final class KeyGroupWorkIndex {
       return;
     }
     QueueKey queueKey = work.queueKey();
-    Map<QueueKey, ArrayDeque<QueuedWork>> shard = shardFor(queueKey);
-    synchronized (shard) {
-      if (work.isClaimed()) {
-        return;
-      }
-      ArrayDeque<QueuedWork> queue =
-          shard.computeIfAbsent(queueKey, unused -> new ArrayDeque<>(INITIAL_QUEUE_CAPACITY));
-      drainClaimedFromHead(queue);
-      queue.addLast(work);
-    }
+    shardFor(queueKey).add(queueKey, work);
   }
 
   /**
@@ -77,27 +68,58 @@ final class KeyGroupWorkIndex {
    * still unclaimed, {@code work} remains in the queue with its references cleared and is drained
    * in amortized O(1) time once the earlier item is claimed.
    */
-  void remove(QueuedWork work) {
-    QueueKey queueKey = work.queueKey();
-    Map<QueueKey, ArrayDeque<QueuedWork>> shard = shardFor(queueKey);
-    synchronized (shard) {
-      @Nullable ArrayDeque<QueuedWork> queue = shard.get(queueKey);
-      if (queue == null) {
-        return;
-      }
-      drainClaimedFromHead(queue);
-      if (queue.isEmpty()) {
-        shard.remove(queueKey);
-      }
-    }
+  void drainClaimed(QueuedWork completedWork) {
+    checkArgument(completedWork.isClaimed());
+    QueueKey queueKey = completedWork.queueKey();
+    shardFor(queueKey).drainClaimed(queueKey);
   }
 
   /** Claims and returns the oldest unclaimed work for the computation and key group, or null. */
   @Nullable QueuedWork pollAndClaim(String computationId, Work.KeyGroup keyGroup) {
     QueueKey queueKey = new QueueKey(computationId, keyGroup);
-    Map<QueueKey, ArrayDeque<QueuedWork>> shard = shardFor(queueKey);
-    synchronized (shard) {
-      @Nullable ArrayDeque<QueuedWork> queue = shard.get(queueKey);
+    return shardFor(queueKey).pollAndClaim(queueKey);
+  }
+
+  @VisibleForTesting
+  boolean isEmpty() {
+    for (Shard shard : shards) {
+      if (!shard.isEmpty()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** A shard of key-group queues; the map and its queues are guarded by the shard's monitor. */
+  private static final class Shard {
+
+    @GuardedBy("this")
+    private final Map<QueueKey, ArrayDeque<QueuedWork>> queuesByKeyGroup = new HashMap<>();
+
+    synchronized void add(QueueKey queueKey, QueuedWork work) {
+      if (work.isClaimed()) {
+        return;
+      }
+      ArrayDeque<QueuedWork> queue =
+          queuesByKeyGroup.computeIfAbsent(
+              queueKey, unused -> new ArrayDeque<>(INITIAL_QUEUE_CAPACITY));
+      drainClaimedFromHead(queue);
+      queue.addLast(work);
+    }
+
+    synchronized void drainClaimed(QueueKey queueKey) {
+      @Nullable ArrayDeque<QueuedWork> queue = queuesByKeyGroup.get(queueKey);
+      if (queue == null) {
+        return;
+      }
+      drainClaimedFromHead(queue);
+      if (queue.isEmpty()) {
+        queuesByKeyGroup.remove(queueKey);
+      }
+    }
+
+    synchronized @Nullable QueuedWork pollAndClaim(QueueKey queueKey) {
+      @Nullable ArrayDeque<QueuedWork> queue = queuesByKeyGroup.get(queueKey);
       if (queue == null) {
         return null;
       }
@@ -108,29 +130,22 @@ final class KeyGroupWorkIndex {
           claimed = candidate;
         }
       }
+      drainClaimedFromHead(queue);
       if (queue.isEmpty()) {
-        shard.remove(queueKey);
+        queuesByKeyGroup.remove(queueKey);
       }
       return claimed;
     }
-  }
 
-  private static void drainClaimedFromHead(ArrayDeque<QueuedWork> queue) {
-    while (!queue.isEmpty() && queue.peekFirst().isClaimed()) {
-      queue.removeFirst();
+    synchronized boolean isEmpty() {
+      return queuesByKeyGroup.isEmpty();
     }
-  }
 
-  @VisibleForTesting
-  boolean isEmpty() {
-    for (Map<QueueKey, ArrayDeque<QueuedWork>> shard : shards) {
-      synchronized (shard) {
-        if (!shard.isEmpty()) {
-          return false;
-        }
+    private static void drainClaimedFromHead(ArrayDeque<QueuedWork> queue) {
+      while (!queue.isEmpty() && queue.peekFirst().isClaimed()) {
+        queue.removeFirst();
       }
     }
-    return true;
   }
 
   static final class QueueKey {

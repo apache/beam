@@ -174,7 +174,19 @@ public class KeyGroupWorkIndexTest {
     assertSame(work2, index.pollAndClaim(COMP_A, KEY_GROUP_1));
     assertNull(index.pollAndClaim(COMP_A, KEY_GROUP_1));
     assertTrue(index.isEmpty());
-    index.remove(work1);
+    index.drainClaimed(work1);
+    assertTrue(index.isEmpty());
+
+    QueuedWork work3 = createQueuedWork(COMP_A, KEY_GROUP_1);
+    QueuedWork work4 = createQueuedWork(COMP_A, KEY_GROUP_1);
+    index.add(work3);
+    index.add(work4);
+
+    assertTrue(work4.tryClaimForExecution());
+    index.drainClaimed(work4);
+    assertFalse(index.isEmpty());
+
+    assertSame(work3, index.pollAndClaim(COMP_A, KEY_GROUP_1));
     assertTrue(index.isEmpty());
   }
 
@@ -190,17 +202,17 @@ public class KeyGroupWorkIndexTest {
   }
 
   @Test
-  public void testRemove_removesWork() {
+  public void testDrainClaimed_drainsFromHead() {
     QueuedWork work1 = createQueuedWork(COMP_A, KEY_GROUP_1);
     QueuedWork work2 = createQueuedWork(COMP_A, KEY_GROUP_1);
     index.add(work1);
     index.add(work2);
 
     assertTrue(work2.tryClaimForExecution());
-    index.remove(work2);
+    index.drainClaimed(work2);
     assertFalse(index.isEmpty());
     assertTrue(work1.tryClaimForExecution());
-    index.remove(work1);
+    index.drainClaimed(work1);
     assertTrue(index.isEmpty());
 
     QueuedWork work3 = createQueuedWork(COMP_A, KEY_GROUP_1);
@@ -210,7 +222,7 @@ public class KeyGroupWorkIndexTest {
   }
 
   @Test
-  public void testConcurrentAddRemoveAndPollAndClaim_claimsEachWorkExactlyOnce() throws Exception {
+  public void testConcurrentAddDrainAndPollAndClaim_claimsEachWorkExactlyOnce() throws Exception {
     int numProducers = 2;
     int numExecutors = 2;
     int numStealers = 2;
@@ -258,7 +270,7 @@ public class KeyGroupWorkIndexTest {
                 while (!producersDone.get() || !executorQueue.isEmpty()) {
                   QueuedWork work = executorQueue.poll();
                   if (work != null && work.tryClaimForExecution()) {
-                    index.remove(work);
+                    index.drainClaimed(work);
                     executedCounts.incrementAndGet(workToken(work));
                   }
                 }

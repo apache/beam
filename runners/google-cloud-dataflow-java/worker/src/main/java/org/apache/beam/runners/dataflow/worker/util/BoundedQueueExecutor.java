@@ -30,6 +30,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
@@ -55,7 +56,7 @@ public class BoundedQueueExecutor {
   private final ThreadPoolExecutor executor;
   private final long maximumBytesOutstanding;
 
-  // Used to guard elementsOutstanding and bytesOutstanding.
+  // Used to guard writes to elementsOutstanding and bytesOutstanding.
   private final Monitor monitor;
 
   private static class Budget {
@@ -72,11 +73,10 @@ public class BoundedQueueExecutor {
   private final ConcurrentLinkedQueue<Budget> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
   private final AtomicBoolean isDecrementBatchPending = new AtomicBoolean(false);
-  private int elementsOutstanding = 0;
+  private final AtomicInteger elementsOutstanding = new AtomicInteger();
   private long bytesOutstanding = 0;
 
-  @GuardedBy("this")
-  private int maximumElementsOutstanding;
+  private volatile int maximumElementsOutstanding;
 
   @GuardedBy("this")
   private int activeCount;
@@ -93,7 +93,6 @@ public class BoundedQueueExecutor {
   private final LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>();
   private final @Nullable KeyGroupWorkIndex keyGroupWorkIndex;
 
-  private volatile int purgeQueueSizeThreshold;
   private final AtomicBoolean purgingStaleShells = new AtomicBoolean(false);
 
   public BoundedQueueExecutor(
@@ -141,8 +140,6 @@ public class BoundedQueueExecutor {
     executor.allowCoreThreadTimeOut(true);
     this.maximumElementsOutstanding = maximumElementsOutstanding;
     this.maximumBytesOutstanding = maximumBytesOutstanding;
-    this.purgeQueueSizeThreshold =
-        computePurgeQueueSizeThreshold(maximumElementsOutstanding, /* queueSize= */ 0);
   }
 
   // Before adding a Work to the queue, check that there are enough bytes of space or no other
@@ -152,9 +149,9 @@ public class BoundedQueueExecutor {
         new Guard(monitor) {
           @Override
           public boolean isSatisfied() {
-            return elementsOutstanding == 0
-                || (bytesAvailable() >= workBytes
-                    && elementsOutstanding < maximumElementsOutstanding());
+            int outstanding = elementsOutstanding.get();
+            return outstanding == 0
+                || (bytesAvailable() >= workBytes && outstanding < maximumElementsOutstanding());
           }
         });
     executeMonitorHeld(work, workBytes);
@@ -185,8 +182,6 @@ public class BoundedQueueExecutor {
     }
     this.maximumPoolSize = maximumPoolSize;
     this.maximumElementsOutstanding = maximumElementsOutstanding;
-    this.purgeQueueSizeThreshold =
-        computePurgeQueueSizeThreshold(maximumElementsOutstanding, /* queueSize= */ 0);
   }
 
   public void shutdown() throws InterruptedException {
@@ -196,13 +191,14 @@ public class BoundedQueueExecutor {
     }
   }
 
-  public boolean executorQueueIsEmpty() {
-    return executor.getQueue().isEmpty();
+  @VisibleForTesting
+  public boolean executorQueueIsEmptyForTesting() {
+    return workQueue.stream().allMatch(BoundedQueueExecutor::isStaleShell);
   }
 
-  /** Returns the number of entries in the executor queue, including stale shells. */
+  /** Returns the raw number of entries in the executor queue, including stale shells. */
   @VisibleForTesting
-  int executorQueueSize() {
+  int rawQueueSizeForTesting() {
     return workQueue.size();
   }
 
@@ -230,19 +226,14 @@ public class BoundedQueueExecutor {
   }
 
   public int elementsOutstanding() {
-    monitor.enter();
-    try {
-      return elementsOutstanding;
-    } finally {
-      monitor.leave();
-    }
+    return elementsOutstanding.get();
   }
 
   public long maximumBytesOutstanding() {
     return maximumBytesOutstanding;
   }
 
-  public synchronized int maximumElementsOutstanding() {
+  public int maximumElementsOutstanding() {
     return maximumElementsOutstanding;
   }
 
@@ -265,7 +256,7 @@ public class BoundedQueueExecutor {
       builder.append("<br>/n");
 
       builder.append("Work Queue Size: ");
-      builder.append(elementsOutstanding);
+      builder.append(elementsOutstanding.get());
       builder.append("/");
       builder.append(maximumElementsOutstanding());
       builder.append("<br>/n");
@@ -448,7 +439,7 @@ public class BoundedQueueExecutor {
       clearClaimedWork();
       @Nullable KeyGroupWorkIndex index = keyGroupWorkIndex;
       if (index != null) {
-        index.remove(this);
+        index.drainClaimed(this);
       }
       checkArgument(!workHandle.isClosed());
       try (workHandle) {
@@ -458,7 +449,7 @@ public class BoundedQueueExecutor {
   }
 
   private void executeMonitorHeld(ExecutableWork work, long workBytes) {
-    ++elementsOutstanding;
+    elementsOutstanding.incrementAndGet();
     bytesOutstanding += workBytes;
     monitor.leave();
     BoundedQueueExecutorWorkHandleImpl handle =
@@ -477,7 +468,7 @@ public class BoundedQueueExecutor {
   }
 
   private void executeMonitorHeld(Runnable work) {
-    ++elementsOutstanding;
+    elementsOutstanding.incrementAndGet();
     monitor.leave();
 
     try {
@@ -539,26 +530,17 @@ public class BoundedQueueExecutor {
    * multi-key bundles.
    */
   private void onWorkStolen() {
-    if (workQueue.size() <= purgeQueueSizeThreshold
+    if (workQueue.size() <= (long) elementsOutstanding.get() + maximumElementsOutstanding
         || !purgingStaleShells.compareAndSet(false, true)) {
       return;
     }
     try {
       if (!executor.isShutdown()) {
         workQueue.removeIf(BoundedQueueExecutor::isStaleShell);
-        // Wait for the queue to grow by maximumElementsOutstanding to avoid purging frequently.
-        purgeQueueSizeThreshold =
-            computePurgeQueueSizeThreshold(maximumElementsOutstanding(), workQueue.size());
       }
     } finally {
       purgingStaleShells.set(false);
     }
-  }
-
-  private static int computePurgeQueueSizeThreshold(int maximumElementsOutstanding, int queueSize) {
-    long threshold =
-        Math.max(2L * maximumElementsOutstanding, (long) queueSize + maximumElementsOutstanding);
-    return (int) Math.min(threshold, Integer.MAX_VALUE);
   }
 
   private static boolean isStaleShell(Runnable runnable) {
@@ -600,7 +582,7 @@ public class BoundedQueueExecutor {
       }
 
       monitor.enter();
-      elementsOutstanding -= elementsToDecrement;
+      elementsOutstanding.addAndGet(-elementsToDecrement);
       bytesOutstanding -= bytesToDecrement;
       monitor.leave();
     }
