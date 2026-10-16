@@ -803,12 +803,17 @@ public class StreamingModeExecutionContext
     if (!(workExecutor instanceof DataflowMapTaskExecutor)) {
       return 0L;
     }
+    // Note this is a problem for both custom source read operators and SDF ParDos: extracting
+    // the byte count counter values here races with StreamingWorkerStatusReporter, which also
+    // calls getAndReset on all modified counters to report to Dataflow. We should find a more
+    // dedicated counter that is only extracted here.
     DataflowMapTaskExecutor mapTaskExecutor = (DataflowMapTaskExecutor) workExecutor;
     long totalBytes = 0L;
     ReadOperation readOperation = mapTaskExecutor.getReadOperation();
     if (readOperation != null
         && readOperation.receivers != null
-        && readOperation.receivers.length > 0) {
+        && readOperation.receivers.length > 0
+        && readOperation.receivers[0] != null) {
       HashMap<String, ElementCounter> readOpCounters =
           readOperation.receivers[0].getOutputCounters();
       totalBytes +=
@@ -817,7 +822,9 @@ public class StreamingModeExecutionContext
               .orElse(0L);
     }
     for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
-      if (parDoOp.receivers != null && parDoOp.receivers.length > 0) {
+      if (parDoOp.receivers != null
+          && parDoOp.receivers.length > 0
+          && parDoOp.receivers[0] != null) {
         HashMap<String, ElementCounter> splittableProcessOpCounters =
             parDoOp.receivers[0].getOutputCounters();
         totalBytes +=
