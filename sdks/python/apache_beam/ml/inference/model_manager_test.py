@@ -265,6 +265,29 @@ class TestModelManager(unittest.TestCase):
     self.manager.release_model(model_b, inst_b)
     self.assertEqual(self.manager._total_active_jobs, 0)
 
+  def test_model_manager_observations_use_total_memory(self):
+    """
+    Test that the estimator only receives total memory readings for the
+    full snapshot of loaded models, not the memory delta of a single load.
+    """
+    model_a = "model_a"
+    model_b = "model_b"
+
+    self.manager._estimator.set_initial_estimate(model_a, 1000.0)
+    self.manager._estimator.set_initial_estimate(model_b, 2000.0)
+
+    inst_a = self.manager.acquire_model(
+        model_a, lambda: MockModel(model_a, 1000.0, self.mock_monitor))
+    inst_b = self.manager.acquire_model(
+        model_b, lambda: MockModel(model_b, 2000.0, self.mock_monitor))
+    self.manager.release_model(model_b, inst_b)
+    self.manager.release_model(model_a, inst_a)
+
+    history = self.manager._estimator.history
+    snapshot_key = ((model_a, 1), (model_b, 1))
+    self.assertEqual(list(history.keys()), [snapshot_key])
+    self.assertEqual(list(history[snapshot_key]), [3000.0, 3000.0])
+
   def test_model_manager_concurrent_mixed_workload_convergence(self):
     """
     Simulates a production environment with multiple model types running
