@@ -28,12 +28,12 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import require_linux_docker
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  import docker
   from sqlalchemy import VARCHAR
   from sqlalchemy import Column
   from sqlalchemy import Engine
@@ -590,12 +590,7 @@ class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
       # Skip setup for the base class.
       raise unittest.SkipTest("Base class - no db_adapter defined")
 
-    try:
-      client = docker.from_env()
-      client.ping()
-      client.close()
-    except Exception as e:  # pylint: disable=broad-except
-      raise unittest.SkipTest(f'Docker is not available: {e}')
+    require_linux_docker()
 
     # Type hint data from subclasses.
     cls._db_adapter: DatabaseTypeAdapter

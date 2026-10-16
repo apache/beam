@@ -31,6 +31,7 @@ import shutil
 import struct
 import sys
 import tempfile
+import unittest
 
 import numpy as np
 
@@ -184,6 +185,30 @@ def block_imports(*packages):
   finally:
     sys.meta_path.remove(blocker)
     sys.modules.update(hidden_modules)
+
+
+def require_linux_docker():
+  """Raises ``unittest.SkipTest`` unless Docker can run Linux containers.
+
+  Intended for tests that start containers via testcontainers, e.g. from
+  ``setUpClass``. Such tests need a reachable Docker daemon running Linux
+  containers. Some environments have no daemon at all (e.g. GitHub macOS
+  runners), while others only run Windows containers (e.g. GitHub Windows
+  runners).
+  """
+  try:
+    import docker
+    client = docker.from_env()
+    try:
+      os_type = client.info().get('OSType')
+    finally:
+      client.close()
+  except Exception as e:  # pylint: disable=broad-except
+    raise unittest.SkipTest(f'Docker is not available: {e}')
+  if os_type != 'linux':
+    raise unittest.SkipTest(
+        f'Docker daemon runs {os_type} containers; '
+        'Linux containers are required.')
 
 
 @retry.with_exponential_backoff(
