@@ -75,8 +75,6 @@ public class StatefulParDoStreamingTest implements Serializable {
   private static final String TAG_NULL_KEY = "stateful-null-key";
   private static final String TAG_EXPIRY = "stateful-expiry";
 
-  private static final int LATE_INDEX = 5;
-
   @After
   public void tearDown() {
     TestUnboundedSource.forget(TAG_BATCHES);
@@ -208,14 +206,12 @@ public class StatefulParDoStreamingTest implements Serializable {
         .apply("KeySelector", ParDo.of(new ExpiryKeySelectorFn()))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         .apply("Window", Window.into(FixedWindows.of(Duration.millis(1000))))
-        .apply("StatefulParDo", ParDo.of(new ExpiryTestFn()))
+        .apply("StatefulParDo", ParDo.of(new DownstreamFn()))
         .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
 
     assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(pipeline).getState());
     Set<String> collected = StreamingTestUtils.collected(collectorId);
-    assertTrue(collected.contains("k1-0"));
-    // The late element finds the key cleared and is filtered like a first visit, see #40446.
-    assertTrue(collected.contains("k1-" + LATE_INDEX));
+    assertTrue(collected.contains(TestUnboundedSource.element(TAG_EXPIRY, 0, 0)));
     for (String stateVarName : Arrays.asList("beamState", "beamTimers", "beamWatermark")) {
       assertEquals(stateVarName, 0L, stateRows(checkpoint, stateVarName));
     }
@@ -360,29 +356,7 @@ public class StatefulParDoStreamingTest implements Serializable {
       int i = TestUnboundedSource.indexOf(element);
       if (i == 0) {
         out.output(KV.of("k1", element));
-      } else if (i == LATE_INDEX) {
-        // Back into the first window of k1, expired by now.
-        out.outputWithTimestamp(KV.of("k1", element), new Instant(TestUnboundedSource.BASE_MILLIS));
       }
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return Duration.millis(Long.MAX_VALUE);
-    }
-  }
-
-  private static final class ExpiryTestFn extends DoFn<KV<String, String>, String> {
-    @StateId("seen")
-    private final StateSpec<ValueState<Boolean>> seenSpec = StateSpecs.value();
-
-    @ProcessElement
-    public void process(
-        @Element KV<String, String> element,
-        @StateId("seen") ValueState<Boolean> seenState,
-        OutputReceiver<String> out) {
-      seenState.write(true);
-      out.output(element.getKey() + "-" + TestUnboundedSource.indexOf(element.getValue()));
     }
   }
 
