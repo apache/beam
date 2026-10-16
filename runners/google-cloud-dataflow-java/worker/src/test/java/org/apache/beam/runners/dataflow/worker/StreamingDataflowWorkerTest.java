@@ -217,7 +217,6 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.junit.runners.model.Statement;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -225,9 +224,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
-@RunWith(Parameterized.class)
 @SuppressWarnings({"deprecation", "unused"})
-public class StreamingDataflowWorkerTest {
+public abstract class StreamingDataflowWorkerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
   private static final IntervalWindow DEFAULT_WINDOW =
@@ -292,7 +290,7 @@ public class StreamingDataflowWorkerTest {
     };
   }
 
-  private final boolean streamingEngine;
+  protected final boolean streamingEngine;
   private final Supplier<Long> idGenerator =
       new Supplier<Long>() {
         private final AtomicLong idGenerator = new AtomicLong(1L);
@@ -324,13 +322,8 @@ public class StreamingDataflowWorkerTest {
           errorCollector, computationId -> computationStateCache.get(computationId));
   private StreamingCounters streamingCounters;
 
-  public StreamingDataflowWorkerTest(Boolean streamingEngine) {
+  protected StreamingDataflowWorkerTest(Boolean streamingEngine) {
     this.streamingEngine = streamingEngine;
-  }
-
-  @Parameterized.Parameters(name = "{index}: [streamingEngine={0}]")
-  public static Iterable<Object[]> data() {
-    return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
   private static CounterUpdate getCounter(Iterable<CounterUpdate> counters, String name) {
