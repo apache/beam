@@ -590,6 +590,7 @@ class BigQueryDisposition(object):
 
   CREATE_NEVER = 'CREATE_NEVER'
   CREATE_IF_NEEDED = 'CREATE_IF_NEEDED'
+  WRITE_TRUNCATE_DATA = 'WRITE_TRUNCATE_DATA'
   WRITE_TRUNCATE = 'WRITE_TRUNCATE'
   WRITE_APPEND = 'WRITE_APPEND'
   WRITE_EMPTY = 'WRITE_EMPTY'
@@ -606,6 +607,7 @@ class BigQueryDisposition(object):
   @staticmethod
   def validate_write(disposition):
     values = (
+        BigQueryDisposition.WRITE_TRUNCATE_DATA,
         BigQueryDisposition.WRITE_TRUNCATE,
         BigQueryDisposition.WRITE_APPEND,
         BigQueryDisposition.WRITE_EMPTY)
@@ -1568,6 +1570,7 @@ class BigQueryWriteFn(DoFn):
         - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
       write_disposition: A string describing what happens if the table has
         already some data. Possible values are:
+        -  BigQueryDisposition.WRITE_TRUNCATE_DATA: delete table data but preserve table metadata.
         -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
         -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
@@ -1612,6 +1615,7 @@ class BigQueryWriteFn(DoFn):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     if write_disposition in (BigQueryDisposition.WRITE_EMPTY,
+                             BigQueryDisposition.WRITE_TRUNCATE_DATA,
                              BigQueryDisposition.WRITE_TRUNCATE):
       raise ValueError(
           'Write disposition %s is not supported for'
@@ -2183,6 +2187,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       write_disposition (BigQueryDisposition): A string describing what happens
         if the table has already some data. Possible values are:
 
+        * :attr:`BigQueryDisposition.WRITE_TRUNCATE_DATA`: delete table data but preserve table metadata.
         * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
         * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
         * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
