@@ -129,6 +129,10 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
+tasks.withType(Test).configureEach {
+  systemProperty "beam.validatesRunner.parallelThreads", "1"
+}
+
 def portableValidatesRunnerTask(String name, String mode, boolean checkpointing, boolean docker) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
