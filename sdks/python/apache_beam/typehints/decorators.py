@@ -351,9 +351,10 @@ class IOTypeHints(NamedTuple):
               if isinstance(param.annotation, str) else param
               for param in signature.parameters.values()
           ],
-          return_annotation=(resolved.get('return', signature.return_annotation)
-                             if isinstance(signature.return_annotation, str) else
-                             signature.return_annotation))
+          return_annotation=(
+              resolved.get('return', signature.return_annotation) if isinstance(
+                  signature.return_annotation, str) else
+              signature.return_annotation))
     input_args = []
     input_kwargs = {}
     for param in signature.parameters.values():

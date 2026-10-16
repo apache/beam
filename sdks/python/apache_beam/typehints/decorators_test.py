@@ -269,7 +269,8 @@ class IOTypeHintsTest(unittest.TestCase):
     exec(
         'from __future__ import annotations\n'
         'def fn(value: int) -> typehints.List[str]:\n'
-        '  return [str(value)]\n', namespace)
+        '  return [str(value)]\n',
+        namespace)
 
     th = decorators.IOTypeHints.from_callable(namespace['fn'])
     self.assertEqual(th.input_types, ((int, ), {}))
