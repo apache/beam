@@ -449,16 +449,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 	// Any ParDo in the stage can register bundle finalization callbacks, not only the
 	// transforms that consume the stage's inputs, so every one of them must be checked.
 	for _, tid := range stg.transforms {
-		t := comps.GetTransforms()[tid]
-		switch t.GetSpec().GetUrn() {
-		case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
-			pardo := &pipepb.ParDoPayload{}
-			if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
-				return fmt.Errorf("unable to decode ParDoPayload for %v", tid)
-			}
-			if pardo.GetRequestsFinalization() {
-				stg.finalize = true
-			}
+		if requestsFinalization(comps.GetTransforms()[tid]) {
+			stg.finalize = true
+			break
 		}
 	}
 
@@ -546,6 +539,20 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		}
 	}
 	return nil
+}
+
+// requestsFinalization reports whether t is a ParDo, or a stage of an expanded splittable
+// DoFn, whose payload requests bundle finalization. computeFacts has already rejected
+// undecodable ParDo payloads, so a payload that does not decode reports false.
+func requestsFinalization(t *pipepb.PTransform) bool {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
+		pardo := &pipepb.ParDoPayload{}
+		err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo)
+		return err == nil && pardo.GetRequestsFinalization()
+	default:
+		return false
+	}
 }
 
 // greedyFusion produces a pipeline as tightly fused as possible.
