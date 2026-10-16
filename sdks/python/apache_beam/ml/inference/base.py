@@ -425,7 +425,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       throttle_delay_secs: int = 5,
       retry_filter: Callable[[Exception], bool] = lambda x: True,
       *,
-      window_ms: int = 1 * _MILLISECOND_TO_SECOND,
+      window_ms: int = 120 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
       overload_ratio: float = 2,
       rate_limiter: Optional[RateLimiter] = None):
