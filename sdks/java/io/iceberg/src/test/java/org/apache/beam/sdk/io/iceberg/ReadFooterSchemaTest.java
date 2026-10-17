@@ -164,6 +164,25 @@ public class ReadFooterSchemaTest {
     pipeline.run();
   }
 
+  /** Hive names its output files like this, with no extension. */
+  @Test
+  public void testExtensionlessParquetEmitsSchema() throws IOException {
+    String file = writeParquet("000000_0", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertSchemas(run(file), FLAT_SCHEMA);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtensionlessNonParquetEmitsNothing() throws IOException {
+    String marker = writeBytes("_SUCCESS", new byte[0]);
+
+    PAssert.that(run(marker)).empty();
+
+    pipeline.run();
+  }
+
   /**
    * The schema is emitted exactly as declared; which columns proved null-free travels beside it.
    */
