@@ -112,7 +112,9 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
             throw new RuntimeException(e);
           }
         }
-        if (totalMsWaited > 0) {
+        // Log only waits of a second or more, as with the earlier one-second poll. A shorter wait
+        // is normal backpressure, and isReady() can turn true just before onReady runs.
+        if (totalMsWaited >= 1000) {
           // If the phase didn't change, this means that the installed onReady callback had not
           // been invoked.
           if (initialPhase == phase) {

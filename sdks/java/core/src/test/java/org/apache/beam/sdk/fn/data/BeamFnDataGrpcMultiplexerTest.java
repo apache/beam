@@ -940,6 +940,7 @@ public class BeamFnDataGrpcMultiplexerTest {
     verify(stream, times(0)).request(1);
 
     // The receiver's own exception reaches the caller, not a wrapped one.
+    AtomicBoolean closed = new AtomicBoolean();
     assertThrows(
         IllegalStateException.class,
         () ->
@@ -955,10 +956,79 @@ public class BeamFnDataGrpcMultiplexerTest {
                   public void flush() {}
 
                   @Override
-                  public void close() {}
+                  public void close() {
+                    closed.set(true);
+                  }
                 }));
 
     verify(stream, times(3)).request(1);
+    // As for a failure on the inbound gRPC thread, the instruction is poisoned: its entry is
+    // removed, the receiver is closed, and a later registration fails.
+    assertFalse(multiplexer.hasConsumer(instructionId));
+    assertTrue(closed.get());
+    IllegalArgumentException poisoned =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                multiplexer.registerConsumer(
+                    instructionId,
+                    new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                      @Override
+                      public void accept(BeamFnApi.Elements input) {}
+
+                      @Override
+                      public void flush() {}
+
+                      @Override
+                      public void close() {}
+                    }));
+    assertThat(poisoned.getMessage(), containsString("poisoned"));
+  }
+
+  @Test
+  public void testDuplicateRegistrationDoesNotPoison() throws Exception {
+    BeamFnDataGrpcMultiplexer multiplexer = newMultiplexer();
+    String instructionId = "duplicate";
+    AtomicBoolean closed = new AtomicBoolean();
+    List<BeamFnApi.Elements> received = new ArrayList<>();
+    multiplexer.registerConsumer(
+        instructionId,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void accept(BeamFnApi.Elements input) {
+            received.add(input);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {
+            closed.set(true);
+          }
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            multiplexer.registerConsumer(
+                instructionId,
+                new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                  @Override
+                  public void accept(BeamFnApi.Elements input) {}
+
+                  @Override
+                  public void flush() {}
+
+                  @Override
+                  public void close() {}
+                }));
+
+    // The first registration keeps working.
+    assertTrue(multiplexer.hasConsumer(instructionId));
+    assertFalse(closed.get());
+    BeamFnApi.Elements elements = dataFor(instructionId, "t1");
+    multiplexer.getInboundObserver().onNext(elements);
+    assertThat(received, Matchers.contains(elements));
   }
 
   @Test
