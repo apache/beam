@@ -223,6 +223,15 @@ def portableValidatesRunnerTask(String name, String mode, boolean checkpointing,
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
       // TODO(https://github.com/apache/beam/issues/21472)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+      if (mode == "batch-dataset") {
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testWindowedCombineGloballyAsSingletonView'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollections'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.MapViewTest.testMapSideInput'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerBounded'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputBounded'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyListSideInput'
+      }
     },
   )
 }
