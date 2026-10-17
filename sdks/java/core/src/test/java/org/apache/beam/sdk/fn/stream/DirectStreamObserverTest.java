@@ -344,30 +344,36 @@ public class DirectStreamObserverTest {
     streamObserver.onCompleted();
   }
 
-  /** Sends one element on a stream that is not ready for about {@code notReadyMs}. */
-  private void sendWithStall(long notReadyMs) throws Exception {
-    AtomicBoolean isReady = new AtomicBoolean(false);
+  /**
+   * Sends one element on a stream that becomes ready after {@code timeouts} waits time out.
+   *
+   * <p>The observer counts 50 ms for each wait that times out, whatever the wall time, and polls
+   * {@code isReady()} once before it waits and once after each timeout. Counting polls keeps the
+   * counted wait exact on a slow machine. The phaser never advances, as when onReady has not run.
+   */
+  private void sendWithStall(int timeouts) throws Exception {
+    AtomicInteger polls = new AtomicInteger();
     DirectStreamObserver<String> streamObserver =
         new DirectStreamObserver<>(
             new AdvancingPhaser(1),
-            TestStreams.withOnNext((String t) -> {}).withIsReady(isReady::get).build(),
+            TestStreams.withOnNext((String t) -> {})
+                .withIsReady(() -> polls.getAndIncrement() >= timeouts)
+                .build(),
             0);
-    Future<?> future = executor.submit(() -> streamObserver.onNext("A"));
-    Uninterruptibles.sleepUninterruptibly(notReadyMs, TimeUnit.MILLISECONDS);
-    // The phaser never advances, as when onReady has not run yet.
-    isReady.set(true);
-    future.get(10, TimeUnit.SECONDS);
+    executor.submit(() -> streamObserver.onNext("A")).get(30, TimeUnit.SECONDS);
   }
 
   @Test
   public void testShortStallIsNotLogged() throws Exception {
-    sendWithStall(300);
+    // 6 timeouts count 300 ms.
+    sendWithStall(6);
     expectedLogs.verifyNotLogged("Output channel stalled");
   }
 
   @Test
   public void testStallOfASecondIsLogged() throws Exception {
-    sendWithStall(1_300);
+    // 22 timeouts count 1,100 ms.
+    sendWithStall(22);
     expectedLogs.verifyInfo("Output channel stalled for 1s");
   }
 }
