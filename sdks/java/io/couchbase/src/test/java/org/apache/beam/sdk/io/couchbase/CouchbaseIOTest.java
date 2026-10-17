@@ -20,15 +20,26 @@ package org.apache.beam.sdk.io.couchbase;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.query.QueryScanConsistency;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.couchbase.CouchbaseIO.ConnectionConfiguration;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -173,5 +184,164 @@ public class CouchbaseIOTest {
   @Test
   public void testNonPositiveMaxConcurrencyRejected() {
     assertThrows(IllegalArgumentException.class, () -> CouchbaseIO.write().withMaxConcurrency(0));
+  }
+
+  private static CouchbaseIO.Read<JsonObject> fullRead() {
+    return CouchbaseIO.read()
+        .withConnectionConfiguration(fullConfig())
+        .withQuery("SELECT a.* FROM airline a");
+  }
+
+  private IllegalArgumentException applyAndExpectFailure(CouchbaseIO.Read<?> read) {
+    return assertThrows(IllegalArgumentException.class, () -> p.apply(read));
+  }
+
+  @Test
+  public void testReadDefaults() {
+    CouchbaseIO.Read<JsonObject> read = CouchbaseIO.read();
+    assertEquals(QueryScanConsistency.NOT_BOUNDED, read.scanConsistency());
+    assertEquals(JsonObjectCoder.of(), read.coder());
+    assertFalse(read.redistribute());
+  }
+
+  @Test
+  public void testValidReadApplies() {
+    PCollection<JsonObject> docs = p.apply(fullRead());
+    assertEquals(JsonObjectCoder.of(), docs.getCoder());
+  }
+
+  @Test
+  public void testReadMissingConnectionConfiguration() {
+    assertThat(
+        applyAndExpectFailure(CouchbaseIO.read().withQuery("SELECT 1")).getMessage(),
+        containsString("withConnectionConfiguration() is required"));
+  }
+
+  @Test
+  public void testReadMissingQuery() {
+    assertThat(
+        applyAndExpectFailure(CouchbaseIO.read().withConnectionConfiguration(fullConfig()))
+            .getMessage(),
+        containsString("withQuery() is required"));
+  }
+
+  @Test
+  public void testReadMissingPassword() {
+    ConnectionConfiguration config =
+        ConnectionConfiguration.create("couchbase://localhost").withUsername("user");
+    assertThat(
+        applyAndExpectFailure(fullRead().withConnectionConfiguration(config)).getMessage(),
+        containsString("withPassword() is required"));
+  }
+
+  @Test
+  public void testReadWithoutBucketApplies() {
+    ConnectionConfiguration config =
+        ConnectionConfiguration.create("couchbase://localhost")
+            .withUsername("user")
+            .withPassword(PASSWORD);
+    p.apply(fullRead().withConnectionConfiguration(config));
+  }
+
+  @Test
+  public void testNamedAndPositionalParametersRejected() {
+    CouchbaseIO.Read<JsonObject> read =
+        fullRead().withNamedParameter("country", "UK").withPositionalParameters("UK");
+    assertThat(applyAndExpectFailure(read).getMessage(), containsString("cannot be combined"));
+  }
+
+  @Test
+  public void testWithNamedParameterAccumulatesWithoutMutatingEarlierTransform() {
+    CouchbaseIO.Read<JsonObject> one = fullRead().withNamedParameter("country", "UK");
+    CouchbaseIO.Read<JsonObject> two = one.withNamedParameter("limit", 10);
+    assertEquals(JsonObject.create().put("country", "UK"), one.namedParameters());
+    assertEquals(JsonObject.create().put("country", "UK").put("limit", 10), two.namedParameters());
+  }
+
+  @Test
+  public void testWithNamedParameterRejectsUnsupportedType() {
+    assertThrows(RuntimeException.class, () -> fullRead().withNamedParameter("when", new Object()));
+  }
+
+  @Test
+  public void testRedistributeNumKeysRequiresRedistribute() {
+    assertThat(
+        applyAndExpectFailure(fullRead().withRedistributeNumKeys(4)).getMessage(),
+        containsString("requires withRedistribute()"));
+  }
+
+  @Test
+  public void testNonPositiveRedistributeNumKeysRejected() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CouchbaseIO.read().withRedistributeNumKeys(0));
+  }
+
+  @Test
+  public void testWithParseFnLambdaRequiresCoder() {
+    CouchbaseIO.Read<String> read = fullRead().withParseFn(row -> row.getString("name"));
+    assertThat(applyAndExpectFailure(read).getMessage(), containsString("withCoder()"));
+  }
+
+  @Test
+  public void testWithParseFnResetsCoder() {
+    CouchbaseIO.Read<String> read =
+        fullRead().withCoder(JsonObjectCoder.of()).withParseFn(row -> row.getString("name"));
+    assertNull(read.coder());
+  }
+
+  @Test
+  public void testWithParseFnAndCoderApplies() {
+    PCollection<String> names =
+        p.apply(
+            fullRead().withParseFn(row -> row.getString("name")).withCoder(StringUtf8Coder.of()));
+    assertEquals(StringUtf8Coder.of(), names.getCoder());
+  }
+
+  /** The shuffle must carry the parsed type, so Redistribute has to come after the query DoFn. */
+  @Test
+  public void testRedistributeAppliedAfterParsing() {
+    PCollection<String> names =
+        p.apply(
+            fullRead()
+                .withParseFn(row -> row.getString("name"))
+                .withCoder(StringUtf8Coder.of())
+                .withRedistribute()
+                .withRedistributeNumKeys(4));
+
+    List<String> transforms = new ArrayList<>();
+    p.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            transforms.add(node.getFullName());
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            transforms.add(node.getFullName());
+          }
+        });
+    assertThat(
+        transforms.indexOf("CouchbaseIO.Read/Redistribute"),
+        greaterThan(transforms.indexOf("CouchbaseIO.Read/Query")));
+    assertTrue(transforms.contains("CouchbaseIO.Read/Query"));
+    assertEquals(StringUtf8Coder.of(), names.getCoder());
+  }
+
+  @Test
+  public void testReadDisplayDataOmitsPasswordAndParameters() {
+    DisplayData displayData =
+        DisplayData.from(
+            fullRead()
+                .withNamedParameter("customer", "secret-customer-id")
+                .withScanConsistency(QueryScanConsistency.REQUEST_PLUS)
+                .withRedistribute());
+    assertThat(displayData, hasDisplayItem("query", "SELECT a.* FROM airline a"));
+    assertThat(displayData, hasDisplayItem("scanConsistency", "REQUEST_PLUS"));
+    assertThat(displayData, hasDisplayItem("redistribute", true));
+    assertThat(displayData, hasDisplayItem("bucket", "beam"));
+    assertThat(displayData.toString(), not(containsString(PASSWORD)));
+    assertThat(displayData.toString(), not(containsString("secret-customer-id")));
   }
 }

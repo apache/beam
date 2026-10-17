@@ -25,24 +25,38 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.ClusterOptions;
 import com.couchbase.client.java.ReactiveCollection;
+import com.couchbase.client.java.json.JsonArray;
 import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.query.QueryOptions;
+import com.couchbase.client.java.query.QueryScanConsistency;
+import com.couchbase.client.java.query.ReactiveQueryResult;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * IO to read and write on <a href="https://www.couchbase.com/">Couchbase</a>.
@@ -91,6 +105,19 @@ public class CouchbaseIO {
   static final int DEFAULT_MAX_CONCURRENCY = 32;
 
   private CouchbaseIO() {}
+
+  /**
+   * Returns a transform that runs a SQL++ query and emits each result row as a {@link JsonObject}.
+   * Use {@link Read#withParseFn} to emit another type.
+   */
+  public static Read<JsonObject> read() {
+    return new AutoValue_CouchbaseIO_Read.Builder<JsonObject>()
+        .setScanConsistency(QueryScanConsistency.NOT_BOUNDED)
+        .setParseFn(SerializableFunctions.identity())
+        .setCoder(JsonObjectCoder.of())
+        .setRedistribute(false)
+        .build();
+  }
 
   /**
    * Returns a transform that upserts each element as a JSON document. Defaults: batch size {@value
@@ -193,6 +220,246 @@ public class CouchbaseIO {
       String user = checkStateNotNull(username(), "username is required");
       String pass = checkStateNotNull(password(), "password is required");
       return Cluster.connect(connectionString(), ClusterOptions.clusterOptions(user, pass));
+    }
+  }
+
+  /** A {@link PTransform} that runs a SQL++ query and emits one element per result row. */
+  @AutoValue
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    abstract @Nullable ConnectionConfiguration connectionConfiguration();
+
+    abstract @Nullable String query();
+
+    abstract @Nullable JsonObject namedParameters();
+
+    abstract @Nullable JsonArray positionalParameters();
+
+    abstract QueryScanConsistency scanConsistency();
+
+    abstract SerializableFunction<JsonObject, T> parseFn();
+
+    abstract @Nullable Coder<T> coder();
+
+    abstract boolean redistribute();
+
+    abstract @Nullable Integer redistributeNumKeys();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setConnectionConfiguration(@Nullable ConnectionConfiguration config);
+
+      abstract Builder<T> setQuery(@Nullable String query);
+
+      abstract Builder<T> setNamedParameters(@Nullable JsonObject namedParameters);
+
+      abstract Builder<T> setPositionalParameters(@Nullable JsonArray positionalParameters);
+
+      abstract Builder<T> setScanConsistency(QueryScanConsistency scanConsistency);
+
+      abstract Builder<T> setParseFn(SerializableFunction<JsonObject, T> parseFn);
+
+      abstract Builder<T> setCoder(@Nullable Coder<T> coder);
+
+      abstract Builder<T> setRedistribute(boolean redistribute);
+
+      abstract Builder<T> setRedistributeNumKeys(@Nullable Integer redistributeNumKeys);
+
+      abstract Read<T> build();
+    }
+
+    /**
+     * Sets the cluster and credentials. If a bucket is set, the query runs in the configured scope,
+     * so it can name collections without qualifying them; otherwise it runs at cluster level. The
+     * configured collection is not used: the query names what it reads.
+     */
+    public Read<T> withConnectionConfiguration(ConnectionConfiguration config) {
+      return toBuilder().setConnectionConfiguration(config).build();
+    }
+
+    /**
+     * Sets the SQL++ query. Include {@code META().id} in the projection if the document ID is
+     * needed.
+     */
+    public Read<T> withQuery(String query) {
+      return toBuilder().setQuery(query).build();
+    }
+
+    /** Adds a value for the named parameter {@code $name} in the query. */
+    public Read<T> withNamedParameter(String name, Object value) {
+      JsonObject current = namedParameters();
+      JsonObject parameters =
+          current == null ? JsonObject.create() : JsonObject.from(current.toMap());
+      return toBuilder().setNamedParameters(parameters.put(name, value)).build();
+    }
+
+    /** Sets the values for the positional parameters {@code $1}, {@code $2}, ... in the query. */
+    public Read<T> withPositionalParameters(Object... values) {
+      return toBuilder().setPositionalParameters(JsonArray.from(values)).build();
+    }
+
+    /**
+     * Sets the scan consistency. Defaults to {@link QueryScanConsistency#NOT_BOUNDED}; use {@link
+     * QueryScanConsistency#REQUEST_PLUS} when the read must see all prior mutations.
+     */
+    public Read<T> withScanConsistency(QueryScanConsistency scanConsistency) {
+      return toBuilder().setScanConsistency(scanConsistency).build();
+    }
+
+    /**
+     * Sets the function that converts each result row to the output type. It runs inside the read,
+     * before any redistribute. Resets any coder set with {@link #withCoder}, because that coder was
+     * for the previous output type.
+     */
+    public <OutputT> Read<OutputT> withParseFn(SerializableFunction<JsonObject, OutputT> parseFn) {
+      return new AutoValue_CouchbaseIO_Read.Builder<OutputT>()
+          .setConnectionConfiguration(connectionConfiguration())
+          .setQuery(query())
+          .setNamedParameters(namedParameters())
+          .setPositionalParameters(positionalParameters())
+          .setScanConsistency(scanConsistency())
+          .setParseFn(parseFn)
+          .setRedistribute(redistribute())
+          .setRedistributeNumKeys(redistributeNumKeys())
+          .build();
+    }
+
+    /**
+     * Sets the output coder. Required when it can't be inferred from {@link #withParseFn}, for
+     * example when the parsing function is a lambda.
+     */
+    public Read<T> withCoder(Coder<T> coder) {
+      return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * Redistributes the output after parsing, so the shuffle carries the parsed type.
+     * Redistributing the default {@link JsonObject} output is costly; use {@link #withParseFn}
+     * first.
+     */
+    public Read<T> withRedistribute() {
+      return toBuilder().setRedistribute(true).build();
+    }
+
+    /** Sets the number of keys to redistribute into. Requires {@link #withRedistribute()}. */
+    public Read<T> withRedistributeNumKeys(int redistributeNumKeys) {
+      checkArgument(
+          redistributeNumKeys > 0, "redistributeNumKeys must be > 0, got %s", redistributeNumKeys);
+      return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      ConnectionConfiguration config =
+          checkArgumentNotNull(
+              connectionConfiguration(), "withConnectionConfiguration() is required");
+      checkArgument(query() != null, "withQuery() is required");
+      checkArgument(
+          config.username() != null, "ConnectionConfiguration.withUsername() is required");
+      checkArgument(
+          config.password() != null, "ConnectionConfiguration.withPassword() is required");
+      checkArgument(
+          namedParameters() == null || positionalParameters() == null,
+          "withNamedParameter() and withPositionalParameters() cannot be combined");
+      checkArgument(
+          redistributeNumKeys() == null || redistribute(),
+          "withRedistributeNumKeys() requires withRedistribute()");
+
+      PCollection<T> output =
+          input
+              .apply("Impulse", Impulse.create())
+              .apply("Query", ParDo.of(new ReadFn<>(this)))
+              .setCoder(outputCoder(input.getPipeline().getCoderRegistry()));
+      if (redistribute()) {
+        output =
+            output.apply(
+                "Redistribute",
+                Redistribute.<T>arbitrarily().withNumBuckets(redistributeNumKeys()));
+      }
+      return output;
+    }
+
+    private Coder<T> outputCoder(CoderRegistry registry) {
+      Coder<T> coder = coder();
+      if (coder != null) {
+        return coder;
+      }
+      try {
+        return registry.getCoder(TypeDescriptors.outputOf(parseFn()));
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(
+            "Unable to infer a coder for the output of withParseFn(); set one with withCoder()", e);
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      ConnectionConfiguration config = connectionConfiguration();
+      if (config != null) {
+        config.populateDisplayData(builder);
+      }
+      builder.addIfNotNull(DisplayData.item("query", query()));
+      builder.add(DisplayData.item("scanConsistency", scanConsistency().name()));
+      builder.add(DisplayData.item("redistribute", redistribute()));
+      builder.addIfNotNull(DisplayData.item("redistributeNumKeys", redistributeNumKeys()));
+    }
+  }
+
+  // Runs the whole query in one call: a SQL++ query can't be split by the client. A retried
+  // bundle runs it again from the start.
+  static class ReadFn<T> extends DoFn<byte[], T> {
+    private final ConnectionConfiguration config;
+    private final String query;
+    private final @Nullable JsonObject namedParameters;
+    private final @Nullable JsonArray positionalParameters;
+    private final QueryScanConsistency scanConsistency;
+    private final SerializableFunction<JsonObject, T> parseFn;
+
+    private transient @MonotonicNonNull Cluster cluster;
+
+    ReadFn(Read<T> spec) {
+      this.config = checkStateNotNull(spec.connectionConfiguration());
+      this.query = checkStateNotNull(spec.query());
+      this.namedParameters = spec.namedParameters();
+      this.positionalParameters = spec.positionalParameters();
+      this.scanConsistency = spec.scanConsistency();
+      this.parseFn = spec.parseFn();
+    }
+
+    @Setup
+    public void setup() {
+      cluster = config.connect();
+    }
+
+    @ProcessElement
+    public void processElement(OutputReceiver<T> out) {
+      Cluster connected = checkStateNotNull(cluster);
+      QueryOptions options = QueryOptions.queryOptions().scanConsistency(scanConsistency);
+      if (namedParameters != null) {
+        options.parameters(namedParameters);
+      } else if (positionalParameters != null) {
+        options.parameters(positionalParameters);
+      }
+      String bucket = config.bucket();
+      Mono<ReactiveQueryResult> result =
+          bucket == null
+              ? connected.reactive().query(query, options)
+              : connected.bucket(bucket).scope(config.scope()).reactive().query(query, options);
+      // toStream() pulls rows with backpressure on this thread, so the full result set is never
+      // buffered; closing it cancels the query if parsing fails part way.
+      try (Stream<JsonObject> rows =
+          result.flatMapMany(ReactiveQueryResult::rowsAsObject).toStream()) {
+        rows.forEach(row -> out.output(parseFn.apply(row)));
+      }
+    }
+
+    @Teardown
+    public void teardown() {
+      if (cluster != null) {
+        cluster.disconnect();
+      }
     }
   }
 
