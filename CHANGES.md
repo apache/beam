@@ -64,7 +64,7 @@
 
 ## I/Os
 
-* Added CouchbaseIO with write support (`CouchbaseIO.Write`) (Java) ([#18381](https://github.com/apache/beam/issues/18381)).
+* Added CouchbaseIO for reading with SQL++ queries and writing documents (Java) ([#18381](https://github.com/apache/beam/issues/18381)).
 
 ## New Features / Improvements
 

@@ -70,6 +70,53 @@ import reactor.core.publisher.Mono;
  * <p>Supports Couchbase Server 8.0 and later, using the Couchbase Java SDK 3.x. Use a {@code
  * couchbases://} connection string to connect over TLS.
  *
+ * <h3>Reading from Couchbase</h3>
+ *
+ * <p>{@link CouchbaseIO#read()} runs a SQL++ query and emits each result row as a {@link
+ * JsonObject}. If the {@link ConnectionConfiguration} sets a bucket, the query runs in its scope
+ * and can name collections without qualifying them:
+ *
+ * <pre>{@code
+ * PCollection<JsonObject> airlines =
+ *     pipeline.apply(CouchbaseIO.read()
+ *         .withConnectionConfiguration(
+ *             CouchbaseIO.ConnectionConfiguration.create("couchbase://host")
+ *                 .withUsername(username)
+ *                 .withPassword(password)
+ *                 .withBucket("travel")
+ *                 .withScope("inventory"))
+ *         .withQuery("SELECT a.* FROM airline a WHERE a.country = $country")
+ *         .withNamedParameter("country", "United Kingdom"));
+ * }</pre>
+ *
+ * <p>Pass values with {@link Read#withNamedParameter} or {@link Read#withPositionalParameters}
+ * rather than building them into the query string. Use {@link Read#withScanConsistency} with {@link
+ * QueryScanConsistency#REQUEST_PLUS} when the read must see all prior mutations.
+ *
+ * <p>Use {@link Read#withParseFn} to convert each row to another type, and {@link Read#withCoder}
+ * to set its coder when Beam can't infer one:
+ *
+ * <pre>{@code
+ * PCollection<String> names =
+ *     pipeline.apply(CouchbaseIO.read()
+ *         .withConnectionConfiguration(config)
+ *         .withQuery("SELECT a.name FROM airline a")
+ *         .withParseFn(row -> row.getString("name"))
+ *         .withCoder(StringUtf8Coder.of()));
+ * }</pre>
+ *
+ * <p>{@link CouchbaseIO#readRows(Schema)} emits {@link Row}s with the given schema, so the output
+ * can be used with Beam SQL and other schema-aware transforms. Fields not in the schema are
+ * ignored; a field missing from a row is null if the schema declares it nullable, otherwise the
+ * read fails.
+ *
+ * <p>The query runs as a single request on one worker, because the client can't split a SQL++
+ * query. Use {@link Read#withRedistribute} to spread the output across workers for the steps that
+ * follow. If the read is retried, the query runs again from the start; with the default scan
+ * consistency the retry may see a different result.
+ *
+ * <p>The user needs the Query Select role on the collections the query reads.
+ *
  * <h3>Writing to Couchbase</h3>
  *
  * <p>{@link CouchbaseIO#write()} upserts each element of a {@link PCollection} as a JSON document
