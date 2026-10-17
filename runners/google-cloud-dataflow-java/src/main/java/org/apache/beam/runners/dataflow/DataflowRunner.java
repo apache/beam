@@ -180,6 +180,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -2645,6 +2646,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // We pick 10 as a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
+
     DataflowPipelineWorkerPoolOptions options;
 
     StreamingShardedWriteFactory(PipelineOptions options) {
@@ -2684,6 +2686,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           replacement = replacement.withWindowedWrites();
         }
 
+        Long directWriteThreshold = getDirectWriteThreshold(transform);
+        if (directWriteThreshold != null) {
+          replacement = replacement.withDirectWriteByteThreshold(directWriteThreshold);
+        }
+
         if (WriteFilesTranslation.isAutoSharded(transform)) {
           replacement = replacement.withAutoSharding();
           return PTransformReplacement.of(
@@ -2693,9 +2700,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             replacement.withNumShards(numShards));
+      } catch (RuntimeException e) {
+        throw e;
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    /**
+     * Returns the direct write threshold set on the original {@link WriteFiles}, else {@code null}.
+     */
+    private @Nullable Long getDirectWriteThreshold(AppliedPTransform<?, ?, ?> transform) {
+      Object original = transform.getTransform();
+      if (original instanceof WriteFiles) {
+        return ((WriteFiles<?, ?, ?>) original).getDirectWriteByteThreshold();
+      }
+      return null;
     }
 
     @Override
