@@ -1,0 +1,71 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[workspace]
+resolver = "3"
+members = [
+    "beam/model",
+]
+
+[workspace.package]
+version = "2.78.0-SNAPSHOT"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+repository = "https://github.com/apache/beam"
+homepage = "https://beam.apache.org"
+
+# Unused-code lints that rustc leaves allow-by-default, so `-D warnings` does not reach
+# them. Declared here rather than on the Gradle command line so the IDE and a bare
+# `cargo clippy` enforce the same set. Each member opts in with `[lints] workspace = true`.
+[workspace.lints.rust]
+unused_qualifications = "warn"
+unused_lifetimes = "warn"
+unused_import_braces = "warn"
+unused_macro_rules = "warn"
+single_use_lifetimes = "warn"
+
+[workspace.lints.clippy]
+redundant_clone = "warn"
+# Suppressions must say why, and should be `#[expect]` so stale ones are reported.
+allow_attributes_without_reason = "warn"
+# Library code reports errors instead of panicking; see clippy.toml for tests.
+unwrap_used = "warn"
+# Leftover debugging.
+dbg_macro = "warn"
+todo = "warn"
+# Style.
+uninlined_format_args = "warn"
+manual_let_else = "warn"
+semicolon_if_nothing_returned = "warn"
+
+[workspace.dependencies]
+prost = "0.14"
+prost-types = "0.14"
+tonic = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
+
+# Keep file:line in panic backtraces without full DWARF debug info.
+[profile.dev]
+debug = "line-tables-only"
+
+# Omit debug info for third-party dependencies to speed up linking.
+[profile.dev.package."*"]
+debug = false
+
+# The test profile inherits from dev, so it picks up both settings above.
