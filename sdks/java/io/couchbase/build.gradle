@@ -28,6 +28,7 @@ dependencies {
   // Same versions as java-client's transitive dependencies; used directly for Flux in WriteFn.
   implementation "io.projectreactor:reactor-core:3.6.9"
   implementation "org.reactivestreams:reactive-streams:1.0.4"
+  implementation library.java.jackson_databind
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit

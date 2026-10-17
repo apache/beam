@@ -32,11 +32,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.couchbase.CouchbaseIO.ConnectionConfiguration;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -59,7 +61,10 @@ public class CouchbaseIOReadTest {
   @ClassRule
   public static final CouchbaseContainer COUCHBASE =
       new CouchbaseContainer("couchbase/server:enterprise-8.0.3")
-          .withBucket(new BucketDefinition(BUCKET));
+          // The container creates its index straight after the bucket, which can fail while the
+          // new cluster is still rebalancing; setUpClass creates the indexes once the bucket is
+          // ready instead.
+          .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(false));
 
   private static Cluster seedCluster;
   private static Bucket seedBucket;
@@ -78,7 +83,7 @@ public class CouchbaseIOReadTest {
     seedBucket.waitUntilReady(Duration.ofSeconds(60));
     seedBucket.collections().createScope(SCOPE);
     seedBucket.collections().createCollection(SCOPE, COLLECTION);
-    // The bucket's default collection gets a primary index from BucketDefinition; this one doesn't.
+    seedCluster.query(String.format("CREATE PRIMARY INDEX ON `%s`.`_default`.`_default`", BUCKET));
     seedCluster.query(
         String.format("CREATE PRIMARY INDEX ON `%s`.`%s`.`%s`", BUCKET, SCOPE, COLLECTION));
   }
@@ -235,5 +240,50 @@ public class CouchbaseIOReadTest {
             .map(String::valueOf)
             .collect(Collectors.joining("\n"));
     assertThat(chain, containsString("cannot parse row"));
+  }
+
+  /** The documents also carry {@code test}, which the schema doesn't name. */
+  @Test
+  public void testReadRows() {
+    seed(seedBucket.defaultCollection(), "rows", 3);
+    Schema schema =
+        Schema.builder()
+            .addInt32Field("n")
+            .addNullableField("missing", Schema.FieldType.STRING)
+            .build();
+
+    PCollection<Row> rows =
+        p.apply(
+            CouchbaseIO.readRows(schema)
+                .withConnectionConfiguration(config())
+                .withQuery("SELECT d.* FROM `_default` d WHERE d.test = $test")
+                .withNamedParameter("test", "rows")
+                .withScanConsistency(QueryScanConsistency.REQUEST_PLUS));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            IntStream.range(0, 3)
+                .mapToObj(n -> Row.withSchema(schema).addValues(n, null).build())
+                .collect(Collectors.toList()));
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadRowsTypeMismatchFailsPipeline() {
+    seed(seedBucket.defaultCollection(), "rows-mismatch", 1);
+    Schema schema = Schema.builder().addBooleanField("n").build();
+    p.apply(
+        CouchbaseIO.readRows(schema)
+            .withConnectionConfiguration(config())
+            .withQuery("SELECT d.* FROM `_default` d WHERE d.test = $test")
+            .withNamedParameter("test", "rows-mismatch")
+            .withScanConsistency(QueryScanConsistency.REQUEST_PLUS));
+
+    RuntimeException e = assertThrows(RuntimeException.class, () -> p.run().waitUntilFinish());
+    String chain =
+        Throwables.getCausalChain(e).stream()
+            .map(String::valueOf)
+            .collect(Collectors.joining("\n"));
+    assertThat(chain, containsString("'n'"));
   }
 }

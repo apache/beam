@@ -32,14 +32,20 @@ import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.query.QueryScanConsistency;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.couchbase.CouchbaseIO.ConnectionConfiguration;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -343,5 +349,91 @@ public class CouchbaseIOTest {
     assertThat(displayData, hasDisplayItem("bucket", "beam"));
     assertThat(displayData.toString(), not(containsString(PASSWORD)));
     assertThat(displayData.toString(), not(containsString("secret-customer-id")));
+  }
+
+  private static final Schema HUB_SCHEMA = Schema.builder().addStringField("code").build();
+
+  private static final Schema AIRLINE_SCHEMA =
+      Schema.builder()
+          .addStringField("name")
+          .addNullableField("rating", Schema.FieldType.DOUBLE)
+          .addRowField("hub", HUB_SCHEMA)
+          .build();
+
+  private static String causalChain(Throwable t) {
+    return Throwables.getCausalChain(t).stream()
+        .map(String::valueOf)
+        .collect(Collectors.joining("\n"));
+  }
+
+  @Test
+  public void testReadRowsSetsSchema() {
+    PCollection<Row> rows =
+        p.apply(
+            CouchbaseIO.readRows(AIRLINE_SCHEMA)
+                .withConnectionConfiguration(fullConfig())
+                .withQuery("SELECT a.* FROM airline a"));
+    assertTrue(rows.hasSchema());
+    assertEquals(AIRLINE_SCHEMA, rows.getSchema());
+  }
+
+  @Test
+  public void testReadRowsRejectsUnsupportedSchema() {
+    Schema schema = Schema.builder().addByteArrayField("payload").build();
+    assertThrows(UnsupportedRowJsonException.class, () -> CouchbaseIO.readRows(schema));
+  }
+
+  @Test
+  public void testJsonToRowIgnoresExtraFields() {
+    JsonObject json =
+        JsonObject.create()
+            .put("name", "A")
+            .put("rating", 4.5)
+            .put("hub", JsonObject.create().put("code", "LHR").put("terminal", 5))
+            .put("country", "UK");
+    Row expected =
+        Row.withSchema(AIRLINE_SCHEMA)
+            .addValues("A", 4.5, Row.withSchema(HUB_SCHEMA).addValue("LHR").build())
+            .build();
+    assertEquals(expected, new CouchbaseIO.JsonToRowFn(AIRLINE_SCHEMA).apply(json));
+  }
+
+  @Test
+  public void testJsonToRowMissingNullableFieldIsNull() {
+    JsonObject json =
+        JsonObject.create().put("name", "A").put("hub", JsonObject.create().put("code", "LHR"));
+    assertNull(new CouchbaseIO.JsonToRowFn(AIRLINE_SCHEMA).apply(json).getValue("rating"));
+  }
+
+  @Test
+  public void testJsonToRowMissingRequiredFieldFails() {
+    JsonObject json = JsonObject.create().put("hub", JsonObject.create().put("code", "LHR"));
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class, () -> new CouchbaseIO.JsonToRowFn(AIRLINE_SCHEMA).apply(json));
+    assertThat(causalChain(e), containsString("'name'"));
+  }
+
+  @Test
+  public void testJsonToRowTypeMismatchFails() {
+    JsonObject json =
+        JsonObject.create()
+            .put("name", "A")
+            .put("rating", "high")
+            .put("hub", JsonObject.create().put("code", "LHR"));
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class, () -> new CouchbaseIO.JsonToRowFn(AIRLINE_SCHEMA).apply(json));
+    assertThat(causalChain(e), containsString("'rating'"));
+  }
+
+  /** The mapper is transient, so a deserialized function has to build its own. */
+  @Test
+  public void testJsonToRowWorksAfterSerialization() {
+    CouchbaseIO.JsonToRowFn fn =
+        SerializableUtils.ensureSerializable(new CouchbaseIO.JsonToRowFn(AIRLINE_SCHEMA));
+    JsonObject json =
+        JsonObject.create().put("name", "A").put("hub", JsonObject.create().put("code", "LHR"));
+    assertEquals("A", fn.apply(json).getString("name"));
   }
 }

@@ -30,6 +30,7 @@ import com.couchbase.client.java.json.JsonObject;
 import com.couchbase.client.java.query.QueryOptions;
 import com.couchbase.client.java.query.QueryScanConsistency;
 import com.couchbase.client.java.query.ReactiveQueryResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.time.Duration;
@@ -39,6 +40,8 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,10 +50,13 @@ import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -117,6 +123,18 @@ public class CouchbaseIO {
         .setCoder(JsonObjectCoder.of())
         .setRedistribute(false)
         .build();
+  }
+
+  /**
+   * Returns a transform that runs a SQL++ query and converts each result row to a {@link Row} with
+   * the given schema. Fields not in the schema are ignored. A field missing from the row is null if
+   * the schema declares it nullable; otherwise the read fails. A value that doesn't match its field
+   * type also fails the read, with an error naming the field.
+   *
+   * <p>Throws if the schema has a field type that can't be read from JSON, such as {@code BYTES}.
+   */
+  public static Read<Row> readRows(Schema schema) {
+    return read().withParseFn(new JsonToRowFn(schema)).withCoder(RowCoder.of(schema));
   }
 
   /**
@@ -460,6 +478,27 @@ public class CouchbaseIO {
       if (cluster != null) {
         cluster.disconnect();
       }
+    }
+  }
+
+  static class JsonToRowFn implements SerializableFunction<JsonObject, Row> {
+    private final RowJsonDeserializer deserializer;
+
+    // ObjectMapper isn't serializable, so each worker builds its own.
+    private transient @MonotonicNonNull ObjectMapper mapper;
+
+    JsonToRowFn(Schema schema) {
+      this.deserializer = RowJsonDeserializer.forSchema(schema);
+    }
+
+    @Override
+    public Row apply(JsonObject json) {
+      ObjectMapper m = mapper;
+      if (m == null) {
+        m = RowJsonUtils.newObjectMapperWith(deserializer);
+        mapper = m;
+      }
+      return RowJsonUtils.jsonToRow(m, json.toString());
     }
   }
 

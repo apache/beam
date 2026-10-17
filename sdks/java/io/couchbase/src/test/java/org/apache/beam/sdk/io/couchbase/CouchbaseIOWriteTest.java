@@ -56,7 +56,7 @@ public class CouchbaseIOWriteTest {
   @ClassRule
   public static final CouchbaseContainer COUCHBASE =
       new CouchbaseContainer("couchbase/server:enterprise-8.0.3")
-          .withBucket(new BucketDefinition(BUCKET));
+          .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(false));
 
   // Independent of the pipeline's connection, so results are checked through a separate client.
   private static Cluster verifyCluster;
