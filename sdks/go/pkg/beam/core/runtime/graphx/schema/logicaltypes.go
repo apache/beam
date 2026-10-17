@@ -34,7 +34,9 @@ var (
 // A logical type is a type that has distinct representations and storage.
 //
 // RegisterLogicalType will panic if the storage type of the LogicalType
-// instance is not a valid storage type.
+// instance is not a valid storage type, or if its Go type or its identifier
+// and argument are already registered for a different logical type.
+// Registering the same logical type again has no effect.
 func RegisterLogicalType(lt LogicalType) {
 	defaultRegistry.RegisterLogicalType(lt)
 }
@@ -96,7 +98,8 @@ func NewRegistry() *Registry {
 	}
 }
 
-// RegisterLogicalType a single logical type.
+// RegisterLogicalType registers a single logical type. See the package level
+// RegisterLogicalType for the conditions it panics on.
 func (r *Registry) RegisterLogicalType(lt LogicalType) {
 	// Validates that the storage type has known handling.
 	st := lt.StorageType()
@@ -115,7 +118,12 @@ func (r *Registry) RegisterLogicalType(lt LogicalType) {
 			panic(fmt.Sprintf("LogicalType[%v] has the argument %v which does not compare equal to itself", lt.ID(), lt.argV))
 		}
 	}
-	// TODO add duplication checks.
+	if prev, ok := r.logicalTypeByGoType[lt.GoType()]; ok && !prev.equals(lt) {
+		panic(fmt.Sprintf("Go type %v is already registered as %v -> %v, cannot register it as %v -> %v", lt.GoType(), prev.describe(), prev.StorageType(), lt.describe(), lt.StorageType()))
+	}
+	if prev, ok := r.logicalTypes[lt.key()]; ok && !prev.equals(lt) {
+		panic(fmt.Sprintf("%v is already registered for Go type %v, cannot register it for Go type %v", lt.describe(), prev.GoType(), lt.GoType()))
+	}
 	r.logicalTypeByGoType[lt.GoType()] = lt
 	r.logicalTypes[lt.key()] = lt
 }
@@ -213,6 +221,21 @@ func (l *LogicalType) key() logicalTypeKey {
 		return logicalTypeKey{identifier: l.identifier}
 	}
 	return logicalTypeKey{identifier: l.identifier, argument: l.argV.Interface()}
+}
+
+// equals reports whether l and o have the same identifier, argument, Go type
+// and storage type.
+func (l *LogicalType) equals(o LogicalType) bool {
+	return l.goT == o.goT && l.storageT == o.storageT && l.argT == o.argT && l.key() == o.key()
+}
+
+// describe returns the identifier of the logical type and its argument, if
+// any, for messages.
+func (l *LogicalType) describe() string {
+	if l.argT == nil {
+		return fmt.Sprintf("LogicalType[%v]", l.identifier)
+	}
+	return fmt.Sprintf("LogicalType[%v, %v]", l.identifier, l.argV.Interface())
 }
 
 func preRegLogicalTypes(r *Registry) {
