@@ -276,36 +276,59 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void registerConsumer(
       String instructionId, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
-    receivers.compute(
-        instructionId,
-        (unused, existing) -> {
-          if (existing != null) {
-            if (existing.isPoisoned()) {
+    try {
+      receivers.compute(
+          instructionId,
+          (unused, existing) -> {
+            if (existing != null) {
+              if (existing.isPoisoned()) {
+                throw new IllegalArgumentException("Instruction id was poisoned");
+              }
+              if (!complete(existing, receiver)) {
+                throw new IllegalArgumentException("Instruction id was registered twice");
+              }
+              return existing;
+            }
+            if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
               throw new IllegalArgumentException("Instruction id was poisoned");
             }
-            if (!complete(existing, receiver)) {
-              throw new IllegalArgumentException("Instruction id was registered twice");
-            }
-            return existing;
-          }
-          if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
-            throw new IllegalArgumentException("Instruction id was poisoned");
-          }
-          ReceiverHolder h = new ReceiverHolder();
-          complete(h, receiver);
-          return h;
-        });
+            ReceiverHolder h = new ReceiverHolder();
+            complete(h, receiver);
+            return h;
+          });
+    } catch (ReceiverFailedException e) {
+      // The receiver threw on a buffered element. compute() left the holder in receivers, so
+      // poison the instruction, which removes it and closes the receiver, as a failure on the
+      // inbound gRPC thread does.
+      poisonInstructionId(instructionId);
+      throw e.getCause();
+    }
   }
 
-  /** {@link ReceiverHolder#complete} that rethrows runtime exceptions as they are. */
+  /** Thrown by {@link #complete} when the receiver fails, as opposed to a rejected registration. */
+  private static final class ReceiverFailedException extends RuntimeException {
+    private final RuntimeException cause;
+
+    ReceiverFailedException(RuntimeException cause) {
+      super(cause);
+      this.cause = cause;
+    }
+
+    @Override
+    public synchronized RuntimeException getCause() {
+      return cause;
+    }
+  }
+
+  /** {@link ReceiverHolder#complete} that reports a failure of the receiver. */
   private static boolean complete(
       ReceiverHolder holder, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
     try {
       return holder.complete(receiver);
     } catch (RuntimeException e) {
-      throw e;
+      throw new ReceiverFailedException(e);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new ReceiverFailedException(new RuntimeException(e));
     }
   }
 

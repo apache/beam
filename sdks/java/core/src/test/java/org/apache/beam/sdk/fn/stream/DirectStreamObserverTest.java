@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -50,6 +51,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DirectStreamObserverTest {
   @Rule public TestExecutorService executor = TestExecutors.from(Executors.newCachedThreadPool());
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(DirectStreamObserver.class);
 
   @Test
   public void testThreadSafety() throws Exception {
@@ -340,5 +342,32 @@ public class DirectStreamObserverTest {
 
     future.get(5, TimeUnit.SECONDS);
     streamObserver.onCompleted();
+  }
+
+  /** Sends one element on a stream that is not ready for about {@code notReadyMs}. */
+  private void sendWithStall(long notReadyMs) throws Exception {
+    AtomicBoolean isReady = new AtomicBoolean(false);
+    DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1),
+            TestStreams.withOnNext((String t) -> {}).withIsReady(isReady::get).build(),
+            0);
+    Future<?> future = executor.submit(() -> streamObserver.onNext("A"));
+    Uninterruptibles.sleepUninterruptibly(notReadyMs, TimeUnit.MILLISECONDS);
+    // The phaser never advances, as when onReady has not run yet.
+    isReady.set(true);
+    future.get(10, TimeUnit.SECONDS);
+  }
+
+  @Test
+  public void testShortStallIsNotLogged() throws Exception {
+    sendWithStall(300);
+    expectedLogs.verifyNotLogged("Output channel stalled");
+  }
+
+  @Test
+  public void testStallOfASecondIsLogged() throws Exception {
+    sendWithStall(1_300);
+    expectedLogs.verifyInfo("Output channel stalled for 1s");
   }
 }
