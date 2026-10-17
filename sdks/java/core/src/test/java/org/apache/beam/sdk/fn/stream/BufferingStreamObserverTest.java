@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -128,5 +129,33 @@ public class BufferingStreamObserverTest {
       result.get();
     }
     streamObserver.onCompleted();
+  }
+
+  @Test(timeout = 10_000)
+  public void testStalledPollHandlerInvokedWhileNotReady() throws Exception {
+    AdvancingPhaser phaser = new AdvancingPhaser(1);
+    AtomicBoolean isReady = new AtomicBoolean(false);
+    AtomicInteger stalls = new AtomicInteger();
+    List<String> values = new ArrayList<>();
+    BufferingStreamObserver<String> streamObserver =
+        new BufferingStreamObserver<>(
+            phaser,
+            TestStreams.withOnNext((String t) -> values.add(t)).withIsReady(isReady::get).build(),
+            executor,
+            3,
+            stalls::incrementAndGet);
+
+    streamObserver.onNext("A");
+    while (stalls.get() == 0) {
+      Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+    }
+    // The handler runs every 500 ms of waiting, not on each 50 ms poll.
+    Uninterruptibles.sleepUninterruptibly(300, TimeUnit.MILLISECONDS);
+    assertTrue(stalls.get() <= 2);
+
+    // The drainer polls readiness, so it sends without an onReady callback.
+    isReady.set(true);
+    streamObserver.onCompleted();
+    assertEquals(ImmutableList.of("A"), values);
   }
 }
