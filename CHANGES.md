@@ -64,7 +64,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added CouchbaseIO with write support (`CouchbaseIO.Write`) (Java) ([#18381](https://github.com/apache/beam/issues/18381)).
 
 ## New Features / Improvements
 
