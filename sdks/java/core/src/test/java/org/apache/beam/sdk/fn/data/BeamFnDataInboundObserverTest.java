@@ -298,6 +298,32 @@ public class BeamFnDataInboundObserverTest {
     assertTrue(callback2.get());
   }
 
+  @Test
+  public void testCallbacksInvokedOnConsumerError() throws Exception {
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(
+                DataEndpoint.create(
+                    TRANSFORM_ID,
+                    CODER,
+                    val -> {
+                      throw new AssertionError("consumer error");
+                    })),
+            Collections.emptyList());
+
+    AtomicBoolean callback1 = new AtomicBoolean();
+    AtomicBoolean callback2 = new AtomicBoolean();
+
+    observer.acceptWithCallback(dataWith("ABC"), () -> callback1.set(true));
+    observer.acceptWithCallback(dataWith("DEF"), () -> callback2.set(true));
+
+    assertThrows(AssertionError.class, observer::awaitCompletion);
+
+    // An Error is not an Exception, and both callbacks must still run.
+    assertTrue(callback1.get());
+    assertTrue(callback2.get());
+  }
+
   private BeamFnApi.Elements dataWith(String... values) throws Exception {
     ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {

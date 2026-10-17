@@ -187,7 +187,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
    */
   public void awaitCompletion() throws Exception {
     // The callback of the element that is being processed. queue.take() has removed the element,
-    // so a cancel does not reach it, and it must still run if processing fails.
+    // so a cancel does not reach it, and it must still run if processing fails in any way.
     @Nullable Runnable inProgressCallback = null;
     try {
       while (true) {
@@ -200,9 +200,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         // collection.
         Iterator<Elements.Data> dataIterator;
         Iterator<Elements.Timers> timersIterator;
-        ElementWithCallback wrapper;
         {
-          wrapper = queue.take();
+          ElementWithCallback wrapper = queue.take();
           inProgressCallback = wrapper.callback;
           BeamFnApi.Elements elements = wrapper.elements;
           dataIterator = createDiscardingIterator(elements.getDataList());
@@ -211,21 +210,25 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         // The SDK is no longer blocked on receiving more data from the Runner.
         consumingReceivedData.set(true);
         boolean isDone = multiplexElements(dataIterator, timersIterator);
+        Runnable callback = inProgressCallback;
         inProgressCallback = null;
-        wrapper.callback.run();
+        callback.run();
         if (isDone) {
           return;
         }
       }
     } catch (Exception e) {
       queue.cancel(e, wrapper -> wrapper.callback.run());
-      if (inProgressCallback != null) {
-        inProgressCallback.run();
-      }
       throw e;
     } finally {
-      consumingReceivedData.set(false);
-      close();
+      try {
+        consumingReceivedData.set(false);
+        close();
+      } finally {
+        if (inProgressCallback != null) {
+          inProgressCallback.run();
+        }
+      }
     }
   }
 
