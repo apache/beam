@@ -41,6 +41,7 @@ import mock
 import requests
 
 from apache_beam.coders import Coder
+from apache_beam.coders import VarIntCoder
 from apache_beam.coders.coder_impl import CoderImpl
 
 
@@ -63,12 +64,20 @@ class BigEndianIntegerCoder(Coder):
     return BigEndianIntegerCoderImpl()
 
 
+def _java_serialized_coder(payload, components, context):
+  # Java's VarIntCoder (used to key SplunkIO's stateful writer) shares the same
+  # fallback URN. The payload is the snappy-compressed serialized Java coder,
+  # and the start of its class name stays uncompressed, so it can be used to
+  # tell the two apart.
+  if b'VarInt' in payload:
+    return VarIntCoder()
+  return BigEndianIntegerCoder()
+
+
 # Register the coder with the fallback URN used by the Java SDK for this coder.
 # This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder in integration tests.
-Coder.register_urn(
-    'beam:coders:javasdk:0.1',
-    None, lambda payload, components, context: BigEndianIntegerCoder())
+# using BigEndianIntegerCoder or VarIntCoder in integration tests.
+Coder.register_urn('beam:coders:javasdk:0.1', None, _java_serialized_coder)
 
 import psycopg2
 import pyarrow as pa

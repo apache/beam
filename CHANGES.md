@@ -64,6 +64,7 @@
 
 ## I/Os
 
+* Added a SchemaTransform for SplunkIO writes, available in Beam YAML as `WriteToSplunk` (Java/YAML) ([#40470](https://github.com/apache/beam/issues/40470)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
 
@@ -116,6 +117,7 @@
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
+* (Java) SplunkIO write errors no longer lose their status code, status message and payload when encoded. The schema inferred for `SplunkWriteError` had no fields, so it now has a hand-written schema with `statusCode`, `statusMessage` and `payload` ([#40470](https://github.com/apache/beam/issues/40470)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
