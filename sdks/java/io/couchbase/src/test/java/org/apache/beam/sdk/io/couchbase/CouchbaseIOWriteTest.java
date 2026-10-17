@@ -64,6 +64,9 @@ public class CouchbaseIOWriteTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
+  // Only for the idempotency test, which runs the same write a second time.
+  @Rule public final transient TestPipeline rerun = TestPipeline.create();
+
   @BeforeClass
   public static void setUpClass() {
     verifyCluster =
@@ -116,6 +119,17 @@ public class CouchbaseIOWriteTest {
     List<String> ids = ids("basic", 10);
     p.apply(Create.of(ids)).apply(write(config()));
     p.run().waitUntilFinish();
+
+    assertWritten(verifyBucket.defaultCollection(), ids);
+  }
+
+  @Test
+  public void testRerunningWriteIsIdempotent() {
+    List<String> ids = ids("rerun", 10);
+    p.apply(Create.of(ids)).apply(write(config()));
+    p.run().waitUntilFinish();
+    rerun.apply(Create.of(ids)).apply(write(config()));
+    rerun.run().waitUntilFinish();
 
     assertWritten(verifyBucket.defaultCollection(), ids);
   }

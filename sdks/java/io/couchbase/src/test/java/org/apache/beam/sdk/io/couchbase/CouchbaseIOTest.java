@@ -347,6 +347,7 @@ public class CouchbaseIOTest {
     assertThat(displayData, hasDisplayItem("scanConsistency", "REQUEST_PLUS"));
     assertThat(displayData, hasDisplayItem("redistribute", true));
     assertThat(displayData, hasDisplayItem("bucket", "beam"));
+    assertThat(displayData, not(hasDisplayItem("collection")));
     assertThat(displayData.toString(), not(containsString(PASSWORD)));
     assertThat(displayData.toString(), not(containsString("secret-customer-id")));
   }

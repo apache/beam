@@ -25,7 +25,7 @@ ext.summary = "IO to read and write on Couchbase."
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.couchbase_java_client
-  // Same versions as java-client's transitive dependencies; used directly for Flux in WriteFn.
+  // Same versions as java-client's transitive dependencies; used directly in ReadFn and WriteFn.
   implementation "io.projectreactor:reactor-core:3.6.9"
   implementation "org.reactivestreams:reactive-streams:1.0.4"
   implementation library.java.jackson_databind

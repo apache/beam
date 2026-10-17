@@ -261,12 +261,12 @@ public class CouchbaseIO {
       return toBuilder().setCollection(collection).build();
     }
 
+    // Omits the collection, which only Write uses.
     void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("connectionString", connectionString()));
       builder.addIfNotNull(DisplayData.item("username", username()));
       builder.addIfNotNull(DisplayData.item("bucket", bucket()));
       builder.add(DisplayData.item("scope", scope()));
-      builder.add(DisplayData.item("collection", collection()));
     }
 
     // Hand-written so the password is never logged; AutoValue's generated toString includes it.
@@ -631,6 +631,7 @@ public class CouchbaseIO {
       ConnectionConfiguration config = connectionConfiguration();
       if (config != null) {
         config.populateDisplayData(builder);
+        builder.add(DisplayData.item("collection", config.collection()));
       }
       builder.add(DisplayData.item("batchSize", batchSize()));
       builder.add(DisplayData.item("maxConcurrency", maxConcurrency()));
