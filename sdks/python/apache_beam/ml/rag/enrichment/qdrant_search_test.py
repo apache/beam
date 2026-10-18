@@ -201,6 +201,44 @@ class TestQdrantSearchEnrichmentHandler(unittest.TestCase):
     # Point 2 is filtered out by payload and point 3 by score (-1.0).
     self.assertEqual(result["id"], [1])
 
+  def test_filter_in_kwargs_is_used_when_field_unset(self):
+    source_a = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="source", match=models.MatchValue(value="a"))
+        ])
+    handler = self._create_handler(
+        QdrantDenseSearchParameters(limit=3, kwargs={"filter": source_a}))
+
+    [(_, result)] = handler(_item("q", dense=[1.0, 0.0]))
+
+    # Only points with source "a" remain; no duplicate-keyword TypeError.
+    self.assertEqual(result["id"], [1, 3])
+
+  def test_explicit_field_takes_precedence_over_kwargs(self):
+    source_a = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="source", match=models.MatchValue(value="a"))
+        ])
+    source_b = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="source", match=models.MatchValue(value="b"))
+        ])
+    handler = self._create_handler(
+        QdrantHybridSearchParameters(
+            dense=QdrantDenseSearchParameters(
+                limit=3, filter=source_a, kwargs={"filter": source_b}),
+            sparse=QdrantSparseSearchParameters(
+                limit=3, filter=source_a, kwargs={"filter": source_b}),
+            limit=3))
+
+    [(_, result)
+     ] = handler(_item("q", dense=[0.8, 0.6], sparse=([1, 2], [1.0, 1.0])))
+
+    self.assertEqual(sorted(result["id"]), [1, 3])
+
   def test_sparse_search(self):
     handler = self._create_handler(QdrantSparseSearchParameters(limit=3))
 

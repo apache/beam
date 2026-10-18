@@ -63,7 +63,8 @@ class QdrantDenseSearchParameters:
     score_threshold: Optional minimal score; results scoring worse are dropped.
     search_params: Optional `models.SearchParams` such as `hnsw_ef` or `exact`.
     kwargs: Optional keyword arguments for additional `models.QueryRequest`
-      fields. Enables forward compatibility.
+      fields. Enables forward compatibility. Explicit non-None fields take
+      precedence over the corresponding entries in `kwargs`.
   """
   vector_name: str = "dense"
   limit: int = 3
@@ -94,7 +95,8 @@ class QdrantSparseSearchParameters:
     score_threshold: Optional minimal score; results scoring worse are dropped.
     search_params: Optional `models.SearchParams`.
     kwargs: Optional keyword arguments for additional `models.QueryRequest`
-      fields. Enables forward compatibility.
+      fields. Enables forward compatibility. Explicit non-None fields take
+      precedence over the corresponding entries in `kwargs`.
   """
   vector_name: str = "sparse"
   limit: int = 3
@@ -347,22 +349,20 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     strategy = self.search_strategy
     with_payload = self._search_parameters.with_payload
     if isinstance(strategy, QdrantHybridSearchParameters):
-      query_kwargs = dict(strategy.kwargs)
-      if strategy.filter is not None:
-        query_kwargs['filter'] = strategy.filter
-      if strategy.score_threshold is not None:
-        query_kwargs['score_threshold'] = strategy.score_threshold
       return models.QueryRequest(
-          prefetch=[
-              self._get_prefetch(
-                  strategy.dense, self._get_dense_query(embeddable_item)),
-              self._get_prefetch(
-                  strategy.sparse, self._get_sparse_query(embeddable_item)),
-          ],
-          query=models.FusionQuery(fusion=strategy.fusion),
-          limit=strategy.limit,
-          with_payload=with_payload,
-          **query_kwargs)
+          **_merge_query_kwargs(
+              strategy.kwargs,
+              prefetch=[
+                  self._get_prefetch(
+                      strategy.dense, self._get_dense_query(embeddable_item)),
+                  self._get_prefetch(
+                      strategy.sparse, self._get_sparse_query(embeddable_item)),
+              ],
+              query=models.FusionQuery(fusion=strategy.fusion),
+              limit=strategy.limit,
+              with_payload=with_payload,
+              filter=strategy.filter,
+              score_threshold=strategy.score_threshold))
     elif isinstance(strategy, QdrantDenseSearchParameters):
       return self._get_single_query_request(
           strategy, self._get_dense_query(embeddable_item), with_payload)
@@ -379,14 +379,15 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       query: Union[list[float], models.SparseVector],
       with_payload: Union[bool, list[str]]) -> models.QueryRequest:
     return models.QueryRequest(
-        query=query,
-        using=strategy.vector_name,
-        filter=strategy.filter,
-        score_threshold=strategy.score_threshold,
-        params=strategy.search_params,
-        limit=strategy.limit,
-        with_payload=with_payload,
-        **strategy.kwargs)
+        **_merge_query_kwargs(
+            strategy.kwargs,
+            query=query,
+            using=strategy.vector_name,
+            filter=strategy.filter,
+            score_threshold=strategy.score_threshold,
+            params=strategy.search_params,
+            limit=strategy.limit,
+            with_payload=with_payload))
 
   def _get_prefetch(
       self,
@@ -394,13 +395,14 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
                       QdrantSparseSearchParameters],
       query: Union[list[float], models.SparseVector]) -> models.Prefetch:
     return models.Prefetch(
-        query=query,
-        using=strategy.vector_name,
-        filter=strategy.filter,
-        score_threshold=strategy.score_threshold,
-        params=strategy.search_params,
-        limit=strategy.limit,
-        **strategy.kwargs)
+        **_merge_query_kwargs(
+            strategy.kwargs,
+            query=query,
+            using=strategy.vector_name,
+            filter=strategy.filter,
+            score_threshold=strategy.score_threshold,
+            params=strategy.search_params,
+            limit=strategy.limit))
 
   def _get_dense_query(self, embeddable_item: EmbeddableItem) -> list[float]:
     if not embeddable_item.dense_embedding:
@@ -452,6 +454,18 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   def batch_elements_kwargs(self) -> dict[str, int]:
     """Returns kwargs for beam.BatchElements."""
     return self._batching_kwargs
+
+
+def _merge_query_kwargs(kwargs: dict[str, Any], **explicit) -> dict[str, Any]:
+  """Merges user `kwargs` with explicit query fields.
+
+  Explicit fields that are set (not None) take precedence over the same keys
+  in `kwargs`; unset explicit fields fall back to `kwargs`. This avoids a
+  "multiple values for keyword argument" TypeError at query time.
+  """
+  merged = dict(kwargs)
+  merged.update({k: v for k, v in explicit.items() if v is not None})
+  return merged
 
 
 def join_fn(left: EmbeddableItem, right: dict[str, Any]) -> EmbeddableItem:
