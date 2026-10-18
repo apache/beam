@@ -2714,8 +2714,35 @@ class RegexTest(unittest.TestCase):
           pcol | 'all non empty groups' >> util.Regex.find_all(
               'a(b*)', util.Regex.ALL, outputEmpty=False),
           equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
-                    [('abb', 'bb'), ('abbb', 'bbb')]]),
+                    [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]),
           label='CheckAllNonEmptyGroups')
+
+  def test_find_all_groups_multiple_and_no_groups(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(['a=1 b=2 c=']))
+      assert_that(
+          pcol
+          | 'two groups' >> util.Regex.find_all(r'(\w)=(\d?)', util.Regex.ALL),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroups')
+
+      assert_that(
+          pcol | 'two groups non empty match' >> util.Regex.find_all(
+              r'(\w)=(\d?)', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroupsNonEmptyMatch')
+
+      digits = (p | 'create digits' >> beam.Create(['1 2']))
+      assert_that(
+          digits | 'no groups' >> util.Regex.find_all(r'\d*', util.Regex.ALL),
+          equal_to([[('1', ), ('', ), ('2', ), ('', )]]),
+          label='CheckNoGroups')
+
+      assert_that(
+          digits | 'no groups non empty' >> util.Regex.find_all(
+              r'\d*', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('1', ), ('2', )]]),
+          label='CheckNoGroupsNonEmpty')
 
   def test_find_kv(self):
     with TestPipeline() as p:
@@ -2826,6 +2853,22 @@ class RegexTest(unittest.TestCase):
       expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
                          ["z z", "z", "z"]]
       assert_that(result, equal_to(expected_result))
+
+  def test_all_matched_returns_every_group(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(["ab"]))
+      assert_that(
+          pcol | 'nested groups' >> util.Regex.all_matches("((a)(b))"),
+          equal_to([["ab", "ab", "a", "b"]]),
+          label='CheckNestedGroups')
+      assert_that(
+          pcol | 'optional group' >> util.Regex.all_matches("(a)(c)?"),
+          equal_to([["a", "a", None]]),
+          label='CheckOptionalGroup')
+      assert_that(
+          pcol | 'no groups' >> util.Regex.all_matches("a+"),
+          equal_to([["a"]]),
+          label='CheckNoGroups')
 
   def test_match_group_kv(self):
     with TestPipeline() as p:

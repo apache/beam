@@ -41,12 +41,12 @@
  *   <li><b>snapshotsCreated</b>: CDC snapshots committed. In streaming this should track one per
  *       commit window per destination. A flat line while data is flowing means commits have
  *       stalled.
- *   <li><b>committedDataFiles</b> / <b>committedDeleteFiles</b>: files published. Divide by {@code
- *       snapshotsCreated} for files per commit. A large ratio points to the small-file problem
+ *   <li><b>committedDataFileRecordCount</b> / <b>committedEqualityDeleteRecordCount</b>
+ *       (distributions, per file): rows in each committed data file and equality-delete file. Their
+ *       counts are the files committed; divide by {@code snapshotsCreated} for files per commit.
+ *   <li><b>committedDataFileByteSize</b> / <b>committedEqualityDeleteByteSize</b> (distributions,
+ *       per file): size of each committed file. A low mean points to the small-file problem
  *       described below.
- *   <li><b>committedRecords</b>: rows committed.
- *   <li><b>committedEqualityDeleteRecords</b>: equality-delete rows committed.
- *   <li><b>committedBytes</b>: total bytes of committed files.
  *   <li><b>commitDurationMs</b> (distribution): wall-clock time spent waiting on the Iceberg commit
  *       operation. Its tail is your catalog's health: a growing maximum usually means catalog
  *       contention, not a Beam problem.
@@ -57,9 +57,7 @@
  *       the table has too many concurrent writers, and the sink will not make progress past the
  *       failing window (commits are strictly ordered).
  *   <li><b>heartbeatCommits</b>: empty token-refresh commits emitted while a destination is idle
- *       (only if {@code withTokenHeartbeat} is configured). Each one is a real snapshot. With
- *       heartbeat enabled prefer cancel-and-resubmit over drain: the self-re-arming processing-time
- *       timer can keep a drain from completing.
+ *       (only if {@code withTokenHeartbeat} is configured). Each one is a real snapshot.
  * </ul>
  *
  * <h3>Safety tripwires</h3>

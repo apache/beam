@@ -38,5 +38,4 @@
 --max_batch_size=64
 --embedding_min_ram=16GB
 --dataflow_service_options=enable_prime
---experiments=use_runner_v2
 --timeout_ms=3600000

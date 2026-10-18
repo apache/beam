@@ -518,7 +518,7 @@ public class TableSetupTest {
     assertThat(error.getMessage(), containsString(id.toString()));
     assertThat(error.getMessage(), containsString("spec id " + resolvedSpecId));
     assertThat(error.getMessage(), containsString("spec id " + evolvedSpecId));
-    assertThat(error.getMessage(), containsString("Drain the pipeline"));
+    assertThat(error.getMessage(), containsString("Cancel the pipeline"));
   }
 
   // -------------------------------------------------------------------------------------------

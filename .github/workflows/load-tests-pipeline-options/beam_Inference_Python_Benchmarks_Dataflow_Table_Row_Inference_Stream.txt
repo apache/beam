@@ -39,4 +39,3 @@
 --feature_columns=feature1,feature2,feature3,feature4,feature5
 --output_table=apache-beam-testing:beam_run_inference.result_table_row_inference_stream_outputs
 --runner=DataflowRunner
---experiments=use_runner_v2

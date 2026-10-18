@@ -18,11 +18,26 @@
 package org.apache.beam.sdk.io.solace;
 
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
@@ -36,10 +51,13 @@ import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.SolaceDataUtils;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
@@ -47,6 +65,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -372,5 +391,199 @@ public class SolaceIOWriteTest {
     PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput()))
         .isEqualTo((long) payloads.size());
     pipeline.run();
+  }
+
+  @Test
+  public void testWithEnableOpenTelemetryTracingConfiguration() {
+    SolaceIO.Write<Record> defaultWrite = SolaceIO.write();
+    assertFalse(defaultWrite.getEnableOpenTelemetryTracing());
+
+    SolaceIO.Write<Record> writeWithTracing = SolaceIO.write().withEnableOpenTelemetryTracing();
+    assertTrue(writeWithTracing.getEnableOpenTelemetryTracing());
+  }
+
+  @Test
+  public void testWriteWithOpenTelemetryTracingStreaming() throws Exception {
+    runWriteWithOpenTelemetryTracingTest(WriterType.STREAMING);
+  }
+
+  @Test
+  public void testWriteWithOpenTelemetryTracingBatched() throws Exception {
+    runWriteWithOpenTelemetryTracingTest(WriterType.BATCHED);
+  }
+
+  private void runWriteWithOpenTelemetryTracingTest(WriterType writerType) throws Exception {
+    InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+            .setSampler(Sampler.alwaysOn())
+            .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+            .build();
+    GlobalOpenTelemetry.resetForTest();
+    OpenTelemetrySdk openTelemetry =
+        OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).buildAndRegisterGlobal();
+    pipeline.getOptions().as(SdkHarnessOptions.class).setOpenTelemetry(openTelemetry);
+    MockProducer.clearPublishedRecords();
+
+    try {
+      ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+          pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+      PCollection<Record> records = getRecords(pipeline);
+      SolaceOutput output =
+          records.apply(
+              "Write to Solace",
+              SolaceIO.write()
+                  .to(Solace.Queue.fromName("queue"))
+                  .withSubmissionMode(SubmissionMode.LOWER_LATENCY)
+                  .withWriterType(writerType)
+                  .withDeliveryMode(DeliveryMode.PERSISTENT)
+                  .withSessionServiceFactory(
+                      MockSessionServiceFactory.builder()
+                          .mode(SubmissionMode.LOWER_LATENCY)
+                          .sessionServiceType(SessionServiceType.WITH_SUCCEEDING_PRODUCER)
+                          .build())
+                  .withErrorHandler(errorHandler)
+                  .withEnableOpenTelemetryTracing());
+
+      PCollection<String> ids = getIdsPCollection(output);
+      PAssert.that(ids).containsInAnyOrder(keys);
+      errorHandler.close();
+      PAssert.that(errorHandler.getOutput()).empty();
+      pipeline.run();
+
+      List<SpanData> spans = spanExporter.getFinishedSpanItems();
+      assertEquals(keys.size(), spans.size());
+      for (SpanData span : spans) {
+        assertEquals("SolaceIO.Write", span.getName());
+        assertEquals(SpanKind.PRODUCER, span.getKind());
+      }
+
+      Set<String> expectedTraceparents =
+          spans.stream()
+              .map(
+                  s ->
+                      String.format(
+                          "00-%s-%s-%s",
+                          s.getTraceId(),
+                          s.getSpanId(),
+                          s.getSpanContext().getTraceFlags().asHex()))
+              .collect(Collectors.toSet());
+
+      List<Record> publishedRecords = MockProducer.getPublishedRecords();
+      assertEquals(keys.size(), publishedRecords.size());
+      for (Record publishedRecord : publishedRecords) {
+        Solace.UserPropertyValue traceparentProp =
+            publishedRecord.getUserProperties().get("traceparent");
+        assertNotNull(traceparentProp);
+        String traceparent = traceparentProp.getString();
+        assertNotNull(traceparent);
+        assertTrue(
+            "Unexpected traceparent: " + traceparent + ", expected one of: " + expectedTraceparents,
+            expectedTraceparents.contains(traceparent));
+
+        BytesXMLMessage jcsmpMsg = Solace.SolaceRecordMapper.toMessage(publishedRecord);
+        assertNotNull(jcsmpMsg.getProperties());
+        assertEquals(traceparent, jcsmpMsg.getProperties().getString("traceparent"));
+      }
+    } finally {
+      MockProducer.clearPublishedRecords();
+      tracerProvider.close();
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  public void testOpenTelemetryTraceContextPropagationConsumerToProducer() {
+    String traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+    String upstreamSpanId = "00f067aa0ba902b7";
+    String incomingTraceparent = "00-" + traceId + "-" + upstreamSpanId + "-01";
+    String incomingTracestate = "congo=t61rcWkgMzE";
+
+    InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+            .setSampler(Sampler.alwaysOn())
+            .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+            .build();
+    GlobalOpenTelemetry.resetForTest();
+    OpenTelemetrySdk openTelemetry =
+        OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).buildAndRegisterGlobal();
+    pipeline.getOptions().as(SdkHarnessOptions.class).setOpenTelemetry(openTelemetry);
+
+    try {
+      Record inputRecord =
+          Record.builder()
+              .setMessageId("id0")
+              .setPayload("payload_test0".getBytes(StandardCharsets.UTF_8))
+              .setUserProperties(
+                  ImmutableMap.of(
+                      "traceparent", Solace.UserPropertyValue.of(incomingTraceparent),
+                      "tracestate", Solace.UserPropertyValue.of(incomingTracestate),
+                      "customKey", Solace.UserPropertyValue.of("customVal")))
+              .build();
+
+      PCollection<Record> propagated =
+          pipeline
+              .apply(Create.of(inputRecord))
+              .apply(
+                  "Extract OpenTelemetry context",
+                  ParDo.of(new SolaceIO.OpenTelemetryHeaderConsumer<>()))
+              .apply(
+                  "Propagate OpenTelemetry context",
+                  ParDo.of(new SolaceIO.OpenTelemetryHeaderPropagator()));
+
+      PCollection<Map<String, String>> outputProps =
+          propagated.apply(
+              MapElements.into(new TypeDescriptor<Map<String, String>>() {})
+                  .via(
+                      r ->
+                          ImmutableMap.of(
+                              "traceparent",
+                              Objects.requireNonNull(
+                                  r.getUserProperties().get("traceparent").getString()),
+                              "tracestate",
+                              Objects.requireNonNull(
+                                  r.getUserProperties().get("tracestate").getString()),
+                              "customKey",
+                              Objects.requireNonNull(
+                                  r.getUserProperties().get("customKey").getString()))));
+
+      PAssert.thatSingleton(outputProps)
+          .satisfies(
+              props -> {
+                assertEquals("customVal", props.get("customKey"));
+                assertEquals(incomingTracestate, props.get("tracestate"));
+                assertTrue(props.get("traceparent").startsWith("00-" + traceId + "-"));
+                return null;
+              });
+
+      pipeline.run();
+
+      List<SpanData> spans = spanExporter.getFinishedSpanItems();
+      assertEquals(2, spans.size());
+
+      SpanData readSpan =
+          spans.stream()
+              .filter(s -> "SolaceIO.Read".equals(s.getName()))
+              .findFirst()
+              .orElseThrow(AssertionError::new);
+      SpanData writeSpan =
+          spans.stream()
+              .filter(s -> "SolaceIO.Write".equals(s.getName()))
+              .findFirst()
+              .orElseThrow(AssertionError::new);
+
+      assertEquals(SpanKind.CONSUMER, readSpan.getKind());
+      assertEquals(traceId, readSpan.getTraceId());
+      assertEquals(upstreamSpanId, readSpan.getParentSpanId());
+
+      assertEquals(SpanKind.PRODUCER, writeSpan.getKind());
+      assertEquals(traceId, writeSpan.getTraceId());
+      assertEquals(readSpan.getSpanId(), writeSpan.getParentSpanId());
+    } finally {
+      tracerProvider.close();
+      GlobalOpenTelemetry.resetForTest();
+    }
   }
 }

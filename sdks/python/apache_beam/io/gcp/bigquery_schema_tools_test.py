@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import logging
 import typing
 import unittest.mock
@@ -50,7 +51,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         usertype.__annotations__,
         {
             'stn': typing.Optional[str],
-            'temp': typing.Sequence[np.float64],
+            'temp': collections.abc.Sequence[np.float64],
             'count': typing.Optional[np.int64]
         })
 
@@ -158,7 +159,7 @@ class TestBigQueryToSchema(unittest.TestCase):
         usertype.__annotations__,
         {
             'stn': typing.Optional[str],
-            'temp': typing.Sequence[np.float64],
+            'temp': collections.abc.Sequence[np.float64],
             'times': typing.Optional[apache_beam.utils.timestamp.Timestamp]
         })
 
@@ -293,7 +294,7 @@ class TestBigQueryToSchema(unittest.TestCase):
 
     expected_annotations = {
         'location': typing.Optional[str],
-        'locations': typing.Sequence[str],
+        'locations': collections.abc.Sequence[str],
         'required_location': str
     }
 
@@ -320,7 +321,7 @@ class TestBigQueryToSchema(unittest.TestCase):
 
     # Test repeated GEOGRAPHY field
     result = bq_field_to_type("GEOGRAPHY", "REPEATED")
-    self.assertEqual(result, typing.Sequence[str])
+    self.assertEqual(result, collections.abc.Sequence[str])
 
     # Test GEOGRAPHY field with None mode (should default to nullable)
     result = bq_field_to_type("GEOGRAPHY", None)
@@ -425,7 +426,7 @@ class TestTypeOverridesSchemaTools(unittest.TestCase):
         typing.Optional[datetime.date])
     self.assertEqual(
         bq_field_to_type("DATE", "REPEATED", overrides),
-        typing.Sequence[datetime.date])
+        collections.abc.Sequence[datetime.date])
 
   def test_bq_field_to_type_overrides_can_use_str(self):
     """Test that type_overrides can map DATE/DATETIME/JSON to str."""

@@ -39,4 +39,3 @@
 --device=CPU
 --sdk_location=container
 --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest
---experiments=use_runner_v2

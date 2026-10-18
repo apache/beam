@@ -41,5 +41,18 @@ describe("commentStrings", function () {
       const comment = commentStrings.assignReviewer({ core: "reviewer1" });
       assert(comment.includes("review with scrutiny"));
     });
+
+    it("should mention backup reviewer without tagging them with @", function () {
+      const comment = commentStrings.assignReviewer(
+        { Java: "mainReviewer" },
+        {
+          labels: [{ name: "Java" }],
+          backupReviewers: { Java: "backupUser" },
+        }
+      );
+      assert(comment.includes("R: @mainReviewer for label Java."));
+      assert(comment.includes("Backup reviewer: backupUser"));
+      assert(!comment.includes("@backupUser"));
+    });
   });
 });
