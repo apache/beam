@@ -425,7 +425,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       throttle_delay_secs: int = 5,
       retry_filter: Callable[[Exception], bool] = lambda x: True,
       *,
-      window_ms: int = 1 * _MILLISECOND_TO_SECOND,
+      window_ms: int = 120 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
       overload_ratio: float = 2,
       rate_limiter: Optional[RateLimiter] = None):
@@ -577,6 +577,11 @@ class _ModelHandlerManager:
         model.
     """
     self._max_models = None
+    # Process ids that have already contributed to _max_models
+    self._incremented_process_ids: set[int] = set()
+    # Guards _max_models and _incremented_process_ids, since the shared
+    # manager serves calls from several processes on separate threads.
+    self._max_models_lock = threading.Lock()
     # Map keys to model handlers
     self._mh_map: dict[str, ModelHandler] = mh_map
     # Map keys to the last updated model path for that key
@@ -631,17 +636,26 @@ class _ModelHandlerManager:
     return _ModelLoadStats(
         tag, end_time - start_time, memory_after - memory_before)
 
-  def increment_max_models(self, increment: int):
+  def increment_max_models(
+      self, increment: int, process_id: Optional[int] = None):
     """
     Increments the number of models that this instance of a
     _ModelHandlerManager is able to hold. If it is never called,
     no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
+      process_id: the id of the process requesting the increment. If set,
+        only the first increment from each process is applied, since many
+        copies of the model handler can share this manager within a process.
     """
-    if self._max_models is None:
-      self._max_models = 0
-    self._max_models += increment
+    with self._max_models_lock:
+      if process_id is not None:
+        if process_id in self._incremented_process_ids:
+          return
+        self._incremented_process_ids.add(process_id)
+      if self._max_models is None:
+        self._max_models = 0
+      self._max_models += increment
 
   def update_model_handler(self, key: str, model_path: str, previous_key: str):
     """
@@ -867,11 +881,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
 
     # The first time a MultiProcessShared ModelManager is used for inference
-    # from this process, we should increment its max model count
+    # from this process, we should increment its max model count. The manager
+    # may live in another process and be shared by several deserialized copies
+    # of this handler, so it dedupes increments by process id.
     if self._max_models_per_worker_hint is not None:
-      lock = threading.Lock()
-      if lock.acquire(blocking=False):
-        model.increment_max_models(self._max_models_per_worker_hint)
+      model.increment_max_models(
+          self._max_models_per_worker_hint, process_id=os.getpid())
       self._max_models_per_worker_hint = None
 
     batch_by_key = defaultdict(list)
