@@ -407,6 +407,94 @@ class PipelineOptionsTest(unittest.TestCase):
     result = options.get_all_options(retain_unknown_options=True)
     self.assertEqual(result['i'], True)
 
+  # Unknown args are not necessarily adjacent in the original flags, so a
+  # value must only be attributed to an unknown flag it directly follows.
+  # See https://github.com/apache/beam/issues/22434.
+  @parameterized.expand([
+      (['--unknown_option', '--job_name=foo', 'bar'], ),
+      (['--unknown_option', '--job_name', 'foo', 'bar'], ),
+  ])
+  def test_retain_unknown_options_unary_followed_by_known_option(self, flags):
+    options = PipelineOptions(flags)
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_retain_unknown_options_mixed_with_known_options(self):
+    options = PipelineOptions([
+        '--unknown_unary',
+        '--job_name=foo',
+        'stray_value',
+        '--unknown_binary',
+        'some_value',
+        '--project',
+        'bar',
+    ])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_unary'], True)
+    self.assertEqual(result['unknown_binary'], 'some_value')
+    self.assertEqual(result['job_name'], 'foo')
+    self.assertEqual(result['project'], 'bar')
+
+  def test_retain_unknown_options_binary_equals_followed_by_value(self):
+    options = PipelineOptions(['--unknown_option=some_value', 'stray_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+    self.assertNotIn('unknown_option=some_value', result)
+
+  def test_retain_unknown_options_repeated_unary_store_true(self):
+    options = PipelineOptions(
+        ['--unknown_option', '--job_name=foo', 'bar', '--unknown_option'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+
+  def test_retain_unknown_options_repeated_binary_keeps_last_value(self):
+    options = PipelineOptions([
+        '--unknown_option',
+        'first',
+        '--job_name=foo',
+        '--unknown_option',
+        'second',
+    ])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'second')
+
+  def test_retain_unknown_options_unary_before_separator(self):
+    options = PipelineOptions(
+        ['--unknown_option', '--', 'bar', '--after_separator'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertNotIn('after_separator', result)
+
+  def test_retain_unknown_options_unary_single_dash_followed_by_known_option(
+      self):
+    options = PipelineOptions(['-i', '--job_name=foo', 'bar'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_retain_unknown_options_does_not_take_value_of_known_positional(self):
+    options = PipelineOptions(['--unknown_option', 'some_value'])
+
+    def add_extra_options(parser):
+      parser.add_argument('extra_positional', nargs='?')
+
+    result = options.get_all_options(
+        add_extra_args_fn=add_extra_options, retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['extra_positional'], 'some_value')
+
+  def test_retain_unknown_options_value_then_known_positional(self):
+    options = PipelineOptions(['--unknown_option', 'some_value', 'other'])
+
+    def add_extra_options(parser):
+      parser.add_argument('extra_positional', nargs='?')
+
+    result = options.get_all_options(
+        add_extra_args_fn=add_extra_options, retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+    self.assertEqual(result['extra_positional'], 'other')
+
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
     options = PipelineOptions(base_flags)
