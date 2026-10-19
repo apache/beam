@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -58,6 +58,8 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
   /** Scratch buffers above this size are released after use instead of being kept around. */
   private static final int MAX_RETAINED_BUFFER_SIZE = 1 << 20;
 
+  private static final byte[] EMPTY = new byte[0];
+
   private final Coder<T> coder;
 
   private final boolean fasterCopy;
@@ -72,6 +74,11 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
   private transient @Nullable ExposedByteArrayOutputStream encodeBuffer;
 
   private transient byte @Nullable [] decodeBuffer;
+
+  // Unlike java.io.ByteArrayInputStream, whose methods are synchronized, this stream takes no lock
+  // per read. Coders such as AvroCoder decode through an unbuffered decoder that reads one byte at
+  // a time, so the uncontended lock otherwise costs about a third of the decoding time.
+  private transient @Nullable ByteArrayInputStreamWithPos decodeStream;
 
   public LengthPrefixedCoderTypeSerializer(Coder<T> coder, boolean fasterCopy) {
     this(coder, fasterCopy, false);
@@ -149,14 +156,25 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
     }
     dataInputView.readFully(buffer, 0, length);
     decodeBuffer = buffer.length > MAX_RETAINED_BUFFER_SIZE ? null : buffer;
+    ByteArrayInputStreamWithPos stream = decodeStream;
+    if (stream == null) {
+      stream = new ByteArrayInputStreamWithPos();
+      decodeStream = stream;
+    }
+    stream.setBuffer(buffer, 0, length);
     try {
-      return coder.decode(new ByteArrayInputStream(buffer, 0, length));
+      return coder.decode(stream);
     } catch (CoderException e) {
       Throwable cause = e.getCause();
       if (cause instanceof EOFException) {
         throw (EOFException) cause;
       } else {
         throw e;
+      }
+    } finally {
+      if (decodeBuffer == null) {
+        // Do not keep an oversized buffer reachable through the reused stream.
+        stream.setBuffer(EMPTY, 0, 0);
       }
     }
   }
