@@ -535,8 +535,8 @@ public class BoundedQueueExecutor {
    * <p>{@code forceExecute} can queue more than {@code maximumElementsOutstanding} unstarted items
    * (e.g. retries or finalizations). {@code elementsOutstanding} counts non-shell work items, so
    * comparing {@code workQueue.size()} against {@code elementsOutstanding +
-   * maximumElementsOutstanding} allows up to {@code maximumElementsOutstanding} closed stale shells
-   * before running an O(n) {@code removeIf}.
+   * maximumElementsOutstanding} means there is at least {@code maximumElementsOutstanding} closed
+   * stale shells before running an O(n) {@code removeIf}.
    */
   private void onWorkStolen() {
     if (workQueue.size() <= (long) elementsOutstanding.get() + maximumElementsOutstanding
