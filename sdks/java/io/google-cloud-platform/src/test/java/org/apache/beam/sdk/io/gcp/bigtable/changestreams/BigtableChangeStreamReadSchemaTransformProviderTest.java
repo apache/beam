@@ -384,6 +384,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
             "table_id",
             "app_profile_id",
             "start_at_timestamp",
+            "end_at_timestamp",
             "change_stream_name",
             "flatten"),
         new HashSet<>(schema.getFieldNames()));
