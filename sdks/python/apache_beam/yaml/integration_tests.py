@@ -35,6 +35,7 @@ import time
 import unittest
 import uuid
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 
 import mock
@@ -322,21 +323,18 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
 
   _LOGGER.info('Created Bigtable CDC app profile [%s]', app_profile_id)
 
-  # Capture the start time after the change stream has been enabled.
+  # Keep some distance from the start timestamp to avoid clock skew.
+  time.sleep(0.5)
   start_at = datetime.now(timezone.utc)
-
-  # Keep the mutation clearly after start_at.
-  time.sleep(1)
-
+  time.sleep(0.5)
   row = table.row(b'row1')
   row.set_cell('cf1', b'cq1', b'value1')
   row.commit()
 
   _LOGGER.info('Wrote test mutation to Bigtable CDC table [%s]', table_id)
-
-  # Make sure end_at is after the committed mutation.
-  time.sleep(1)
-  end_at = datetime.now(timezone.utc)
+  # The change stream needs a future end time so that it can catch up
+  # and terminate predictably.
+  end_at = datetime.now(timezone.utc) + timedelta(seconds=30)
 
   def format_timestamp(timestamp):
     return timestamp.isoformat(
@@ -353,13 +351,25 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
     }
   finally:
     try:
+      _LOGGER.info(
+        'Disabling change stream for Bigtable table [%s]', table_id)
+
+      disable_request = bigtable_table_admin.UpdateTableRequest(
+        table=table_pb.Table(name=table_name),
+        update_mask=field_mask_pb2.FieldMask(
+          paths=['change_stream_config']))
+
+      operation = bigtable_client.table_admin_client.update_table(
+        request=disable_request)
+      operation.result(timeout=500)
+
       _LOGGER.info('Deleting Bigtable CDC table [%s]', table_id)
       table.delete()
 
       _LOGGER.info('Deleting Bigtable CDC instance [%s]', instance_id)
       bigtable_instance.delete()
-    except HttpError:
-      _LOGGER.warning('Failed to clean up Bigtable CDC resources')
+    except Exception:
+      _LOGGER.exception('Failed to clean up Bigtable CDC resources')
 
 
 @contextlib.contextmanager
