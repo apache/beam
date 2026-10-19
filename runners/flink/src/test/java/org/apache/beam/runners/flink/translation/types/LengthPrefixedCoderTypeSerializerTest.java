@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -91,6 +92,56 @@ public class LengthPrefixedCoderTypeSerializerTest implements Serializable {
       assertThat(serializer.deserialize(in), is(s));
     }
     assertThat(in.available(), is(0));
+  }
+
+  /**
+   * Reads every remaining byte of its input, so it only sees one record if the stream ends there.
+   */
+  private static class RemainingBytesCoder extends AtomicCoder<byte[]> {
+    @Override
+    public void encode(byte[] value, OutputStream outStream) throws IOException {
+      outStream.write(value);
+    }
+
+    @Override
+    public byte[] decode(InputStream inStream) throws IOException {
+      return inStream.readAllBytes();
+    }
+  }
+
+  private static byte[] bytes(int length, int seed) {
+    byte[] b = new byte[length];
+    for (int i = 0; i < length; i++) {
+      b[i] = (byte) (i * 31 + seed);
+    }
+    return b;
+  }
+
+  @Test
+  public void reusedDecodeStreamSeesExactlyOneRecord() throws IOException {
+    // Sizes cover empty records and a record above the 1 MiB retained-buffer limit, followed by
+    // smaller records that reuse the stream.
+    int[] sizes = {0, 1, 100, 3, (1 << 20) + 17, 5, 0, 2048};
+    for (Coder<byte[]> coder :
+        Arrays.<Coder<byte[]>>asList(ByteArrayCoder.of(), new RemainingBytesCoder())) {
+      LengthPrefixedCoderTypeSerializer<byte[]> serializer =
+          new LengthPrefixedCoderTypeSerializer<>(coder, false);
+      DataOutputSerializer out = new DataOutputSerializer(64);
+      for (int i = 0; i < sizes.length; i++) {
+        serializer.serialize(bytes(sizes[i], i), out);
+      }
+
+      DataInputDeserializer in = new DataInputDeserializer(out.getCopyOfBuffer());
+      byte[][] decoded = new byte[sizes.length][];
+      for (int i = 0; i < sizes.length; i++) {
+        decoded[i] = serializer.deserialize(in);
+      }
+      assertThat(in.available(), is(0));
+      // Checked after all records are decoded, so a value aliasing the reused buffer would fail.
+      for (int i = 0; i < sizes.length; i++) {
+        assertArrayEquals(bytes(sizes[i], i), decoded[i]);
+      }
+    }
   }
 
   @Test
