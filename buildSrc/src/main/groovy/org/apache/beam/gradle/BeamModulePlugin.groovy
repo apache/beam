@@ -622,7 +622,10 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.84.0"
     def google_ads_version = "33.0.0"
-    def google_clients_version = "2.0.0"
+    def google_api_client_version = "2.7.2"
+    // Suffix of the generated com.google.apis:google-api-services-* artifact versions
+    // (e.g. v1b3-rev20260503-2.0.0). This is NOT the google-api-client version.
+    def google_api_services_version_suffix = "2.0.0"
     def google_cloud_bigdataoss_version = "3.1.16"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
@@ -749,15 +752,15 @@ class BeamModulePlugin implements Plugin<Project> {
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
-        google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
-        google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
-        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
+        google_api_client                           : "com.google.api-client:google-api-client:$google_api_client_version",
+        google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_api_client_version",
+        google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_api_client_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20260731-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260503-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260503-$google_api_services_version_suffix",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_api_services_version_suffix",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_api_services_version_suffix",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260524-2.0.0",  // [bomupgrader] sets version
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
