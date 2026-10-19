@@ -2078,6 +2078,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._load_model_at_runtime = load_model_at_runtime
+    # The side input value that the currently loaded model reflects: a model
+    # id from ModelMetadata, a list[KeyModelPathMapping], or None if no side
+    # input value has been applied. Used to skip redundant model updates.
     self._side_input_path = None
     # _model_tag is the original tag passed in.
     # _cur_tag is the tag of the actually loaded model
@@ -2149,11 +2152,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # of calling load(). For sanity check, call update_model_path again.
     if isinstance(side_input_model_path, str):
       self._model_handler.update_model_path(side_input_model_path)
-    else:
-      if self._model is not None:
-        models = self._model.all_models()
-        for m in models:
-          self._model_handler.update_model_paths(m, side_input_model_path)
+    elif side_input_model_path:
+      # For per-key models, side_input_model_path is a list of mappings.
+      for m in model_wrapper.all_models():
+        self._model_handler.update_model_paths(
+            m, model_paths=side_input_model_path)
     return model_wrapper
 
   def get_metrics_collector(self, prefix: str = ''):
@@ -2237,26 +2240,29 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       side input is empty or the model has not been updated, the method
       simply runs inference on the batch of data.
     """
-    if not si_model_metadata:
+    if (not si_model_metadata or
+        isinstance(si_model_metadata, beam.pvalue.EmptySideInput)):
+      # No side input value: keep the loaded model, if any.
       if (not self._model_metadata.is_valid_tag(self._cur_tag) or
           self._model is None):
         self.update_model(side_input_model_path=None)
       return self._run_inference(batch, inference_args)
 
-    if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
-      self.update_model(side_input_model_path=None)
-    elif isinstance(si_model_metadata, list) and hasattr(si_model_metadata[0],
-                                                         'keys'):
+    if isinstance(si_model_metadata, list) and hasattr(si_model_metadata[0],
+                                                       'keys'):
       # TODO(https://github.com/apache/beam/issues/27628): Update metrics here
-      self.update_model(si_model_metadata)
+      needs_update = (
+          self._model is None or  # No model loaded yet.
+          self._side_input_path != si_model_metadata or  # Mapping changed.
+          not self._model_metadata.is_valid_tag(self._cur_tag))  # Invalidated.
+      if needs_update:
+        self.update_model(si_model_metadata)
+        self._side_input_path = list(si_model_metadata)
     elif self._side_input_path != si_model_metadata.model_id:
-      self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      lock = threading.Lock()
-      with lock:
-        self.update_model(si_model_metadata.model_id)
-        return self._run_inference(batch, inference_args)
+      self.update_model(si_model_metadata.model_id)
+      self._side_input_path = si_model_metadata.model_id
 
     return self._run_inference(batch, inference_args)
 

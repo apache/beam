@@ -105,6 +105,7 @@
 * (Go) Wrap last dataWriter/timerWriter send errors on Close ([#40405](https://github.com/apache/beam/issues/40405)).
 * (Go) Fixed a deadlock recreating a data channel while holding the channel lock ([#40414](https://github.com/apache/beam/issues/40414)).
 * (Python) Fixed `KeyedModelHandler` not enforcing `max_models_per_worker_hint` when several copies of the model handler run in the same SDK process ([#40468](https://github.com/apache/beam/issues/40468)).
+* (Python) Fixed a bug where `RunInference` was serving the first batch on each worker with the original models instead of the paths from a `KeyModelPathMapping` side input ([#40665](https://github.com/apache/beam/issues/40665)).
 * (Java) Fixed the declared schema of the error output of the Kafka write SchemaTransform, which wrapped the error schema a second time and did not match the rows it emits ([#39760](https://github.com/apache/beam/issues/39760)).
 * (Go) Fixed pubsubio importing a `google.golang.org/genproto` package removed in recent releases, which broke builds of Go modules depending on a current `genproto` version ([#40018](https://github.com/apache/beam/issues/40018)).
 * (Python) `VertexAIFeatureStoreEnrichmentHandler` now logs a warning instead of failing when the caller lacks permission to read the feature store metadata ([#40442](https://github.com/apache/beam/issues/40442)).
