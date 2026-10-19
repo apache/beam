@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,16 +63,31 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
   static final String UNCHECKED_FORMAT_KEY = "unchecked";
 
   private final SchemaEvolutionConfig config;
+  private final @Nullable String locationPrefix;
   private final int threadPoolSize;
   private final int maxInFlightTasks;
   private transient @MonotonicNonNull BoundedAsyncTasks<ReadResult> tasks;
 
   ReadFooterSchema(SchemaEvolutionConfig config) {
-    this(config, DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
+    this(config, null);
+  }
+
+  /** {@code locationPrefix}: where the {@code key=value} folders start, e.g. gs://lake/orders/. */
+  ReadFooterSchema(SchemaEvolutionConfig config, @Nullable String locationPrefix) {
+    this(config, locationPrefix, DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
   }
 
   ReadFooterSchema(SchemaEvolutionConfig config, int threadPoolSize, int maxInFlightTasks) {
+    this(config, null, threadPoolSize, maxInFlightTasks);
+  }
+
+  ReadFooterSchema(
+      SchemaEvolutionConfig config,
+      @Nullable String locationPrefix,
+      int threadPoolSize,
+      int maxInFlightTasks) {
     this.config = config;
+    this.locationPrefix = locationPrefix;
     this.threadPoolSize = threadPoolSize;
     this.maxInFlightTasks = maxInFlightTasks;
   }
@@ -186,7 +203,11 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
         }
       }
       try {
-        return new ReadResult(FileSchemas.schemaGroup(footer), false, timestamp, window, paneInfo);
+        List<String> partitionKeysInPath =
+            new ArrayList<>(PartitionPaths.partitionKeysInPath(filePath, locationPrefix));
+        CollectDistinctSchemas.SchemaGroup group =
+            FileSchemas.schemaGroup(footer).withPartitionKeysInPath(partitionKeysInPath);
+        return new ReadResult(group, false, timestamp, window, paneInfo);
       } catch (Exception e) {
         return unconvertibleSchema(filePath, e, timestamp, window, paneInfo);
       }

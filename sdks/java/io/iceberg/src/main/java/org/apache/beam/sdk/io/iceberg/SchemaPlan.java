@@ -346,7 +346,9 @@ abstract class SchemaPlan {
       Schema fileSchema =
           FileSchemas.markRequired(
               SchemaParser.fromJson(group.getSchemaJson()), group.getNullFreeColumns());
-      SchemaDelta delta = SchemaDelta.classify(table, base, fileSchema);
+      Set<Integer> partitionColumnsFromPath =
+          PartitionPaths.columnsFilledByKeys(table.spec(), group.getPartitionKeysInPath());
+      SchemaDelta delta = SchemaDelta.classify(table, base, fileSchema, partitionColumnsFromPath);
       if (delta.isEmpty()) {
         continue;
       }

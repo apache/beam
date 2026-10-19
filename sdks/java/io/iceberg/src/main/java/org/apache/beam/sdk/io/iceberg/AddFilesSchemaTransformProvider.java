@@ -87,7 +87,12 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + "'gs://bucket/namespace/table/data/id=13/name=beam/data_file.parquet'%n%n"
             + "The provided prefix should go up until the partition information:%n"
             + "'gs://bucket/namespace/table/data/'.%n"
-            + "If not provided, will try determining each DataFile's partition from its metrics metadata.")
+            + "If not provided, will try determining each DataFile's partition from its metrics metadata.%n%n"
+            + "If the table is partitioned by a column as is, for example dt, the data files do not"
+            + " need that column: a file under '.../data/dt=2024-01-15/' takes dt from its path."
+            + " This holds even when dt is required, and schema evolution leaves it required. A file"
+            + " with no dt folder, or under 'dt=__HIVE_DEFAULT_PARTITION__/', still needs a dt"
+            + " column.")
     public abstract @Nullable String getLocationPrefix();
 
     @SchemaFieldDescription(

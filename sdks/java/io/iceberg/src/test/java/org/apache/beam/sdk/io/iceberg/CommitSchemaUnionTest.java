@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHa
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.Table;
@@ -115,6 +116,24 @@ public class CommitSchemaUnionTest {
   private static CollectDistinctSchemas.SchemaGroup files(
       Schema schema, long count, List<String> nullFreeColumns) {
     return CollectDistinctSchemas.SchemaGroup.of(json(schema), count, nullFreeColumns);
+  }
+
+  /** {@code count} files, each under a folder per key, e.g. dt=2024-01-15/ for key dt. */
+  private static CollectDistinctSchemas.SchemaGroup filesUnder(
+      Schema schema, long count, String... partitionKeysInPath) {
+    return CollectDistinctSchemas.SchemaGroup.of(
+        json(schema), count, Collections.emptyList(), Arrays.asList(partitionKeysInPath));
+  }
+
+  private static final Schema PARTITIONED =
+      new Schema(
+          required(1, "id", Types.LongType.get()), required(2, "dt", Types.StringType.get()));
+
+  private TableIdentifier partitionedByDt() {
+    TableIdentifier id = missing();
+    catalog.createTable(
+        id, PARTITIONED, PartitionSpec.builderFor(PARTITIONED).identity("dt").build());
+    return id;
   }
 
   private long commit(
@@ -743,6 +762,44 @@ public class CommitSchemaUnionTest {
   }
 
   // ---- create path
+
+  /** Files under dt=.../ folders, with no dt column: required dt stays required. */
+  @Test
+  public void testRequiredPartitionColumnSuppliedByThePathIsNotRelaxed() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+    int before = catalog.loadTable(id).schema().schemaId();
+
+    long schemaId =
+        commitTo(
+            id,
+            ADDITION_ONLY,
+            IncompatibleSchemaHandling.FAIL_PIPELINE,
+            NO_CREATION,
+            filesUnder(file, 3, "dt"));
+
+    assertEquals(before, schemaId);
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isRequired());
+  }
+
+  /** Files with no dt=... folder would read dt as null, so dt must still become optional. */
+  @Test
+  public void testRequiredPartitionColumnWithoutAPathValueStillNeedsRelaxation() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+
+    assertThrows(
+        IncompatibleSchemaException.class,
+        () ->
+            commitTo(
+                id,
+                ADDITION_ONLY,
+                IncompatibleSchemaHandling.FAIL_PIPELINE,
+                NO_CREATION,
+                filesUnder(file, 3)));
+    commitTo(id, ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION, filesUnder(file, 3));
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isOptional());
+  }
 
   private TableIdentifier missing() {
     return TableIdentifier.of("default", testName.getMethodName() + "_new");
