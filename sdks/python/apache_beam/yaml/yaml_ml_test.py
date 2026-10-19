@@ -313,6 +313,77 @@ class RunInferenceJobSubmissionTest(unittest.TestCase):
     self.assertEqual(attempted_imports, [])
 
 
+class RunInferenceOpenAITest(unittest.TestCase):
+  def test_openai_model_handler_missing_model_name(self):
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with self.assertRaisesRegex(
+        ValueError,
+        "Unable to instantiate model handler of type OpenAIModelHandler.*"
+        "model_name"):
+      with beam.Pipeline(options=ml_opts) as p:
+        _ = p | YamlTransform(
+            '''
+            type: chain
+            transforms:
+              - type: Create
+                config:
+                  elements:
+                    - {text: "I love Apache Beam!"}
+              - type: RunInference
+                config:
+                  model_handler:
+                    type: OpenAIModelHandler
+                    config:
+                      preprocess:
+                        callable: 'lambda row: row.text'
+            ''')
+
+  def test_openai_model_handler_execution(self):
+    try:
+      import openai  # pylint: disable=unused-import
+    except ImportError:
+      self.skipTest('openai is not installed.')
+
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with beam.Pipeline(options=ml_opts) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements:
+                  - {text: "I love Apache Beam!"}
+                  - {text: "I hate this error."}
+            - type: RunInference
+              config:
+                model_handler:
+                  type: OpenAIModelHandler
+                  config:
+                    model_name: gpt-5.4-mini
+                    api_key: fake-api-key
+                    request_fn:
+                      callable: |
+                        def fake_request(model_name, batch, client, inference_args):
+                          return [
+                            'POSITIVE' if 'love' in item else 'NEGATIVE'
+                            for item in batch
+                          ]
+                    preprocess:
+                      callable: 'lambda row: row.text'
+                    postprocess:
+                      callable: 'lambda pred: pred.inference'
+          ''')
+      assert_that(
+          result | beam.Map(lambda row: (row.text, row.inference)),
+          equal_to([
+              ('I love Apache Beam!', 'POSITIVE'),
+              ('I hate this error.', 'NEGATIVE'),
+          ]))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

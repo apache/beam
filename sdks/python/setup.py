@@ -204,6 +204,7 @@ ml_base_core = [
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
     'tokenizers>=0.13.3,<0.22.0',
+    'openai>=3.0.0',
 ]
 
 ml_adk_dependency = [
