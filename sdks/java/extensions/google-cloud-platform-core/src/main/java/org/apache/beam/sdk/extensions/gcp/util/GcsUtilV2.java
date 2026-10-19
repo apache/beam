@@ -192,6 +192,13 @@ class GcsUtilV2 {
       storageOptionsBuilder.setHost(rootUrlOf(endpoint));
     }
 
+    // Use the process-wide shared HTTP transport rather than letting each client create its own, so
+    // a new client reuses established connections instead of opening new ones on its first request.
+    storageOptionsBuilder.setTransportOptions(
+        StorageOptions.getDefaultHttpTransportOptions().toBuilder()
+            .setHttpTransportFactory(Transport::getTransport)
+            .build());
+
     storage = storageOptionsBuilder.build().getService();
     uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
     this.gcsCountersOptions =
