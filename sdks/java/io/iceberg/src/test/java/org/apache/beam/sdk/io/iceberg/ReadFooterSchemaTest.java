@@ -269,6 +269,39 @@ public class ReadFooterSchemaTest {
     return total;
   }
 
+  /** The footer reads, but its schema does not convert: the file contributes no schema. */
+  @Test
+  public void testUnconvertibleSchemaEmitsNothing() throws IOException {
+    File file = new File(temporaryFolder.getRoot(), "legacy.parquet");
+    writeLegacyRepeated(file);
+
+    PAssert.that(run(file.getAbsolutePath())).empty();
+
+    pipeline.run();
+  }
+
+  /** Readable Parquet whose unannotated repeated field Iceberg's converter rejects. */
+  private static void writeLegacyRepeated(File file) throws IOException {
+    org.apache.parquet.schema.MessageType legacy =
+        org.apache.parquet.schema.Types.buildMessage()
+            .required(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("id")
+            .repeated(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("vals")
+            .named("root");
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.parquet.example.data.Group> writer =
+        org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withType(legacy)
+            .build()) {
+      org.apache.parquet.example.data.Group group =
+          new org.apache.parquet.example.data.simple.SimpleGroupFactory(legacy).newGroup();
+      group.add("id", 1);
+      group.add("vals", 2);
+      writer.write(group);
+    }
+  }
+
   private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))

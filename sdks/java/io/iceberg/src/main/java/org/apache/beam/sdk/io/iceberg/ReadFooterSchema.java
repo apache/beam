@@ -188,7 +188,7 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
       try {
         return new ReadResult(FileSchemas.schemaGroup(footer), false, timestamp, window, paneInfo);
       } catch (Exception e) {
-        return unreadableFooter(filePath, e, timestamp, window, paneInfo);
+        return unconvertibleSchema(filePath, e, timestamp, window, paneInfo);
       }
     };
   }
@@ -204,6 +204,15 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
         filePath,
         AddFiles.errorMessage(e));
     return new ReadResult(dryRunMarker(UNREADABLE_KEY), true, timestamp, window, paneInfo);
+  }
+
+  private ReadResult unconvertibleSchema(
+      String filePath, Exception e, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    LOG.warn(
+        "Could not convert the schema of {}; the file will not contribute to schema inference: {}",
+        filePath,
+        AddFiles.errorMessage(e));
+    return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
   }
 
   /** A dry run counts files that contribute no schema; a real run handles them at registration. */

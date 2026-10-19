@@ -1914,6 +1914,63 @@ public class AddFilesTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /**
+   * Through the whole transform, so the pre-pass sees the file too: its footer reads, so it is not
+   * a footer read error, and it costs one error row, not the job.
+   */
+  @Test
+  public void testUnconvertibleSchemaIsOneErrorRowWithEvolution() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    File legacy = new File(temp.getRoot(), "legacy.parquet");
+    writeLegacyRepeated(legacy);
+    String good = writeWithoutFieldIds("good.parquet", icebergSchema, record(1, "a", 1));
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(legacy.getAbsolutePath(), good))
+            .apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(legacy.getAbsolutePath(), row.getString("file"));
+              assertTrue(
+                  String.valueOf(row.getString("error")),
+                  String.valueOf(row.getString("error"))
+                      .startsWith(AddFiles.ConvertToDataFile.UNREADABLE_SCHEMA_ERROR));
+              return null;
+            });
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(1, Iterables.size(catalog.loadTable(tableId).newScan().planFiles()));
+    assertEquals(
+        0, counted(result, ReadFooterSchema.class, ReadFooterSchema.FOOTER_READ_ERRORS_COUNTER));
+  }
+
+  /** Readable Parquet whose unannotated repeated field Iceberg's converter rejects. */
+  private static void writeLegacyRepeated(File file) throws IOException {
+    org.apache.parquet.schema.MessageType legacy =
+        org.apache.parquet.schema.Types.buildMessage()
+            .required(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("id")
+            .repeated(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("vals")
+            .named("root");
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.parquet.example.data.Group> writer =
+        org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withType(legacy)
+            .build()) {
+      org.apache.parquet.example.data.Group group =
+          new org.apache.parquet.example.data.simple.SimpleGroupFactory(legacy).newGroup();
+      group.add("id", 1);
+      group.add("vals", 2);
+      writer.write(group);
+    }
+  }
+
   @Test
   public void testUnreadableSchemaRoutesToErrorsWithConverterMessage() throws Exception {
     catalog.createTable(tableId, icebergSchema);
