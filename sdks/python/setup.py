@@ -613,6 +613,7 @@ if __name__ == '__main__':
           ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
+              'typesafe-sdk>=0.7.1,<0.8',
           ] + ml_base + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
