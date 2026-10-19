@@ -30,6 +30,7 @@ import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import require_linux_docker
 
 # pylint: disable=ungrouped-imports
 try:
@@ -206,6 +207,10 @@ class FakeCallerForCache(Caller[str, str]):
 
 @pytest.mark.uses_testcontainer
 class TestRedisCache(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls) -> None:
+    require_linux_docker()
+
   def setUp(self) -> None:
     self.retries = 5
     self._start_container()
