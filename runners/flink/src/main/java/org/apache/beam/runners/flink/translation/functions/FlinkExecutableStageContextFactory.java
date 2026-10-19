@@ -25,6 +25,7 @@ import org.apache.beam.runners.fnexecution.control.ReferenceCountingExecutableSt
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 /** Singleton class that contains one {@link ExecutableStageContext.Factory} per job. */
 public class FlinkExecutableStageContextFactory implements ExecutableStageContext.Factory {
@@ -48,8 +49,12 @@ public class FlinkExecutableStageContextFactory implements ExecutableStageContex
             k ->
                 ReferenceCountingExecutableStageContextFactory.create(
                     info -> new JobScopedExecutableStageContext(info, k),
-                    // Release the context synchronously once its reference count drops to zero.
-                    caller -> true));
+                    // Release immediately when the factory is not on the Flink parent classloader
+                    // (so cleanup still works after that classloader is discarded). Otherwise keep
+                    // the default environment cache delay so DoFn @Teardown can finish first.
+                    caller ->
+                        caller.getClass().getClassLoader()
+                            != ExecutionEnvironment.class.getClassLoader()));
     return jobFactory.get(jobInfo);
   }
 
