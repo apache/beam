@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
  * A utility class to sort Beam {@link Row}s based on an Iceberg {@link SortOrder}. Leverages {@link
  * BufferedExternalSorter} to spill to local disk when elements exceed memory limit.
  */
-class IcebergRowSorter implements AutoCloseable {
+final class IcebergRowSorter implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergRowSorter.class);
 
   /** Width of an encoded decimal key. 16 bytes covers Iceberg's maximum precision of 38 digits. */
@@ -86,7 +86,7 @@ class IcebergRowSorter implements AutoCloseable {
    * name lookups per row.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  static class KeyEncoder {
+  static final class KeyEncoder {
     private final SortOrder sortOrder;
     private final String[] columnNames;
     private final int[] beamFieldIndices;
