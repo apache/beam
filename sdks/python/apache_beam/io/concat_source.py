@@ -135,8 +135,8 @@ class ConcatRangeTracker(iobase.RangeTracker):
     min_diff = 1e-5
     # For the computation below, we need weights for all sources.
     # Substitute average weights for those whose weights are
-    # unspecified (or 1.0 for everything if none are known).
-    known = [s.weight for s in source_bundles if s.weight is not None]
+    # unspecified or zero (or 1.0 for everything if none are known).
+    known = [s.weight for s in source_bundles if s.weight]
     avg = sum(known) / len(known) if known else 1.0
     weights = [s.weight or avg for s in source_bundles]
 
