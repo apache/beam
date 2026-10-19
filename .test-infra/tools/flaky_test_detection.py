@@ -19,6 +19,8 @@ import requests
 from datetime import datetime
 from github import Github
 from github import Auth
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 ALERT_NAME = "flaky_test"
@@ -37,6 +39,8 @@ GRAFANA_PANEL_IDS = {
     "go": 10,
     "misc": 11,
 }
+GRAFANA_REQUEST_TIMEOUT_SECONDS = 30
+GRAFANA_REQUEST_RETRIES = 5
 READ_ONLY = os.environ.get("READ_ONLY", "true")
 
 
@@ -63,7 +67,9 @@ class Alert:
 def get_workflow_issues(issues):
     workflows = {}
     for issue in issues:
-        for label in issue.get_labels():
+        # issue.labels comes with the issue listing, while get_labels() makes
+        # an extra API request for every issue.
+        for label in issue.labels:
             match = re.search(r"workflow_id:\s*(\d+)", str(label.name))
             if match:
                 workflow_id = match.group(1)
@@ -105,7 +111,17 @@ def create_github_issue(repo, alert):
 
 def get_grafana_alerts():
     url = f"{GRAFANA_URL}/api/alertmanager/grafana/api/v2/alerts?active=true&filter=alertname%3D{ALERT_NAME}"
-    response = requests.get(url)
+    retries = Retry(
+        total=GRAFANA_REQUEST_RETRIES,
+        backoff_factor=2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        raise_on_status=False,
+    )
+    with requests.Session() as session:
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        response = session.get(url, timeout=GRAFANA_REQUEST_TIMEOUT_SECONDS)
     if response.status_code != 200:
         raise RuntimeError(
             "Request to %s failed with status %d: %s"
