@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state.BeamStatefulProcessor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;

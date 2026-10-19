@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals.StateCells;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
@@ -38,7 +39,6 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumula
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
