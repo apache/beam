@@ -71,6 +71,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -560,6 +561,60 @@ public class GcsUtilV2Test {
     assertSame(preconditionFailed, thrown.getCause());
   }
 
+  /**
+   * java-storage starts the resumable upload session with a blocking request when it opens a
+   * WriteChannel. create() must leave that to a background thread, as gcsio does for V1, so that
+   * the caller does not wait for it.
+   */
+  @Test
+  public void testV2CreateStartsUploadSessionInBackground() throws Exception {
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    CountDownLatch release = new CountDownLatch(1);
+    AtomicReference<Thread> openingThread = new AtomicReference<>();
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenAnswer(
+            invocation -> {
+              openingThread.set(Thread.currentThread());
+              if (!release.await(10, TimeUnit.SECONDS)) {
+                throw new AssertionError("the upload session was never released");
+              }
+              return writer;
+            });
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+    assertTrue(channel.isOpen());
+
+    release.countDown();
+    channel.write(ByteBuffer.wrap(new byte[] {1, 2, 3}));
+    channel.close();
+
+    assertNotSame(Thread.currentThread(), openingThread.get());
+    verify(writer).write(any(ByteBuffer.class));
+    verify(writer).close();
+    assertFalse(channel.isOpen());
+  }
+
+  /** A failure to start the upload session surfaces on the first write, as an IOException. */
+  @Test
+  public void testV2CreateReportsUploadSessionFailureOnWrite() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+
+    assertThrows(AccessDeniedException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+  }
+
   /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExist} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
@@ -724,18 +779,21 @@ public class GcsUtilV2Test {
   @Test
   public void testV2CreatePreconditions() throws IOException {
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+    // Each channel is closed so that its upload session, started in the background, has been
+    // opened before it is verified.
 
     // Expected not to exist: no lookup is made.
     Storage expectedMissing = storageWritingTo(Mockito.mock(WriteChannel.class));
     gcsUtilWithV2Storage(expectedMissing)
-        .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
+        .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build())
+        .close();
     verify(expectedMissing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
     verify(expectedMissing, never()).get(anyString(), anyString(), any());
 
     // Looked up and missing. An unstubbed get() returns null, which is how java-storage reports a
     // missing object.
     Storage missing = storageWritingTo(Mockito.mock(WriteChannel.class));
-    gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build());
+    gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build()).close();
     verify(missing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
 
     // Looked up and found.
@@ -743,7 +801,7 @@ public class GcsUtilV2Test {
     Blob blob = Mockito.mock(Blob.class);
     when(blob.getGeneration()).thenReturn(42L);
     when(existing.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
-    gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build());
+    gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build()).close();
     verify(existing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.generationMatch(42L)));
   }
 
@@ -765,21 +823,23 @@ public class GcsUtilV2Test {
     pipelineWithSize.setGcsUploadBufferSizeBytes(2048);
 
     WriteChannel writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withSize);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withSize).close();
     verify(writer).setChunkSize(1024);
 
     writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withoutSize);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer))
+        .create(path, withoutSize)
+        .close();
     verify(writer).setChunkSize(2048);
 
     writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(storageWritingTo(writer)).create(path, withoutSize);
+    gcsUtilWithV2Storage(storageWritingTo(writer)).create(path, withoutSize).close();
     verify(writer).setChunkSize(GcsUtilV2.DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
   }
 
   /** Mirrors {@link GcsUtilV1Test#testGCSWriteMetricsIsSet}. */
   @Test
-  public void testV2WriteMetricsIsSet() {
+  public void testV2WriteMetricsIsSet() throws IOException {
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
     Storage storage = Mockito.mock(Storage.class);
@@ -788,9 +848,10 @@ public class GcsUtilV2Test {
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
 
-    assertThrows(
-        AccessDeniedException.class,
-        () -> gcsUtil.create(path, CreateOptions.builder().setExpectFileToNotExist(true).build()));
+    // The upload session is started in the background, so its failure surfaces on close.
+    WritableByteChannel channel =
+        gcsUtil.create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
+    assertThrows(AccessDeniedException.class, channel::close);
 
     verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "permission_denied", 1);
     verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "ok", 0);
