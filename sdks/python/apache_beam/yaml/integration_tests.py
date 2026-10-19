@@ -322,12 +322,34 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
 
   _LOGGER.info('Created Bigtable CDC app profile [%s]', app_profile_id)
 
+  # Capture the start time after the change stream has been enabled.
+  start_at = datetime.now(timezone.utc)
+
+  # Keep the mutation clearly after start_at.
+  time.sleep(1)
+
+  row = table.row(b'row1')
+  row.set_cell('cf1', b'cq1', b'value1')
+  row.commit()
+
+  _LOGGER.info('Wrote test mutation to Bigtable CDC table [%s]', table_id)
+
+  # Make sure end_at is after the committed mutation.
+  time.sleep(1)
+  end_at = datetime.now(timezone.utc)
+
+  def format_timestamp(timestamp):
+    return timestamp.isoformat(
+      timespec='milliseconds').replace('+00:00', 'Z')
+
   try:
     yield {
         'PROJECT': project,
         'INSTANCE': instance_id,
         'TABLE': table_id,
         'APP_PROFILE': app_profile_id,
+        'START_AT': format_timestamp(start_at),
+        'END_AT': format_timestamp(end_at),
     }
   finally:
     try:

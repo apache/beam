@@ -603,6 +603,7 @@
         table: 'table_id'
         app_profile: 'app_profile_id'
         start_at: 'start_at_timestamp'
+        end_at: 'end_at_timestamp'
         change_stream: 'change_stream_name'
         flatten: 'flatten'
     underlying_provider:
