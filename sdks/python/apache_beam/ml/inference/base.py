@@ -2243,8 +2243,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if (not si_model_metadata or
         isinstance(si_model_metadata, beam.pvalue.EmptySideInput)):
       # No side input value: keep the loaded model, if any.
-      if (not self._model_metadata.is_valid_tag(self._cur_tag) or
-          self._model is None):
+      needs_update = (
+          self._model is None or  # No model loaded yet.
+          not self._model_metadata.is_valid_tag(self._cur_tag))  # Invalidated.
+      if needs_update:
         self.update_model(side_input_model_path=None)
       return self._run_inference(batch, inference_args)
 
@@ -2253,17 +2255,21 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       # TODO(https://github.com/apache/beam/issues/27628): Update metrics here
       needs_update = (
           self._model is None or  # No model loaded yet.
-          self._side_input_path != si_model_metadata or  # Mapping changed.
+          self._side_input_path != si_model_metadata or  # New mapping.
           not self._model_metadata.is_valid_tag(self._cur_tag))  # Invalidated.
       if needs_update:
         self.update_model(si_model_metadata)
         self._side_input_path = list(si_model_metadata)
-    elif (self._side_input_path != si_model_metadata.model_id or  # New model.
-          not self._model_metadata.is_valid_tag(self._cur_tag)):  # Invalidated.
-      self._metrics_collector = self.get_metrics_collector(
-          prefix=si_model_metadata.model_name)
-      self.update_model(si_model_metadata.model_id)
-      self._side_input_path = si_model_metadata.model_id
+    else:
+      needs_update = (
+          self._model is None or  # No model loaded yet.
+          self._side_input_path != si_model_metadata.model_id or  # New model.
+          not self._model_metadata.is_valid_tag(self._cur_tag))  # Invalidated.
+      if needs_update:
+        self._metrics_collector = self.get_metrics_collector(
+            prefix=si_model_metadata.model_name)
+        self.update_model(si_model_metadata.model_id)
+        self._side_input_path = si_model_metadata.model_id
 
     return self._run_inference(batch, inference_args)
 
