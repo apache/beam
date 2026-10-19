@@ -622,6 +622,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.84.0"
     def google_ads_version = "33.0.0"
+    // [bomupgrader] determined by: com.google.api-client:google-api-client, consistent with: google_cloud_platform_libraries_bom
     def google_api_client_version = "2.7.2"
     // Suffix of the generated com.google.apis:google-api-services-* artifact versions
     // (e.g. v1b3-rev20260503-2.0.0). This is NOT the google-api-client version.
