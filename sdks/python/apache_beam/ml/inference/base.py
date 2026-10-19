@@ -2258,7 +2258,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       if needs_update:
         self.update_model(si_model_metadata)
         self._side_input_path = list(si_model_metadata)
-    elif self._side_input_path != si_model_metadata.model_id:
+    elif (self._side_input_path != si_model_metadata.model_id or  # New model.
+          not self._model_metadata.is_valid_tag(self._cur_tag)):  # Invalidated.
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
       self.update_model(si_model_metadata.model_id)

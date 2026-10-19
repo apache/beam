@@ -1821,6 +1821,29 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertTrue(update_model_calls)
     self.assertEqual({1}, set(update_model_calls.values()))
 
+  def test_side_input_model_reloaded_after_invalidation(self):
+    dofn = base._RunInferenceDoFn(
+        FakeModelHandler(multi_process_shared=True),
+        FakeClock(),
+        metrics_namespace=None,
+        load_model_at_runtime=True,
+        model_tag='test_model_' + uuid.uuid4().hex)
+    dofn.setup()
+    model_id = 'side_input_model_' + uuid.uuid4().hex
+    side_input = base.ModelMetadata(model_id=model_id, model_name='model')
+    self.assertEqual([2], dofn.process([1], None, side_input))
+    self.assertEqual(model_id, dofn._cur_tag)
+
+    # Simulate an inference timeout: the model is marked invalid and, since
+    # its grace period is 0s here, deleted in finish_bundle().
+    dofn._model_metadata.try_mark_current_model_invalid(0)
+    dofn.finish_bundle()
+
+    # The same side input value reloads the model under a new tag instead of
+    # serving the deleted one.
+    self.assertEqual([3], dofn.process([2], None, side_input))
+    self.assertEqual(f'{model_id}_reload_1', dofn._cur_tag)
+
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
