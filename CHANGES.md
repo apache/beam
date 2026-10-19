@@ -94,7 +94,6 @@
 ## Deprecations
 
 * Support for Python 3.10 was removed following its end-of-life ([#40250](https://github.com/apache/beam/issues/40250)).
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
@@ -106,6 +105,8 @@
 * (Go) Fixed a deadlock recreating a data channel while holding the channel lock ([#40414](https://github.com/apache/beam/issues/40414)).
 * (Python) Fixed `KeyedModelHandler` not enforcing `max_models_per_worker_hint` when several copies of the model handler run in the same SDK process ([#40468](https://github.com/apache/beam/issues/40468)).
 * (Python) Fixed a bug where `RunInference` was serving the first batch on each worker with the original models instead of the paths from a `KeyModelPathMapping` side input ([#40665](https://github.com/apache/beam/issues/40665)).
+* (Python) Fixed a bug in `RunInference` where adaptive throttling in remote inference codepath was accidentally disabled ([#40598](https://github.com/apache/beam/pull/40598)).
+* (Python) Fixed an inefficiency in `RunInference` that caused unnecessary model reloading in some cases when `large_model=True` was not set ([#40441](https://github.com/apache/beam/pull/40441)).
 * (Java) Fixed the declared schema of the error output of the Kafka write SchemaTransform, which wrapped the error schema a second time and did not match the rows it emits ([#39760](https://github.com/apache/beam/issues/39760)).
 * (Go) Fixed pubsubio importing a `google.golang.org/genproto` package removed in recent releases, which broke builds of Go modules depending on a current `genproto` version ([#40018](https://github.com/apache/beam/issues/40018)).
 * (Python) `VertexAIFeatureStoreEnrichmentHandler` now logs a warning instead of failing when the caller lacks permission to read the feature store metadata ([#40442](https://github.com/apache/beam/issues/40442)).
@@ -117,7 +118,7 @@
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 
 ## Security Fixes
 
