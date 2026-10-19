@@ -34,6 +34,7 @@ func init() {
 	register.Function3x2(asymJoinFn)
 	register.Function5x0(splitByName)
 	register.Function2x0(emitPipelineOptions)
+	register.Function1x1(passBytesFn)
 	register.DoFn2x0[beam.BundleFinalization, []byte]((*processElemBundleFinalizer)(nil))
 	register.DoFn2x0[beam.BundleFinalization, []byte]((*finalizerInFinishBundle)(nil))
 	register.DoFn2x0[beam.BundleFinalization, []byte]((*finalizerInAll)(nil))
@@ -211,6 +212,20 @@ const (
 func ParDoProcessElementBundleFinalizer(s beam.Scope) {
 	imp := beam.Impulse(s)
 	beam.ParDo0(s, &processElemBundleFinalizer{}, imp)
+}
+
+// ParDoBundleFinalizerAfterFusedParDo creates a beam.Pipeline with a beam.ParDo0 that processes
+// a DoFn with a beam.BundleFinalization in its ProcessElement method, after another ParDo.
+// The runner fuses both ParDos into one stage, so the DoFn that requests finalization does not
+// consume the input of the stage.
+func ParDoBundleFinalizerAfterFusedParDo(s beam.Scope) {
+	imp := beam.Impulse(s)
+	passed := beam.ParDo(s, passBytesFn, imp)
+	beam.ParDo0(s, &processElemBundleFinalizer{}, passed)
+}
+
+func passBytesFn(b []byte) []byte {
+	return b
 }
 
 type processElemBundleFinalizer struct {

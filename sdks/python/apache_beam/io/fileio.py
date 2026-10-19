@@ -404,7 +404,8 @@ class MatchContinuously(beam.PTransform):
       file_pattern: The file path to read from.
       interval: Interval at which to check for files in seconds.
       has_deduplication: Whether files already read are discarded or not.
-      start_timestamp: Timestamp for start file checking.
+      start_timestamp: Timestamp for start file checking. Defaults to the time
+        this module was first imported, not the time the transform is created.
       stop_timestamp: Timestamp after which no more files will be checked.
       match_updated_files: (When has_deduplication is set to True) whether match
         file with timestamp changes.
