@@ -1021,7 +1021,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       options.fork = true
       options.forkOptions.javaHome = javaVerHome as File
-      if (ver == '17') {
+      if (ver == '11') {
+        // No additional options needed. Error Prone module exports are only required on JDK 16+.
+      } else if (ver == '17') {
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
       } else if (ver == '21' || ver == '25') {
         options.compilerArgs += ['-Xlint:-this-escape']
