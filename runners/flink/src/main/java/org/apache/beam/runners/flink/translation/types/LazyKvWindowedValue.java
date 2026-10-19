@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import io.opentelemetry.context.Context;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -87,7 +87,9 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
     WindowedValue<Void> h = header;
     if (h == null) {
       byte[] bytes = encodedRecord;
-      ByteArrayInputStream in = new ByteArrayInputStream(bytes);
+      // Not java.io.ByteArrayInputStream: its synchronized reads take a lock per byte for coders
+      // that decode byte by byte, such as AvroCoder.
+      ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(bytes);
       try {
         // The value coder is a VoidCoder, so this stops right before the encoded KV.
         h = headerCoder.decode(in);
@@ -108,7 +110,8 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
     header();
     byte[] bytes = encodedRecord;
     // KvCoder encodes the key first, the same way as FlinkKeyUtils.encodeKey.
-    ByteArrayInputStream in = new ByteArrayInputStream(bytes, valueOffset, bytes.length);
+    ByteArrayInputStreamWithPos in =
+        new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length);
     try {
       kvCoder.getKeyCoder().decode(in);
     } catch (IOException e) {
@@ -126,7 +129,7 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
         // The value was encoded in the nested context, as part of the WindowedValue.
         value =
             kvCoder.decode(
-                new ByteArrayInputStream(bytes, valueOffset, bytes.length - valueOffset));
+                new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length - valueOffset));
       } catch (IOException e) {
         throw new RuntimeException("Failed to decode value", e);
       }
