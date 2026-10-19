@@ -213,7 +213,8 @@ public class AbstractWindmillStreamTest {
             waitedMillis,
             numHealthChecks.get(),
             expectedHealthChecks);
-        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+        Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+        waitedMillis += 10;
       }
     }
 
@@ -248,8 +249,8 @@ public class AbstractWindmillStreamTest {
       while (numSends.get() < expectedSends) {
         LOG.info(
             "Waited {}ms for {} sends, current sends: {}", millisWaited, expectedSends, numSends);
-        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-        millisWaited += 100;
+        Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+        millisWaited += 10;
       }
     }
 
