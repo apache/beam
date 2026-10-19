@@ -341,7 +341,7 @@ class RunInferenceOpenAITest(unittest.TestCase):
 
   def test_openai_model_handler_execution(self):
     try:
-      import openai  # pylint: disable=unused-import
+      from apache_beam.ml.inference.openai_inference import OpenAIModelHandler  # pylint: disable=unused-import
     except ImportError:
       self.skipTest('openai is not installed.')
 
