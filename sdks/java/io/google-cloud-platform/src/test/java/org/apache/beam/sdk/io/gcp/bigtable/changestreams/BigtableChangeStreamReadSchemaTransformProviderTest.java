@@ -22,15 +22,20 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigtable.data.v2.models.AddToCell;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
 import com.google.cloud.bigtable.data.v2.models.DeleteCells;
 import com.google.cloud.bigtable.data.v2.models.DeleteFamily;
 import com.google.cloud.bigtable.data.v2.models.MergeToCell;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.bigtable.data.v2.models.SetCell;
 import com.google.cloud.bigtable.data.v2.models.Value;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamReadSchemaTransformProvider.BigtableChangeStreamReadConfiguration;
@@ -103,13 +108,16 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
   public void testSetCellEntryToRow() {
     SetCell setCell =
         SetCell.create(
-            "family", ByteString.copyFromUtf8("qualifier"), 123L, ByteString.copyFromUtf8("value"));
+            "family",
+            ByteString.copyFromUtf8("column_qualifier"),
+            123L,
+            ByteString.copyFromUtf8("value"));
 
     Row row = BigtableChangeStreamReadSchemaTransformProvider.entryToRow(setCell);
 
     assertEquals("SET_CELL", row.getString("type"));
     assertEquals("family", row.getString("family_name"));
-    assertArrayEquals("qualifier".getBytes(UTF_8), row.getBytes("qualifier"));
+    assertArrayEquals("column_qualifier".getBytes(UTF_8), row.getBytes("column_qualifier"));
     assertEquals(Long.valueOf(123L), row.getInt64("timestamp_micros"));
     assertArrayEquals("value".getBytes(UTF_8), row.getBytes("value"));
 
@@ -128,7 +136,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     assertEquals("DELETE_FAMILY", row.getString("type"));
     assertEquals("family", row.getString("family_name"));
 
-    assertNull(row.getBytes("qualifier"));
+    assertNull(row.getBytes("column_qualifier"));
     assertNull(row.getInt64("timestamp_micros"));
     assertNull(row.getBytes("value"));
     assertNull(row.getRow("timestamp_range"));
@@ -190,14 +198,14 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     DeleteCells deleteCells =
         DeleteCells.create(
             "family",
-            ByteString.copyFromUtf8("qualifier"),
+            ByteString.copyFromUtf8("column_qualifier"),
             Range.TimestampRange.create(100L, 200L));
 
     Row row = BigtableChangeStreamReadSchemaTransformProvider.entryToRow(deleteCells);
 
     assertEquals("DELETE_CELLS", row.getString("type"));
     assertEquals("family", row.getString("family_name"));
-    assertArrayEquals("qualifier".getBytes(UTF_8), row.getBytes("qualifier"));
+    assertArrayEquals("column_qualifier".getBytes(UTF_8), row.getBytes("column_qualifier"));
 
     Row range = row.getRow("timestamp_range");
     assertEquals("CLOSED", range.getString("start_bound"));
@@ -211,7 +219,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     AddToCell addToCell =
         AddToCell.create(
             "family",
-            Value.rawValue(ByteString.copyFromUtf8("qualifier")),
+            Value.rawValue(ByteString.copyFromUtf8("column_qualifier")),
             Value.rawTimestamp(123L),
             Value.intValue(42L));
 
@@ -222,7 +230,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
 
     Row qualifier = row.getRow("value_qualifier");
     assertEquals("RAW_VALUE", qualifier.getString("type"));
-    assertArrayEquals("qualifier".getBytes(UTF_8), qualifier.getBytes("raw_value"));
+    assertArrayEquals("column_qualifier".getBytes(UTF_8), qualifier.getBytes("raw_value"));
 
     Row timestamp = row.getRow("value_timestamp");
     assertEquals("RAW_TIMESTAMP", timestamp.getString("type"));
@@ -238,7 +246,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     MergeToCell mergeToCell =
         MergeToCell.create(
             "family",
-            Value.rawValue(ByteString.copyFromUtf8("qualifier")),
+            Value.rawValue(ByteString.copyFromUtf8("column_qualifier")),
             Value.rawTimestamp(123L),
             Value.rawValue(ByteString.copyFromUtf8("input")));
 
@@ -250,6 +258,116 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     Row input = row.getRow("value_input");
     assertEquals("RAW_VALUE", input.getString("type"));
     assertArrayEquals("input".getBytes(UTF_8), input.getBytes("raw_value"));
+  }
+
+  @Test
+  public void testMutationToRow() {
+    ChangeStreamMutation mutation = mock(ChangeStreamMutation.class);
+
+    SetCell setCell =
+        SetCell.create(
+            "family",
+            ByteString.copyFromUtf8("column_qualifier"),
+            123L,
+            ByteString.copyFromUtf8("value"));
+
+    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123Z");
+    java.time.Instant estimatedLowWatermark = java.time.Instant.parse("2026-10-19T09:59:59.456Z");
+
+    when(mutation.getRowKey()).thenReturn(ByteString.copyFromUtf8("key"));
+    when(mutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
+    when(mutation.getSourceClusterId()).thenReturn("cluster-1");
+    when(mutation.getCommitTime()).thenReturn(commitTime);
+    when(mutation.getTieBreaker()).thenReturn(42);
+    when(mutation.getToken()).thenReturn("token-1");
+    when(mutation.getEstimatedLowWatermarkTime()).thenReturn(estimatedLowWatermark);
+    when(mutation.getEntries()).thenReturn(ImmutableList.of(setCell));
+
+    Row row = BigtableChangeStreamReadSchemaTransformProvider.mutationToRow(mutation);
+
+    assertArrayEquals("key".getBytes(UTF_8), row.getBytes("key"));
+    assertEquals("USER", row.getString("mutation_type"));
+    assertEquals("cluster-1", row.getString("source_cluster_id"));
+    assertEquals(
+        new org.joda.time.Instant(commitTime.toEpochMilli()), row.getDateTime("commit_timestamp"));
+    assertEquals(Integer.valueOf(42), row.getInt32("tie_breaker"));
+    assertEquals("token-1", row.getString("token"));
+    assertEquals(
+        new org.joda.time.Instant(estimatedLowWatermark.toEpochMilli()),
+        row.getDateTime("estimated_low_watermark"));
+
+    assertEquals(1, row.getArray("entries").size());
+
+    Collection<Row> entries = row.getArray("entries");
+    assertEquals(1, entries.size());
+
+    Row entry = entries.iterator().next();
+    assertEquals("SET_CELL", entry.getString("type"));
+    assertEquals("family", entry.getString("family_name"));
+    assertArrayEquals("column_qualifier".getBytes(UTF_8), entry.getBytes("column_qualifier"));
+    assertEquals(Long.valueOf(123L), entry.getInt64("timestamp_micros"));
+    assertArrayEquals("value".getBytes(UTF_8), entry.getBytes("value"));
+  }
+
+  @Test
+  public void testFlattenedMutationEntryToRow() {
+    ChangeStreamMutation mutation = mock(ChangeStreamMutation.class);
+
+    SetCell setCell =
+        SetCell.create(
+            "family",
+            ByteString.copyFromUtf8("column_qualifier"),
+            123L,
+            ByteString.copyFromUtf8("value"));
+
+    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123Z");
+    java.time.Instant estimatedLowWatermark = java.time.Instant.parse("2026-10-19T09:59:59.456Z");
+
+    when(mutation.getRowKey()).thenReturn(ByteString.copyFromUtf8("key"));
+    when(mutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
+    when(mutation.getSourceClusterId()).thenReturn("cluster-1");
+    when(mutation.getCommitTime()).thenReturn(commitTime);
+    when(mutation.getTieBreaker()).thenReturn(42);
+    when(mutation.getToken()).thenReturn("token-1");
+    when(mutation.getEstimatedLowWatermarkTime()).thenReturn(estimatedLowWatermark);
+
+    Row row =
+        BigtableChangeStreamReadSchemaTransformProvider.flattenedMutationEntryToRow(
+            mutation, setCell);
+
+    assertArrayEquals("key".getBytes(UTF_8), row.getBytes("key"));
+    assertEquals("USER", row.getString("mutation_type"));
+    assertEquals("cluster-1", row.getString("source_cluster_id"));
+    assertEquals(
+        new org.joda.time.Instant(commitTime.toEpochMilli()), row.getDateTime("commit_timestamp"));
+    assertEquals(Integer.valueOf(42), row.getInt32("tie_breaker"));
+    assertEquals("token-1", row.getString("token"));
+    assertEquals(
+        new org.joda.time.Instant(estimatedLowWatermark.toEpochMilli()),
+        row.getDateTime("estimated_low_watermark"));
+
+    assertEquals("SET_CELL", row.getString("type"));
+    assertEquals("family", row.getString("family_name"));
+    assertArrayEquals("column_qualifier".getBytes(UTF_8), row.getBytes("column_qualifier"));
+    assertEquals(Long.valueOf(123L), row.getInt64("timestamp_micros"));
+    assertArrayEquals("value".getBytes(UTF_8), row.getBytes("value"));
+
+    assertNull(row.getRow("timestamp_range"));
+    assertNull(row.getRow("value_qualifier"));
+    assertNull(row.getRow("value_timestamp"));
+    assertNull(row.getRow("value_input"));
+  }
+
+  @Test
+  public void testFlattenDefaultsToTrue() {
+    BigtableChangeStreamReadConfiguration configuration =
+        BigtableChangeStreamReadConfiguration.builder()
+            .setProjectId("project")
+            .setInstanceId("instance")
+            .setTableId("table")
+            .build();
+
+    assertEquals(Boolean.TRUE, configuration.getFlatten());
   }
 
   @Test
@@ -266,7 +384,8 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
             "table_id",
             "app_profile_id",
             "start_at_timestamp",
-            "change_stream_name"),
+            "change_stream_name",
+            "flatten"),
         new HashSet<>(schema.getFieldNames()));
   }
 }

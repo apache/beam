@@ -84,7 +84,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       Schema.builder()
           .addStringField("type")
           .addStringField("family_name")
-          .addNullableByteArrayField("qualifier")
+          .addNullableByteArrayField("column_qualifier")
           .addNullableInt64Field("timestamp_micros")
           .addNullableByteArrayField("value")
           .addNullableRowField("timestamp_range", TIMESTAMP_RANGE_SCHEMA)
@@ -95,7 +95,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
 
   static final Schema CHANGE_STREAM_MUTATION_SCHEMA =
       Schema.builder()
-          .addByteArrayField("row_key")
+          .addByteArrayField("key")
           .addStringField("mutation_type")
           .addStringField("source_cluster_id")
           .addDateTimeField("commit_timestamp")
@@ -103,6 +103,26 @@ public class BigtableChangeStreamReadSchemaTransformProvider
           .addStringField("token")
           .addDateTimeField("estimated_low_watermark")
           .addArrayField("entries", Schema.FieldType.row(ENTRY_SCHEMA))
+          .build();
+
+  static final Schema FLATTENED_CHANGE_STREAM_MUTATION_SCHEMA =
+      Schema.builder()
+          .addByteArrayField("key")
+          .addStringField("mutation_type")
+          .addStringField("source_cluster_id")
+          .addDateTimeField("commit_timestamp")
+          .addInt32Field("tie_breaker")
+          .addStringField("token")
+          .addDateTimeField("estimated_low_watermark")
+          .addStringField("type")
+          .addStringField("family_name")
+          .addNullableByteArrayField("column_qualifier")
+          .addNullableInt64Field("timestamp_micros")
+          .addNullableByteArrayField("value")
+          .addNullableRowField("timestamp_range", TIMESTAMP_RANGE_SCHEMA)
+          .addNullableRowField("value_qualifier", VALUE_SCHEMA)
+          .addNullableRowField("value_timestamp", VALUE_SCHEMA)
+          .addNullableRowField("value_input", VALUE_SCHEMA)
           .build();
 
   @Override
@@ -122,7 +142,17 @@ public class BigtableChangeStreamReadSchemaTransformProvider
 
   @Override
   public String description() {
-    return "Reads change stream records from a Google Cloud Bigtable table.";
+    return "Reads change stream records from a Google Cloud Bigtable table.\n"
+        + "The transform requires the project ID, instance ID, and table ID parameters.\n"
+        + "Optionally, an app profile, start timestamp, change stream name, and flatten mode can be provided.\n"
+        + "By default, the output is flattened to one row per change stream entry.\n"
+        + "Example usage:\n"
+        + "  - type: ReadFromBigtableCDC\n"
+        + "    config:\n"
+        + "      project: \"my-gcp-project\"\n"
+        + "      instance: \"my-bigtable-instance\"\n"
+        + "      table: \"my-table\"\n"
+        + "      flatten: true\n";
   }
 
   @Override
@@ -164,9 +194,15 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     @SchemaFieldDescription("Name used to identify the Bigtable change stream pipeline.")
     public abstract @Nullable String getChangeStreamName();
 
+    @SchemaFieldDescription(
+        "If true or omitted, outputs one row per change stream entry. "
+            + "If false, outputs one row per mutation with nested entries.")
+    public abstract @Nullable Boolean getFlatten();
+
     public static Builder builder() {
       return new AutoValue_BigtableChangeStreamReadSchemaTransformProvider_BigtableChangeStreamReadConfiguration
-          .Builder();
+              .Builder()
+          .setFlatten(true);
     }
 
     /** Builder for {@link BigtableChangeStreamReadConfiguration}. */
@@ -184,6 +220,8 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       public abstract Builder setStartAtTimestamp(String startAtTimestamp);
 
       public abstract Builder setChangeStreamName(String changeStreamName);
+
+      public abstract Builder setFlatten(@Nullable Boolean flatten);
 
       public abstract BigtableChangeStreamReadConfiguration build();
     }
@@ -230,10 +268,21 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       PCollection<KV<ByteString, ChangeStreamMutation>> mutations =
           input.getPipeline().apply(readChangeStream);
 
-      PCollection<Row> rows =
-          mutations
-              .apply("ConvertToBeamRows", ParDo.of(new ChangeStreamMutationToRowDoFn()))
-              .setRowSchema(CHANGE_STREAM_MUTATION_SCHEMA);
+      PCollection<Row> rows;
+
+      if (Boolean.FALSE.equals(configuration.getFlatten())) {
+        rows =
+            mutations
+                .apply("ConvertToBeamRows", ParDo.of(new ChangeStreamMutationToRowDoFn()))
+                .setRowSchema(CHANGE_STREAM_MUTATION_SCHEMA);
+      } else {
+        rows =
+            mutations
+                .apply(
+                    "ConvertToFlattenedBeamRows",
+                    ParDo.of(new ChangeStreamMutationToFlattenedRowsDoFn()))
+                .setRowSchema(FLATTENED_CHANGE_STREAM_MUTATION_SCHEMA);
+      }
 
       return PCollectionRowTuple.of(OUTPUT_TAG, rows);
     }
@@ -246,6 +295,21 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     public void processElement(
         @Element KV<ByteString, ChangeStreamMutation> element, OutputReceiver<Row> out) {
       out.output(mutationToRow(element.getValue()));
+    }
+  }
+
+  private static class ChangeStreamMutationToFlattenedRowsDoFn
+      extends DoFn<KV<ByteString, ChangeStreamMutation>, Row> {
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<ByteString, ChangeStreamMutation> element, OutputReceiver<Row> out) {
+
+      ChangeStreamMutation mutation = element.getValue();
+
+      for (Entry entry : mutation.getEntries()) {
+        out.output(flattenedMutationEntryToRow(mutation, entry));
+      }
     }
   }
 
@@ -265,6 +329,30 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .addValue(mutation.getToken())
         .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
         .addValue(entries)
+        .build();
+  }
+
+  static Row flattenedMutationEntryToRow(ChangeStreamMutation mutation, Entry entry) {
+
+    Row entryRow = entryToRow(entry);
+
+    return Row.withSchema(FLATTENED_CHANGE_STREAM_MUTATION_SCHEMA)
+        .addValue(mutation.getRowKey().toByteArray())
+        .addValue(mutation.getType().name())
+        .addValue(mutation.getSourceClusterId())
+        .addValue(new Instant(mutation.getCommitTime().toEpochMilli()))
+        .addValue(mutation.getTieBreaker())
+        .addValue(mutation.getToken())
+        .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
+        .addValue(entryRow.getString("type"))
+        .addValue(entryRow.getString("family_name"))
+        .addValue(entryRow.getBytes("column_qualifier"))
+        .addValue(entryRow.getInt64("timestamp_micros"))
+        .addValue(entryRow.getBytes("value"))
+        .addValue(entryRow.getRow("timestamp_range"))
+        .addValue(entryRow.getRow("value_qualifier"))
+        .addValue(entryRow.getRow("value_timestamp"))
+        .addValue(entryRow.getRow("value_input"))
         .build();
   }
 
