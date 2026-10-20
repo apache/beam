@@ -167,9 +167,17 @@ dataframe_dependency = [
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 qdrant_dependency = ['qdrant-client>=1.15.0']
 
-# google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
-# ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
-# cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
+# tensorflow-transform 1.21 / tfx-bsl 1.21 require protobuf>=6 and
+# google-api-python-client<2. google-adk 1.x required
+# google-api-python-client>=2.157, so tft and ADK could not be installed
+# together; google-adk 2.x dropped that requirement.
+ml_tft_dependency = [
+    'tensorflow_transform>=1.21.0,<1.22.0; python_version < "3.14"',
+    # tensorflow-transform requires dill, but doesn't set dill as a
+    # hard requirement in setup.py.
+    'dill',
+]
+
 ml_base_core = [
     'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
@@ -181,39 +189,33 @@ ml_base_core = [
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
-    'tensorflow',
+    # tensorflow 2.21 has no cp314 wheels.
+    'tensorflow; python_version < "3.14"',
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
     'tensorflow-hub',
-    # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
-    # processors.RobertaProcessing (and BertProcessing) from `cls` to
-    # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
-    # https://github.com/huggingface/tokenizers/pull/1928.
-    # transformers' slow CLIP tokenizer still calls
-    # `processors.RobertaProcessing(sep=..., cls=..., ...)` at
-    # transformers/models/clip/tokenization_clip.py, so model load fails with
-    # "RobertaProcessing.__new__() got an unexpected keyword argument 'cls'".
-    # The ml tox envs run with pip_pre=True (tox.ini:32), so even though no
-    # 0.23 stable has shipped yet, the rc gets resolved.
-    # Drop this cap once transformers updates the CLIP call site to
-    # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
-    'tokenizers<0.23',
+    # tensorflow-hub 0.16.1 imports pkg_resources at import time, which was
+    # removed in setuptools 82. Without this cap, Python 3.12+ environments
+    # (no bundled setuptools) resolve setuptools>=82 and TF tests are skipped.
+    'setuptools<82',
     # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
     'torch<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
-    'tokenizers>=0.13.3,<0.22.0',
+    'tokenizers>=0.13.3,<0.23.0',
 ]
 
 ml_adk_dependency = [
-    'google-adk==1.28.1',
+    # google-adk 2.x dropped the google-api-python-client>=2.157 requirement
+    # that made 1.x incompatible with tfx-bsl (google-api-python-client<2).
+    'google-adk>=2.0.0,<3',
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api==1.37.0',
-    'opentelemetry-sdk==1.37.0',
-    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    'opentelemetry-api>=1.36.0,<1.43',
+    'opentelemetry-sdk>=1.36.0,<1.43',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -605,19 +607,24 @@ if __name__ == '__main__':
               # ADK-only path.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p310_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
+          # xgboost tests import datatable, which only has wheels for <=3.12.
           'p311_ml_test': [
             'datatable',
-          ] + ml_base + qdrant_dependency,
+            'xgboost>=2.1.3',
+          ] + ml_base + ml_tft_dependency + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
+              'xgboost>=2.1.3',
               'typesafe-sdk>=0.7.1,<0.8',
-          ] + ml_base + qdrant_dependency,
+          ] + ml_base + ml_tft_dependency + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
-          'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
+          # datatable has no wheels for Python 3.13+.
+          'p313_ml_test': ml_base + ml_tft_dependency + milvus_dependency +
+          qdrant_dependency,
+          # tensorflow / tensorflow-transform have no cp314 wheels; they are
+          # gated off via environment markers in ml_base_core / ml_tft.
+          'p314_ml_test': ml_base + qdrant_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',

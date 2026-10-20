@@ -149,9 +149,12 @@ class BaseMLTransformTest(unittest.TestCase):
           },
       ),
       param(
+          # Use 0-d numpy scalars to match the declared scalar field types;
+          # NumPy >= 2.4 no longer converts 1-element 1-D arrays to scalars,
+          # which RowCoder's int/float component coders require.
           input_data=[{
-              'x': np.array([1], dtype=np.int64),
-              'y': np.array([2.0], dtype=np.float32),
+              'x': np.int32(1),
+              'y': np.float32(2.0),
           }],
           input_types={
               'x': np.int32, 'y': np.float32
