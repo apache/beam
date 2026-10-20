@@ -160,8 +160,12 @@ class GcsUtilV2 {
   /**
    * Default maximum number of files rewritten concurrently by {@link #copy} and {@link #move}, used
    * when {@link GcsOptions#getGcsMaxConcurrentRewrites} is unset.
+   *
+   * <p>A copy or move never uses more threads than it has files, so this only caps large ones, such
+   * as the temp-to-final renames that finish a write of thousands of shards. There 128 brought the
+   * rename time close to {@code GcsUtilV1}'s batched rewrites without any request being throttled.
    */
-  private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 32;
+  private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 128;
 
   /**
    * How long {@link #copy} and {@link #move} wait for in-flight rewrites to finish after a failure

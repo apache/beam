@@ -193,13 +193,13 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   /**
    * Maximum number of files rewritten concurrently when copying or moving files. If unset, a
-   * default of 32 is used.
+   * default of 128 is used.
    *
    * <p>Only applicable to GcsUtil V2, which is enabled with the {@code use_gcsutil_v2} experiment.
    */
   @Description(
       "Maximum number of files rewritten concurrently when copying or moving files in GCS."
-          + " If unset, defaults to 32. Only applicable to GcsUtil V2 (enabled with the"
+          + " If unset, defaults to 128. Only applicable to GcsUtil V2 (enabled with the"
           + " use_gcsutil_v2 experiment).")
   @Nullable Integer getGcsMaxConcurrentRewrites();
 
