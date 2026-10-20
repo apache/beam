@@ -144,11 +144,13 @@ public final class DeltaWriteTestUtils {
         return rows.get(rowId).getInt32(fieldIndex);
       }
 
+      @SuppressWarnings("PatternMatchingInstanceof")
       @Override
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
           Object val = rows.get(rowId).getValue(fieldIndex);
-          if (val instanceof java.time.Instant inst) {
+          if (val instanceof java.time.Instant) {
+            java.time.Instant inst = (java.time.Instant) val;
             return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
           } else {
             throw new RuntimeException(
