@@ -337,8 +337,7 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
   end_at = datetime.now(timezone.utc) + timedelta(seconds=30)
 
   def format_timestamp(timestamp):
-    return timestamp.isoformat(
-      timespec='milliseconds').replace('+00:00', 'Z')
+    return timestamp.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
 
   try:
     yield {
@@ -351,16 +350,14 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
     }
   finally:
     try:
-      _LOGGER.info(
-        'Disabling change stream for Bigtable table [%s]', table_id)
+      _LOGGER.info('Disabling change stream for Bigtable table [%s]', table_id)
 
       disable_request = bigtable_table_admin.UpdateTableRequest(
-        table=table_pb.Table(name=table_name),
-        update_mask=field_mask_pb2.FieldMask(
-          paths=['change_stream_config']))
+          table=table_pb.Table(name=table_name),
+          update_mask=field_mask_pb2.FieldMask(paths=['change_stream_config']))
 
       operation = bigtable_client.table_admin_client.update_table(
-        request=disable_request)
+          request=disable_request)
       operation.result(timeout=500)
 
       _LOGGER.info('Deleting Bigtable CDC table [%s]', table_id)
