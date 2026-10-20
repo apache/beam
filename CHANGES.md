@@ -93,7 +93,7 @@
 * (Python) `Regex.find_all` with `group=Regex.ALL` now returns every group, as `(match, group1, group2, ...)`, instead of only group 1, and with `outputEmpty=False` it drops a match only when the whole match is empty, matching the `group=0` behavior ([#40399](https://github.com/apache/beam/pull/40399)).
 * (Python) `Regex.all_matches` now returns every group of the regex, instead of failing with a `TypeError` when the regex has no groups and dropping nested or unmatched trailing groups ([#40562](https://github.com/apache/beam/issues/40562)).
 * (Python) `--dataflow_endpoint` now defaults to `''` instead of `https://dataflow.googleapis.com`. When unset, the Google Cloud client library resolves the Dataflow endpoint and honors `GOOGLE_CLOUD_UNIVERSE_DOMAIN`, so Dataflow jobs can be submitted in non-default universes. Code that reads `GoogleCloudOptions.dataflow_endpoint` should handle an empty value ([#40569](https://github.com/apache/beam/issues/40569)).
-* (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatables>=1.1.0<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatables` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
+* (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
 
 ## Deprecations
 
