@@ -1275,7 +1275,7 @@ class GoogleCloudOptions(PipelineOptions):
             'Unable to check soft delete policy because GCP dependencies are '
             'not installed.')
         return
-      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+      if gcsio.GcsIO(pipeline_options=self).is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
             "Bucket %s used as %s has soft-delete policy enabled."
@@ -1289,8 +1289,10 @@ class GoogleCloudOptions(PipelineOptions):
             arg_name,
             n=1,
             key="message")
-    except ImportError:
-      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+    except Exception as e:  # pylint: disable=broad-except
+      # This check only emits a warning, so it must not block pipeline
+      # submission.
+      _LOGGER.warning('Unable to check soft delete policy: %s', e)
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
