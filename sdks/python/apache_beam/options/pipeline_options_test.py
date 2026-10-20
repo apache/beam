@@ -978,8 +978,8 @@ class PipelineOptionsTest(unittest.TestCase):
         ['--project=myproject', '--temp_location=gs://beam/tmp'])
     # The soft delete check only emits a warning; failures must not block
     # pipeline submission.
-    with self.assertLogs(
-        'apache_beam.options.pipeline_options', level='WARNING'):
+    with self.assertLogs('apache_beam.options.pipeline_options',
+                         level='WARNING'):
       options._warn_if_soft_delete_policy_enabled('temp_location')
 
   def test_validation_good_stg_good_temp(self):
