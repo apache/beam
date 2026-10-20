@@ -33,6 +33,7 @@ import decimal
 import io
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -122,6 +123,77 @@ _PROJECT_NAME_SEGMENT_PATTERN = r'[-a-z0-9]*[a-z0-9]'
 
 # For CI: temp dataset of this name are automatically deleted
 _TEMP_DATASET_PREFIX = 'beam_temp_dataset_'
+
+_DEFAULT_UNIVERSE_DOMAIN = 'googleapis.com'
+_UNIVERSE_DOMAIN_ENV = 'GOOGLE_CLOUD_UNIVERSE_DOMAIN'
+_BIGQUERY_SERVICE_PATH = '/bigquery/v2'
+
+
+def _get_bigquery_endpoint(
+    pipeline_options: Optional[PipelineOptions] = None) -> Optional[str]:
+  """Returns the BigQuery root URL set via ``--bigquery_endpoint``, or None.
+
+  The given pipeline options are checked first. If they do not set the
+  endpoint, the options of the running pipeline are checked; these are
+  available on workers, where BigQuery clients are often created without
+  access to the pipeline options.
+
+  The returned URL always has a scheme and never has a trailing slash or the
+  ``/bigquery/v2`` service path.
+  """
+  endpoint = None
+  if pipeline_options is not None:
+    endpoint = pipeline_options.view_as(GoogleCloudOptions).bigquery_endpoint
+  if not endpoint:
+    endpoint = value_provider.RuntimeValueProvider.get_value(
+        'bigquery_endpoint', str, None)
+  if not endpoint:
+    return None
+  endpoint = endpoint.strip().rstrip('/')
+  if endpoint.endswith(_BIGQUERY_SERVICE_PATH):
+    endpoint = endpoint[:-len(_BIGQUERY_SERVICE_PATH)]
+  if '://' not in endpoint:
+    endpoint = 'https://' + endpoint
+  return endpoint
+
+
+def get_bigquery_api_url(
+    pipeline_options: Optional[PipelineOptions] = None) -> str:
+  """Returns the base URL of the BigQuery v2 REST API.
+
+  The URL is resolved in the following order:
+
+  1. ``--bigquery_endpoint``, if set.
+  2. ``https://bigquery.<domain>``, if the ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``
+     environment variable is set to a non-default universe domain. This
+     matches how the google-cloud-bigquery client library resolves its
+     endpoint.
+  3. The default public URL.
+  """
+  endpoint = _get_bigquery_endpoint(pipeline_options)
+  if endpoint is None:
+    universe_domain = (
+        os.environ.get(_UNIVERSE_DOMAIN_ENV, '').strip() or
+        _DEFAULT_UNIVERSE_DOMAIN)
+    if universe_domain == _DEFAULT_UNIVERSE_DOMAIN:
+      return bigquery.BigqueryV2.BASE_URL
+    endpoint = 'https://bigquery.%s' % universe_domain
+  return endpoint + _BIGQUERY_SERVICE_PATH + '/'
+
+
+def get_bigquery_client_options(
+    pipeline_options: Optional[PipelineOptions] = None) -> Optional[dict]:
+  """Returns ``client_options`` for a ``google.cloud.bigquery.Client``.
+
+  Returns None when ``--bigquery_endpoint`` is not set, so that the client
+  library resolves the endpoint itself (it honors
+  ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``).
+  """
+  endpoint = _get_bigquery_endpoint(pipeline_options)
+  if endpoint is None:
+    return None
+  return {'api_endpoint': endpoint}
+
 
 # TODO(https://github.com/apache/beam/issues/25946): Add support for
 # more Beam portable schema types as Python types
@@ -510,6 +582,7 @@ class BigQueryWrapper(object):
       pipeline_options=None):
     self.quota_project_id = (
         quota_project_id or _quota_project_id_from_options(pipeline_options))
+    self._pipeline_options = pipeline_options
     self.client = client or BigQueryWrapper._bigquery_client(
         pipeline_options or PipelineOptions(),
         quota_project_id=self.quota_project_id)
@@ -556,7 +629,8 @@ class BigQueryWrapper(object):
     """
     if self._gcp_bq_client is None:
       self._gcp_bq_client = BigQueryWrapper._gcp_bigquery_client(
-          quota_project_id=self.quota_project_id)
+          quota_project_id=self.quota_project_id,
+          pipeline_options=self._pipeline_options)
     return self._gcp_bq_client
 
   @property
@@ -1597,6 +1671,7 @@ class BigQueryWrapper(object):
     # Use explicit quota_project_id if provided, otherwise get from options
     quota_project_id = quota_project_id or _quota_project_id_from_options(
         pipeline_options)
+    url = get_bigquery_api_url(pipeline_options)
     http = get_new_http()
     if quota_project_id:
       if credentials is None:
@@ -1612,11 +1687,12 @@ class BigQueryWrapper(object):
       http = _HttpWithHeaders(
           http, {'x-goog-user-project': quota_project_id},
           hosts=[
-              urllib.parse.urlsplit(url).hostname for url in (
-                  bigquery.BigqueryV2.BASE_URL,
+              urllib.parse.urlsplit(u).hostname for u in (
+                  url, bigquery.BigqueryV2.BASE_URL,
                   bigquery.BigqueryV2.MTLS_BASE_URL)
           ])
     return bigquery.BigqueryV2(
+        url=url,
         http=http,
         credentials=credentials,
         response_encoding='utf8',
@@ -1625,17 +1701,21 @@ class BigQueryWrapper(object):
         })
 
   @staticmethod
-  def _gcp_bigquery_client(quota_project_id: str = None):
+  def _gcp_bigquery_client(
+      quota_project_id: str = None,
+      pipeline_options: Optional[PipelineOptions] = None):
     """Create a google-cloud-bigquery Client with optional quota project.
 
     The client applies the quota project to the credentials it resolves
-    itself, so no credentials are derived here.
+    itself, so no credentials are derived here. If ``--bigquery_endpoint`` is
+    set, it is used as the API endpoint; otherwise the client library resolves
+    the endpoint itself, honoring ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``.
     """
-    client_options = None
+    client_options = get_bigquery_client_options(pipeline_options) or {}
     if quota_project_id:
-      client_options = {'quota_project_id': quota_project_id}
+      client_options['quota_project_id'] = quota_project_id
     return gcp_bigquery.Client(
-        client_options=client_options,
+        client_options=client_options or None,
         client_info=ClientInfo(
             user_agent="apache-beam-%s" % apache_beam.__version__))
 

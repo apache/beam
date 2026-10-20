@@ -1044,6 +1044,15 @@ class GoogleCloudOptions(PipelineOptions):
             'resolved by the Google Cloud client library, which honors '
             'GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default '
             'public URL (%s).' % cls.DATAFLOW_ENDPOINT))
+    parser.add_argument(
+        '--bigquery_endpoint',
+        default=None,
+        help=(
+            'The root URL for the BigQuery API, e.g. '
+            '"https://bigquery.googleapis.com". If not set, the endpoint is '
+            'derived from the GOOGLE_CLOUD_UNIVERSE_DOMAIN environment '
+            'variable when present, and otherwise the default public URL is '
+            'used.'))
     # Remote execution must check that this option is not None.
     parser.add_argument(
         '--project',
