@@ -103,6 +103,7 @@ class BeamModulePluginProcessor:
   KNOWN_DEPS = {
       "arrow": "org.apache.arrow:arrow-memory-core",
       "gax": "com.google.api:gax",
+      "google_api_client": "com.google.api-client:google-api-client",
       "grpc":
           "io.grpc:grpc-netty",  # use "grpc-netty" to pick up proper netty version
       "netty": "io.netty:netty-transport",

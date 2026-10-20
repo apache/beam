@@ -789,3 +789,68 @@ func TestComputeFacts(t *testing.T) {
 		})
 	}
 }
+
+func TestFinalizeStage_RequestsFinalization(t *testing.T) {
+	pardo := func(urn string, finalize bool) *pipepb.FunctionSpec {
+		return &pipepb.FunctionSpec{
+			Urn:     urn,
+			Payload: protox.MustEncode(&pipepb.ParDoPayload{RequestsFinalization: finalize}),
+		}
+	}
+	// first consumes the stage input n0; second is fused after it and consumes n1.
+	stageOf := func(first, second *pipepb.FunctionSpec) *pipepb.Components {
+		return &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"first": {
+					Spec:    first,
+					Inputs:  map[string]string{"i0": "n0"},
+					Outputs: map[string]string{"o0": "n1"},
+				},
+				"second": {
+					Spec:    second,
+					Inputs:  map[string]string{"i0": "n1"},
+					Outputs: map[string]string{"o0": "n2"},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name         string
+		comps        *pipepb.Components
+		wantFinalize bool
+	}{
+		{
+			name:  "no_transform_requests_finalization",
+			comps: stageOf(&pipepb.FunctionSpec{Urn: urns.TransformAssignWindows}, pardo(urns.TransformParDo, false)),
+		}, {
+			name:         "transform_at_stage_input",
+			comps:        stageOf(pardo(urns.TransformParDo, true), pardo(urns.TransformParDo, false)),
+			wantFinalize: true,
+		}, {
+			name:         "pardo_fused_after_another_transform",
+			comps:        stageOf(pardo(urns.TransformParDo, false), pardo(urns.TransformParDo, true)),
+			wantFinalize: true,
+		}, {
+			name:         "sdf_process_fused_after_another_transform",
+			comps:        stageOf(pardo(urns.TransformParDo, false), pardo(urns.TransformProcessSizedElements, true)),
+			wantFinalize: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			topological := []string{"first", "second"}
+			facts, err := computeFacts(topological, test.comps)
+			if err != nil {
+				t.Fatalf("computeFacts() = %v", err)
+			}
+			stg := &stage{transforms: topological}
+			if err := finalizeStage(stg, test.comps, facts); err != nil {
+				t.Fatalf("finalizeStage() = %v", err)
+			}
+			if stg.finalize != test.wantFinalize {
+				t.Errorf("stage.finalize = %v, want %v", stg.finalize, test.wantFinalize)
+			}
+		})
+	}
+}

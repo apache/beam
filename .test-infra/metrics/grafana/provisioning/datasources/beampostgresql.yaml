@@ -29,8 +29,8 @@ datasources:
     secureJsonData:
       password: ${PSQL_DB_DBPWD}
     user: ${PSQL_DB_DBUSERNAME}
-    database: ${PSQL_DB_DBNAME}
     jsonData:
+      database: ${PSQL_DB_DBNAME}
       sslmode: disable
     editable: false
 

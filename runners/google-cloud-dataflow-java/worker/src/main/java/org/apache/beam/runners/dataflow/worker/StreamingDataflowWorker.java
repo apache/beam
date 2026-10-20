@@ -1055,7 +1055,6 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions options, MultiKeyBundleOptions multiKeyBundleOptions) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
-    boolean useKeyGroupWorkQueue = multiKeyBundleOptions.multiKeyBundleEnabled();
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1064,7 +1063,7 @@ public final class StreamingDataflowWorker {
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
         useFairMonitor,
-        useKeyGroupWorkQueue);
+        multiKeyBundleOptions.multiKeyBundleEnabled());
   }
 
   public static void main(String[] args) throws Exception {
@@ -1134,8 +1133,8 @@ public final class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.executorQueueIsEmpty();
+  public boolean workExecutorIsEmptyForTesting() {
+    return workUnitExecutor.executorQueueIsEmptyForTesting();
   }
 
   @VisibleForTesting
