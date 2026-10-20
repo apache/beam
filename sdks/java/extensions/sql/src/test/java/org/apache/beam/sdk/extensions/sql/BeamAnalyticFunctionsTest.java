@@ -588,4 +588,118 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
 
     pipeline.run();
   }
+
+  @Test
+  public void testCumeDistFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, CUME_DIST() over (ORDER BY x ) as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addDoubleField("agg").build();
+
+    // CUME_DIST = (# rows with value <= current) / (total rows). Input x: 1,2,2,5,8,10,10.
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 1.0 / 7.0,
+                2, 3.0 / 7.0,
+                2, 3.0 / 7.0,
+                5, 4.0 / 7.0,
+                8, 5.0 / 7.0,
+                10, 7.0 / 7.0,
+                10, 7.0 / 7.0)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testCountStarOverWindow() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData2();
+    String sql = "SELECT x, COUNT(*) over () as agg  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("x").addInt64Field("agg").build();
+
+    // COUNT(*) OVER () counts every row in the partition (7 rows) regardless of value.
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                1, 7L,
+                2, 7L,
+                2, 7L,
+                5, 7L,
+                8, 7L,
+                10, 7L,
+                10, 7L)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  /**
+   * Table with a TIMESTAMP ordering key. Used to exercise RANGE framing over a temporal ORDER BY
+   * column (previously a ClassCastException because the order-by value was cast to {@code Number}).
+   */
+  private PCollection<Row> inputDataTimestamp() {
+    Schema schema = Schema.builder().addDateTimeField("ts").addInt32Field("v").build();
+    return pipeline
+        .apply(
+            Create.of(
+                TestUtils.rowsBuilderOf(schema)
+                    .addRows(
+                        org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils
+                            .parseTimestampWithUTCTimeZone("2020-01-01 00:00:00"),
+                        10,
+                        org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils
+                            .parseTimestampWithUTCTimeZone("2020-01-02 00:00:00"),
+                        20,
+                        org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils
+                            .parseTimestampWithUTCTimeZone("2020-01-02 00:00:00"),
+                        30,
+                        org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils
+                            .parseTimestampWithUTCTimeZone("2020-01-03 00:00:00"),
+                        40)
+                    .getRows()))
+        .setRowSchema(schema);
+  }
+
+  /**
+   * RANGE framing over a TIMESTAMP ORDER BY key. A cumulative RANGE sum groups rows that share the
+   * same ordering value into one peer group: the two rows at 2020-01-02 both see 10+20+30=60.
+   */
+  @Test
+  public void testOverRangeTimestampOrderKey() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputDataTimestamp();
+    String sql =
+        "SELECT v, sum(v) over "
+            + "("
+            + "ORDER BY ts "
+            + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+            + ")"
+            + " as total  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema = Schema.builder().addInt32Field("v").addInt32Field("total").build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                10, 10,
+                20, 60,
+                30, 60,
+                40, 100)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
 }

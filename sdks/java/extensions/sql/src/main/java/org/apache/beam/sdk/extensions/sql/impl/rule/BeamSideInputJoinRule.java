@@ -53,6 +53,9 @@ public class BeamSideInputJoinRule extends RelOptRule {
     if (BeamJoinRel.containsSeekableInput(call.rel(0))) {
       return false;
     }
+    // No cross-join gate needed here: BeamCrossJoinRule only handles bounded x bounded, which this
+    // (mixed-boundedness) rule never matches, so cross / non-equi joins keep their existing
+    // handling.
     PCollection.IsBounded boundednessOfLeftRel = BeamJoinRel.getBoundednessOfRelNode(call.rel(1));
     PCollection.IsBounded boundednessOfRightRel = BeamJoinRel.getBoundednessOfRelNode(call.rel(2));
     return (boundednessOfLeftRel == PCollection.IsBounded.BOUNDED

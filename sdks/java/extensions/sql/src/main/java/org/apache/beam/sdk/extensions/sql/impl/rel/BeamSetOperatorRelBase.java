@@ -17,12 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -30,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
@@ -59,13 +67,31 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
 
   @Override
   public PCollection<Row> expand(PCollectionList<Row> inputs) {
-    checkArgument(
-        inputs.size() == 2,
-        "Wrong number of arguments to %s: %s",
-        beamRelNode.getClass().getSimpleName(),
-        inputs);
-    PCollection<Row> leftRows = inputs.get(0);
-    PCollection<Row> rightRows = inputs.get(1);
+    Schema targetSchema = CalciteUtils.toSchema(beamRelNode.getRowType());
+
+    if (opType == OpType.UNION && all) {
+      PCollectionList<Row> coercedInputs = PCollectionList.empty(inputs.getPipeline());
+      for (PCollection<Row> input : inputs.getAll()) {
+        coercedInputs = coercedInputs.and(coerce(input, targetSchema));
+      }
+      return coercedInputs.apply("UnionAllFlatten", Flatten.pCollections());
+    }
+
+    if (inputs.size() == 2) {
+      return expandPair(coerce(inputs.get(0), targetSchema), coerce(inputs.get(1), targetSchema));
+    } else if (inputs.size() > 2) {
+      PCollection<Row> result = coerce(inputs.get(0), targetSchema);
+      for (int i = 1; i < inputs.size(); i++) {
+        result = expandPair(result, coerce(inputs.get(i), targetSchema));
+      }
+      return result;
+    } else {
+      throw new IllegalArgumentException(
+          "Too few arguments to " + beamRelNode.getClass().getSimpleName());
+    }
+  }
+
+  private PCollection<Row> expandPair(PCollection<Row> leftRows, PCollection<Row> rightRows) {
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
@@ -94,5 +120,55 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
                 new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
                     lhsTag, rhsTag, opType, all)))
         .setRowSchema(joined.getSchema().getField("key").getType().getRowSchema());
+  }
+
+  private static PCollection<Row> coerce(PCollection<Row> input, Schema targetSchema) {
+    if (input.getSchema().equals(targetSchema)) {
+      return input;
+    }
+    return input
+        .apply(
+            "CoerceSchema",
+            MapElements.into(TypeDescriptors.rows()).via(row -> coerceRow(row, targetSchema)))
+        .setRowSchema(targetSchema);
+  }
+
+  private static Row coerceRow(Row row, Schema targetSchema) {
+    Row.Builder builder = Row.withSchema(targetSchema);
+    for (int i = 0; i < targetSchema.getFieldCount(); i++) {
+      Schema.Field targetField = targetSchema.getField(i);
+      Object value = row.getValue(i);
+      builder.addValue(
+          coerceValue(value, row.getSchema().getField(i).getType(), targetField.getType()));
+    }
+    return builder.build();
+  }
+
+  private static Object coerceValue(Object value, FieldType inputType, FieldType targetType) {
+    if (value == null) {
+      return null;
+    }
+    if (inputType.equals(targetType)) {
+      return value;
+    }
+    if (inputType.getTypeName() == TypeName.ARRAY && targetType.getTypeName() == TypeName.ARRAY) {
+      List<?> list = (List<?>) value;
+      if (list.isEmpty()) {
+        return Collections.emptyList();
+      }
+      List<Object> coercedList = new ArrayList<>(list.size());
+      for (Object element : list) {
+        coercedList.add(
+            coerceValue(
+                element,
+                inputType.getCollectionElementType(),
+                targetType.getCollectionElementType()));
+      }
+      return coercedList;
+    }
+    if (inputType.getTypeName() == TypeName.ROW && targetType.getTypeName() == TypeName.ROW) {
+      return coerceRow((Row) value, targetType.getRowSchema());
+    }
+    return value;
   }
 }

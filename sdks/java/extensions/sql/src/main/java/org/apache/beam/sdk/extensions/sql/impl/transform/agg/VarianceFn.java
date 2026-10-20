@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -146,9 +147,17 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   }
 
   @Override
+  @SuppressWarnings("nullness") // var_samp/stddev_samp of an under-sized group is a NULL output.
   public T extractOutput(VarianceAccumulator accumulator) {
     BigDecimal result = getVariance(accumulator);
-    if (result != null && isStddev) {
+    // An undefined estimate (sample variance/stddev over fewer than 2 elements, or any
+    // variance/stddev over an empty group) is NULL — matching Spark var_samp/stddev_samp and pandas
+    // GroupBy.var()/std()/skew() (which yield NaN for a single-element group). getVariance returns
+    // null for that case; propagate it as a NULL output rather than a spurious 0.0.
+    if (result == null) {
+      return (T) null;
+    }
+    if (isStddev) {
       double doubleVal = result.doubleValue();
       if (doubleVal < 0.0) {
         doubleVal = 0.0; // Clamp negative variance due to numerical instability
@@ -162,14 +171,16 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
     return decimalConverter.apply(result);
   }
 
-  private BigDecimal getVariance(VarianceAccumulator variance) {
+  private @Nullable BigDecimal getVariance(VarianceAccumulator variance) {
 
     BigDecimal adjustedCount =
         this.isSample ? variance.count().subtract(BigDecimal.ONE) : variance.count();
 
-    // Avoid ArithmeticException: Division is undefined when adjustedCount is 0
-    if (adjustedCount.compareTo(BigDecimal.ZERO) == 0) {
-      return BigDecimal.ZERO;
+    // Division is undefined when adjustedCount is 0: sample variance/stddev over a single element
+    // (n - 1 == 0) or any variance over an empty group. Spark and pandas return NULL / NaN here, so
+    // surface NULL (the caller maps it to a null output) instead of a misleading 0.0.
+    if (adjustedCount.compareTo(BigDecimal.ZERO) <= 0) {
+      return null;
     }
 
     return variance.variance().divide(adjustedCount, MATH_CTX);
