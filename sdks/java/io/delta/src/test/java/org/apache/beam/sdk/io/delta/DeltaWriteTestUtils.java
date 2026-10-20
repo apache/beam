@@ -148,8 +148,7 @@ public final class DeltaWriteTestUtils {
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
           Object val = rows.get(rowId).getValue(fieldIndex);
-          if (val instanceof java.time.Instant) {
-            java.time.Instant inst = (java.time.Instant) val;
+          if (val instanceof java.time.Instant inst) {
             return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
           } else {
             throw new RuntimeException(
