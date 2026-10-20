@@ -18,12 +18,68 @@ package gcpopts
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"golang.org/x/oauth2/google"
 )
+
+func TestGetUniverseDomain(t *testing.T) {
+	tests := []struct {
+		name      string
+		env       string
+		credsUD   string
+		credsErr  error
+		want      string
+		wantCalls int // credential lookups across two calls
+	}{
+		{
+			name:    "env var takes precedence",
+			env:     "env.example.com",
+			credsUD: "creds.example.com",
+			want:    "env.example.com",
+		},
+		{
+			name:      "falls back to credentials and caches",
+			credsUD:   "creds.example.com",
+			want:      "creds.example.com",
+			wantCalls: 1,
+		},
+		{
+			name:      "credential errors are not cached",
+			credsErr:  errors.New("no credentials"),
+			want:      "",
+			wantCalls: 2,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetUniverseDomainCache(t)
+			t.Setenv(universeDomainEnvVar, test.env)
+			calls := 0
+			orig := findDefaultCredentials
+			findDefaultCredentials = func(context.Context, ...string) (*google.Credentials, error) {
+				calls++
+				if test.credsErr != nil {
+					return nil, test.credsErr
+				}
+				return &google.Credentials{
+					UniverseDomainProvider: func() (string, error) { return test.credsUD, nil },
+				}, nil
+			}
+			t.Cleanup(func() { findDefaultCredentials = orig })
+
+			for i := 0; i < 2; i++ {
+				if got := GetUniverseDomain(context.Background()); got != test.want {
+					t.Errorf("GetUniverseDomain() = %q, want %q", got, test.want)
+				}
+			}
+			if calls != test.wantCalls {
+				t.Errorf("credentials looked up %d times, want %d", calls, test.wantCalls)
+			}
+		})
+	}
+}
 
 // resetUniverseDomainCache clears the cached universe domain and restores it
 // when the test finishes.
@@ -39,94 +95,24 @@ func resetUniverseDomainCache(t *testing.T) {
 	t.Cleanup(reset)
 }
 
-// fakeCredentials overrides findDefaultCredentials for the duration of the
-// test, and returns a pointer to the number of times it was called.
-func fakeCredentials(t *testing.T, universe string, err error) *int {
-	t.Helper()
-	calls := 0
-	orig := findDefaultCredentials
-	findDefaultCredentials = func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
-		calls++
-		if err != nil {
-			return nil, err
-		}
-		return &google.Credentials{
-			UniverseDomainProvider: func() (string, error) { return universe, nil },
-		}, nil
-	}
-	t.Cleanup(func() { findDefaultCredentials = orig })
-	return &calls
-}
-
-func TestGetUniverseDomain_EnvVarTakesPrecedence(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "env.example.com")
-	calls := fakeCredentials(t, "creds.example.com", nil)
-
-	if got, want := GetUniverseDomain(context.Background()), "env.example.com"; got != want {
-		t.Errorf("GetUniverseDomain() = %q, want %q", got, want)
-	}
-	if *calls != 0 {
-		t.Errorf("credentials looked up %d times, want 0", *calls)
-	}
-}
-
-func TestGetUniverseDomain_FallsBackToCredentials(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "")
-	calls := fakeCredentials(t, "creds.example.com", nil)
-
-	for i := 0; i < 2; i++ {
-		if got, want := GetUniverseDomain(context.Background()), "creds.example.com"; got != want {
-			t.Errorf("GetUniverseDomain() = %q, want %q", got, want)
-		}
-	}
-	if *calls != 1 {
-		t.Errorf("credentials looked up %d times, want 1 (cached)", *calls)
-	}
-}
-
-func TestGetUniverseDomain_CredentialsError(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "")
-	calls := fakeCredentials(t, "", errors.New("no credentials"))
-
-	for i := 0; i < 2; i++ {
-		if got := GetUniverseDomain(context.Background()); got != "" {
-			t.Errorf("GetUniverseDomain() = %q, want empty", got)
-		}
-	}
-	if *calls != 2 {
-		t.Errorf("credentials looked up %d times, want 2 (errors not cached)", *calls)
-	}
-}
-
-func TestGetUniverseDomain_FromCredentialFile(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "")
-
-	credFile := filepath.Join(t.TempDir(), "creds.json")
-	content := []byte(`{
-		"type": "service_account",
-		"project_id": "test-project",
-		"universe_domain": "file.example.com"
-	}`)
-	if err := os.WriteFile(credFile, content, 0600); err != nil {
-		t.Fatalf("Failed writing fake credential file: %v", err)
-	}
-	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credFile)
-
-	if got, want := GetUniverseDomain(context.Background()), "file.example.com"; got != want {
-		t.Errorf("GetUniverseDomain() = %q, want %q", got, want)
-	}
-}
-
 func TestGetGcsEndpoint(t *testing.T) {
-	orig := *GcsEndpoint
-	t.Cleanup(func() { *GcsEndpoint = orig })
+	const flagValue = "https://flag.example.com/storage/v1/"
+	const optionValue = "https://option.example.com/storage/v1/"
 
-	*GcsEndpoint = "https://storage.example.com/storage/v1/"
-	if got, want := GetGcsEndpoint(), "https://storage.example.com/storage/v1/"; got != want {
-		t.Errorf("GetGcsEndpoint() = %q, want %q", got, want)
+	origFlag := *GcsEndpoint
+	t.Cleanup(func() {
+		*GcsEndpoint = origFlag
+		runtime.GlobalOptions.Set("gcs_endpoint", "")
+	})
+	// On workers, the value arrives as a pipeline option rather than a flag.
+	runtime.GlobalOptions.Set("gcs_endpoint", optionValue)
+
+	*GcsEndpoint = ""
+	if got := GetGcsEndpoint(); got != optionValue {
+		t.Errorf("GetGcsEndpoint() with flag unset = %q, want pipeline option %q", got, optionValue)
+	}
+	*GcsEndpoint = flagValue
+	if got := GetGcsEndpoint(); got != flagValue {
+		t.Errorf("GetGcsEndpoint() with flag set = %q, want flag %q", got, flagValue)
 	}
 }

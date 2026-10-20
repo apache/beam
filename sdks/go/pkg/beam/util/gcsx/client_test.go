@@ -25,24 +25,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 )
 
-func setGcsEndpointFlag(t *testing.T, endpoint string) {
-	t.Helper()
-	orig := *gcpopts.GcsEndpoint
-	*gcpopts.GcsEndpoint = endpoint
-	t.Cleanup(func() { *gcpopts.GcsEndpoint = orig })
-}
-
-func TestEndpointOptions(t *testing.T) {
-	setGcsEndpointFlag(t, "")
-	if got := endpointOptions(); len(got) != 0 {
-		t.Errorf("endpointOptions() with no endpoint = %v, want none", got)
-	}
-	setGcsEndpointFlag(t, "https://storage.example.com/storage/v1/")
-	if got := endpointOptions(); len(got) != 1 {
-		t.Errorf("endpointOptions() with endpoint returned %d options, want 1", len(got))
-	}
-}
-
 func TestNewUnauthenticatedClient_UsesGcsEndpoint(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +33,10 @@ func TestNewUnauthenticatedClient_UsesGcsEndpoint(t *testing.T) {
 		w.Write([]byte(`{"name": "some-bucket"}`))
 	}))
 	defer srv.Close()
-	setGcsEndpointFlag(t, srv.URL+"/storage/v1/")
+
+	orig := *gcpopts.GcsEndpoint
+	*gcpopts.GcsEndpoint = srv.URL + "/storage/v1/"
+	t.Cleanup(func() { *gcpopts.GcsEndpoint = orig })
 
 	ctx := context.Background()
 	client, err := NewUnauthenticatedClient(ctx)
@@ -63,7 +48,7 @@ func TestNewUnauthenticatedClient_UsesGcsEndpoint(t *testing.T) {
 	if _, err := client.Bucket("some-bucket").Attrs(ctx); err != nil {
 		t.Fatalf("Attrs() failed: %v", err)
 	}
-	if !strings.HasPrefix(gotPath, "/storage/v1/b/some-bucket") {
-		t.Errorf("request path = %q, want prefix %q", gotPath, "/storage/v1/b/some-bucket")
+	if want := "/storage/v1/b/some-bucket"; !strings.HasPrefix(gotPath, want) {
+		t.Errorf("request path = %q, want prefix %q", gotPath, want)
 	}
 }

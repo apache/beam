@@ -55,11 +55,7 @@ func GetGcsEndpoint() string {
 	return runtime.GlobalOptions.Get("gcs_endpoint")
 }
 
-const (
-	// DefaultUniverseDomain is the universe domain of the public Google Cloud.
-	DefaultUniverseDomain = "googleapis.com"
-	universeDomainEnvVar  = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
-)
+const universeDomainEnvVar = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
 
 // findDefaultCredentials is a variable to allow overriding in tests.
 var findDefaultCredentials = google.FindDefaultCredentials
@@ -92,7 +88,7 @@ func GetUniverseDomain(ctx context.Context) string {
 	if cachedUniverseDomain.resolved {
 		return cachedUniverseDomain.value
 	}
-	creds, err := findDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+	creds, err := findDefaultCredentials(ctx)
 	if err != nil {
 		// Don't cache: credentials may become available later, and client
 		// construction surfaces the credential error itself.

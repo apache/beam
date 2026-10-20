@@ -43,7 +43,7 @@ func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
 	opts = append(opts, endpointOptions()...)
 	// storage.NewClient ignores the credentials' universe domain, and requests
 	// fail if it differs from the configured one (googleapis.com by default).
-	if ud := gcpopts.GetUniverseDomain(ctx); ud != "" && ud != gcpopts.DefaultUniverseDomain {
+	if ud := gcpopts.GetUniverseDomain(ctx); ud != "" {
 		opts = append(opts, option.WithUniverseDomain(ud))
 	}
 	return storage.NewClient(ctx, opts...)

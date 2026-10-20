@@ -325,8 +325,7 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 	}
 	// The client ignores the credentials' universe domain, and requests fail
 	// if it differs from the configured one (googleapis.com by default).
-	if ud := gcpopts.GetUniverseDomain(ctx); ud != "" && ud != gcpopts.DefaultUniverseDomain {
-		log.Infof(ctx, "Using Google Cloud universe domain: %s", ud)
+	if ud := gcpopts.GetUniverseDomain(ctx); ud != "" {
 		opts = append(opts, option.WithUniverseDomain(ud))
 	}
 	return df.NewService(ctx, opts...)

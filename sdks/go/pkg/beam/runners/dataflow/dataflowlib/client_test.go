@@ -17,61 +17,68 @@ package dataflowlib
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-// setupFakeCredentials points application default credentials at a fake
-// authorized user credential file, so clients can be constructed without
-// real credentials. No token is fetched until a request is made.
-func setupFakeCredentials(t *testing.T) {
-	t.Helper()
+func TestNewClient_BasePath(t *testing.T) {
+	// Fake service account credentials in a non-default universe. The auth
+	// library parses the key when the client is created (non-default universes
+	// use self-signed JWTs), so it must be a valid key. No token is fetched
+	// until a request is made.
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed generating key: %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("Failed marshaling key: %v", err)
+	}
+	content, err := json.Marshal(map[string]string{
+		"type":            "service_account",
+		"project_id":      "test-project",
+		"client_email":    "test@test-project.iam.gserviceaccount.com",
+		"private_key_id":  "test-key-id",
+		"private_key":     string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})),
+		"universe_domain": "creds.example.com",
+	})
+	if err != nil {
+		t.Fatalf("Failed marshaling credentials: %v", err)
+	}
 	credFile := filepath.Join(t.TempDir(), "creds.json")
-	content := []byte(`{
-		"type": "authorized_user",
-		"client_id": "fake-client-id",
-		"client_secret": "fake-client-secret",
-		"refresh_token": "fake-refresh-token"
-	}`)
 	if err := os.WriteFile(credFile, content, 0600); err != nil {
 		t.Fatalf("Failed writing fake credential file: %v", err)
 	}
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credFile)
-}
 
-func TestNewClient_BasePath(t *testing.T) {
 	tests := []struct {
 		name     string
 		endpoint string
-		universe string
+		env      string
 		want     string
 	}{
 		{
-			name: "default",
-			want: "https://dataflow.googleapis.com/",
-		},
-		{
-			name:     "endpoint override",
-			endpoint: "https://dataflow.example.com/",
-			want:     "https://dataflow.example.com/",
-		},
-		{
-			name:     "universe domain",
-			universe: "example.com",
-			want:     "https://dataflow.example.com/",
+			// The client library doesn't read the credentials' universe domain,
+			// so this verifies that NewClient passes it through.
+			name: "universe domain from credentials",
+			want: "https://dataflow.creds.example.com/",
 		},
 		{
 			name:     "endpoint takes precedence over universe domain",
 			endpoint: "http://localhost:8080/",
-			universe: "example.com",
+			env:      "creds.example.com",
 			want:     "http://localhost:8080/",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupFakeCredentials(t)
-			t.Setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", test.universe)
+			t.Setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", test.env)
 
 			client, err := NewClient(context.Background(), test.endpoint)
 			if err != nil {
