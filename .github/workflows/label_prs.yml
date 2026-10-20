@@ -17,13 +17,16 @@
 # paths that are modified in the pull request.
 
 name: LabelPrs
-on: [pull_request_target]
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed]
 permissions: read-all
 concurrency:
   group: pr-bot-labels-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 jobs:
   label:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,3 +37,34 @@ jobs:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: '.github/autolabeler.yml'
         sync-labels: true # Remove labels when matching files are reverted
+
+  label-release:
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/github-script@v9
+      with:
+        script: |
+          const { data } = await github.rest.repos.getContent({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            path: 'sdks/python/apache_beam/version.py',
+            ref: context.payload.pull_request.base.ref,
+          });
+          const content = Buffer.from(data.content, 'base64').toString('utf-8');
+          const match = content.match(/__version__\s*=\s*['"](\d+\.\d+\.\d+)/);
+          if (!match) {
+            throw new Error('Could not parse __version__ from sdks/python/apache_beam/version.py');
+          }
+          const releaseLabel = `v${match[1]}`;
+          console.log(`Adding release label: ${releaseLabel}`);
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            labels: [releaseLabel],
+          });
