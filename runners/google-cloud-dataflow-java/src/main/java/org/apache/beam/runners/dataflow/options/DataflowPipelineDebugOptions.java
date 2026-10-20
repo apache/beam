@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.MemoryMonitorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Internal. Options used to control execution of the Dataflow SDK for debugging and testing
@@ -47,15 +48,22 @@ public interface DataflowPipelineDebugOptions
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value if it
    * contains an absolute URL, otherwise {@code apiRootUrl} will be combined with {@code
    * dataflowEndpoint} to generate the full URL to communicate with the Dataflow API.
+   *
+   * <p>If not set, the root URL is resolved by the Google API client library, which honors {@code
+   * GOOGLE_CLOUD_UNIVERSE_DOMAIN} and otherwise uses the default public URL ({@value
+   * Dataflow#DEFAULT_ROOT_URL}).
    */
   @Description(
       "The root URL for the Dataflow API. dataflowEndpoint can override this "
           + "value if it contains an absolute URL, otherwise apiRootUrl will be combined with "
-          + "dataflowEndpoint to generate the full URL to communicate with the Dataflow API.")
-  @Default.String(Dataflow.DEFAULT_ROOT_URL)
-  String getApiRootUrl();
+          + "dataflowEndpoint to generate the full URL to communicate with the Dataflow API. "
+          + "If not set, the root URL is resolved by the Google API client library, which "
+          + "honors GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default public URL ("
+          + Dataflow.DEFAULT_ROOT_URL
+          + ").")
+  @Nullable String getApiRootUrl();
 
-  void setApiRootUrl(String value);
+  void setApiRootUrl(@Nullable String value);
 
   /**
    * Dataflow endpoint to use.
@@ -64,7 +72,8 @@ public interface DataflowPipelineDebugOptions
    * SDK version was released.
    *
    * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
-   * #getApiRootUrl()} is used as the root URL.
+   * #getApiRootUrl()} is used as the root URL (or, if that is not set, the root URL resolved by the
+   * Google API client library).
    */
   @Description(
       "The URL for the Dataflow API. If the string contains \"://\", this"
