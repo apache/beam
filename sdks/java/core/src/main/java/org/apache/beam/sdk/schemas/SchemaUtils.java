@@ -284,9 +284,6 @@ public class SchemaUtils {
           @SuppressWarnings("unchecked")
           Iterable<Object> elements = (Iterable<Object>) value;
 
-          // Rendered in a single pass. The previous shape asked the collection for isEmpty(),
-          // then size(), then iterated it -- three traversals, which a List absorbs for free but
-          // which an Iterable that can only be read once would not survive.
           StringBuilder sb = new StringBuilder();
           sb.append("[\n");
           boolean empty = true;
