@@ -1300,22 +1300,21 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     # [start_time, now - buffer) in a single poll.
     config = _PollConfig(start_time=start_time)
 
-    poll = beam.ParDo(
-        _PollChangeHistoryFn(
-            table=self._table,
-            project=project,
-            change_function=self._change_function,
-            buffer=buffer,
-            start_time=start_time,
-            stop_time=stop_time,
-            poll_interval=poll_interval,
-            location=self._location,
-            quota_project_id=quota_project_id)).with_output_types(_QueryRange)
-
     query_ranges = (
         pbegin
         | 'CreatePollConfig' >> beam.Create([config])
-        | 'PollChangeHistory' >> poll)
+        | 'PollChangeHistory' >> beam.ParDo(
+            _PollChangeHistoryFn(
+                table=self._table,
+                project=project,
+                change_function=self._change_function,
+                buffer=buffer,
+                start_time=start_time,
+                stop_time=stop_time,
+                poll_interval=poll_interval,
+                location=self._location,
+                quota_project_id=quota_project_id)).with_output_types(
+                    _QueryRange))
 
     # CommitQueryResults: Reshuffle commits _QueryResult (temp table ref)
     # so that if the Read SDF retries, it re-reads the existing temp table
@@ -1367,13 +1366,13 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     if emit_raw:
       # Reshuffle raw Arrow batches for fan-out, then decompress and
       # convert to timestamped row dicts in a separate DoFn.
-      decompress_fn = _DecompressArrowBatchesFn(
-          change_timestamp_column=self._change_timestamp_column)
-      decompress = beam.ParDo(decompress_fn).with_output_types(dict[str, Any])
       rows = (
           read_outputs['rows']
           | 'ReshuffleForFanout' >> beam.Reshuffle()
-          | 'DecompressBatches' >> decompress)
+          | 'DecompressBatches' >> beam.ParDo(
+              _DecompressArrowBatchesFn(
+                  change_timestamp_column=self._change_timestamp_column)).
+          with_output_types(dict[str, Any]))
       return rows
     else:
       return read_outputs['rows']
