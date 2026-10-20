@@ -21,11 +21,9 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
@@ -49,11 +47,11 @@ def _user_type_is_generated(user_type: type) -> bool:
 class RowTypeConstraint(typehints.TypeConstraint):
   def __init__(
       self,
-      fields: Sequence[Tuple[str, type]],
+      fields: Sequence[tuple[str, type]],
       user_type,
-      schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-      field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
-      field_descriptions: Optional[Dict[str, str]] = None):
+      schema_options: Optional[Sequence[tuple[str, Any]]] = None,
+      field_options: Optional[dict[str, Sequence[tuple[str, Any]]]] = None,
+      field_descriptions: Optional[dict[str, str]] = None):
     """For internal use only, no backwards comatibility guaratees.  See
     https://beam.apache.org/documentation/programming-guide/#schemas-for-pl-types
     for guidance on creating PCollections with inferred schemas.
@@ -103,8 +101,8 @@ class RowTypeConstraint(typehints.TypeConstraint):
   @staticmethod
   def from_user_type(
       user_type: type,
-      schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-      field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None
+      schema_options: Optional[Sequence[tuple[str, Any]]] = None,
+      field_options: Optional[dict[str, Sequence[tuple[str, Any]]]] = None
   ) -> Optional[RowTypeConstraint]:
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
@@ -136,12 +134,12 @@ class RowTypeConstraint(typehints.TypeConstraint):
 
   @staticmethod
   def from_fields(
-      fields: Sequence[Tuple[str, type]],
+      fields: Sequence[tuple[str, type]],
       schema_id: Optional[str] = None,
-      schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-      field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
+      schema_options: Optional[Sequence[tuple[str, Any]]] = None,
+      field_options: Optional[dict[str, Sequence[tuple[str, Any]]]] = None,
       schema_registry: Optional[SchemaTypeRegistry] = None,
-      field_descriptions: Optional[Dict[str, str]] = None,
+      field_descriptions: Optional[dict[str, str]] = None,
   ) -> RowTypeConstraint:
     return GeneratedClassRowTypeConstraint(
         fields,
@@ -218,10 +216,10 @@ class GeneratedClassRowTypeConstraint(RowTypeConstraint):
       self,
       fields,
       schema_id: Optional[str] = None,
-      schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-      field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
+      schema_options: Optional[Sequence[tuple[str, Any]]] = None,
+      field_options: Optional[dict[str, Sequence[tuple[str, Any]]]] = None,
       schema_registry: Optional[SchemaTypeRegistry] = None,
-      field_descriptions: Optional[Dict[str, str]] = None,
+      field_descriptions: Optional[dict[str, str]] = None,
   ):
     from apache_beam.typehints.schemas import named_fields_to_schema
     from apache_beam.typehints.schemas import named_tuple_from_schema

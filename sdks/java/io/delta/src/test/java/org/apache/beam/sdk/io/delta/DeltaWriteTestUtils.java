@@ -145,6 +145,7 @@ public final class DeltaWriteTestUtils {
       }
 
       @Override
+      @SuppressWarnings("PatternMatchingInstanceof") // Not available as spotless is on still Java11
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
           Object val = rows.get(rowId).getValue(fieldIndex);

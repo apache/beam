@@ -337,7 +337,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.11'
+python_requires = '>=3.10'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
@@ -418,7 +418,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0',
+          'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -615,6 +615,7 @@ if __name__ == '__main__':
           'p312_ml_test': [
               'datatable',
               'xgboost>=2.1.3',
+              'typesafe-sdk>=0.7.1,<0.8',
           ] + ml_base + ml_tft_dependency + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version

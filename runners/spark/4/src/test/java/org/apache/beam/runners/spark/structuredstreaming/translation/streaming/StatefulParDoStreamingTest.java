@@ -33,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -43,6 +44,9 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -66,11 +70,15 @@ public class StatefulParDoStreamingTest implements Serializable {
 
   private static final String TAG_BATCHES = "stateful-batches";
   private static final String TAG_RESTART = "stateful-restart";
+  private static final String TAG_CHAINED = "stateful-chained";
+  private static final String TAG_NULL_KEY = "stateful-null-key";
 
   @After
   public void tearDown() {
     TestUnboundedSource.forget(TAG_BATCHES);
     TestUnboundedSource.forget(TAG_RESTART);
+    TestUnboundedSource.forget(TAG_CHAINED);
+    TestUnboundedSource.forget(TAG_NULL_KEY);
   }
 
   private static Pipeline pipeline(
@@ -139,6 +147,47 @@ public class StatefulParDoStreamingTest implements Serializable {
     Set<String> collected = StreamingTestUtils.collected(c2);
     assertTrue(collected.contains("k1-resumed-saved-val") && collected.contains("k1-timer"));
     assertFalse(collected.contains("k1-started"));
+  }
+
+  @Test
+  public void testChainedStatefulParDoTimerOutputSurvives() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId(TAG_CHAINED);
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(tempFolder);
+    options.setMaxRecordsPerBatch(1L);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read", Read.from(new TestUnboundedSource(TAG_CHAINED, 1, 4)))
+        .apply("KeySelector", ParDo.of(new KeySelectorFn()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .apply("EmitTimer", ParDo.of(new TimerEmitterFn()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .apply("Window", Window.into(FixedWindows.of(Duration.millis(500))))
+        .apply("Downstream", ParDo.of(new DownstreamFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(pipeline).getState());
+    Set<String> collected = StreamingTestUtils.collected(collectorId);
+    assertTrue(collected.contains("timer-output"));
+  }
+
+  @Test
+  public void testNullKey() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId(TAG_NULL_KEY);
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(tempFolder);
+    options.setMaxRecordsPerBatch(1L);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read", Read.from(new TestUnboundedSource(TAG_NULL_KEY, 1, 5)))
+        .apply("WithKeys", WithKeys.of((Void) null))
+        .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
+        .apply("StatefulParDo", ParDo.of(new NullKeyCountFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(pipeline).getState());
+    Set<Integer> collected = StreamingTestUtils.collected(collectorId);
+    assertTrue(collected.contains(5));
   }
 
   private static final class KeySelectorFn extends DoFn<String, KV<String, String>> {
@@ -237,6 +286,55 @@ public class StatefulParDoStreamingTest implements Serializable {
     @OnTimer("timer")
     public void onTimer(OutputReceiver<String> out) {
       out.output("k1-timer");
+    }
+  }
+
+  private static final class TimerEmitterFn extends DoFn<KV<String, String>, KV<String, String>> {
+    @TimerId("t")
+    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void process(
+        @Element KV<String, String> element,
+        @Timestamp Instant ts,
+        @TimerId("t") Timer timer,
+        OutputReceiver<KV<String, String>> out) {
+      out.output(KV.of("downstream", element.getValue()));
+      if (TestUnboundedSource.indexOf(element.getValue()) == 0) {
+        timer.set(ts.plus(Duration.millis(250)));
+      }
+    }
+
+    @OnTimer("t")
+    public void onTimer(@Timestamp Instant ts, OutputReceiver<KV<String, String>> out) {
+      out.outputWithTimestamp(KV.of("downstream", "timer-output"), ts);
+    }
+  }
+
+  private static final class DownstreamFn extends DoFn<KV<String, String>, String> {
+    @StateId("state")
+    private final StateSpec<ValueState<Integer>> stateSpec = StateSpecs.value();
+
+    @ProcessElement
+    public void process(
+        @Element KV<String, String> element,
+        @StateId("state") ValueState<Integer> state,
+        OutputReceiver<String> out) {
+      state.write(1);
+      out.output(element.getValue());
+    }
+  }
+
+  private static final class NullKeyCountFn extends DoFn<KV<Void, String>, Integer> {
+    @StateId("count")
+    private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+
+    @ProcessElement
+    public void process(
+        @StateId("count") ValueState<Integer> countState, OutputReceiver<Integer> out) {
+      int count = (countState.read() == null ? 0 : countState.read()) + 1;
+      countState.write(count);
+      out.output(count);
     }
   }
 }

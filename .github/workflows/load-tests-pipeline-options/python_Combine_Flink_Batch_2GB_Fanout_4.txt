@@ -22,7 +22,6 @@
 --parallelism=16
 --job_endpoint=localhost:8099
 --environment_type=DOCKER
---environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python3.11_sdk:latest
 --fanout=4
 --top_count=20
 --runner=PortableRunner

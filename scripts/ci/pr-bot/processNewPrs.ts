@@ -344,8 +344,11 @@ export async function processPull(
 
   // Pick reviewers to assign. Store them in reviewerStateToUpdate and update the prState object with those reviewers (and their associated labels)
   let reviewerStateToUpdate: { [key: string]: typeof ReviewersForLabel } = {};
+  let backupReviewersForLabels: { [key: string]: string } = {};
+  const exclusionList = [pull.user.login];
   const reviewersForLabels: { [key: string]: string[] } =
-    reviewerConfig.getReviewersForLabels(pull.labels, [pull.user.login]);
+    reviewerConfig.getReviewersForLabels(pull.labels, exclusionList);
+  const fallbackReviewers = reviewerConfig.getFallbackReviewers(exclusionList);
   var labels = Object.keys(reviewersForLabels);
   if (!labels || labels.length === 0) {
     return;
@@ -354,8 +357,16 @@ export async function processPull(
     let availableReviewers = reviewersForLabels[label];
     let reviewersState = await stateClient.getReviewersForLabelState(label);
     let chosenReviewer = reviewersState.assignNextReviewer(availableReviewers);
+    let backupReviewer = reviewersState.getBackupReviewer(
+      availableReviewers,
+      chosenReviewer,
+      fallbackReviewers
+    );
     reviewerStateToUpdate[label] = reviewersState;
     prState.reviewersAssignedForLabels[label] = chosenReviewer;
+    if (backupReviewer) {
+      backupReviewersForLabels[label] = backupReviewer;
+    }
   }
 
   console.log(`Assigning reviewers for PR ${pull.number}`);
@@ -363,6 +374,7 @@ export async function processPull(
     pull.number,
     commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
       labels: pull.labels,
+      backupReviewers: backupReviewersForLabels,
     })
   );
   await github.requestPrReviewers(

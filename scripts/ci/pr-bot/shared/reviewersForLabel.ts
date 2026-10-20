@@ -40,16 +40,14 @@ export class ReviewersForLabel {
     }
   }
 
-  // Given a list of available reviewers,
-  // returns the next reviewer up based on who has reviewed least recently.
-  // Updates this object to reflect their assignment.
-  assignNextReviewer(availableReviewers: string[]): string {
-    if (availableReviewers.length === 0) {
-      throw new Error(`No reviewers available for label ${this.label}`);
+  private findLeastRecentlyAssignedReviewer(
+    availableReviewers: string[]
+  ): string {
+    if (!availableReviewers || availableReviewers.length === 0) {
+      return "";
     }
 
     if (!this.dateOfLastReviewAssignment[availableReviewers[0]]) {
-      this.dateOfLastReviewAssignment[availableReviewers[0]] = Date.now();
       return availableReviewers[0];
     }
 
@@ -59,7 +57,6 @@ export class ReviewersForLabel {
     for (let i = 0; i < availableReviewers.length; i++) {
       let availableReviewer = availableReviewers[i];
       if (!this.dateOfLastReviewAssignment[availableReviewer]) {
-        this.dateOfLastReviewAssignment[availableReviewer] = Date.now();
         return availableReviewer;
       }
       if (earliestDate > this.dateOfLastReviewAssignment[availableReviewer]) {
@@ -68,8 +65,42 @@ export class ReviewersForLabel {
       }
     }
 
-    this.dateOfLastReviewAssignment[earliestReviewer] = Date.now();
     return earliestReviewer;
+  }
+
+  // Given a list of available reviewers,
+  // returns the next reviewer up based on who has reviewed least recently.
+  // Updates this object to reflect their assignment.
+  assignNextReviewer(availableReviewers: string[]): string {
+    if (availableReviewers.length === 0) {
+      throw new Error(`No reviewers available for label ${this.label}`);
+    }
+
+    const chosenReviewer =
+      this.findLeastRecentlyAssignedReviewer(availableReviewers);
+    this.dateOfLastReviewAssignment[chosenReviewer] = Date.now();
+    return chosenReviewer;
+  }
+
+  // Returns a backup reviewer from the same label (excluding the main reviewer)
+  // without updating dateOfLastReviewAssignment. Falls back to fallbackReviewers
+  // if the label has no other eligible reviewers.
+  getBackupReviewer(
+    availableReviewers: string[],
+    mainReviewer: string,
+    fallbackReviewers: string[] = []
+  ): string {
+    const remainingLabelReviewers = (availableReviewers || []).filter(
+      (reviewer) => reviewer !== mainReviewer
+    );
+    if (remainingLabelReviewers.length > 0) {
+      return this.findLeastRecentlyAssignedReviewer(remainingLabelReviewers);
+    }
+
+    const remainingFallbackReviewers = (fallbackReviewers || []).filter(
+      (reviewer) => reviewer !== mainReviewer
+    );
+    return this.findLeastRecentlyAssignedReviewer(remainingFallbackReviewers);
   }
 
   // Given the up to date list of available reviewers (excluding the author),

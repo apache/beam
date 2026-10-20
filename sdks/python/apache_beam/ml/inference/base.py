@@ -148,6 +148,17 @@ def _to_microseconds(time_ns: int) -> int:
   return int(time_ns / _NANOSECOND_TO_MICROSECOND)
 
 
+def _is_pickling_error(e: BaseException) -> bool:
+  """Returns True if the exception was likely raised while pickling data."""
+  if isinstance(e, pickle.PickleError):
+    return True
+  # Unpicklable objects (e.g. C extension objects, locks, local functions)
+  # typically surface as TypeError or AttributeError, for example
+  # "cannot pickle 'X' object" or "Can't pickle local object ...".
+  return (
+      isinstance(e, (TypeError, AttributeError)) and 'pickle' in str(e).lower())
+
+
 @dataclass(frozen=True)
 class KeyModelPathMapping(Generic[KeyT]):
   """
@@ -414,7 +425,7 @@ class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
       throttle_delay_secs: int = 5,
       retry_filter: Callable[[Exception], bool] = lambda x: True,
       *,
-      window_ms: int = 1 * _MILLISECOND_TO_SECOND,
+      window_ms: int = 120 * _MILLISECOND_TO_SECOND,
       bucket_ms: int = 1 * _MILLISECOND_TO_SECOND,
       overload_ratio: float = 2,
       rate_limiter: Optional[RateLimiter] = None):
@@ -566,6 +577,11 @@ class _ModelHandlerManager:
         model.
     """
     self._max_models = None
+    # Process ids that have already contributed to _max_models
+    self._incremented_process_ids: set[int] = set()
+    # Guards _max_models and _incremented_process_ids, since the shared
+    # manager serves calls from several processes on separate threads.
+    self._max_models_lock = threading.Lock()
     # Map keys to model handlers
     self._mh_map: dict[str, ModelHandler] = mh_map
     # Map keys to the last updated model path for that key
@@ -620,17 +636,26 @@ class _ModelHandlerManager:
     return _ModelLoadStats(
         tag, end_time - start_time, memory_after - memory_before)
 
-  def increment_max_models(self, increment: int):
+  def increment_max_models(
+      self, increment: int, process_id: Optional[int] = None):
     """
     Increments the number of models that this instance of a
     _ModelHandlerManager is able to hold. If it is never called,
     no limit is imposed.
     Args:
       increment: the amount by which we are incrementing the number of models.
+      process_id: the id of the process requesting the increment. If set,
+        only the first increment from each process is applied, since many
+        copies of the model handler can share this manager within a process.
     """
-    if self._max_models is None:
-      self._max_models = 0
-    self._max_models += increment
+    with self._max_models_lock:
+      if process_id is not None:
+        if process_id in self._incremented_process_ids:
+          return
+        self._incremented_process_ids.add(process_id)
+      if self._max_models is None:
+        self._max_models = 0
+      self._max_models += increment
 
   def update_model_handler(self, key: str, model_path: str, previous_key: str):
     """
@@ -803,10 +828,18 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             'mh %s defines the following batching kwargs which will be '
             'ignored %s. Batching kwargs are not respected when '
             'more than one model handler is used in a KeyedModelHandler. If '
-            'you would like to specify resource hints, you can do so by '
+            'you would like to specify batching kwargs, you can do so by '
             'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
-            hints,
+            mh,
             batch_kwargs)
+      if mh.should_skip_batching():
+        logging.warning(
+            'mh %s skips batching (with_no_batching()), which will be '
+            'ignored. Skipping batching is not respected per model handler '
+            'when more than one model handler is used in a '
+            'KeyedModelHandler. To skip batching, call with_no_batching() on '
+            'the KeyedModelHandler instead.',
+            mh)
       env_vars = getattr(mh, '_env_vars', {})
       if len(env_vars) > 0:
         logging.warning(
@@ -848,11 +881,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           self._unkeyed.run_inference(unkeyed_batch, model, inference_args))
 
     # The first time a MultiProcessShared ModelManager is used for inference
-    # from this process, we should increment its max model count
+    # from this process, we should increment its max model count. The manager
+    # may live in another process and be shared by several deserialized copies
+    # of this handler, so it dedupes increments by process id.
     if self._max_models_per_worker_hint is not None:
-      lock = threading.Lock()
-      if lock.acquire(blocking=False):
-        model.increment_max_models(self._max_models_per_worker_hint)
+      model.increment_max_models(
+          self._max_models_per_worker_hint, process_id=os.getpid())
       self._max_models_per_worker_hint = None
 
     batch_by_key = defaultdict(list)
@@ -1054,8 +1088,15 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
     return True
 
+  def should_skip_batching(self) -> bool:
+    if self._single_model:
+      return self._unkeyed.should_skip_batching()
+    return False
+
   def should_garbage_collect_on_timeout(self) -> bool:
-    return self._single_model and self.share_model_across_processes()
+    if self._single_model:
+      return self._unkeyed.should_garbage_collect_on_timeout()
+    return False
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -1155,6 +1196,18 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def model_copies(self) -> int:
     return self._unkeyed.model_copies()
 
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
+    return self._unkeyed.update_model_paths(model, model_paths)
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    return self._unkeyed.override_metrics(metrics_namespace)
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._unkeyed.should_garbage_collect_on_timeout()
+
 
 class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
                               ModelHandler[Sequence[ExampleT],
@@ -1213,6 +1266,18 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
+
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
+    return self._base.update_model_paths(model, model_paths)
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    return self._base.override_metrics(metrics_namespace)
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._base.should_garbage_collect_on_timeout()
 
 
 class _PreProcessingModelHandler(Generic[ExampleT,
@@ -1280,6 +1345,18 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
 
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
+    return self._base.update_model_paths(model, model_paths)
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    return self._base.override_metrics(metrics_namespace)
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._base.should_garbage_collect_on_timeout()
+
 
 class _PostProcessingModelHandler(Generic[ExampleT,
                                           PredictionT,
@@ -1344,6 +1421,18 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
+
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
+    return self._base.update_model_paths(model, model_paths)
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    return self._base.override_metrics(metrics_namespace)
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._base.should_garbage_collect_on_timeout()
 
 
 class OOMProtectedFn:
@@ -1950,7 +2039,10 @@ class _SharedModelWrapper():
 
   def all_models(self):
     if self.use_model_manager:
-      return self.models.all_models()[self.model_tag]
+      # TODO(https://github.com/apache/beam/issues/40539): Support multi-model
+      # KeyedModelHandler with ModelManager (e.g. resolving proxies for
+      # update_model_paths).
+      return self.models.all_models(self.model_tag)
     return self.models
 
   def force_reset(self):
@@ -2106,11 +2198,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       finally:
         # Always release the model so that it can be reloaded.
         if self.use_model_manager:
-          self._model.release_model(self._model_tag, unique_tag)
+          self._model.release_model(self._cur_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
-      if (e is pickle.PickleError and
+      if (_is_pickling_error(e) and
           self._model_handler.share_model_across_processes()):
         raise TypeError(
             'Pickling error encountered while running inference. '

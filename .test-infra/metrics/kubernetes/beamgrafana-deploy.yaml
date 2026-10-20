@@ -46,6 +46,26 @@ spec:
           value: "true"
         - name: GF_AUTH_ANONYMOUS_ORG_NAME
           value: Beam
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: Viewer
+        - name: GF_AUTH_ANONYMOUS_HIDE_VERSION
+          value: "true"
+        - name: GF_EXPLORE_ENABLED
+          value: "false"
+        - name: GF_USERS_VIEWERS_CAN_EDIT
+          value: "false"
+        - name: GF_SNAPSHOTS_EXTERNAL_ENABLED
+          value: "false"
+        - name: GF_DATAPROXY_TIMEOUT
+          value: "30"
+        - name: GF_DATAPROXY_ROW_LIMIT
+          value: "10000"
+        - name: GF_SECURITY_COOKIE_SECURE
+          value: "true"
+        - name: GF_SECURITY_COOKIE_SAMESITE
+          value: strict
+        - name: GF_SECURITY_STRICT_TRANSPORT_SECURITY
+          value: "true"
         - name: GF_ALERTING_ENABLED
           value: "false"
         - name: GF_UNIFIED_ALERTING_ENABLED
