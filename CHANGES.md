@@ -104,6 +104,7 @@
 * (Python) DaskRunner now preserves outputs emitted by `DoFn.finish_bundle()` instead of silently dropping them ([#40519](https://github.com/apache/beam/issues/40519)).
 * (Python) BigQuery streaming inserts now reset the retry budget and backoff for each batch instead of sharing them across a bundle ([#39995](https://github.com/apache/beam/pull/39995)).
 * (Python) State write failures reported by portable runners now fail the bundle instead of silently losing state updates ([#39992](https://github.com/apache/beam/pull/39992)).
+* (Python) Type inference now gives the right type for a slice of a fixed-size tuple, such as `row[1:]` in `beam.Map(lambda row: row[1:])`. The slice used to keep the type of the whole tuple, which could make a following `CombinePerKey` fail with a `TypeCheckError` or encode elements with the wrong coder ([#20899](https://github.com/apache/beam/issues/20899)).
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Go) Fixed the harness leaking Data/State gRPC streams after the worker stops, and a deadlock when Send returns EOF ([#40260](https://github.com/apache/beam/issues/40260)).
 * (Go) Wrap last dataWriter/timerWriter send errors on Close ([#40405](https://github.com/apache/beam/issues/40405)).
