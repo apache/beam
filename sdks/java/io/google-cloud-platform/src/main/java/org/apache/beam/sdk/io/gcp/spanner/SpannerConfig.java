@@ -117,6 +117,10 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Boolean> getEnableOpenTelemetryTracing();
 
+  public abstract @Nullable ValueProvider<Boolean> getExcludeTxnFromChangeStreams();
+
+  public abstract @Nullable ValueProvider<String> getTransactionTag();
+
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
@@ -209,6 +213,11 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setEnableOpenTelemetryTracing(
         ValueProvider<Boolean> enableOpenTelemetryTracing);
+
+    abstract Builder setExcludeTxnFromChangeStreams(
+        ValueProvider<Boolean> excludeTxnFromChangeStreams);
+
+    abstract Builder setTransactionTag(ValueProvider<String> transactionTag);
 
     abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
 
@@ -477,6 +486,34 @@ public abstract class SpannerConfig implements Serializable {
   public SpannerConfig withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
     return withEnableOpenTelemetryTracing(
         ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+  }
+
+  /**
+   * Specifies whether transactions should be excluded from being recorded in change streams with
+   * the DDL option {@code allow_txn_exclusion=true}.
+   */
+  public SpannerConfig withExcludeTxnFromChangeStreams(
+      ValueProvider<Boolean> excludeTxnFromChangeStreams) {
+    return toBuilder().setExcludeTxnFromChangeStreams(excludeTxnFromChangeStreams).build();
+  }
+
+  /**
+   * Specifies whether transactions should be excluded from being recorded in change streams with
+   * the DDL option {@code allow_txn_exclusion=true}.
+   */
+  public SpannerConfig withExcludeTxnFromChangeStreams(boolean excludeTxnFromChangeStreams) {
+    return withExcludeTxnFromChangeStreams(
+        ValueProvider.StaticValueProvider.of(excludeTxnFromChangeStreams));
+  }
+
+  /** Specifies the transaction tag to use for write transactions. */
+  public SpannerConfig withTransactionTag(ValueProvider<String> transactionTag) {
+    return toBuilder().setTransactionTag(transactionTag).build();
+  }
+
+  /** Specifies the transaction tag to use for write transactions. */
+  public SpannerConfig withTransactionTag(String transactionTag) {
+    return withTransactionTag(ValueProvider.StaticValueProvider.of(transactionTag));
   }
 
   /**

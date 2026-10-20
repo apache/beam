@@ -23,12 +23,18 @@ Tests:
   - ReadBigQueryChangeHistory validation
 """
 
+import contextlib
 import datetime
 import unittest
+from unittest import mock
 
+from apache_beam.io.gcp import bigquery_change_history as bqch
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
 from apache_beam.io.gcp.bigquery_change_history import build_changes_query
 from apache_beam.io.gcp.bigquery_change_history import compute_ranges
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -203,6 +209,75 @@ class ValidationTest(unittest.TestCase):
     self.assertEqual(t._buffer_sec, 10)
     t = ReadBigQueryChangeHistory(table='p:d.t', change_function='APPENDS')
     self.assertEqual(t._buffer_sec, 10)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class QuotaProjectTest(unittest.TestCase):
+  """Tests that the quota project reaches every BigQuery client."""
+  _QUOTA = 'my-billing-project'
+
+  def _assert_wrapper_quota(self, fn):
+    with mock.patch.object(bigquery_tools, 'BigQueryWrapper') as mock_wrapper:
+      fn.setup()
+    self.assertEqual(
+        mock_wrapper.call_args.kwargs['quota_project_id'], self._QUOTA)
+
+  def test_poll_fn_setup_passes_quota_project(self):
+    fn = bqch._PollChangeHistoryFn(
+        table='proj:dataset.table',
+        project='p',
+        change_function='APPENDS',
+        buffer=Duration(seconds=10),
+        start_time=Timestamp(0),
+        stop_time=Timestamp(100),
+        poll_interval=Duration(seconds=60),
+        quota_project_id=self._QUOTA)
+    self._assert_wrapper_quota(fn)
+
+  def test_execute_query_fn_setup_passes_quota_project(self):
+    fn = bqch._ExecuteQueryFn(
+        table='proj:dataset.table',
+        project='p',
+        change_function='APPENDS',
+        temp_dataset='tmp',
+        location='US',
+        quota_project_id=self._QUOTA)
+    self._assert_wrapper_quota(fn)
+
+  def test_cleanup_fn_setup_passes_quota_project(self):
+    self._assert_wrapper_quota(bqch._CleanupTempTablesFn(self._QUOTA))
+
+  def test_read_sdf_creates_storage_client_with_quota_project(self):
+    fn = bqch._ReadStorageStreamsSDF(quota_project_id=self._QUOTA)
+    with mock.patch.object(bigquery_tools,
+                           'create_bq_storage_client') as mock_create:
+      fn.setup()
+    mock_create.assert_called_once_with(self._QUOTA)
+
+  def test_expand_resolves_quota_project_from_options(self):
+    options = PipelineOptions(
+        ['--quota_project_id=' + self._QUOTA, '--no_pipeline_type_check'])
+    classes = [
+        '_PollChangeHistoryFn',
+        '_ExecuteQueryFn',
+        '_ReadStorageStreamsSDF',
+        '_CleanupTempTablesFn'
+    ]
+    p = TestPipeline(options=options)
+    with contextlib.ExitStack() as stack:
+      mocks = [
+          stack.enter_context(
+              mock.patch.object(
+                  getattr(bqch, name),
+                  '__init__',
+                  autospec=True,
+                  side_effect=getattr(bqch, name).__init__)) for name in classes
+      ]
+      _ = p | ReadBigQueryChangeHistory(
+          table='p:d.t', project='p', start_time=0, temp_dataset='tmp')
+    for name, m in zip(classes, mocks):
+      self.assertEqual(
+          m.call_args.kwargs['quota_project_id'], self._QUOTA, name)
 
 
 if __name__ == '__main__':

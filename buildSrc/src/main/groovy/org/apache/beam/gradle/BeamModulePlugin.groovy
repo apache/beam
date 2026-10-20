@@ -482,19 +482,33 @@ class BeamModulePlugin implements Plugin<Project> {
   /*
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
-   * Replace `--release X` option if already existed in compilerArgs.
+   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
    */
   static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
-    boolean foundR = false
+    boolean foundS = false, foundT = false
+    int foundR = -1
     logger.fine("set java ver ${ver} to compiler args")
-    for (int i = 0; i < compilerArgs.size() - 1; ++i) {
-      if (compilerArgs.get(i) == '--release') {
-        foundR = true
-        compilerArgs.set(i + 1, ver)
+    for (int i = 0; i < compilerArgs.size()-1; ++i) {
+      if (compilerArgs.get(i) == '-source') {
+        foundS = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '-target')  {
+        foundT = true
+        compilerArgs.set(i+1, ver)
+      } else if (compilerArgs.get(i) == '--release') {
+        foundR = i
       }
     }
-    if (!foundR) {
-      compilerArgs.addAll('--release', ver)
+    // Remove "--release" and replace with '-source -target' due to errorprone compatibility and Gradle issue #22747
+    if (foundR != -1) {
+      compilerArgs.removeAt(foundR + 1)
+      compilerArgs.removeAt(foundR)
+    }
+    if (!foundS) {
+      compilerArgs.addAll('-source', ver)
+    }
+    if (!foundT) {
+      compilerArgs.addAll('-target', ver)
     }
   }
 
@@ -756,7 +770,6 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_http                      : "com.google.cloud:google-cloud-core-http", // google_cloud_platform_libraries_bom sets version
-        google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:3.4.0",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
@@ -879,7 +892,6 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_firestore_v1             : "com.google.api.grpc:proto-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_kms_v1                   : "com.google.api.grpc:proto-google-cloud-kms-v1", // google_cloud_platform_libraries_bom sets version
@@ -994,7 +1006,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // set compiler options for java version overrides to compile with a different java version
     project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
-      if (!project.findProperty("java${ver}Home")) {
+      def javaVerHome = project.findProperty("java${ver}Home")
+      if (!javaVerHome) {
         return
       }
       // TODO(yathu): remove this once generated code (antlr) no longer trigger "this-escape", see above
@@ -1004,31 +1017,14 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Xlint:-this-escape',
         ]
       }
-      if (ver == '8') {
-        def java8Home = project.findProperty("java8Home")
-        options.fork = true
-        options.forkOptions.javaHome = java8Home as File
-        options.compilerArgs += ['-Xlint:-path']
-      } else if (ver == '11') {
-        def java11Home = project.findProperty("java11Home")
-        options.fork = true
-        options.forkOptions.javaHome = java11Home as File
-        options.compilerArgs += ['-Xlint:-path']
+      options.fork = true
+      options.forkOptions.javaHome = javaVerHome as File
+      if (ver == '11') {
+        // No additional options needed. Error Prone module exports are only required on JDK 16+.
       } else if (ver == '17') {
-        def java17Home = project.findProperty("java17Home")
-        options.fork = true
-        options.forkOptions.javaHome = java17Home as File
-        options.compilerArgs += ['-Xlint:-path']
-        // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
         options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
       } else if (ver == '21' || ver == '25') {
-        def javaVerHome = project.findProperty("java${ver}Home")
-        options.fork = true
-        options.forkOptions.javaHome = javaVerHome as File
-        options.compilerArgs += [
-          '-Xlint:-path',
-          '-Xlint:-this-escape'
-        ]
+        options.compilerArgs += ['-Xlint:-this-escape']
         if (ver == '25') {
          // TODO: Upgrade errorprone and checkerFramework when Beam move to Java17+ and enable it in Java 25+
           options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
@@ -1208,6 +1204,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'classfile',
         'deprecation',
         'fallthrough',
+        'path',
         'processing',
         'serial',
         'try',

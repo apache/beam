@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,13 +31,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class KeyedBufferingElementsHandler implements BufferingElementsHandler {
+public final class KeyedBufferingElementsHandler implements BufferingElementsHandler {
 
   static KeyedBufferingElementsHandler create(
       KeyedStateBackend backend, ListStateDescriptor<BufferedElement> stateDescriptor)
