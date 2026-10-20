@@ -220,6 +220,7 @@ public class AddFilesIT {
    * GCS reports server-side errors (5xx) without a cause, so log what identifies the request to GCS
    * support and the bucket's notification count at the time.
    */
+  @SuppressWarnings("PatternMatchingInstanceof")
   private void logNotificationFailure(StorageException e) {
     @Nullable String requestId = null;
     Throwable cause = e.getCause();
