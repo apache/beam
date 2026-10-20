@@ -177,7 +177,7 @@ task downloadPerformanceLooks(type: Exec) {
 
       mkdir -p "\$OUT_DIR"
       # mkdir above runs as root. The leaf directory must be writable by the host uid.
-      chown "\$HOST_UID:\$HOST_GID" "\$OUT_DIR"
+      chown "\$HOST_UID:\$HOST_GID" "\$(dirname "\$OUT_DIR")"
 
       echo "[performance_looks] Syncing looks..."
 
