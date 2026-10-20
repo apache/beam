@@ -144,7 +144,6 @@ public final class DeltaWriteTestUtils {
         return rows.get(rowId).getInt32(fieldIndex);
       }
 
-      @SuppressWarnings("PatternMatchingInstanceof")
       @Override
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
