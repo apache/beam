@@ -169,6 +169,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -1041,9 +1042,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String imageAndTag =
               normalizeDataflowImageAndTag(
                   containerImage.substring(containerImage.lastIndexOf("/")));
-          containerImage =
-              DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
-                  + imageAndTag;
+          containerImage = getContainerImageBaseRepository(options) + imageAndTag;
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -2722,12 +2721,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /** Construct the default Dataflow container full image URL. */
   static String getDefaultContainerImageUrl(DataflowPipelineOptions options) {
-    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     return String.format(
         "%s/%s:%s",
-        dataflowRunnerInfo.getContainerImageBaseRepository(),
+        getContainerImageBaseRepository(options),
         getDefaultContainerImageNameForJob(options),
         getDefaultContainerVersion(options));
+  }
+
+  /**
+   * Returns the base repository of the default Dataflow container images, without a trailing slash.
+   * Uses {@code --dataflowContainerBaseRepository} if set, and the repository configured in {@link
+   * DataflowRunnerInfo} otherwise.
+   */
+  @VisibleForTesting
+  static String getContainerImageBaseRepository(DataflowPipelineOptions options) {
+    String baseRepository = options.getDataflowContainerBaseRepository();
+    if (baseRepository != null) {
+      baseRepository = CharMatcher.is('/').trimTrailingFrom(baseRepository.trim());
+    }
+    if (Strings.isNullOrEmpty(baseRepository)) {
+      return DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
+    }
+    return baseRepository;
   }
 
   /**
