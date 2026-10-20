@@ -1641,6 +1641,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "StringCaseLocaleUsage",
           // DoFn methods are executed reflectively at pipeline runtime
           "UnusedMethod",
+          "PatternMatchingInstanceOf"
         ]
         disabledChecks.each {
           options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
