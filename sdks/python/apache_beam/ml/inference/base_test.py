@@ -2660,6 +2660,14 @@ class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):
     return [lengths] * len(batch)
 
 
+class NonEmptyBatchLengthsModelHandler(BatchLengthsModelHandler):
+  """Fails on an empty batch, which RunInference should never produce."""
+  def run_inference(self, batch, model, inference_args=None):
+    if not batch:
+      raise ValueError('run_inference received an empty batch')
+    return super().run_inference(batch, model, inference_args)
+
+
 class RunInferenceWeightedBatchingTest(unittest.TestCase):
   """End-to-end tests for max_batch_weight and element_size_fn."""
   def _handler(self, **kwargs):
@@ -2747,6 +2755,37 @@ class RunInferenceWeightedBatchingTest(unittest.TestCase):
     self.assertEqual(maybe_keyed_kwargs['element_size_fn']('abc'), 3)
     # The kwargs of the unkeyed ModelHandler are unchanged.
     self.assertIs(unkeyed.batch_elements_kwargs()['element_size_fn'], len)
+
+  def test_oversized_example_is_batched_alone(self):
+    # An example heavier than max_batch_weight reaches run_inference in a
+    # batch by itself, and the model never receives an empty batch. The
+    # oversized example is not first, so that the estimator does not replay a
+    # batch size of 1 for the batch after it.
+    handler = NonEmptyBatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len)
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['a', 'a', 'a' * 20, 'a', 'a'], reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(results, equal_to([(1, 1)] * 4 + [(20, )]))
+
+  def test_pipeline_construction_with_max_batch_weight(self):
+    # Regression test for https://github.com/apache/beam/issues/40644:
+    # RunInference.expand raised a TypeError because BatchElements did not
+    # accept max_batch_weight, before any model was loaded.
+    unkeyed_examples = ['a', 'bb']
+    keyed_examples = [('k1', 'a'), ('k2', 'bb')]
+    for handler, examples in (
+        (self._handler(), unkeyed_examples),
+        (self._handler(max_batch_duration_secs=60), unkeyed_examples),
+        (base.KeyedModelHandler(self._handler()), keyed_examples),
+        (base.MaybeKeyedModelHandler(self._handler()), unkeyed_examples)):
+      p = beam.Pipeline()
+      _ = p | beam.Create(examples) | base.RunInference(handler)
 
 
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
