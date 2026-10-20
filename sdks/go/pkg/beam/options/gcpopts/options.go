@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
@@ -52,6 +53,58 @@ func GetGcsEndpoint() string {
 		return *GcsEndpoint
 	}
 	return runtime.GlobalOptions.Get("gcs_endpoint")
+}
+
+const (
+	// DefaultUniverseDomain is the universe domain of the public Google Cloud.
+	DefaultUniverseDomain = "googleapis.com"
+	universeDomainEnvVar  = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
+)
+
+// findDefaultCredentials is a variable to allow overriding in tests.
+var findDefaultCredentials = google.FindDefaultCredentials
+
+// cachedUniverseDomain caches the universe domain resolved from the default
+// credentials, since resolving it may require a metadata server round trip
+// and clients are created frequently.
+var cachedUniverseDomain struct {
+	mu       sync.Mutex
+	resolved bool
+	value    string
+}
+
+// GetUniverseDomain returns the Google Cloud universe domain, first from the
+// GOOGLE_CLOUD_UNIVERSE_DOMAIN environment variable, then falling back to the
+// universe domain of the default credentials. Returns an empty string if it
+// cannot be determined.
+//
+// Google API clients don't infer the universe domain from the credentials,
+// and requests fail if the two differ, so clients should pass this value via
+// option.WithUniverseDomain to support non-default universes such as Trusted
+// Partner Cloud (TPC).
+func GetUniverseDomain(ctx context.Context) string {
+	if ud := os.Getenv(universeDomainEnvVar); ud != "" {
+		return ud
+	}
+
+	cachedUniverseDomain.mu.Lock()
+	defer cachedUniverseDomain.mu.Unlock()
+	if cachedUniverseDomain.resolved {
+		return cachedUniverseDomain.value
+	}
+	creds, err := findDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		// Don't cache: credentials may become available later, and client
+		// construction surfaces the credential error itself.
+		return ""
+	}
+	ud, err := creds.GetUniverseDomain()
+	if err != nil {
+		return ""
+	}
+	cachedUniverseDomain.resolved = true
+	cachedUniverseDomain.value = ud
+	return ud
 }
 
 // GetProject returns the project, if non empty and exits otherwise.

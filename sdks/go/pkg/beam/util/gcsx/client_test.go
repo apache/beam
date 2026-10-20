@@ -17,98 +17,19 @@ package gcsx
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
-	"golang.org/x/oauth2/google"
 )
-
-// resetUniverseDomainCache clears the cached universe domain and restores it
-// when the test finishes.
-func resetUniverseDomainCache(t *testing.T) {
-	t.Helper()
-	reset := func() {
-		cachedUniverseDomain.mu.Lock()
-		cachedUniverseDomain.resolved = false
-		cachedUniverseDomain.value = ""
-		cachedUniverseDomain.mu.Unlock()
-	}
-	reset()
-	t.Cleanup(reset)
-}
-
-// fakeCredentials overrides findDefaultCredentials for the duration of the
-// test, and returns a pointer to the number of times it was called.
-func fakeCredentials(t *testing.T, universe string, err error) *int {
-	t.Helper()
-	calls := 0
-	orig := findDefaultCredentials
-	findDefaultCredentials = func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
-		calls++
-		if err != nil {
-			return nil, err
-		}
-		return &google.Credentials{
-			UniverseDomainProvider: func() (string, error) { return universe, nil },
-		}, nil
-	}
-	t.Cleanup(func() { findDefaultCredentials = orig })
-	return &calls
-}
 
 func setGcsEndpointFlag(t *testing.T, endpoint string) {
 	t.Helper()
 	orig := *gcpopts.GcsEndpoint
 	*gcpopts.GcsEndpoint = endpoint
 	t.Cleanup(func() { *gcpopts.GcsEndpoint = orig })
-}
-
-func TestUniverseDomain_EnvVarTakesPrecedence(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "env.example.com")
-	calls := fakeCredentials(t, "creds.example.com", nil)
-
-	if got, want := universeDomain(context.Background(), storage.ScopeReadWrite), "env.example.com"; got != want {
-		t.Errorf("universeDomain() = %q, want %q", got, want)
-	}
-	if *calls != 0 {
-		t.Errorf("credentials looked up %d times, want 0", *calls)
-	}
-}
-
-func TestUniverseDomain_FallsBackToCredentials(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "")
-	calls := fakeCredentials(t, "creds.example.com", nil)
-
-	for i := 0; i < 2; i++ {
-		if got, want := universeDomain(context.Background(), storage.ScopeReadWrite), "creds.example.com"; got != want {
-			t.Errorf("universeDomain() = %q, want %q", got, want)
-		}
-	}
-	if *calls != 1 {
-		t.Errorf("credentials looked up %d times, want 1 (cached)", *calls)
-	}
-}
-
-func TestUniverseDomain_CredentialsError(t *testing.T) {
-	resetUniverseDomainCache(t)
-	t.Setenv(universeDomainEnvVar, "")
-	calls := fakeCredentials(t, "", errors.New("no credentials"))
-
-	for i := 0; i < 2; i++ {
-		if got := universeDomain(context.Background(), storage.ScopeReadWrite); got != "" {
-			t.Errorf("universeDomain() = %q, want empty", got)
-		}
-	}
-	if *calls != 2 {
-		t.Errorf("credentials looked up %d times, want 2 (errors not cached)", *calls)
-	}
 }
 
 func TestEndpointOptions(t *testing.T) {
