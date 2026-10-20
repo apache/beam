@@ -2737,12 +2737,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static String getContainerImageBaseRepository(DataflowPipelineOptions options) {
     String baseRepository = options.getDataflowContainerBaseRepository();
     if (baseRepository != null) {
-      baseRepository = CharMatcher.is('/').trimTrailingFrom(baseRepository.trim());
+      String trimmed = CharMatcher.is('/').trimTrailingFrom(baseRepository.trim());
+      if (!trimmed.isEmpty()) {
+        return trimmed;
+      }
     }
-    if (Strings.isNullOrEmpty(baseRepository)) {
-      return DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
-    }
-    return baseRepository;
+    return DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
   }
 
   /**

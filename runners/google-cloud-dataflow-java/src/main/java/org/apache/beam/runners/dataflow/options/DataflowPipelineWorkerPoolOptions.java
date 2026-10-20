@@ -149,9 +149,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
           + "default images of cross-language Apache Beam environments. Ignored for the Java SDK "
           + "image if sdkContainerImage is set. If not set, the Google Cloud Dataflow default "
           + "(gcr.io/cloud-dataflow/v1beta3) is used.")
-  String getDataflowContainerBaseRepository();
+  @Nullable String getDataflowContainerBaseRepository();
 
-  void setDataflowContainerBaseRepository(String value);
+  void setDataflowContainerBaseRepository(@Nullable String value);
 
   /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
