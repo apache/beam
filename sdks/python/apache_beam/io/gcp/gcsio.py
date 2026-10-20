@@ -30,6 +30,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import logging
+import os
 import re
 import time
 from typing import Optional
@@ -68,6 +69,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 DEFAULT_WRITE_BUFFER_SIZE = 16 * 1024 * 1024
+
+_DEFAULT_UNIVERSE_DOMAIN = 'googleapis.com'
 
 # Writes are performed as resumable uploads, which require the chunk size to be
 # a multiple of 256 KiB.
@@ -205,10 +208,26 @@ def create_storage_client(pipeline_options, use_credentials=True):
     if google_cloud_options.gcs_custom_audit_entries is not None:
       extra_headers.update(google_cloud_options.gcs_custom_audit_entries)
 
+    google_auth_credentials = credentials.get_google_auth_credentials()
+
+    # storage.Client only reads the universe domain from client_options; it
+    # ignores GOOGLE_CLOUD_UNIVERSE_DOMAIN and the credentials' universe
+    # domain, and fails if the latter differs from its default
+    # (googleapis.com). Set it explicitly to support non-default universes
+    # such as Trusted Partner Cloud (TPC).
+    universe_domain = (
+        os.environ.get('GOOGLE_CLOUD_UNIVERSE_DOMAIN') or
+        getattr(google_auth_credentials, 'universe_domain', None))
+    client_options = None
+    if (isinstance(universe_domain, str) and
+        universe_domain != _DEFAULT_UNIVERSE_DOMAIN):
+      client_options = {'universe_domain': universe_domain}
+
     return storage.Client(
-        credentials=credentials.get_google_auth_credentials(),
+        credentials=google_auth_credentials,
         project=google_cloud_options.project,
         client_info=beam_client_info,
+        client_options=client_options,
         extra_headers=extra_headers)
   else:
     return storage.Client.create_anonymous_client()

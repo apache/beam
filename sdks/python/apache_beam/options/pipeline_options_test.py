@@ -930,6 +930,58 @@ class PipelineOptionsTest(unittest.TestCase):
       errors = options._handle_temp_and_staging_locations(validator)
       self.assertEqual(errors, expected)
 
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch.dict(
+      os.environ,
+      {
+          "GOOGLE_CLOUD_UNIVERSE_DOMAIN": "example-tpc.goog",
+          # mTLS auto-detection is incompatible with non-default universes.
+          "GOOGLE_API_USE_CLIENT_CERTIFICATE": "false",
+      })
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO.get_bucket')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_soft_delete_check_with_tpc_universe_domain(
+      self, mock_get_service_credentials, mock_get_bucket):
+    import google.auth.credentials
+
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        mock.Mock(
+            spec=google.auth.credentials.Credentials,
+            universe_domain="example-tpc.goog"))
+    soft_delete_policy = mock_get_bucket.return_value.soft_delete_policy
+    soft_delete_policy.retention_duration_seconds = 0
+
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--impersonate_service_account=sa@myproject.iam.gserviceaccount.com',
+        '--temp_location=gs://beam/tmp'
+    ])
+    # Must not raise a universe domain mismatch ValueError.
+    options._warn_if_soft_delete_policy_enabled('temp_location')
+
+    # The GCS client must be built from the user's pipeline options so that
+    # project and impersonation settings are honored.
+    used_options = mock_get_service_credentials.call_args[0][0].view_as(
+        GoogleCloudOptions)
+    self.assertEqual(used_options.project, 'myproject')
+    self.assertEqual(
+        used_options.impersonate_service_account,
+        'sa@myproject.iam.gserviceaccount.com')
+
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.io.gcp.gcsio.GcsIO.__init__',
+      side_effect=ValueError('universe domain mismatch'))
+  def test_soft_delete_check_does_not_raise(self, unused_mock_init):
+    options = GoogleCloudOptions(
+        ['--project=myproject', '--temp_location=gs://beam/tmp'])
+    # The soft delete check only emits a warning; failures must not block
+    # pipeline submission.
+    with self.assertLogs('apache_beam.options.pipeline_options',
+                         level='WARNING'):
+      options._warn_if_soft_delete_policy_enabled('temp_location')
+
   def test_validation_good_stg_good_temp(self):
     runner = MockRunners.DataflowRunner()
     options = GoogleCloudOptions([
