@@ -129,6 +129,11 @@ task deploy {
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
           beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
       }
+
+      exec {
+        executable 'sh'
+        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
+      }
     } else {
       println 'Nothing to do, exiting.'
     }

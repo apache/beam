@@ -82,6 +82,7 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.secret import AwsSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
 from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import Secret
@@ -94,6 +95,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    'AwsSecret',
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
@@ -2156,7 +2158,9 @@ class Regex(object):
   def all_matches(pcoll, regex):
     """
     Returns all matches (groups) if zero or more characters at the beginning
-    of string match the regular expression.
+    of string match the regular expression. Each output is a list of the
+    entire match followed by every group of the regex, with None for a group
+    that did not participate in the match.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -2166,7 +2170,7 @@ class Regex(object):
     def _process(element):
       m = regex.match(element)
       if m:
-        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+        yield [m.group(), *m.groups()]
 
     return pcoll | FlatMap(_process)
 

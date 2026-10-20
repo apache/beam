@@ -274,6 +274,45 @@ class MLTransformJobSubmissionTest(unittest.TestCase):
     self.assertEqual(attempted_imports, [])
 
 
+class RunInferenceJobSubmissionTest(unittest.TestCase):
+  def test_huggingface_pipeline_model_handler_does_not_use_ml_frameworks(self):
+    # tensorflow, torch and transformers should only be needed when executing
+    # the pipeline (for example, on the workers), not for constructing and
+    # submitting it.
+    # Imports the YAML ML module before blocking imports, since importing it
+    # loads all available MLTransform transforms, and some of these (e.g. the
+    # TFT based ones) do require tensorflow.
+    from apache_beam.yaml import yaml_ml  # pylint: disable=unused-import
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with test_utils.block_imports('tensorflow', 'torch',
+                                  'transformers') as attempted_imports:
+      pipeline = beam.Pipeline(options=ml_opts)
+      _ = pipeline | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements:
+                  - {text: "I love Apache Beam!"}
+            - type: RunInference
+              config:
+                model_handler:
+                  type: HuggingFacePipelineModelHandler
+                  config:
+                    task: text-classification
+                    preprocess:
+                      callable: 'lambda row: row.text'
+          ''')
+      # Serializes the pipeline, as done during job submission, and
+      # deserializes it again. Deserializing fails if the pipeline references
+      # (i.e. requires) a module that can't be imported.
+      beam.Pipeline.from_runner_api(
+          pipeline.to_runner_api(), pipeline.runner, pipeline.options)
+    self.assertEqual(attempted_imports, [])
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

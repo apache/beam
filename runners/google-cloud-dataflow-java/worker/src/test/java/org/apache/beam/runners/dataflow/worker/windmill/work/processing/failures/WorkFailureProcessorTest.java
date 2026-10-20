@@ -68,7 +68,7 @@ public class WorkFailureProcessorTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
   }

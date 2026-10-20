@@ -19,7 +19,7 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
     val mavenCentralMirrorUrl = settings.providers.gradleProperty("mavenCentralMirrorUrl").orNull
-    val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    val isCi = System.getenv("GITHUB_ACTIONS") != null
     val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
     if (useMirror) {
@@ -42,11 +42,10 @@ plugins {
     id("com.gradle.common-custom-user-data-gradle-plugin") version "2.8.0"
 }
 
-// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
-val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
 // GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
-val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
-val isCi = isJenkinsBuild || isGithubActionsBuild
+val isCi = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
+
+val hasDevelocityAccessKey = !System.getenv("DEVELOCITY_ACCESS_KEY").isNullOrBlank()
 
 develocity {
     server = "https://develocity.apache.org"
@@ -65,20 +64,13 @@ buildCache {
     local {
         isEnabled = true
     }
-    remote<HttpBuildCache> {
-        url = uri("https://beam-cache.apache.org/cache/")
-        isAllowUntrustedServer = false
-        credentials {
-            username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
-            password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
-        }
-        isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    remote(develocity.buildCache) {
+        isEnabled = true
         isPush =
-            (isJenkinsBuild ||
-                (isGithubActionsBuild &&
-                    (System.getenv("GITHUB_EVENT_NAME") == "schedule" ||
-                        System.getenv("GITHUB_EVENT_NAME") == "push" ))) &&
-                !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+            isCi &&
+                (System.getenv("GITHUB_EVENT_NAME") == "schedule" ||
+                    System.getenv("GITHUB_EVENT_NAME") == "push") &&
+                hasDevelocityAccessKey
     }
 }
 
@@ -227,7 +219,6 @@ include(":sdks:java:extensions:sql:payloads")
 include(":sdks:java:extensions:sql:perf-tests")
 include(":sdks:java:extensions:sql:jdbc")
 include(":sdks:java:extensions:sql:hcatalog")
-include(":sdks:java:extensions:sql:datacatalog")
 include(":sdks:java:extensions:sql:expansion-service")
 include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")

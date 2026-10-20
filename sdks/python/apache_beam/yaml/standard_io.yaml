@@ -671,6 +671,7 @@
         filter: 'filter'
         from_snapshot: 'from_snapshot'
         from_timestamp: 'from_timestamp'
+        include_metadata_columns: 'include_metadata_columns'
         keep: 'keep'
         poll_interval_seconds: 'poll_interval_seconds'
         starting_strategy: 'starting_strategy'

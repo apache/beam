@@ -67,8 +67,13 @@ else:
 
 if sys.version_info >= (3, 14):
   _NB_SUBSCR_OPCODE = [op[0] for op in opcode._nb_ops].index('NB_SUBSCR')
+  # Table of values indexed by the arg of LOAD_COMMON_CONSTANT. In 3.15 this
+  # was expanded to include common literals such as None, '', True, False,
+  # and -1, which are no longer loaded via LOAD_CONST.
+  _COMMON_CONSTANTS = tuple(getattr(opcode, '_common_constants', ()))
 else:
   _NB_SUBSCR_OPCODE = -1
+  _COMMON_CONSTANTS = ()
 
 
 def pop_one(state, unused_arg):
@@ -107,7 +112,11 @@ def end_for(state, unused_arg):
 
 
 def end_send(state, unused_arg):
-  del state.stack[-2]
+  if sys.version_info >= (3, 15):
+    # The receiver is a two-slot (iter, index_or_null) pair in 3.15.
+    del state.stack[-3:-1]
+  else:
+    del state.stack[-2]
 
 
 def copy(state, arg):
@@ -151,6 +160,14 @@ def unary_convert(state, unused_arg):
 
 def get_iter(state, unused_arg):
   state.stack.append(Iterable[element_type(state.stack.pop())])
+  if sys.version_info >= (3, 15):
+    # In 3.15 the iteration state occupies two stack slots: the iterator (or
+    # the iterable itself for "virtual" iteration over sequences) and either
+    # NULL or a tagged integer index. FOR_ITER, POP_ITER, END_SEND, etc. all
+    # operate on this pair. The second slot is irrelevant for type inference
+    # but must be tracked so stack-relative args (e.g. LIST_APPEND, SWAP)
+    # stay correct.
+    state.stack.append(Any)
 
 
 _NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
@@ -504,6 +521,13 @@ def load_global(state, arg):
 
 def load_small_int(state, arg):
   state.stack.append(Const(arg))
+
+
+def load_common_constant(state, arg):
+  if arg < len(_COMMON_CONSTANTS):
+    state.stack.append(Const(_COMMON_CONSTANTS[arg]))
+  else:
+    state.stack.append(Any)
 
 
 store_map = pop_two
