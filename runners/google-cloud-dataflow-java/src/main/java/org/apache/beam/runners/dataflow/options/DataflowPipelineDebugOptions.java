@@ -63,7 +63,7 @@ public interface DataflowPipelineDebugOptions
           + ").")
   @Nullable String getApiRootUrl();
 
-  void setApiRootUrl(@Nullable String value);
+  void setApiRootUrl(String value);
 
   /**
    * Dataflow endpoint to use.
