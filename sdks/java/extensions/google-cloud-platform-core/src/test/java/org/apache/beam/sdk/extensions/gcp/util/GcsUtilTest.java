@@ -335,6 +335,7 @@ public class GcsUtilTest {
     when(blob.getMd5()).thenReturn("md5==");
     when(blob.getCrc32c()).thenReturn("crc==");
     when(blob.getEtag()).thenReturn("etag");
+    when(blob.getKmsKeyName()).thenReturn("projects/p/locations/l/keyRings/r/cryptoKeys/k");
     when(blob.getUpdateTimeOffsetDateTime())
         .thenReturn(Instant.ofEpochMilli(1234L).atOffset(ZoneOffset.UTC));
     when(blob.getCreateTimeOffsetDateTime())
@@ -353,6 +354,7 @@ public class GcsUtilTest {
     assertEquals("md5==", object.getMd5Hash());
     assertEquals("crc==", object.getCrc32c());
     assertEquals("etag", object.getEtag());
+    assertEquals("projects/p/locations/l/keyRings/r/cryptoKeys/k", object.getKmsKeyName());
     assertEquals(1234L, object.getUpdated().getValue());
     assertEquals(1000L, object.getTimeCreated().getValue());
     Mockito.verifyNoMoreInteractions(mockDelegate);

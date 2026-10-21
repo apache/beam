@@ -658,7 +658,8 @@ public class GcsUtil {
             .setContentEncoding(blob.getContentEncoding())
             .setMd5Hash(blob.getMd5())
             .setCrc32c(blob.getCrc32c())
-            .setEtag(blob.getEtag());
+            .setEtag(blob.getEtag())
+            .setKmsKeyName(blob.getKmsKeyName());
     Long size = blob.getSize();
     if (size != null) {
       storageObject.setSize(BigInteger.valueOf(size));
