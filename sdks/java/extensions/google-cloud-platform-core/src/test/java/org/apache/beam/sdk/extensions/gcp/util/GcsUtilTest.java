@@ -473,6 +473,18 @@ public class GcsUtilTest {
             .delegateV2);
   }
 
+  /** gRPC is only supported by V1, so the use_grpc_for_gcs experiment falls back to V1. */
+  @Test
+  public void testFallsBackToV1WithGrpcExperiment() {
+    assertNull(
+        gcsOptionsWithExperiments(GcsUtil.USE_GRPC_FOR_GCS_EXPERIMENT).getGcsUtil().delegateV2);
+    assertNull(
+        gcsOptionsWithExperiments(
+                GcsUtil.USE_GRPC_FOR_GCS_EXPERIMENT, GcsUtil.USE_GCSUTIL_V2_EXPERIMENT)
+            .getGcsUtil()
+            .delegateV2);
+  }
+
   /** With the disable_gcsutil_v2 experiment, the V2-only methods fail rather than fall back. */
   @Test
   public void testV2OnlyMethodsFailWithoutV2() {

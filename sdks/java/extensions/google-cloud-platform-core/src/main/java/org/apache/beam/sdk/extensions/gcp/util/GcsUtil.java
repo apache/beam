@@ -140,13 +140,25 @@ public class GcsUtil {
    */
   public static final String USE_GCSUTIL_V2_EXPERIMENT = "use_gcsutil_v2";
 
+  /**
+   * Experiment that makes GcsUtil V1 talk to GCS over gRPC. Only V1 (gcsio) supports it, so it also
+   * falls back to V1, the same as {@link #DISABLE_GCSUTIL_V2_EXPERIMENT}.
+   */
+  public static final String USE_GRPC_FOR_GCS_EXPERIMENT = "use_grpc_for_gcs";
+
   GcsUtil(PipelineOptions options) {
     this.delegate = new GcsUtilV1.GcsUtilFactory().create(options);
+    @Nullable String v1Experiment = null;
     if (ExperimentalOptions.hasExperiment(options, DISABLE_GCSUTIL_V2_EXPERIMENT)) {
+      v1Experiment = DISABLE_GCSUTIL_V2_EXPERIMENT;
+    } else if (ExperimentalOptions.hasExperiment(options, USE_GRPC_FOR_GCS_EXPERIMENT)) {
+      v1Experiment = USE_GRPC_FOR_GCS_EXPERIMENT;
+    }
+    if (v1Experiment != null) {
       this.delegateV2 = null;
       LOG.info(
           "Using GcsUtilV1 (gcsio) for GCS operations because the {} experiment is set.",
-          DISABLE_GCSUTIL_V2_EXPERIMENT);
+          v1Experiment);
     } else {
       this.delegateV2 = new GcsUtilV2.GcsUtilFactory().create(options);
       LOG.info("Using GcsUtilV2 (java-storage) for GCS operations.");
