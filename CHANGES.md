@@ -116,6 +116,7 @@
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
+* (Python) Dataflow: artifacts staged by different environments under the same name (e.g. requirements.txt from the main pipeline and a Beam YAML pythonPackage provider) no longer overwrite each other in the staging location, and the Python SDK container stages each environment under its own directory. Previously the losing environment failed the staged-file integrity check and crash-looped, or silently installed another environment's dependencies ([#40699](https://github.com/apache/beam/issues/40699)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
