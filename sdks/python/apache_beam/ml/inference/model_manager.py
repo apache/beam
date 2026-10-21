@@ -185,6 +185,8 @@ class ResourceEstimator:
     self.min_data_points = min_data_points
     self.verbose_logging = verbose_logging
     self.estimates: dict[str, float] = {}
+    # Maps a model tag to the metric tags its metrics are reported under.
+    self._metric_tags: dict[str, set[str]] = defaultdict(set)
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
     self._lock = threading.Lock()
@@ -192,6 +194,18 @@ class ResourceEstimator:
   def logging_info(self, message: str, *args):
     if self.verbose_logging:
       logger.info(message, *args)
+
+  def set_metric_tag(self, model_tag: str, metric_tag: str):
+    with self._lock:
+      self._metric_tags[model_tag].add(metric_tag)
+
+  # Should hold _lock when calling
+  def _report_estimate(self, model_tag: str, cost: float):
+    for metric_tag in self._metric_tags.get(model_tag) or {model_tag}:
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"memory_estimate_mb_{metric_tag}",
+          process_wide=True).update(int(cost))
 
   def is_unknown(self, model_tag: str) -> bool:
     with self._lock:
@@ -205,10 +219,7 @@ class ResourceEstimator:
     with self._lock:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"memory_estimate_mb_{model_tag}",
-          process_wide=True).update(int(cost))
+      self._report_estimate(model_tag, cost)
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
@@ -296,10 +307,7 @@ class ResourceEstimator:
         self.logging_info(
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
 
-        Metrics.distribution(
-            _MODEL_MANAGER_METRICS_NAMESPACE,
-            f"memory_estimate_mb_{model}",
-            process_wide=True).update(int(self.estimates[model]))
+        self._report_estimate(model, self.estimates[model])
       self.logging_info("System Bias: %s MB", bias)
 
     except Exception as e:
@@ -358,6 +366,10 @@ class ModelManager:
 
     # Resource State
     self._models = defaultdict(list)
+    # Maps a stable metric_tag (e.g. model_identifier) to the currently active
+    # model tag so metrics continue to be emitted under metric_tag across
+    # runtime side-input model updates.
+    self._metric_tag_to_active_tag: dict[str, str] = {}
     # Idle LRU used to track released models that
     # can be freed or reused upon request.
     self._idle_lru = OrderedDict()
@@ -384,17 +396,17 @@ class ModelManager:
     self._monitor.start()
 
   def _update_model_count_metric(self):
-    for tag, instances in self._models.items():
+    for metric_tag, active_tag in self._metric_tag_to_active_tag.items():
       Metrics.distribution(
           _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{tag}",
-          process_wide=True).update(len(instances))
+          f"num_loaded_models_{metric_tag}",
+          process_wide=True).update(len(self._models.get(active_tag, ())))
 
   def _clear_all_model_metrics(self):
-    for tag in self._models:
+    for metric_tag in self._metric_tag_to_active_tag:
       Metrics.distribution(
           _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{tag}",
+          f"num_loaded_models_{metric_tag}",
           process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
@@ -488,12 +500,23 @@ class ModelManager:
     finally:
       self._cv.acquire()
 
-  def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
+  def acquire_model(
+      self,
+      tag: str,
+      loader_func: Callable[[], Any],
+      metric_tag: Optional[str] = None) -> Any:
+    effective_metric_tag = metric_tag or tag
+    self._estimator.set_metric_tag(tag, effective_metric_tag)
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
     ticket_num = next(self._ticket_counter)
     my_ticket = QueueTicket(current_priority, ticket_num, tag)
 
     with self._cv:
+      if self._metric_tag_to_active_tag.get(effective_metric_tag) != tag:
+        self._metric_tag_to_active_tag[effective_metric_tag] = tag
+        if self._models.get(tag):
+          self._update_model_count_metric()
+
       # FAST PATH: Grab from idle LRU if available
       if not self._isolation_mode:
         cached_instance = self._try_grab_from_lru(tag)
@@ -803,6 +826,7 @@ class ModelManager:
     logger.warning("Force Reset Triggered")
     self._delete_all_models()
     self._models = defaultdict(list)
+    self._metric_tag_to_active_tag = {}
     self._idle_lru = OrderedDict()
     self._active_counts = Counter()
     self._wait_queue = []

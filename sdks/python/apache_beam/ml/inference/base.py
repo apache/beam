@@ -2078,10 +2078,12 @@ class _SharedModelWrapper():
       self,
       models: Union[list[Any], ModelManager],
       model_tag: str,
-      loader_func: Optional[Callable[[], Any]] = None):
+      loader_func: Optional[Callable[[], Any]] = None,
+      metric_tag: Optional[str] = None):
     self.models = models
     self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
+    self.metric_tag = metric_tag or model_tag
     self.loader_func = loader_func
     if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
@@ -2092,7 +2094,8 @@ class _SharedModelWrapper():
   def next_model(self):
     if self.use_model_manager:
       loader_wrapper = _ProxyLoader(self.loader_func, self.model_tag)
-      return self.models.acquire_model(self.model_tag, loader_wrapper)
+      return self.models.acquire_model(
+          self.model_tag, loader_wrapper, metric_tag=self.metric_tag)
 
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
@@ -2201,7 +2204,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           tag='model_manager',
           always_proxy=True).acquire()
       model_wrapper = _SharedModelWrapper(
-          model_manager, self._cur_tag, self._model_handler.load_model)
+          model_manager,
+          self._cur_tag,
+          self._model_handler.load_model,
+          metric_tag=self._model_tag)
     elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
