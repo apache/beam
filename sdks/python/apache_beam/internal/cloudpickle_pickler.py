@@ -29,7 +29,6 @@ dump_session and load_session are no-ops.
 
 import base64
 import bz2
-import dataclasses
 import io
 import logging
 import sys
@@ -188,10 +187,7 @@ def _dumps(
   with _pickle_lock:
     with io.BytesIO() as file:
       if enable_stable_code_identifier_pickling:
-        config = dataclasses.replace(
-            config,
-            get_code_object_params=STABLE_CODE_IDENTIFIER_CONFIG.
-            get_code_object_params)
+        config = STABLE_CODE_IDENTIFIER_CONFIG
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
