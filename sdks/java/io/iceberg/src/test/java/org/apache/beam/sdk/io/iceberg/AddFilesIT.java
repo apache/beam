@@ -33,6 +33,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Notification;
 import com.google.cloud.storage.NotificationInfo;
 import com.google.cloud.storage.Storage;
@@ -696,6 +698,84 @@ public class AddFilesIT {
         .containsInAnyOrder(
             expected.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
     s.run().waitUntilFinish();
+  }
+
+  /**
+   * Hive names Parquet files without an extension (000000_0), and Spark and Hadoop leave a _SUCCESS
+   * marker beside them. The files register and read back, BigQuery included; the marker is one
+   * error row and must not seed the table.
+   */
+  @Test
+  public void testBatchImportOfParquetFilesWithoutExtension() throws IOException {
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
+    q.apply(Create.of(TEST_ROWS))
+        .setRowSchema(ROW_SCHEMA)
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(record -> String.valueOf(record.get("id")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(
+                    id ->
+                        (window, pane, numShards, shardIndex, compression) ->
+                            format("%06d_%d", Long.parseLong(id), shardIndex))
+                .withTempDirectory(tempDir)
+                .to(parquetDir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
+    String marker = parquetDir + "_SUCCESS";
+    storage.create(
+        BlobInfo.newBuilder(BlobId.of(DATA_BUCKET, dirName + "/_SUCCESS")).build(), new byte[0]);
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> dataFiles = new ArrayList<>();
+    for (StorageObject object : gcsUtil.listObjects(DATA_BUCKET, dirName + "/", null).getItems()) {
+      String path = format("gs://%s/%s", object.getBucket(), object.getName());
+      if (!path.equals(marker)) {
+        dataFiles.add(path);
+      }
+    }
+    LOG.info("Extensionless files: {}", dataFiles);
+    assertEquals(TEST_ROWS.size(), dataFiles.size());
+    for (String path : dataFiles) {
+      assertFalse(path, path.substring(path.lastIndexOf('/') + 1).contains("."));
+    }
+    List<String> inputs = new ArrayList<>(dataFiles);
+    inputs.add(marker);
+
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(inputs))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    null,
+                    null,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null));
+    PAssert.that(tuple.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              String error = String.valueOf(row.getString("error"));
+              LOG.info("Marker error row: {}", row);
+              assertEquals(marker, row.getString("file"));
+              assertTrue(error, error.startsWith(AddFiles.ConvertToDataFile.NOT_PARQUET_ERROR));
+              return null;
+            });
+    p.run().waitUntilFinish();
+
+    assertTrue(checkTableHasRegisteredParquetFiles(dataFiles));
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
   }
 
   private static void writeParquet(List<Row> rows, Schema schema, String dir, String tempDir) {

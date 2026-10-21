@@ -41,6 +41,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnR
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -68,7 +69,7 @@ import scala.collection.Iterator;
 
 /** Runs a stateful {@link DoFn} within Spark 4 Structured Streaming {@code transformWithState}. */
 public class BeamStatefulProcessor<K, V, OutputT>
-    extends StatefulProcessor<K, WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+    extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
@@ -76,7 +77,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   private final DoFn<KV<K, V>, OutputT> doFn;
   private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
-  private final Coder<KV<K, V>> inputCoder;
+  private final KvCoder<K, V> inputCoder;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Supplier<PipelineOptions> optionsSupplier;
   private final MetricsAccumulator metrics;
@@ -93,7 +94,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
   public BeamStatefulProcessor(
       DoFn<KV<K, V>, OutputT> doFn,
       DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
-      Coder<KV<K, V>> inputCoder,
+      KvCoder<K, V> inputCoder,
       WindowingStrategy<?, ?> windowingStrategy,
       Supplier<PipelineOptions> optionsSupplier,
       MetricsAccumulator metrics) {
@@ -119,13 +120,22 @@ public class BeamStatefulProcessor<K, V, OutputT>
   }
 
   private void storeWatermark(SparkTimerInternals timerInternals) {
-    checkStateNotNull(beamWatermark).update(timerInternals.currentInputWatermarkTime().getMillis());
+    ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
+    // A key without timers and state keeps no row, its next visit is a first visit.
+    if (timerInternals.getTimers().isEmpty() && !checkStateNotNull(beamState).exists()) {
+      if (watermarkState.exists()) {
+        watermarkState.clear();
+      }
+    } else {
+      watermarkState.update(timerInternals.currentInputWatermarkTime().getMillis());
+    }
   }
 
   private SparkTimerInternals timerInternals(TimerValues timerValues) {
     ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
     // Late data is filtered against the watermark of the key's previous visit.
-    // A key seen for the first time or idle for several batches filters against an older watermark.
+    // A key seen for the first time, cleared after its last window expired or idle for several
+    // batches filters against an older watermark.
     Instant low =
         watermarkState.exists()
             ? new Instant(watermarkState.get())
@@ -138,7 +148,8 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleInputRows(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+      byte[] keyBytes, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     SparkTimerInternals timerInternals = timerInternals(timerValues);
 
@@ -159,7 +170,8 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleExpiredTimer(
-      K key, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+      byte[] keyBytes, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     SparkTimerInternals timerInternals = timerInternals(timerValues);
     timerInternals.advanceWatermark();

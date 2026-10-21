@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import contextlib
 import logging
 import os
 import secrets
@@ -1257,6 +1258,52 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to(expected_destinations),
           label='CheckDestinations')
       assert_that(jobs, equal_to(expected_jobs), label='CheckJobs')
+
+
+class TestFileLoadsQuotaProject(_TestCaseWithTempDirCleanUp):
+  """Tests that the file loads DoFns attribute quota to the quota project."""
+  @parameterized.expand([
+      param(dofn=bqfl.UpdateDestinationSchema, quota_attr='_quota_project_id'),
+      param(dofn=bqfl.TriggerCopyJobs, quota_attr='quota_project_id'),
+      param(dofn=bqfl.TriggerLoadJobs, quota_attr='quota_project_id'),
+      param(dofn=bqfl.DeleteTablesFn, quota_attr='quota_project_id'),
+  ])
+  def test_start_bundle_passes_quota_project(self, dofn, quota_attr):
+    fn = dofn(quota_project_id='my-billing-project')
+    self.assertEqual(getattr(fn, quota_attr), 'my-billing-project')
+    with mock.patch.object(bigquery_tools, 'BigQueryWrapper') as mock_wrapper:
+      fn.start_bundle()
+    self.assertEqual(
+        mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
+
+  def test_expand_resolves_quota_project_from_options(self):
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    transform = bqfl.BigQueryBatchFileLoads(
+        'project:dataset.table',
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=mock.Mock(),
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+    p = TestPipeline(options=options)
+    dofns = [
+        bqfl.UpdateDestinationSchema,
+        bqfl.TriggerCopyJobs,
+        bqfl.TriggerLoadJobs,
+        bqfl.DeleteTablesFn
+    ]
+    with contextlib.ExitStack() as stack:
+      mocks = [
+          stack.enter_context(
+              mock.patch.object(
+                  dofn, '__init__', autospec=True, side_effect=dofn.__init__))
+          for dofn in dofns
+      ]
+      _ = p | beam.Create(_ELEMENTS) | transform
+    self.assertEqual(transform.quota_project_id, 'my-billing-project')
+    for dofn, m in zip(dofns, mocks):
+      self.assertTrue(m.call_args_list, dofn.__name__)
+      for c in m.call_args_list:
+        self.assertEqual(c.kwargs['quota_project_id'], 'my-billing-project')
 
 
 class BigQueryFileLoadsIT(unittest.TestCase):
