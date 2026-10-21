@@ -127,16 +127,29 @@ public class GcsUtil {
     return GcsPath.isWildcard(spec);
   }
 
+  /**
+   * Experiment that falls back to GcsUtil V1 (gcsio). V2 (java-storage) is the default, and this
+   * experiment is the escape hatch should V2 misbehave for a pipeline.
+   */
+  public static final String DISABLE_GCSUTIL_V2_EXPERIMENT = "disable_gcsutil_v2";
+
+  /**
+   * Experiment that used to opt into GcsUtil V2. V2 is now the default, so this is a no-op kept so
+   * that existing pipelines that still pass it keep working. {@link #DISABLE_GCSUTIL_V2_EXPERIMENT}
+   * takes precedence if both are set.
+   */
+  public static final String USE_GCSUTIL_V2_EXPERIMENT = "use_gcsutil_v2";
+
   GcsUtil(PipelineOptions options) {
     this.delegate = new GcsUtilV1.GcsUtilFactory().create(options);
-    if (ExperimentalOptions.hasExperiment(options, "use_gcsutil_v2")) {
-      this.delegateV2 = new GcsUtilV2.GcsUtilFactory().create(options);
-      // INFO only for V2, which is opt-in. V1 is still the default for every pipeline,
-      // so logging it at INFO would be noise.
-      LOG.info("Using GcsUtilV2 (java-storage) for GCS operations.");
-    } else {
+    if (ExperimentalOptions.hasExperiment(options, DISABLE_GCSUTIL_V2_EXPERIMENT)) {
       this.delegateV2 = null;
-      LOG.debug("Using GcsUtilV1 (gcsio) for GCS operations.");
+      LOG.info(
+          "Using GcsUtilV1 (gcsio) for GCS operations because the {} experiment is set.",
+          DISABLE_GCSUTIL_V2_EXPERIMENT);
+    } else {
+      this.delegateV2 = new GcsUtilV2.GcsUtilFactory().create(options);
+      LOG.info("Using GcsUtilV2 (java-storage) for GCS operations.");
     }
   }
 

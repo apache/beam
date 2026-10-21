@@ -109,7 +109,7 @@ public class GcsUtilIT {
 
   @Parameters(name = "{0}")
   public static Iterable<String> data() {
-    return Arrays.asList("use_gcsutil_v1", "use_gcsutil_v2");
+    return Arrays.asList("disable_gcsutil_v2", "use_gcsutil_v2");
   }
 
   @Parameter public String experiment;
