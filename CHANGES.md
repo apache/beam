@@ -129,6 +129,7 @@
 * (Python) Setting `max_batch_weight` on a RunInference `ModelHandler` no longer fails with a `TypeError`: `BatchElements` now supports `max_batch_weight`, which limits the total `element_size_fn` of a batch in addition to its number of elements ([#40644](https://github.com/apache/beam/issues/40644)).
 * (Python) `BatchElements` now honors `element_size_fn` when `max_batch_duration_secs` is set, and no longer emits an empty batch before an element that exceeds the batch size on its own ([#40644](https://github.com/apache/beam/issues/40644)).
 * (Python) `KeyedModelHandler` and `MaybeKeyedModelHandler` now apply the `element_size_fn` and `batch_length_fn` of the wrapped `ModelHandler` to examples, instead of to `(key, example)` pairs ([#40644](https://github.com/apache/beam/issues/40644)).
+* (Java) BigQuery Storage Write API `TableRow` conversion now honors `allowMissingRequiredFields` when building protocol-buffer messages, so callers that pass `true` with required descriptors get partial messages instead of a conversion-time `UninitializedMessageException` ([#40189](https://github.com/apache/beam/issues/40189)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
