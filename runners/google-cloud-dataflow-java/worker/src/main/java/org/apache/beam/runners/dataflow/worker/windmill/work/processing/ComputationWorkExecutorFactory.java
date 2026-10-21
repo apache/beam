@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -171,23 +172,26 @@ final class ComputationWorkExecutorFactory {
       Operation operation,
       MapTaskExecutor mapTaskExecutor,
       String counterName) {
-    if (operation.receivers != null
-        && operation.receivers.length > 0
-        && operation.receivers[0] != null) {
+    if (operation.receivers != null && operation.receivers.length > 0) {
       NameContext nameContext =
           NameContext.create(
               mapTask.getStageName(),
               readNode.getParallelInstruction().getOriginalName(),
               readNode.getParallelInstruction().getSystemName(),
               readNode.getParallelInstruction().getName());
-      operation.receivers[0].addOutputCounter(
-          counterName,
-          new OutputObjectAndByteCounter(
-                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
-                  mapTaskExecutor.getOutputCounters(),
-                  nameContext)
-              .setSamplingPeriod(100)
-              .countBytes(counterName));
+      for (OutputReceiver receiver : operation.receivers) {
+        if (receiver != null) {
+          receiver.addOutputCounter(
+              counterName,
+              new OutputObjectAndByteCounter(
+                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                          readCoder),
+                      mapTaskExecutor.getOutputCounters(),
+                      nameContext)
+                  .setSamplingPeriod(100)
+                  .countBytes(counterName));
+        }
+      }
     }
   }
 
