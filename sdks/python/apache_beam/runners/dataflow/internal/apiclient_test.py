@@ -1576,7 +1576,7 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='baz1').SerializeToString()),
+                                staged_name='baz2').SerializeToString()),
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
@@ -1585,10 +1585,110 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='renamed1').SerializeToString())
+                                staged_name='renamed2').SerializeToString())
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)
+
+  def _stage_resources_for(self, environments):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://test-location/temp',
+        '--staging_location',
+        'gs://test-location/staging',
+        '--no_auth'
+    ])
+
+    def artifact(path, staged_name, sha256):
+      return beam_runner_api_pb2.ArtifactInformation(
+          type_urn=common_urns.artifact_types.FILE.urn,
+          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+              path=path, sha256=sha256).SerializeToString(),
+          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=staged_name).SerializeToString())
+
+    pipeline = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                env_id: beam_runner_api_pb2.Environment(
+                    dependencies=[artifact(*dep) for dep in deps])
+                for env_id, deps in environments.items()
+            }))
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    with mock.patch.object(apiclient._LegacyDataflowStager,
+                           'stage_job_resources') as mock_stager:
+      client._stage_resources(pipeline, pipeline_options)
+    staged = mock_stager.call_args[0][0]
+    deps = {
+        env_id: [(
+            beam_runner_api_pb2.ArtifactUrlPayload.FromString(
+                d.type_payload).url,
+            beam_runner_api_pb2.ArtifactUrlPayload.FromString(
+                d.type_payload).sha256,
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                d.role_payload).staged_name) for d in env.dependencies]
+        for env_id, env in pipeline.components.environments.items()
+    }
+    return staged, deps
+
+  def test_stage_resources_same_name_different_content(self):
+    # Two environments each stage their own requirements.txt (e.g. the main
+    # pipeline and a Beam YAML pythonPackage provider).  The second must not
+    # overwrite the first, and both keep staged_name=requirements.txt so the
+    # SDK container still finds the file.
+    staged, deps = self._stage_resources_for({
+        'env1': [('/tmp/a/requirements.txt', 'requirements.txt', 'aaaa')],
+        'env2': [('/tmp/b/requirements.txt', 'requirements.txt', 'bbbb'),
+                 ('/tmp/b/pkg.tar.gz', 'pkg.tar.gz', 'cccc')],
+    })
+    self.assertEqual(
+        staged,
+        [('/tmp/a/requirements.txt', 'requirements.txt', 'aaaa'),
+         ('/tmp/b/requirements.txt', 'requirements-bbbb.txt', 'bbbb'),
+         ('/tmp/b/pkg.tar.gz', 'pkg.tar.gz', 'cccc')])
+    self.assertEqual(
+        deps['env1'],
+        [(
+            'gs://test-location/staging/requirements.txt',
+            'aaaa',
+            'requirements.txt')])
+    self.assertEqual(
+        deps['env2'],
+        [(
+            'gs://test-location/staging/requirements-bbbb.txt',
+            'bbbb',
+            'requirements.txt'),
+         ('gs://test-location/staging/pkg.tar.gz', 'cccc', 'pkg.tar.gz')])
+
+  def test_stage_resources_same_content_keeps_staged_name(self):
+    # Identical bytes are uploaded once, but each environment keeps the
+    # worker-local name it asked for: role_payload is never rewritten.
+    staged, deps = self._stage_resources_for({
+        'env1': [('/tmp/a/requirements.txt', 'requirements.txt', 'same')],
+        'env2': [('/tmp/b/requirements.txt', 'requirements.txt', 'same'),
+                 ('/tmp/b/other.txt', 'other.txt', 'same')],
+        'env3': [('/tmp/c/requirements.txt', 'requirements.txt', 'diff')],
+        'env4': [('/tmp/d/requirements.txt', 'requirements.txt', 'diff')],
+    })
+    self.assertEqual(
+        staged,
+        [('/tmp/a/requirements.txt', 'requirements.txt', 'same'),
+         ('/tmp/c/requirements.txt', 'requirements-diff.txt', 'diff')])
+    self.assertEqual(
+        deps['env2'],
+        [(
+            'gs://test-location/staging/requirements.txt',
+            'same',
+            'requirements.txt'),
+         ('gs://test-location/staging/requirements.txt', 'same', 'other.txt')])
+    # env4 reuses env3's renamed object but still asks for requirements.txt.
+    self.assertEqual(
+        deps['env4'],
+        [(
+            'gs://test-location/staging/requirements-diff.txt',
+            'diff',
+            'requirements.txt')])
 
   def test_set_dataflow_service_option(self):
     pipeline_options = PipelineOptions([
@@ -1856,7 +1956,7 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='baz1').SerializeToString()),
+                                staged_name='baz2').SerializeToString()),
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
@@ -1865,7 +1965,7 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='renamed1').SerializeToString())
+                                staged_name='renamed2').SerializeToString())
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)
