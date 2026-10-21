@@ -288,6 +288,7 @@ test_cases = [
             + "]"
         ),
     ),
+    (
         function_with_lambda_default_argument(),
         (
             f"{prefix}"
