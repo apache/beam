@@ -274,6 +274,41 @@ class FakeModelHandlerReturnsPredictionResult(
     return self._multi_process_shared
 
 
+class FakeModelWithPath:
+  """A model that reports the path it was loaded from."""
+  def __init__(self, path: str):
+    self._path = path
+
+  def predict(self, example: int) -> str:
+    return self._path
+
+
+class FakeModelHandlerWithPath(base.ModelHandler[int, str, FakeModelWithPath]):
+  """Predicts the path of the model that actually served each example."""
+  def __init__(self, path: str):
+    self._path = path
+
+  def load_model(self):
+    return FakeModelWithPath(self._path)
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModelWithPath,
+      inference_args=None) -> Iterable[str]:
+    return [model.predict(example) for example in batch]
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    if model_path:
+      self._path = model_path
+
+
+class SingleElementBatchesKeyedModelHandler(base.KeyedModelHandler):
+  """Runs inference on one element at a time, so pipelines have many batches."""
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
 class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
@@ -1463,6 +1498,41 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected))
 
+  def _count_update_model_calls(self):
+    """Returns per-DoFn-instance update_model() call counts and a patcher.
+
+    The counts are only collected when the pipeline runs in this process,
+    e.g. on FnApiRunner.
+    """
+    calls: dict[str, int] = {}
+    original_update_model = base._RunInferenceDoFn.update_model
+
+    def counting_update_model(dofn, *args, **kwargs):
+      instance_id = dofn.__dict__.setdefault(
+          '_test_instance_id', uuid.uuid4().hex)
+      calls[instance_id] = calls.get(instance_id, 0) + 1
+      return original_update_model(dofn, *args, **kwargs)
+
+    return calls, unittest.mock.patch.object(
+        base._RunInferenceDoFn, 'update_model', counting_update_model)
+
+  def test_run_inference_empty_side_input_loads_model_once(self):
+    examples = list(range(10))
+    update_model_calls, count_calls = self._count_update_model_calls()
+    with count_calls, TestPipeline('FnApiRunner') as pipeline:
+      side_pcoll = pipeline | 'side' >> beam.Create([])
+      result_pcoll = (
+          pipeline
+          | beam.Create(examples)
+          | base.RunInference(
+              FakeModelHandler(min_batch_size=1, max_batch_size=1),
+              model_metadata_pcoll=side_pcoll))
+      assert_that(result_pcoll, equal_to([e + 1 for e in examples]))
+
+    # The model is loaded once per DoFn instance, not once per batch.
+    self.assertTrue(update_model_calls)
+    self.assertEqual({1}, set(update_model_calls.values()))
+
   def test_run_inference_side_input_in_batch(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
@@ -1744,6 +1814,58 @@ class RunInferenceBaseTest(unittest.TestCase):
       ]
 
       assert_that(result_pcoll, equal_to(expected_result))
+
+  def test_run_inference_side_input_per_key_models_used_from_first_batch(self):
+    model_handler = SingleElementBatchesKeyedModelHandler([
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandlerWithPath('original/key1')),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandlerWithPath('original/key2')),
+    ])
+    key_model_paths = [
+        base.KeyModelPathMapping(keys=['key1'], update_path='updated/key1'),
+        base.KeyModelPathMapping(keys=['key2'], update_path='updated/key2'),
+    ]
+    examples = [('key1', 1), ('key2', 2), ('key1', 3), ('key2', 4)]
+    update_model_calls, count_calls = self._count_update_model_calls()
+    with count_calls, TestPipeline('FnApiRunner') as pipeline:
+      side_input = pipeline | 'SideInput' >> beam.Create([key_model_paths])
+      result_pcoll = (
+          pipeline
+          | 'Examples' >> beam.Create(examples)
+          | base.RunInference(model_handler, model_metadata_pcoll=side_input))
+      # Every example, including the ones in the first batch, is served by
+      # the model loaded from the path given in the side input.
+      assert_that(
+          result_pcoll,
+          equal_to([(key, 'updated/' + key) for key, _ in examples]))
+
+    # The unchanged mapping is applied once per DoFn instance, not per batch.
+    self.assertTrue(update_model_calls)
+    self.assertEqual({1}, set(update_model_calls.values()))
+
+  def test_side_input_model_reloaded_after_invalidation(self):
+    dofn = base._RunInferenceDoFn(
+        FakeModelHandler(multi_process_shared=True),
+        FakeClock(),
+        metrics_namespace=None,
+        load_model_at_runtime=True,
+        model_tag='test_model_' + uuid.uuid4().hex)
+    dofn.setup()
+    model_id = 'side_input_model_' + uuid.uuid4().hex
+    side_input = base.ModelMetadata(model_id=model_id, model_name='model')
+    self.assertEqual([2], dofn.process([1], None, side_input))
+    self.assertEqual(model_id, dofn._cur_tag)
+
+    # Simulate an inference timeout: the model is marked invalid and, since
+    # its grace period is 0s here, deleted in finish_bundle().
+    dofn._model_metadata.try_mark_current_model_invalid(0)
+    dofn.finish_bundle()
+
+    # The same side input value reloads the model under a new tag instead of
+    # serving the deleted one.
+    self.assertEqual([3], dofn.process([2], None, side_input))
+    self.assertEqual(f'{model_id}_reload_1', dofn._cur_tag)
 
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
