@@ -1714,6 +1714,12 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
+    # Attach model_identifier only to the inference step so that runners can
+    # associate it with the ParDo that actually loads and runs the model.
+    # TODO(https://github.com/apache/beam/issues/40715): When
+    # with_exception_handling(threshold<1) is used, the threshold-checking
+    # transforms added by _ExceptionHandlingWrapper also inherit this
+    # annotation. Refactor to annotate only the inner inference ParDo.
     with batched_elements_pcoll.pipeline.transform_annotations(
         model_identifier=self._model_tag):
       if self._with_exception_handling:
