@@ -30,3 +30,11 @@ project.tasks.register("postCommitPyDep") {}
 
 apply from: "../common.gradle"
 
+def posargs = project.findProperty("posargs") ?: ""
+
+// Latest supported pytorch. torch>=2.10 is required for Python 3.14.
+// Keep in sync with [testenv:py{311,314}-pytorch-...] in tox.ini.
+toxTask "testPy314pytorch-latest", "py314-pytorch-latest", "${posargs}"
+test.dependsOn "testPy314pytorch-latest"
+postCommitPyDep.dependsOn "testPy314pytorch-latest"
+
