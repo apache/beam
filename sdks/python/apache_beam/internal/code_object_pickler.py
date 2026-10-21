@@ -504,6 +504,7 @@ def _get_arg_count(obj: types.CodeType):
       + (obj.co_flags & 8 == 8)  # PyCF_VARKEYWORDS
   )
 
+
 def _normalize_const(const):
   """Normalizes a constant from co_consts for deterministic hashing."""
   if inspect.iscode(const):
@@ -513,6 +514,7 @@ def _normalize_const(const):
   if isinstance(const, frozenset):
     return frozenset(_normalize_const(x) for x in const)
   return (type(const).__qualname__, repr(const))
+
 
 def _create_bytecode_hash(code_object: types.CodeType):
   """Returns the hash of a code object.
