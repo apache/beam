@@ -166,6 +166,17 @@ dataframe_dependency = [
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 qdrant_dependency = ['qdrant-client>=1.15.0']
+# NOTE: When updating these bounds, also update the bounds in
+# apache_beam/ml/inference/xgboost_tests_requirements.txt, which is used by the
+# XGBoost RunInference integration tests, and the py311-xgboost-* environments
+# in tox.ini.
+xgboost_dependency = [
+    'xgboost>=2.0.0,<4',
+    # apache_beam.ml.inference.xgboost_inference imports datatable directly.
+    # 1.1.0 is the first release with Python 3.10+ wheels; no release has
+    # wheels for Python 3.13+.
+    'datatable>=1.1.0,<2',
+]
 
 # google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
@@ -608,13 +619,12 @@ if __name__ == '__main__':
           'p310_ml_test': [
             'datatable',
           ] + ml_base + qdrant_dependency,
-          'p311_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
+          # xgboost_dependency includes datatable, which only has wheels for
+          # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
+          'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
           'p312_ml_test': [
-              'datatable',
               'typesafe-sdk>=0.7.1,<0.8',
-          ] + ml_base + qdrant_dependency,
+          ] + ml_base + xgboost_dependency + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
@@ -682,7 +692,7 @@ if __name__ == '__main__':
               'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
-          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
+          'xgboost': xgboost_dependency,
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
