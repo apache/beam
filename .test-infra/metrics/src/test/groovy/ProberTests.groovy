@@ -39,6 +39,11 @@ class ProberTests {
     assert dashboardNames.size() > 0 : "No dashboards found. Check Grafana dashboard initialization script."
   }
 
+  /**
+   * Queries Community Metrics data through the Grafana API and verifies that
+   * GitHub Issues and Pull Requests metrics are present and have been
+   * synchronized within the last 8 hours.
+   */
   @Test
   void CheckGrafanaDataFreshness() {
     def query = '''
