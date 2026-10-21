@@ -149,6 +149,15 @@ toxTask "testPy311transformers-latest", "py311-transformers-latest", "${posargs}
 test.dependsOn "testPy311transformers-latest"
 postCommitPyDep.dependsOn "testPy311transformers-latest"
 
+// Create a test task for each major version of xgboost
+toxTask "testPy311xgboost-200", "py311-xgboost-200", "${posargs}"
+test.dependsOn "testPy311xgboost-200"
+postCommitPyDep.dependsOn "testPy311xgboost-200"
+
+toxTask "testPy311xgboost-300", "py311-xgboost-300", "${posargs}"
+test.dependsOn "testPy311xgboost-300"
+postCommitPyDep.dependsOn "testPy311xgboost-300"
+
 toxTask "testPy311embeddingsMLTransform", "py311-embeddings", "${posargs}"
 test.dependsOn "testPy311embeddingsMLTransform"
 postCommitPyDep.dependsOn "testPy311embeddingsMLTransform"

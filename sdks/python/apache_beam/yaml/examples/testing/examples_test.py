@@ -866,7 +866,7 @@ def _spanner_io_read_test_preprocessor(
     for transform in pipeline.get('transforms', []):
       if transform.get('type', '').startswith('ReadFromSpanner'):
         config = transform['config']
-        instance, database = config['instance_id'], config['database_id']
+        instance, database = config['instance'], config['database']
         if (table := config.get('table')) is None:
           table = config.get('query', '').split('FROM')[-1].strip()
         transform['type'] = 'Create'
