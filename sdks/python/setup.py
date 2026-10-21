@@ -171,8 +171,6 @@ qdrant_dependency = ['qdrant-client>=1.15.0']
 # XGBoost RunInference integration tests, and the py311-xgboost-* environments
 # in tox.ini.
 xgboost_dependency = [
-    # xgboost<2.0 wheels fail `pip check` on recent pip ("not supported on this
-    # platform"), see https://github.com/apache/beam/issues/31285.
     'xgboost>=2.0.0,<4',
     # apache_beam.ml.inference.xgboost_inference imports datatable directly.
     # 1.1.0 is the first release with Python 3.10+ wheels; no release has
