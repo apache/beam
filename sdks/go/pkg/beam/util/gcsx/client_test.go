@@ -16,7 +16,6 @@
 package gcsx
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,7 +37,7 @@ func TestNewUnauthenticatedClient_UsesGcsEndpoint(t *testing.T) {
 	*gcpopts.GcsEndpoint = srv.URL + "/storage/v1/"
 	t.Cleanup(func() { *gcpopts.GcsEndpoint = orig })
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client, err := NewUnauthenticatedClient(ctx)
 	if err != nil {
 		t.Fatalf("NewUnauthenticatedClient() failed: %v", err)

@@ -70,7 +70,7 @@ func TestGetUniverseDomain(t *testing.T) {
 			t.Cleanup(func() { findDefaultCredentials = orig })
 
 			for i := 0; i < 2; i++ {
-				if got := GetUniverseDomain(context.Background()); got != test.want {
+				if got := GetUniverseDomain(t.Context()); got != test.want {
 					t.Errorf("GetUniverseDomain() = %q, want %q", got, test.want)
 				}
 			}

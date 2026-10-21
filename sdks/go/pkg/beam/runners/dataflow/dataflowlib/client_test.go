@@ -16,7 +16,6 @@
 package dataflowlib
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -80,7 +79,7 @@ func TestNewClient_BasePath(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", test.env)
 
-			client, err := NewClient(context.Background(), test.endpoint)
+			client, err := NewClient(t.Context(), test.endpoint)
 			if err != nil {
 				t.Fatalf("NewClient(%q) failed: %v", test.endpoint, err)
 			}
