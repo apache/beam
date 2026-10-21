@@ -20,7 +20,7 @@
 set -euo pipefail
 
 # Variable containing the python versions to install
-python_versions_arr=("3.11.4" "3.12.6" "3.13.9")
+python_versions_arr=("3.10.10" "3.11.4" "3.12.6" "3.13.9")
 
 # Install pyenv dependencies.
 pyenv_dep(){
@@ -67,7 +67,7 @@ pyenv_versions_install(){
   done
 }
 
-# Setting python versions globally 
+# Setting python versions globally
 python_versions_setglobally(){
   "$HOME"/.pyenv/bin/pyenv global "$@"
 }
@@ -76,7 +76,7 @@ python_versions_setglobally(){
 clean(){
   sudo rm "$HOME"/pyenv_installer.sh
   echo -e "\nRestart your shell so the path changes take effect"
-  echo "    'exec $SHELL'" 
+  echo "    'exec $SHELL'"
 }
 
 # Install pyenv environment with python versions
