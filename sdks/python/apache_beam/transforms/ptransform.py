@@ -479,6 +479,61 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
       self._resource_hints = {}  # type: dict[str, bytes]
     return self._resource_hints
 
+  def with_annotations(
+      self, **annotations: Union[bytes, str, message.Message]) -> 'PTransform':
+    """Adds annotations to this :class:`PTransform` instance.
+
+    Annotations are key-value metadata attached to the transform in the
+    pipeline proto, for use by runners and other tools that process the
+    pipeline; they are unrelated to Python type annotations. Their meaning is
+    defined by whatever consumes them, and runners may ignore annotations they
+    don't recognize.
+
+    Annotations can also come from an override of :meth:`annotations` in a
+    :class:`PTransform` subclass, or from
+    :func:`apache_beam.pipeline.transform_annotations`. Compared to those,
+    annotations added with this method:
+
+    * don't require subclassing the transform,
+    * take precedence over both, even if an override of :meth:`annotations`
+      doesn't call ``super()``,
+    * are not included in the return value of :meth:`annotations`.
+
+    Unlike :meth:`with_resource_hints`, the SDK does not copy annotations to the
+    sub-transforms of a composite transform. However, runners may treat the
+    annotations of a composite transform as applying to all of its parts, so to
+    annotate a single step, annotate a transform that runs as a single step,
+    such as a :class:`~apache_beam.transforms.core.ParDo`.
+
+    Methods that wrap or replace a transform, such as ``ParDo.with_outputs()``,
+    ``ParDo.with_exception_handling()`` and
+    ``CombinePerKey.with_hot_key_fanout()``, keep its annotations regardless of
+    the order of the calls. The annotations of a ``ParDo`` stay on the ``ParDo``
+    that runs its ``DoFn``, rather than on the composite transforms that these
+    methods create.
+
+    Args:
+      **annotations: annotation keys and values. A value can be ``bytes``, an
+        ASCII ``str``, or a protobuf message, which is serialized.
+
+    Returns:
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object.
+    """
+    self._get_instance_annotations().update(annotations)
+    return self
+
+  def _get_instance_annotations(
+      self) -> dict[str, Union[bytes, str, message.Message]]:
+    """Returns the annotations added with :meth:`with_annotations` that are
+    attached to this transform itself."""
+    if '_instance_annotations' not in self.__dict__:
+      # PTransform subclasses don't always call super(), so prefer lazy
+      # initialization.
+      self._instance_annotations: dict[str, Union[bytes, str,
+                                                  message.Message]] = {}
+    return self._instance_annotations
+
   def type_check_inputs(self, pvalueish):
     self.type_check_inputs_or_outputs(pvalueish, 'input')
 
@@ -1195,6 +1250,13 @@ class _NamedPTransform(PTransform):
   def with_resource_hints(self, **kwargs):
     self.transform.with_resource_hints(**kwargs)
     return self
+
+  def with_annotations(self, **annotations):
+    self.transform.with_annotations(**annotations)
+    return self
+
+  def _get_instance_annotations(self):
+    return self.transform._get_instance_annotations()
 
   def __getattr__(self, attr):
     transform_attr = getattr(self.transform, attr)

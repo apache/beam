@@ -1191,6 +1191,37 @@ class RunnerApiTest(unittest.TestCase):
     self.assertHasAnnotation(proto, 'Nested', 'foo', b'nested')
     self.assertHasAnnotation(proto, 'Nested', 'another', b'more')
 
+  def test_instance_annotations(self):
+    class Composite(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | 'Inner' >> beam.Map(lambda x: x)
+
+      def annotations(self):
+        # Doesn't call super(), which doesn't affect instance annotations.
+        return {'foo': 'from_class'}
+
+    p = beam.Pipeline()
+    with p.transform_annotations(foo='from_scope', scoped='yes'):
+      _ = (
+          p
+          | beam.Create([1, 2, 3])
+          | 'Composite' >> Composite().with_annotations(
+              foo='from_instance', only='me'))
+
+    proto = p.to_runner_api()
+    # Instance annotations win over class-level and scoped annotations...
+    self.assertHasAnnotation(proto, 'Composite', 'foo', b'from_instance')
+    self.assertHasAnnotation(proto, 'Composite', 'only', b'me')
+    self.assertHasAnnotation(proto, 'Composite', 'scoped', b'yes')
+    # ...and the SDK doesn't copy them to sub-transforms, unlike scoped
+    # annotations.
+    self.assertHasAnnotation(proto, 'Composite/Inner', 'foo', b'from_scope')
+    inner, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'Composite/Inner'
+    ]
+    self.assertNotIn('only', inner.annotations)
+
   def test_transform_ids(self):
     class MyPTransform(beam.PTransform):
       def expand(self, p):

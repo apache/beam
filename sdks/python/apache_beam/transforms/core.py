@@ -1688,7 +1688,8 @@ class ParDo(PTransformWithSideInputs):
         on_failure_callback,
         allow_unsafe_userstate_in_process,
         self.get_resource_hints(),
-        self.get_type_hints())
+        self.get_type_hints(),
+        self._get_instance_annotations())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -1981,6 +1982,12 @@ class _MultiParDo(PTransform):
         self._tags,
         self._main_tag,
         self._allow_unknown_tags)
+
+  def with_annotations(self, **annotations):
+    # This composite only exposes the outputs of the ParDo, so the annotations
+    # go to the ParDo.
+    self._do_transform.with_annotations(**annotations)
+    return self
 
   def with_exception_handling(self, main_tag=None, **kwargs):
     if main_tag is None:
@@ -2351,7 +2358,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       on_failure_callback,
       allow_unsafe_userstate_in_process,
       resource_hints,
-      pardo_type_hints=None):
+      pardo_type_hints=None,
+      pardo_annotations=None):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2370,12 +2378,20 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
     self._resource_hints = resource_hints
     self._pardo_type_hints = pardo_type_hints
+    self._pardo_annotations = dict(pardo_annotations or {})
     self._extra_tags = None
 
   def with_outputs(self, *tags, main=None):
     self._extra_tags = tags
     if main is not None:
       self._main_tag = main
+    return self
+
+  def with_annotations(self, **annotations):
+    # Like the annotations added before with_exception_handling(), these go to
+    # the ParDo that runs the user's DoFn rather than to this composite or to
+    # the threshold-counting transforms.
+    self._pardo_annotations.update(annotations)
     return self
 
   def _build_pardo(self, pcoll):
@@ -2407,6 +2423,9 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         **self._kwargs,
     )
     pardo.get_resource_hints().update(self._resource_hints)
+    # Only the inner ParDo runs the user's DoFn, so it alone gets the
+    # annotations added to the wrapped ParDo or to this wrapper.
+    pardo.with_annotations(**self._pardo_annotations)
     return pardo
 
   def _post_process_result(self, pcoll, result):
@@ -3144,7 +3163,8 @@ class CombinePerKey(PTransformWithSideInputs):
       return self
     else:
       return _CombinePerKeyWithHotKeyFanout(
-          curry_combine_fn(self.fn, self.args, self.kwargs), fanout)
+          curry_combine_fn(self.fn, self.args, self.kwargs),
+          fanout).with_annotations(**self._get_instance_annotations())
 
   def display_data(self):
     return {

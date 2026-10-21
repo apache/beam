@@ -82,6 +82,7 @@
 * (Python) Added `--aws_credentials_secret_manager` so AWS credentials (`--aws_access_key_id`, `--aws_secret_access_key`, `--aws_session_token` and their `--s3_*` overrides) can be secret specs resolved through a secret manager such as `GoogleCloudSecretManager`, instead of plain-text values ([#40528](https://github.com/apache/beam/issues/40528)).
 * (Python) Added `AwsSecret` (`AwsSecretsManager` / `type:awssecret`) to retrieve secrets from AWS Secrets Manager, configured from `AwsOptions` (`--aws_*`) with optional per-secret connection overrides ([#40528](https://github.com/apache/beam/issues/40528)).
 * (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
+* (Python) Added `PTransform.with_annotations()` to add annotations to a transform instance without subclassing it. Unlike `transform_annotations()`, the SDK does not attach them to the sub-transforms of a composite transform ([#40671](https://github.com/apache/beam/pull/40671)).
 
 ## Breaking Changes
 

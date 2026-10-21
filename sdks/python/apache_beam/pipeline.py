@@ -1315,6 +1315,13 @@ class AppliedPTransform(object):
       annotations = {
           **(annotations or {}), **encode_annotations(transform.annotations())
       }
+    if transform and hasattr(transform, '_get_instance_annotations'):
+      # Annotations added with PTransform.with_annotations(); they take
+      # precedence over the scoped ones and the ones from annotations().
+      annotations = {
+          **(annotations or {}),
+          **encode_annotations(transform._get_instance_annotations())
+      }
 
     self.annotations = annotations
 

@@ -18,6 +18,7 @@
 """Unit tests for the core python file."""
 # pytype: skip-file
 
+import itertools
 import logging
 import os
 import tempfile
@@ -725,6 +726,82 @@ class ExceptionHandlingWithOutputsTest(unittest.TestCase):
         assert_that(results.main, equal_to([1, 7]), 'main')
         assert_that(results.threes, equal_to([3]), 'threes')
         assert_that(results.fives, equal_to(['5']), 'fives')
+
+
+class WithAnnotationsTest(unittest.TestCase):
+  """Tests that methods that wrap or replace a transform keep the annotations
+  added with with_annotations(), regardless of the order of the calls."""
+  @staticmethod
+  def _annotated_transforms(pipeline):
+    proto = pipeline.to_runner_api()
+    return sorted(
+        t.unique_name for t in proto.components.transforms.values()
+        if 'foo' in t.annotations)
+
+  def test_with_exception_handling(self):
+    for threshold, annotate_first in itertools.product((1, 0.5), (True, False)):
+      with self.subTest(threshold=threshold, annotate_first=annotate_first):
+        transform = beam.Map(lambda x: x)
+        if annotate_first:
+          transform = transform.with_annotations(
+              foo='bar').with_exception_handling(threshold=threshold)
+        else:
+          transform = transform.with_exception_handling(
+              threshold=threshold).with_annotations(foo='bar')
+        p = beam.Pipeline()
+        ok, unused_errors = p | beam.Create([1]) | 'Annotated' >> transform
+        # Only the ParDo that runs the user's fn; not the wrapper composite,
+        # nor the counting transforms added when threshold < 1.
+        self.assertEqual(
+            self._annotated_transforms(p), [ok.producer.full_label])
+        self.assertIsInstance(ok.producer.transform, beam.transforms.core.ParDo)
+
+  def test_with_outputs_and_exception_handling(self):
+    class TwoOutputs(beam.DoFn):
+      def process(self, element):
+        yield element
+        yield beam.pvalue.TaggedOutput('other', element)
+
+    def annotate(transform):
+      return transform.with_annotations(foo='bar')
+
+    def with_outputs(transform):
+      return transform.with_outputs('other', main='main')
+
+    def with_exception_handling(transform):
+      return transform.with_exception_handling()
+
+    chains = itertools.chain(
+        itertools.permutations([annotate, with_outputs]),
+        itertools.permutations(
+            [annotate, with_outputs, with_exception_handling]))
+    for chain in chains:
+      with self.subTest(chain=[step.__name__ for step in chain]):
+        transform = beam.ParDo(TwoOutputs())
+        for step in chain:
+          transform = step(transform)
+        p = beam.Pipeline()
+        results = p | beam.Create([1]) | 'Annotated' >> transform
+        # Only the ParDo that runs the DoFn; not the composites created by
+        # with_outputs() and with_exception_handling().
+        self.assertEqual(
+            self._annotated_transforms(p), [results.main.producer.full_label])
+        self.assertIsInstance(
+            results.main.producer.transform, beam.transforms.core.ParDo)
+
+  def test_with_hot_key_fanout(self):
+    for annotate_first in (True, False):
+      with self.subTest(annotate_first=annotate_first):
+        transform = beam.CombinePerKey(sum)
+        if annotate_first:
+          transform = transform.with_annotations(
+              foo='bar').with_hot_key_fanout(2)
+        else:
+          transform = transform.with_hot_key_fanout(2).with_annotations(
+              foo='bar')
+        p = beam.Pipeline()
+        _ = p | beam.Create([(1, 2)]) | 'Annotated' >> transform
+        self.assertEqual(self._annotated_transforms(p), ['Annotated'])
 
 
 def test_callablewrapper_typehint():
