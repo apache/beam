@@ -468,6 +468,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     static final String PREFIX_ERROR = "File path did not start with the specified prefix";
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
+    static final String NOT_PARQUET_ERROR =
+        UNKNOWN_FORMAT_ERROR + ": the file name has no extension and the file is not Parquet: ";
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
     static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
     static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
@@ -626,10 +628,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       return () -> {
         FileFormat format;
-        try {
-          format = inferFormat(filePath);
-        } catch (UnknownFormatException e) {
-          return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+        @Nullable ParquetMetadata parquetFooter = null;
+        if (hasNoExtension(filePath)) {
+          try {
+            parquetFooter = ParquetFooters.read(filePath);
+          } catch (Exception e) {
+            return errorResult(
+                filePath, NOT_PARQUET_ERROR + errorMessage(e), timestamp, window, paneInfo);
+          }
+          format = FileFormat.PARQUET;
+        } else {
+          try {
+            format = inferFormat(filePath);
+          } catch (UnknownFormatException e) {
+            return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+          }
         }
 
         // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
@@ -670,8 +683,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
 
         // ---- Per-file phase: every failure below is one error row, never a failed bundle.
-        @Nullable ParquetMetadata parquetFooter = null;
-        if (format.equals(FileFormat.PARQUET)) {
+        if (format.equals(FileFormat.PARQUET) && parquetFooter == null) {
           try {
             parquetFooter = ParquetFooters.read(filePath);
           } catch (Exception e) {
@@ -1369,7 +1381,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
-  /** Tries to infer other file formats. Defaults to Parquet. */
+  /** Attempt to infer file format from extension. */
   public static FileFormat inferFormat(String path) {
     String lowerPath = path.toLowerCase();
 
@@ -1382,6 +1394,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     } else {
       throw new UnknownFormatException();
     }
+  }
+
+  /**
+   * A name with no extension, as Hive and other engines write by default, says nothing about the
+   * format, so the file is read to see whether it is Parquet. A name with a dot names some format.
+   */
+  static boolean hasNoExtension(String path) {
+    String name = path.substring(path.lastIndexOf('/') + 1);
+    return !name.isEmpty() && name.indexOf('.') < 0;
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

@@ -1038,10 +1038,12 @@ class GoogleCloudOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--dataflow_endpoint',
-        default=cls.DATAFLOW_ENDPOINT,
+        default='',
         help=(
-            'The URL for the Dataflow API. If not set, the default public URL '
-            'will be used.'))
+            'The URL for the Dataflow API. If not set, the endpoint is '
+            'resolved by the Google Cloud client library, which honors '
+            'GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default '
+            'public URL (%s).' % cls.DATAFLOW_ENDPOINT))
     # Remote execution must check that this option is not None.
     parser.add_argument(
         '--project',
@@ -1196,6 +1198,17 @@ class GoogleCloudOptions(PipelineOptions):
         help='Throttling counter in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counter to avoid it.')
     parser.add_argument(
+        '--quota_project_id',
+        default=None,
+        help='GCP project ID used for quota and billing attribution of Google '
+        'Cloud API requests (sets the x-goog-user-project header), if '
+        'different from the project the data resides in. Currently honored '
+        'by BigQuery IO transforms (ReadFromBigQuery, ReadAllFromBigQuery, '
+        'WriteToBigQuery with FILE_LOADS or STREAMING_INSERTS, '
+        'ReadBigQueryChangeHistory); STORAGE_WRITE_API (Java-backed) and '
+        'other GCP IOs do not use it yet. The credentials used must have the '
+        'serviceusage.services.use permission on this project.')
+    parser.add_argument(
         '--enable_gcsio_blob_generation',
         default=False,
         action='store_true',
@@ -1262,7 +1275,7 @@ class GoogleCloudOptions(PipelineOptions):
             'Unable to check soft delete policy because GCP dependencies are '
             'not installed.')
         return
-      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+      if gcsio.GcsIO(pipeline_options=self).is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
             "Bucket %s used as %s has soft-delete policy enabled."
@@ -1276,8 +1289,10 @@ class GoogleCloudOptions(PipelineOptions):
             arg_name,
             n=1,
             key="message")
-    except ImportError:
-      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+    except Exception as e:  # pylint: disable=broad-except
+      # This check only emits a warning, so it must not block pipeline
+      # submission.
+      _LOGGER.warning('Unable to check soft delete policy: %s', e)
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
@@ -1568,6 +1583,19 @@ class WorkerOptions(PipelineOptions):
             'separated by a comma where first value gives a regex to '
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
+    parser.add_argument(
+        '--dataflow_container_base_repository',
+        default=None,
+        help=(
+            'Base repository (registry host and path prefix) from which the '
+            'Dataflow runner pulls its default SDK container images, e.g. '
+            'docker.example.com/my-project/cloud-dataflow/v1beta3. The '
+            'runner appends the image name and tag, e.g. '
+            '<base>/beam_python3.11_sdk:<version>. This is also used for the '
+            'default images of cross-language Apache Beam environments. '
+            'Ignored for the local SDK image if --sdk_container_image is set. '
+            'If not set, the Google Cloud Dataflow default '
+            '(gcr.io/cloud-dataflow/v1beta3) is used.'))
     parser.add_argument(
         '--default_sdk_harness_log_level',
         default=None,

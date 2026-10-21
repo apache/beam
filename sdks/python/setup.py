@@ -207,13 +207,13 @@ ml_base_core = [
 ]
 
 ml_adk_dependency = [
-    'google-adk==1.28.1',
+    'google-adk>=2.0.0,<3',
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api==1.37.0',
-    'opentelemetry-sdk==1.37.0',
-    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    'opentelemetry-api>=1.36.0,<1.43',
+    'opentelemetry-sdk>=1.36.0,<1.43',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -416,7 +416,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0',
+          'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -613,6 +613,7 @@ if __name__ == '__main__':
           ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
+              'typesafe-sdk>=0.7.1,<0.8',
           ] + ml_base + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
