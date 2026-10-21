@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for writing to Splunk's Http Event
@@ -117,9 +118,7 @@ public class SplunkWriteSchemaTransformProvider
       Schema errorSchema =
           Schema.builder()
               .addNullableRowField("failed_row", inputRows.getSchema())
-              .addNullableField("payload", Schema.FieldType.STRING)
-              .addNullableField("statusCode", Schema.FieldType.INT32)
-              .addNullableField("statusMessage", Schema.FieldType.STRING)
+              .addFields(SplunkWriteErrorSchemaProvider.SCHEMA.getFields())
               .build();
 
       PCollectionTuple convertResult =
@@ -168,14 +167,7 @@ public class SplunkWriteSchemaTransformProvider
                 .apply(
                     "Convert Write Errors to Rows",
                     MapElements.into(TypeDescriptors.rows())
-                        .via(
-                            error ->
-                                Row.withSchema(errorSchema)
-                                    .addValue(null)
-                                    .addValue(error.payload())
-                                    .addValue(error.statusCode())
-                                    .addValue(error.statusMessage())
-                                    .build()))
+                        .via(error -> toErrorRow(errorSchema, null, error)))
                 .setCoder(RowCoder.of(errorSchema));
 
         PCollection<Row> allErrors =
@@ -237,6 +229,14 @@ public class SplunkWriteSchemaTransformProvider
     return builder.create();
   }
 
+  /** Converts a {@link SplunkWriteError} to an error row, along with the row that failed. */
+  static Row toErrorRow(Schema errorSchema, @Nullable Row failedRow, SplunkWriteError error) {
+    return Row.withSchema(errorSchema)
+        .addValue(failedRow)
+        .addValues(SplunkWriteErrorSchemaProvider.toRow(error).getValues())
+        .build();
+  }
+
   private static JsonElement toJsonElement(Object value) {
     if (value instanceof Row) {
       Row row = (Row) value;
@@ -283,14 +283,14 @@ public class SplunkWriteSchemaTransformProvider
         if (handleErrors) {
           String rowString = c.element().toString();
           String payload = rowString.length() <= 1024 ? rowString : rowString.substring(0, 1024);
-          c.output(
-              errorOutputTag,
-              Row.withSchema(errorSchema)
-                  .addValue(c.element())
-                  .addValue(payload)
-                  .addValue(HttpURLConnection.HTTP_BAD_REQUEST)
-                  .addValue(e.getMessage())
-                  .build());
+          SplunkWriteError.Builder error =
+              SplunkWriteError.newBuilder()
+                  .withPayload(payload)
+                  .withStatusCode(HttpURLConnection.HTTP_BAD_REQUEST);
+          if (e.getMessage() != null) {
+            error.withStatusMessage(e.getMessage());
+          }
+          c.output(errorOutputTag, toErrorRow(errorSchema, c.element(), error.create()));
         } else {
           throw new RuntimeException(e);
         }

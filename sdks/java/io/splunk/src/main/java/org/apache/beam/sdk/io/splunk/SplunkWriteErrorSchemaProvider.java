@@ -64,15 +64,19 @@ public class SplunkWriteErrorSchemaProvider implements SchemaProvider {
   }
 
   /** Converts a {@link SplunkWriteError} to a {@link Row} with {@link #SCHEMA}. */
+  static Row toRow(SplunkWriteError error) {
+    return Row.withSchema(SCHEMA)
+        .addValue(error.statusCode())
+        .addValue(error.statusMessage())
+        .addValue(error.payload())
+        .build();
+  }
+
+  /** Converts a {@link SplunkWriteError} to a {@link Row} with {@link #SCHEMA}. */
   private static class ToRowFn<T> implements SerializableFunction<T, Row> {
     @Override
     public Row apply(T input) {
-      SplunkWriteError error = (SplunkWriteError) checkNotNull(input);
-      return Row.withSchema(SCHEMA)
-          .addValue(error.statusCode())
-          .addValue(error.statusMessage())
-          .addValue(error.payload())
-          .build();
+      return toRow((SplunkWriteError) checkNotNull(input));
     }
 
     // Equal instances keep schema coders built from this provider equal.

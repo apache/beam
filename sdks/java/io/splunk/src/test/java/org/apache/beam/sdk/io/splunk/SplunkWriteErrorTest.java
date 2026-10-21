@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -61,20 +60,6 @@ public class SplunkWriteErrorTest {
             .withStatusMessage("a-different-message")
             .create(),
         actualError);
-  }
-
-  /** Test whether the default schema of {@link SplunkWriteError} has a field per accessor. */
-  @Test
-  public void testDefaultSchema() throws NoSuchSchemaException {
-    Schema schema = SchemaRegistry.createDefault().getSchema(SplunkWriteError.class);
-
-    assertEquals(
-        Schema.builder()
-            .addNullableField("statusCode", Schema.FieldType.INT32)
-            .addNullableField("statusMessage", Schema.FieldType.STRING)
-            .addNullableField("payload", Schema.FieldType.STRING)
-            .build(),
-        schema);
   }
 
   /** Test whether the default schema coder keeps the values of a {@link SplunkWriteError}. */

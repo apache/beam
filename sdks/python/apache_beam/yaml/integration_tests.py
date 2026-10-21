@@ -29,7 +29,6 @@ import secrets
 import shutil
 import sqlite3
 import string
-import struct
 import tempfile
 import time
 import unittest
@@ -38,51 +37,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import requests
-
-from apache_beam.coders import Coder
-from apache_beam.coders import VarIntCoder
-from apache_beam.coders.coder_impl import CoderImpl
-
-
-class BigEndianIntegerCoderImpl(CoderImpl):
-  """Coder implementation for big-endian integers used in cross-language tests.
-
-  This is needed because Java's BigEndianIntegerCoder falls back to the generic
-  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
-  Python's FnApiRunner needs to know how to decode it.
-  """
-  def encode_to_stream(self, value, stream, nested):
-    stream.write(struct.pack('>i', value))
-
-  def decode_from_stream(self, stream, nested):
-    return struct.unpack('>i', stream.read(4))[0]
-
-
-class BigEndianIntegerCoder(Coder):
-  def get_impl(self):
-    return BigEndianIntegerCoderImpl()
-
-
-def _java_serialized_coder(payload, components, context):
-  # Java's VarIntCoder (used to key SplunkIO's stateful writer) shares the same
-  # fallback URN. The payload is the snappy-compressed serialized Java coder,
-  # and the start of its class name stays uncompressed, so it can be used to
-  # tell the two apart.
-  if b'VarInt' in payload:
-    return VarIntCoder()
-  return BigEndianIntegerCoder()
-
-
-# Register the coder with the fallback URN used by the Java SDK for this coder.
-# This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder or VarIntCoder in integration tests.
-Coder.register_urn('beam:coders:javasdk:0.1', None, _java_serialized_coder)
-
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytds
+import requests
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
