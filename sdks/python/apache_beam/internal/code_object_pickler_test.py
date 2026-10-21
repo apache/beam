@@ -115,6 +115,27 @@ def outer_decorated_with_shared_wrapper():
 
   return inner_decorated
 
+def get_same_named_nested_functions_different_args(branch):
+  if branch:
+    def nested_fn(x):
+      return x + 1
+  else:
+    def nested_fn(x, y):
+      return x + y
+
+  return nested_fn
+
+
+def get_same_named_nested_functions_same_args(branch):
+  if branch:
+    def nested_fn(x):
+      return x + 1
+  else:
+    def nested_fn(x):
+      return x + 2
+
+  return nested_fn
+
 
 @function_decorator
 def add_one(x):
@@ -225,6 +246,46 @@ test_cases = [
             f"{prefix}"
             ".get_single_lambda_and_nested_function_with_lambda.__code__"
             ".co_consts[inner_fn].co_consts[<lambda>]"
+        ),
+    ),
+    (
+        get_same_named_nested_functions_different_args(True),
+        (
+            f"{prefix}"
+            ".get_same_named_nested_functions_different_args.__code__.co_consts"
+            "[nested_fn, ('x',)]"
+        ),
+    ),
+    (
+        get_same_named_nested_functions_different_args(False),
+        (
+            f"{prefix}"
+            ".get_same_named_nested_functions_different_args.__code__.co_consts"
+            "[nested_fn, ('x', 'y')]"
+        ),
+    ),
+    (
+        get_same_named_nested_functions_same_args(True),
+        (
+            f"{prefix}"
+            ".get_same_named_nested_functions_same_args.__code__.co_consts"
+            "[nested_fn, ('x',), "
+            + code_object_pickler._create_bytecode_hash(
+                get_same_named_nested_functions_same_args(True).__code__
+            )
+            + "]"
+        ),
+    ),
+    (
+        get_same_named_nested_functions_same_args(False),
+        (
+            f"{prefix}"
+            ".get_same_named_nested_functions_same_args.__code__.co_consts"
+            "[nested_fn, ('x',), "
+            + code_object_pickler._create_bytecode_hash(
+                get_same_named_nested_functions_same_args(False).__code__
+            )
+            + "]"
         ),
     ),
         function_with_lambda_default_argument(),
@@ -352,6 +413,39 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     finally:
       sys.modules.pop("_fake_pkg", None)
       sys.modules.pop("_fake_pkg.leaf", None)
+
+def test_same_named_nested_functions_with_different_args_roundtrip(self):
+    fn_true = get_same_named_nested_functions_different_args(True)
+    fn_false = get_same_named_nested_functions_different_args(False)
+    path_true = code_object_pickler.get_code_object_identifier(fn_true)
+    path_false = code_object_pickler.get_code_object_identifier(fn_false)
+
+    self.assertNotEqual(path_true, path_false)
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path_true),
+        fn_true.__code__,
+    )
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path_false),
+        fn_false.__code__,
+    )
+
+  def test_same_named_nested_functions_with_same_args_roundtrip(self):
+    fn_true = get_same_named_nested_functions_same_args(True)
+    fn_false = get_same_named_nested_functions_same_args(False)
+    path_true = code_object_pickler.get_code_object_identifier(fn_true)
+    path_false = code_object_pickler.get_code_object_identifier(fn_false)
+
+    self.assertNotEqual(path_true, path_false)
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path_true),
+        fn_true.__code__,
+    )
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path_false),
+        fn_false.__code__,
+    )
+
 
 class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
   def test_empty_path_raises_exception(self):
