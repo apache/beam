@@ -112,6 +112,23 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.List[int], lambda v: v[::-1], [typehints.List[int]])
     self.assertReturnType(
         typehints.Tuple[int], lambda v: v[::-1], [typehints.Tuple[int]])
+    self.assertReturnType(
+        typehints.Tuple[str, int], lambda v: v[1:],
+        [typehints.Tuple[int, str, int]])
+    self.assertReturnType(
+        typehints.Tuple[int, str], lambda v: v[:-1],
+        [typehints.Tuple[int, str, float]])
+    self.assertReturnType(
+        typehints.Tuple[float, str, int], lambda v: v[::-1],
+        [typehints.Tuple[int, str, float]])
+    self.assertReturnType(
+        typehints.Tuple[int, float], lambda v: v[0:3:2],
+        [typehints.Tuple[int, str, float]])
+    self.assertReturnType(
+        typehints.Tuple[()], lambda v: v[5:], [typehints.Tuple[int, str]])
+    self.assertReturnType(
+        typehints.Tuple[typehints.Union[int, str], ...], lambda v, i: v[i:],
+        [typehints.Tuple[int, str, int], int])
     self.assertReturnType(str, lambda v: v[::-1], [str])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])

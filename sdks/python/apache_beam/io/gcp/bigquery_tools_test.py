@@ -1697,15 +1697,17 @@ class TestBigQueryWrapperQuotaProject(unittest.TestCase):
     for headers in token_request_headers:
       self.assertNotIn('x-goog-user-project', headers)
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
-  def test_gcp_bigquery_client_passes_quota_project(self, mock_client):
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_passes_quota_project(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
     BigQueryWrapper._gcp_bigquery_client(quota_project_id='my-billing-project')
     self.assertEqual(
         mock_client.call_args.kwargs['client_options'],
         {'quota_project_id': 'my-billing-project'})
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
-  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_client):
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
     BigQueryWrapper._gcp_bigquery_client()
     self.assertIsNone(mock_client.call_args.kwargs['client_options'])
 

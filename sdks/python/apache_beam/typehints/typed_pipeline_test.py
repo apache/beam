@@ -461,6 +461,17 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.Map(fn)
     self.assertCountEqual([None, 2, 3], result)
 
+  def test_inferred_type_of_tuple_slice(self):
+    # https://github.com/apache/beam/issues/20899
+    rows = [('day1', 'a', 1), ('day2', 'a', 2), ('day1', 'b', 3)]
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(rows).with_output_types(typing.Tuple[str, str, int])
+          | beam.Map(lambda row: row[1:])
+          | beam.CombinePerKey(sum))
+      assert_that(result, equal_to([('a', 3), ('b', 3)]))
+
   def test_typed_flatmap(self):
     def fn(element: int) -> typehints.Iterable[int]:
       yield element * 2
