@@ -61,6 +61,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
@@ -143,7 +144,7 @@ def _get_bigquery_endpoint(
   """
   endpoint = None
   if pipeline_options is not None:
-    endpoint = pipeline_options.view_as(GoogleCloudOptions).bigquery_endpoint
+    endpoint = pipeline_options.view_as(BigQueryOptions).bigquery_endpoint
   if not endpoint:
     endpoint = value_provider.RuntimeValueProvider.get_value(
         'bigquery_endpoint', str, None)

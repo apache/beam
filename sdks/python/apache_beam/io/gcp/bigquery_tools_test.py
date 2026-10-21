@@ -53,6 +53,7 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -260,6 +261,7 @@ class TestBigQueryEndpoint(unittest.TestCase):
 
   def test_default_endpoint(self):
     options = PipelineOptions([])
+    self.assertIsNone(options.view_as(BigQueryOptions).bigquery_endpoint)
     self.assertEqual(
         bigquery_tools.get_bigquery_api_url(options),
         'https://bigquery.googleapis.com/bigquery/v2/')
@@ -289,6 +291,8 @@ class TestBigQueryEndpoint(unittest.TestCase):
   ])
   def test_explicit_endpoint(self, endpoint):
     options = PipelineOptions(['--bigquery_endpoint', endpoint])
+    self.assertEqual(
+        options.view_as(BigQueryOptions).bigquery_endpoint, endpoint)
     self.assertEqual(
         bigquery_tools.get_bigquery_api_url(options),
         'https://bq.example.com/bigquery/v2/')
