@@ -69,6 +69,8 @@ func TestGetUniverseDomain(t *testing.T) {
 			}
 			t.Cleanup(func() { findDefaultCredentials = orig })
 
+			// Call twice so wantCalls can verify caching: a successful lookup
+			// is reused by the second call, while a failed one is retried.
 			for i := 0; i < 2; i++ {
 				if got := GetUniverseDomain(t.Context()); got != test.want {
 					t.Errorf("GetUniverseDomain() = %q, want %q", got, test.want)
