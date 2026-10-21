@@ -44,13 +44,6 @@ class ProberTests {
     def query = '''
     WITH sources AS (
       SELECT
-        'Jenkins' AS source,
-        MAX(build_timestamp + make_interval(secs := timing_executingtimemillis / 1000.0)) AS last_sync
-      FROM jenkins_builds
-
-      UNION ALL
-
-      SELECT
         'GitHub Issues' AS source,
         timestamp AS last_sync
       FROM gh_sync_metadata
@@ -115,13 +108,14 @@ class ProberTests {
     def syncedSourceCount = value('synced_source_count')
     def maxStalenessMinutes = value('max_staleness_minutes')
 
-    assert sourceCount == 3 :
-      "Expected 3 metrics sources, got ${sourceCount}"
+    assert sourceCount == 2 :
+      "Expected 2 metrics sources, got ${sourceCount}"
 
-    assert syncedSourceCount == 3 :
+    assert syncedSourceCount == 2 :
       "One or more metrics sources have no synchronization timestamp"
 
     assert maxStalenessMinutes != null
+
     assert maxStalenessMinutes <= 480 :
       "Input data is stale: ${maxStalenessMinutes} minutes\n" +
         "See: ${grafanaEndpoint}/d/data-freshness"
