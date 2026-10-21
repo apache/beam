@@ -144,10 +144,10 @@ def _get_bigquery_endpoint(
   """
   endpoint = None
   if pipeline_options is not None:
-    endpoint = pipeline_options.view_as(BigQueryOptions).bigquery_endpoint
+    endpoint = pipeline_options.view_as(BigQueryOptions).big_query_endpoint
   if not endpoint:
     endpoint = value_provider.RuntimeValueProvider.get_value(
-        'bigquery_endpoint', str, None)
+        'big_query_endpoint', str, None)
   if not endpoint:
     return None
   endpoint = endpoint.strip().rstrip('/')

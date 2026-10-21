@@ -313,13 +313,20 @@ class TestBigQueryEndpoint(unittest.TestCase):
   def test_endpoint_from_runtime_options(self):
     # On workers, clients may be created without the pipeline options.
     RuntimeValueProvider.set_runtime_options(
-        {'bigquery_endpoint': 'https://bq.example.com'})
+        {'big_query_endpoint': 'https://bq.example.com'})
     self.assertEqual(
         bigquery_tools.get_bigquery_api_url(PipelineOptions([])),
         'https://bq.example.com/bigquery/v2/')
     self.assertEqual(
         bigquery_tools.get_bigquery_client_options(None),
         {'api_endpoint': 'https://bq.example.com'})
+
+  def test_endpoint_attribute_alias_setter(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    bq_options.bigquery_endpoint = 'https://bq.example.com'
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(bq_options),
+        'https://bq.example.com/bigquery/v2/')
 
   @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
   def test_bigquery_client_uses_endpoint(self, unused_mock_credentials):
