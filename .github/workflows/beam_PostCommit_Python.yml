@@ -46,9 +46,7 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   # This database resource is sandboxed for testing only
   ALLOYDB_PASSWORD: '2z,b}g_],1-,4A,X'
 
@@ -61,7 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ['beam_PostCommit_Python']
-        python_version: ['3.10', '3.11', '3.12', '3.13','3.14']
+        python_version: ['3.11', '3.12', '3.13','3.14']
         os: [[self-hosted, ubuntu-24.04, highmem22]]
     if: |
       github.event_name == 'workflow_dispatch' ||

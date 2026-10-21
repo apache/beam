@@ -77,7 +77,7 @@ import scala.Tuple2;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SparkBatchPortablePipelineTranslator
+public final class SparkBatchPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkTranslationContext> {
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;

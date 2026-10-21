@@ -44,9 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_PostCommit_PortableJar_Flink:
@@ -75,9 +73,9 @@ jobs:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:portable:py310:testPipelineJarFlinkRunner
+          gradle-command: :sdks:python:test-suites:portable:py311:testPipelineJarFlinkRunner
           arguments: |
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

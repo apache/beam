@@ -42,9 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
@@ -85,6 +83,6 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             -PloadTest.mainClass=apache_beam.io.gcp.bigquery_write_perf_test \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -Prunner=DataflowRunner \
             '-PloadTest.args=${{env.beam_PerformanceTests_BiqQueryIO_Write_Python_Batch_test_arguments_1}}'

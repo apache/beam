@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.Session;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -24,10 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.Session;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.jms.JmsIO.AcknowledgeMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;

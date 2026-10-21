@@ -41,6 +41,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnR
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -68,14 +69,15 @@ import scala.collection.Iterator;
 
 /** Runs a stateful {@link DoFn} within Spark 4 Structured Streaming {@code transformWithState}. */
 public class BeamStatefulProcessor<K, V, OutputT>
-    extends StatefulProcessor<K, WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+    extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
+  private static final String BEAM_WATERMARK = "beamWatermark";
 
   private final DoFn<KV<K, V>, OutputT> doFn;
   private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
-  private final Coder<KV<K, V>> inputCoder;
+  private final KvCoder<K, V> inputCoder;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Supplier<PipelineOptions> optionsSupplier;
   private final MetricsAccumulator metrics;
@@ -85,13 +87,14 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
   private transient @Nullable MapState<String, byte[]> beamState;
   private transient @Nullable ValueState<byte[]> beamTimers;
+  private transient @Nullable ValueState<Long> beamWatermark;
   private transient @Nullable List<WindowedValue<OutputT>> currentOutputs;
   private transient boolean needsBundleStart;
 
   public BeamStatefulProcessor(
       DoFn<KV<K, V>, OutputT> doFn,
       DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
-      Coder<KV<K, V>> inputCoder,
+      KvCoder<K, V> inputCoder,
       WindowingStrategy<?, ?> windowingStrategy,
       Supplier<PipelineOptions> optionsSupplier,
       MetricsAccumulator metrics) {
@@ -113,45 +116,75 @@ public class BeamStatefulProcessor<K, V, OutputT>
     beamState =
         getHandle().getMapState(BEAM_STATE, Encoders.STRING(), Encoders.BINARY(), TTLConfig.NONE());
     beamTimers = getHandle().getValueState(BEAM_TIMERS, Encoders.BINARY(), TTLConfig.NONE());
+    beamWatermark = getHandle().getValueState(BEAM_WATERMARK, Encoders.LONG(), TTLConfig.NONE());
+  }
+
+  private void storeWatermark(SparkTimerInternals timerInternals) {
+    ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
+    // A key without timers and state keeps no row, its next visit is a first visit.
+    if (timerInternals.getTimers().isEmpty() && !checkStateNotNull(beamState).exists()) {
+      if (watermarkState.exists()) {
+        watermarkState.clear();
+      }
+    } else {
+      watermarkState.update(timerInternals.currentInputWatermarkTime().getMillis());
+    }
+  }
+
+  private SparkTimerInternals timerInternals(TimerValues timerValues) {
+    ValueState<Long> watermarkState = checkStateNotNull(beamWatermark);
+    // Late data is filtered against the watermark of the key's previous visit.
+    // A key seen for the first time, cleared after its last window expired or idle for several
+    // batches filters against an older watermark.
+    Instant low =
+        watermarkState.exists()
+            ? new Instant(watermarkState.get())
+            : BoundedWindow.TIMESTAMP_MIN_VALUE;
+    Instant high = new Instant(timerValues.getCurrentWatermarkInMs());
+    SparkTimerInternals timerInternals = SparkTimerInternals.forWatermarks(low, high);
+    restoreTimers(timerInternals);
+    return timerInternals;
   }
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleInputRows(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+      byte[] keyBytes, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
-    SparkTimerInternals timerInternals =
-        SparkTimerInternals.forWatermark(new Instant(timerValues.getCurrentWatermarkInMs()));
-    restoreTimers(timerInternals);
+    SparkTimerInternals timerInternals = timerInternals(timerValues);
 
     DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
     while (rows.hasNext()) {
       runner.processElement(rows.next());
     }
+    timerInternals.advanceWatermark();
     // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, null);
+    storeWatermark(timerInternals);
     return ScalaInterop.scalaIterator(outputs);
   }
 
   @Override
   public Iterator<WindowedValue<OutputT>> handleExpiredTimer(
-      K key, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+      byte[] keyBytes, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
+    K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
-    Instant watermark = new Instant(timerValues.getCurrentWatermarkInMs());
-    SparkTimerInternals timerInternals = SparkTimerInternals.forWatermark(watermark);
-    restoreTimers(timerInternals);
+    SparkTimerInternals timerInternals = timerInternals(timerValues);
+    timerInternals.advanceWatermark();
 
     DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
-    fireDueTimers(key, watermark, timerInternals, runner);
+    fireDueTimers(key, timerInternals.currentInputWatermarkTime(), timerInternals, runner);
     // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, expiredTimerInfo.getExpiryTimeInMs());
+    storeWatermark(timerInternals);
     return ScalaInterop.scalaIterator(outputs);
   }
 

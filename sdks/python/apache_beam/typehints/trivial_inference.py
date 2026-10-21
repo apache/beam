@@ -578,7 +578,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         # Handle comprehensions always having an arg of 0 for CALL
         # See https://github.com/python/cpython/issues/102403 for context.
-        if (pop_count == 1 and last_real_opname == 'GET_ITER' and
+        # In 3.15 the GET_ITER for a generator expression's iterable moved
+        # into the generator's own code object, so the CALL is no longer
+        # preceded by a GET_ITER in the calling frame.
+        if (pop_count == 1 and
+            (last_real_opname == 'GET_ITER' or sys.version_info >= (3, 15)) and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
             getattr(state.stack[-2].value, '__name__', None)
             in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
@@ -692,11 +696,20 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # so jump 4 more bytes.
         jmp += 4
       jmp_state = state.copy()
-      jmp_state.stack.pop()
-      state.stack.append(element_type(state.stack[-1]))
+      if sys.version_info >= (3, 15):
+        # In 3.15 the iterator occupies two stack slots (iter, index_or_null)
+        # and both are popped when the iterator is exhausted.
+        jmp_state.stack[-2:] = []
+        state.stack.append(element_type(state.stack[-2]))
+      else:
+        jmp_state.stack.pop()
+        state.stack.append(element_type(state.stack[-1]))
     elif opname == 'POP_ITER':
-      # Introduced in 3.14.
-      state.stack.pop()
+      # Introduced in 3.14. Pops (iter, index_or_null) in 3.15.
+      if sys.version_info >= (3, 15):
+        state.stack[-2:] = []
+      else:
+        state.stack.pop()
     elif opname == 'COPY_FREE_VARS':
       # Helps with calling closures, but since we aren't executing
       # them we can treat this as a no-op

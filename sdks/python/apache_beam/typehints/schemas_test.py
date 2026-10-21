@@ -25,14 +25,11 @@ import datetime
 import itertools
 import pickle
 import unittest
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import ByteString
-from typing import List
-from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -56,6 +53,12 @@ from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.typehints.testing.strategies import named_fields
 from apache_beam.utils.timestamp import Timestamp
+
+# Simplify to collections.abc implementation once Python 3.11 is deprecated.
+try:
+  from collections.abc import Buffer
+except ImportError:
+  from typing_extensions import Buffer
 
 all_nonoptional_primitives = [
     np.int8,
@@ -81,8 +84,8 @@ basic_map_types = [
 ]
 
 basic_tuple_types = [
-    Tuple[str, np.int64],
-    Tuple[np.int64, ...],
+    tuple[str, np.int64],
+    tuple[np.int64, ...],
 ]
 
 
@@ -115,8 +118,8 @@ class ComplexSchema(NamedTuple):
   array_optional: Sequence[Optional[bool]]
   timestamp: Timestamp
   date: datetime.date
-  fixed_tuple: Tuple[str, np.int64]
-  var_tuple: Tuple[np.int64, ...]
+  fixed_tuple: tuple[str, np.int64]
+  var_tuple: tuple[np.int64, ...]
 
 
 def get_test_beam_fieldtype_protos():
@@ -667,9 +670,9 @@ class SchemaTest(unittest.TestCase):
         [
             ('name', str),
             ('age', Optional[int]),
-            ('interests', List[str]),
+            ('interests', list[str]),
             ('height', float),
-            ('blob', ByteString),
+            ('blob', Buffer),
         ])
 
     expected = schema_pb2.FieldType(
@@ -712,9 +715,9 @@ class SchemaTest(unittest.TestCase):
     class MyCuteDataclass:
       name: str
       age: Optional[int]
-      interests: List[str]
+      interests: list[str]
       height: float
-      blob: ByteString
+      blob: Buffer
 
     expected = schema_pb2.FieldType(
         row_type=schema_pb2.RowType(

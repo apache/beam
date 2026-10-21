@@ -42,9 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_REGION: us-central1
@@ -102,7 +100,7 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_1 }} --job_name=load-tests-python-flink-batch-cogbk-1-${{ steps.datetime.outputs.datetime }}' \
@@ -112,7 +110,7 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-cogbk-2-${{ steps.datetime.outputs.datetime }}' \
@@ -122,7 +120,7 @@ jobs:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
           arguments: |
             --info \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.mainClass=apache_beam.testing.load_tests.co_group_by_key_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_CoGBK_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-cogbk-3-${{ steps.datetime.outputs.datetime }}' \

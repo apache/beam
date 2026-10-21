@@ -81,10 +81,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The sink commits one new snapshot to the destination table per commit window, in ascending
  * window order, with an idempotency token written to each snapshot's summary. A retried or
- * restarted commit finds the token and skips already-committed windows, making the commit
- * effectively-once on runners that honor {@code @RequiresStableInput}. Records whose grouped pane
- * fires late (watermark is past their commit window's end) are diverted to the DLQ output,
- * accessible with {@link IcebergWriteResult#getDeadLetterRows()}.
+ * restarted commit finds the token and skips already-committed windows, so each window commits
+ * once. The commit reads straight from a {@code GroupByKey}, so on runners that persist shuffle
+ * output, like Dataflow, a retried commit sees the same files. Records whose grouped pane fires
+ * late (watermark is past their commit window's end) are diverted to the DLQ output, accessible
+ * with {@link IcebergWriteResult#getDeadLetterRows()}.
  *
  * <p>Each dead-lettered record nests the data row under {@code record}, beside {@code change_type},
  * {@code sequence_number}, and {@code destination}.
@@ -305,8 +306,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * token-bearing snapshot stays recent and is less likely to be lost to {@code expire_snapshots}
    * before the sink resumes. Disabled by default, and ignored for bounded (batch) input.
    *
-   * <p>With heartbeat enabled prefer cancel-and-resubmit over drain: the self-re-arming
-   * processing-time timer can keep a drain from completing.
+   * <p>With heartbeat enabled, stop the pipeline with cancel, not drain.
    */
   public WriteCdcRows withTokenHeartbeat(Duration interval) {
     Preconditions.checkArgument(

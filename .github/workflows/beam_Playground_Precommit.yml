@@ -25,9 +25,7 @@ on:
     - cron: '10 2/6 * * *'
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_Playground_PreCommit:
@@ -43,7 +41,7 @@ jobs:
         job_name: [beam_Playground_PreCommit]
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
-      PYTHON_VERSION: '3.10'
+      PYTHON_VERSION: '3.11'
       JAVA_VERSION: '17'
     steps:
       - uses: actions/checkout@v7

@@ -42,12 +42,15 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
@@ -55,16 +58,22 @@ import com.google.cloud.storage.StorageOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -77,6 +86,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -553,6 +563,175 @@ public class GcsUtilV2Test {
     assertSame(preconditionFailed, thrown.getCause());
   }
 
+  /**
+   * java-storage starts the resumable upload session with a blocking request when it opens a
+   * WriteChannel. create() must leave that to a background thread, as gcsio does for V1, so that
+   * the caller does not wait for it.
+   */
+  @Test
+  public void testV2CreateStartsUploadSessionInBackground() throws Exception {
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    CountDownLatch release = new CountDownLatch(1);
+    AtomicReference<Thread> openingThread = new AtomicReference<>();
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenAnswer(
+            invocation -> {
+              openingThread.set(Thread.currentThread());
+              if (!release.await(10, TimeUnit.SECONDS)) {
+                throw new AssertionError("the upload session was never released");
+              }
+              return writer;
+            });
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+    assertTrue(channel.isOpen());
+
+    release.countDown();
+    channel.write(ByteBuffer.wrap(new byte[] {1, 2, 3}));
+    channel.close();
+
+    assertNotSame(Thread.currentThread(), openingThread.get());
+    verify(writer).write(any(ByteBuffer.class));
+    verify(writer).close();
+    assertFalse(channel.isOpen());
+  }
+
+  /**
+   * A failure to start the upload session surfaces on the first write, as an IOException. Close is
+   * then a no-op, and later writes report the closed channel.
+   */
+  @Test
+  public void testV2CreateReportsUploadSessionFailureOnWrite() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+
+    assertThrows(AccessDeniedException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+    // The failure was already reported and there is no session to finalize, so close is a no-op.
+    channel.close();
+    assertFalse(channel.isOpen());
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+  }
+
+  /** A java-storage client whose upload sessions do not start until {@code release} fires. */
+  private static Storage storageWithBlockedUploadSession(
+      CountDownLatch release, WriteChannel writer) {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenAnswer(
+            invocation -> {
+              release.await();
+              return writer;
+            });
+    return storage;
+  }
+
+  private static WritableByteChannel createTestObject(GcsUtil gcsUtil) throws IOException {
+    return gcsUtil.create(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        CreateOptions.builder().setExpectFileToNotExist(true).build());
+  }
+
+  /** A closed channel rejects writes itself, rather than relying on the underlying channel. */
+  @Test
+  public void testV2WriteAfterCloseThrowsClosedChannelException() throws IOException {
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel = createTestObject(gcsUtilWithV2Storage(storageWritingTo(writer)));
+
+    channel.close();
+
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+    verify(writer, never()).write(any(ByteBuffer.class));
+  }
+
+  /**
+   * When the session fails to start and nothing was written, close reports the failure. A later
+   * write must then report the closed channel, not the session failure again.
+   */
+  @Test
+  public void testV2WriteAfterFailedCloseThrowsClosedChannelException() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    WritableByteChannel channel = createTestObject(gcsUtilWithV2Storage(storage));
+
+    assertThrows(AccessDeniedException.class, channel::close);
+
+    assertFalse(channel.isOpen());
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+  }
+
+  /**
+   * An interrupt while the first write waits for the session abandons the upload. Later writes
+   * report that as an IOException rather than leaking a CancellationException, and close is a
+   * no-op.
+   */
+  @Test
+  public void testV2WriteInterruptedWhileStartingSession() throws IOException {
+    CountDownLatch release = new CountDownLatch(1);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel =
+        createTestObject(gcsUtilWithV2Storage(storageWithBlockedUploadSession(release, writer)));
+    try {
+      Thread.currentThread().interrupt();
+      assertThrows(
+          InterruptedIOException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      // The interrupt is preserved for the caller.
+      assertTrue(Thread.interrupted());
+
+      assertThrows(
+          InterruptedIOException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      channel.close();
+      assertFalse(channel.isOpen());
+      verify(writer, never()).write(any(ByteBuffer.class));
+      verify(writer, never()).close();
+    } finally {
+      Thread.interrupted();
+      release.countDown();
+    }
+  }
+
+  /**
+   * An interrupt while close waits for the session of an empty file is reported by close. A later
+   * write must then report the closed channel.
+   */
+  @Test
+  public void testV2CloseInterruptedWhileStartingSession() throws IOException {
+    CountDownLatch release = new CountDownLatch(1);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel =
+        createTestObject(gcsUtilWithV2Storage(storageWithBlockedUploadSession(release, writer)));
+    try {
+      Thread.currentThread().interrupt();
+      assertThrows(InterruptedIOException.class, channel::close);
+      assertTrue(Thread.interrupted());
+
+      assertFalse(channel.isOpen());
+      assertThrows(
+          ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      // A second close is a no-op.
+      channel.close();
+      verify(writer, never()).close();
+    } finally {
+      Thread.interrupted();
+      release.countDown();
+    }
+  }
+
   /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExist} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
@@ -717,18 +896,21 @@ public class GcsUtilV2Test {
   @Test
   public void testV2CreatePreconditions() throws IOException {
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+    // Each channel is closed so that its upload session, started in the background, has been
+    // opened before it is verified.
 
     // Expected not to exist: no lookup is made.
     Storage expectedMissing = storageWritingTo(Mockito.mock(WriteChannel.class));
     gcsUtilWithV2Storage(expectedMissing)
-        .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
+        .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build())
+        .close();
     verify(expectedMissing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
     verify(expectedMissing, never()).get(anyString(), anyString(), any());
 
     // Looked up and missing. An unstubbed get() returns null, which is how java-storage reports a
     // missing object.
     Storage missing = storageWritingTo(Mockito.mock(WriteChannel.class));
-    gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build());
+    gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build()).close();
     verify(missing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
 
     // Looked up and found.
@@ -736,7 +918,7 @@ public class GcsUtilV2Test {
     Blob blob = Mockito.mock(Blob.class);
     when(blob.getGeneration()).thenReturn(42L);
     when(existing.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
-    gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build());
+    gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build()).close();
     verify(existing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.generationMatch(42L)));
   }
 
@@ -758,21 +940,23 @@ public class GcsUtilV2Test {
     pipelineWithSize.setGcsUploadBufferSizeBytes(2048);
 
     WriteChannel writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withSize);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withSize).close();
     verify(writer).setChunkSize(1024);
 
     writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withoutSize);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer))
+        .create(path, withoutSize)
+        .close();
     verify(writer).setChunkSize(2048);
 
     writer = Mockito.mock(WriteChannel.class);
-    gcsUtilWithV2Storage(storageWritingTo(writer)).create(path, withoutSize);
+    gcsUtilWithV2Storage(storageWritingTo(writer)).create(path, withoutSize).close();
     verify(writer).setChunkSize(GcsUtilV2.DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
   }
 
   /** Mirrors {@link GcsUtilV1Test#testGCSWriteMetricsIsSet}. */
   @Test
-  public void testV2WriteMetricsIsSet() {
+  public void testV2WriteMetricsIsSet() throws IOException {
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
     Storage storage = Mockito.mock(Storage.class);
@@ -781,9 +965,10 @@ public class GcsUtilV2Test {
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
 
-    assertThrows(
-        AccessDeniedException.class,
-        () -> gcsUtil.create(path, CreateOptions.builder().setExpectFileToNotExist(true).build()));
+    // The upload session is started in the background, so its failure surfaces on close.
+    WritableByteChannel channel =
+        gcsUtil.create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
+    assertThrows(AccessDeniedException.class, channel::close);
 
     verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "permission_denied", 1);
     verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "ok", 0);
@@ -914,5 +1099,73 @@ public class GcsUtilV2Test {
         () ->
             withForbidden.remove(
                 ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
+  }
+
+  /**
+   * java-storage cannot batch rewrites, so V2 issues the files of a rename concurrently. Every
+   * rewrite here blocks until all of them have started, which only happens if they overlap.
+   */
+  @Test
+  public void testV2RenameRewritesFilesConcurrently() throws IOException {
+    int numFiles = 4;
+    CountDownLatch allStarted = new CountDownLatch(numFiles);
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.copy(any(CopyRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              allStarted.countDown();
+              assertTrue("rewrites did not overlap", allStarted.await(30, TimeUnit.SECONDS));
+              return Mockito.mock(CopyWriter.class);
+            });
+    when(storage.delete(any(BlobId.class))).thenReturn(true);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    List<String> srcs = new ArrayList<>();
+    List<String> dsts = new ArrayList<>();
+    for (int i = 0; i < numFiles; i++) {
+      srcs.add("gs://testbucket/src" + i);
+      dsts.add("gs://testbucket/dst" + i);
+    }
+
+    gcsUtil.rename(srcs, dsts);
+
+    verify(storage, Mockito.times(numFiles)).copy(any(CopyRequest.class));
+    for (int i = 0; i < numFiles; i++) {
+      verify(storage).delete(BlobId.of("testbucket", "src" + i));
+    }
+  }
+
+  /**
+   * Running the files concurrently must not change what a rename reports: a missing source is
+   * skipped or fails depending on IGNORE_MISSING_FILES, and other failures keep their type.
+   */
+  @Test
+  public void testV2RenameFailuresAreReportedPerFile() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.copy(any(CopyRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              String source = invocation.<CopyRequest>getArgument(0).getSource().getName();
+              if (source.equals("missing")) {
+                throw new StorageException(404, "Not Found");
+              }
+              if (source.equals("forbidden")) {
+                throw new StorageException(403, "Forbidden");
+              }
+              return Mockito.mock(CopyWriter.class);
+            });
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    List<String> okAndMissing = ImmutableList.of("gs://testbucket/ok", "gs://testbucket/missing");
+    List<String> okAndMissingDsts =
+        ImmutableList.of("gs://testbucket/ok.bak", "gs://testbucket/missing.bak");
+
+    gcsUtil.rename(okAndMissing, okAndMissingDsts, StandardMoveOptions.IGNORE_MISSING_FILES);
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.rename(okAndMissing, okAndMissingDsts));
+    assertThrows(
+        AccessDeniedException.class,
+        () ->
+            gcsUtil.rename(
+                ImmutableList.of("gs://testbucket/ok", "gs://testbucket/forbidden"),
+                ImmutableList.of("gs://testbucket/ok.bak", "gs://testbucket/forbidden.bak"),
+                StandardMoveOptions.IGNORE_MISSING_FILES));
   }
 }
