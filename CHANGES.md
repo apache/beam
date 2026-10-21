@@ -83,6 +83,7 @@
 * (Python) Added `AwsSecret` (`AwsSecretsManager` / `type:awssecret`) to retrieve secrets from AWS Secrets Manager, configured from `AwsOptions` (`--aws_*`) with optional per-secret connection overrides ([#40528](https://github.com/apache/beam/issues/40528)).
 * (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
 * (Python, Java, Go) Added `--dataflow_container_base_repository` (Python, Go) and `--dataflowContainerBaseRepository` (Java) to set the repository (e.g. `docker.example.com/my-prefix/cloud-dataflow/v1beta3`) from which the Dataflow runner pulls its default SDK container images, including the default images of cross-language Apache Beam environments. Defaults to `gcr.io/cloud-dataflow/v1beta3` ([#40569](https://github.com/apache/beam/issues/40569)).
+* (Go) GCS and Dataflow clients now support non-default universes such as Trusted Partner Cloud (TPC), using the universe domain from `GOOGLE_CLOUD_UNIVERSE_DOMAIN` or the default credentials. Added a `--gcs_endpoint` pipeline option to override the GCS endpoint ([#40569](https://github.com/apache/beam/issues/40569)).
 
 ## Breaking Changes
 
