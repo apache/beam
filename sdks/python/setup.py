@@ -156,12 +156,9 @@ else:
     'pyarrow>=14.0.1,<26.0.0',
   ]
 
-# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-# Exclude 1.5.0 and 1.5.1 because of
-# https://github.com/pandas-dev/pandas/issues/45725
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.4',
+    'pandas>=2.2.2,<2.4',
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
@@ -424,7 +421,7 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
+          'numpy>=1.23.2,<2.6.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pillow>=12.1.1,<13',
@@ -479,7 +476,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'markdown',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
@@ -490,7 +487,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'parameterized>=0.7.1,<0.10.0',
               'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
