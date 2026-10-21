@@ -791,6 +791,29 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertFalse(mh.should_skip_batching())
     self.assertTrue(any('skips batching' in line for line in logs.output))
 
+  def test_keyed_many_model_handlers_with_model_manager_raises(self):
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    keyed_mh = base.KeyedModelHandler(mhs)
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(keyed_mh, use_model_manager=True)
+
+    # Wrapped handlers should be rejected as well.
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(
+          keyed_mh.with_preprocess_fn(lambda x: x).with_no_batching(),
+          use_model_manager=True)
+
+    # Without the model manager, or with a single keyed model, it is allowed.
+    base.RunInference(keyed_mh)
+    base.RunInference(
+        base.KeyedModelHandler(FakeModelHandler()), use_model_manager=True)
+
   def test_keyed_model_handler_get_num_bytes(self):
     mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
     batch = [('key1', 1), ('key2', 2), ('key1', 3)]
@@ -2648,6 +2671,144 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
           | beam.Create(examples, reshuffle=False)
           | base.RunInference(handler))
       assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
+
+
+class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):
+  """Predicts the lengths of the examples in the batch of each example."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    lengths = tuple(len(example) for example in batch)
+    return [lengths] * len(batch)
+
+
+class NonEmptyBatchLengthsModelHandler(BatchLengthsModelHandler):
+  """Fails on an empty batch, which RunInference should never produce."""
+  def run_inference(self, batch, model, inference_args=None):
+    if not batch:
+      raise ValueError('run_inference received an empty batch')
+    return super().run_inference(batch, model, inference_args)
+
+
+class RunInferenceWeightedBatchingTest(unittest.TestCase):
+  """End-to-end tests for max_batch_weight and element_size_fn."""
+  def _handler(self, **kwargs):
+    # At most 2 examples of length 4 fit within max_batch_weight.
+    return BatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len,
+        **kwargs)
+
+  def test_max_batch_weight(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6, reshuffle=False)
+          | base.RunInference(self._handler()))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_max_batch_weight_with_max_batch_duration_secs(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6)
+          | base.RunInference(self._handler(max_batch_duration_secs=60)))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_keyed_model_handler_sizes_examples(self):
+    # element_size_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create([(i, 'aaaa') for i in range(6)], reshuffle=False)
+          | base.RunInference(handler)
+          | beam.Values())
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_maybe_keyed_model_handler_sizes_examples(self):
+    handler = base.MaybeKeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      keyed = (
+          p
+          | 'CreateKeyed' >> beam.Create([(i, 'aaaa') for i in range(6)],
+                                         reshuffle=False)
+          | 'RunInferenceKeyed' >> base.RunInference(handler)
+          | beam.Values())
+      assert_that(keyed, equal_to([(4, 4)] * 6), label='CheckKeyed')
+      unkeyed = (
+          p
+          | 'CreateUnkeyed' >> beam.Create(['aaaa'] * 6, reshuffle=False)
+          | 'RunInferenceUnkeyed' >> base.RunInference(handler))
+      assert_that(unkeyed, equal_to([(4, 4)] * 6), label='CheckUnkeyed')
+
+  def test_keyed_model_handler_buckets_examples(self):
+    # batch_length_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(
+        PaddingReportingStringModelHandler(
+            min_batch_size=2,
+            max_batch_size=2,
+            max_batch_duration_secs=60,
+            batch_length_fn=len,
+            batch_bucket_boundaries=[5]))
+    examples = [('k1', 'a'), ('k2', 'cccccc'), ('k3', 'bb'), ('k4', 'ddddddd')]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([('k1', 'a:2'), ('k2', 'cccccc:7'), ('k3', 'bb:2'),
+                    ('k4', 'ddddddd:7')]))
+
+  def test_keyed_batch_elements_kwargs(self):
+    unkeyed = FakeModelHandlerForBatching(
+        min_batch_size=2, element_size_fn=len, batch_length_fn=len)
+    keyed_kwargs = base.KeyedModelHandler(unkeyed).batch_elements_kwargs()
+    self.assertEqual(keyed_kwargs['min_batch_size'], 2)
+    self.assertEqual(keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(keyed_kwargs['length_fn'](('key', 'abc')), 3)
+    maybe_keyed_kwargs = base.MaybeKeyedModelHandler(
+        unkeyed).batch_elements_kwargs()
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn']('abc'), 3)
+    # The kwargs of the unkeyed ModelHandler are unchanged.
+    self.assertIs(unkeyed.batch_elements_kwargs()['element_size_fn'], len)
+
+  def test_oversized_example_is_batched_alone(self):
+    # An example heavier than max_batch_weight reaches run_inference in a
+    # batch by itself, and the model never receives an empty batch. The
+    # oversized example is not first, so that the estimator does not replay a
+    # batch size of 1 for the batch after it.
+    handler = NonEmptyBatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len)
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['a', 'a', 'a' * 20, 'a', 'a'], reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(results, equal_to([(1, 1)] * 4 + [(20, )]))
+
+  def test_pipeline_construction_with_max_batch_weight(self):
+    # Regression test for https://github.com/apache/beam/issues/40644:
+    # RunInference.expand raised a TypeError because BatchElements did not
+    # accept max_batch_weight, before any model was loaded.
+    unkeyed_examples = ['a', 'bb']
+    keyed_examples = [('k1', 'a'), ('k2', 'bb')]
+    for handler, examples in (
+        (self._handler(), unkeyed_examples),
+        (self._handler(max_batch_duration_secs=60), unkeyed_examples),
+        (base.KeyedModelHandler(self._handler()), keyed_examples),
+        (base.MaybeKeyedModelHandler(self._handler()), unkeyed_examples)):
+      p = beam.Pipeline()
+      _ = p | beam.Create(examples) | base.RunInference(handler)
 
 
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Set;
@@ -72,6 +73,7 @@ public class StatefulParDoStreamingTest implements Serializable {
   private static final String TAG_RESTART = "stateful-restart";
   private static final String TAG_CHAINED = "stateful-chained";
   private static final String TAG_NULL_KEY = "stateful-null-key";
+  private static final String TAG_EXPIRY = "stateful-expiry";
 
   @After
   public void tearDown() {
@@ -79,6 +81,7 @@ public class StatefulParDoStreamingTest implements Serializable {
     TestUnboundedSource.forget(TAG_RESTART);
     TestUnboundedSource.forget(TAG_CHAINED);
     TestUnboundedSource.forget(TAG_NULL_KEY);
+    TestUnboundedSource.forget(TAG_EXPIRY);
   }
 
   private static Pipeline pipeline(
@@ -188,6 +191,42 @@ public class StatefulParDoStreamingTest implements Serializable {
     assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(pipeline).getState());
     Set<Integer> collected = StreamingTestUtils.collected(collectorId);
     assertTrue(collected.contains(5));
+  }
+
+  @Test
+  public void testExpiredKeyLeavesNoState() throws Exception {
+    String checkpoint = tempFolder.newFolder("cp").getAbsolutePath();
+    String collectorId = StreamingTestUtils.newCollectorId(TAG_EXPIRY);
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpoint);
+    options.setMaxRecordsPerBatch(1L);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read", Read.from(new TestUnboundedSource(TAG_EXPIRY, 1, 8)))
+        .apply("KeySelector", ParDo.of(new ExpiryKeySelectorFn()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .apply("Window", Window.into(FixedWindows.of(Duration.millis(1000))))
+        .apply("StatefulParDo", ParDo.of(new DownstreamFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(pipeline).getState());
+    Set<String> collected = StreamingTestUtils.collected(collectorId);
+    assertTrue(collected.contains(TestUnboundedSource.element(TAG_EXPIRY, 0, 0)));
+    for (String stateVarName : Arrays.asList("beamState", "beamTimers", "beamWatermark")) {
+      assertEquals(stateVarName, 0L, stateRows(checkpoint, stateVarName));
+    }
+  }
+
+  /** Rows of a state variable of the query of the only leaf, checkpointed under 0. */
+  private static long stateRows(String checkpoint, String stateVarName) {
+    return SESSION
+        .getSession()
+        .read()
+        .format("statestore")
+        .option("path", new File(checkpoint, "0").getAbsolutePath())
+        .option("stateVarName", stateVarName)
+        .load()
+        .count();
   }
 
   private static final class KeySelectorFn extends DoFn<String, KV<String, String>> {
@@ -308,6 +347,16 @@ public class StatefulParDoStreamingTest implements Serializable {
     @OnTimer("t")
     public void onTimer(@Timestamp Instant ts, OutputReceiver<KV<String, String>> out) {
       out.outputWithTimestamp(KV.of("downstream", "timer-output"), ts);
+    }
+  }
+
+  private static final class ExpiryKeySelectorFn extends DoFn<String, KV<String, String>> {
+    @ProcessElement
+    public void process(@Element String element, OutputReceiver<KV<String, String>> out) {
+      int i = TestUnboundedSource.indexOf(element);
+      if (i == 0) {
+        out.output(KV.of("k1", element));
+      }
     }
   }
 

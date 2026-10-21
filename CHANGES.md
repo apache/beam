@@ -82,6 +82,7 @@
 * (Python) Added `--aws_credentials_secret_manager` so AWS credentials (`--aws_access_key_id`, `--aws_secret_access_key`, `--aws_session_token` and their `--s3_*` overrides) can be secret specs resolved through a secret manager such as `GoogleCloudSecretManager`, instead of plain-text values ([#40528](https://github.com/apache/beam/issues/40528)).
 * (Python) Added `AwsSecret` (`AwsSecretsManager` / `type:awssecret`) to retrieve secrets from AWS Secrets Manager, configured from `AwsOptions` (`--aws_*`) with optional per-secret connection overrides ([#40528](https://github.com/apache/beam/issues/40528)).
 * (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
+* (Python, Java, Go) Added `--dataflow_container_base_repository` (Python, Go) and `--dataflowContainerBaseRepository` (Java) to set the repository (e.g. `docker.example.com/my-prefix/cloud-dataflow/v1beta3`) from which the Dataflow runner pulls its default SDK container images, including the default images of cross-language Apache Beam environments. Defaults to `gcr.io/cloud-dataflow/v1beta3` ([#40569](https://github.com/apache/beam/issues/40569)).
 * (Go) GCS and Dataflow clients now support non-default universes such as Trusted Partner Cloud (TPC), using the universe domain from `GOOGLE_CLOUD_UNIVERSE_DOMAIN` or the default credentials. Added a `--gcs_endpoint` pipeline option to override the GCS endpoint ([#40569](https://github.com/apache/beam/issues/40569)).
 
 ## Breaking Changes
@@ -122,6 +123,9 @@
 * (Python) DataFrame API: `agg` with a list that includes `'count'` or `'size'` now labels those rows `count`/`size` instead of `sum` ([#40504](https://github.com/apache/beam/issues/40504)).
 * (Python) `ConcatSource` no longer raises `ZeroDivisionError` when every source bundle reports a weight of 0, e.g. bundles smaller than 1 MB ([#21316](https://github.com/apache/beam/issues/21316)).
 * (Python) DataFrame API: `Series.value_counts(bins=...)` no longer always fails with a `TypeError` ([#40503](https://github.com/apache/beam/issues/40503)).
+* (Python) Setting `max_batch_weight` on a RunInference `ModelHandler` no longer fails with a `TypeError`: `BatchElements` now supports `max_batch_weight`, which limits the total `element_size_fn` of a batch in addition to its number of elements ([#40644](https://github.com/apache/beam/issues/40644)).
+* (Python) `BatchElements` now honors `element_size_fn` when `max_batch_duration_secs` is set, and no longer emits an empty batch before an element that exceeds the batch size on its own ([#40644](https://github.com/apache/beam/issues/40644)).
+* (Python) `KeyedModelHandler` and `MaybeKeyedModelHandler` now apply the `element_size_fn` and `batch_length_fn` of the wrapped `ModelHandler` to examples, instead of to `(key, example)` pairs ([#40644](https://github.com/apache/beam/issues/40644)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

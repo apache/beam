@@ -1584,6 +1584,19 @@ class WorkerOptions(PipelineOptions):
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
     parser.add_argument(
+        '--dataflow_container_base_repository',
+        default=None,
+        help=(
+            'Base repository (registry host and path prefix) from which the '
+            'Dataflow runner pulls its default SDK container images, e.g. '
+            'docker.example.com/my-project/cloud-dataflow/v1beta3. The '
+            'runner appends the image name and tag, e.g. '
+            '<base>/beam_python3.11_sdk:<version>. This is also used for the '
+            'default images of cross-language Apache Beam environments. '
+            'Ignored for the local SDK image if --sdk_container_image is set. '
+            'If not set, the Google Cloud Dataflow default '
+            '(gcr.io/cloud-dataflow/v1beta3) is used.'))
+    parser.add_argument(
         '--default_sdk_harness_log_level',
         default=None,
         help=(

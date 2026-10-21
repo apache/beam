@@ -45,11 +45,13 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/hooks/perf"
+	"google.golang.org/protobuf/proto"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -59,6 +61,7 @@ var (
 	stagingLocation                = flag.String("staging_location", "", "GCS staging location (required).")
 	workerHarnessImage             = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
 	image                          = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
+	containerBaseRepository        = flag.String("dataflow_container_base_repository", "", "Base repository (registry host and path prefix) from which Dataflow pulls the default SDK container images, e.g. docker.example.com/my-prefix/cloud-dataflow/v1beta3 (optional). If set, it is also used for the default images of cross-language Apache Beam environments. Defaults to "+defaultContainerBaseRepository+".")
 	labels                         = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	serviceAccountEmail            = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers                     = flag.Int64("num_workers", 0, "Number of workers (optional).")
@@ -236,6 +239,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	err = pipelinex.ApplySdkImageOverrides(model, jobopts.GetSdkImageOverrides())
 	if err != nil {
 		return nil, errors.WithContext(err, "applying container image overrides")
+	}
+	// Only rewrite cross-language Apache Beam images when a base repository is
+	// set explicitly, to keep the default behavior of pulling them from Docker
+	// Hub unchanged. Images already rewritten by the overrides above no longer
+	// match apache/beam* and are left as is.
+	if strings.TrimSpace(*containerBaseRepository) != "" {
+		err = updateBeamContainerImagesForDataflow(model, getContainerBaseRepository(), opts.ContainerImage)
+		if err != nil {
+			return nil, errors.WithContext(err, "updating cross-language container images")
+		}
 	}
 
 	if *dryRun {
@@ -468,11 +481,70 @@ func getContainerImage(ctx context.Context) string {
 			// to have a dev image.
 			// However, RC versions should automatically be picked up, since
 			// they are never tagged the RC number, just the main version.
-			return "gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:" + core.SdkVersion
+			return getContainerBaseRepository() + "/beam_go_sdk:" + core.SdkVersion
 		}
 		return envConfig
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+// defaultContainerBaseRepository is the repository of the default Dataflow
+// container images, used when --dataflow_container_base_repository is unset.
+const defaultContainerBaseRepository = "gcr.io/cloud-dataflow/v1beta3"
+
+// getContainerBaseRepository returns the base repository of the default
+// Dataflow container images, without a trailing slash.
+func getContainerBaseRepository() string {
+	if repo := strings.TrimRight(strings.TrimSpace(*containerBaseRepository), "/"); repo != "" {
+		return repo
+	}
+	return defaultContainerBaseRepository
+}
+
+// updateBeamContainerImagesForDataflow rewrites the images of Docker
+// environments that use Apache Beam images from Docker Hub (apache/beam_*),
+// typically from cross-language transforms, to the same image in
+// baseRepository. Release candidate suffixes are trimmed from the tag, since
+// Dataflow images are only tagged with the release version. The image of the
+// pipeline's own SDK environment (sdkImage) is left unchanged.
+func updateBeamContainerImagesForDataflow(p *pipepb.Pipeline, baseRepository, sdkImage string) error {
+	for _, env := range p.GetComponents().GetEnvironments() {
+		if env.GetUrn() != graphx.URNEnvDocker {
+			continue
+		}
+		var payload pipepb.DockerPayload
+		if err := proto.Unmarshal(env.GetPayload(), &payload); err != nil {
+			return err
+		}
+		img := payload.GetContainerImage()
+		if !strings.HasPrefix(img, beamContainerImagePrefix) || img == sdkImage {
+			continue
+		}
+		payload.ContainerImage = baseRepository + "/" + trimRCTag(img[strings.LastIndex(img, "/")+1:])
+		pl, err := proto.Marshal(&payload)
+		if err != nil {
+			return err
+		}
+		env.Payload = pl
+	}
+	return nil
+}
+
+// beamContainerImagePrefix is the prefix of Apache Beam images on Docker Hub.
+const beamContainerImagePrefix = "apache/beam"
+
+// trimRCTag removes a release candidate suffix (e.g. "rc1") from the tag of
+// an image name such as "beam_java11_sdk:2.60.0rc1".
+func trimRCTag(imageAndTag string) string {
+	tagIdx := strings.LastIndex(imageAndTag, ":")
+	if tagIdx < 0 {
+		return imageAndTag
+	}
+	tag := imageAndTag[tagIdx:]
+	if rcIdx := strings.LastIndex(strings.ToLower(tag), "rc"); rcIdx > 0 {
+		return imageAndTag[:tagIdx] + tag[:rcIdx]
+	}
+	return imageAndTag
 }
 
 func checkSoftDeletePolicyEnabled(ctx context.Context, bucketName string, locationName string) {
