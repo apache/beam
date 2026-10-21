@@ -2073,6 +2073,17 @@ class _SharedModelWrapper():
 
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
+
+    Args:
+      models: Either a list of loaded models or a ModelManager.
+      model_tag: Tag identifying the model version currently in use. When a
+        model is updated via side input this is the new model path, so the
+        ModelManager caches and evicts each version independently.
+      loader_func: Function used by ModelManager to load a new instance.
+      metric_tag: Stable tag (the RunInference model_identifier) that
+        ModelManager reports num_loaded_models_* and memory_estimate_mb_*
+        metrics under, so the metric name does not change when the model
+        version changes. Defaults to model_tag.
   """
   def __init__(
       self,

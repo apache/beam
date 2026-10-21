@@ -199,6 +199,15 @@ class ResourceEstimator:
     with self._lock:
       self._metric_tags[model_tag].add(metric_tag)
 
+  def unset_metric_tag(self, model_tag: str, metric_tag: str):
+    with self._lock:
+      self._metric_tags[model_tag].discard(metric_tag)
+
+  def report_estimate(self, model_tag: str):
+    with self._lock:
+      if model_tag in self.estimates:
+        self._report_estimate(model_tag, self.estimates[model_tag])
+
   # Should hold _lock when calling
   def _report_estimate(self, model_tag: str, cost: float):
     for metric_tag in self._metric_tags.get(model_tag) or {model_tag}:
@@ -413,6 +422,26 @@ class ModelManager:
     if self._verbose_logging:
       logger.info(message, *args)
 
+  # Should hold _cv lock when calling
+  def _maybe_switch_active_tag(self, metric_tag: str, tag: str):
+    """Tracks which model tag is active for metric_tag.
+
+    When a different tag is requested for a metric_tag (e.g. a side-input
+    model update), metrics for metric_tag start reflecting the new tag. The
+    previous tag's instances stay in the LRU and are evicted on demand.
+    """
+    prev_tag = self._metric_tag_to_active_tag.get(metric_tag)
+    if prev_tag == tag:
+      return
+    self._metric_tag_to_active_tag[metric_tag] = tag
+    self._estimator.set_metric_tag(tag, metric_tag)
+    if prev_tag is not None:
+      self._estimator.unset_metric_tag(prev_tag, metric_tag)
+    # Re-emit under metric_tag right away if this tag is already profiled.
+    self._estimator.report_estimate(tag)
+    if prev_tag is not None or self._models.get(tag):
+      self._update_model_count_metric()
+
   def all_models(self, tag) -> list[Any]:
     return self._models[tag]
 
@@ -506,16 +535,12 @@ class ModelManager:
       loader_func: Callable[[], Any],
       metric_tag: Optional[str] = None) -> Any:
     effective_metric_tag = metric_tag or tag
-    self._estimator.set_metric_tag(tag, effective_metric_tag)
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
     ticket_num = next(self._ticket_counter)
     my_ticket = QueueTicket(current_priority, ticket_num, tag)
 
     with self._cv:
-      if self._metric_tag_to_active_tag.get(effective_metric_tag) != tag:
-        self._metric_tag_to_active_tag[effective_metric_tag] = tag
-        if self._models.get(tag):
-          self._update_model_count_metric()
+      self._maybe_switch_active_tag(effective_metric_tag, tag)
 
       # FAST PATH: Grab from idle LRU if available
       if not self._isolation_mode:
