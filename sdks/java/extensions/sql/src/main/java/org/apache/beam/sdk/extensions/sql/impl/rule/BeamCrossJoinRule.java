@@ -47,16 +47,13 @@ public class BeamCrossJoinRule extends RelOptRule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     Join join = (Join) call.rel(0);
-    // Only PURE cross joins (literal-true condition). Non-equi / theta joins (a real, non-equi
-    // condition) are left to the CoGBK / side-input rules so they keep surfacing their original
-    // "not supported" diagnostics rather than being silently rerouted here.
+    // Only match pure cross joins; non-equi joins stay on CoGBK/side-input rules.
     if (!join.getCondition().isAlwaysTrue()) {
       return false;
     }
     if (BeamJoinRel.containsSeekableInput(call.rel(0))) {
       return false;
     }
-    // Only bounded x bounded is supported.
     return BeamJoinRel.getBoundednessOfRelNode(call.rel(1)) == PCollection.IsBounded.BOUNDED
         && BeamJoinRel.getBoundednessOfRelNode(call.rel(2)) == PCollection.IsBounded.BOUNDED;
   }

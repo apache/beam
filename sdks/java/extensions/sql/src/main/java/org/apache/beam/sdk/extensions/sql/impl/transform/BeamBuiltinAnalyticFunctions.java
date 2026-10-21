@@ -40,9 +40,7 @@ public class BeamBuiltinAnalyticFunctions {
               // Navigation Functions
               .put("FIRST_VALUE", typeName -> navigationFirstValue())
               .put("LAST_VALUE", typeName -> navigationLastValue())
-              // NTH_VALUE defaults to n=1 (== FIRST_VALUE); the real n is supplied by the executor
-              // via navigationNthValue(n, ignoreNulls), so this factory entry only marks the
-              // function as supported.
+              // Placeholder entry; BeamWindowRel instantiates NTH_VALUE with the actual offset n.
               .put("NTH_VALUE", typeName -> navigationNthValue(1L, false))
               // Numbering Functions
               .put("ROW_NUMBER", typeName -> numberingRowNumber())
@@ -73,8 +71,7 @@ public class BeamBuiltinAnalyticFunctions {
 
   /**
    * FIRST_VALUE that optionally skips nulls. With {@code ignoreNulls=true} it returns the first
-   * non-null value in the frame (matching Spark's {@code first(col, ignoreNulls=true)}, as emitted
-   * by pandas ffill / bfill); otherwise it behaves like {@link #navigationFirstValue()}.
+   * non-null value in the frame; otherwise it behaves like {@link #navigationFirstValue()}.
    */
   public static <T> Combine.CombineFn<T, ?, T> navigationFirstValue(boolean ignoreNulls) {
     return ignoreNulls ? new FirstValueIgnoreNullsCombineFn() : new FirstValueCombineFn();
@@ -82,8 +79,7 @@ public class BeamBuiltinAnalyticFunctions {
 
   /**
    * LAST_VALUE that optionally skips nulls. With {@code ignoreNulls=true} it returns the last
-   * non-null value in the frame (matching Spark's {@code last(col, ignoreNulls=true)}); otherwise
-   * it behaves like {@link #navigationLastValue()}.
+   * non-null value in the frame; otherwise it behaves like {@link #navigationLastValue()}.
    */
   public static <T> Combine.CombineFn<T, ?, T> navigationLastValue(boolean ignoreNulls) {
     return ignoreNulls ? new LastValueIgnoreNullsCombineFn() : new LastValueCombineFn();
@@ -92,8 +88,7 @@ public class BeamBuiltinAnalyticFunctions {
   /**
    * NTH_VALUE(expr, n) [IGNORE NULLS]: the value of {@code expr} from the n-th row of the frame
    * (frame-absolute, 1-based, counted from the frame start). Returns {@code null} when the frame
-   * has fewer than n rows. With {@code ignoreNulls=true}, n counts only non-null values, matching
-   * Spark's {@code nth_value(col, n, ignoreNulls=true)}.
+   * has fewer than n rows. With {@code ignoreNulls=true}, n counts only non-null values.
    */
   public static Combine.CombineFn<?, ?, ?> navigationNthValue(long n, boolean ignoreNulls) {
     return new NthValueCombineFn<>(n, ignoreNulls);
@@ -261,8 +256,6 @@ public class BeamBuiltinAnalyticFunctions {
         Long cursorWindow,
         Long cursorPartition,
         Long countPartition) {
-      // Should not be reached: the executor always routes NTH_VALUE through the value-aware
-      // overload below. Treat the ORDER-BY key as the value as a last resort.
       return addInput(accumulator, input, input, cursorWindow, cursorPartition, countPartition);
     }
 
@@ -279,7 +272,6 @@ public class BeamBuiltinAnalyticFunctions {
         return accumulator;
       }
       if (ignoreNulls && inputValue == null) {
-        // IGNORE NULLS: a null value does not advance the position counter.
         return accumulator;
       }
       accumulator.eligibleSeen++;
@@ -292,7 +284,6 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public T extractOutput(NthAccum<T> accumulator) {
-      // Frame has fewer than n eligible rows -> NULL.
       return accumulator.captured ? accumulator.value : null;
     }
   }
@@ -465,7 +456,6 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public KV<Long, Long> createAccumulator() {
-      // KV(rowsInFrameSoFar, partitionSize)
       return KV.of(0L, 0L);
     }
 

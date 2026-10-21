@@ -148,7 +148,6 @@ public class BeamSqlDslJoinTest {
 
   @Test
   public void testCrossJoin() throws Exception {
-    // A bounded x bounded cross join is now supported (BeamCrossJoinRel): full cartesian product.
     String sql = "SELECT *  " + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
 
     PAssert.that(queryFromOrderTables(sql))

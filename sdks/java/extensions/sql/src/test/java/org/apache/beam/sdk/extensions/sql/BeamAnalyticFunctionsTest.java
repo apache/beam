@@ -598,7 +598,6 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
 
     Schema overResultSchema = Schema.builder().addInt32Field("x").addDoubleField("agg").build();
 
-    // CUME_DIST = (# rows with value <= current) / (total rows). Input x: 1,2,2,5,8,10,10.
     List<Row> overResult =
         TestUtils.RowsBuilder.of(overResultSchema)
             .addRows(
@@ -625,7 +624,6 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
 
     Schema overResultSchema = Schema.builder().addInt32Field("x").addInt64Field("agg").build();
 
-    // COUNT(*) OVER () counts every row in the partition (7 rows) regardless of value.
     List<Row> overResult =
         TestUtils.RowsBuilder.of(overResultSchema)
             .addRows(

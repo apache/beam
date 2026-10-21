@@ -378,11 +378,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
-          // NULL placement is absolute: NULLS FIRST means the null row always sorts before the
-          // non-null row regardless of ASC/DESC, and NULLS LAST means it always sorts after. Do
-          // NOT apply the ASC/DESC orientation flip here — that flip only governs value-vs-value
-          // ordering (handled below). Mixing the two reversed NULLS LAST under ascending sorts
-          // (and NULLS FIRST under descending sorts), placing nulls on the wrong end.
+          // Return early as NULLS FIRST/LAST is independent of ASC/DESC orientation.
           fieldRet = nullsFirst.get(i) ? -1 : 1;
           return fieldRet;
         } else if (!isValue1Null && isValue2Null) {
@@ -403,10 +399,6 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case DATE:
             case TIME:
             case TIMESTAMP:
-              // All of the above map to Java types that implement Comparable (Boolean, BigDecimal,
-              // LocalTime, etc.), so a uniform Comparable comparison yields the correct SQL
-              // ordering
-              // (false < true for BOOLEAN). The base value is extracted via Comparable.class.
               Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
               Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);
               fieldRet = v1.compareTo(v2);
@@ -417,7 +409,6 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           }
         }
 
-        // ASC/DESC flip applies only to value-vs-value comparisons.
         fieldRet *= (orientation.get(i) ? 1 : -1);
 
         if (fieldRet != 0) {

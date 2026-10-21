@@ -52,9 +52,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
  * <p>First increment: INNER join with an always-true condition. A non-trivial (residual) condition
  * is not yet evaluated here.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BeamCrossJoinRel extends BeamJoinRel {
 
   public BeamCrossJoinRel(
@@ -118,8 +115,6 @@ public class BeamCrossJoinRel extends BeamJoinRel {
 
       final Schema outputSchema = CalciteUtils.toSchema(getRowType());
       final PCollectionView<List<Row>> rightView = rightRows.apply(View.asList());
-      // For a LEFT cross join, a left row with no matching right rows is emitted once with the
-      // right columns NULL-padded (the uncorrelated-scalar-subquery shape Calcite decorrelates to).
       final boolean leftJoin = joinType == JoinRelType.LEFT;
       final int rightFieldCount = getRowType().getFieldCount() - left.getRowType().getFieldCount();
 
@@ -152,6 +147,9 @@ public class BeamCrossJoinRel extends BeamJoinRel {
       this.rightFieldCount = rightFieldCount;
     }
 
+    // Row.Builder.addValues expects List<@Nullable Object>, while Row.getBaseValues() returns
+    // List<@NonNull Object>, so it is safe to suppress nullness here.
+    @SuppressWarnings("nullness")
     @ProcessElement
     public void processElement(ProcessContext c) {
       Row leftRow = c.element();

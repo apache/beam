@@ -67,9 +67,7 @@ public class BeamCoGBKJoinRule extends RelOptRule {
     if (BeamJoinRel.containsSeekableInput(call.rel(0))) {
       return false;
     }
-    // Only a PURE cross join over two bounded inputs is handed off to BeamCrossJoinRule; everything
-    // else (equi-joins and non-equi/theta joins, which still surface their original diagnostics)
-    // stays on this rule.
+    // Bounded pure cross joins are handled by BeamCrossJoinRule.
     if (((Join) call.rel(0)).getCondition().isAlwaysTrue()
         && BeamJoinRel.getBoundednessOfRelNode(call.rel(1)) == PCollection.IsBounded.BOUNDED
         && BeamJoinRel.getBoundednessOfRelNode(call.rel(2)) == PCollection.IsBounded.BOUNDED) {

@@ -40,11 +40,7 @@ public class BeamWindowRule extends ConverterRule {
     return new BeamWindowRel(
         w.getCluster(),
         w.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        // Request a BEAM_LOGICAL-convention input rather than handing the BeamWindowRel the raw
-        // NONE-convention RelSubset. Without this, when the window is reached via CALC_TO_WINDOW
-        // (its input is a fresh Calc/Project), the input subset is never converted to BEAM_LOGICAL,
-        // its best cost stays infinite, and planning fails. Mirrors BeamSortRule /
-        // BeamAggregationRule.
+        // Convert input to BeamLogicalConvention so inputs from CALC_TO_WINDOW can be planned.
         convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         w.getConstants(),
         w.getRowType(),

@@ -69,7 +69,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
+public class VarianceFn<T extends Number>
+    extends Combine.CombineFn<T, VarianceAccumulator, @Nullable T> {
 
   static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
 
@@ -77,9 +78,6 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   private static final boolean POP = false;
 
   private final boolean isSample; // flag to determine return value should be Variance Pop or Sample
-  // When true, extractOutput returns the square root of the variance (i.e. standard deviation).
-  // Beam's enumerable bridge cannot translate a SQRT call layered on top of a window VAR_SAMP, so
-  // STDDEV_SAMP / STDDEV_POP are computed end-to-end inside this combiner instead.
   private final boolean isStddev;
   private final SerializableFunction<BigDecimal, T> decimalConverter;
 
@@ -147,15 +145,10 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   }
 
   @Override
-  @SuppressWarnings("nullness") // var_samp/stddev_samp of an under-sized group is a NULL output.
-  public T extractOutput(VarianceAccumulator accumulator) {
+  public @Nullable T extractOutput(VarianceAccumulator accumulator) {
     BigDecimal result = getVariance(accumulator);
-    // An undefined estimate (sample variance/stddev over fewer than 2 elements, or any
-    // variance/stddev over an empty group) is NULL — matching Spark var_samp/stddev_samp and pandas
-    // GroupBy.var()/std()/skew() (which yield NaN for a single-element group). getVariance returns
-    // null for that case; propagate it as a NULL output rather than a spurious 0.0.
     if (result == null) {
-      return (T) null;
+      return null;
     }
     if (isStddev) {
       double doubleVal = result.doubleValue();
@@ -176,9 +169,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
     BigDecimal adjustedCount =
         this.isSample ? variance.count().subtract(BigDecimal.ONE) : variance.count();
 
-    // Division is undefined when adjustedCount is 0: sample variance/stddev over a single element
-    // (n - 1 == 0) or any variance over an empty group. Spark and pandas return NULL / NaN here, so
-    // surface NULL (the caller maps it to a null output) instead of a misleading 0.0.
+    // Sample variance of <= 1 element or population variance of 0 elements is undefined (NULL).
     if (adjustedCount.compareTo(BigDecimal.ZERO) <= 0) {
       return null;
     }

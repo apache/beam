@@ -416,8 +416,6 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
 
   @Test
   public void testCrossJoin() throws Exception {
-    // A bounded x bounded cross join is now supported (BeamCrossJoinRel): it produces the full
-    // cartesian product of the two inputs (3 x 3 = 9 rows).
     String sql = "SELECT *  " + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline);

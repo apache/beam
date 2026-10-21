@@ -147,27 +147,17 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                         Combine.CombineFn combineFn;
                         if (anAggCall.ignoreNulls()
                             && ("FIRST_VALUE".equals(aggName) || "LAST_VALUE".equals(aggName))) {
-                          // Spark's first(col, ignoreNulls=true) / last(col, ignoreNulls=true)
-                          // (as emitted by pandas ffill / bfill) must skip nulls within the frame.
                           combineFn =
                               "FIRST_VALUE".equals(aggName)
                                   ? BeamBuiltinAnalyticFunctions.navigationFirstValue(true)
                                   : BeamBuiltinAnalyticFunctions.navigationLastValue(true);
                         } else if ("NTH_VALUE".equals(aggName)) {
-                          // NTH_VALUE(expr, n) [IGNORE NULLS]: the value column is argList[0] and
-                          // the
-                          // 1-based position n is the second operand, a literal carried in the
-                          // Window
-                          // `constants` list (argList[1] indexes past the input row's fields).
-                          // Build
-                          // a position-aware combiner bound to n; the exec loop feeds it each frame
-                          // row's value via the value-aware addInput overload. Drop the n operand
-                          // from argList so the exec loop's inputFields.get(0) keeps the value
-                          // column.
                           long nthN = readNthValueOffset(argList);
                           combineFn =
                               BeamBuiltinAnalyticFunctions.navigationNthValue(
                                   nthN, anAggCall.ignoreNulls());
+                          // Keep only the value column in argList; the offset n is resolved from
+                          // constants.
                           argList = argList.isEmpty() ? argList : argList.subList(0, 1);
                         } else {
                           combineFn =
@@ -209,6 +199,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
       return 1L;
     }
     int inputFieldCount = input.getRowType().getFieldCount();
+    // Calcite stores window literal arguments in `constants` indexed past the input fields.
     int constIdx = argList.get(1) - inputFieldCount;
     if (constIdx >= 0 && constIdx < this.constants.size()) {
       Object v = this.constants.get(constIdx).getValue();
@@ -261,10 +252,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
-    // Derive from the planner's row-count for the input, which stays finite even when the input is
-    // an unoptimized RelSubset (BeamSqlRelUtils.getNodeStats returns UNKNOWN for a RelSubset, which
-    // makes the cumulative cost infinite and aborts planning -- notably for an OVER nested inside a
-    // projection expression, as emitted by pandas ffill / bfill).
+    // Use mq.getRowCount so RelSubset inputs do not return UNKNOWN/infinite cost.
     double rows = mq.getRowCount(this.input);
     return NodeStats.create(rows, 0d, rows);
   }
@@ -368,9 +356,6 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             if (fieldAgg.combineFn instanceof BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) {
               BeamBuiltinAnalyticFunctions.PositionAwareCombineFn fn =
                   (BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) fieldAgg.combineFn;
-              // Also pass the row's VALUE column. Frame-absolute navigation functions such as
-              // NTH_VALUE need the value at the n-th position within the frame; ranking / numbering
-              // combiners ignore it and use only the ORDER-BY key.
               Object positionInputValue =
                   aggFieldIndex >= 0 ? aggRow.getBaseValue(aggFieldIndex) : (Object) aggRow;
               accumulator =
@@ -382,9 +367,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                       (long) idx,
                       (long) sortedRowsAsList.size());
             } else {
-              // Functions with no input column (e.g. COUNT(*) OVER (...)) carry no field index;
-              // feed the combiner the (always non-null) row itself so COUNT counts every row,
-              // rather than indexing the row with -1.
+              // Pass the row itself for argumentless functions like COUNT(*) OVER (...).
               Object inputValue =
                   aggFieldIndex >= 0 ? aggRow.getBaseValue(aggFieldIndex) : (Object) aggRow;
               accumulator = fieldAgg.combineFn.addInput(accumulator, inputValue);
@@ -474,16 +457,11 @@ public class BeamWindowRel extends Window implements BeamRelNode {
           return null;
         }
         if (value instanceof Number) {
-          // Preserve the exact historical representation for the numeric path.
           return new BigDecimal(((Number) value).toString());
         }
         if (value instanceof ReadableInstant) {
-          // DATE / TIME / TIMESTAMP / TIMESTAMP_WITH_LOCAL_TIME_ZONE base value -> epoch millis.
           return BigDecimal.valueOf(((ReadableInstant) value).getMillis());
         }
-        // Any other (non-orderable for RANGE) key type: fall back to a constant so the frame
-        // degrades to the whole partition rather than throwing. RANGE over such a key is rare and
-        // Spark itself only permits RANGE over a single orderable key.
         return BigDecimal.ZERO;
       }
 
@@ -494,10 +472,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             fieldAgg.upperLimit != null ? fieldAgg.upperLimit.intValue() : Integer.MAX_VALUE;
         int lowerIndex = ll == Integer.MAX_VALUE ? Integer.MIN_VALUE : index - ll;
         int upperIndex = ul == Integer.MAX_VALUE ? Integer.MAX_VALUE : index + ul + 1;
-        // Clamp both bounds into [0, size]. A frame that lies entirely before the partition
-        // (upperIndex < 0, e.g. ROWS BETWEEN 2 PRECEDING AND 2 PRECEDING on the first rows, as
-        // emitted by pandas pct_change/diff with periods>1) or entirely after it (lowerIndex >
-        // size, the FOLLOWING analogue) must yield an empty frame rather than throw on subList.
+        // Clamp bounds to [0, size] so frames completely outside the partition yield an empty list.
         lowerIndex = Math.max(0, Math.min(lowerIndex, input.size()));
         upperIndex = Math.max(lowerIndex, Math.min(upperIndex, input.size()));
         List<Row> out = input.subList(lowerIndex, upperIndex);
