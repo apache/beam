@@ -60,6 +60,7 @@ import java.io.InterruptedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
@@ -1030,6 +1031,9 @@ class GcsUtilV2 {
     private final Future<WriteChannel> pendingWriter;
     private final GcsPath gcsPath;
     private boolean closed = false;
+    // Set when the upload session could not be started (it failed, or waiting for it was
+    // interrupted). There is then nothing to finalize, and the failure has already been reported.
+    private boolean sessionFailed = false;
 
     GcsWritableByteChannel(Future<WriteChannel> pendingWriter, GcsPath gcsPath) {
       this.pendingWriter = pendingWriter;
@@ -1041,10 +1045,17 @@ class GcsUtilV2 {
       try {
         return pendingWriter.get();
       } catch (InterruptedException e) {
+        sessionFailed = true;
         Thread.currentThread().interrupt();
         pendingWriter.cancel(true);
         throw new InterruptedIOException("Interrupted while starting the upload to " + gcsPath);
+      } catch (CancellationException e) {
+        // Only cancelled above, by an earlier interrupted wait, which abandoned the upload.
+        sessionFailed = true;
+        throw new InterruptedIOException(
+            "The upload to " + gcsPath + " was abandoned after an earlier interrupt");
       } catch (ExecutionException e) {
+        sessionFailed = true;
         Throwable cause = e.getCause();
         if (cause instanceof StorageException) {
           throw translateStorageException(gcsPath, (StorageException) cause);
@@ -1064,6 +1075,9 @@ class GcsUtilV2 {
 
     @Override
     public int write(ByteBuffer src) throws IOException {
+      if (closed) {
+        throw new ClosedChannelException();
+      }
       try {
         return writer().write(src);
       } catch (StorageException e) {
@@ -1082,6 +1096,11 @@ class GcsUtilV2 {
         return;
       }
       closed = true;
+      if (sessionFailed) {
+        // An earlier write already reported that the session could not be started, and there is
+        // nothing to finalize.
+        return;
+      }
       // The upload is finalized here, so this is where a failed precondition surfaces.
       try {
         writer().close();

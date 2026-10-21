@@ -58,9 +58,11 @@ import com.google.cloud.storage.StorageOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
@@ -599,7 +601,10 @@ public class GcsUtilV2Test {
     assertFalse(channel.isOpen());
   }
 
-  /** A failure to start the upload session surfaces on the first write, as an IOException. */
+  /**
+   * A failure to start the upload session surfaces on the first write, as an IOException. Close is
+   * then a no-op, and later writes report the closed channel.
+   */
   @Test
   public void testV2CreateReportsUploadSessionFailureOnWrite() throws IOException {
     Storage storage = Mockito.mock(Storage.class);
@@ -613,6 +618,118 @@ public class GcsUtilV2Test {
             CreateOptions.builder().setExpectFileToNotExist(true).build());
 
     assertThrows(AccessDeniedException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+    // The failure was already reported and there is no session to finalize, so close is a no-op.
+    channel.close();
+    assertFalse(channel.isOpen());
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+  }
+
+  /** A java-storage client whose upload sessions do not start until {@code release} fires. */
+  private static Storage storageWithBlockedUploadSession(
+      CountDownLatch release, WriteChannel writer) {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenAnswer(
+            invocation -> {
+              release.await();
+              return writer;
+            });
+    return storage;
+  }
+
+  private static WritableByteChannel createTestObject(GcsUtil gcsUtil) throws IOException {
+    return gcsUtil.create(
+        GcsPath.fromComponents("testbucket", "testobject"),
+        CreateOptions.builder().setExpectFileToNotExist(true).build());
+  }
+
+  /** A closed channel rejects writes itself, rather than relying on the underlying channel. */
+  @Test
+  public void testV2WriteAfterCloseThrowsClosedChannelException() throws IOException {
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel = createTestObject(gcsUtilWithV2Storage(storageWritingTo(writer)));
+
+    channel.close();
+
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+    verify(writer, never()).write(any(ByteBuffer.class));
+  }
+
+  /**
+   * When the session fails to start and nothing was written, close reports the failure. A later
+   * write must then report the closed channel, not the session failure again.
+   */
+  @Test
+  public void testV2WriteAfterFailedCloseThrowsClosedChannelException() throws IOException {
+    Storage storage = Mockito.mock(Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    WritableByteChannel channel = createTestObject(gcsUtilWithV2Storage(storage));
+
+    assertThrows(AccessDeniedException.class, channel::close);
+
+    assertFalse(channel.isOpen());
+    assertThrows(
+        ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+  }
+
+  /**
+   * An interrupt while the first write waits for the session abandons the upload. Later writes
+   * report that as an IOException rather than leaking a CancellationException, and close is a
+   * no-op.
+   */
+  @Test
+  public void testV2WriteInterruptedWhileStartingSession() throws IOException {
+    CountDownLatch release = new CountDownLatch(1);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel =
+        createTestObject(gcsUtilWithV2Storage(storageWithBlockedUploadSession(release, writer)));
+    try {
+      Thread.currentThread().interrupt();
+      assertThrows(
+          InterruptedIOException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      // The interrupt is preserved for the caller.
+      assertTrue(Thread.interrupted());
+
+      assertThrows(
+          InterruptedIOException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      channel.close();
+      assertFalse(channel.isOpen());
+      verify(writer, never()).write(any(ByteBuffer.class));
+      verify(writer, never()).close();
+    } finally {
+      Thread.interrupted();
+      release.countDown();
+    }
+  }
+
+  /**
+   * An interrupt while close waits for the session of an empty file is reported by close. A later
+   * write must then report the closed channel.
+   */
+  @Test
+  public void testV2CloseInterruptedWhileStartingSession() throws IOException {
+    CountDownLatch release = new CountDownLatch(1);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    WritableByteChannel channel =
+        createTestObject(gcsUtilWithV2Storage(storageWithBlockedUploadSession(release, writer)));
+    try {
+      Thread.currentThread().interrupt();
+      assertThrows(InterruptedIOException.class, channel::close);
+      assertTrue(Thread.interrupted());
+
+      assertFalse(channel.isOpen());
+      assertThrows(
+          ClosedChannelException.class, () -> channel.write(ByteBuffer.wrap(new byte[] {1})));
+      // A second close is a no-op.
+      channel.close();
+      verify(writer, never()).close();
+    } finally {
+      Thread.interrupted();
+      release.countDown();
+    }
   }
 
   /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExist} for V2. */
