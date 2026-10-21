@@ -36,6 +36,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import PredictionT
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'XGBoostModelHandler',
@@ -313,6 +314,12 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
     return sum(sys.getsizeof(element) for element in batch)
 
 
+@deprecated(
+    since='2.78.0',
+    extra_message=(
+        'datatable has not had a release since 2023 and has no wheels for '
+        'Python 3.13+. XGBoostModelHandlerDatatable and the datatable '
+        'dependency will be removed in Beam 2.79.0.'))
 class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
                                                        PredictionResult,
                                                        Union[xgboost.Booster,
