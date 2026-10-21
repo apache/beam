@@ -212,6 +212,10 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    systemProperty "beam.iceberg.lakehouse.warehouse",
+      project.findProperty('lakehouseWarehouse') ?: 'bl://projects/apache-beam-testing/catalogs/beam-lakehouse-it'
+    systemProperty "beam.iceberg.lakehouse.locations",
+      project.findProperty('lakehouseLocations') ?: 'gs://beam-lakehouse-it,gs://beam-lakehouse-it-added-path'
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
