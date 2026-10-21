@@ -1,0 +1,117 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'PR Size Labeler'
+
+on: # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
+    types: ['opened', 'synchronize', 'reopened']
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to label manually (for workflow_dispatch)'
+        required: false
+        type: 'string'
+
+permissions:
+  pull-requests: 'write'
+  issues: 'write'
+
+jobs:
+  size-label:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Run size labeler'
+        env:
+          GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          GH_REPO: '${{ github.repository }}'
+          EVENT_PR_NUMBER: '${{ github.event.pull_request.number }}'
+          INPUT_PR_NUMBER: '${{ github.event.inputs.pr_number }}'
+        run: |
+          # Determine the target PR number
+          if [ -n "$EVENT_PR_NUMBER" ]; then
+            PR_NUMBER="$EVENT_PR_NUMBER"
+          elif [ -n "$INPUT_PR_NUMBER" ]; then
+            PR_NUMBER="$INPUT_PR_NUMBER"
+          else
+            echo "❌ Error: No PR number provided."
+            exit 1
+          fi
+
+          echo "Checking PR #$PR_NUMBER..."
+
+          # 1. Ensure standard premium size labels exist in the repository (self-healing)
+          # size/XS: Light green (#7ee081)
+          # size/S: Yellow-green (#a6d49f)
+          # size/M: Amber/Yellow (#f7d070)
+          # size/L: Orange (#f48c06)
+          # size/XL: Red (#dc2f02)
+          gh label create "size/XS" --color "7ee081" --description "XS: <10 lines changed" 2>/dev/null || true
+          gh label create "size/S"  --color "a6d49f" --description "S: 10-49 lines changed" 2>/dev/null || true
+          gh label create "size/M"  --color "f7d070" --description "M: 50-249 lines changed" 2>/dev/null || true
+          gh label create "size/L"  --color "f48c06" --description "L: 250-999 lines changed" 2>/dev/null || true
+          gh label create "size/XL" --color "dc2f02" --description "XL: >=1000 lines changed" 2>/dev/null || true
+
+          # 2. Fetch PR details in a single efficient API call
+          PR_DATA=$(gh pr view "$PR_NUMBER" --json additions,deletions,changedFiles,labels)
+          if [ -z "$PR_DATA" ]; then
+            echo "❌ Error: Could not fetch PR details."
+            exit 1
+          fi
+
+          ADDITIONS=$(echo "$PR_DATA" | jq '.additions')
+          DELETIONS=$(echo "$PR_DATA" | jq '.deletions')
+          CHANGED_FILES=$(echo "$PR_DATA" | jq '.changedFiles')
+          TOTAL=$((ADDITIONS + DELETIONS))
+
+          echo "PR additions: $ADDITIONS, deletions: $DELETIONS, total changes: $TOTAL, files: $CHANGED_FILES"
+
+          # 3. Calculate new size label
+          if [ $TOTAL -lt 10 ]; then
+            SIZE="size/XS"
+          elif [ $TOTAL -lt 50 ]; then
+            SIZE="size/S"
+          elif [ $TOTAL -lt 250 ]; then
+            SIZE="size/M"
+          elif [ $TOTAL -lt 1000 ]; then
+            SIZE="size/L"
+          else
+            SIZE="size/XL"
+          fi
+
+          # 4. Check existing labels and update only if necessary
+          EXISTING_LABELS=$(echo "$PR_DATA" | jq -r '.labels[].name' 2>/dev/null || echo "")
+
+          LABELS_TO_REMOVE=()
+          for L in size/XS size/S size/M size/L size/XL; do
+            if echo "$EXISTING_LABELS" | grep -Fq "$L" && [ "$L" != "$SIZE" ]; then
+              LABELS_TO_REMOVE+=("--remove-label" "$L")
+            fi
+          done
+
+          LABEL_TO_ADD=()
+          if ! echo "$EXISTING_LABELS" | grep -Fq "$SIZE"; then
+            LABEL_TO_ADD+=("--add-label" "$SIZE")
+          fi
+
+          # Perform a single, highly atomic edit call if changes are needed
+          if [ ${#LABELS_TO_REMOVE[@]} -gt 0 ] || [ ${#LABEL_TO_ADD[@]} -gt 0 ]; then
+            echo "Updating labels: removing ${LABELS_TO_REMOVE[*]}, adding $SIZE"
+            gh pr edit "$PR_NUMBER" "${LABELS_TO_REMOVE[@]}" "${LABEL_TO_ADD[@]}"
+          else
+            echo "✅ PR #$PR_NUMBER already has the correct size label ($SIZE)."
+          fi
+
+          echo "🎉 PR size labeling completed successfully."
