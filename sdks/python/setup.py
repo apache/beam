@@ -158,6 +158,8 @@ else:
 
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
+    # pandas 2.2.2 is the first version that works with numpy 2.0.0+
+    # TODO(https://github.com/apache/beam/issues/40709): support pandas 3+
     'pandas>=2.2.2,<2.4',
 ]
 
@@ -432,6 +434,8 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
+          # Increment the lower bound when the minimum Python version is
+          # updated.
           'numpy>=1.23.2,<2.6.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
