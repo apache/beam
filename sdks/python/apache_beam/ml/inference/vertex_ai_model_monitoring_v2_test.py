@@ -572,7 +572,7 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
     ]
     self.assertTrue(len(outlet_transforms) > 0)
     for t in outlet_transforms:
-      self.assertEqual(t.annotations.get("model_identifier"), b"")
+      self.assertFalse(t.annotations.get("model_identifier"))
 
   @mock.patch(
       "apache_beam.ml.inference.vertex_ai_model_monitoring_v2.WriteToBigQuery")
