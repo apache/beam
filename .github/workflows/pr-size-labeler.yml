@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'PR Size Labeler'
+name: 'pr-size-labeler'
 
 on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
