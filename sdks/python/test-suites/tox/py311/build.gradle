@@ -117,9 +117,9 @@ toxTask "testPy311pytorch-23", "py311-pytorch-23", "${posargs}"
 test.dependsOn "testPy311pytorch-23"
 postCommitPyDep.dependsOn "testPy311pytorch-23"
 
-toxTask "testPy311pytorch-latest", "py311-pytorch-latest", "${posargs}"
-test.dependsOn "testPy311pytorch-latest"
-postCommitPyDep.dependsOn "testPy311pytorch-latest"
+toxTask "testPy311pytorch-214", "py311-pytorch-214", "${posargs}"
+test.dependsOn "testPy311pytorch-214"
+postCommitPyDep.dependsOn "testPy311pytorch-214"
 
 toxTask "testPy311tft-113", "py311-tft-113", "${posargs}"
 test.dependsOn "testPy311tft-113"
