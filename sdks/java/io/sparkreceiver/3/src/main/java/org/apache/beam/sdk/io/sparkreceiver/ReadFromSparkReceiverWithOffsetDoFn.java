@@ -293,6 +293,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
         TimeUnit.SECONDS.sleep(startPollTimeoutSec);
       } catch (InterruptedException e) {
         LOG.error("SparkReceiver was interrupted before polling started", e);
+        Thread.currentThread().interrupt();
         throw new IllegalStateException("Spark Receiver was interrupted before polling started");
       }
       if (!sparkConsumer.hasRecords()) {
@@ -306,6 +307,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
             TimeUnit.SECONDS.sleep(pullFrequencySec);
           } catch (InterruptedException e) {
             LOG.error("SparkReceiver was interrupted while waiting to poll new records", e);
+            Thread.currentThread().interrupt();
             throw new IllegalStateException(
                 "Spark Receiver was interrupted while waiting to poll new records");
           }

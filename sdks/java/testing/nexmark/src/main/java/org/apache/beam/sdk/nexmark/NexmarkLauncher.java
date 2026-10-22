@@ -555,7 +555,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       try {
         Thread.sleep(PERF_DELAY.getMillis());
       } catch (InterruptedException e) {
-        Thread.interrupted();
+        Thread.currentThread().interrupt();
         NexmarkUtils.console("Interrupted: pipeline is still running");
       }
     }

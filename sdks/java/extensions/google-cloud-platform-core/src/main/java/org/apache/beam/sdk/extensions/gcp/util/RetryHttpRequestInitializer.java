@@ -183,6 +183,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         sleeper.sleep(backOffTime);
         return true;
       } catch (InterruptedException | IOException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         return false;
       }
     }

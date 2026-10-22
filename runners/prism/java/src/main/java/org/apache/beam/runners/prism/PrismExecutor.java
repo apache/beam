@@ -79,7 +79,7 @@ abstract class PrismExecutor {
     try {
       boolean ignored = executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {
-      // Ignore InterruptedException during shutdown.
+      Thread.currentThread().interrupt();
     }
     if (process == null) {
       return;
@@ -91,7 +91,7 @@ abstract class PrismExecutor {
     try {
       process.waitFor();
     } catch (InterruptedException ignored) {
-      // Ignore InterruptedException during shutdown.
+      Thread.currentThread().interrupt();
     }
   }
 
