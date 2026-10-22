@@ -43,7 +43,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -963,6 +965,130 @@ public class SdkHarnessClientTest {
     verify(mockProgressHandler).onCompleted(response);
     verify(mockFinalizationHandler).requestsFinalization(bundleId);
     verifyNoMoreInteractions(mockCheckpointHandler, mockSplitHandler);
+  }
+
+  /** Output of {@code count} byte arrays for {@code bundleId}, one per data message. */
+  private static List<Elements> outputMessages(String bundleId, int count) throws Exception {
+    List<Elements> messages = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      ByteString.Output data = ByteString.newOutput();
+      ByteArrayCoder.of().encode(new byte[] {(byte) i}, data);
+      messages.add(
+          Elements.newBuilder()
+              .addData(
+                  Elements.Data.newBuilder()
+                      .setInstructionId(bundleId)
+                      .setTransformId(SDK_GRPC_WRITE_TRANSFORM)
+                      .setData(data.toByteString()))
+              .build());
+    }
+    return messages;
+  }
+
+  private static Elements lastOutputMessage(String bundleId) {
+    return Elements.newBuilder()
+        .addData(
+            Elements.Data.newBuilder()
+                .setInstructionId(bundleId)
+                .setTransformId(SDK_GRPC_WRITE_TRANSFORM)
+                .setIsLast(true))
+        .build();
+  }
+
+  @Test
+  public void testOutputLargerThanTheInboundQueueDoesNotDeadlock() throws Exception {
+    // The SDK only completes a bundle once all of its output has been sent. If close() waits for
+    // the ProcessBundleResponse before consuming that output, a bundle whose output does not fit
+    // in the inbound queue (100 messages) never finishes.
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(processBundleResponseFuture);
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    doNothing().when(dataService).registerReceiver(any(), outputReceiverCaptor.capture());
+    when(dataService.createOutboundAggregator(any(), anyBoolean()))
+        .thenReturn(mock(BeamFnDataOutboundAggregator.class));
+
+    List<byte[]> received = Collections.synchronizedList(new ArrayList<>());
+    ActiveBundle activeBundle =
+        processor.newBundle(
+            ImmutableMap.of(
+                SDK_GRPC_WRITE_TRANSFORM,
+                RemoteOutputReceiver.of(ByteArrayCoder.of(), received::add)),
+            BundleProgressHandler.ignored());
+    String bundleId = activeBundle.getId();
+
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      Future<?> sdkSendsOutputThenResponse =
+          executor.submit(
+              () -> {
+                for (Elements message : outputMessages(bundleId, 150)) {
+                  outputReceiverCaptor.getValue().accept(message);
+                }
+                outputReceiverCaptor.getValue().accept(lastOutputMessage(bundleId));
+                processBundleResponseFuture.complete(
+                    InstructionResponse.newBuilder()
+                        .setProcessBundle(ProcessBundleResponse.getDefaultInstance())
+                        .build());
+                return null;
+              });
+
+      Future<?> closed =
+          executor.submit(
+              () -> {
+                activeBundle.close();
+                return null;
+              });
+      // Without the fix this times out: the SDK blocks on message 101 and close() waits forever.
+      closed.get(60, TimeUnit.SECONDS);
+      sdkSendsOutputThenResponse.get(60, TimeUnit.SECONDS);
+    } finally {
+      executor.shutdownNow();
+    }
+    assertEquals(150, received.size());
+    verify(dataService).unregisterReceiver(activeBundle.getId());
+  }
+
+  @Test
+  public void testOutputEmbeddedInAnAlreadyCompletedResponseIsDelivered() throws Exception {
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(processBundleResponseFuture);
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    when(dataService.createOutboundAggregator(any(), anyBoolean()))
+        .thenReturn(mock(BeamFnDataOutboundAggregator.class));
+
+    List<byte[]> received = Collections.synchronizedList(new ArrayList<>());
+    try (ActiveBundle activeBundle =
+        processor.newBundle(
+            ImmutableMap.of(
+                SDK_GRPC_WRITE_TRANSFORM,
+                RemoteOutputReceiver.of(ByteArrayCoder.of(), received::add)),
+            BundleProgressHandler.ignored())) {
+      Elements embedded =
+          outputMessages(activeBundle.getId(), 1).get(0).toBuilder()
+              .mergeFrom(lastOutputMessage(activeBundle.getId()))
+              .build();
+      processBundleResponseFuture.complete(
+          InstructionResponse.newBuilder()
+              .setProcessBundle(ProcessBundleResponse.newBuilder().setElements(embedded))
+              .build());
+    }
+    assertEquals(1, received.size());
   }
 
   private static class TestFn extends DoFn<String, String> {
