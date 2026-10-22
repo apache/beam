@@ -31,6 +31,7 @@ from google.cloud import aiplatform
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
+from apache_beam.ml.inference.base import _validate_batching_args
 
 LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
 
@@ -122,6 +123,11 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets.
     """
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
     self._invoke_route = invoke_route

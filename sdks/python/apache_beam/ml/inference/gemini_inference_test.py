@@ -44,6 +44,35 @@ class RetryOnClientErrorTest(unittest.TestCase):
 
 
 class ModelHandlerArgConditions(unittest.TestCase):
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "max_batch_weight requires element_size_fn"):
+      GeminiModelHandler(
+          model_name="gemini-model-123",
+          request_fn=generate_from_string,
+          api_key="123456789",
+          max_batch_weight=100)
+
+  def test_max_batch_weight_cannot_combine_with_length_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, "cannot be combined with length-based batching"):
+      GeminiModelHandler(
+          model_name="gemini-model-123",
+          request_fn=generate_from_string,
+          api_key="123456789",
+          max_batch_weight=100,
+          element_size_fn=len,
+          batch_length_fn=len)
+
+  def test_batch_bucket_boundaries_require_batch_length_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "batch_bucket_boundaries requires batch_length_fn"):
+      GeminiModelHandler(
+          model_name="gemini-model-123",
+          request_fn=generate_from_string,
+          api_key="123456789",
+          batch_bucket_boundaries=[16, 32])
+
   def test_all_params_set(self):
     self.assertRaises(
         ValueError,

@@ -82,6 +82,7 @@ from openai import OpenAI
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
+from apache_beam.ml.inference.base import _validate_batching_args
 
 __all__ = [
     'OpenAIModelHandler',
@@ -309,6 +310,11 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
       **kwargs: optional arguments passed to RemoteModelHandler (e.g.
         num_retries, throttle_delay_secs, rate_limiter).
     """
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:

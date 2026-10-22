@@ -38,6 +38,35 @@ class RetryOnClientErrorTest(unittest.TestCase):
 
 
 class ModelHandlerArgConditions(unittest.TestCase):
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "max_batch_weight requires element_size_fn"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          max_batch_weight=100)
+
+  def test_max_batch_weight_cannot_combine_with_length_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, "cannot be combined with length-based batching"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          max_batch_weight=100,
+          element_size_fn=len,
+          batch_length_fn=len)
+
+  def test_batch_bucket_boundaries_require_batch_length_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "batch_bucket_boundaries requires batch_length_fn"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          batch_bucket_boundaries=[16, 32])
+
   def test_exception_on_private_without_network(self):
     self.assertRaises(
         ValueError,

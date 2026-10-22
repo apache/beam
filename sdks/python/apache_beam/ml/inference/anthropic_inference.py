@@ -80,6 +80,7 @@ from anthropic import APIStatusError
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
+from apache_beam.ml.inference.base import _validate_batching_args
 
 LOGGER = logging.getLogger("AnthropicModelHandler")
 
@@ -227,6 +228,9 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
       element_size_fn: optional. a function that returns the size
         (weight) of an element.
     """
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn)
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:
