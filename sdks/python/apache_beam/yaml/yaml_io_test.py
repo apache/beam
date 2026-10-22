@@ -33,8 +33,10 @@ from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
+from apache_beam.utils import subprocess_server
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml.yaml_transform import YamlTransform
+from apache_beam.yaml.yaml_transform import expand_pipeline
 
 try:
   import jsonschema
@@ -1000,6 +1002,62 @@ class YamlDeltaTest(unittest.TestCase):
         include_metadata_columns=["_change_type"])
     self.assertIsInstance(transform, beam.managed.Read)
     self.assertEqual(transform._source, "delta_cdc")
+
+
+@unittest.skipIf(
+    not os.path.exists(
+        subprocess_server.JavaJarServer.path_to_dev_beam_jar(
+            'sdks:java:io:expansion-service:shadowJar')),
+    "Requires expansion service jars.")
+class YamlKafkaTest(unittest.TestCase):
+  def test_read_from_kafka_json_schema_expansion(self):
+    # Regression test for https://github.com/apache/beam/issues/35186.
+    # Verifies that ReadFromKafka expands with a nested JSON schema map without
+    # UnsupportedOperationException.
+    p = beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+            pickle_library='cloudpickle'))
+    expand_pipeline(
+        p,
+        '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: ReadFromKafka
+              name: ReadFromMyTopic
+              config:
+                format: JSON
+                schema:
+                  type: "object"
+                  properties:
+                    value: { type: "string" }
+                topic: test
+                bootstrap_servers: kafka:9092
+                auto_offset_reset_config: earliest
+
+            - type: LogForTesting
+        ''')
+
+  def test_read_from_kafka_avro_schema_expansion(self):
+    # Verifies that ReadFromKafka expands with a nested AVRO schema map without
+    # UnsupportedOperationException.
+    p = beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+            pickle_library='cloudpickle'))
+    _ = p | YamlTransform(
+        '''
+        type: ReadFromKafka
+        config:
+          topic: my-topic
+          bootstrap_servers: kafka:9092
+          format: AVRO
+          schema:
+            type: record
+            name: my_record
+            fields:
+              - name: bool
+                type: boolean
+        ''')
 
 
 if __name__ == '__main__':
