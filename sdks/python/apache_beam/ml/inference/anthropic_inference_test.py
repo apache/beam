@@ -153,8 +153,8 @@ class MessageFromConversationTest(unittest.TestCase):
 
 class AnthropicModelHandlerTest(unittest.TestCase):
   def test_max_batch_weight_requires_element_size_fn(self):
-    with self.assertRaisesRegex(
-        ValueError, "max_batch_weight requires element_size_fn"):
+    with self.assertRaisesRegex(ValueError,
+                                "max_batch_weight requires element_size_fn"):
       AnthropicModelHandler(
           model_name=_TEST_MODEL,
           request_fn=message_from_string,

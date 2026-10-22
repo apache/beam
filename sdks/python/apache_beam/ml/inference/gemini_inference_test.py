@@ -45,8 +45,8 @@ class RetryOnClientErrorTest(unittest.TestCase):
 
 class ModelHandlerArgConditions(unittest.TestCase):
   def test_max_batch_weight_requires_element_size_fn(self):
-    with self.assertRaisesRegex(
-        ValueError, "max_batch_weight requires element_size_fn"):
+    with self.assertRaisesRegex(ValueError,
+                                "max_batch_weight requires element_size_fn"):
       GeminiModelHandler(
           model_name="gemini-model-123",
           request_fn=generate_from_string,
