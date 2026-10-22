@@ -49,6 +49,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.fn.data.WeightedList;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -145,8 +146,12 @@ public class StateFetchingIteratorsTest {
 
       // Test on a partially accessed iterable
       iterable = create(5, expected);
-      iterable.append(Ints.asList(42, 43));
+      // Access the iterator to load the first block into the cache so that the cache is partially
+      // populated with nextToken != null before calling append. Without this call, the cache is
+      // empty and append would return early at the existing == null check instead of exercising
+      // the partial cache eviction logic.
       Boolean ignored = iterable.iterator().hasNext();
+      iterable.append(Ints.asList(42, 43));
       // The append is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -176,8 +181,12 @@ public class StateFetchingIteratorsTest {
 
       // Test on a partially accessed iterable
       iterable = create(5, expected);
-      iterable.remove(toRemove);
+      // Access the iterator to load the first block into the cache so that the cache is partially
+      // populated with nextToken != null before calling remove. Without this call, the cache is
+      // empty and remove would return early at the existing == null check instead of exercising
+      // the partial cache eviction logic.
       Boolean ignored = iterable.iterator().hasNext();
+      iterable.remove(toRemove);
       // The remove is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -258,6 +267,32 @@ public class StateFetchingIteratorsTest {
       stateRequestCount = fakeStateClient.getCallCount();
       assertEquals(3, (int) iterator.next());
       assertEquals(stateRequestCount, fakeStateClient.getCallCount());
+    }
+
+    @Test
+    public void testIsReadyBecomesTrueAfterPrefetch() throws Exception {
+      int[] expected = new int[] {0, 1, 2, 3};
+      // Chunk size 4 means 1 integer per chunk
+      CachingStateIterable<Integer> iterable = create(4, expected);
+      PrefetchableIterator<Integer> iterator = iterable.iterator();
+      assertFalse(iterator.isReady());
+      iterator.prefetch();
+      // After prefetch completes, isReady() must return true according to PrefetchableIterator
+      // contract
+      assertTrue(iterator.isReady());
+      assertEquals(0, (int) iterator.next());
+    }
+
+    @Test
+    public void testMutationDuringIterationDoesNotCrash() throws Exception {
+      int[] expected = new int[] {0, 1, 2, 3};
+      CachingStateIterable<Integer> iterable = create(4, expected);
+      PrefetchableIterator<Integer> iterator = iterable.iterator();
+      assertEquals(0, (int) iterator.next());
+      // Mutate while iteration is partially through
+      iterable.clearAndAppend(Ints.asList(99));
+      // hasNext() must not throw IllegalStateException on MutatedBlocks
+      assertTrue(iterator.hasNext());
     }
 
     @Test
@@ -503,6 +538,18 @@ public class StateFetchingIteratorsTest {
       assertEquals(ByteString.copyFromUtf8("value" + 44), byteStrings.next());
     }
 
+    @Test
+    public void testSeekCancelsInFlightPrefetch() throws Exception {
+      CompletableFuture<StateResponse> future = new CompletableFuture<>();
+      BeamFnStateClient fakeStateClient = requestBuilder -> future;
+      LazyBlockingStateFetchingIterator byteStrings =
+          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest.getDefaultInstance());
+      byteStrings.prefetch();
+      assertFalse(future.isCancelled());
+      byteStrings.seekToContinuationToken(ByteString.copyFromUtf8("other"));
+      assertTrue(future.isCancelled());
+    }
+
     private void testFetch(ByteString... expected) {
       AtomicInteger callCount = new AtomicInteger();
       BeamFnStateClient fakeStateClient = fakeStateClient(callCount, expected);
@@ -527,6 +574,87 @@ public class StateFetchingIteratorsTest {
       assertTrue(byteStrings.isReady());
 
       assertEquals(Arrays.asList(expected), results);
+    }
+  }
+
+  /** Tests for {@link StateFetchingIterators#readAllAndDecodeStartingFrom} without caching. */
+  @RunWith(JUnit4.class)
+  public static class UncachedStateIterableTest {
+
+    @Test
+    public void testEmpty() throws Exception {
+      testFetch(4);
+    }
+
+    @Test
+    public void testNonEmpty() throws Exception {
+      testFetch(4, 0);
+    }
+
+    @Test
+    public void testMultipleElementsPerChunk() throws Exception {
+      testFetch(8, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testSingleElementPerChunk() throws Exception {
+      testFetch(4, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkSmallerThanElementSize() throws Exception {
+      testFetch(3, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkLargerThanElementSize() throws Exception {
+      testFetch(5, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testIsReadyAndPrefetch() throws Exception {
+      AtomicInteger callCount = new AtomicInteger();
+      BeamFnStateClient fakeStateClient =
+          fakeStateClient(callCount, ByteString.copyFromUtf8("BC"), ByteString.copyFromUtf8("DEF"));
+      PrefetchableIterable<byte[]> iterable =
+          StateFetchingIterators.readAllAndDecodeStartingFrom(
+              fakeStateClient,
+              StateRequest.getDefaultInstance(),
+              org.apache.beam.sdk.coders.ByteArrayCoder.of());
+      // Not yet iterated or prefetched
+      PrefetchableIterator<byte[]> iterator = iterable.iterator();
+      assertFalse(iterator.isReady());
+    }
+
+    private void testFetch(int chunkSize, int... expected) {
+      StateRequest requestForFirstChunk =
+          StateRequest.newBuilder()
+              .setStateKey(
+                  StateKey.newBuilder()
+                      .setBagUserState(
+                          StateKey.BagUserState.newBuilder()
+                              .setTransformId("transformId")
+                              .setUserStateId("stateId")
+                              .setKey(ByteString.copyFromUtf8("key"))
+                              .setWindow(ByteString.copyFromUtf8("window"))))
+              .setGet(StateGetRequest.getDefaultInstance())
+              .build();
+      FakeBeamFnStateClient fakeStateClient =
+          new FakeBeamFnStateClient(
+              BigEndianIntegerCoder.of(),
+              ImmutableMap.of(requestForFirstChunk.getStateKey(), Ints.asList(expected)),
+              chunkSize);
+
+      PrefetchableIterable<Integer> iterable =
+          StateFetchingIterators.readAllAndDecodeStartingFrom(
+              fakeStateClient, requestForFirstChunk, BigEndianIntegerCoder.of());
+
+      PrefetchableIterator<Integer> iterator = iterable.iterator();
+      List<Integer> results = new ArrayList<>();
+      while (iterator.hasNext()) {
+        results.add(iterator.next());
+      }
+      assertEquals(Ints.asList(expected), results);
     }
   }
 }

@@ -18,10 +18,7 @@
 package org.apache.beam.fn.harness.state;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,7 +46,6 @@ import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
@@ -128,58 +124,9 @@ public class StateFetchingIterators {
 
     @Override
     public PrefetchableIterator<T> createIterator() {
-      return new DecodingIterator<T>(
-          new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk),
-          valueCoder);
-    }
-
-    private static class DecodingIterator<T> extends AbstractIterator<T>
-        implements PrefetchableIterator<T> {
-      private final PrefetchableIterator<ByteString> chunkIterator;
-      private final Coder<T> valueCoder;
-      private InputStream currentChunk;
-
-      public DecodingIterator(PrefetchableIterator<ByteString> chunkIterator, Coder<T> valueCoder) {
-        this.chunkIterator = chunkIterator;
-        this.valueCoder = valueCoder;
-        this.currentChunk = ByteString.EMPTY.newInput();
-      }
-
-      @Override
-      protected @Nullable T computeNext() {
-        try {
-          while (currentChunk.available() == 0) {
-            if (chunkIterator.hasNext()) {
-              currentChunk = chunkIterator.next().newInput();
-            } else {
-              return endOfData();
-            }
-          }
-          return valueCoder.decode(currentChunk);
-        } catch (IOException exn) {
-          // Should never get here as ByteString.newInput() returns InputStreams
-          // that don't do actual IO operations.
-          throw new IllegalStateException(exn);
-        }
-      }
-
-      @Override
-      public boolean isReady() {
-        try {
-          return currentChunk.available() > 0 || chunkIterator.isReady();
-        } catch (IOException exn) {
-          // Should never get here as ByteString.newInput() returns InputStreams
-          // that don't do actual IO operations.
-          throw new IllegalStateException(exn);
-        }
-      }
-
-      @Override
-      public void prefetch() {
-        if (!isReady()) {
-          chunkIterator.prefetch();
-        }
-      }
+      return new DataStreamDecoder<>(
+          valueCoder,
+          new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk));
     }
   }
 
@@ -436,6 +383,7 @@ public class StateFetchingIterators {
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
         cache.remove(IterableCacheKey.INSTANCE);
+        return;
       }
 
       // Combine all the individual blocks into one block containing all the values since
@@ -550,6 +498,7 @@ public class StateFetchingIterators {
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
         cache.remove(IterableCacheKey.INSTANCE);
+        return;
       }
 
       // Combine all the individual blocks into one block containing all the values since
@@ -603,8 +552,7 @@ public class StateFetchingIterators {
           @Nullable Blocks<T> existing = cache.peek(IterableCacheKey.INSTANCE);
           boolean isFirstBlock = ByteString.EMPTY.equals(nextToken);
           if (existing == null) {
-            // If there is nothing cached and we are on the first block then we are not ready.
-            return false;
+            return underlyingStateFetchingIterator.isReady();
           } else {
             if (isFirstBlock) {
               currentBlock = existing.getBlocks().get(0);
@@ -623,7 +571,7 @@ public class StateFetchingIterators {
                 currentCachedBlockValueIndex = 0;
               } else {
                 // If not found, then we need to load it.
-                return false;
+                return underlyingStateFetchingIterator.isReady();
               }
             }
           }
@@ -662,12 +610,7 @@ public class StateFetchingIterators {
             }
           } else if (isFirstBlock) {
             currentBlock = existing.getBlocks().get(0);
-          } else {
-            checkState(
-                existing instanceof BlocksPrefix,
-                "Unexpected blocks type %s, expected a %s.",
-                existing.getClass(),
-                BlocksPrefix.class);
+          } else if (existing instanceof BlocksPrefix) {
             List<Block<T>> blocks = existing.getBlocks();
             int currentBlockIndex = 0;
             for (; currentBlockIndex < blocks.size(); ++currentBlockIndex) {
@@ -693,12 +636,16 @@ public class StateFetchingIterators {
                   && Objects.equals(
                       nextToken,
                       existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken())) {
-                List<Block<T>> newBlocks = new ArrayList<>(currentBlockIndex + 1);
+                List<Block<T>> newBlocks = new ArrayList<>(existing.getBlocks().size() + 1);
                 newBlocks.addAll(existing.getBlocks());
                 newBlocks.add(currentBlock);
                 cache.put(IterableCacheKey.INSTANCE, new BlocksPrefix<>(newBlocks));
               }
             }
+          } else {
+            // The cache entry was mutated or replaced and is no longer a BlocksPrefix.
+            // Fall back to loading from state API directly.
+            currentBlock = loadNextBlock(nextToken);
           }
           currentCachedBlockValueIndex = 0;
         }
@@ -769,7 +716,10 @@ public class StateFetchingIterators {
         return;
       }
       this.continuationToken = continuationToken;
-      this.prefetchedResponse = null;
+      if (this.prefetchedResponse != null) {
+        this.prefetchedResponse.cancel(true);
+        this.prefetchedResponse = null;
+      }
     }
 
     @Override
