@@ -311,9 +311,9 @@ public class DeltaLakeToIcebergCdcIT {
 
     // The native ValueKind does not survive Dataflow Runner v2 yet, so that variant runs on the
     // legacy worker there; the change-type column travels on any runner.
-//    if (!changeTypeColumn) {
-    CdcSinkTestUtils.useLegacyDataflowWorker(p.getOptions());
-//    }
+    if (!changeTypeColumn || Boolean.getBoolean("beam.test.enableManagedTransforms")) {
+      CdcSinkTestUtils.useLegacyDataflowWorker(p.getOptions());
+    }
     Map<String, Object> readConfig = new HashMap<>();
     readConfig.put("table", deltaTable);
     readConfig.put("start_version", 0L);

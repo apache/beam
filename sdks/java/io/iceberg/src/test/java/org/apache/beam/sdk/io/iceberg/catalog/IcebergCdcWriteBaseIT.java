@@ -855,9 +855,10 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     }
     metadataColumns.add(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER);
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-//    if (!changeTypeColumn) {
-    CdcSinkTestUtils.useLegacyDataflowWorker(options);
-//    }
+    // Use the legacy worker for managed transforms until the Runner v2 CDC issue is resolved.
+    if (!changeTypeColumn || Boolean.getBoolean("beam.test.enableManagedTransforms")) {
+      CdcSinkTestUtils.useLegacyDataflowWorker(options);
+    }
     Map<String, Object> readConfig = new HashMap<>(managedIcebergConfig(sourceId.toString()));
     readConfig.put("include_metadata_columns", metadataColumns);
     Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(targetId.toString()));
