@@ -17,25 +17,32 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import java.util.concurrent.LinkedBlockingQueue;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Queue bounded by a {@link WeightedSemaphore}. */
-public final class WeightedBoundedQueue<V> {
+public final class WeightedBoundedQueue<V extends @NonNull Object> {
 
-  private final LinkedBlockingQueue<V> queue;
+  private final ConcurrentLinkedQueue<V> queue;
   private final WeightedSemaphore<V> weightedSemaphore;
+  private final Semaphore availableItems;
 
   private WeightedBoundedQueue(
-      LinkedBlockingQueue<V> linkedBlockingQueue, WeightedSemaphore<V> weightedSemaphore) {
-    this.queue = linkedBlockingQueue;
+      ConcurrentLinkedQueue<V> concurrentLinkedQueue, WeightedSemaphore<V> weightedSemaphore) {
+    this.queue = concurrentLinkedQueue;
     this.weightedSemaphore = weightedSemaphore;
+    this.availableItems = new Semaphore(0);
   }
 
-  public static <V> WeightedBoundedQueue<V> create(WeightedSemaphore<V> weightedSemaphore) {
-    return new WeightedBoundedQueue<>(new LinkedBlockingQueue<>(), weightedSemaphore);
+  public static <V extends @NonNull Object> WeightedBoundedQueue<V> create(
+      WeightedSemaphore<V> weightedSemaphore) {
+    return new WeightedBoundedQueue<>(new ConcurrentLinkedQueue<>(), weightedSemaphore);
   }
 
   /**
@@ -43,16 +50,19 @@ public final class WeightedBoundedQueue<V> {
    * limit.
    */
   public void put(V value) {
+    checkStateNotNull(value);
     weightedSemaphore.acquireUninterruptibly(value);
     queue.add(value);
+    availableItems.release();
   }
 
   /** Returns and removes the next value, or null if there is no such value. */
   public @Nullable V poll() {
-    @Nullable V result = queue.poll();
-    if (result != null) {
-      weightedSemaphore.release(result);
+    if (!availableItems.tryAcquire()) {
+      return null;
     }
+    V result = checkStateNotNull(queue.poll());
+    weightedSemaphore.release(result);
     return result;
   }
 
@@ -67,22 +77,24 @@ public final class WeightedBoundedQueue<V> {
    * @throws InterruptedException if interrupted while waiting
    */
   public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
-    @Nullable V result = queue.poll(timeout, unit);
-    if (result != null) {
-      weightedSemaphore.release(result);
+    if (!availableItems.tryAcquire(timeout, unit)) {
+      return null;
     }
+    V result = checkStateNotNull(queue.poll());
+    weightedSemaphore.release(result);
     return result;
   }
 
   /** Returns and removes the next value, or blocks until one is available. */
   public V take() throws InterruptedException {
-    V result = queue.take();
+    availableItems.acquire();
+    V result = checkStateNotNull(queue.poll());
     weightedSemaphore.release(result);
     return result;
   }
 
   @VisibleForTesting
   int size() {
-    return queue.size();
+    return availableItems.availablePermits();
   }
 }
