@@ -146,12 +146,17 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void testException_crossJoin() throws Exception {
+  @Test
+  public void testCrossJoin() throws Exception {
     String sql = "SELECT *  " + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
 
-    pipeline.enableAbandonedNodeEnforcement(false);
-    queryFromOrderTables(sql);
+    PAssert.that(queryFromOrderTables(sql))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(RESULT_ROW_TYPE)
+                .addRows(
+                    1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 3, 3, 1, 2, 3, 3, 4, 5, 2, 3, 3, 1, 2, 3, 2, 3, 3,
+                    2, 3, 3, 2, 3, 3, 3, 4, 5, 3, 4, 5, 1, 2, 3, 3, 4, 5, 2, 3, 3, 3, 4, 5, 3, 4, 5)
+                .getRows());
     pipeline.run();
   }
 
