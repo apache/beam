@@ -130,11 +130,9 @@ toxTask "testPy311tensorflow-212", "py311-tensorflow-212", "${posargs}"
 test.dependsOn "testPy311tensorflow-212"
 postCommitPyDep.dependsOn "testPy311tensorflow-212"
 
-// Create a test task for each minor version of transformers
-toxTask "testPy311transformers-428", "py311-transformers-428", "${posargs}"
-test.dependsOn "testPy311transformers-428"
-postCommitPyDep.dependsOn "testPy311transformers-428"
-
+// Create a test task for each minor version of transformers.
+// Dropped transformers-428: sentence-transformers==2.2.2 + torch<1.14 is
+// ResolutionImpossible on Python 3.11 (see #30799).
 toxTask "testPy311transformers-447", "py311-transformers-447", "${posargs}"
 test.dependsOn "testPy311transformers-447"
 postCommitPyDep.dependsOn "testPy311transformers-447"
