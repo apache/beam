@@ -438,7 +438,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow>=12.1.1,<13',
+          'pillow>=12.1.1,<14',
           'pymongo>=3.8.0,<5.0.0',
           # ADK / OpenTelemetry need proto-plus>=1.26.1 (protobuf>=5); that
           # floor is declared on ml_adk_dependency only so core installs stay
