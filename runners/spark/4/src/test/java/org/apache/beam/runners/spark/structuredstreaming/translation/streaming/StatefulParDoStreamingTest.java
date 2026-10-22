@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Set;
@@ -213,20 +212,8 @@ public class StatefulParDoStreamingTest implements Serializable {
     Set<String> collected = StreamingTestUtils.collected(collectorId);
     assertTrue(collected.contains(TestUnboundedSource.element(TAG_EXPIRY, 0, 0)));
     for (String stateVarName : Arrays.asList("beamState", "beamTimers", "beamWatermark")) {
-      assertEquals(stateVarName, 0L, stateRows(checkpoint, stateVarName));
+      assertEquals(stateVarName, 0L, StreamingTestUtils.stateRows(checkpoint, stateVarName));
     }
-  }
-
-  /** Rows of a state variable of the query of the only leaf, checkpointed under 0. */
-  private static long stateRows(String checkpoint, String stateVarName) {
-    return SESSION
-        .getSession()
-        .read()
-        .format("statestore")
-        .option("path", new File(checkpoint, "0").getAbsolutePath())
-        .option("stateVarName", stateVarName)
-        .load()
-        .count();
   }
 
   private static final class KeySelectorFn extends DoFn<String, KV<String, String>> {

@@ -33,13 +33,16 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -85,17 +88,6 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   }
 
   @Test
-  public void rejectsGroupByKey() throws Exception {
-    assertUnsupported(kv("g").apply(GroupByKey.create()).getPipeline(), "GroupByKey");
-  }
-
-  @Test
-  public void rejectsCombinePerKey() throws Exception {
-    assertUnsupported(
-        kv("c").apply(Combine.perKey(Sum.ofIntegers())).getPipeline(), "Combine.perKey");
-  }
-
-  @Test
   public void rejectsImpulseFromCreate() throws Exception {
     SparkStructuredStreamingPipelineOptions o = StreamingTestUtils.streamingOptions(temp);
     Pipeline p = Pipeline.create(o);
@@ -136,6 +128,43 @@ public class PipelineTranslatorStreamingTest implements Serializable {
             .apply(ParDo.of(new StatefulDoFn()))
             .getPipeline(),
         "merging windows"
+      },
+      {
+        kv("gbkmw")
+            .apply(Window.into(Sessions.withGapDuration(Duration.millis(10))))
+            .apply(GroupByKey.create())
+            .getPipeline(),
+        "merging windows"
+      },
+      {
+        kv("trig")
+            .apply(
+                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                    .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                    .withAllowedLateness(Duration.millis(1))
+                    .discardingFiredPanes())
+            .apply(GroupByKey.create())
+            .getPipeline(),
+        "Custom triggers"
+      },
+      {
+        kv("accum")
+            .apply(
+                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                    .accumulatingFiredPanes())
+            .apply(GroupByKey.create())
+            .getPipeline(),
+        "Accumulating fired panes"
+      },
+      {
+        kv("cgdef")
+            .apply(
+                Window.<KV<String, Integer>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                    .discardingFiredPanes())
+            .apply(Count.globally())
+            .getPipeline(),
+        "Combine.globally() with a default value (use withoutDefaults())"
       }
     };
 
