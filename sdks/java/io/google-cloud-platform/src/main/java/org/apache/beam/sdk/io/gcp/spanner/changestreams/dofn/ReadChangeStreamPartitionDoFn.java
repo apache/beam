@@ -49,7 +49,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -173,6 +175,11 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     metrics.incActivePartitionReadCounter();
     return TimestampRange.of(startTimestamp, endTimestamp);
+  }
+
+  @TruncateRestriction
+  public @Nullable TruncateResult<TimestampRange> truncateRestriction() {
+    return null;
   }
 
   @GetSize
