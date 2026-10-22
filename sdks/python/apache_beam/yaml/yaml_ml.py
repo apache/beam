@@ -374,6 +374,143 @@ class HuggingFacePipelineModelHandlerProvider(ModelHandlerProvider):
     return Any
 
 
+@ModelHandlerProvider.register_handler_type('OpenAIModelHandler')
+class OpenAIModelHandlerProvider(ModelHandlerProvider):
+  def __init__(
+      self,
+      model_name: str,
+      preprocess: dict[str, str],
+      request_fn: Optional[dict[str, str]] = None,
+      api_key: Optional[str] = None,
+      organization: Optional[str] = None,
+      project: Optional[str] = None,
+      base_url: Optional[str] = None,
+      client_args: Optional[dict[str, Any]] = None,
+      postprocess: Optional[dict[str, str]] = None,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[dict[str, str]] = None,
+      batch_length_fn: Optional[dict[str, str]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
+      **kwargs):
+    """
+    ModelHandler for OpenAI models.
+
+    This Model Handler can be used with RunInference to run inference against
+    the OpenAI API (or OpenAI-compatible endpoints via `base_url`) using models
+    such as GPT-5.4, GPT-5.4-mini, or embedding models.
+
+    This Model Handler requires `model_name` and a `preprocess` function to be
+    specified. Preprocessing and Postprocessing are described in more detail in
+    the RunInference docs:
+    https://beam.apache.org/releases/yamldoc/current/#runinference
+
+    For example: ::
+
+        - type: RunInference
+          config:
+            model_handler:
+              type: OpenAIModelHandler
+              config:
+                model_name: gpt-5.4-mini
+                api_key: your-api-key
+                preprocess:
+                  callable: 'lambda x: x.prompt'
+
+    Args:
+      model_name: The OpenAI model to send requests to (e.g. 'gpt-5.4',
+        'gpt-5.4-mini', 'text-embedding-3-small').
+      preprocess: A python callable, defined either inline, or using a file,
+        that is invoked on the input row before sending to the model to be
+        loaded by this ModelHandler. This parameter is required by the
+        `OpenAIModelHandler` ModelHandler.
+      request_fn: A python callable, defined either inline, or using a file,
+        used to send requests to OpenAI. Built-in options in
+        `apache_beam.ml.inference.openai_inference` are
+        `chat_completion_from_string`, `chat_completion_from_conversation`, and
+        `embedding_from_string`. Defaults to `chat_completion_from_string`.
+      api_key: The OpenAI API key. If not provided, the client will look for
+        the `OPENAI_API_KEY` environment variable.
+      organization: Optional OpenAI organization ID. If not provided, the
+        client will look for the `OPENAI_ORG_ID` environment variable.
+      project: Optional OpenAI project ID. If not provided, the client will
+        look for the `OPENAI_PROJECT_ID` environment variable.
+      base_url: Optional base URL for the API requests. This can be used to
+        target OpenAI-compatible servers (such as vLLM, Ollama, or Azure
+        OpenAI endpoints).
+      client_args: Optional dictionary of additional keyword arguments passed
+        when instantiating the OpenAI client (e.g. `timeout`,
+        `default_headers`).
+      postprocess: A python callable, defined either inline, or using a file,
+        that is invoked on the PredictionResult output by the ModelHandler
+        before parsing into the output Beam Row.
+      min_batch_size: Optional minimum batch size to use when batching inputs.
+      max_batch_size: Optional maximum batch size to use when batching inputs.
+      max_batch_duration_secs: Optional maximum amount of time to buffer a
+        batch before emitting; used in streaming contexts.
+      max_batch_weight: Optional maximum total weight of a batch.
+      element_size_fn: Optional python callable that returns the size (weight)
+        of an element.
+      batch_length_fn: Optional python callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: Optional sorted list of positive boundary values
+        for length-aware batching buckets.
+      **kwargs: Extra arguments to pass to the model handler.
+    """
+    try:
+      from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
+      from apache_beam.ml.inference.openai_inference import chat_completion_from_string
+    except ImportError:
+      raise ValueError(
+          'Unable to import OpenAIModelHandler. Please '
+          'install openai dependencies: `pip install openai`')
+
+    kwargs = {k: v for k, v in kwargs.items() if not k.startswith('_')}
+
+    request_fn_obj = (
+        self.parse_processing_transform(request_fn, 'request_fn')
+        if request_fn else chat_completion_from_string)
+    element_size_fn_obj = (
+        self.parse_processing_transform(element_size_fn, 'element_size_fn')
+        if element_size_fn else None)
+    batch_length_fn_obj = (
+        self.parse_processing_transform(batch_length_fn, 'batch_length_fn')
+        if batch_length_fn else None)
+
+    handler_kwargs: dict[str, Any] = {}
+    if element_size_fn_obj is not None:
+      handler_kwargs['element_size_fn'] = element_size_fn_obj
+    if batch_length_fn_obj is not None:
+      handler_kwargs['batch_length_fn'] = batch_length_fn_obj
+
+    _handler = OpenAIModelHandler(
+        model_name=model_name,
+        request_fn=request_fn_obj,
+        api_key=api_key,
+        organization=organization,
+        project=project,
+        base_url=base_url,
+        client_args=client_args,
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        **handler_kwargs,
+        **kwargs)
+
+    super().__init__(_handler, preprocess, postprocess)
+
+  @staticmethod
+  def validate(model_handler_spec):
+    pass
+
+  def inference_output_type(self):
+    return Any
+
+
 @beam.ptransform.ptransform_fn
 def run_inference(
     pcoll,
@@ -536,6 +673,7 @@ def run_inference(
 
             - [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.VertexAIModelHandlerJSONProvider) # pylint: disable=line-too-long
             - [HuggingFacePipelineModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.HuggingFacePipelineModelHandlerProvider) # pylint: disable=line-too-long
+            - [OpenAIModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.OpenAIModelHandlerProvider) # pylint: disable=line-too-long
     inference_tag: The tag to use for the returned inference. Default is
       'inference'.
     inference_args: Extra arguments for models whose inference call requires
