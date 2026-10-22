@@ -72,6 +72,7 @@
 
 * (Java) Flink runner: sources now forward Beam metrics to Flink at most once per second instead of after every record, which was a significant share of the CPU of reading. Metrics in the pipeline result are not affected ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
+* (Go) WaitForCompletion preserves JobMessage id on a failed job via a wrapped JobError ([#40402](https://github.com/apache/beam/issues/40402)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 * (Python) Added typed decision questions and the `EvaluateDecisions` transform, with an optional Jev model adapter ([#40220](https://github.com/apache/beam/pull/40220)).
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
