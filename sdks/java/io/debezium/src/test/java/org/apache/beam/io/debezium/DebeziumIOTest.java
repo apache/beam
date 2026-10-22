@@ -262,6 +262,26 @@ public class DebeziumIOTest implements Serializable {
   }
 
   @Test
+  public void testBuildExternalWithFullMetadata() throws Exception {
+    DebeziumTransformRegistrar.ReadBuilder.Configuration config =
+        new DebeziumTransformRegistrar.ReadBuilder.Configuration();
+    config.setUsername("user");
+    config.setPassword("pass");
+    config.setHost("localhost");
+    config.setPort("3306");
+    config.setConnectorClass("MySQL");
+    config.setFullMetadata(true);
+    DebeziumIO.Read<String> read =
+        (DebeziumIO.Read<String>)
+            new DebeziumTransformRegistrar.ReadBuilder().buildExternal(config);
+    SourceRecord record =
+        SourceRecordJsonTest.buildEnvelopeRecord(SourceRecordJsonTest.postgresSource(), "u");
+    assertEquals(
+        new SourceRecordJson(record, true).toJson(),
+        read.resolveFormatFunction().mapSourceRecord(record));
+  }
+
+  @Test
   public void testBuildExternalThrowsOnMalformedStartOffsetEntry() {
     DebeziumTransformRegistrar.ReadBuilder.Configuration config =
         new DebeziumTransformRegistrar.ReadBuilder.Configuration();
