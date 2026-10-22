@@ -1,0 +1,39 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "start_query_job__standard",
+  "description": "_start_query_job with temp_dataset_id, kms_key, labels and BATCH priority",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "dryRun": false,
+          "labels": {
+            "step_name": "s"
+          },
+          "query": {
+            "allowLargeResults": true,
+            "destinationEncryptionConfiguration": {
+              "kmsKeyName": "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+            },
+            "destinationTable": {
+              "datasetId": "temp_ds",
+              "projectId": "p",
+              "tableId": "beam_temp_table_<UUID>"
+            },
+            "flattenResults": false,
+            "priority": "BATCH",
+            "query": "SELECT 1",
+            "useLegacySql": false
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

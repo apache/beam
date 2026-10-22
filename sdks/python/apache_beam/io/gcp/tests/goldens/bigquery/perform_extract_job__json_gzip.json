@@ -1,0 +1,35 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "perform_extract_job__json_gzip",
+  "description": "perform_extract_job to JSON with GZIP, no header, job project 'other'",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "extract": {
+            "compression": "GZIP",
+            "destinationFormat": "NEWLINE_DELIMITED_JSON",
+            "destinationUris": [
+              "gs://b/o-*.json.gz"
+            ],
+            "printHeader": false,
+            "sourceTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "useAvroLogicalTypes": false
+          },
+          "labels": {}
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "other"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/other/jobs",
+      "query": {}
+    }
+  ]
+}

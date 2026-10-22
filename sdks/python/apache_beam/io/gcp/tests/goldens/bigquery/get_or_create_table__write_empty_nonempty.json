@@ -1,0 +1,63 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_or_create_table__write_empty_nonempty",
+  "description": "WRITE_EMPTY on a non-empty table: GET + tabledata.list (maxResults=1), RuntimeError retried by the Beam decorator",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/data",
+      "query": {
+        "maxResults": "1"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/data",
+      "query": {
+        "maxResults": "1"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/data",
+      "query": {
+        "maxResults": "1"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/data",
+      "query": {
+        "maxResults": "1"
+      }
+    }
+  ]
+}

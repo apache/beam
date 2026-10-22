@@ -1,0 +1,34 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_load_job__autodetect",
+  "description": "perform_load_job with schema='SCHEMA_AUTODETECT'",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "labels": {},
+          "load": {
+            "autodetect": true,
+            "destinationTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "sourceFormat": "AVRO",
+            "sourceUris": [
+              "gs://b/a.avro"
+            ],
+            "useAvroLogicalTypes": true
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

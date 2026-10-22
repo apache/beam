@@ -1,0 +1,24 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_rows__domain_scoped_project",
+  "description": "insert_rows('google.com:p', ...): path built by the cloud client",
+  "requests": [
+    {
+      "body": {
+        "ignoreUnknownValues": false,
+        "rows": [
+          {
+            "insertId": "id1",
+            "json": {
+              "a": 1
+            }
+          }
+        ],
+        "skipInvalidRows": false
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/google.com:p/datasets/d/tables/t/insertAll",
+      "query": {}
+    }
+  ]
+}
