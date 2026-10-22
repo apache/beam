@@ -114,6 +114,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
     private final Coder<K> keyCoder;
     private final Coder<BoundedWindow> windowCoder;
+    private final Supplier<Boolean> hasNoState;
+    private final Supplier<Boolean> onlyBundleForKeys;
 
     public Factory(
         PipelineOptions pipelineOptions,
@@ -127,6 +129,36 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         BeamFnStateClient beamFnStateClient,
         Coder<K> keyCoder,
         Coder<BoundedWindow> windowCoder) {
+      this(
+          pipelineOptions,
+          runnerCapabilities,
+          ptransformId,
+          processBundleInstructionId,
+          cacheTokens,
+          bundleCache,
+          processWideCache,
+          sideInputSpecMap,
+          beamFnStateClient,
+          keyCoder,
+          windowCoder,
+          () -> false,
+          () -> false);
+    }
+
+    public Factory(
+        PipelineOptions pipelineOptions,
+        Set<String> runnerCapabilities,
+        String ptransformId,
+        Supplier<String> processBundleInstructionId,
+        Supplier<List<CacheToken>> cacheTokens,
+        Supplier<Cache<?, ?>> bundleCache,
+        Cache<?, ?> processWideCache,
+        Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+        BeamFnStateClient beamFnStateClient,
+        Coder<K> keyCoder,
+        Coder<BoundedWindow> windowCoder,
+        Supplier<Boolean> hasNoState,
+        Supplier<Boolean> onlyBundleForKeys) {
       this.pipelineOptions = pipelineOptions;
       this.runnerCapabilities = runnerCapabilities;
       this.ptransformId = ptransformId;
@@ -138,6 +170,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       this.beamFnStateClient = beamFnStateClient;
       this.keyCoder = keyCoder;
       this.windowCoder = windowCoder;
+      this.hasNoState = hasNoState;
+      this.onlyBundleForKeys = onlyBundleForKeys;
     }
 
     public static <K> Factory<K> factoryForPTransformContext(
@@ -220,7 +254,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           tagToSideInputSpecMap,
           context.getBeamFnStateClient(),
           keyCoder,
-          windowCoder);
+          windowCoder,
+          context.getHasNoStateSupplier(),
+          context.getOnlyBundleForKeysSupplier());
     }
 
     public FnApiStateAccessor<K> create() {
@@ -235,7 +271,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           sideInputSpecMap,
           beamFnStateClient,
           keyCoder,
-          windowCoder);
+          windowCoder,
+          hasNoState,
+          onlyBundleForKeys);
     }
   }
 
@@ -252,6 +290,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final Collection<ThrowingRunnable> stateFinalizers;
   private final Coder<K> keyCoder;
   private final Coder<BoundedWindow> windowCoder;
+  private final Supplier<Boolean> hasNoState;
+  private final Supplier<Boolean> onlyBundleForKeys;
 
   private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
   private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
@@ -269,6 +309,36 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
       Coder<BoundedWindow> windowCoder) {
+    this(
+        pipelineOptions,
+        runnerCapabilities,
+        ptransformId,
+        processBundleInstructionId,
+        cacheTokens,
+        bundleCache,
+        processWideCache,
+        sideInputSpecMap,
+        beamFnStateClient,
+        keyCoder,
+        windowCoder,
+        () -> false,
+        () -> false);
+  }
+
+  public FnApiStateAccessor(
+      PipelineOptions pipelineOptions,
+      Set<String> runnerCapabilities,
+      String ptransformId,
+      Supplier<String> processBundleInstructionId,
+      Supplier<List<CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
+      Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+      BeamFnStateClient beamFnStateClient,
+      Coder<K> keyCoder,
+      Coder<BoundedWindow> windowCoder,
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys) {
     this.pipelineOptions = pipelineOptions;
     this.runnerCapabilities = runnerCapabilities;
     this.stateKeyObjectCache = Maps.newHashMap();
@@ -282,6 +352,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.keyCoder = keyCoder;
     this.windowCoder = windowCoder;
     this.stateFinalizers = new ArrayList<>();
+    this.hasNoState = hasNoState;
+    this.onlyBundleForKeys = onlyBundleForKeys;
   }
 
   public void setKeyAndWindowContext(MutatingStateContext<K, BoundedWindow> keyAndWindowContext) {
@@ -1201,7 +1273,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             beamFnStateClient,
             processBundleInstructionId.get(),
             stateKey,
-            valueCoder);
+            valueCoder,
+            hasNoState.get(),
+            onlyBundleForKeys.get());
     stateFinalizers.add(rval::asyncClose);
     return rval;
   }
@@ -1283,7 +1357,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             processBundleInstructionId.get(),
             stateKey,
             keyCoder,
-            valueCoder);
+            valueCoder,
+            hasNoState.get(),
+            onlyBundleForKeys.get());
     stateFinalizers.add(rval::asyncClose);
     return rval;
   }
@@ -1318,7 +1394,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             beamFnStateClient,
             processBundleInstructionId.get(),
             stateKey,
-            valueCoder);
+            valueCoder,
+            hasNoState.get(),
+            onlyBundleForKeys.get());
     stateFinalizers.add(rval::asyncClose);
     return rval;
   }
