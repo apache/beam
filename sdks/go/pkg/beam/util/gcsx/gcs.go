@@ -22,14 +22,12 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"path"
-	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"golang.org/x/oauth2/google"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
 	"google.golang.org/api/option"
 )
 
@@ -47,7 +45,7 @@ func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
 	opts = append(opts, endpointOptions()...)
 	// storage.NewClient ignores the credentials' universe domain, and requests
 	// fail if it differs from the configured one (googleapis.com by default).
-	if ud := GetUniverseDomain(ctx); ud != "" {
+	if ud := gcpx.GetUniverseDomain(ctx); ud != "" {
 		opts = append(opts, option.WithUniverseDomain(ud))
 	}
 	return storage.NewClient(ctx, opts...)
@@ -83,54 +81,6 @@ func GetGcsEndpoint() string {
 		return f.Value.String()
 	}
 	return runtime.GlobalOptions.Get("gcs_endpoint")
-}
-
-const universeDomainEnvVar = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
-
-// findDefaultCredentials is a variable to allow overriding in tests.
-var findDefaultCredentials = google.FindDefaultCredentials
-
-// cachedUniverseDomain caches the universe domain resolved from the default
-// credentials, since resolving it may require a metadata server round trip
-// and clients are created frequently.
-var cachedUniverseDomain struct {
-	mu       sync.Mutex
-	resolved bool
-	value    string
-}
-
-// GetUniverseDomain returns the Google Cloud universe domain, first from the
-// GOOGLE_CLOUD_UNIVERSE_DOMAIN environment variable, then falling back to the
-// universe domain of the default credentials. Returns an empty string if it
-// cannot be determined.
-//
-// Google API clients don't infer the universe domain from the credentials,
-// and requests fail if the two differ, so clients should pass this value via
-// option.WithUniverseDomain to support non-default universes such as Trusted
-// Partner Cloud (TPC).
-func GetUniverseDomain(ctx context.Context) string {
-	if ud := os.Getenv(universeDomainEnvVar); ud != "" {
-		return ud
-	}
-
-	cachedUniverseDomain.mu.Lock()
-	defer cachedUniverseDomain.mu.Unlock()
-	if cachedUniverseDomain.resolved {
-		return cachedUniverseDomain.value
-	}
-	creds, err := findDefaultCredentials(ctx)
-	if err != nil {
-		// Don't cache: credentials may become available later, and client
-		// construction surfaces the credential error itself.
-		return ""
-	}
-	ud, err := creds.GetUniverseDomain()
-	if err != nil {
-		return ""
-	}
-	cachedUniverseDomain.resolved = true
-	cachedUniverseDomain.value = ud
-	return ud
 }
 
 // Upload writes the given content to GCS. If the specified bucket does not

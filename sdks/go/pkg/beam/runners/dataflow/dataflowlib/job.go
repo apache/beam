@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
 	df "google.golang.org/api/dataflow/v1b3"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/proto"
@@ -325,7 +325,7 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 	}
 	// The client ignores the credentials' universe domain, and requests fail
 	// if it differs from the configured one (googleapis.com by default).
-	if ud := gcsx.GetUniverseDomain(ctx); ud != "" {
+	if ud := gcpx.GetUniverseDomain(ctx); ud != "" {
 		opts = append(opts, option.WithUniverseDomain(ud))
 	}
 	return df.NewService(ctx, opts...)

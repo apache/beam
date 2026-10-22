@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"golang.org/x/oauth2/google"
 )
@@ -61,7 +62,7 @@ func GetGcsEndpoint() string {
 // option.WithUniverseDomain to support non-default universes such as Trusted
 // Partner Cloud (TPC).
 func GetUniverseDomain(ctx context.Context) string {
-	return gcsx.GetUniverseDomain(ctx)
+	return gcpx.GetUniverseDomain(ctx)
 }
 
 // GetProject returns the project, if non empty and exits otherwise.
