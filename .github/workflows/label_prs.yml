@@ -17,7 +17,7 @@
 # paths that are modified in the pull request.
 
 name: LabelPrs
-on: [pull_request_target]
+on: [pull_request_target,pull_request]
 permissions: read-all
 concurrency:
   group: pr-bot-labels-${{ github.event.pull_request.number || github.event.issue.number }}
@@ -34,3 +34,10 @@ jobs:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: '.github/autolabeler.yml'
         sync-labels: true # Remove labels when matching files are reverted
+    - name: Assign labels based on the PR's size
+      uses: codelytv/pr-size-labeler@v1.12.0
+      with:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        ignore_file_deletions: true
+        # Label only, don't comment on XL pull requests
+        message_if_xl: ''
