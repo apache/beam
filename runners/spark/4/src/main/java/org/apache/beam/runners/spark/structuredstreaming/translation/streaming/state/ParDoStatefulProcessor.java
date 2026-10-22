@@ -46,6 +46,7 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
   private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
   private final Supplier<PipelineOptions> optionsSupplier;
   private final MetricsAccumulator metrics;
+  private final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
 
   private transient boolean needsBundleStart;
 
@@ -65,8 +66,11 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
 
   @Override
   protected void processElements(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, SparkTimerInternals timerInternals) {
-    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals);
+      K key,
+      Iterator<WindowedValue<KV<K, V>>> rows,
+      SparkTimerInternals timerInternals,
+      SparkStateInternals<K> stateInternals) {
+    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(stateInternals, timerInternals);
     while (rows.hasNext()) {
       runner.processElement(rows.next());
     }
@@ -76,15 +80,21 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
   }
 
   @Override
-  protected void processTimers(K key, SparkTimerInternals timerInternals) {
+  protected void processTimers(
+      K key, SparkTimerInternals timerInternals, SparkStateInternals<K> stateInternals) {
     if (dueEventTimeTimers(timerInternals).isEmpty()) {
       return;
     }
-    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals);
+    DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(stateInternals, timerInternals);
     fireDueTimers(key, timerInternals, runner);
     // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
+  }
+
+  @Override
+  public void close() {
+    taskRunner.teardownOnce();
   }
 
   private void fireDueTimers(
@@ -109,8 +119,8 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
         });
   }
 
-  private DoFnRunner<KV<K, V>, OutputT> keyRunner(K key, SparkTimerInternals timerInternals) {
-    SparkStateInternals<K> stateInternals = stateInternals(key);
+  private DoFnRunner<KV<K, V>, OutputT> keyRunner(
+      SparkStateInternals<K> stateInternals, SparkTimerInternals timerInternals) {
     DoFnRunnerWithTeardown<KV<K, V>, OutputT> base = baseRunner(stateInternals, timerInternals);
     taskRunner.stepContext().set(stateInternals, timerInternals);
 

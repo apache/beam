@@ -32,7 +32,6 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals.StateCells;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -70,7 +69,6 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   protected final WindowingStrategy<?, ?> windowingStrategy;
   protected final Coder<BoundedWindow> windowCoder;
   private final TimerDataCoderV2 timerDataCoder;
-  protected final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
 
   private transient @Nullable MapState<String, byte[]> beamState;
   private transient @Nullable ValueState<byte[]> beamTimers;
@@ -147,10 +145,11 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
+    SparkStateInternals<K> state = stateInternals(key);
 
-    processElements(key, rows, timerInternals);
+    processElements(key, rows, timerInternals, state);
     timerInternals.advanceWatermark();
-    processTimers(key, timerInternals);
+    processTimers(key, timerInternals, state);
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, null);
@@ -165,9 +164,10 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
     List<WindowedValue<OutputT>> outputs = new ArrayList<>();
     this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
+    SparkStateInternals<K> state = stateInternals(key);
     timerInternals.advanceWatermark();
 
-    processTimers(key, timerInternals);
+    processTimers(key, timerInternals, state);
 
     persistTimers(timerInternals);
     reconcileWakeupTimer(timerInternals, expiredTimerInfo.getExpiryTimeInMs());
@@ -175,12 +175,7 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
     return ScalaInterop.scalaIterator(outputs);
   }
 
-  @Override
-  public void close() {
-    taskRunner.teardownOnce();
-  }
-
-  protected SparkStateInternals<K> stateInternals(K key) {
+  private SparkStateInternals<K> stateInternals(K key) {
     return SparkStateInternals.forKey(
         key, new MapStateAdapter(checkStateNotNull(beamState, "beamState not initialized")));
   }
@@ -195,9 +190,13 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   }
 
   protected abstract void processElements(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, SparkTimerInternals timerInternals);
+      K key,
+      Iterator<WindowedValue<KV<K, V>>> rows,
+      SparkTimerInternals timers,
+      SparkStateInternals<K> state);
 
-  protected abstract void processTimers(K key, SparkTimerInternals timerInternals);
+  protected abstract void processTimers(
+      K key, SparkTimerInternals timers, SparkStateInternals<K> state);
 
   private void restoreTimers(SparkTimerInternals timerInternals) {
     ValueState<byte[]> timersState = checkStateNotNull(beamTimers);

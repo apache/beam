@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.StatefulTaskRunner.MutableStepContext;
 import org.apache.beam.sdk.coders.Coder;
@@ -68,9 +69,12 @@ public class GroupByKeyStatefulProcessor<K, V>
 
   @Override
   protected void processElements(
-      K key, Iterator<WindowedValue<KV<K, V>>> rows, SparkTimerInternals timerInternals) {
+      K key,
+      Iterator<WindowedValue<KV<K, V>>> rows,
+      SparkTimerInternals timerInternals,
+      SparkStateInternals<K> stateInternals) {
     DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> r = runner();
-    checkStateNotNull(stepContext).set(stateInternals(key), timerInternals);
+    checkStateNotNull(stepContext).set(stateInternals, timerInternals);
 
     List<WindowedValue<V>> elementValues = new ArrayList<>();
     while (rows.hasNext()) {
@@ -82,7 +86,8 @@ public class GroupByKeyStatefulProcessor<K, V>
   }
 
   @Override
-  protected void processTimers(K key, SparkTimerInternals timerInternals) {
+  protected void processTimers(
+      K key, SparkTimerInternals timerInternals, SparkStateInternals<K> stateInternals) {
     List<TimerData> dueTimers = dueEventTimeTimers(timerInternals);
     if (dueTimers.isEmpty()) {
       return;
@@ -91,7 +96,7 @@ public class GroupByKeyStatefulProcessor<K, V>
       timerInternals.deleteTimer(timer);
     }
     DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> r = runner();
-    checkStateNotNull(stepContext).set(stateInternals(key), timerInternals);
+    checkStateNotNull(stepContext).set(stateInternals, timerInternals);
     r.processElement(
         WindowedValues.valueInGlobalWindow(KeyedWorkItems.timersWorkItem(key, dueTimers)));
   }
@@ -104,7 +109,7 @@ public class GroupByKeyStatefulProcessor<K, V>
       DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> gabwDoFn =
           GroupAlsoByWindowViaWindowSetNewDoFn.create(
               windowingStrategy,
-              this::stateInternals,
+              k -> ctx.stateInternals(),
               k -> ctx.timerInternals(),
               NullSideInputReader.empty(),
               SystemReduceFn.buffering(inputCoder.getValueCoder()),
