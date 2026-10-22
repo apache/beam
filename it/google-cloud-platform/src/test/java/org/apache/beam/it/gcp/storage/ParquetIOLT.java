@@ -132,15 +132,17 @@ import org.junit.runners.MethodSorters;
  * <h3>GcsUtil v1 or v2</h3>
  *
  * <p>{@code useGcsUtilV2} routes GCS access through the java-storage client and defaults to off,
- * i.e. to the gcsio based GcsUtilV1 that every pipeline uses today:
+ * i.e. to the gcsio based GcsUtilV1:
  *
  * <pre>
  * -Dconfiguration='{"preset":"f100_s16","useGcsUtilV2":true}'
  * </pre>
  *
- * <p>On Dataflow this is sent as the {@code use_gcsutil_v2} experiment, for the other runners it is
- * set on the pipeline options directly. Either way {@code GcsUtil} logs the version it selected at
- * INFO, which is what to grep for to confirm a run really used the intended client.
+ * <p>The version is always selected explicitly, with the {@code use_gcsutil_v2} or the {@code
+ * disable_gcsutil_v2} experiment, so a run does not depend on which one {@code GcsUtil} defaults
+ * to. On Dataflow the experiment is sent as a job parameter, for the other runners it is set on the
+ * pipeline options directly. {@code GcsUtil} logs the version it selected at INFO, which is what to
+ * grep for to confirm a run really used the intended client.
  *
  * <p>The number of requests a write costs is decided by the upload chunk size, which {@code
  * gcsUploadBufferSizeBytes} pins when a run needs to sweep it or to rule it out as a variable:
@@ -206,6 +208,9 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
 
   /** Experiment that routes GCS access through GcsUtilV2, i.e. the java-storage client. */
   private static final String GCS_UTIL_V2_EXPERIMENT = "use_gcsutil_v2";
+
+  /** Experiment that falls back to GcsUtilV1, i.e. the gcsio client. */
+  private static final String GCS_UTIL_DISABLE_V2_EXPERIMENT = "disable_gcsutil_v2";
 
   /** Pipeline option that pins the upload chunk size, see {@code GcsOptions}. */
   private static final String GCS_UPLOAD_BUFFER_SIZE_OPTION = "gcsUploadBufferSizeBytes";
@@ -467,10 +472,8 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     pipeline.getOptions().as(GcsOptions.class).setGcsPerformanceMetrics(true);
     // Same reason: for a non-Dataflow runner the experiments parameter below never reaches the
     // pipeline, so the experiment has to be added to the options directly.
-    if (configuration.useGcsUtilV2) {
-      ExperimentalOptions.addExperiment(
-          pipeline.getOptions().as(ExperimentalOptions.class), GCS_UTIL_V2_EXPERIMENT);
-    }
+    ExperimentalOptions.addExperiment(
+        pipeline.getOptions().as(ExperimentalOptions.class), gcsUtilExperiment());
     // Left unset the two clients pick different chunk sizes, which shows up as a difference in the
     // number of write requests.
     if (configuration.gcsUploadBufferSizeBytes > 0) {
@@ -539,10 +542,16 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
   private static String dataflowExperiments() {
     List<String> experiments = new ArrayList<>();
     experiments.add(configuration.useRunnerV2 ? RUNNER_V2_EXPERIMENT : LEGACY_WORKER_EXPERIMENT);
-    if (configuration.useGcsUtilV2) {
-      experiments.add(GCS_UTIL_V2_EXPERIMENT);
-    }
+    experiments.add(gcsUtilExperiment());
     return String.join(",", experiments);
+  }
+
+  /**
+   * The experiment that selects the GcsUtil version under test. Both versions are named explicitly,
+   * so that a run is not affected by which one {@code GcsUtil} picks by default.
+   */
+  private static String gcsUtilExperiment() {
+    return configuration.useGcsUtilV2 ? GCS_UTIL_V2_EXPERIMENT : GCS_UTIL_DISABLE_V2_EXPERIMENT;
   }
 
   /**
@@ -892,11 +901,12 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     @JsonProperty public boolean useRunnerV2 = true;
 
     /**
-     * {@code true} routes GCS access through GcsUtilV2, the java-storage client, instead of the
-     * default GcsUtilV1. Applies to every runner: on Dataflow it is sent as the {@code
-     * use_gcsutil_v2} experiment, elsewhere it is set on the pipeline options directly.
+     * {@code true} routes GCS access through GcsUtilV2, the java-storage client, {@code false}
+     * through GcsUtilV1, the gcsio client. Applies to every runner: on Dataflow it is sent as the
+     * {@code use_gcsutil_v2} or {@code disable_gcsutil_v2} experiment, elsewhere it is set on the
+     * pipeline options directly.
      *
-     * <p>Which one a run actually used is logged by {@code GcsUtil} at INFO.
+     * <p>{@code GcsUtil} logs the version a run actually used at INFO.
      */
     @JsonProperty public boolean useGcsUtilV2 = false;
 

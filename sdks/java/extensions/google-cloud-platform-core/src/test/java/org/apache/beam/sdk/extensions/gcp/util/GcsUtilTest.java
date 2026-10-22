@@ -43,6 +43,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -117,7 +119,7 @@ public class GcsUtilTest {
   }
 
   // The tests below cover the routing that the GcsUtil facade performs for the legacy typed
-  // methods once the use_gcsutil_v2 experiment installs a GcsUtilV2 delegate. Both delegates are
+  // methods when a GcsUtilV2 delegate is installed (the default). Both delegates are
   // mocked, so they assert both that V2 is used and that V1 is left alone.
 
   private GcsUtilV1 mockDelegate;
@@ -333,6 +335,7 @@ public class GcsUtilTest {
     when(blob.getMd5()).thenReturn("md5==");
     when(blob.getCrc32c()).thenReturn("crc==");
     when(blob.getEtag()).thenReturn("etag");
+    when(blob.getKmsKeyName()).thenReturn("projects/p/locations/l/keyRings/r/cryptoKeys/k");
     when(blob.getUpdateTimeOffsetDateTime())
         .thenReturn(Instant.ofEpochMilli(1234L).atOffset(ZoneOffset.UTC));
     when(blob.getCreateTimeOffsetDateTime())
@@ -351,6 +354,7 @@ public class GcsUtilTest {
     assertEquals("md5==", object.getMd5Hash());
     assertEquals("crc==", object.getCrc32c());
     assertEquals("etag", object.getEtag());
+    assertEquals("projects/p/locations/l/keyRings/r/cryptoKeys/k", object.getKmsKeyName());
     assertEquals(1234L, object.getUpdated().getValue());
     assertEquals(1000L, object.getTimeCreated().getValue());
     Mockito.verifyNoMoreInteractions(mockDelegate);
@@ -439,10 +443,54 @@ public class GcsUtilTest {
     assertNull(converted.getStorageClass());
   }
 
-  /** Without the use_gcsutil_v2 experiment, the V2-only methods fail rather than fall back. */
+  private static GcsOptions gcsOptionsWithExperiments(String... experiments) {
+    GcsOptions options = gcsOptionsWithTestCredential();
+    options.as(ExperimentalOptions.class).setExperiments(Arrays.asList(experiments));
+    return options;
+  }
+
+  /** GcsUtil V2 is used by default. */
+  @Test
+  public void testUsesV2ByDefault() {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    assertNotNull(gcsUtil.delegateV2);
+  }
+
+  /** The legacy opt-in experiment is still accepted and keeps V2. */
+  @Test
+  public void testUsesV2WithLegacyV2Experiment() {
+    GcsUtil gcsUtil = gcsOptionsWithExperiments(GcsUtil.USE_GCSUTIL_V2_EXPERIMENT).getGcsUtil();
+    assertNotNull(gcsUtil.delegateV2);
+  }
+
+  /** The disable_gcsutil_v2 experiment falls back to V1, even when use_gcsutil_v2 is also set. */
+  @Test
+  public void testFallsBackToV1WithDisableV2Experiment() {
+    assertNull(
+        gcsOptionsWithExperiments(GcsUtil.DISABLE_GCSUTIL_V2_EXPERIMENT).getGcsUtil().delegateV2);
+    assertNull(
+        gcsOptionsWithExperiments(
+                GcsUtil.DISABLE_GCSUTIL_V2_EXPERIMENT, GcsUtil.USE_GCSUTIL_V2_EXPERIMENT)
+            .getGcsUtil()
+            .delegateV2);
+  }
+
+  /** gRPC is only supported by V1, so the use_grpc_for_gcs experiment falls back to V1. */
+  @Test
+  public void testFallsBackToV1WithGrpcExperiment() {
+    assertNull(
+        gcsOptionsWithExperiments(GcsUtil.USE_GRPC_FOR_GCS_EXPERIMENT).getGcsUtil().delegateV2);
+    assertNull(
+        gcsOptionsWithExperiments(
+                GcsUtil.USE_GRPC_FOR_GCS_EXPERIMENT, GcsUtil.USE_GCSUTIL_V2_EXPERIMENT)
+            .getGcsUtil()
+            .delegateV2);
+  }
+
+  /** With the disable_gcsutil_v2 experiment, the V2-only methods fail rather than fall back. */
   @Test
   public void testV2OnlyMethodsFailWithoutV2() {
-    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    GcsUtil gcsUtil = gcsOptionsWithExperiments(GcsUtil.DISABLE_GCSUTIL_V2_EXPERIMENT).getGcsUtil();
     assertNull(gcsUtil.delegateV2);
     GcsUtilV1 v1 = Mockito.mock(GcsUtilV1.class);
     gcsUtil.delegate = v1;
