@@ -2524,24 +2524,31 @@ class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
 class ModelHandlerBatchingArgsTest(unittest.TestCase):
   """Tests for ModelHandler.__init__ batching parameters."""
   def test_batch_elements_kwargs_all_args(self):
-    """All batching args passed to __init__ are in batch_elements_kwargs."""
-    def size_fn(x):
-      return 10
-
+    """All non-weight batching args are passed to batch_elements_kwargs."""
     handler = FakeModelHandlerForBatching(
         min_batch_size=5,
         max_batch_size=20,
-        max_batch_duration_secs=30,
-        max_batch_weight=100,
-        element_size_fn=size_fn)
+        max_batch_duration_secs=30)
 
     kwargs = handler.batch_elements_kwargs()
 
     self.assertEqual(kwargs['min_batch_size'], 5)
     self.assertEqual(kwargs['max_batch_size'], 20)
     self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+
+  def test_batch_elements_kwargs_weight_args(self):
+    """Weight-based batching args are passed through to kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        max_batch_weight=100,
+        element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
     self.assertEqual(kwargs['max_batch_weight'], 100)
-    self.assertIn('element_size_fn', kwargs)
+    self.assertIs(kwargs['element_size_fn'], size_fn)
     self.assertEqual(kwargs['element_size_fn'](1), 10)
 
   def test_batch_elements_kwargs_partial_args(self):
