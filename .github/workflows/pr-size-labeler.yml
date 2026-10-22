@@ -16,6 +16,8 @@
 name: 'pr-size-labeler'
 
 on: # zizmor: ignore[dangerous-triggers]
+  pull_request:
+    types: ['opened', 'synchronize', 'reopened']
   pull_request_target:
     types: ['opened', 'synchronize', 'reopened']
   workflow_dispatch:
