@@ -180,28 +180,26 @@ class ResourceEstimator:
       self,
       smoothing_factor: float = 0.2,
       min_data_points: int = 5,
-      verbose_logging: bool = False):
+      verbose_logging: bool = False,
+      metric_tags_fn: Optional[Callable[[str], list[str]]] = None):
+    """
+    Args:
+      metric_tags_fn: Resolves a model tag to the metric tags its
+        memory_estimate_mb_* metric is reported under. Defaults to the model
+        tag itself.
+    """
     self.smoothing_factor = smoothing_factor
     self.min_data_points = min_data_points
     self.verbose_logging = verbose_logging
     self.estimates: dict[str, float] = {}
-    # Maps a model tag to the metric tags its metrics are reported under.
-    self._metric_tags: dict[str, set[str]] = defaultdict(set)
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
     self._lock = threading.Lock()
+    self._metric_tags_fn = metric_tags_fn or (lambda model_tag: [model_tag])
 
   def logging_info(self, message: str, *args):
     if self.verbose_logging:
       logger.info(message, *args)
-
-  def set_metric_tag(self, model_tag: str, metric_tag: str):
-    with self._lock:
-      self._metric_tags[model_tag].add(metric_tag)
-
-  def unset_metric_tag(self, model_tag: str, metric_tag: str):
-    with self._lock:
-      self._metric_tags[model_tag].discard(metric_tag)
 
   def report_estimate(self, model_tag: str):
     with self._lock:
@@ -210,7 +208,7 @@ class ResourceEstimator:
 
   # Should hold _lock when calling
   def _report_estimate(self, model_tag: str, cost: float):
-    for metric_tag in self._metric_tags.get(model_tag) or {model_tag}:
+    for metric_tag in self._metric_tags_fn(model_tag):
       Metrics.distribution(
           _MODEL_MANAGER_METRICS_NAMESPACE,
           f"memory_estimate_mb_{metric_tag}",
@@ -362,7 +360,8 @@ class ModelManager:
     self._estimator = ResourceEstimator(
         min_data_points=min_data_points,
         smoothing_factor=smoothing_factor,
-        verbose_logging=verbose_logging)
+        verbose_logging=verbose_logging,
+        metric_tags_fn=self._metric_tags_for)
     self._monitor = monitor if monitor else GPUMonitor(
         poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
     self._slack_percentage = slack_percentage
@@ -375,9 +374,16 @@ class ModelManager:
 
     # Resource State
     self._models = defaultdict(list)
-    # Maps a stable metric_tag (e.g. model_identifier) to the currently active
-    # model tag so metrics continue to be emitted under metric_tag across
-    # runtime side-input model updates.
+    # Maps a stable metric_tag (e.g. model_identifier) to the model tag that is
+    # currently active for it. Metrics for the active tag are reported under
+    # metric_tag so metric names stay stable across runtime side-input model
+    # updates; superseded tags that are still loaded report under their own
+    # tag while they linger in the LRU.
+    # NOTE: Because metrics under metric_tag are cumulative distributions that
+    # span model versions, a runtime model update should ideally only change
+    # weights (same architecture / memory footprint). Swapping to a model of a
+    # different size blends the two versions into one memory_estimate_mb_* and
+    # num_loaded_models_* series and skews the reported estimates.
     self._metric_tag_to_active_tag: dict[str, str] = {}
     # Idle LRU used to track released models that
     # can be freed or reused upon request.
@@ -404,19 +410,30 @@ class ModelManager:
 
     self._monitor.start()
 
+  def _metric_tags_for(self, tag: str) -> list[str]:
+    """Returns the metric tags that metrics for model tag are reported under."""
+    metric_tags = [
+        metric_tag
+        for metric_tag, active_tag in self._metric_tag_to_active_tag.items()
+        if active_tag == tag
+    ]
+    return metric_tags or [tag]
+
   def _update_model_count_metric(self):
-    for metric_tag, active_tag in self._metric_tag_to_active_tag.items():
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{metric_tag}",
-          process_wide=True).update(len(self._models.get(active_tag, ())))
+    for tag, instances in self._models.items():
+      for metric_tag in self._metric_tags_for(tag):
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"num_loaded_models_{metric_tag}",
+            process_wide=True).update(len(instances))
 
   def _clear_all_model_metrics(self):
-    for metric_tag in self._metric_tag_to_active_tag:
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{metric_tag}",
-          process_wide=True).update(0)
+    for tag in self._models:
+      for metric_tag in self._metric_tags_for(tag):
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"num_loaded_models_{metric_tag}",
+            process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
     if self._verbose_logging:
@@ -434,9 +451,6 @@ class ModelManager:
     if prev_tag == tag:
       return
     self._metric_tag_to_active_tag[metric_tag] = tag
-    self._estimator.set_metric_tag(tag, metric_tag)
-    if prev_tag is not None:
-      self._estimator.unset_metric_tag(prev_tag, metric_tag)
     # Re-emit under metric_tag right away if this tag is already profiled.
     self._estimator.report_estimate(tag)
     if prev_tag is not None or self._models.get(tag):

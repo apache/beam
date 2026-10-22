@@ -402,7 +402,7 @@ class TestModelManager(unittest.TestCase):
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
   def test_model_manager_metrics_with_metric_tag(self):
-    """Test that metrics only report under metric_tag across version updates."""
+    """Test that metrics for the active version report under metric_tag."""
     stable_id = "stable_model_identifier"
     v1_tag = "gs://bucket/model_v1"
     v2_tag = "gs://bucket/model_v2"
@@ -417,7 +417,9 @@ class TestModelManager(unittest.TestCase):
           MetricName('BeamML_ModelManager', f'memory_estimate_mb_{tag}'))
       return dist.get_cumulative()
 
-    # Acquire v1 with metric_tag=stable_id
+    MetricsEnvironment.process_wide_container().reset()
+
+    # Acquire v1 with metric_tag=stable_id: reported under stable_id only.
     m1 = self.manager.acquire_model(
         v1_tag, lambda: MockModel(v1_tag, 1000.0, self.mock_monitor),
         metric_tag=stable_id)
@@ -427,9 +429,11 @@ class TestModelManager(unittest.TestCase):
     self.assertEqual(_get_count_dist(v1_tag).count, 0)
     self.assertEqual(_get_est_dist(v1_tag).count, 0)
 
-    # Acquire 2 instances of v2 with metric_tag=stable_id
-    self.manager._estimator.set_metric_tag(v2_tag, stable_id)
+    # Switch stable_id to v2 and load 2 copies: stable_id now tracks v2. v2 is
+    # pre-profiled so the switch does not enter isolation mode (which flushes
+    # all loaded models) and v1 keeps lingering in the LRU.
     self.manager._estimator.set_initial_estimate(v2_tag, 2000.0)
+    MetricsEnvironment.process_wide_container().reset()
     m2_a = self.manager.acquire_model(
         v2_tag, lambda: MockModel(v2_tag, 2000.0, self.mock_monitor),
         metric_tag=stable_id)
@@ -443,50 +447,11 @@ class TestModelManager(unittest.TestCase):
     self.assertEqual(_get_count_dist(v2_tag).count, 0)
     self.assertEqual(_get_est_dist(v2_tag).count, 0)
 
-  def test_model_manager_metric_tag_switch_keeps_old_version_estimates(self):
-    """Test that a version switch moves metric reporting without forgetting
-    old versions that are still loaded."""
-    stable_id = "switching_model_identifier"
-    v1_tag = "gs://bucket/switch_model_v1"
-    v2_tag = "gs://bucket/switch_model_v2"
-
-    def _get_est_dist(tag):
-      dist = MetricsEnvironment.process_wide_container().get_distribution(
-          MetricName('BeamML_ModelManager', f'memory_estimate_mb_{tag}'))
-      return dist.get_cumulative()
-
-    self.manager._estimator.set_initial_estimate(v1_tag, 1000.0)
-    self.manager._estimator.set_initial_estimate(v2_tag, 3000.0)
-
-    # v1 is active for stable_id; keep one copy active across the switch.
-    m1 = self.manager.acquire_model(
-        v1_tag, lambda: MockModel(v1_tag, 1000.0, self.mock_monitor),
-        metric_tag=stable_id)
-    self.assertEqual(_get_est_dist(stable_id).max, 1000)
-
-    # Switch to v2: stable_id now reports v2 and the switch re-emits v2's
-    # estimate immediately.
-    m2 = self.manager.acquire_model(
-        v2_tag, lambda: MockModel(v2_tag, 3000.0, self.mock_monitor),
-        metric_tag=stable_id)
-    self.assertEqual(self.manager._metric_tag_to_active_tag[stable_id], v2_tag)
-    self.assertEqual(_get_est_dist(stable_id).max, 3000)
-    self.assertEqual(self.manager._estimator._metric_tags[v1_tag], set())
-    self.assertEqual(self.manager._estimator._metric_tags[v2_tag], {stable_id})
-
-    # v1 is still loaded, so the estimator must keep knowing about it for
-    # admission control, and its estimate no longer reports under stable_id.
-    MetricsEnvironment.process_wide_container().reset()
-    self.assertFalse(self.manager._estimator.is_unknown(v1_tag))
-    self.assertIn(v1_tag, self.manager._estimator.known_models)
-    self.manager._estimator.set_initial_estimate(v1_tag, 1500.0)
-    self.assertEqual(_get_est_dist(stable_id).count, 0)
-    self.assertEqual(_get_est_dist(v1_tag).max, 1500)
-
-    self.manager.release_model(v1_tag, m1)
-    self.manager.release_model(v2_tag, m2)
+    # v1 is still loaded (idle in the LRU) and still known to the estimator
+    # for admission control; while it lingers it reports under its own tag.
     self.assertFalse(m1.deleted)
-    self.assertEqual(len(self.manager.all_models(v1_tag)), 1)
+    self.assertFalse(self.manager._estimator.is_unknown(v1_tag))
+    self.assertEqual(_get_count_dist(v1_tag).max, 1)
 
   def test_single_model_convergence_with_fluctuations(self):
     """

@@ -2083,7 +2083,10 @@ class _SharedModelWrapper():
       metric_tag: Stable tag (the RunInference model_identifier) that
         ModelManager reports num_loaded_models_* and memory_estimate_mb_*
         metrics under, so the metric name does not change when the model
-        version changes. Defaults to model_tag.
+        version changes. Defaults to model_tag. Since these metrics span model
+        versions, runtime model updates should ideally only change weights
+        rather than swap to a model with a different memory footprint, which
+        would skew the reported estimates.
   """
   def __init__(
       self,
