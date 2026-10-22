@@ -229,8 +229,7 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
         (weight) of an element.
     """
     _validate_batching_args(
-        max_batch_weight=max_batch_weight,
-        element_size_fn=element_size_fn)
+        max_batch_weight=max_batch_weight, element_size_fn=element_size_fn)
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:

@@ -2526,9 +2526,7 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
   def test_batch_elements_kwargs_all_args(self):
     """All non-weight batching args are passed to batch_elements_kwargs."""
     handler = FakeModelHandlerForBatching(
-        min_batch_size=5,
-        max_batch_size=20,
-        max_batch_duration_secs=30)
+        min_batch_size=5, max_batch_size=20, max_batch_duration_secs=30)
 
     kwargs = handler.batch_elements_kwargs()
 
@@ -2542,8 +2540,7 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
       return 10
 
     handler = FakeModelHandlerForBatching(
-        max_batch_weight=100,
-        element_size_fn=size_fn)
+        max_batch_weight=100, element_size_fn=size_fn)
 
     kwargs = handler.batch_elements_kwargs()
 
@@ -2633,17 +2630,15 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
       FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
 
   def test_max_batch_weight_requires_element_size_fn(self):
-    with self.assertRaisesRegex(
-        ValueError, 'max_batch_weight requires element_size_fn'):
+    with self.assertRaisesRegex(ValueError,
+                                'max_batch_weight requires element_size_fn'):
       FakeModelHandlerForBatching(max_batch_weight=10)
 
   def test_max_batch_weight_rejects_length_based_batching(self):
     with self.assertRaisesRegex(
         ValueError, 'max_batch_weight cannot be combined with length-based'):
       FakeModelHandlerForBatching(
-          max_batch_weight=10,
-          element_size_fn=len,
-          batch_length_fn=len)
+          max_batch_weight=10, element_size_fn=len, batch_length_fn=len)
 
   def test_max_batch_weight_rejects_bucket_boundaries(self):
     with self.assertRaisesRegex(

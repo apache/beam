@@ -187,8 +187,7 @@ def _validate_batching_args(
 ):
   if max_batch_weight is not None:
     if element_size_fn is None:
-      raise ValueError(
-          'max_batch_weight requires element_size_fn to be set.')
+      raise ValueError('max_batch_weight requires element_size_fn to be set.')
     if batch_length_fn is not None or batch_bucket_boundaries is not None:
       raise ValueError(
           'max_batch_weight cannot be combined with length-based batching '
