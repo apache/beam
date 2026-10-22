@@ -2621,16 +2621,30 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertNotIn('bucket_boundaries', kwargs)
 
   def test_batch_bucket_boundaries_without_batch_length_fn(self):
-    """Passing batch_bucket_boundaries without batch_length_fn should fail in
-    BatchElements.
+    with self.assertRaisesRegex(
+        ValueError, 'batch_bucket_boundaries requires batch_length_fn'):
+      FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
 
-    Note: ModelHandler.__init__ doesn't validate this; the error is raised
-    by BatchElements when batch_elements_kwargs are used."""
-    handler = FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
-    kwargs = handler.batch_elements_kwargs()
-    # The kwargs are stored, but BatchElements will reject them
-    self.assertEqual(kwargs['bucket_boundaries'], [10, 20])
-    self.assertNotIn('length_fn', kwargs)
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight requires element_size_fn'):
+      FakeModelHandlerForBatching(max_batch_weight=10)
+
+  def test_max_batch_weight_rejects_length_based_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10,
+          element_size_fn=len,
+          batch_length_fn=len)
+
+  def test_max_batch_weight_rejects_bucket_boundaries(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10,
+          element_size_fn=len,
+          batch_bucket_boundaries=[10, 20])
 
   def test_batching_kwargs_none_values_omitted(self):
     """None values for batch_length_fn and batch_bucket_boundaries are not in

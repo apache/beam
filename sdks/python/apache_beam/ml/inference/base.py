@@ -227,6 +227,19 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before loading the model.
     """
     self._env_vars = kwargs.get('env_vars', {})
+
+    if max_batch_weight is not None:
+      if element_size_fn is None:
+        raise ValueError('max_batch_weight requires element_size_fn to be set.')
+      if batch_length_fn is not None or batch_bucket_boundaries is not None:
+        raise ValueError(
+            'max_batch_weight cannot be combined with length-based batching '
+            '(batch_length_fn or batch_bucket_boundaries).')
+
+    if batch_bucket_boundaries is not None and batch_length_fn is None:
+      raise ValueError(
+          'batch_bucket_boundaries requires batch_length_fn to be set.')
+
     self._batching_kwargs: dict[str, Any] = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
