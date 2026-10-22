@@ -1091,6 +1091,62 @@ public class SdkHarnessClientTest {
     assertEquals(1, received.size());
   }
 
+  @Test
+  public void testFailedOutputDrainDoesNotReportCompletion() throws Exception {
+    // The SDK finishes the bundle normally, but consuming its output fails. The bundle has
+    // failed, so it must not report completion, register residuals, or request finalization.
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(processBundleResponseFuture);
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    doNothing().when(dataService).registerReceiver(any(), outputReceiverCaptor.capture());
+    when(dataService.createOutboundAggregator(any(), anyBoolean()))
+        .thenReturn(mock(BeamFnDataOutboundAggregator.class));
+
+    BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
+    BundleCheckpointHandler mockCheckpointHandler = mock(BundleCheckpointHandler.class);
+    BundleFinalizationHandler mockFinalizationHandler = mock(BundleFinalizationHandler.class);
+    RuntimeException receiverFailure = new RuntimeException("receiver failed");
+
+    ActiveBundle activeBundle =
+        processor.newBundle(
+            ImmutableMap.of(
+                SDK_GRPC_WRITE_TRANSFORM,
+                RemoteOutputReceiver.of(
+                    ByteArrayCoder.of(),
+                    value -> {
+                      throw receiverFailure;
+                    })),
+            Collections.emptyMap(),
+            (request) -> {
+              throw new UnsupportedOperationException();
+            },
+            mockProgressHandler,
+            mock(BundleSplitHandler.class),
+            mockCheckpointHandler,
+            mockFinalizationHandler);
+    outputReceiverCaptor.getValue().accept(outputMessages(activeBundle.getId(), 1).get(0));
+    processBundleResponseFuture.complete(
+        InstructionResponse.newBuilder()
+            .setProcessBundle(
+                ProcessBundleResponse.newBuilder()
+                    .setRequiresFinalization(true)
+                    .addResidualRoots(DelayedBundleApplication.getDefaultInstance()))
+            .build());
+
+    Exception thrown = assertThrows(Exception.class, activeBundle::close);
+    assertSame(receiverFailure, thrown);
+    verify(mockProgressHandler, never()).onCompleted(any());
+    verifyNoMoreInteractions(mockCheckpointHandler, mockFinalizationHandler);
+  }
+
   private static class TestFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext context) {

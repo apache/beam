@@ -558,12 +558,16 @@ public class SdkHarnessClient implements AutoCloseable {
 
             outstandingRequests.arriveAndAwaitAdvance();
 
-            progressHandler.onCompleted(completedResponse);
-            if (completedResponse.getResidualRootsCount() > 0) {
-              checkpointHandler.onCheckpoint(completedResponse);
-            }
-            if (completedResponse.getRequiresFinalization()) {
-              finalizationHandler.requestsFinalization(bundleId);
+            // A bundle whose output could not be consumed has failed even if the SDK finished
+            // it, so it must not report completion or register residuals or finalization.
+            if (drainException == null) {
+              progressHandler.onCompleted(completedResponse);
+              if (completedResponse.getResidualRootsCount() > 0) {
+                checkpointHandler.onCheckpoint(completedResponse);
+              }
+              if (completedResponse.getRequiresFinalization()) {
+                finalizationHandler.requestsFinalization(bundleId);
+              }
             }
           } else {
             // TODO: [https://github.com/apache/beam/issues/18756] Handle aborting the bundle being
