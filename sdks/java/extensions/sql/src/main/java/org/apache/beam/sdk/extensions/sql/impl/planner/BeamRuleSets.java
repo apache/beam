@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCrossJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
@@ -60,6 +61,7 @@ public class BeamRuleSets {
       ImmutableList.of(
           // Rules for window functions
           CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+          CoreRules.CALC_TO_WINDOW,
           // Rules so we only have to implement Calc
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
@@ -144,6 +146,7 @@ public class BeamRuleSets {
           BeamUnnestRule.INSTANCE,
           BeamSideInputJoinRule.INSTANCE,
           BeamCoGBKJoinRule.INSTANCE,
+          BeamCrossJoinRule.INSTANCE,
           BeamSideInputLookupJoinRule.INSTANCE,
           BeamMatchRule.INSTANCE);
 
