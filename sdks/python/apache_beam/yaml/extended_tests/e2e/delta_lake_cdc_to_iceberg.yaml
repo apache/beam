@@ -1,0 +1,94 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: DELTA_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_delta_cdc_table_with_updates"
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # Applies the Delta Lake table's changes in two batch syncs: version 0 (three
+  # new orders), then versions 1 to 3 (an update, a delete and a new order). The
+  # second sync changes rows that the first one committed.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromDeltaCDC
+          config:
+            table: "{DELTA_TABLE}"
+            start_version: 0
+            end_version: 0
+            include_metadata_columns: ["_change_type", "_commit_version"]
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "_change_type"
+            change_type_map:
+              insert: "INSERT"
+              update_preimage: "UPDATE_BEFORE"
+              update_postimage: "UPDATE_AFTER"
+              delete: "DELETE"
+            sequence_number_column: "_commit_version"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromDeltaCDC
+          config:
+            table: "{DELTA_TABLE}"
+            start_version: 1
+            include_metadata_columns: ["_change_type", "_commit_version"]
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "_change_type"
+            change_type_map:
+              insert: "INSERT"
+              update_preimage: "UPDATE_BEFORE"
+              update_postimage: "UPDATE_AFTER"
+              delete: "DELETE"
+            sequence_number_column: "_commit_version"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIceberg
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, item: "apple", qty: 4}
+              - {id: 3, item: "plum", qty: 2}
+              - {id: 4, item: "kiwi", qty: 1}

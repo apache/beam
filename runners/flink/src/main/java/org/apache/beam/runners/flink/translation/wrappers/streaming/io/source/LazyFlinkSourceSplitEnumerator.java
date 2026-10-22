@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Splits a bounded Beam source and assigns one split for each reader request. */
-public class LazyFlinkSourceSplitEnumerator<T>
+public final class LazyFlinkSourceSplitEnumerator<T>
     implements SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(LazyFlinkSourceSplitEnumerator.class);
 

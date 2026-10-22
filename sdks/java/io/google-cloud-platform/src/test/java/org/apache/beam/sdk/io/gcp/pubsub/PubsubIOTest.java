@@ -32,9 +32,19 @@ import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,11 +72,13 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -82,6 +94,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -98,6 +111,7 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /** Tests for PubsubIO Read and Write transforms. */
@@ -1082,5 +1096,112 @@ public class PubsubIOTest {
         PubsubIO.writeMessages().to("projects/test-project/topics/nonExistingTopic");
 
     write.validate(options);
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderConsumer() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String parentSpanId = "b7ad6b7169203331";
+    String childSpanId = "1111111111111111";
+    String traceparent = "00-" + traceId + "-" + parentSpanId + "-01";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext childSpanContext =
+        SpanContext.create(traceId, childSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(childSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("PubSubIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("PubSubIO.Read")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    PubsubIO.Read.OpenTelemetryHeaderConsumer consumer =
+        new PubsubIO.Read.OpenTelemetryHeaderConsumer();
+    consumer.setup(options);
+
+    PubsubMessage message =
+        new PubsubMessage(
+            "payload".getBytes(StandardCharsets.UTF_8),
+            ImmutableMap.of("googclient_traceparent", traceparent));
+    List<PubsubMessage> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<PubsubMessage> receiver = Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(childSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    consumer.processElement(message, receiver);
+
+    assertEquals(1, outputs.size());
+    Mockito.verify(mockTracer).spanBuilder("PubSubIO.Read");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.CONSUMER);
+    ArgumentCaptor<Context> parentContextCaptor = ArgumentCaptor.forClass(Context.class);
+    Mockito.verify(mockSpanBuilder).setParent(parentContextCaptor.capture());
+    assertEquals(
+        parentSpanId,
+        Span.fromContext(parentContextCaptor.getValue()).getSpanContext().getSpanId());
+    Mockito.verify(mockSpan).end();
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderPropagator() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String producerSpanId = "2222222222222222";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext producerSpanContext =
+        SpanContext.create(
+            traceId, producerSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(producerSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("PubSubIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("PubSubIO.Write")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    PubsubIO.Write.OpenTelemetryHeaderPropagator propagator =
+        new PubsubIO.Write.OpenTelemetryHeaderPropagator();
+    propagator.setup(options);
+
+    PubsubMessage message =
+        new PubsubMessage("payload".getBytes(StandardCharsets.UTF_8), ImmutableMap.of("k", "v"));
+    List<PubsubMessage> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<PubsubMessage> receiver = Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(producerSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    propagator.processElement(message, receiver);
+
+    assertEquals(1, outputs.size());
+    PubsubMessage propagated = outputs.get(0);
+    assertEquals("v", propagated.getAttribute("k"));
+    assertEquals(
+        "00-" + traceId + "-" + producerSpanId + "-01",
+        propagated.getAttribute("googclient_traceparent"));
+    Mockito.verify(mockTracer).spanBuilder("PubSubIO.Write");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.PRODUCER);
+    Mockito.verify(mockSpan).end();
   }
 }

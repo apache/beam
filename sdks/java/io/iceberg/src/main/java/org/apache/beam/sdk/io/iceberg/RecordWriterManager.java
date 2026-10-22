@@ -93,7 +93,7 @@ class RecordWriterManager implements AutoCloseable {
    *
    * <p>On closing, each writer's output {@link DataFile} is collected.
    */
-  class DestinationState {
+  final class DestinationState {
     private final IcebergDestination icebergDestination;
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;

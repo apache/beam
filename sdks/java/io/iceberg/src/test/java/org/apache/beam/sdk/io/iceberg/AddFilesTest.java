@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.FIELD_ID_ERROR;
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.NOT_PARQUET_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.PREFIX_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.UNKNOWN_PARTITION_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.getPartitionFromMetrics;
@@ -95,19 +97,21 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -445,6 +449,105 @@ public class AddFilesTest {
                 .build());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** Hive names its output files like {@code 000000_0}, with no extension. */
+  @Test
+  public void testExtensionlessParquetFileRegisters() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String file = root + "000000_0";
+    DataWriter<Record> writer = createWriter(file);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    List<DataFile> registered = new ArrayList<>();
+    for (FileScanTask task : catalog.loadTable(tableId).newScan().planFiles()) {
+      registered.add(task.file());
+    }
+    assertEquals(1, registered.size());
+    assertEquals(file, registered.get(0).location());
+    assertEquals(FileFormat.PARQUET, registered.get(0).format());
+    assertEquals(1L, registered.get(0).recordCount());
+  }
+
+  /**
+   * A _SUCCESS marker has no extension either. It must become an error row rather than seed the
+   * missing table, where a failed footer read would fail the job.
+   */
+  @Test
+  public void testExtensionlessFileThatIsNotParquetIsAnErrorRow() throws Exception {
+    File marker = temp.newFile("_SUCCESS");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(marker.getAbsolutePath()))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    assertNotParquetErrorFor(output, marker.getAbsolutePath());
+
+    pipeline.run().waitUntilFinish();
+
+    assertFalse("the marker must not create the table", catalog.tableExists(tableId));
+  }
+
+  @Test
+  public void testMissingTableIsCreatedFromAnExtensionlessFile() throws Exception {
+    String file = writeWithoutFieldIds("000000_0", icebergSchema, record(1, "a", 1));
+    File marker = temp.newFile("_SUCCESS");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file, marker.getAbsolutePath()))
+            .apply(addFiles(ADDITIONS));
+    assertNotParquetErrorFor(output, marker.getAbsolutePath());
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(Arrays.asList("id=1 name=a age=1"), readRows("id", "name", "age"));
+    assertEquals(
+        "the marker is an unknown format, not a footer that failed to read",
+        0,
+        counted(result, ReadFooterSchema.class, ReadFooterSchema.FOOTER_READ_ERRORS_COUNTER));
+  }
+
+  /** Only a name with no extension is left to its contents; inferFormat stays strict. */
+  @Test
+  public void testOnlyAnExtensionlessNameIsReadForItsFormat() {
+    assertTrue(AddFiles.hasNoExtension("gs://b/wh/sales.db/orders/000000_0"));
+    assertTrue(AddFiles.hasNoExtension("gs://b/t/part-00000-1a2b3c-c000"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/data.txt"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/.hidden"));
+    assertFalse(AddFiles.hasNoExtension("gs://b/t/"));
+    assertEquals(FileFormat.PARQUET, AddFiles.inferFormat("gs://b/t/data.PARQUET"));
+    assertEquals(FileFormat.ORC, AddFiles.inferFormat("gs://b/t/data.orc"));
+    assertThrows(
+        AddFiles.UnknownFormatException.class, () -> AddFiles.inferFormat("gs://b/t/000000_0"));
+    assertThrows(
+        AddFiles.UnknownFormatException.class, () -> AddFiles.inferFormat("gs://b/t/data.txt"));
+  }
+
+  private static void assertNotParquetErrorFor(PCollectionRowTuple output, String file) {
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              String error = String.valueOf(row.getString("error"));
+              assertEquals(file, row.getString("file"));
+              assertTrue(error, error.startsWith(NOT_PARQUET_ERROR));
+              return null;
+            });
   }
 
   @Test
@@ -835,10 +938,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = ParquetFooters.read(fileName);
+      NameMapping mapping = MappingUtil.create(icebergSchema);
+      ParquetFieldIds.Resolved footer =
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -852,7 +957,8 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer);
+      String partitionPath =
+          getPartitionFromMetrics(metrics, file, table, mapping, footer).toPath();
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }
@@ -901,10 +1007,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = ParquetFooters.read(fileName);
+      NameMapping mapping = MappingUtil.create(icebergSchema);
+      ParquetFieldIds.Resolved footer =
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
@@ -921,7 +1029,7 @@ public class AddFilesTest {
 
       assertThrows(
           AddFiles.UnknownPartitionException.class,
-          () -> getPartitionFromMetrics(metrics, file, table, footer));
+          () -> getPartitionFromMetrics(metrics, file, table, mapping, footer));
     }
   }
 
@@ -1425,8 +1533,13 @@ public class AddFilesTest {
 
   @Test
   public void testMissingTableIsCreatedFromTheFilesUnion() throws Exception {
-    String narrow = writeOneRecord("narrow.parquet");
-    String wide = writeWider("wide.parquet");
+    String narrow = writeWithoutFieldIds("narrow.parquet", icebergSchema, record(1, "a", 1));
+    Record wider = GenericRecord.create(WIDER);
+    wider.setField("id", 1);
+    wider.setField("name", "a");
+    wider.setField("age", 1);
+    wider.setField("email", "e");
+    String wide = writeWithoutFieldIds("wide.parquet", WIDER, wider);
 
     PCollectionRowTuple output =
         pipeline.apply("Create Input", Create.of(narrow, wide)).apply(addFiles(ADDITIONS));
@@ -1438,6 +1551,93 @@ public class AddFilesTest {
     assertTrue(
         "created columns are optional",
         catalog.loadTable(tableId).schema().findField("id").isOptional());
+    assertEquals(
+        Arrays.asList("id=1 name=a age=1 email=e", "id=1 name=a age=1 email=null"),
+        readRows("id", "name", "age", "email"));
+  }
+
+  /**
+   * The created table numbers its columns by sorted name, not by the ids an Iceberg-written file
+   * carries, and readers resolve such a file by its own ids: registered, its id values read back as
+   * age and its names as id. It goes to the error output instead.
+   */
+  @Test
+  public void testFileCarryingOtherFieldIdsIsRefusedByTheTableCreatedForIt() throws Exception {
+    String narrow = writeOneRecord("narrow.parquet");
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(narrow)).apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row error = Iterables.getOnlyElement(rows);
+              assertEquals(narrow, error.getString("file"));
+              assertThat(error.getString("error"), containsString(FIELD_ID_ERROR));
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).newScan().planFiles()));
+  }
+
+  /** Plain Parquet, as pyarrow or Beam's WriteToParquet write it: no field ids. */
+  private String writeWithoutFieldIds(String name, Schema schema, Record... records)
+      throws IOException {
+    org.apache.avro.Schema avro = org.apache.iceberg.avro.AvroSchemaUtil.convert(schema, "row");
+    String file = root + name;
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.avro.generic.GenericData.Record>
+        writer =
+            org.apache.parquet.avro.AvroParquetWriter
+                .<org.apache.avro.generic.GenericData.Record>builder(
+                    new org.apache.hadoop.fs.Path(file))
+                .withSchema(avro)
+                .build()) {
+      for (Record record : records) {
+        org.apache.avro.generic.GenericData.Record row =
+            new org.apache.avro.generic.GenericData.Record(avro);
+        for (Types.NestedField field : schema.columns()) {
+          row.put(field.name(), record.getField(field.name()));
+        }
+        writer.write(row);
+      }
+    }
+    assertFalse(
+        "fixture must carry no field ids",
+        ParquetSchemaUtil.hasIds(ParquetFooters.read(file).getFileMetaData().getSchema()));
+    return file;
+  }
+
+  /**
+   * The table's rows as sorted {@code column=value} strings, read the way an engine that honors the
+   * table's name mapping reads them; IcebergGenerics passes no mapping at all.
+   */
+  private List<String> readRows(String... columns) throws IOException {
+    Table table = catalog.loadTable(tableId);
+    Schema schema = table.schema();
+    NameMapping mapping = MappingUtil.create(schema);
+    List<String> rows = new ArrayList<>();
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        try (CloseableIterable<Record> records =
+            Parquet.read(table.io().newInputFile(task.file().location()))
+                .project(schema)
+                .withNameMapping(mapping)
+                .createReaderFunc(
+                    fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema))
+                .build()) {
+          for (Record record : records) {
+            List<String> values = new ArrayList<>();
+            for (String column : columns) {
+              values.add(column + "=" + record.getField(column));
+            }
+            rows.add(String.join(" ", values));
+          }
+        }
+      }
+    }
+    Collections.sort(rows);
+    return rows;
   }
 
   /** Streaming schema evolution comes in a follow-up: until then the front door rejects it. */
@@ -1712,6 +1912,63 @@ public class AddFilesTest {
 
     assertRegisters(out, 1);
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Through the whole transform, so the pre-pass sees the file too: its footer reads, so it is not
+   * a footer read error, and it costs one error row, not the job.
+   */
+  @Test
+  public void testUnconvertibleSchemaIsOneErrorRowWithEvolution() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    File legacy = new File(temp.getRoot(), "legacy.parquet");
+    writeLegacyRepeated(legacy);
+    String good = writeWithoutFieldIds("good.parquet", icebergSchema, record(1, "a", 1));
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(legacy.getAbsolutePath(), good))
+            .apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(legacy.getAbsolutePath(), row.getString("file"));
+              assertTrue(
+                  String.valueOf(row.getString("error")),
+                  String.valueOf(row.getString("error"))
+                      .startsWith(AddFiles.ConvertToDataFile.UNREADABLE_SCHEMA_ERROR));
+              return null;
+            });
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(1, Iterables.size(catalog.loadTable(tableId).newScan().planFiles()));
+    assertEquals(
+        0, counted(result, ReadFooterSchema.class, ReadFooterSchema.FOOTER_READ_ERRORS_COUNTER));
+  }
+
+  /** Readable Parquet whose unannotated repeated field Iceberg's converter rejects. */
+  private static void writeLegacyRepeated(File file) throws IOException {
+    org.apache.parquet.schema.MessageType legacy =
+        org.apache.parquet.schema.Types.buildMessage()
+            .required(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("id")
+            .repeated(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("vals")
+            .named("root");
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.parquet.example.data.Group> writer =
+        org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withType(legacy)
+            .build()) {
+      org.apache.parquet.example.data.Group group =
+          new org.apache.parquet.example.data.simple.SimpleGroupFactory(legacy).newGroup();
+      group.add("id", 1);
+      group.add("vals", 2);
+      writer.write(group);
+    }
   }
 
   @Test

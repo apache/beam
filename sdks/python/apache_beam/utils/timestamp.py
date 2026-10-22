@@ -26,6 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 import datetime
 import re
 import time
+import zoneinfo
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -166,7 +167,8 @@ class Timestamp(object):
           "dt has no timezone info " +
           "(https://docs.python.org/3/library/datetime.html" +
           "#aware-and-naive-objects): %s" % dt)
-    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
+    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc and not (
+        isinstance(dt.tzinfo, zoneinfo.ZoneInfo) and dt.tzinfo.key == 'UTC'):
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     # Avoid total_seconds(): its float result can be off by a microsecond.
@@ -497,7 +499,10 @@ class Duration(object):
       self,
       seconds: Union[int, float] = 0,
       micros: Union[int, float] = 0) -> None:
-    self.micros = int(seconds * 1000000) + int(micros)
+    # Round rather than truncate, as the Timestamp constructor does: the float
+    # multiplication can land just below the exact integer (for example
+    # 2.000002 * 1e6 == 2000001.9999999998) and int() would drop a microsecond.
+    self.micros = round(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> 'Duration':

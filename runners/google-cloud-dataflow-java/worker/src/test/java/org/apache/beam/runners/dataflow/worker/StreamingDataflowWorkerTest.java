@@ -2405,10 +2405,10 @@ public class StreamingDataflowWorkerTest {
 
     // Wait until the worker has given up.
     int maxTries = 100;
-    while (maxTries-- > 0 && !worker.workExecutorIsEmpty()) {
+    while (maxTries-- > 0 && !worker.workExecutorIsEmptyForTesting()) {
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
-    assertTrue(worker.workExecutorIsEmpty());
+    assertTrue(worker.workExecutorIsEmptyForTesting());
 
     // Spam worker updates a few times.
     maxTries = 10;
@@ -3638,7 +3638,111 @@ public class StreamingDataflowWorkerTest {
     commit = result.get(3L);
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 3 "
+                        + "cache_token: 3 "
+                        + "source_state_updates {"
+                        + "  only_finalize: true"
+                        + "} ")
+                .build()));
+
+    assertThat(finalizeTracker, contains(0));
+    worker.stop();
+  }
+
+  @Test
+  public void testUnboundedSourcesDrain_multiKeyBundleEnabled() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    List<Integer> finalizeTracker = Lists.newArrayList();
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
+    server.clearCommitsReceived();
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--experiments=unstable_enable_multi_key_bundle")
+                .setInstructions(makeUnboundedSourcePipeline())
+                .publishCounters()
+                .build());
+    worker.start();
+
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 3"
+                    + "    key_group { high: 0 low: 1 }"
+                    + "  }"
+                    + "}",
+                null));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Windmill.WorkItemCommitRequest commit = result.get(2L);
+    assertEquals(1, commit.getSourceStateUpdates().getFinalizeIdsCount());
+    UnsignedLong finalizeId =
+        UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    // Test drain work item with only_finalize.
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 3"
+                    + "    cache_token: 3"
+                    + "    key_group { high: 0 low: 1 }"
+                    + "    source_state {"
+                    + "      only_finalize: true"
+                    + "      finalize_ids: "
+                    + finalizeId
+                    + "    }"
+                    + "  }"
+                    + "}",
+                null));
+
+    result = server.waitForAndGetCommits(1);
+    commit = result.get(3L);
+
+    assertThat(
+        removeDynamicFields(commit),
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 3 "
+                        + "cache_token: 3 "
+                        + "source_state_updates {"
+                        + "  only_finalize: true"
+                        + "} ")
+                .build()));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest finalizeMultiKeyCommit = multiKeyCommits.get(1);
+    assertEquals(
+        Windmill.Uint128Proto.newBuilder().setHigh(0).setLow(1).build(),
+        finalizeMultiKeyCommit.getKeyGroup());
+    assertEquals(1, finalizeMultiKeyCommit.getRequestsCount());
+    assertThat(
+        removeDynamicFields(finalizeMultiKeyCommit.getRequests(0)),
         equalTo(
             parseCommitRequest(
                     "key: \"0000000000000001\" "
@@ -3901,7 +4005,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3963,7 +4067,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4034,7 +4138,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4109,7 +4213,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(

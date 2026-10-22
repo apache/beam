@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.matchesRegex;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1280,8 +1281,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.11_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.11_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
@@ -1292,8 +1293,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverridesByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.11_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.11_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
     RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
@@ -1303,11 +1304,25 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testApplySdkEnvironmentOverridesRcByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:2.68.0rc2";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:2.68.0";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.11_sdk:2.68.0rc2";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.11_sdk:2.68.0";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
     RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverridesWithCustomBaseRepository() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDataflowContainerBaseRepository(
+        "docker.example.com/my-prefix/cloud-dataflow/v1beta3/");
+    String dockerHubPythonContainerUrl = "apache/beam_python3.11_sdk:2.68.0rc2";
+    String customPythonContainerUrl =
+        "docker.example.com/my-prefix/cloud-dataflow/v1beta3/beam_python3.11_sdk:2.68.0";
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(customPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
@@ -2104,6 +2119,44 @@ public class DataflowRunnerTest implements Serializable {
           getContainerImageForJob(options),
           equalTo(String.format("gcr.io/beam_%s_sdk/foo", javaVersion.name())));
     }
+  }
+
+  @Test
+  public void testGetContainerImageBaseRepositoryDefault() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    String defaultBaseRepository =
+        DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
+    assertThat(
+        DataflowRunner.getContainerImageBaseRepository(options), equalTo(defaultBaseRepository));
+    options.setDataflowContainerBaseRepository("");
+    assertThat(
+        DataflowRunner.getContainerImageBaseRepository(options), equalTo(defaultBaseRepository));
+    assertThat(getContainerImageForJob(options), startsWith(defaultBaseRepository + "/"));
+  }
+
+  @Test
+  public void testGetContainerImageForJobWithCustomBaseRepository() {
+    String baseRepository = "docker.example.com/my-prefix/cloud-dataflow/v1beta3";
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    String defaultImage = getContainerImageForJob(options);
+    String defaultBaseRepository =
+        DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
+
+    for (String value : new String[] {baseRepository, baseRepository + "/"}) {
+      options.setDataflowContainerBaseRepository(value);
+      assertThat(DataflowRunner.getContainerImageBaseRepository(options), equalTo(baseRepository));
+      assertThat(
+          getContainerImageForJob(options),
+          equalTo(baseRepository + defaultImage.substring(defaultBaseRepository.length())));
+    }
+  }
+
+  @Test
+  public void testSdkContainerImageTakesPrecedenceOverBaseRepository() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setDataflowContainerBaseRepository("docker.example.com/prefix");
+    options.setSdkContainerImage("some-container");
+    assertThat(getContainerImageForJob(options), equalTo("some-container"));
   }
 
   @Test

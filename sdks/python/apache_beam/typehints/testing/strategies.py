@@ -21,9 +21,9 @@ Intended for internal use only, no backward-compatibility guarantees."""
 
 import keyword
 import unicodedata
-from typing import Mapping
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Optional
-from typing import Sequence
 
 from hypothesis import strategies as st
 

@@ -49,7 +49,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(Enclosed.class)
@@ -213,7 +212,7 @@ public class SqlBoundedSideInputJoinTest {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(org.apache.beam.sdk.testing.BeamParallelJunit4Runner.class)
   public static class SqlBoundedSideInputJoinTestCalcite extends SqlBoundedSideInputJoinTestCases {
     @Override
     protected SqlBoundedSideInputJoin getQuery(NexmarkConfiguration configuration) {

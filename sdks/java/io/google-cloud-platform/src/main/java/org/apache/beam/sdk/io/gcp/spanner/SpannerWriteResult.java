@@ -26,6 +26,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The results of a {@link SpannerIO#write()} transform.
@@ -42,6 +43,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
   private final PCollection<Void> output;
+  private final @Nullable PCollection<WriteResults> writeResults;
+  private final @Nullable TupleTag<WriteResults> writeResultsTag;
   private final PCollection<MutationGroup> failedMutations;
   private final TupleTag<MutationGroup> failedMutationsTag;
 
@@ -50,8 +53,20 @@ public class SpannerWriteResult implements POutput {
       PCollection<Void> output,
       PCollection<MutationGroup> failedMutations,
       TupleTag<MutationGroup> failedMutationsTag) {
+    this(pipeline, output, null, null, failedMutations, failedMutationsTag);
+  }
+
+  public SpannerWriteResult(
+      Pipeline pipeline,
+      PCollection<Void> output,
+      @Nullable PCollection<WriteResults> writeResults,
+      @Nullable TupleTag<WriteResults> writeResultsTag,
+      PCollection<MutationGroup> failedMutations,
+      TupleTag<MutationGroup> failedMutationsTag) {
     this.pipeline = pipeline;
     this.output = output;
+    this.writeResults = writeResults;
+    this.writeResultsTag = writeResultsTag;
     this.failedMutations = failedMutations;
     this.failedMutationsTag = failedMutationsTag;
   }
@@ -63,7 +78,12 @@ public class SpannerWriteResult implements POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.of(failedMutationsTag, failedMutations);
+    ImmutableMap.Builder<TupleTag<?>, PValue> builder = ImmutableMap.builder();
+    builder.put(failedMutationsTag, failedMutations);
+    if (writeResults != null && writeResultsTag != null) {
+      builder.put(writeResultsTag, writeResults);
+    }
+    return builder.build();
   }
 
   public PCollection<MutationGroup> getFailedMutations() {
@@ -72,6 +92,10 @@ public class SpannerWriteResult implements POutput {
 
   public PCollection<Void> getOutput() {
     return output;
+  }
+
+  public @Nullable PCollection<WriteResults> getWriteResults() {
+    return writeResults;
   }
 
   @Override

@@ -823,20 +823,35 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A table that BigQuery reports as not found is treated as deleted successfully, since that
+     * is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
-      executeWithRetries(
-          client
-              .tables()
-              .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.",
-              tableRef.getTableId(), MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client
+                .tables()
+                .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                tableRef.getTableId(), MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // a delete can succeed at bigquery and still have its work item fail to commit afterwards.
+        // the runner then replays that work item, and the replayed delete gets a 404 because the
+        // first attempt already removed the table. failing here would make the work item retry
+        // forever, which in a streaming job stalls the drain indefinitely
+        LOG.info("Table {} is already deleted, treating as success.", tableRef.getTableId());
+      }
     }
 
     @Override
@@ -969,18 +984,32 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A dataset that BigQuery reports as not found is treated as deleted successfully, since
+     * that is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-      executeWithRetries(
-          client.datasets().delete(projectId, datasetId),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client.datasets().delete(projectId, datasetId),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                datasetId, MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // see deleteTable: a replayed work item can find the dataset its own earlier attempt
+        // already removed, and treating that 404 as a failure would retry forever
+        LOG.info("Dataset {} is already deleted, treating as success.", datasetId);
+      }
     }
 
     static class InsertBatchofRowsCallable implements Callable<List<InsertErrors>> {
@@ -1771,7 +1800,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+  @VisibleForTesting
+  static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     // Do not log 404. It clutters the output and is possibly even required by the
     // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
@@ -1789,6 +1819,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
     initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
+    // Set the quota project as a request header instead of deriving credentials: a derived
+    // credential inherits the shared credential's cached request metadata, which lacks
+    // x-goog-user-project until the next token refresh. Applied by an execute interceptor so it
+    // is re-applied on every attempt; HttpCredentialsAdapter re-initializes the request headers
+    // from the credential after a 401 refresh, which would otherwise override it.
+    @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+    if (!Strings.isNullOrEmpty(quotaProjectId)) {
+      initBuilder.add(
+          request ->
+              request.setInterceptor(
+                  r -> r.getHeaders().set("x-goog-user-project", quotaProjectId)));
+    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
@@ -1818,6 +1860,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         builder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        builder.setQuotaProjectId(quotaProjectId);
       }
       return BigQueryWriteClient.create(
           builder
@@ -1943,6 +1989,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         settingsBuilder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        settingsBuilder.setQuotaProjectId(quotaProjectId);
       }
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
