@@ -62,17 +62,18 @@ public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<Ke
     multimap.put(key, value);
   }
 
+  @SuppressWarnings("nullness")
   @Override
   public ReadableState<ValueT> computeIfAbsent(
       KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
     // Note that computeIfAbsent comments indicate that the read is lazy but this matches the
-    // existing eager
-    // behavior of WindmillMap.
+    // existing eager behavior of WindmillMap.
     Iterable<ValueT> existingValues = multimap.get(key).read();
-    if (Iterables.isEmpty(existingValues)) {
+    Iterator<ValueT> iterator = existingValues.iterator();
+    if (!iterator.hasNext()) {
       ValueT inserted = mappingFunction.apply(key);
       multimap.put(key, inserted);
-      return ReadableStates.immediate(inserted);
+      return ReadableStates.immediate(null);
     } else {
       return ReadableStates.immediate(Iterables.getOnlyElement(existingValues));
     }

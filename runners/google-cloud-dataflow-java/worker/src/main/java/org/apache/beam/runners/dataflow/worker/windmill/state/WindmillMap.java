@@ -19,7 +19,13 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Function;
@@ -34,8 +40,6 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -53,13 +57,53 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   private final String stateFamily;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
+
+  private static class StructuralKey<K> {
+    private final K originalKey;
+    private final @Nullable Object structuralValue;
+
+    private StructuralKey(K originalKey, @Nullable Object structuralValue) {
+      this.originalKey = originalKey;
+      this.structuralValue = structuralValue;
+    }
+
+    public static <K> StructuralKey<K> of(K key, Coder<K> coder) {
+      return new StructuralKey<>(key, key == null ? null : coder.structuralValue(key));
+    }
+
+    public K getOriginalKey() {
+      return originalKey;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof StructuralKey)) {
+        return false;
+      }
+      StructuralKey<?> that = (StructuralKey<?>) o;
+      return Objects.equals(structuralValue, that.structuralValue);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(structuralValue);
+    }
+  }
+
+  private StructuralKey<K> asStructuralKey(K key) {
+    return StructuralKey.of(key, keyCoder);
+  }
+
   // TODO(reuvenlax): Should we evict items from the cache? We would have to make sure
   // that anything in the cache that is not committed is not evicted. negativeCache could be
   // evicted whenever we want.
-  private final Map<K, V> cachedValues = Maps.newHashMap();
-  private final Set<K> negativeCache = Sets.newHashSet();
-  private final Set<K> localAdditions = Sets.newHashSet();
-  private final Set<K> localRemovals = Sets.newHashSet();
+  private final Map<StructuralKey<K>, V> cachedValues = Maps.newHashMap();
+  private final Set<StructuralKey<K>> negativeCache = Sets.newHashSet();
+  private final Set<StructuralKey<K>> localAdditions = Sets.newHashSet();
+  private final Set<StructuralKey<K>> localRemovals = Sets.newHashSet();
   private boolean complete;
   private boolean cleared = false;
 
@@ -110,10 +154,10 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     }
     cleared = false;
 
-    for (K key : localAdditions) {
-      ByteString keyBytes = protoKeyFromUserKey(key);
+    for (StructuralKey<K> sk : localAdditions) {
+      ByteString keyBytes = protoKeyFromUserKey(sk.getOriginalKey());
       ByteStringOutputStream valueStream = new ByteStringOutputStream();
-      valueCoder.encode(cachedValues.get(key), valueStream, Coder.Context.OUTER);
+      valueCoder.encode(cachedValues.get(sk), valueStream, Coder.Context.OUTER);
       ByteString valueBytes = valueStream.toByteString();
 
       commitBuilder
@@ -126,19 +170,13 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     }
     localAdditions.clear();
 
-    for (K key : localRemovals) {
+    for (StructuralKey<K> sk : localRemovals) {
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
       stateKeyPrefix.byteString().writeTo(keyStream);
-      keyCoder.encode(key, keyStream, Coder.Context.OUTER);
+      keyCoder.encode(sk.getOriginalKey(), keyStream, Coder.Context.OUTER);
       ByteString keyBytes = keyStream.toByteString();
       // Leaving data blank means that we delete the tag.
       commitBuilder.addValueUpdatesBuilder().setTag(keyBytes).setStateFamily(stateFamily);
-
-      V cachedValue = cachedValues.remove(key);
-      if (cachedValue != null) {
-        ByteStringOutputStream valueStream = new ByteStringOutputStream();
-        valueCoder.encode(cachedValues.get(key), valueStream, Coder.Context.OUTER);
-      }
     }
     negativeCache.addAll(localRemovals);
     localRemovals.clear();
@@ -196,36 +234,50 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
   @Override
   public void put(K key, V value) {
-    V oldValue = cachedValues.put(key, value);
-    if (valueCoder.consistentWithEquals() && value.equals(oldValue)) {
+    StructuralKey<K> structKey = asStructuralKey(key);
+    boolean wasPresent = cachedValues.containsKey(structKey);
+    V oldValue = cachedValues.put(structKey, value);
+    if (wasPresent
+        && valueCoder.consistentWithEquals()
+        && Objects.equals(value, oldValue)
+        && !localRemovals.contains(structKey)
+        && !negativeCache.contains(structKey)) {
       return;
     }
-    localAdditions.add(key);
-    localRemovals.remove(key);
-    negativeCache.remove(key);
+    localAdditions.remove(structKey);
+    localAdditions.add(structKey);
+    localRemovals.remove(structKey);
+    negativeCache.remove(structKey);
+  }
+
+  private ReadableState<V> computeAndPut(K key, Function<? super K, ? extends V> mappingFunction) {
+    V computed = mappingFunction.apply(key);
+    put(key, computed);
+    return ReadableStates.immediate(null);
   }
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized ReadableState<V> computeIfAbsent(
       K key, Function<? super K, ? extends V> mappingFunction) {
+    StructuralKey<K> structKey = asStructuralKey(key);
+    if (localRemovals.contains(structKey) || negativeCache.contains(structKey)) {
+      return computeAndPut(key, mappingFunction);
+    }
+    @Nullable V cachedValue = cachedValues.get(structKey);
+    if (cachedValue != null) {
+      return ReadableStates.immediate(cachedValue);
+    }
+    if (complete) {
+      return computeAndPut(key, mappingFunction);
+    }
+
     Future<V> persistedData = getFutureForKey(key);
     try (Closeable scope = scopedReadState()) {
-      if (localRemovals.contains(key) || negativeCache.contains(key)) {
-        return ReadableStates.immediate(null);
-      }
-      @Nullable V cachedValue = cachedValues.get(key);
-      if (cachedValue != null || complete) {
-        return ReadableStates.immediate(cachedValue);
-      }
-
       V persistedValue = persistedData.get();
       if (persistedValue == null) {
-        // This is a new value. Add it to the map and return null.
-        put(key, mappingFunction.apply(key));
-        return ReadableStates.immediate(null);
+        return computeAndPut(key, mappingFunction);
       }
-      // TODO: Don't do this if it was already in cache.
-      cachedValues.put(key, persistedValue);
+      cachedValues.put(structKey, persistedValue);
       return ReadableStates.immediate(persistedValue);
     } catch (InterruptedException | ExecutionException | IOException e) {
       if (e instanceof InterruptedException) {
@@ -237,9 +289,10 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
   @Override
   public void remove(K key) {
-    if (localRemovals.add(key)) {
-      cachedValues.remove(key);
-      localAdditions.remove(key);
+    StructuralKey<K> structKey = asStructuralKey(key);
+    if (localRemovals.add(structKey)) {
+      cachedValues.remove(structKey);
+      localAdditions.remove(structKey);
     }
   }
 
@@ -311,12 +364,20 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     }
   }
 
+  private Iterable<Map.Entry<K, V>> userEntries() {
+    List<Map.Entry<K, V>> result = new ArrayList<>(cachedValues.size());
+    for (Map.Entry<StructuralKey<K>, V> entry : cachedValues.entrySet()) {
+      result.add(new AbstractMap.SimpleEntry<>(entry.getKey().getOriginalKey(), entry.getValue()));
+    }
+    return Collections.unmodifiableList(result);
+  }
+
   private class WindmillMapEntriesReadableState
       implements ReadableState<Iterable<Map.Entry<K, V>>> {
     @Override
     public Iterable<Map.Entry<K, V>> read() {
       if (complete) {
-        return ImmutableMap.copyOf(cachedValues).entrySet();
+        return userEntries();
       }
       Future<Iterable<Map.Entry<ByteString, V>>> persistedData = getFuture();
       try (Closeable scope = scopedReadState()) {
@@ -337,26 +398,31 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
           // This is a known amount of data. Cache it all.
           transformedData.forEach(
               e -> {
-                // The cached data overrides what is read from state, so call putIfAbsent.
-                cachedValues.putIfAbsent(e.getKey(), e.getValue());
+                StructuralKey<K> structKey = asStructuralKey(e.getKey());
+                if (!localRemovals.contains(structKey)) {
+                  // The cached data overrides what is read from state, so call putIfAbsent.
+                  cachedValues.putIfAbsent(structKey, e.getValue());
+                }
               });
           complete = true;
-          return ImmutableMap.copyOf(cachedValues).entrySet();
+          return userEntries();
         } else {
-          ImmutableMap<K, V> cachedCopy = ImmutableMap.copyOf(cachedValues);
-          ImmutableSet<K> removalCopy = ImmutableSet.copyOf(localRemovals);
+          Map<StructuralKey<K>, V> cachedCopy = Maps.newHashMap(cachedValues);
+          Set<StructuralKey<K>> removalCopy = Sets.newHashSet(localRemovals);
           // This means that the result might be too large to cache, so don't add it to the
-          // local cache. Instead merge the iterables, giving priority to any local additions
+          // local cache. Instead, merge the iterables, giving priority to any local additions
           // (represented in cachedCopy and removalCopy) that may not have been committed
           // yet.
           return Iterables.unmodifiableIterable(
               Iterables.concat(
-                  cachedCopy.entrySet(),
+                  userEntries(),
                   Iterables.filter(
                       transformedData,
-                      e ->
-                          !cachedCopy.containsKey(e.getKey())
-                              && !removalCopy.contains(e.getKey()))));
+                      e -> {
+                        StructuralKey<K> structKey = asStructuralKey(e.getKey());
+                        return !cachedCopy.containsKey(structKey)
+                            && !removalCopy.contains(structKey);
+                      })));
         }
 
       } catch (InterruptedException | ExecutionException | IOException e) {
@@ -383,12 +449,21 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     @Override
     public @Nullable Boolean read() {
+      // If there are any cached values, we know the map is not empty.
+      if (!cachedValues.isEmpty()) {
+        return false;
+      }
+      if (complete) {
+        return true;
+      }
       return Iterables.isEmpty(keys.read());
     }
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
-      keys.readLater();
+      if (cachedValues.isEmpty() && !complete) {
+        keys.readLater();
+      }
       return this;
     }
   }
@@ -404,22 +479,25 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     @Override
     public @Nullable V read() {
+      StructuralKey<K> structKey = asStructuralKey(key);
+      if (localRemovals.contains(structKey) || negativeCache.contains(structKey)) {
+        return defaultValue;
+      }
+      if (cachedValues.containsKey(structKey)) {
+        return cachedValues.get(structKey);
+      }
+      if (complete) {
+        return defaultValue;
+      }
+
       Future<V> persistedData = getFutureForKey(key);
       try (Closeable scope = scopedReadState()) {
-        if (localRemovals.contains(key) || negativeCache.contains(key)) {
-          return null;
-        }
-        @Nullable V cachedValue = cachedValues.get(key);
-        if (cachedValue != null || complete) {
-          return cachedValue;
-        }
-
         V persistedValue = persistedData.get();
         if (persistedValue == null) {
-          negativeCache.add(key);
+          negativeCache.add(structKey);
           return defaultValue;
         }
-        cachedValues.put(key, persistedValue);
+        cachedValues.put(structKey, persistedValue);
         return persistedValue;
       } catch (InterruptedException | ExecutionException | IOException e) {
         if (e instanceof InterruptedException) {
@@ -432,7 +510,13 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     @Override
     @SuppressWarnings("FutureReturnValueIgnored")
     public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
-      WindmillMap.this.getFutureForKey(key);
+      StructuralKey<K> structKey = asStructuralKey(key);
+      if (!localRemovals.contains(structKey)
+          && !negativeCache.contains(structKey)
+          && !cachedValues.containsKey(structKey)
+          && !complete) {
+        WindmillMap.this.getFutureForKey(key);
+      }
       return this;
     }
   }
