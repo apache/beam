@@ -22,11 +22,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 
 	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"golang.org/x/oauth2/google"
 )
 
@@ -49,24 +48,7 @@ var (
 // option, which is how the value reaches remote workers, where flags are not
 // parsed. Returns an empty string if no override is configured.
 func GetGcsEndpoint() string {
-	if *GcsEndpoint != "" {
-		return *GcsEndpoint
-	}
-	return runtime.GlobalOptions.Get("gcs_endpoint")
-}
-
-const universeDomainEnvVar = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
-
-// findDefaultCredentials is a variable to allow overriding in tests.
-var findDefaultCredentials = google.FindDefaultCredentials
-
-// cachedUniverseDomain caches the universe domain resolved from the default
-// credentials, since resolving it may require a metadata server round trip
-// and clients are created frequently.
-var cachedUniverseDomain struct {
-	mu       sync.Mutex
-	resolved bool
-	value    string
+	return gcsx.GetGcsEndpoint()
 }
 
 // GetUniverseDomain returns the Google Cloud universe domain, first from the
@@ -79,28 +61,7 @@ var cachedUniverseDomain struct {
 // option.WithUniverseDomain to support non-default universes such as Trusted
 // Partner Cloud (TPC).
 func GetUniverseDomain(ctx context.Context) string {
-	if ud := os.Getenv(universeDomainEnvVar); ud != "" {
-		return ud
-	}
-
-	cachedUniverseDomain.mu.Lock()
-	defer cachedUniverseDomain.mu.Unlock()
-	if cachedUniverseDomain.resolved {
-		return cachedUniverseDomain.value
-	}
-	creds, err := findDefaultCredentials(ctx)
-	if err != nil {
-		// Don't cache: credentials may become available later, and client
-		// construction surfaces the credential error itself.
-		return ""
-	}
-	ud, err := creds.GetUniverseDomain()
-	if err != nil {
-		return ""
-	}
-	cachedUniverseDomain.resolved = true
-	cachedUniverseDomain.value = ud
-	return ud
+	return gcsx.GetUniverseDomain(ctx)
 }
 
 // GetProject returns the project, if non empty and exits otherwise.

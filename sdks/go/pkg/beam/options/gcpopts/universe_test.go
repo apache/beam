@@ -16,85 +16,16 @@
 package gcpopts
 
 import (
-	"context"
-	"errors"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
-	"golang.org/x/oauth2/google"
 )
 
 func TestGetUniverseDomain(t *testing.T) {
-	tests := []struct {
-		name      string
-		env       string
-		credsUD   string
-		credsErr  error
-		want      string
-		wantCalls int // credential lookups across two calls
-	}{
-		{
-			name:    "env var takes precedence",
-			env:     "env.example.com",
-			credsUD: "creds.example.com",
-			want:    "env.example.com",
-		},
-		{
-			name:      "falls back to credentials and caches",
-			credsUD:   "creds.example.com",
-			want:      "creds.example.com",
-			wantCalls: 1,
-		},
-		{
-			name:      "credential errors are not cached",
-			credsErr:  errors.New("no credentials"),
-			want:      "",
-			wantCalls: 2,
-		},
+	t.Setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "env.example.com")
+	if got, want := GetUniverseDomain(t.Context()), "env.example.com"; got != want {
+		t.Errorf("GetUniverseDomain() = %q, want %q", got, want)
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			resetUniverseDomainCache(t)
-			t.Setenv(universeDomainEnvVar, test.env)
-			calls := 0
-			orig := findDefaultCredentials
-			findDefaultCredentials = func(context.Context, ...string) (*google.Credentials, error) {
-				calls++
-				if test.credsErr != nil {
-					return nil, test.credsErr
-				}
-				return &google.Credentials{
-					UniverseDomainProvider: func() (string, error) { return test.credsUD, nil },
-				}, nil
-			}
-			t.Cleanup(func() { findDefaultCredentials = orig })
-
-			// Call twice so wantCalls can verify caching: a successful lookup
-			// is reused by the second call, while a failed one is retried.
-			for i := 0; i < 2; i++ {
-				if got := GetUniverseDomain(t.Context()); got != test.want {
-					t.Errorf("GetUniverseDomain() = %q, want %q", got, test.want)
-				}
-			}
-			if calls != test.wantCalls {
-				t.Errorf("credentials looked up %d times, want %d", calls, test.wantCalls)
-			}
-		})
-	}
-}
-
-// resetUniverseDomainCache clears the cached universe domain and restores it
-// when the test finishes.
-func resetUniverseDomainCache(t *testing.T) {
-	t.Helper()
-	reset := func() {
-		cachedUniverseDomain.mu.Lock()
-		cachedUniverseDomain.resolved = false
-		cachedUniverseDomain.value = ""
-		cachedUniverseDomain.mu.Unlock()
-	}
-	reset()
-	t.Cleanup(reset)
 }
 
 func TestGetGcsEndpoint(t *testing.T) {
