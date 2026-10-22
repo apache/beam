@@ -857,7 +857,7 @@ public class WatchTest implements Serializable {
   }
 
   @Test
-  public void testMaxPendingResultsMustBePositive() {
+  public void testMaxPendingResultsConfiguration() {
     Watch.Growth<String, String, String> growth =
         Watch.growthOf(
             new PollFn<String, String>() {
@@ -867,6 +867,12 @@ public class WatchTest implements Serializable {
               }
             });
 
+    assertNull(growth.getMaxPendingResults());
+    assertNull(growth.withMaxPendingResults(null).getMaxPendingResults());
+    Growth<String, String, String> limited = growth.withMaxPendingResults(2);
+    assertEquals(Integer.valueOf(2), limited.getMaxPendingResults());
+    assertNull(limited.withMaxPendingResults(null).getMaxPendingResults());
+    assertEquals(Integer.valueOf(2), limited.getMaxPendingResults());
     assertThrows(IllegalArgumentException.class, () -> growth.withMaxPendingResults(0));
     assertThrows(IllegalArgumentException.class, () -> growth.withMaxPendingResults(-1));
   }

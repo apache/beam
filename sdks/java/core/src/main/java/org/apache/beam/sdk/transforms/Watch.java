@@ -783,6 +783,9 @@ public class Watch {
      * Limits how many previously unseen outputs from one poll are kept as checkpointed pending
      * work.
      *
+     * <p>Passing {@code null} removes a previously configured limit and restores the default
+     * unlimited behavior. A non-null limit must be greater than zero.
+     *
      * <p>If an incomplete poll contains more than {@code maxPendingResults} distinct unseen
      * outputs, the oldest outputs are emitted first and the rest are omitted from that round. The
      * poll's watermark is held at or before the omitted outputs so the function will be called
@@ -805,9 +808,10 @@ public class Watch {
      * when output timestamps advance past the retention floor. It does not impose a count bound on
      * completed keys that share a timestamp still at or above that floor.
      */
-    public Growth<InputT, OutputT, KeyT> withMaxPendingResults(int maxPendingResults) {
+    public Growth<InputT, OutputT, KeyT> withMaxPendingResults(
+        @Nullable Integer maxPendingResults) {
       checkArgument(
-          maxPendingResults > 0,
+          maxPendingResults == null || maxPendingResults > 0,
           "maxPendingResults must be greater than zero, but was %s",
           maxPendingResults);
       return toBuilder().setMaxPendingResults(maxPendingResults).build();
