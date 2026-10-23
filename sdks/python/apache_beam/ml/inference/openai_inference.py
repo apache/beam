@@ -300,13 +300,14 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
         batching inputs.
       max_batch_duration_secs: optional. the maximum amount of time to
         buffer a batch before emitting; used in streaming contexts.
-      max_batch_weight: optional. the maximum total weight of a batch.
-      element_size_fn: optional. a function that returns the size
-        (weight) of an element.
-      batch_length_fn: optional. a callable that returns the length of an
-        element for length-aware batching.
-      batch_bucket_boundaries: optional. a sorted list of positive boundary
-        values for length-aware batching buckets.
+      max_batch_weight: the maximum total weight of a batch. Cannot be
+        combined with batch_length_fn or batch_bucket_boundaries.
+      element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching. Cannot be used together with max_batch_weight.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
       **kwargs: optional arguments passed to RemoteModelHandler (e.g.
         num_retries, throttle_delay_secs, rate_limiter).
     """
