@@ -31,10 +31,12 @@
 
 ## New Features / Improvements
 
+* (Java) Flink runner: bounded sources in batch are re-split and balanced, so that work is evenly distributed over the source readers even when sources return too few or unevenly sized splits, e.g. BigQuery exports ([#40607](https://github.com/apache/beam/issues/40607)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
+* (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
