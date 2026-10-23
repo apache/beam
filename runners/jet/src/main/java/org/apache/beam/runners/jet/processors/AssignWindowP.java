@@ -43,7 +43,7 @@ import org.joda.time.Instant;
   "nullness",
   "keyfor"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class AssignWindowP<T> extends AbstractProcessor {
+public final class AssignWindowP<T> extends AbstractProcessor {
 
   @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private final String ownerId; // do not remove, useful for debugging

@@ -123,7 +123,7 @@ func TestStandardLogicalTypes_RowEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dec(%q) = %v, want nil error", wantBytes, err)
 	}
-	if d := cmp.Diff(want, got, cmp.Comparer(func(a, b MicrosInstant) bool { return a.Time().Equal(b.Time()) })); d != "" {
+	if d := cmp.Diff(want, got, cmp.Comparer(MicrosInstant.Equals)); d != "" {
 		t.Errorf("dec(enc(%v)) diff (-want, +got): %v", want, d)
 	}
 }
@@ -390,6 +390,36 @@ func TestMicrosInstant_StorageRange(t *testing.T) {
 	}
 }
 
+func TestDate_Zero(t *testing.T) {
+	var d Date
+	if got, want := d.Time(), time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Errorf("Date{}.Time() = %v, want %v", got, want)
+	}
+	if got, want := d.String(), "1970-01-01"; got != want {
+		t.Errorf("Date{}.String() = %v, want %v", got, want)
+	}
+	if days, err := dateToStorage(d); err != nil || days != 0 {
+		t.Errorf("dateToStorage(Date{}) = %v, %v, want 0, nil", days, err)
+	}
+}
+
+func TestMicrosInstant_StringAndEquals(t *testing.T) {
+	utc := MicrosInstant(time.Date(2020, time.August, 13, 14, 14, 14, 123456000, time.UTC))
+	if got, want := utc.String(), "2020-08-13T14:14:14.123456Z"; got != want {
+		t.Errorf("String() = %v, want %v", got, want)
+	}
+	zoned := MicrosInstant(utc.Time().In(time.FixedZone("UTC+2", 2*60*60)))
+	if got, want := zoned.String(), "2020-08-13T16:14:14.123456+02:00"; got != want {
+		t.Errorf("String() = %v, want %v", got, want)
+	}
+	if !utc.Equals(zoned) {
+		t.Errorf("%v.Equals(%v) = false, want true", utc, zoned)
+	}
+	if later := MicrosInstant(utc.Time().Add(time.Microsecond)); utc.Equals(later) {
+		t.Errorf("%v.Equals(%v) = true, want false", utc, later)
+	}
+}
+
 // millisRow has the fields of the millis_instant case of standard_coders.yaml.
 type millisRow struct {
 	F_timestamp MillisInstant `beam:"f_timestamp"`
@@ -441,5 +471,31 @@ func TestMillisInstant_RowEncoding(t *testing.T) {
 	}
 	if err := encodeMillisInstant(MillisInstant(time.Unix(0, 1500000)), &buf); err == nil {
 		t.Errorf("encodeMillisInstant(1.5ms) = nil error, want error for sub millisecond precision")
+	}
+}
+
+func TestMillisInstant_Range(t *testing.T) {
+	for _, millis := range []int64{math.MinInt64, -1, 0, 1, math.MaxInt64} {
+		want := MillisInstant(time.UnixMilli(millis).UTC())
+		var buf bytes.Buffer
+		if err := encodeMillisInstant(want, &buf); err != nil {
+			t.Fatalf("encodeMillisInstant(%v): %v", millis, err)
+		}
+		got, err := decodeMillisInstant(&buf)
+		if err != nil || !got.Time().Equal(want.Time()) {
+			t.Errorf("round trip %v = %v, %v", millis, got.Time(), err)
+		}
+	}
+	var buf bytes.Buffer
+	for _, instant := range []time.Time{
+		time.UnixMilli(math.MinInt64).Add(-time.Millisecond),
+		time.UnixMilli(math.MaxInt64).Add(time.Millisecond),
+	} {
+		if err := encodeMillisInstant(MillisInstant(instant), &buf); err == nil {
+			t.Errorf("encoding %v succeeded outside INT64 range", instant)
+		}
+	}
+	if _, err := decodeMillisInstant(bytes.NewReader([]byte{0})); err == nil {
+		t.Error("truncated millis_instant decoded successfully")
 	}
 }

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -50,14 +51,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link ApproximateQuantiles}. */
 public class ApproximateQuantilesTest {
 
   /** Tests for the overall combiner behavior. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class CombinerTests {
     static final List<KV<String, Integer>> TABLE =
         Arrays.asList(

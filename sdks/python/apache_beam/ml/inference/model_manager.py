@@ -470,12 +470,13 @@ class ModelManager:
     return False
 
   def _wake_next_in_queue(self):
+    # Clean up cancelled tickets at head of queue
+    while self._wait_queue and self._wait_queue[
+        0].ticket_num in self._cancelled_tickets:
+      self._cancelled_tickets.remove(self._wait_queue[0].ticket_num)
+      heapq.heappop(self._wait_queue)
+    # The queue may be empty if all remaining tickets were cancelled.
     if self._wait_queue:
-      # Clean up cancelled tickets at head of queue
-      while self._wait_queue and self._wait_queue[
-          0].ticket_num in self._cancelled_tickets:
-        self._cancelled_tickets.remove(self._wait_queue[0].ticket_num)
-        heapq.heappop(self._wait_queue)
       next_inline = self._wait_queue[0]
       next_inline.wake_event.set()
 
@@ -660,7 +661,10 @@ class ModelManager:
     # TODO: Also factor in the active counts to avoid thrashing
     demand_map = Counter()
     for item in self._wait_queue:
-      demand_map[item.tag] += 1
+      # Cancelled tickets linger in the queue until they reach the head;
+      # they no longer represent demand.
+      if item.ticket_num not in self._cancelled_tickets:
+        demand_map[item.tag] += 1
 
     my_demand = demand_map[requesting_tag]
     am_i_starving = len(self._models[requesting_tag]) == 0
@@ -753,13 +757,10 @@ class ModelManager:
     try:
       with self._cv:
         self.logging_info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
-        baseline_snap, _, _ = self._monitor.get_stats()
+        # No estimator observation here: the estimator is fit on total memory
+        # readings, which release_model records along with the full snapshot
+        # of loaded models. A load delta would contradict those readings.
         instance = loader_func()
-        _, peak_during_load, _ = self._monitor.get_stats()
-
-        snapshot = {tag: 1}
-        self._estimator.add_observation(
-            snapshot, peak_during_load - baseline_snap)
 
         if not is_unknown:
           self._pending_reservations = max(
@@ -795,7 +796,7 @@ class ModelManager:
     self._monitor.refresh()
     self._monitor.reset_peak()
 
-  def _force_reset(self):
+  def force_reset(self):
     logger.warning("Force Reset Triggered")
     self._delete_all_models()
     self._models = defaultdict(list)

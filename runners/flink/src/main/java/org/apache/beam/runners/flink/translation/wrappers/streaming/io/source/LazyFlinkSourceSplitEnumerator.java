@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Splits a bounded Beam source and assigns one split for each reader request. */
-public class LazyFlinkSourceSplitEnumerator<T>
+public final class LazyFlinkSourceSplitEnumerator<T>
     implements SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(LazyFlinkSourceSplitEnumerator.class);
 
@@ -102,7 +102,14 @@ public class LazyFlinkSourceSplitEnumerator<T>
         this::splitBeamSource,
         (sourceSplits, error) -> {
           if (error != null) {
-            throw new RuntimeException("Failed to start source enumerator.", error);
+            throw new RuntimeException(
+                "Failed to initialize splits for bounded source " + beamSource.getClass().getName(),
+                error);
+          }
+          if (sourceSplits == null) {
+            throw new IllegalStateException(
+                "Split initialization returned null without an error for bounded source "
+                    + beamSource.getClass().getName());
           }
           pendingSplits.addAll(sourceSplits);
           splitsInitialized = true;

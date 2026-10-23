@@ -22,14 +22,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Validate correct implementation of {@link DisplayData} by evaluating {@link
  * HasDisplayData#populateDisplayData(DisplayData.Builder)} during pipeline construction.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class DisplayDataValidator {
   // Do not instantiate
   private DisplayDataValidator() {}
@@ -46,8 +44,11 @@ class DisplayDataValidator {
     pipeline.traverseTopologically(Visitor.INSTANCE);
   }
 
-  private static void evaluateDisplayData(HasDisplayData component) {
-    DisplayData.from(component);
+  private static void evaluateDisplayData(@Nullable HasDisplayData component) {
+    // A node's transform is null only for the root node, which has no display data to validate.
+    if (component != null) {
+      DisplayData.from(component);
+    }
   }
 
   private static class Visitor extends Pipeline.PipelineVisitor.Defaults {

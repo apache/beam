@@ -59,7 +59,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 @SuppressFBWarnings(
     value = "IS2_INCONSISTENT_SYNC",
     justification = "Some access on purpose are left unsynchronized")
-public class BoundedTrieData implements Serializable {
+public final class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie
 
@@ -282,7 +282,7 @@ public class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final boolean equals(@Nullable Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }
@@ -294,12 +294,12 @@ public class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final int hashCode() {
+  public int hashCode() {
     return this.asTrie().hashCode();
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     return "BoundedTrieData(" + this.asTrie() + ")";
   }
 

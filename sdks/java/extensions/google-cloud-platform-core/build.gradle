@@ -44,6 +44,7 @@ dependencies {
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_api_client
   implementation library.java.google_cloud_core
+  implementation library.java.google_cloud_core_http
   implementation library.java.google_cloud_storage
   implementation library.java.bigdataoss_gcsio
   implementation library.java.bigdataoss_util

@@ -121,7 +121,10 @@ task deploy {
       exec {
         commandLine './build_and_publish_containers.sh', 'true', "${project.lastCommitId}"
       }
-
+      exec {
+        executable 'sh'
+        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
+      }
       exec {
         executable 'sh'
         args '-c', "kubectl --namespace default set image deployment/beamgrafana \

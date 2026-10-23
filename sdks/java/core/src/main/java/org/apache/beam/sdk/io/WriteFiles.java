@@ -23,8 +23,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -135,9 +138,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public static final Class<? extends WriteFiles> CONCRETE_CLASS = AutoValue_WriteFiles.class;
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
-  // writers default to 64mb buffers. This comes into play when writing per-window files.
-  // The first 20 files from a single WriteFiles transform will write files inline in the
-  // transform. Anything beyond that might be shuffled.
+  // writers default to 64mb buffers. This comes into play when writing per-window or dynamic
+  // destination files. The first 20 files from a single WriteFiles transform will write files
+  // inline in the transform. Anything beyond that might be spilled to shuffle (default) or cause
+  // the least recently used open writer in the bundle to be closed and evicted if
+  // withEvictWritersWhenFull() is enabled.
   // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
   private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
@@ -171,6 +176,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setWithAutoSharding(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
+        .setEvictWritersWhenFull(false)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
         .setSkipIfEmpty(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
@@ -193,6 +199,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWithAutoSharding();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getEvictWritersWhenFull();
 
   abstract boolean getSkipIfEmpty();
 
@@ -229,6 +237,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setEvictWritersWhenFull(
+        boolean evictWritersWhenFull);
 
     abstract Builder<UserT, DestinationT, OutputT> setSkipIfEmpty(boolean skipIfEmpty);
 
@@ -289,7 +300,54 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setNumShardsProvider(numShardsProvider).build();
   }
 
-  /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
+  /**
+   * Set the maximum number of writers kept open in a bundle before spilling to shuffle (or evicting
+   * the least recently used open writer if {@link #withEvictWritersWhenFull()} is enabled).
+   *
+   * <p><b>Trade-offs:</b> A higher value here can cause more worker memory consumption (since each
+   * open writer maintains an in-memory write buffer), but reduces the cost of shuffling spilled
+   * records (or reduces how frequently writers are closed and evicted when {@link
+   * #withEvictWritersWhenFull()} is enabled). A lower value reduces peak memory consumption per
+   * bundle at the cost of either more records spilled to shuffle or more frequent writer evictions
+   * (resulting in smaller output files).
+   *
+   * <p><b>Writer Limit &amp; Overflow Trade-off Matrix (for {@link
+   * #withRunnerDeterminedSharding()}):</b>
+   *
+   * <table>
+   *   <tr>
+   *     <th>Configuration</th>
+   *     <th>Behavior when {@code maxNumWritersPerBundle} is reached</th>
+   *     <th>Worker Memory Consumption</th>
+   *     <th>Shuffle Cost</th>
+   *     <th>Output File Size / Count</th>
+   *   </tr>
+   *   <tr>
+   *     <td><b>Default (Spill to Shuffle)</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = false}</td>
+   *     <td>Keeps first {@code N} writers open; spills remaining records to a {@link GroupByKey} shuffle stage</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>High if many records spill across shuffle</td>
+   *     <td>Fewer, larger files</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>LRU Writer Eviction</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = true}</td>
+   *     <td>Flushes and closes the least recently used (LRU) open writer to open a new writer inline</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>May produce more/smaller files (minimal if input is ordered by destination, high if random)</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>No Spilling</b><br>{@link #withNoSpilling()} ({@code maxNumWritersPerBundle = -1})</td>
+   *     <td>Opens a new writer for every destination in the bundle without limit</td>
+   *     <td>Unbounded (risk of OOM with many destinations)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>Fewer, larger files (1 file per destination per bundle)</td>
+   *   </tr>
+   * </table>
+   *
+   * <p>Note that value provided here cannot exceed the default value ({@link
+   * #DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE}).
+   */
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     checkArgument(
@@ -300,6 +358,54 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         "maxNumWritersPerBundle must be greater than 0 and less than or equal to %s",
         DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+  }
+
+  /**
+   * Returns a new {@link WriteFiles} that evicts the least recently used open writer in the bundle
+   * (LRU order, by flushing and closing it) instead of spilling unwritten records to shuffle when
+   * {@link #getMaxNumWritersPerBundle()} is reached.
+   *
+   * <p><b>Trade-offs:</b> Setting this to {@code true} avoids the cost of shuffling records while
+   * keeping concurrent writer memory consumption bounded by {@link #getMaxNumWritersPerBundle()},
+   * but may lead to smaller and more numerous output files since evicted writers are closed before
+   * the end of the bundle. See {@link #withMaxNumWritersPerBundle(int)} for the full trade-off
+   * matrix.
+   *
+   * <p><b>Warning:</b> This option should only be used when the input {@link PCollection} elements
+   * within a bundle are already grouped or ordered by writer keys (destination/window/pane), such
+   * that consecutive records belong to the same destination. If the input {@link PCollection} rows
+   * arrive in random order across more destinations than {@link #getMaxNumWritersPerBundle()},
+   * writers will be repeatedly closed and reopened, creating too many small files.
+   *
+   * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withEvictWritersWhenFull() {
+    return withEvictWritersWhenFull(true);
+  }
+
+  /**
+   * Set this sink to evict the least recently used open writer in the bundle (LRU order, by
+   * flushing and closing it) when {@link #getMaxNumWritersPerBundle()} is reached, instead of
+   * spilling unwritten records to shuffle.
+   *
+   * <p><b>Trade-offs:</b> Setting this to {@code true} avoids the cost of shuffling records while
+   * keeping concurrent writer memory consumption bounded by {@link #getMaxNumWritersPerBundle()},
+   * but may lead to smaller and more numerous output files since evicted writers are closed before
+   * the end of the bundle. Setting this to {@code false} (default) preserves larger output files by
+   * spilling excess records to a shuffle stage. See {@link #withMaxNumWritersPerBundle(int)} for
+   * the full trade-off matrix.
+   *
+   * <p><b>Warning:</b> This option should only be used when the input {@link PCollection} elements
+   * within a bundle are already grouped or ordered by writer keys (destination/window/pane), such
+   * that consecutive records belong to the same destination. If the input {@link PCollection} rows
+   * arrive in random order across more destinations than {@link #getMaxNumWritersPerBundle()},
+   * writers will be repeatedly closed and reopened, creating too many small files.
+   *
+   * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withEvictWritersWhenFull(
+      boolean evictWritersWhenFull) {
+    return toBuilder().setEvictWritersWhenFull(evictWritersWhenFull).build();
   }
 
   /** Set this sink to skip writing any files if the PCollection is empty. */
@@ -596,7 +702,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
           new TupleTag<>("unwrittenRecords");
       Coder<UserT> inputCoder = input.getCoder();
-      if (getMaxNumWritersPerBundle() < 0) {
+      // When no spilling is requested (maxNumWritersPerBundle < 0) or when writer eviction is
+      // enabled (evictWritersWhenFull), all records are written inline in WriteUnshardedTempFilesFn
+      // and no records are spilled to the GroupUnwritten shuffle stage.
+      if (getMaxNumWritersPerBundle() < 0 || getEvictWritersWhenFull()) {
         PCollectionTuple writeTuple =
             input.apply(
                 "WritedUnshardedBundles",
@@ -674,8 +783,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private final Coder<UserT> inputCoder;
 
-    // Initialized in startBundle()
-    private @Nullable Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
+    private final Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers =
+        new LinkedHashMap<>(
+            /* initialCapacity= */ getMaxNumWritersPerBundle() < 0
+                ? DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE
+                : getMaxNumWritersPerBundle(),
+            /* loadFactor= */ 0.85f,
+            /* accessOrder= */ true); // true = LRU order
+    private final List<FileResult<DestinationT>> evictedFileResults = Lists.newArrayList();
 
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
@@ -691,7 +806,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @StartBundle
     public void startBundle(StartBundleContext unused) {
       // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
-      writers = Maps.newHashMap();
+      synchronized (writers) {
+        writers.clear();
+        evictedFileResults.clear();
+      }
     }
 
     @ProcessElement
@@ -712,36 +830,31 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
       DestinationT destination = maybeDestination.destination;
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
-      Writer<DestinationT, OutputT> writer = writers.get(key);
-      if (writer == null) {
-        if (getMaxNumWritersPerBundle() < 0 || writers.size() <= getMaxNumWritersPerBundle()) {
-          String uuid = UUID.randomUUID().toString();
-          LOG.info(
-              "Opening writer {} for window {} pane {} destination {}",
-              uuid,
-              window,
-              paneInfo,
-              destination);
-          writer = writeOperation.createWriter();
-          writer.setDestination(destination);
-          writer.open(uuid);
-          writers.put(key, writer);
-          LOG.debug("Done opening writer");
-        } else {
-          if (spilledShardNum == UNKNOWN_SHARDNUM) {
-            // Cache the random value so we only call ThreadLocalRandom once per DoFn instance.
-            spilledShardNum = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
+      Writer<DestinationT, OutputT> writer;
+      synchronized (writers) {
+        writer = writers.get(key);
+        if (writer == null) {
+          if (getMaxNumWritersPerBundle() < 0 || writers.size() <= getMaxNumWritersPerBundle()) {
+            writer = openAndRegisterWriter(key, window, paneInfo, destination);
+          } else if (getEvictWritersWhenFull()) {
+            evictOldestWriter();
+            writer = openAndRegisterWriter(key, window, paneInfo, destination);
           } else {
-            spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
+            if (spilledShardNum == UNKNOWN_SHARDNUM) {
+              // Cache the random value so we only call ThreadLocalRandom once per DoFn instance.
+              spilledShardNum = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
+            } else {
+              spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
+            }
+            outputReceiver
+                .get(unwrittenRecordsTag)
+                .output(
+                    KV.of(
+                        ShardedKey.of(
+                            hashDestination(destination, destinationCoder), spilledShardNum),
+                        c.element()));
+            return;
           }
-          outputReceiver
-              .get(unwrittenRecordsTag)
-              .output(
-                  KV.of(
-                      ShardedKey.of(
-                          hashDestination(destination, destinationCoder), spilledShardNum),
-                      c.element()));
-          return;
         }
       }
       OutputT formattedRecord =
@@ -752,25 +865,88 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       writeOrClose(writer, formattedRecord);
     }
 
-    @FinishBundle
-    public void finishBundle(FinishBundleContext c) throws Exception {
-      for (Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> entry :
-          writers.entrySet()) {
-        WriterKey<DestinationT> key = entry.getKey();
-        Writer<DestinationT, OutputT> writer = entry.getValue();
+    private Writer<DestinationT, OutputT> openAndRegisterWriter(
+        WriterKey<DestinationT> key,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        DestinationT destination)
+        throws Exception {
+      synchronized (writers) {
+        String uuid = UUID.randomUUID().toString();
+        LOG.info(
+            "Opening writer {} for window {} pane {} destination {}",
+            uuid,
+            window,
+            paneInfo,
+            destination);
+        Writer<DestinationT, OutputT> writer = writeOperation.createWriter();
+        writer.setDestination(destination);
+        writer.open(uuid);
+        writers.put(key, writer);
+        LOG.debug("Done opening writer");
+        return writer;
+      }
+    }
+
+    private void evictOldestWriter() throws Exception {
+      synchronized (writers) {
+        Iterator<Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>>> iterator =
+            writers.entrySet().iterator();
+        Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> eldestEntry =
+            iterator.next();
+        iterator.remove();
+
+        WriterKey<DestinationT> evictedKey = eldestEntry.getKey();
+        Writer<DestinationT, OutputT> evictedWriter = eldestEntry.getValue();
+        LOG.info(
+            "Evicting least recently used writer for window {} pane {} destination {}",
+            evictedKey.window,
+            evictedKey.paneInfo,
+            evictedKey.destination);
         try {
-          writer.close();
+          evictedWriter.close();
         } catch (Exception e) {
           // If anything goes wrong, make sure to delete the temporary file.
-          writer.cleanup();
+          evictedWriter.cleanup();
           throw e;
         }
-        BoundedWindow window = key.window;
-        c.output(
+        evictedFileResults.add(
             new FileResult<>(
-                writer.getOutputFile(), UNKNOWN_SHARDNUM, window, key.paneInfo, key.destination),
-            window.maxTimestamp(),
-            window);
+                evictedWriter.getOutputFile(),
+                UNKNOWN_SHARDNUM,
+                evictedKey.window,
+                evictedKey.paneInfo,
+                evictedKey.destination));
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      synchronized (writers) {
+        for (FileResult<DestinationT> evictedResult : evictedFileResults) {
+          BoundedWindow window = evictedResult.getWindow();
+          c.output(evictedResult, window.maxTimestamp(), window);
+        }
+        for (Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> entry :
+            writers.entrySet()) {
+          WriterKey<DestinationT> key = entry.getKey();
+          Writer<DestinationT, OutputT> writer = entry.getValue();
+          try {
+            writer.close();
+          } catch (Exception e) {
+            // If anything goes wrong, make sure to delete the temporary file.
+            writer.cleanup();
+            throw e;
+          }
+          BoundedWindow window = key.window;
+          c.output(
+              new FileResult<>(
+                  writer.getOutputFile(), UNKNOWN_SHARDNUM, window, key.paneInfo, key.destination),
+              window.maxTimestamp(),
+              window);
+        }
+        writers.clear();
+        evictedFileResults.clear();
       }
     }
   }
@@ -1202,8 +1378,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         new ArrayList<>();
 
     // Ensure that transient fields are initialized.
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
       in.defaultReadObject();
       closeFutures = new ArrayList<>();
       deferredOutput = new ArrayList<>();

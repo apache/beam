@@ -94,12 +94,12 @@ export DEBIAN_FRONTEND=noninteractive
 LogOutput "Installing Python environment"
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
-apt install -y python3.10 python3-distutils python3-pip > /dev/null
+apt install -y python3.11 python3-distutils python3-pip > /dev/null
 apt install --reinstall python3-distutils > /dev/null
 pip install --upgrade google-api-python-client > /dev/null
-python3.10 -m pip install pip --upgrade > /dev/null
-ln -s /usr/bin/python3.10 /usr/bin/python > /dev/null
-apt install python3.10-venv > /dev/null
+python3.11 -m pip install pip --upgrade > /dev/null
+ln -s /usr/bin/python3.11 /usr/bin/python > /dev/null
+apt install python3.11-venv > /dev/null
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 pip install -r $BEAM_ROOT_DIR/playground/infrastructure/requirements.txt
 
@@ -191,13 +191,13 @@ do
     if [ "$sdk" == "python" ]
     then
         # Build fails without docker-pull-licenses=true in Cloud Build
-        LogOutput "Building Python base image container apache/beam_python3.10_sdk:$DOCKERTAG"
-        LogOutput "./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
+        LogOutput "Building Python base image container apache/beam_python3.11_sdk:$DOCKERTAG"
+        LogOutput "./gradlew -i :sdks:python:container:py311:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true"
         sdk_tag=$DOCKERTAG
-        ./gradlew -i :sdks:python:container:py310:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
+        ./gradlew -i :sdks:python:container:py311:docker -Pdocker-tag=$DOCKERTAG -Pdocker-pull-licenses=true
         if [ $? -ne 0 ]
         then
-            LogOutput "Build failed for apache/beam_python3.10_sdk:$DOCKERTAG"
+            LogOutput "Build failed for apache/beam_python3.11_sdk:$DOCKERTAG"
             continue
         fi
     fi

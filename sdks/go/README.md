@@ -109,7 +109,7 @@ Crown'd: 1
 Note that, when running at Beam HEAD, the Dataflow runner will try to use a non-existent container `gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:<Beam version>.dev`.
 To address this, you need to push your own SDK harness container image to a repository (for example, Docker Hub or Google Artifact Registry) and specify that as the
 `<YOUR_SDK_HARNESS_IMAGE_LOCATION>` parameter above.
-For example, running the following from Beam HEAD, will make the container availble at the location `<repository>/beam_go_sdk`.
+For example, running the following from Beam HEAD, will make the container available at the location `<repository>/beam_go_sdk`.
 
 ```bash
 $ ./gradlew :sdks:go:container:docker -Pdocker-repository-root=<repository>

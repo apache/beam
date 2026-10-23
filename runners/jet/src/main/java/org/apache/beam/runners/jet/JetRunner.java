@@ -47,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Jet specific implementation of Beam's {@link PipelineRunner}. */
-public class JetRunner extends PipelineRunner<PipelineResult> {
+public final class JetRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
 

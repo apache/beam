@@ -1028,7 +1028,7 @@ func TestRowCoder_TopLevelPointerWithValueProvider(t *testing.T) {
 			return tenths{V: v / 10}, err
 		}, nil
 	})
-	prt := reflect.PtrTo(rt)
+	prt := reflect.PointerTo(rt)
 	enc, err := encB.Build(prt)
 	if err != nil {
 		t.Fatalf("RowEncoderBuilder.Build(%v) = %v, want nil error", prt, err)

@@ -16,7 +16,7 @@
 name: pr-bot-pr-updates
 on:
   pull_request_target:
-    types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
+    types: ["synchronize", "converted_to_draft", "ready_for_review"]
   issue_comment:
     types: [created]
 permissions: read-all
@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 16
+          node-version: 24
       - name: Install pr-bot npm dependencies
         run: npm ci
         working-directory: 'scripts/ci/pr-bot'

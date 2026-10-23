@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +35,8 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.EncryptedKeyParser;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
@@ -47,6 +51,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.encryption.EncryptedKey;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.FileIOParser;
+import org.apache.iceberg.util.JsonUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -185,7 +190,14 @@ public abstract class SerializableTableSpec implements Serializable {
         if (local == null) {
           ImmutableMap.Builder<Integer, SortOrder> builder = ImmutableMap.builder();
           for (Map.Entry<Integer, String> entry : getSortOrdersJson().entrySet()) {
-            builder.put(entry.getKey(), SortOrderParser.fromJson(getSchema(), entry.getValue()));
+            try {
+              JsonNode node = JsonUtil.mapper().readTree(entry.getValue());
+              builder.put(
+                  entry.getKey(), SortOrderParser.fromJson(getSchema(), node, getOrderId()));
+            } catch (IOException e) {
+              throw new IllegalArgumentException(
+                  "Failed to parse sort order JSON for orderId " + entry.getKey(), e);
+            }
           }
           cachedSortOrders = local = builder.build();
         }
@@ -224,16 +236,33 @@ public abstract class SerializableTableSpec implements Serializable {
     return local;
   }
 
+  /** Returns a cached {@link FileIO} instance for this table using default configuration. */
   @SchemaIgnore
   public FileIO getFileIO() {
+    return getFileIO(null);
+  }
+
+  /**
+   * Returns a cached {@link FileIO} instance for this table, configured with the provided Hadoop
+   * {@link Configuration} if supported.
+   */
+  @SchemaIgnore
+  public FileIO getFileIO(@Nullable Configuration conf) {
     FileIO local = cachedFileIO;
     if (local == null) {
       synchronized (this) {
         local = cachedFileIO;
         if (local == null) {
-          cachedFileIO = local = FileIOParser.fromJson(getFileIoJson());
+          cachedFileIO =
+              local =
+                  conf != null
+                      ? FileIOParser.fromJson(getFileIoJson(), conf)
+                      : FileIOParser.fromJson(getFileIoJson());
         }
       }
+    }
+    if (conf != null && local instanceof Configurable) {
+      ((Configurable) local).setConf(conf);
     }
     return local;
   }

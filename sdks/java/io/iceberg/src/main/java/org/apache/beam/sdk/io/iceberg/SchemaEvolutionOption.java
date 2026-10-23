@@ -26,8 +26,9 @@ package org.apache.beam.sdk.io.iceberg;
  *
  * <p>The options constrain changes to columns the table already has when a window's schema commit
  * starts (the whole input, in batch). A column that is new in that window takes the union of the
- * window's file schemas: its type is the widest among them and it is optional unless pinned, so two
- * files that disagree about a new column never conflict with each other, only with the table.
+ * window's file schemas: its type is the widest among them and it is optional (a pinned column is
+ * created required only when the transform creates the table), so two files that disagree about a
+ * new column never conflict with each other, only with the table.
  */
 public enum SchemaEvolutionOption {
   /**

@@ -119,6 +119,18 @@ class NameMappingUtils {
   }
 
   /**
+   * The mapping readers will resolve a file without field ids with once it is committed: the stored
+   * one while it covers {@code schema}, else the one the commit regenerates from it. It keeps the
+   * old names of renamed columns, which a mapping created from the schema alone does not.
+   */
+  static NameMapping forReaders(Schema schema, @Nullable NameMapping stored) {
+    if (stored != null && covers(stored, schema.asStruct())) {
+      return stored;
+    }
+    return NameMappingParser.fromJson(regenerate(schema, stored));
+  }
+
+  /**
    * Schema-derived mapping, with custom names (user aliases, pre-rename file names) carried over
    * from {@code existing} by field id. Schema names win: a carried name that collides with a name
    * already present at its level is dropped, since Iceberg rejects ambiguous mappings. Entries for

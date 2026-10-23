@@ -30,6 +30,7 @@ try:
   from apache_beam.metrics.metricbase import MetricName
   from apache_beam.ml.inference.model_manager import GPUMonitor
   from apache_beam.ml.inference.model_manager import ModelManager
+  from apache_beam.ml.inference.model_manager import QueueTicket
   from apache_beam.ml.inference.model_manager import ResourceEstimator
 except ImportError as e:
   raise unittest.SkipTest("Model Manager dependencies are not installed")
@@ -148,7 +149,7 @@ class TestModelManager(unittest.TestCase):
     self.manager.release_model(model_name, instance)
 
     # Force delete all models
-    self.manager._force_reset()
+    self.manager.force_reset()
 
     # Verify that the MultiProcessShared instance is deleted
     # and the counter is reseted
@@ -265,6 +266,29 @@ class TestModelManager(unittest.TestCase):
     self.manager.release_model(model_b, inst_b)
     self.assertEqual(self.manager._total_active_jobs, 0)
 
+  def test_model_manager_observations_use_total_memory(self):
+    """
+    Test that the estimator only receives total memory readings for the
+    full snapshot of loaded models, not the memory delta of a single load.
+    """
+    model_a = "model_a"
+    model_b = "model_b"
+
+    self.manager._estimator.set_initial_estimate(model_a, 1000.0)
+    self.manager._estimator.set_initial_estimate(model_b, 2000.0)
+
+    inst_a = self.manager.acquire_model(
+        model_a, lambda: MockModel(model_a, 1000.0, self.mock_monitor))
+    inst_b = self.manager.acquire_model(
+        model_b, lambda: MockModel(model_b, 2000.0, self.mock_monitor))
+    self.manager.release_model(model_b, inst_b)
+    self.manager.release_model(model_a, inst_a)
+
+    history = self.manager._estimator.history
+    snapshot_key = ((model_a, 1), (model_b, 1))
+    self.assertEqual(list(history.keys()), [snapshot_key])
+    self.assertEqual(list(history[snapshot_key]), [3000.0, 3000.0])
+
   def test_model_manager_concurrent_mixed_workload_convergence(self):
     """
     Simulates a production environment with multiple model types running
@@ -327,7 +351,7 @@ class TestModelManager(unittest.TestCase):
       self.manager.release_model(model_name, instance)
       instance = self.manager.acquire_model(model_name, dummy_loader)
     except RuntimeError:
-      self.manager._force_reset()
+      self.manager.force_reset()
       self.assertTrue(len(self.manager._models[model_name]) == 0)
       self.assertEqual(self.manager._total_active_jobs, 0)
       self.assertEqual(self.manager._pending_reservations, 0.0)
@@ -397,7 +421,7 @@ class TestModelManager(unittest.TestCase):
     # Max is still 2 from earlier in the test run
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
-    self.manager._force_reset()
+    self.manager.force_reset()
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
   def test_single_model_convergence_with_fluctuations(self):
@@ -435,6 +459,32 @@ class TestModelManager(unittest.TestCase):
 
     est_cost = self.manager._estimator.get_estimate(model_name)
     self.assertAlmostEqual(est_cost, model_cost, delta=100.0)
+
+  def test_wake_next_in_queue_all_cancelled(self):
+    """Draining a queue of only cancelled tickets must not raise."""
+    with self.manager._cv:
+      for ticket_num in (100, 101):
+        self.manager._wait_queue.append(QueueTicket(1, ticket_num, "m"))
+        self.manager._cancelled_tickets.add(ticket_num)
+
+      self.manager._wake_next_in_queue()
+
+      self.assertEqual(self.manager._wait_queue, [])
+      self.assertEqual(self.manager._cancelled_tickets, set())
+
+  def test_wake_next_in_queue_skips_cancelled_head(self):
+    """The first non-cancelled ticket is woken."""
+    cancelled = QueueTicket(1, 100, "m")
+    live = QueueTicket(1, 101, "m")
+    with self.manager._cv:
+      self.manager._wait_queue.extend([cancelled, live])
+      self.manager._cancelled_tickets.add(100)
+
+      self.manager._wake_next_in_queue()
+
+      self.assertEqual(self.manager._wait_queue, [live])
+      self.assertTrue(live.wake_event.is_set())
+      self.assertFalse(cancelled.wake_event.is_set())
 
 
 class TestModelManagerEviction(unittest.TestCase):
@@ -582,6 +632,33 @@ class TestModelManagerEviction(unittest.TestCase):
     self.assertTrue(m_a.deleted)
     self.manager.release_model("B", model_b)
     executor.shutdown(wait=True)
+
+  def test_cancelled_tickets_do_not_count_as_demand(self):
+    self.manager._estimator.set_initial_estimate("A", 4000)
+    self.manager._estimator.set_initial_estimate("B", 4000)
+
+    model_a = self.manager.acquire_model("A", self.create_loader("A", 4000))
+    self.manager.release_model("A", model_a)
+    # B stays active so it is not starving and demand comparison applies.
+    model_b = self.manager.acquire_model("B", self.create_loader("B", 4000))
+
+    with self.manager._cv:
+      # One live request for B, two cancelled (timed out) requests for A.
+      self.manager._wait_queue.extend([
+          QueueTicket(1, 100, "B"),
+          QueueTicket(1, 101, "A"),
+          QueueTicket(1, 102, "A"),
+      ])
+      self.manager._cancelled_tickets.update({101, 102})
+
+      # 8000 used + 6000 requested > 12000, so A must be evicted. Without
+      # ignoring cancelled tickets, A's demand (2) >= B's (1) protects it.
+      made_space = self.manager._evict_to_make_space(
+          limit=12000, est_cost=6000, requesting_tag="B")
+
+    self.assertTrue(made_space)
+    self.assertTrue(model_a.deleted)
+    self.manager.release_model("B", model_b)
 
 
 class TestGPUMonitor(unittest.TestCase):

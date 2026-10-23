@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 class ProducerSpEL {
 
-  private static class TransactionsImplementation {
+  private static final class TransactionsImplementation {
     private Method initTransactionsMethod;
     private Method beginTransactionMethod;
     private Method commitTransactionMethod;

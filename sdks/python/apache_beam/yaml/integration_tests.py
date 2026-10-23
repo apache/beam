@@ -101,10 +101,13 @@ from testcontainers.postgres import PostgresContainer
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import get_table_schema_from_string
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.utils import retry
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
@@ -219,14 +222,55 @@ def temp_firestore_collection(
       batch.commit()
 
 
+class AssertBigQueryQueryEqual(beam.PTransform):
+  """Asserts that a BigQuery SQL query returns exactly the expected rows.
+
+  Used by CDC YAML ITs: Storage Read (ReadFromBigQuery table:) does not see
+  unapplied CDC UPSERTs, while a query job applies them (same approach as
+  xlang_bigqueryio_it_test.BigqueryFullResultMatcher).
+  """
+  def __init__(self, project, query, expected):
+    self._project = project
+    self._query = query
+    self._expected = expected
+
+  def expand(self, pcoll):
+    project = self._project
+    query = self._query
+    expected = [dict(row) for row in self._expected]
+
+    def _verify(_):
+      # Local import: google-cloud-bigquery is a gcp_test extra.
+      from google.cloud import bigquery as gcbq
+      client = gcbq.Client(project=project)
+      actual = [dict(row.items()) for row in client.query(query).result()]
+
+      # Compare as sorted JSON for stable, type-tolerant equality.
+      def _key(row):
+        return json.dumps(row, sort_keys=True, default=str)
+
+      if sorted(actual, key=_key) != sorted(expected, key=_key):
+        raise AssertionError(
+            'BigQuery query %r returned %r, expected %r' %
+            (query, actual, expected))
+      return _
+
+    return pcoll | beam.Map(_verify)
+
+
 @contextlib.contextmanager
-def temp_bigquery_table(project, prefix='yaml_bq_it_'):
+def temp_bigquery_table(
+    project,
+    prefix='yaml_bq_it_',
+    use_colon_table_spec=False,
+    table_schema=None,
+    primary_key=None):
   """Context manager to create and clean up a temporary BigQuery dataset.
 
   Creates a unique temporary BigQuery dataset within the specified project.
   It yields a placeholder table name string within that dataset (e.g.,
   'project.dataset_id.tmp_table'). The actual table is expected to be
-  created by the test using this context.
+  created by the test using this context, unless ``table_schema`` is set.
 
   Upon exiting the context, the temporary dataset and all its contents
   (including any tables created within it) are deleted.
@@ -235,17 +279,58 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
     project (str): The Google Cloud project ID.
     prefix (str): A prefix to use for the temporary dataset name.
       Defaults to 'yaml_bq_it_'.
+    use_colon_table_spec (bool): If True, yield ``project:dataset.tmp_table``.
+      Defaults to False (``project.dataset.tmp_table``).
+    table_schema (str|None): Optional BigQuery schema string
+      (``name:TYPE,...``). When set, creates ``tmp_table`` before yield.
+    primary_key (list|None): Optional primary-key column names. Requires
+      ``table_schema``. Primary-key columns are created as REQUIRED.
 
   Yields:
     str: The full path for a temporary BigQuery table within the created
     dataset.
          Example: 'my-project.yaml_bq_it_a1b2c3d4e5f6...tmp_table'
   """
-  bigquery_client = BigQueryWrapper()
+  if primary_key and not table_schema:
+    raise ValueError('primary_key requires table_schema')
+  options = PipelineOptions()
+  options.view_as(GoogleCloudOptions).project = project
+  bigquery_client = BigQueryWrapper.from_pipeline_options(options)
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
+  table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}.{dataset_id}.tmp_table'
+  if table_schema:
+    schema = get_table_schema_from_string(table_schema)
+    additional_create_parameters = None
+    if primary_key:
+      pk_columns = set(primary_key)
+      for field in schema.fields:
+        if field.name in pk_columns:
+          field.mode = 'REQUIRED'
+      additional_create_parameters = {
+          'tableConstraints': bigquery.TableConstraints(
+              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                  columns=list(primary_key)))
+      }
+    bigquery_client.get_or_create_table(
+        project_id=project,
+        dataset_id=dataset_id,
+        table_id=table_id,
+        schema=schema,
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND',
+        additional_create_parameters=additional_create_parameters)
+    logging.info(
+        "Created table %s.%s.%s (primary_key=%s)",
+        project,
+        dataset_id,
+        table_id,
+        primary_key)
+  if use_colon_table_spec:
+    yield f'{project}:{dataset_id}.{table_id}'
+  else:
+    yield f'{project}.{dataset_id}.{table_id}'
   request = bigquery.BigqueryDatasetsDeleteRequest(
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
@@ -326,6 +411,15 @@ def temp_mongodb_table():
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
+
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    @retry.with_exponential_backoff(num_retries=5, initial_delay_secs=1)
+    def _wait_for_mongo():
+      mongo_client = mongo_container.get_connection_client()
+      mongo_client.admin.command('ping')
+
+    _wait_for_mongo()
 
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
@@ -711,6 +805,41 @@ def temp_postgres_database_with_secret_manager(
 
 
 @contextlib.contextmanager
+def cloudsql_postgres_fixture():
+  """Context manager to provide a PostgreSQL testcontainer database for testing."""
+  default_port = 5432
+  with PostgresContainer(port=default_port) as postgres_container:
+    try:
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (id INTEGER, name VARCHAR(255), score FLOAT);"
+            ))
+
+      jdbc_url = (
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
+
+      yield {
+          'JDBC_URL': jdbc_url,
+          'DRIVER_CLASS_NAME': 'org.postgresql.Driver',
+          'USERNAME': postgres_container.username,
+          'PASSWORD': postgres_container.password,
+          'DATABASE': postgres_container.dbname,
+          'TABLE': 'tmp_table',
+      }
+    except (psycopg2.Error, Exception) as err:
+      logging.error(
+          "Error interacting with temporary Postgres DB in cloudsql_postgres_fixture: %s",
+          err)
+      raise err
+
+
+@contextlib.contextmanager
 def temp_sqlserver_database():
   """Context manager to provide a temporary SQL Server database for testing.
 
@@ -1044,7 +1173,7 @@ def temp_ibm_mq_server():
 
     yield {
         'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
-        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'USERNAME': 'app',
         'PASSWORD': 'admin123',
         'SOURCE_QUEUE': 'DEV.QUEUE.1',
@@ -1156,6 +1285,40 @@ def temp_delta_cdc_table():
     # Version 1 commit
     table_data_1 = pa.table({"name": ["c"]})
     write_deltalake(temp_dir, table_data_1, mode="append")
+
+    yield temp_dir
+
+
+@contextlib.contextmanager
+def temp_delta_cdc_table_with_updates():
+  try:
+    from deltalake import DeltaTable
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  # The CDC sink needs a non-null key.
+  schema = pa.schema([
+      pa.field("id", pa.int64(), nullable=False),
+      pa.field("item", pa.string()),
+      pa.field("qty", pa.int64()),
+  ])
+
+  def orders(*rows):
+    return pa.Table.from_pylist([dict(zip(schema.names, row)) for row in rows],
+                                schema=schema)
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0: three new orders.
+    write_deltalake(
+        temp_dir,
+        orders((1, "apple", 3), (2, "pear", 5), (3, "plum", 2)),
+        configuration={"delta.enableChangeDataFeed": "true"})
+    # Versions 1 to 3: update order 1, delete order 2, add order 4.
+    table = DeltaTable(temp_dir)
+    table.update(updates={"qty": "4"}, predicate="id = 1")
+    table.delete("id = 2")
+    write_deltalake(temp_dir, orders((4, "kiwi", 1)), mode="append")
 
     yield temp_dir
 

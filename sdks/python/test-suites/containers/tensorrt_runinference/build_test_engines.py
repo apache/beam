@@ -97,8 +97,7 @@ def build_engine(onnx_path, engine_path):
 
 
 def _handler(engine_path, batch_size):
-  from apache_beam.ml.inference.tensorrt_inference import (
-      TensorRTEngineHandlerNumPy)
+  from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
   return TensorRTEngineHandlerNumPy(
       min_batch_size=batch_size,
       max_batch_size=batch_size,
@@ -121,8 +120,9 @@ def verify_ssd(engine_path):
   The outputs are checked for the shape and ordering the example's
   PostProcessor indexes by, and for at least one confident detection.
   """
-  from apache_beam.io.filesystems import FileSystems
   from PIL import Image
+
+  from apache_beam.io.filesystems import FileSystems
 
   handler = _handler(engine_path, 1)
   engine = handler.load_model()
