@@ -369,7 +369,8 @@ func checkLogicalTypeKinds(lt LogicalType) {
 // back to the logical type, so a struct with a goType field produces a schema
 // field of the representation type. This suits the standard fixed and
 // variable length string and bytes logical types, whose argument only
-// constrains the length.
+// constrains the length. goType must be a concrete, non-pointer type with a
+// schema representation.
 //
 // RegisterPassThroughLogicalType must be called before beam.Init(), and
 // conventionally is called in a package init() function.
@@ -383,10 +384,11 @@ func (r *Registry) RegisterPassThroughLogicalType(urn string, goType reflect.Typ
 	if len(urn) == 0 {
 		panic(fmt.Sprintf("invalid pass through logical type, bad urn for %v", goType))
 	}
+	lt := ToLogicalType(urn, goType, goType)
+	checkLogicalTypeKinds(lt)
 	if _, err := r.reflectTypeToFieldType(goType); err != nil {
 		panic(fmt.Sprintf("pass through LogicalType[%v] has an invalid type %v: %v", urn, goType, err))
 	}
-	lt := ToLogicalType(urn, goType, goType)
 	if prev, ok := r.logicalTypes[lt.key()]; ok && !prev.equals(lt) {
 		panic(fmt.Sprintf("%v is already registered for Go type %v, cannot register it for Go type %v", lt.describe(), prev.GoType(), lt.GoType()))
 	}
