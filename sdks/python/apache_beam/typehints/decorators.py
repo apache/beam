@@ -876,7 +876,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
           if namespaces is None:
             namespaces = _annotation_namespaces(func)
           annotation = _resolve_annotation(annotation, *namespaces)
-        bound_args[param.name] = annotation
+        bound_args[param.name] = convert_to_beam_type(annotation)
       elif param.kind == param.VAR_POSITIONAL:
         bound_args[param.name] = _ANY_VAR_POSITIONAL
       elif param.kind == param.VAR_KEYWORD:
