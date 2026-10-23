@@ -1994,8 +1994,8 @@ class SetupOptions(PipelineOptions):
         help=(
             'Local path to a file. During job submission, the files will be '
             'staged in the staging area (--staging_location option) and then '
-            'workers will upload them to the worker specific staging location '
-            '(e.g. $SEMI_PERSISTENT_DIRECTORY/staged/ for portable runner.'))
+            'workers will download them to the worker-specific directory '
+            '$SEMI_PERSISTENT_DIRECTORY/staged/.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
