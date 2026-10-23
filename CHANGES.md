@@ -66,11 +66,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
-<<<<<<< HEAD
-* (Python) The BigQuery IO writer now allows the `WRITE_TRUNCATE_DATA` write_disposition* Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
-=======
 * (Python) The BigQuery IO writer now allows the `WRITE_TRUNCATE_DATA` write_disposition ([#40622](https://github.com/apache/beam/pull/40622)).
->>>>>>> d233c0c51f6 (Update CHANGES.md)
 
 ## New Features / Improvements
 
