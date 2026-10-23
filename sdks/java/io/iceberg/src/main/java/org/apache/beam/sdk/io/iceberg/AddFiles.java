@@ -812,24 +812,25 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       } catch (Exception e) {
         return Verdict.error(UNREADABLE_SCHEMA_ERROR + errorMessage(e));
       }
-      Set<Integer> partitionColumnsFromPath = partitionColumnsFromPath(filePath);
-      @Nullable String uncovered = uncoveredReason(fileSchema, partitionColumnsFromPath);
+      Set<Integer> identityPartitionColumnsFromPath = identityPartitionColumnsFromPath(filePath);
+      @Nullable String uncovered = uncoveredReason(fileSchema, identityPartitionColumnsFromPath);
       if (uncovered != null) {
         return Verdict.error(uncovered);
       }
-      return checkPins(filePath, fileSchema, parquetFooter, partitionColumnsFromPath);
+      return checkPins(filePath, fileSchema, parquetFooter, identityPartitionColumnsFromPath);
     }
 
     /**
-     * Columns this file may lack because its path gives them a value: {@code dt} for a file under
-     * {@code dt=2024-01-15/} when the table is partitioned by {@code dt}. Empty without a prefix.
+     * Identity partition columns this file may lack because its path gives them a value: {@code dt}
+     * for a file under {@code dt=2024-01-15/} when the table is partitioned by {@code dt}. Empty
+     * without a prefix.
      */
-    private Set<Integer> partitionColumnsFromPath(String filePath) {
+    private Set<Integer> identityPartitionColumnsFromPath(String filePath) {
       Table table = checkStateNotNull(this.table);
       if (Strings.isNullOrEmpty(prefix) || table.spec().isUnpartitioned()) {
         return Collections.emptySet();
       }
-      return PartitionPaths.columnsFilledByKeys(
+      return PartitionPaths.identityColumnsFilledByKeys(
           table.spec(), PartitionPaths.partitionKeysInPath(filePath, prefix));
     }
 
@@ -839,9 +840,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * was cached) and report the remaining delta. Never changes the schema.
      */
     private @Nullable String uncoveredReason(
-        org.apache.iceberg.Schema fileSchema, Set<Integer> partitionColumnsFromPath) {
+        org.apache.iceberg.Schema fileSchema, Set<Integer> identityPartitionColumnsFromPath) {
       Table table = checkStateNotNull(this.table);
-      SchemaDelta delta = SchemaDelta.classify(table, fileSchema, partitionColumnsFromPath);
+      SchemaDelta delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
@@ -852,7 +853,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           table.refresh();
         }
       }
-      delta = SchemaDelta.classify(table, fileSchema, partitionColumnsFromPath);
+      delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
@@ -876,7 +877,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         String filePath,
         org.apache.iceberg.Schema fileSchema,
         ParquetMetadata footer,
-        Set<Integer> partitionColumnsFromPath) {
+        Set<Integer> identityPartitionColumnsFromPath) {
       Table table = checkStateNotNull(this.table);
       List<String> unproven = new ArrayList<>();
       for (String pinned : evolution.getRequiredColumns()) {
@@ -886,7 +887,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           continue;
         }
         if (fileSchema.findField(pinned) == null) {
-          if (partitionColumnsFromPath.contains(tableField.fieldId())) {
+          if (identityPartitionColumnsFromPath.contains(tableField.fieldId())) {
             // the path gives it a value, e.g. dt=2024-01-15, so it is never null
             continue;
           }

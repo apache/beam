@@ -74,11 +74,12 @@ final class PartitionPaths {
   }
 
   /**
-   * Ids of the table columns these keys fill. Only plain partitions count: a file under {@code
+   * Ids of the columns that identity partitions named by these keys fill: {@code dt} for key {@code
+   * dt} in a table partitioned by {@code dt}. Other transforms fill nothing: a file under {@code
    * id_bucket=3/} in a table partitioned by {@code bucket(id, 4)} is in bucket 3, which does not
    * say what its {@code id} is.
    */
-  static Set<Integer> columnsFilledByKeys(PartitionSpec spec, Collection<String> keys) {
+  static Set<Integer> identityColumnsFilledByKeys(PartitionSpec spec, Collection<String> keys) {
     Set<Integer> ids = new HashSet<>();
     for (PartitionField field : spec.fields()) {
       if (field.transform().isIdentity() && keys.contains(field.name())) {

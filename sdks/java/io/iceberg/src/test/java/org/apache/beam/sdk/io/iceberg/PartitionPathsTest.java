@@ -80,16 +80,18 @@ public class PartitionPathsTest {
   }
 
   @Test
-  public void testColumnsFilledByKeysCountsOnlyPlainPartitions() {
+  public void testIdentityColumnsFilledByKeysIgnoresOtherTransforms() {
     PartitionSpec spec =
         PartitionSpec.builderFor(SCHEMA).identity("dt").bucket("region", 4).build();
     assertEquals(
         set(2),
-        PartitionPaths.columnsFilledByKeys(spec, Arrays.asList("dt", "region_bucket", "unknown")));
-    assertEquals(set(), PartitionPaths.columnsFilledByKeys(spec, Collections.emptyList()));
+        PartitionPaths.identityColumnsFilledByKeys(
+            spec, Arrays.asList("dt", "region_bucket", "unknown")));
+    assertEquals(set(), PartitionPaths.identityColumnsFilledByKeys(spec, Collections.emptyList()));
     assertEquals(
         set(),
-        PartitionPaths.columnsFilledByKeys(PartitionSpec.unpartitioned(), Arrays.asList("dt")));
+        PartitionPaths.identityColumnsFilledByKeys(
+            PartitionSpec.unpartitioned(), Arrays.asList("dt")));
   }
 
   @SafeVarargs
