@@ -666,7 +666,7 @@ if __name__ == '__main__':
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
-              'torch>=2.3.0,<2.15.0'
+              'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
