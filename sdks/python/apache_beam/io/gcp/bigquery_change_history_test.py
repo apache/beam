@@ -28,6 +28,8 @@ import datetime
 import unittest
 from unittest import mock
 
+import apache_beam as beam
+from apache_beam import typehints
 from apache_beam.io.gcp import bigquery_change_history as bqch
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
@@ -73,13 +75,54 @@ class BuildChangesQueryTest(unittest.TestCase):
     self.assertIn('CHANGES', sql)
     self.assertIn('TABLE `proj.ds.tbl`', sql)
 
+  def test_changes_hides_is_for_update(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'CHANGES')
+    self.assertIn(
+        'EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP, _CHANGE_IS_FOR_UPDATE)', sql)
+
+  def test_appends_has_no_is_for_update(self):
+    """APPENDS() has no _CHANGE_IS_FOR_UPDATE; EXCEPT on it would fail."""
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'APPENDS')
+    self.assertIn('EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP)', sql)
+    self.assertNotIn('_CHANGE_IS_FOR_UPDATE', sql)
+
   def test_columns_select(self):
     start = _ts(2025, 1, 1)
     end = _ts(2025, 1, 2)
     sql = build_changes_query(
         'proj.ds.tbl', start, end, 'APPENDS', columns=['col_a', 'col_b'])
-    self.assertIn('SELECT col_a, col_b, _CHANGE_TYPE AS', sql)
+    self.assertIn('SELECT `col_a`, `col_b`, _CHANGE_TYPE AS', sql)
     self.assertNotIn('EXCEPT', sql)
+
+  def test_columns_empty_selects_only_pseudo_columns(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'APPENDS', columns=[])
+    self.assertIn('SELECT _CHANGE_TYPE AS', sql)
+
+  def test_pseudo_column_names_quoted(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query(
+        'proj.ds.tbl',
+        start,
+        end,
+        'APPENDS',
+        change_type_column='op type',
+        change_timestamp_column='from')
+    self.assertIn('_CHANGE_TYPE AS `op type`', sql)
+    self.assertIn('_CHANGE_TIMESTAMP AS `from`', sql)
+
+  def test_column_with_backtick_rejected(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    with self.assertRaises(ValueError):
+      build_changes_query(
+          'proj.ds.tbl', start, end, 'APPENDS', columns=['a` FROM x --'])
 
   def test_columns_none_selects_all(self):
     start = _ts(2025, 1, 1)
@@ -112,7 +155,7 @@ class BuildChangesQueryTest(unittest.TestCase):
         'CHANGES',
         columns=['id', 'name'],
         row_filter='id > 100')
-    self.assertIn('SELECT id, name, _CHANGE_TYPE AS', sql)
+    self.assertIn('SELECT `id`, `name`, _CHANGE_TYPE AS', sql)
     self.assertNotIn('EXCEPT', sql)
     self.assertIn('WHERE id > 100', sql)
 
@@ -278,6 +321,29 @@ class QuotaProjectTest(unittest.TestCase):
     for name, m in zip(classes, mocks):
       self.assertEqual(
           m.call_args.kwargs['quota_project_id'], self._QUOTA, name)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PipelineConstructionTest(unittest.TestCase):
+  """Applies the transform with pipeline type checking on (the default)."""
+  def _apply(self, reshuffle_decompress):
+    p = beam.Pipeline()
+    return p | ReadBigQueryChangeHistory(
+        table='p:d.t',
+        project='p',
+        temp_dataset='tmp',
+        location='US',
+        start_time=1700000000,
+        stop_time=1700000060,
+        reshuffle_decompress=reshuffle_decompress)
+
+  def test_reshuffle_decompress_output_type(self):
+    rows = self._apply(reshuffle_decompress=True)
+    self.assertEqual(rows.element_type, typehints.Dict[str, typehints.Any])
+
+  def test_inline_decompress_output_type(self):
+    rows = self._apply(reshuffle_decompress=False)
+    self.assertEqual(rows.element_type, typehints.Dict[str, typehints.Any])
 
 
 if __name__ == '__main__':
