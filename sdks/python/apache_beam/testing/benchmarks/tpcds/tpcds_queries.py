@@ -49,7 +49,7 @@ SUPPORTED_QUERIES: List[str] = [
 
 # Known failing TPC-DS queries on Beam Calcite SQL with their expected error substring.
 # Used by `--check_regression` and `:sdks:python:apache_beam:testing:benchmarks:tpcds:checkAllQueries`
-# to verify that all SUPPORTED_QUERIES succeed on PrismRunner and that the remaining 48 known
+# to verify that all SUPPORTED_QUERIES succeed on PrismRunner and that the remaining known
 # failing queries fail with their expected diagnostic without regressing.
 # pylint: disable=line-too-long
 KNOWN_FAILING_QUERIES: Dict[str, str] = {
