@@ -666,15 +666,11 @@ if __name__ == '__main__':
           ],
           'transformers': [
               # Keep in line with the py311-transformers-* environments in
-              # tox.ini. 4.56.x breaks CLIP image embeddings via
-              # sentence-transformers (fixed in 4.57). transformers 5 dropped
-              # TensorFlow support, so framework='tf' in
-              # HuggingFaceModelHandlerTensor requires transformers<5.
+              # tox.ini.
               'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'tensorflow>=2.12.0',
-              # torch<2.3 is not compatible with numpy 2. torch>=2.12 Linux
-              # wheels require triton>=3.7, which segfaults/aborts when
-              # imported after tensorflow (verified with tensorflow 2.21).
+              # torch>=2.12 Linux wheels require triton>=3.7,
+              # which segfaults/aborts when imported after tensorflow.
               'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
