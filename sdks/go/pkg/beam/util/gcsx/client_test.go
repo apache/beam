@@ -29,28 +29,24 @@ func TestGetGcsEndpoint(t *testing.T) {
 	const flagValue = "https://flag.example.com/storage/v1/"
 	const optionValue = "https://option.example.com/storage/v1/"
 
-	// On workers, the value arrives as a pipeline option rather than a flag.
-	runtime.GlobalOptions.Set("gcs_endpoint", optionValue)
+	origCommandLine := flag.CommandLine
+	flag.CommandLine = flag.NewFlagSet(t.Name(), flag.ContinueOnError)
 	t.Cleanup(func() {
+		flag.CommandLine = origCommandLine
 		runtime.GlobalOptions.Set("gcs_endpoint", "")
 	})
+	// On workers, the value arrives as a pipeline option rather than a flag.
+	runtime.GlobalOptions.Set("gcs_endpoint", optionValue)
 
-	if flag.Lookup("gcs_endpoint") == nil {
-		if got := GetGcsEndpoint(); got != optionValue {
-			t.Errorf("GetGcsEndpoint() with flag unregistered = %q, want pipeline option %q", got, optionValue)
-		}
-		flag.String("gcs_endpoint", "", "")
+	if got := GetGcsEndpoint(); got != optionValue {
+		t.Errorf("GetGcsEndpoint() with flag unregistered = %q, want pipeline option %q", got, optionValue)
 	}
-	origFlag := flag.Lookup("gcs_endpoint").Value.String()
-	t.Cleanup(func() {
-		_ = flag.Set("gcs_endpoint", origFlag)
-	})
 
-	_ = flag.Set("gcs_endpoint", "")
+	gcsEndpoint := flag.String("gcs_endpoint", "", "")
 	if got := GetGcsEndpoint(); got != optionValue {
 		t.Errorf("GetGcsEndpoint() with flag unset = %q, want pipeline option %q", got, optionValue)
 	}
-	_ = flag.Set("gcs_endpoint", flagValue)
+	*gcsEndpoint = flagValue
 	if got := GetGcsEndpoint(); got != flagValue {
 		t.Errorf("GetGcsEndpoint() with flag set = %q, want flag %q", got, flagValue)
 	}
