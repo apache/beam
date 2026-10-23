@@ -211,7 +211,12 @@ func launchSDKProcess() error {
 		defer cleanupFunc()
 	}
 
-	dir := filepath.Join(*semiPersistDir, "staged")
+	// Stage under a per-container directory
+	// So that, SDK containers for different environments sharing the same
+	// semi-persistent volume cannot overwrite each other's fixed-name
+	// artifacts (requirements.txt, pickled_main_session, etc.,).
+	semiPersist := filepath.Join(*semiPersistDir, *id)
+	dir := filepath.Join(semiPersist, "staged")
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
@@ -257,7 +262,9 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
 
-	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
+	// Point the SDK worker at the per-environment root so that it keeps
+	// resolving <SEMI_PERSISTENT_DIRECTORY>/staged/... (e.g. pickled_main_session).
+	os.Setenv("SEMI_PERSISTENT_DIRECTORY", semiPersist)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
