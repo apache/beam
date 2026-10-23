@@ -854,6 +854,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
     # Might be raised due to too few or too many arguments.
     raise TypeCheckError(e)
   bound_args = bindings.arguments
+  namespaces = None
   for param in signature.parameters.values():
     if param.name in bound_args:
       # Bound: unpack/convert variadic arguments.
@@ -866,7 +867,16 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
     else:
       # Unbound: must have a default or be variadic.
       if param.annotation != param.empty:
-        bound_args[param.name] = param.annotation
+        annotation = param.annotation
+        if _contains_forward_ref(annotation):
+          # Resolve string annotations (e.g. from functools.partial-bound
+          # keywords under `from __future__ import annotations`) the same way
+          # IOTypeHints.from_callable does, so they compare equal to the
+          # resolved hints.
+          if namespaces is None:
+            namespaces = _annotation_namespaces(func)
+          annotation = _resolve_annotation(annotation, *namespaces)
+        bound_args[param.name] = annotation
       elif param.kind == param.VAR_POSITIONAL:
         bound_args[param.name] = _ANY_VAR_POSITIONAL
       elif param.kind == param.VAR_KEYWORD:
