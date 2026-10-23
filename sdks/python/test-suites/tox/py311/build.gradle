@@ -106,9 +106,10 @@ toxTask "testPy311pytorch-214", "py311-pytorch-214", "${posargs}"
 test.dependsOn "testPy311pytorch-214"
 postCommitPyDep.dependsOn "testPy311pytorch-214"
 
-toxTask "testPy311tft-113", "py311-tft-113", "${posargs}"
-test.dependsOn "testPy311tft-113"
-postCommitPyDep.dependsOn "testPy311tft-113"
+// Keep in sync with [testenv:py311-tft-...] in tox.ini.
+toxTask "testPy311tft-121", "py311-tft-121", "${posargs}"
+test.dependsOn "testPy311tft-121"
+postCommitPyDep.dependsOn "testPy311tft-121"
 
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
@@ -116,10 +117,15 @@ postCommitPyDep.dependsOn "testPy311tft-113"
 // test.dependsOn "testPy311onnx-113"
 // postCommitPyDep.dependsOn "testPy311onnx-113"
 
-// Create a test task for each minor version of tensorflow
-toxTask "testPy311tensorflow-212", "py311-tensorflow-212", "${posargs}"
-test.dependsOn "testPy311tensorflow-212"
-postCommitPyDep.dependsOn "testPy311tensorflow-212"
+// Create a test task for the lower and upper bounds of supported tensorflow.
+// Keep in sync with [testenv:py311-tensorflow-...] in tox.ini.
+toxTask "testPy311tensorflow-216", "py311-tensorflow-216", "${posargs}"
+test.dependsOn "testPy311tensorflow-216"
+postCommitPyDep.dependsOn "testPy311tensorflow-216"
+
+toxTask "testPy311tensorflow-221", "py311-tensorflow-221", "${posargs}"
+test.dependsOn "testPy311tensorflow-221"
+postCommitPyDep.dependsOn "testPy311tensorflow-221"
 
 // Create a test task for each minor version of transformers.
 // Dropped transformers-428: sentence-transformers==2.2.2 + torch<1.14 is
@@ -147,13 +153,10 @@ postCommitPyDep.dependsOn "testPy311embeddingsMLTransform"
 
 // Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
 // mutliple versions so keeping this suite separate.
-toxTask "testPy311TensorflowHubEmbeddings-014", "py311-TFHubEmbeddings-014", "${posargs}"
-test.dependsOn "testPy311TensorflowHubEmbeddings-014"
-postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-014"
-
-toxTask "testPy311TensorflowHubEmbeddings-015", "py311-TFHubEmbeddings-015", "${posargs}"
-test.dependsOn "testPy311TensorflowHubEmbeddings-015"
-postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-015"
+// Keep in sync with [testenv:py311-TFHubEmbeddings-...] in tox.ini.
+toxTask "testPy311TensorflowHubEmbeddings-016", "py311-TFHubEmbeddings-016", "${posargs}"
+test.dependsOn "testPy311TensorflowHubEmbeddings-016"
+postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-016"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
