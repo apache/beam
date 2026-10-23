@@ -3042,7 +3042,7 @@ public class BigQueryIO {
        * Specifies that write should replace a table, but not the table schema.
        *
        * <p>The replacement may occur in multiple steps - for instance by first removing the
-       * existing table, then creating a replacement, then filling it in. This is not an atomic
+       * existing data, replacing the data with a write collection. This is not an atomic
        * operation, and external programs may see the table in any of these intermediate steps.
        *
        * <p>Note: This write disposition is only supported for the FILE_LOADS write method.
@@ -3984,7 +3984,7 @@ public class BigQueryIO {
             getBigLakeConfiguration() == null,
             "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
       } else {
-        WriteDisposition disposition = getWriteDisposition() 
+        WriteDisposition disposition = getWriteDisposition();
         if (disposition == WriteDisposition.WRITE_TRUNCATE || disposition == WriteDisposition.WRITE_TRUNCATE_DATA) {
           LOG.error("The Storage API sink does not support the "+disposition.toString()+" write disposition.");
         }
