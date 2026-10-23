@@ -51,6 +51,7 @@ Examples:
 
 import collections
 import hashlib
+import importlib
 import inspect
 import re
 import sys
@@ -213,7 +214,7 @@ def _search_function(
   first_part = qual_name_parts[0]
   if (node.__code__ == callable.__code__):
     if len(qual_name_parts) > 1:
-      raise ValueError('Qual name parts too long')
+      return None
     return '__code__'
   # If first part is '<locals>' then the code object is in a local variable
   # so we should add __code__ to the path to indicate that we are entering
@@ -236,40 +237,28 @@ def _search_code(
 
   Returns:
     The code object identifier, or None if not found.
-
-  Raises:
-    ValueError: If the qual name parts are too long.
   """
   first_part = qual_name_parts[0]
   rest = qual_name_parts[1:]
   if hasattr(callable, '__code__') and node == callable.__code__:
     if len(qual_name_parts) > 1:
-      raise ValueError('Qual name parts too long')
+      return None
     return ''
   elif first_part == '<locals>':
     code_objects_by_name = collections.defaultdict(list)
     for co_const in node.co_consts:
       if inspect.iscode(co_const):
         code_objects_by_name[co_const.co_name].append(co_const)
-    num_lambdas = len(code_objects_by_name.get('<lambda>', []))
-    # If there is only one lambda, we can use the default path
-    # 'co_consts[<lambda>]'. This is the most common case and it is
-    # faster than calculating the signature and the hash.
-    if num_lambdas == 1:
-      path = _search(callable, code_objects_by_name['<lambda>'][0], rest)
-      if path is not None:
-        return _extend_path('co_consts[<lambda>]', path)
-    else:
-      return _search_lambda(callable, code_objects_by_name, rest)
+    return _search_locals(callable, code_objects_by_name, rest)
   elif node.co_name == first_part:
     return _search(callable, node, rest)
 
 
-def _search_lambda(
+def _search_locals(
     callable: types.FunctionType,
     code_objects_by_name: dict[str, list[types.CodeType]],
     qual_name_parts: list[str]):
-  """Searches a lambda to create a code object identifier.
+  """Searches local code objects to create a code object identifier.
 
   Args:
     callable: The callable to search for.
@@ -279,51 +268,57 @@ def _search_lambda(
   Returns:
     The code object identifier, or None if not found.
   """
-  # There are multiple lambdas in the code object, so we need to calculate
-  # the signature and the hash to identify the correct lambda.
-  lambda_code_objects_by_name = collections.defaultdict(list)
+  if not qual_name_parts:
+    return None
   name = qual_name_parts[0]
   code_objects = code_objects_by_name[name]
   if not code_objects:
     return None
-  if name == '<lambda>':
-    for code_object in code_objects:
-      lambda_name = f'<lambda>, {_signature(code_object)}'
-      lambda_code_objects_by_name[lambda_name].append(code_object)
-    # Check if there are any lambdas with the same signature.
-    # If there are, we need to calculate the hash to identify the correct
-    # lambda.
-    for lambda_name, lambda_objects in lambda_code_objects_by_name.items():
-      if len(lambda_objects) > 1:
-        for lambda_object in lambda_objects:
-          path = _search(callable, lambda_object, qual_name_parts)
-          if path is not None:
-            return _extend_path(
-                f'co_consts[{lambda_name},'
-                f' {_create_bytecode_hash(lambda_object)}]',
-                path,
-            )
-      else:
-        # If there is only one lambda with this signature, we can
-        # use the signature to identify the correct lambda.
-        path = _search(callable, code_objects[0], qual_name_parts)
-        if path is not None:
-          return _extend_path(f'co_consts[{lambda_name}]', path)
-  else:
-    # For non lambda objects, we can use the name to identify the object.
+  # If there is only one code object with this name, we can use the default path
+  # 'co_consts[<name>]'. This is the most common case and it is faster than
+  # calculating the signature and the hash.
+  if len(code_objects) == 1:
     path = _search(callable, code_objects[0], qual_name_parts)
     if path is not None:
       return _extend_path(f'co_consts[{name}]', path)
+    return None
+
+  # There are multiple code objects with the same name, so we need to calculate
+  # the signature and the hash to identify the correct code object.
+  code_objects_by_sig = collections.defaultdict(list)
+  for code_object in code_objects:
+    sig_name = f'{name}, {_signature(code_object)}'
+    code_objects_by_sig[sig_name].append(code_object)
+  # Check if there are any code objects with the same signature.
+  # If there are, we need to calculate the hash to identify the correct
+  # code object.
+  for sig_name, sig_objects in code_objects_by_sig.items():
+    if len(sig_objects) > 1:
+      for code_object in sig_objects:
+        path = _search(callable, code_object, qual_name_parts)
+        if path is not None:
+          return _extend_path(
+              f'co_consts[{sig_name},'
+              f' {_create_bytecode_hash(code_object)}]',
+              path,
+          )
+    else:
+      # If there is only one code object with this signature, we can
+      # use the signature to identify the correct code object.
+      path = _search(callable, sig_objects[0], qual_name_parts)
+      if path is not None:
+        return _extend_path(f'co_consts[{sig_name}]', path)
 
 
 # Matches a path like: co_consts[my_function]
 _SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([a-zA-Z0-9\<\>_-]+)]')
-# Matches a path like: co_consts[<lambda>, ('x',)]
-_LAMBDA_WITH_ARGS_PATTERN = re.compile(
-    r"co_consts\[(<.*?>),\s(\('[^']+'(?:,\s*'[^']+')*,?\))\]")
-# Matches a path like: co_consts[<lambda>, ('x',), 1234567890]
-_LAMBDA_WITH_HASH_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\([^\)]*\)),?\s*(.*)\]")
+# Matches a path like: co_consts[<lambda>, ()] or co_consts[my_function, ('x',)]
+_OBJECT_WITH_ARGS_PATTERN = re.compile(
+    r'co_consts\[([a-zA-Z0-9\<\>_-]+),\s*(\([^\)]*\))\]')
+# Matches a path like: co_consts[<lambda>, ('x',), 1234567890] or
+# co_consts[my_function, ('x',), 1234567890]
+_OBJECT_WITH_HASH_PATTERN = re.compile(
+    r'co_consts\[([a-zA-Z0-9\<\>_-]+),\s*(\([^\)]*\)),\s*(.+)\]')
 # Matches a path like: __defaults__[0]
 _DEFAULT_PATTERN = re.compile(r'(__defaults__)\[(\d+)\]')
 # Matches an argument like: 'x'
@@ -357,13 +352,13 @@ def _get_code_object_from_single_name_pattern(
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
-def _get_code_object_from_lambda_with_args_pattern(
-    obj: types.ModuleType, lambda_with_args_result: re.Match[str], path: str):
-  """Returns the code object from a lambda with args pattern.
+def _get_code_object_from_object_with_args_pattern(
+    obj: types.ModuleType, object_with_args_result: re.Match[str], path: str):
+  """Returns the code object from an object with args pattern.
 
   Args:
     obj: The object to search within.
-    lambda_with_args_result: The result of the lambda with args pattern search.
+    object_with_args_result: The result of the lambda with args pattern search.
     path: The path to the code object.
 
   Returns:
@@ -372,7 +367,7 @@ def _get_code_object_from_lambda_with_args_pattern(
   Raises:
     AttributeError: If the code object is not found.
   """
-  name = lambda_with_args_result.group(1)
+  name = object_with_args_result.group(1)
   code_objects = collections.defaultdict(list)
   if hasattr(obj, 'co_consts'):
     for co_const in obj.co_consts:
@@ -381,19 +376,19 @@ def _get_code_object_from_lambda_with_args_pattern(
     for name, objects in code_objects.items():
       for obj_ in objects:
         args = tuple(
-            re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2)))
+            re.findall(_ARGUMENT_PATTERN, object_with_args_result.group(2)))
         if obj_.co_varnames[:_get_arg_count(obj_)] == args:
           return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
 
 
-def _get_code_object_from_lambda_with_hash_pattern(
-    obj: types.ModuleType, lambda_with_hash_result: re.Match[str], path: str):
+def _get_code_object_from_object_with_hash_pattern(
+    obj: types.ModuleType, object_with_hash_result: re.Match[str], path: str):
   """Returns the code object from a lambda with hash pattern.
 
   Args:
     obj: The object to search within.
-    lambda_with_hash_result: The result of the lambda with hash pattern search.
+    object_with_hash_result: The result of the lambda with hash pattern search.
     path: The path to the code object.
 
   Returns:
@@ -402,7 +397,7 @@ def _get_code_object_from_lambda_with_hash_pattern(
   Raises:
     AttributeError: If the code object is not found.
   """
-  name = lambda_with_hash_result.group(1)
+  name = object_with_hash_result.group(1)
   code_objects = collections.defaultdict(list)
   if hasattr(obj, 'co_consts'):
     for co_const in obj.co_consts:
@@ -411,9 +406,9 @@ def _get_code_object_from_lambda_with_hash_pattern(
     for name, objects in code_objects.items():
       for obj_ in objects:
         args = tuple(
-            re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2)))
+            re.findall(_ARGUMENT_PATTERN, object_with_hash_result.group(2)))
         if obj_.co_varnames[:_get_arg_count(obj_)] == args:
-          hash_value = lambda_with_hash_result.group(3)
+          hash_value = object_with_hash_result.group(3)
           if hash_value == str(_create_bytecode_hash(obj_)):
             return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
@@ -435,19 +430,33 @@ def get_code_from_identifier(code_object_identifier: str):
   if not code_object_identifier:
     raise ValueError('Path must not be empty.')
   parts = code_object_identifier.split('.')
-  if parts[0] not in sys.modules:
+  obj = None
+  start_index = 0
+  for i in range(len(parts), 0, -1):
+    module_name = '.'.join(parts[:i])
+    if module_name in sys.modules and sys.modules[module_name] is not None:
+      obj = sys.modules[module_name]
+      start_index = i
+      break
+    try:
+      obj = importlib.import_module(module_name)
+      start_index = i
+      break
+    except (ImportError, ModuleNotFoundError, ValueError):
+      continue
+  if obj is None:
     raise AttributeError(f'Module {parts[0]} not found in sys.modules')
   obj = sys.modules[parts[0]]
-  for part in parts[1:]:
+  for part in parts[start_index]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
       obj = _get_code_object_from_single_name_pattern(
           obj, name_result, code_object_identifier)
-    elif lambda_with_args_result := _LAMBDA_WITH_ARGS_PATTERN.fullmatch(part):
-      obj = _get_code_object_from_lambda_with_args_pattern(
-          obj, lambda_with_args_result, code_object_identifier)
-    elif lambda_with_hash_result := _LAMBDA_WITH_HASH_PATTERN.fullmatch(part):
-      obj = _get_code_object_from_lambda_with_hash_pattern(
-          obj, lambda_with_hash_result, code_object_identifier)
+    elif object_with_args_result := _OBJECT_WITH_ARGS_PATTERN.fullmatch(part):
+      obj = _get_code_object_from_object_with_args_pattern(
+          obj, object_with_args_result, code_object_identifier)
+    elif object_with_hash_result := _OBJECT_WITH_HASH_PATTERN.fullmatch(part):
+      obj = _get_code_object_from_object_with_hash_pattern(
+          obj, object_with_hash_result, code_object_identifier)
     elif default_result := _DEFAULT_PATTERN.fullmatch(part):
       index = int(default_result.group(2))
       if index >= len(obj.__defaults__):
@@ -496,6 +505,17 @@ def _get_arg_count(obj: types.CodeType):
   )
 
 
+def _normalize_const(const):
+  """Normalizes a constant from co_consts for deterministic hashing."""
+  if inspect.iscode(const):
+    return ('__code__', _create_bytecode_hash(const))
+  if isinstance(const, tuple):
+    return tuple(_normalize_const(x) for x in const)
+  if isinstance(const, frozenset):
+    return frozenset(_normalize_const(x) for x in const)
+  return (type(const).__qualname__, repr(const))
+
+
 def _create_bytecode_hash(code_object: types.CodeType):
   """Returns the hash of a code object.
 
@@ -505,4 +525,12 @@ def _create_bytecode_hash(code_object: types.CodeType):
   Returns:
     The hash of the code object.
   """
-  return hashlib.md5(code_object.co_code).hexdigest()
+  hash_input = repr((
+      code_object.co_code,
+      tuple(_normalize_const(c) for c in code_object.co_consts),
+      code_object.co_names,
+      code_object.co_varnames,
+      code_object.co_freevars,
+      code_object.co_cellvars,
+  )).encode('utf-8')
+  return hashlib.md5(hash_input).hexdigest()
