@@ -32,6 +32,7 @@ const { PersistentState } = require("./shared/persistentState");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
 const {
   BOT_NAME,
+  NO_MATCHING_LABEL,
   PATH_TO_CONFIG_FILE,
   REPO_OWNER,
   REPO,
@@ -220,6 +221,22 @@ async function processPrUpdate() {
         await setNextActionReviewers(payload, pull, stateClient);
       } else if (payload.action === "review_requested") {
         console.log("Processing review_requested action");
+        if (
+          payload.requested_reviewer?.login &&
+          payload.requested_reviewer?.type !== "Bot"
+        ) {
+          let prState = await stateClient.getPrState(pull.number);
+          const reviewersForLabels = reviewerConfig.getReviewersForLabels(
+            pull.labels,
+            [pull.user.login]
+          );
+          const label = Object.keys(reviewersForLabels)[0] || NO_MATCHING_LABEL;
+          if (!prState.reviewersAssignedForLabels[label]) {
+            prState.reviewersAssignedForLabels[label] =
+              payload.requested_reviewer.login;
+            await stateClient.writePrState(pull.number, prState);
+          }
+        }
         await setNextActionReviewers(payload, pull, stateClient);
       } else if (payload.action === "converted_to_draft") {
         console.log("Processing converted_to_draft action");
