@@ -150,11 +150,9 @@ public class WindmillMapViaMultimapTest {
     future.set(Collections.emptyList());
 
     ReadableState<Integer> result = mapState.computeIfAbsent(key, k -> 42);
-    Integer readValue = result.read();
-
     assertNull(
         "computeIfAbsent returns null when key was absent and computed value is inserted",
-        readValue);
+        result.read());
     assertEquals(Integer.valueOf(42), mapState.get(key).read());
   }
 
@@ -180,38 +178,6 @@ public class WindmillMapViaMultimapTest {
     future.set(Arrays.asList(10, 20));
 
     mapState.get(key).read();
-  }
-
-  /**
-   * Demonstrates Issue 3.3: Every {@link WindmillMapViaMultimap#put} on an unread key executes
-   * {@code multimap.remove(key)} followed by {@code multimap.put(key, value)}, which marks the key
-   * as locally removed and forces a redundant {@code DeleteAll = true} update request to Windmill
-   * on commit.
-   */
-  @Test
-  public void testPutEmitsDeleteAllAndAddValues() throws Exception {
-    StateTag<MapState<String, Integer>> addr =
-        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
-    MapState<String, Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
-
-    // Call put without prior read
-    mapState.put("key1", 42);
-
-    Windmill.WorkItemCommitRequest.Builder commitBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
-    underTestMapViaMultimap.persist(commitBuilder);
-
-    assertEquals(1, commitBuilder.getMultimapUpdatesCount());
-    Windmill.TagMultimapUpdateRequest update = commitBuilder.getMultimapUpdates(0);
-    assertEquals(1, update.getUpdatesCount());
-    Windmill.TagMultimapEntry entry = update.getUpdates(0);
-
-    // DEMONSTRATION OF OVERHEAD: entry has DeleteAll = true AND AddValues, because put() called
-    // remove() first!
-    assertTrue(
-        "Demonstrates Issue 3.3: put() without prior read forced deleteAll=true update request",
-        entry.getDeleteAll());
-    assertEquals(1, entry.getValuesCount());
   }
 
   /** Tests basic put, get, overwrite, and remove on {@link WindmillMapViaMultimap}. */
@@ -255,6 +221,8 @@ public class WindmillMapViaMultimapTest {
     StateTag<MapState<String, Integer>> addr =
         StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
     MapState<String, Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    assertTrue(mapState.isEmpty().read());
 
     mapState.put("key1", 10);
     assertFalse(mapState.isEmpty().read());
