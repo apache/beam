@@ -52,6 +52,10 @@ jobs:
           go-version: default
           python-version: default
           java-version: default
+      - name: Remove default github maven configuration
+        # This is a workaround for a decryption issue between Beam's
+        # net.linguica.gradle.maven.settings plugin and GitHub's Maven settings.
+        run: rm ~/.m2/settings.xml || true
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
