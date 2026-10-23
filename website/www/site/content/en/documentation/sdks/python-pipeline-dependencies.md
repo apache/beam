@@ -109,10 +109,11 @@ Staged files are downloaded onto the worker:
 
       import my_module
 
-* **Data or configuration files**: If you staged non-Python files (such as a JSON config), they are downloaded to the staged files directory. You can locate this directory on the worker by reading the `SEMI_PERSISTENT_DIRECTORY` environment variable, or look for `/tmp/staged` which is the default location for staged files on containerized runners:
+* **Data or configuration files**: If you staged non-Python files (such as a JSON config), they are downloaded to the `$SEMI_PERSISTENT_DIRECTORY/staged` directory. The full path depends on the runner, so build it from the environment variable instead of hardcoding it.
 
       import os
-      staged_dir = os.environ.get('SEMI_PERSISTENT_DIRECTORY', '/tmp/staged')
+      staged_dir = os.path.join(
+          os.environ.get('SEMI_PERSISTENT_DIRECTORY'), 'staged')
       config_path = os.path.join(staged_dir, 'data_config.json')
 
 ### Importing Plugins on Worker Startup
