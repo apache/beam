@@ -16,7 +16,7 @@
 name: pr-bot-pr-updates
 on:
   pull_request_target:
-    types: ["synchronize", "converted_to_draft", "ready_for_review"]
+    types: ["synchronize", "converted_to_draft", "ready_for_review", "review_requested"]
   issue_comment:
     types: [created]
 permissions: read-all
