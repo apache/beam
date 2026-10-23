@@ -1038,10 +1038,12 @@ class GoogleCloudOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--dataflow_endpoint',
-        default=cls.DATAFLOW_ENDPOINT,
+        default='',
         help=(
-            'The URL for the Dataflow API. If not set, the default public URL '
-            'will be used.'))
+            'The URL for the Dataflow API. If not set, the endpoint is '
+            'resolved by the Google Cloud client library, which honors '
+            'GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default '
+            'public URL (%s).' % cls.DATAFLOW_ENDPOINT))
     # Remote execution must check that this option is not None.
     parser.add_argument(
         '--project',
@@ -1196,6 +1198,17 @@ class GoogleCloudOptions(PipelineOptions):
         help='Throttling counter in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counter to avoid it.')
     parser.add_argument(
+        '--quota_project_id',
+        default=None,
+        help='GCP project ID used for quota and billing attribution of Google '
+        'Cloud API requests (sets the x-goog-user-project header), if '
+        'different from the project the data resides in. Currently honored '
+        'by BigQuery IO transforms (ReadFromBigQuery, ReadAllFromBigQuery, '
+        'WriteToBigQuery with FILE_LOADS or STREAMING_INSERTS, '
+        'ReadBigQueryChangeHistory); STORAGE_WRITE_API (Java-backed) and '
+        'other GCP IOs do not use it yet. The credentials used must have the '
+        'serviceusage.services.use permission on this project.')
+    parser.add_argument(
         '--enable_gcsio_blob_generation',
         default=False,
         action='store_true',
@@ -1262,7 +1275,7 @@ class GoogleCloudOptions(PipelineOptions):
             'Unable to check soft delete policy because GCP dependencies are '
             'not installed.')
         return
-      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+      if gcsio.GcsIO(pipeline_options=self).is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
             "Bucket %s used as %s has soft-delete policy enabled."
@@ -1276,8 +1289,10 @@ class GoogleCloudOptions(PipelineOptions):
             arg_name,
             n=1,
             key="message")
-    except ImportError:
-      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+    except Exception as e:  # pylint: disable=broad-except
+      # This check only emits a warning, so it must not block pipeline
+      # submission.
+      _LOGGER.warning('Unable to check soft delete policy: %s', e)
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
@@ -1371,6 +1386,39 @@ class GoogleCloudOptions(PipelineOptions):
       return os.environ["JOB_NAME"]
 
     return None
+
+
+class BigQueryOptions(PipelineOptions):
+  """BigQuery-specific options, mirroring Java's ``BigQueryOptions``.
+
+  Option names (``dest``) are chosen so that they map to the Java option names
+  when pipeline options are passed to Java, e.g. to cross-language BigQuery
+  transforms: Java converts ``big_query_endpoint`` to ``bigQueryEndpoint``.
+  """
+
+  # Alternative attribute names, mapped to the option names they stand for.
+  _ATTRIBUTE_ALIASES = {'bigquery_endpoint': 'big_query_endpoint'}
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bigquery_endpoint',
+        '--big_query_endpoint',
+        dest='big_query_endpoint',
+        default=None,
+        help=(
+            'The root URL for the BigQuery API, e.g. '
+            '"https://bigquery.googleapis.com". If not set, the endpoint is '
+            'derived from the GOOGLE_CLOUD_UNIVERSE_DOMAIN environment '
+            'variable when present, and otherwise the default public URL is '
+            'used. Also passed to Java cross-language BigQuery transforms as '
+            'bigQueryEndpoint.'))
+
+  def __getattr__(self, name):
+    return super().__getattr__(self._ATTRIBUTE_ALIASES.get(name, name))
+
+  def __setattr__(self, name, value):
+    super().__setattr__(self._ATTRIBUTE_ALIASES.get(name, name), value)
 
 
 class AzureOptions(PipelineOptions):
@@ -1568,6 +1616,19 @@ class WorkerOptions(PipelineOptions):
             'separated by a comma where first value gives a regex to '
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
+    parser.add_argument(
+        '--dataflow_container_base_repository',
+        default=None,
+        help=(
+            'Base repository (registry host and path prefix) from which the '
+            'Dataflow runner pulls its default SDK container images, e.g. '
+            'docker.example.com/my-project/cloud-dataflow/v1beta3. The '
+            'runner appends the image name and tag, e.g. '
+            '<base>/beam_python3.11_sdk:<version>. This is also used for the '
+            'default images of cross-language Apache Beam environments. '
+            'Ignored for the local SDK image if --sdk_container_image is set. '
+            'If not set, the Google Cloud Dataflow default '
+            '(gcr.io/cloud-dataflow/v1beta3) is used.'))
     parser.add_argument(
         '--default_sdk_harness_log_level',
         default=None,
@@ -2399,111 +2460,165 @@ class OptionsContext(object):
     return options
 
 
-# Deprecated S3Options option names, mapped to the AwsOptions options that
-# replace them.
-_DEPRECATED_S3_TO_AWS_OPTIONS = {
-    's3_access_key_id': 'aws_access_key_id',
-    's3_secret_access_key': 'aws_secret_access_key',
-    's3_session_token': 'aws_session_token',
-    's3_endpoint_url': 'aws_endpoint_url',
-    's3_region_name': 'aws_region_name',
-    's3_api_version': 'aws_api_version',
-    's3_verify': 'aws_verify',
-    's3_disable_ssl': 'aws_disable_ssl',
-}
-_AWS_TO_DEPRECATED_S3_OPTIONS = {
-    aws: s3
-    for s3, aws in _DEPRECATED_S3_TO_AWS_OPTIONS.items()
-}
+# Client settings shared by all AWS clients. Each is configured in AwsOptions as
+# --aws_<setting>, and can be overridden for one service by a service options
+# class (see AwsOptions.get_client_settings), e.g. --s3_<setting> in S3Options.
+_AWS_CLIENT_SETTINGS = (
+    'access_key_id',
+    'secret_access_key',
+    'session_token',
+    'endpoint_url',
+    'region_name',
+    'verify',
+    'disable_ssl',
+)
 
 
 class AwsOptions(PipelineOptions):
-  """Options used to create AWS service clients, e.g. for S3.
+  """Default options for creating AWS service clients.
 
-  The deprecated ``--s3_*`` flags from :class:`S3Options` are still accepted.
-  Each ``aws_*`` option falls back to its ``s3_*`` counterpart when it is not
-  set.
+  These settings apply to every AWS client Beam creates. A service options
+  class can override any of them for its own client, e.g. ``--s3_endpoint_url``
+  in :class:`S3Options` overrides ``--aws_endpoint_url`` for S3 only. Use
+  :meth:`get_client_settings` to get the effective settings for a service.
   """
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--aws_access_key_id',
         default=None,
-        help='The access key ID to use when creating AWS clients.')
+        help=(
+            'The access key ID to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
     parser.add_argument(
         '--aws_secret_access_key',
         default=None,
-        help='The secret access key to use when creating AWS clients.')
+        help=(
+            'The secret access key to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
     parser.add_argument(
         '--aws_session_token',
         default=None,
-        help='The session token to use when creating AWS clients.')
+        help=(
+            'The session token to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
+    parser.add_argument(
+        '--aws_credentials_secret_manager',
+        default=None,
+        help=(
+            'Secret manager used to parse --aws_access_key_id, '
+            '--aws_secret_access_key and --aws_session_token (and their '
+            'service-specific overrides, e.g. --s3_access_key_id) as secret '
+            'specs (a JSON string or plain text), e.g. '
+            'GoogleCloudSecretManager. For example: '
+            '--aws_credentials_secret_manager=GoogleCloudSecretManager '
+            '--aws_secret_access_key=\'{"name": "my-key", "project": "p"}\'. '
+            'If not set, these options are used as raw credentials.'))
     parser.add_argument(
         '--aws_endpoint_url',
         default=None,
-        help='The complete URL to use for the constructed AWS client.')
+        help='The complete URL to use for the constructed AWS clients.')
     parser.add_argument(
         '--aws_region_name',
         default=None,
-        help='The name of the region associated with the AWS client.')
-    parser.add_argument(
-        '--aws_api_version',
-        default=None,
-        help='The API version to use with the AWS client.')
+        help='The name of the region associated with the AWS clients.')
     parser.add_argument(
         '--aws_verify',
         default=None,
-        help='Whether or not to verify SSL certificates with the AWS client.')
+        help='Whether or not to verify SSL certificates with the AWS clients.')
     parser.add_argument(
         '--aws_disable_ssl',
         default=False,
         action='store_true',
         help=(
-            'Whether or not to use SSL with the AWS client. '
+            'Whether or not to use SSL with the AWS clients. '
             'By default, SSL is used.'))
 
-    # Deprecated S3Options flags, kept for backward compatibility. They are
-    # registered here (not on S3Options) so that both flag sets are parsed by
-    # every AwsOptions view and are never registered twice.
-    for s3_name, aws_name in _DEPRECATED_S3_TO_AWS_OPTIONS.items():
-      if s3_name == 's3_disable_ssl':
-        kwargs = {'default': False, 'action': 'store_true'}
-      else:
-        kwargs = {'default': None}
-      parser.add_argument(
-          '--' + s3_name,
-          help='Deprecated, use --%s instead.' % aws_name,
-          **kwargs)
+  def get_client_settings(
+      self,
+      service_options: Optional['PipelineOptions'] = None) -> dict[str, Any]:
+    """Returns the effective client settings for an AWS service.
 
-  def __getattr__(self, name):
-    value = super().__getattr__(name)
-    s3_name = _AWS_TO_DEPRECATED_S3_OPTIONS.get(name)
-    if s3_name and not value:
-      s3_value = self._all_options.get(s3_name)
-      if s3_value:
-        logger.log_first_n(
-            logging.WARN,
-            '--%s is deprecated, use --%s instead.' % (s3_name, name),
-            key='message')
-        return s3_value
-    return value
+    Starts from the ``--aws_*`` defaults and applies the overrides set in
+    ``service_options``. A service options class opts in by defining
+    ``AWS_CLIENT_SETTINGS_PREFIX`` (e.g. ``'s3'``) and options named
+    ``<prefix>_<setting>`` for the settings it can override (e.g.
+    ``s3_endpoint_url``). An override applies when it is set (not None/False).
+
+    Args:
+      service_options: Optional options view for a specific service, e.g.
+        ``options.view_as(S3Options)``.
+
+    Returns:
+      A dict keyed by setting name (``access_key_id``, ``secret_access_key``,
+      ``session_token``, ``endpoint_url``, ``region_name``, ``verify``,
+      ``disable_ssl``).
+    """
+    settings = {
+        name: getattr(self, 'aws_' + name)
+        for name in _AWS_CLIENT_SETTINGS
+    }
+    prefix = getattr(service_options, 'AWS_CLIENT_SETTINGS_PREFIX', None)
+    if prefix:
+      for name in _AWS_CLIENT_SETTINGS:
+        override = getattr(service_options, '%s_%s' % (prefix, name), None)
+        if override:
+          settings[name] = override
+    return settings
 
 
-class S3Options(AwsOptions):
-  """Deprecated, use :class:`AwsOptions` instead.
+class S3Options(PipelineOptions):
+  """Options for the S3 client.
 
-  The ``s3_*`` attributes delegate to the corresponding ``aws_*`` options, so
-  both the old and new flags are honored.
+  ``--s3_api_version`` is S3-specific. The other options override the
+  corresponding ``--aws_*`` default in :class:`AwsOptions` for S3 only, e.g. to
+  point S3 at an S3-compatible endpoint while other AWS clients use the
+  defaults.
   """
-  def __init__(self, flags: Optional[Sequence[str]] = None, **kwargs) -> None:
-    logger.log_first_n(
-        logging.WARN,
-        'S3Options is deprecated, use AwsOptions instead.',
-        key='message')
-    super().__init__(flags, **kwargs)
+  AWS_CLIENT_SETTINGS_PREFIX = 's3'
 
-  def __getattr__(self, name):
-    aws_name = _DEPRECATED_S3_TO_AWS_OPTIONS.get(name)
-    if aws_name:
-      return getattr(self, aws_name)
-    return super().__getattr__(name)
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--s3_access_key_id',
+        default=None,
+        help='The access key ID for the S3 client. Overrides '
+        '--aws_access_key_id.')
+    parser.add_argument(
+        '--s3_secret_access_key',
+        default=None,
+        help='The secret access key for the S3 client. Overrides '
+        '--aws_secret_access_key.')
+    parser.add_argument(
+        '--s3_session_token',
+        default=None,
+        help='The session token for the S3 client. Overrides '
+        '--aws_session_token.')
+    parser.add_argument(
+        '--s3_endpoint_url',
+        default=None,
+        help='The complete URL to use for the S3 client. Overrides '
+        '--aws_endpoint_url.')
+    parser.add_argument(
+        '--s3_region_name',
+        default=None,
+        help='The name of the region associated with the S3 client. '
+        'Overrides --aws_region_name.')
+    parser.add_argument(
+        '--s3_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the S3 client. '
+        'Overrides --aws_verify.')
+    parser.add_argument(
+        '--s3_disable_ssl',
+        default=False,
+        action='store_true',
+        help='Disable SSL for the S3 client, even if --aws_disable_ssl is not '
+        'set.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the S3 client.')

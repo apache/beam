@@ -83,17 +83,47 @@ def defenestrate(x):
 
 @dataclasses.dataclass
 class DaskBagWindowedIterator:
-  """Iterator for `apache_beam.transforms.sideinputs.SideInputMap`"""
+  """Iterator for `apache_beam.transforms.sideinputs.SideInputMap`.
+
+  The default computes the whole bag for compatibility. With lazy side inputs,
+  each partition is computed when reached by iteration. Computations launched
+  inside a Dask worker use worker_client to release the worker's task slot.
+  """
 
   bag: db.Bag
   window_fn: WindowFn
+  lazy_side_inputs: bool = False
+
+  @staticmethod
+  def _compute(collection):
+    from dask.distributed import get_worker
+    from dask.distributed import worker_client
+
+    try:
+      get_worker()
+    except ValueError:
+      # Outside a worker, use the configured Dask scheduler.
+      return collection.compute()
+
+    # A blocking nested computation must release the worker's task slot.
+    # Close the context before yielding so partial iteration cannot leave a
+    # worker thread seceded from its pool.
+    with worker_client() as client:
+      return client.compute(collection).result()
 
   def __iter__(self):
-    # FIXME(cisaacstern): list() is likely inefficient, since it presumably
-    # materializes the full result before iterating over it. doing this for
-    # now as a proof-of-concept. can we can generate results incrementally?
-    for result in list(self.bag):
-      yield get_windowed_value(result, self.window_fn)
+    if self.lazy_side_inputs:
+      # AsIter can consume one partition at a time. AsList still materializes
+      # the complete view, as required by its side-input semantics.
+      for partition in self.bag.to_delayed():
+        for result in self._compute(partition):
+          yield get_windowed_value(result, self.window_fn)
+    else:
+      # FIXME(cisaacstern): The original list(self.bag) materializes the full
+      # side input before iteration. Keep that behavior by default until a
+      # shared or storage-backed side-input design can avoid its memory cost.
+      for result in self._compute(self.bag):
+        yield get_windowed_value(result, self.window_fn)
 
 
 @dataclasses.dataclass

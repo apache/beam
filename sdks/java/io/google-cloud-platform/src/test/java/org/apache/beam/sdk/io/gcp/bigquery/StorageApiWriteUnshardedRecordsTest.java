@@ -31,8 +31,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.DynamicMessage;
 import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.Map;
@@ -57,6 +55,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.EchoErrorTransform;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -79,12 +81,20 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for propagation of fused downstream failures from Storage Write API success output. */
 @RunWith(Parameterized.class)
 public class StorageApiWriteUnshardedRecordsTest {
-  @Parameters(name = "flushDuringProcessElement={0}")
+  @Parameters(name = "flushDuringProcessElement={0}, useErrorHandler={1}")
   public static Iterable<Object[]> parameters() {
-    return ImmutableList.of(new Object[] {false}, new Object[] {true});
+    return ImmutableList.of(
+        new Object[] {false, false},
+        new Object[] {true, false},
+        new Object[] {false, true},
+        new Object[] {true, true});
   }
 
-  @Parameter public boolean flushDuringProcessElement;
+  @Parameter(0)
+  public boolean flushDuringProcessElement;
+
+  @Parameter(1)
+  public boolean useErrorHandler;
 
   @Before
   public void setUp() throws Exception {
@@ -118,21 +128,29 @@ public class StorageApiWriteUnshardedRecordsTest {
     dataset.createTable(new Table().setTableReference(table).setSchema(schema));
 
     Pipeline pipeline = Pipeline.create(options);
-    WriteResult writeResult =
-        pipeline
-            .apply(Create.of(row("first"), row("second")).withCoder(TableRowJsonCoder.of()))
-            .apply(
-                BigQueryIO.writeTableRows()
-                    .to(table)
-                    .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
-                    .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                    .withNumStorageWriteApiStreams(0)
-                    .withPropagateSuccessfulStorageApiWrites(true)
-                    .withoutValidation()
-                    .withTestServices(
-                        new FakeBigQueryServices()
-                            .withDatasetService(dataset)
-                            .withJobService(new FakeJobService())));
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to(table)
+            .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withNumStorageWriteApiStreams(0)
+            .withPropagateSuccessfulStorageApiWrites(true)
+            .withoutValidation()
+            .withTestServices(
+                new FakeBigQueryServices()
+                    .withDatasetService(dataset)
+                    .withJobService(new FakeJobService()));
+    PCollection<TableRow> rows =
+        pipeline.apply(Create.of(row("first"), row("second")).withCoder(TableRowJsonCoder.of()));
+    WriteResult writeResult;
+    if (useErrorHandler) {
+      try (ErrorHandler<BadRecord, PCollection<BadRecord>> errorHandler =
+          pipeline.registerBadRecordErrorHandler(new EchoErrorTransform())) {
+        writeResult = rows.apply(write.withErrorHandler(errorHandler));
+      }
+    } else {
+      writeResult = rows.apply(write);
+    }
     writeResult
         .getSuccessfulStorageApiInserts()
         .apply("FailAfterBigQuery", ParDo.of(new FailFirstRow()));
@@ -153,6 +171,18 @@ public class StorageApiWriteUnshardedRecordsTest {
                 .filter(entry -> entry.getValue().getSubtransformsCount() == 0)
                 .filter(entry -> entry.getValue().getUniqueName().startsWith("FailAfterBigQuery"))
                 .collect(Collectors.toList()));
+    Map.Entry<String, RunnerApi.PTransform> converter =
+        getOnlyElement(
+            pipelineProto.getComponents().getTransformsMap().entrySet().stream()
+                .filter(entry -> entry.getValue().getSubtransformsCount() == 0)
+                .filter(
+                    entry ->
+                        entry
+                            .getValue()
+                            .getOutputsMap()
+                            .containsValue(
+                                getOnlyElement(writer.getValue().getInputsMap().values())))
+                .collect(Collectors.toList()));
     assertTrue(
         writer
             .getValue()
@@ -163,17 +193,19 @@ public class StorageApiWriteUnshardedRecordsTest {
             .anyMatch(
                 stage ->
                     stage.getTransforms().stream()
+                            .anyMatch(transform -> transform.getId().equals(converter.getKey()))
+                        && stage.getTransforms().stream()
                             .anyMatch(transform -> transform.getId().equals(writer.getKey()))
                         && stage.getTransforms().stream()
                             .anyMatch(transform -> transform.getId().equals(downstream.getKey()))));
 
-    String inputId = getOnlyElement(writer.getValue().getInputsMap().values());
-    Coder<KV<TableDestination, StorageApiWritePayload>> inputCoder =
-        (Coder<KV<TableDestination, StorageApiWritePayload>>)
+    String inputId = getOnlyElement(converter.getValue().getInputsMap().values());
+    Coder<KV<TableDestination, TableRow>> inputCoder =
+        (Coder<KV<TableDestination, TableRow>>)
             RehydratedComponents.forComponents(pipelineProto.getComponents())
                 .getCoder(
                     pipelineProto.getComponents().getPcollectionsOrThrow(inputId).getCoderId());
-    Coder<WindowedValue<KV<TableDestination, StorageApiWritePayload>>> windowedCoder =
+    Coder<WindowedValue<KV<TableDestination, TableRow>>> windowedCoder =
         WindowedValues.getFullCoder(inputCoder, GlobalWindow.Coder.INSTANCE);
     String coderId = components.registerCoder(windowedCoder);
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
@@ -183,6 +215,7 @@ public class StorageApiWriteUnshardedRecordsTest {
             .putAllWindowingStrategies(pipelineProto.getComponents().getWindowingStrategiesMap())
             .putAllPcollections(pipelineProto.getComponents().getPcollectionsMap())
             .putAllEnvironments(pipelineProto.getComponents().getEnvironmentsMap())
+            .putTransforms(converter.getKey(), converter.getValue())
             .putTransforms(writer.getKey(), writer.getValue())
             .putTransforms(downstream.getKey(), downstream.getValue())
             .putTransforms(
@@ -204,22 +237,10 @@ public class StorageApiWriteUnshardedRecordsTest {
                     .build())
             .build();
 
-    Descriptor rowDescriptor =
-        TableRowToStorageApiProto.wrapDescriptorProto(
-            TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
-                TableRowToStorageApiProto.schemaToProtoTableSchema(schema), true, false));
     ByteArrayOutputStream input = new ByteArrayOutputStream();
     for (String id : ImmutableList.of("first", "second")) {
-      byte[] message =
-          DynamicMessage.newBuilder(rowDescriptor)
-              .setField(rowDescriptor.findFieldByName("id"), id)
-              .build()
-              .toByteArray();
       windowedCoder.encode(
-          WindowedValues.valueInGlobalWindow(
-              KV.of(
-                  new TableDestination(table, null),
-                  StorageApiWritePayload.of(message, null, null))),
+          WindowedValues.valueInGlobalWindow(KV.of(new TableDestination(table, null), row(id))),
           input);
     }
     BeamFnApi.InstructionRequest request =

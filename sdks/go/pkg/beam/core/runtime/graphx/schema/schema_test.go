@@ -1116,7 +1116,7 @@ func TestToType_UnregisteredTopLevelLogicalType(t *testing.T) {
 				t.Run(name, func(t *testing.T) {
 					opts, want := test.opts, storage
 					if nillable {
-						opts, want = append(append([]*pipepb.Option{}, opts...), optGoNillable()), reflect.PtrTo(storage)
+						opts, want = append(append([]*pipepb.Option{}, opts...), optGoNillable()), reflect.PointerTo(storage)
 					}
 					s := &pipepb.Schema{Id: "unregistered-" + name, Options: opts, Fields: fields}
 					got, err := reg.ToType(s)
@@ -1161,5 +1161,35 @@ func TestRegisterLogicalType_Validation(t *testing.T) {
 			}()
 			reg.RegisterLogicalType(ToLogicalTypeWithArgument("schema.invalid", anyStringType, reflectx.String, argument))
 		})
+	}
+}
+
+func TestRegisterLogicalType_Duplicate(t *testing.T) {
+	reg := NewRegistry()
+	lt := ToLogicalType("schema.anyString", anyStringType, reflectx.String)
+	reg.RegisterLogicalType(lt)
+	// Registering the same logical type again has no effect.
+	reg.RegisterLogicalType(lt)
+
+	for name, dup := range map[string]LogicalType{
+		"identifier for another Go type":    ToLogicalType("schema.anyString", parameterizedStringType, reflectx.String),
+		"Go type with another identifier":   ToLogicalType("schema.otherString", anyStringType, reflectx.String),
+		"Go type with another storage type": ToLogicalType("schema.anyString", anyStringType, reflectx.ByteSlice),
+		"Go type with an argument":          ToLogicalTypeWithArgument("schema.anyString", anyStringType, reflectx.String, int32(5)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("RegisterLogicalType did not panic for a duplicate %v", name)
+				}
+			}()
+			reg.RegisterLogicalType(dup)
+		})
+	}
+	if got, ok := reg.lookupLogicalType("schema.anyString", reflect.Value{}); !ok || got.GoType() != anyStringType {
+		t.Errorf("lookupLogicalType(schema.anyString) = %v, %v, want %v, true", got.GoType(), ok, anyStringType)
+	}
+	if _, ok := reg.logicalTypeByGoType[parameterizedStringType]; ok {
+		t.Errorf("logicalTypeByGoType has %v after a rejected registration", parameterizedStringType)
 	}
 }

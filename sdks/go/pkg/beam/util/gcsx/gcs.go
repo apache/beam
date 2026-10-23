@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"google.golang.org/api/option"
 )
 
@@ -33,14 +34,36 @@ var userAgent = option.WithUserAgent("(GPN:Beam)")
 // NewClient creates a new GCS client with default application credentials, and supplied
 // OAuth scope. The OAuth scopes are defined in https://pkg.go.dev/cloud.google.com/go/storage#pkg-constants.
 // Sets the user agent to Beam.
+//
+// The endpoint can be overridden with the --gcs_endpoint flag. In non-default
+// universes (e.g. Trusted Partner Cloud), the universe domain is taken from
+// GOOGLE_CLOUD_UNIVERSE_DOMAIN or, if unset, from the default credentials.
 func NewClient(ctx context.Context, scope string) (*storage.Client, error) {
-	return storage.NewClient(ctx, option.WithScopes(scope), userAgent)
+	opts := []option.ClientOption{option.WithScopes(scope), userAgent}
+	opts = append(opts, endpointOptions()...)
+	// storage.NewClient ignores the credentials' universe domain, and requests
+	// fail if it differs from the configured one (googleapis.com by default).
+	if ud := gcpopts.GetUniverseDomain(ctx); ud != "" {
+		opts = append(opts, option.WithUniverseDomain(ud))
+	}
+	return storage.NewClient(ctx, opts...)
 }
 
 // NewUnauthenticatedClient creates a new GCS client without authentication.
 // Sets the user agent to Beam.
 func NewUnauthenticatedClient(ctx context.Context) (*storage.Client, error) {
-	return storage.NewClient(ctx, option.WithoutAuthentication(), userAgent)
+	opts := []option.ClientOption{option.WithoutAuthentication(), userAgent}
+	opts = append(opts, endpointOptions()...)
+	return storage.NewClient(ctx, opts...)
+}
+
+// endpointOptions returns the client options for the --gcs_endpoint override,
+// if any.
+func endpointOptions() []option.ClientOption {
+	if ep := gcpopts.GetGcsEndpoint(); ep != "" {
+		return []option.ClientOption{option.WithEndpoint(ep)}
+	}
+	return nil
 }
 
 // Upload writes the given content to GCS. If the specified bucket does not

@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from apache_beam.io.aws.clients import client_options
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 from apache_beam.utils import retry
@@ -41,33 +42,20 @@ class Client(object):
   Wrapper for boto3 library
   """
   def __init__(self, options):
+    """
+    Args:
+      options: PipelineOptions, or a dict of option names (aws_* and s3_*) to
+        values. --s3_* options override the --aws_* defaults for S3.
+    """
     assert boto3 is not None, 'Missing boto3 requirement'
-    if isinstance(options, pipeline_options.PipelineOptions):
-      aws_options = options.view_as(pipeline_options.AwsOptions)
-    else:
-      # A plain dict of option names (aws_* or the deprecated s3_*) to values.
-      aws_options = pipeline_options.AwsOptions(flags=[], **options)
-
-    access_key_id = aws_options.aws_access_key_id
-    secret_access_key = aws_options.aws_secret_access_key
-    session_token = aws_options.aws_session_token
-    endpoint_url = aws_options.aws_endpoint_url
-    use_ssl = not aws_options.aws_disable_ssl
-    region_name = aws_options.aws_region_name
-    api_version = aws_options.aws_api_version
-    verify = aws_options.aws_verify
+    s3_options = client_options.view_options(
+        options, pipeline_options.S3Options)
 
     session = boto3.session.Session()
     self.client = session.client(
         service_name='s3',
-        region_name=region_name,
-        api_version=api_version,
-        use_ssl=use_ssl,
-        verify=verify,
-        endpoint_url=endpoint_url,
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        aws_session_token=session_token)
+        api_version=s3_options.s3_api_version,
+        **client_options.get_client_kwargs(options, pipeline_options.S3Options))
 
     self._download_request = None
     self._download_stream = None

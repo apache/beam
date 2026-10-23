@@ -99,6 +99,8 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1081,6 +1083,27 @@ public class BigQueryServicesImpl implements BigQueryServices {
           } catch (IOException e) {
             GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
             if (errorInfo == null) {
+              String networkErrorReason = transientNetworkErrorReason(e);
+              if (networkErrorReason != null) {
+                // Route all rows in this batch through InsertRetryPolicy so the outer insertAll
+                // loop handles retries consistently via the pipeline's configured policy.
+                serviceCallMetric.call(networkErrorReason);
+                result.updateFailedRpcMetrics(start, start, BigQuerySinkMetrics.UNKNOWN);
+                LOG.warn(
+                    "BigQuery insertAll transient network error, routing rows to retry policy", e);
+                List<TableDataInsertAllResponse.InsertErrors> syntheticErrors = new ArrayList<>();
+                for (int i = 0; i < rows.size(); i++) {
+                  syntheticErrors.add(
+                      new TableDataInsertAllResponse.InsertErrors()
+                          .setIndex((long) i)
+                          .setErrors(
+                              Collections.singletonList(
+                                  new ErrorProto()
+                                      .setReason(networkErrorReason)
+                                      .setMessage(Strings.nullToEmpty(e.getMessage())))));
+                }
+                return syntheticErrors;
+              }
               serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
               result.updateFailedRpcMetrics(start, start, BigQuerySinkMetrics.UNKNOWN);
               throw e;
@@ -1481,6 +1504,33 @@ public class BigQueryServicesImpl implements BigQueryServices {
           successfulRows);
     }
 
+    /**
+     * Returns a BigQuery-style error reason string for transient network errors that occur outside
+     * the scope of {@link com.google.api.client.http.HttpRequest#execute} (e.g. during chunked
+     * response body reading), or {@code null} if the exception is not a transient network error.
+     */
+    static @Nullable String transientNetworkErrorReason(IOException e) {
+      Throwable cause = e;
+      while (cause != null) {
+        if (cause instanceof SocketTimeoutException) {
+          return "socketTimeout";
+        }
+        if (cause instanceof SocketException) {
+          String msg = cause.getMessage();
+          if (msg != null) {
+            if (msg.contains("Connection reset")) {
+              return "connectionReset";
+            }
+            if (msg.contains("Broken pipe")) {
+              return "brokenPipe";
+            }
+          }
+        }
+        cause = cause.getCause();
+      }
+      return null;
+    }
+
     protected static GoogleJsonError.@Nullable ErrorInfo getErrorInfo(IOException e) {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
@@ -1800,7 +1850,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+  @VisibleForTesting
+  static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     // Do not log 404. It clutters the output and is possibly even required by the
     // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
@@ -1818,6 +1869,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
     initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
+    // Set the quota project as a request header instead of deriving credentials: a derived
+    // credential inherits the shared credential's cached request metadata, which lacks
+    // x-goog-user-project until the next token refresh. Applied by an execute interceptor so it
+    // is re-applied on every attempt; HttpCredentialsAdapter re-initializes the request headers
+    // from the credential after a 401 refresh, which would otherwise override it.
+    @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+    if (!Strings.isNullOrEmpty(quotaProjectId)) {
+      initBuilder.add(
+          request ->
+              request.setInterceptor(
+                  r -> r.getHeaders().set("x-goog-user-project", quotaProjectId)));
+    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
@@ -1847,6 +1910,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         builder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        builder.setQuotaProjectId(quotaProjectId);
       }
       return BigQueryWriteClient.create(
           builder
@@ -1972,6 +2039,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         settingsBuilder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        settingsBuilder.setQuotaProjectId(quotaProjectId);
       }
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =

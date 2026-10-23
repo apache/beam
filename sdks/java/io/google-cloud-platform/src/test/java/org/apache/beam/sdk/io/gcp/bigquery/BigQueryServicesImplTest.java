@@ -41,6 +41,8 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
@@ -82,6 +84,8 @@ import io.grpc.Status;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -818,6 +822,145 @@ public class BigQueryServicesImplTest {
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
 
     verifyWriteMetricWasSet("project", "dataset", "table", "quotaexceeded", 1);
+  }
+
+  @Test
+  public void testTransientNetworkErrorReason_socketTimeout() {
+    assertEquals(
+        "socketTimeout",
+        DatasetServiceImpl.transientNetworkErrorReason(
+            new SocketTimeoutException("Read timed out")));
+  }
+
+  @Test
+  public void testTransientNetworkErrorReason_wrappedSocketTimeout() {
+    assertEquals(
+        "socketTimeout",
+        DatasetServiceImpl.transientNetworkErrorReason(
+            new IOException("wrapper", new SocketTimeoutException("Read timed out"))));
+  }
+
+  @Test
+  public void testTransientNetworkErrorReason_connectionReset() {
+    assertEquals(
+        "connectionReset",
+        DatasetServiceImpl.transientNetworkErrorReason(new SocketException("Connection reset")));
+  }
+
+  @Test
+  public void testTransientNetworkErrorReason_brokenPipe() {
+    assertEquals(
+        "brokenPipe",
+        DatasetServiceImpl.transientNetworkErrorReason(new SocketException("Broken pipe")));
+  }
+
+  @Test
+  public void testTransientNetworkErrorReason_nonTransient() {
+    assertNull(DatasetServiceImpl.transientNetworkErrorReason(new IOException("Some other error")));
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} retries when a SocketTimeoutException occurs
+   * during response body reading (outside RetryHttpRequestInitializer scope).
+   */
+  @Test
+  public void testInsertSocketTimeoutRetry() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    // First response: 200 OK but content stream throws SocketTimeoutException during body read,
+    // simulating a timeout mid-chunked-response. Second response succeeds.
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  new InputStream() {
+                    @Override
+                    public int read() throws IOException {
+                      throw new SocketTimeoutException("Read timed out");
+                    }
+                  });
+        },
+        response -> {
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent()).thenReturn(toStream(new TableDataInsertAllResponse()));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false,
+        false,
+        null);
+
+    verifyAllResponsesAreRead();
+    expectedLogs.verifyWarn(
+        "BigQuery insertAll transient network error, routing rows to retry policy");
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} throws IOException when SocketTimeoutException
+   * retries are exhausted via the outer insertAll backoff.
+   */
+  @Test
+  public void testInsertSocketTimeoutExhausted() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    // Single response that times out during body read. With maxRetries(0) on the outer backoff
+    // there is no retry; the synthetic timeout errors are collected and IOException is thrown.
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  new InputStream() {
+                    @Override
+                    public int read() throws IOException {
+                      throw new SocketTimeoutException("Read timed out");
+                    }
+                  });
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    // Rows are routed through InsertRetryPolicy as synthetic "timeout" errors; when the outer
+    // backoff is exhausted insertAll throws IOException("Insert failed: ...").
+    assertThrows(
+        IOException.class,
+        () ->
+            dataService.insertAll(
+                ref,
+                rows,
+                null,
+                BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.withMaxRetries(0).backoff()),
+                FluentBackoff.DEFAULT.withMaxRetries(0),
+                new MockSleeper(),
+                InsertRetryPolicy.alwaysRetry(),
+                null,
+                null,
+                false,
+                false,
+                false,
+                null));
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} can stop quotaExceeded retry attempts. */
@@ -2309,6 +2452,58 @@ public class BigQueryServicesImplTest {
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
     impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testQuotaProjectIdOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryQuotaProjectId("my-quota-project");
+
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+  }
+
+  @Test
+  public void testQuotaProjectIdSetsRequestHeader() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setGcpCredential(null);
+    GenericUrl url = new GenericUrl("https://bigquery.googleapis.com/bigquery/v2/projects");
+
+    HttpRequest request =
+        BigQueryServicesImpl.newBigQueryClient(options)
+            .build()
+            .getRequestFactory()
+            .buildGetRequest(url);
+    request.getInterceptor().intercept(request);
+    assertNull(request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
+
+    options.setBigQueryQuotaProjectId("my-quota-project");
+    request =
+        BigQueryServicesImpl.newBigQueryClient(options)
+            .build()
+            .getRequestFactory()
+            .buildGetRequest(url);
+    // The interceptor runs before every attempt, including retries.
+    request.getInterceptor().intercept(request);
+    assertEquals(
+        "my-quota-project", request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
+
+    // Simulate HttpCredentialsAdapter re-initializing headers from a credential that carries
+    // its own quota project after a 401 refresh: the configured value must win on the retry.
+    request.getHeaders().set("x-goog-user-project", "credential-project");
+    request.getInterceptor().intercept(request);
+    assertEquals(
+        "my-quota-project", request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
   }
 
   @Test
