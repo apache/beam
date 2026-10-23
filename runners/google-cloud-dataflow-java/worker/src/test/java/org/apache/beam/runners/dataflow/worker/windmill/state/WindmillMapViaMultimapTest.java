@@ -39,7 +39,6 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -63,10 +62,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Unit tests demonstrating correctness issues and contract violations in {@link
- * WindmillMapViaMultimap}.
- */
+/** Unit tests for {@link WindmillMapViaMultimap}. */
 @RunWith(JUnit4.class)
 public class WindmillMapViaMultimapTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
