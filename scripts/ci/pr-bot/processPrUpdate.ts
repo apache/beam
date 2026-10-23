@@ -221,16 +221,21 @@ async function processPrUpdate() {
         await setNextActionReviewers(payload, pull, stateClient);
       } else if (payload.action === "review_requested") {
         console.log("Processing review_requested action");
-        if (payload.requested_reviewer?.login) {
+        if (
+          payload.requested_reviewer?.login &&
+          payload.requested_reviewer?.type !== "Bot"
+        ) {
           let prState = await stateClient.getPrState(pull.number);
           const reviewersForLabels = reviewerConfig.getReviewersForLabels(
             pull.labels,
             [pull.user.login]
           );
           const label = Object.keys(reviewersForLabels)[0] || NO_MATCHING_LABEL;
-          prState.reviewersAssignedForLabels[label] =
-            payload.requested_reviewer.login;
-          await stateClient.writePrState(pull.number, prState);
+          if (!prState.reviewersAssignedForLabels[label]) {
+            prState.reviewersAssignedForLabels[label] =
+              payload.requested_reviewer.login;
+            await stateClient.writePrState(pull.number, prState);
+          }
         }
         await setNextActionReviewers(payload, pull, stateClient);
       } else if (payload.action === "converted_to_draft") {
