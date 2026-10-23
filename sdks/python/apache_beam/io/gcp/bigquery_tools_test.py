@@ -53,6 +53,9 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import BigQueryOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
@@ -239,6 +242,133 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.projectId, projectId)
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryEndpoint(unittest.TestCase):
+  def setUp(self):
+    self._saved_runtime_options = RuntimeValueProvider.runtime_options
+    self._saved_experiments = RuntimeValueProvider.experiments
+    RuntimeValueProvider.runtime_options = None
+    env_patcher = mock.patch.dict(os.environ)
+    env_patcher.start()
+    self.addCleanup(env_patcher.stop)
+    os.environ.pop('GOOGLE_CLOUD_UNIVERSE_DOMAIN', None)
+
+  def tearDown(self):
+    RuntimeValueProvider.runtime_options = self._saved_runtime_options
+    RuntimeValueProvider.experiments = self._saved_experiments
+
+  def test_default_endpoint(self):
+    options = PipelineOptions([])
+    self.assertIsNone(options.view_as(BigQueryOptions).bigquery_endpoint)
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bigquery.googleapis.com/bigquery/v2/')
+    self.assertIsNone(bigquery_tools.get_bigquery_client_options(options))
+
+  def test_default_universe_domain_uses_default_endpoint(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'googleapis.com'
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(PipelineOptions([])),
+        'https://bigquery.googleapis.com/bigquery/v2/')
+
+  def test_universe_domain_from_env(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'example-tpc.goog'
+    options = PipelineOptions([])
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bigquery.example-tpc.goog/bigquery/v2/')
+    # google-cloud-bigquery resolves the universe domain by itself.
+    self.assertIsNone(bigquery_tools.get_bigquery_client_options(options))
+
+  @parameterized.expand([
+      ('https://bq.example.com', ),
+      ('https://bq.example.com/', ),
+      ('https://bq.example.com/bigquery/v2', ),
+      ('https://bq.example.com/bigquery/v2/', ),
+      ('bq.example.com', ),
+  ])
+  def test_explicit_endpoint(self, endpoint):
+    options = PipelineOptions(['--bigquery_endpoint', endpoint])
+    self.assertEqual(
+        options.view_as(BigQueryOptions).bigquery_endpoint, endpoint)
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bq.example.com/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(options),
+        {'api_endpoint': 'https://bq.example.com'})
+
+  def test_explicit_endpoint_takes_precedence_over_universe_domain(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'example-tpc.goog'
+    options = PipelineOptions(['--bigquery_endpoint=http://localhost:9050'])
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'http://localhost:9050/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(options),
+        {'api_endpoint': 'http://localhost:9050'})
+
+  def test_endpoint_from_runtime_options(self):
+    # On workers, clients may be created without the pipeline options.
+    RuntimeValueProvider.set_runtime_options(
+        {'big_query_endpoint': 'https://bq.example.com'})
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(PipelineOptions([])),
+        'https://bq.example.com/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(None),
+        {'api_endpoint': 'https://bq.example.com'})
+
+  def test_endpoint_attribute_alias_setter(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    bq_options.bigquery_endpoint = 'https://bq.example.com'
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(bq_options),
+        'https://bq.example.com/bigquery/v2/')
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  def test_bigquery_client_uses_endpoint(self, unused_mock_credentials):
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    client = bigquery_tools.BigQueryWrapper._bigquery_client(options)
+    self.assertEqual(client.url, 'https://bq.example.com/bigquery/v2/')
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_wrapper_applies_endpoint_to_both_clients(
+      self, mock_gcp_bq, unused_mock_credentials):
+    mock_gcp_client = mock_gcp_bq.Client
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    wrapper = bigquery_tools.BigQueryWrapper(pipeline_options=options)
+    self.assertEqual(wrapper.client.url, 'https://bq.example.com/bigquery/v2/')
+    # The google-cloud-bigquery client is created on first use.
+    wrapper.gcp_bq_client  # pylint: disable=pointless-statement
+    self.assertEqual(
+        mock_gcp_client.call_args.kwargs['client_options'],
+        {'api_endpoint': 'https://bq.example.com'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_client_merges_endpoint_and_quota_project(self, mock_gcp_bq):
+    mock_gcp_client = mock_gcp_bq.Client
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    bigquery_tools.BigQueryWrapper._gcp_bigquery_client(
+        quota_project_id='billing', pipeline_options=options)
+    self.assertEqual(
+        mock_gcp_client.call_args.kwargs['client_options'], {
+            'api_endpoint': 'https://bq.example.com',
+            'quota_project_id': 'billing'
+        })
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  def test_quota_project_header_sent_to_custom_endpoint(self, mock_credentials):
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    bigquery_tools.BigQueryWrapper._bigquery_client(
+        options, quota_project_id='billing')
+    # apitools wraps the given http with credentials.authorize().
+    http = mock_credentials.return_value.authorize.call_args.args[0]
+    self.assertIsInstance(http, bigquery_tools._HttpWithHeaders)
+    self.assertIn('bq.example.com', http._hosts)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -1697,15 +1827,17 @@ class TestBigQueryWrapperQuotaProject(unittest.TestCase):
     for headers in token_request_headers:
       self.assertNotIn('x-goog-user-project', headers)
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
-  def test_gcp_bigquery_client_passes_quota_project(self, mock_client):
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_passes_quota_project(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
     BigQueryWrapper._gcp_bigquery_client(quota_project_id='my-billing-project')
     self.assertEqual(
         mock_client.call_args.kwargs['client_options'],
         {'quota_project_id': 'my-billing-project'})
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
-  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_client):
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
     BigQueryWrapper._gcp_bigquery_client()
     self.assertIsNone(mock_client.call_args.kwargs['client_options'])
 

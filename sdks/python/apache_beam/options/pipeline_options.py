@@ -1275,7 +1275,7 @@ class GoogleCloudOptions(PipelineOptions):
             'Unable to check soft delete policy because GCP dependencies are '
             'not installed.')
         return
-      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+      if gcsio.GcsIO(pipeline_options=self).is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
             "Bucket %s used as %s has soft-delete policy enabled."
@@ -1289,8 +1289,10 @@ class GoogleCloudOptions(PipelineOptions):
             arg_name,
             n=1,
             key="message")
-    except ImportError:
-      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+    except Exception as e:  # pylint: disable=broad-except
+      # This check only emits a warning, so it must not block pipeline
+      # submission.
+      _LOGGER.warning('Unable to check soft delete policy: %s', e)
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
@@ -1384,6 +1386,39 @@ class GoogleCloudOptions(PipelineOptions):
       return os.environ["JOB_NAME"]
 
     return None
+
+
+class BigQueryOptions(PipelineOptions):
+  """BigQuery-specific options, mirroring Java's ``BigQueryOptions``.
+
+  Option names (``dest``) are chosen so that they map to the Java option names
+  when pipeline options are passed to Java, e.g. to cross-language BigQuery
+  transforms: Java converts ``big_query_endpoint`` to ``bigQueryEndpoint``.
+  """
+
+  # Alternative attribute names, mapped to the option names they stand for.
+  _ATTRIBUTE_ALIASES = {'bigquery_endpoint': 'big_query_endpoint'}
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bigquery_endpoint',
+        '--big_query_endpoint',
+        dest='big_query_endpoint',
+        default=None,
+        help=(
+            'The root URL for the BigQuery API, e.g. '
+            '"https://bigquery.googleapis.com". If not set, the endpoint is '
+            'derived from the GOOGLE_CLOUD_UNIVERSE_DOMAIN environment '
+            'variable when present, and otherwise the default public URL is '
+            'used. Also passed to Java cross-language BigQuery transforms as '
+            'bigQueryEndpoint.'))
+
+  def __getattr__(self, name):
+    return super().__getattr__(self._ATTRIBUTE_ALIASES.get(name, name))
+
+  def __setattr__(self, name, value):
+    super().__setattr__(self._ATTRIBUTE_ALIASES.get(name, name), value)
 
 
 class AzureOptions(PipelineOptions):
@@ -1581,6 +1616,19 @@ class WorkerOptions(PipelineOptions):
             'separated by a comma where first value gives a regex to '
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
+    parser.add_argument(
+        '--dataflow_container_base_repository',
+        default=None,
+        help=(
+            'Base repository (registry host and path prefix) from which the '
+            'Dataflow runner pulls its default SDK container images, e.g. '
+            'docker.example.com/my-project/cloud-dataflow/v1beta3. The '
+            'runner appends the image name and tag, e.g. '
+            '<base>/beam_python3.11_sdk:<version>. This is also used for the '
+            'default images of cross-language Apache Beam environments. '
+            'Ignored for the local SDK image if --sdk_container_image is set. '
+            'If not set, the Google Cloud Dataflow default '
+            '(gcr.io/cloud-dataflow/v1beta3) is used.'))
     parser.add_argument(
         '--default_sdk_harness_log_level',
         default=None,
