@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -511,5 +512,91 @@ func TestRegisterPassThroughLogicalType(t *testing.T) {
 	lt, ok := r.lookupLogicalType(urn, reflect.Value{})
 	if !ok || lt.GoType() != typeOf[string]() {
 		t.Errorf("registration after conflict = %v, %v", lt, ok)
+	}
+}
+
+func TestRegisterPassThroughLogicalType_PublicAPI(t *testing.T) {
+	const urn = "test:public_pass_through:v1"
+	t.Cleanup(func() { delete(defaultRegistry.logicalTypes, logicalTypeKey{identifier: urn}) })
+	RegisterPassThroughLogicalType(urn, typeOf[string]())
+	incoming := &pipepb.Schema{Fields: []*pipepb.Field{{
+		Name: "value", Type: logicalFieldType(urn, atomicType(pipepb.AtomicType_STRING)),
+	}}}
+	rt, err := ToType(incoming)
+	if err != nil {
+		t.Fatalf("ToType: %v", err)
+	}
+	if got := rt.Field(0).Type; got != typeOf[string]() {
+		t.Fatalf("field type = %v, want string", got)
+	}
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct: %v", err)
+	}
+	wire := []byte("\x01\x00\x05hello")
+	row, err := dec(bytes.NewReader(wire))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got := reflect.ValueOf(row).Field(0).String(); got != "hello" {
+		t.Errorf("decoded field = %q, want hello", got)
+	}
+	enc, err := coder.RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := enc(row, &buf); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, wire) {
+		t.Errorf("encoded row = %x, want %x", got, wire)
+	}
+	outgoing, err := FromType(rt)
+	if err != nil {
+		t.Fatalf("FromType: %v", err)
+	}
+	if got := outgoing.GetFields()[0].GetType(); got.GetLogicalType() != nil || got.GetAtomicType() != pipepb.AtomicType_STRING {
+		t.Errorf("outgoing field = %v, want atomic STRING", got)
+	}
+}
+
+func TestRegisterPassThroughLogicalType_InvalidRegistration(t *testing.T) {
+	for _, test := range []struct {
+		name, urn string
+		goType    reflect.Type
+		want      string
+	}{
+		{"EmptyURN", "", typeOf[string](), "bad urn"},
+		{"UnsupportedType", "test:unsupported_pass_through:v1", typeOf[chan int](), "unsupported type chan int"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(func() { delete(defaultRegistry.logicalTypes, logicalTypeKey{identifier: test.urn}) })
+			func() {
+				defer func() {
+					got, ok := recover().(string)
+					if !ok || !strings.Contains(got, test.want) {
+						t.Errorf("registration panic = %q, want %q", got, test.want)
+					}
+				}()
+				RegisterPassThroughLogicalType(test.urn, test.goType)
+			}()
+			incoming := &pipepb.Schema{Fields: []*pipepb.Field{{
+				Name: "value", Type: logicalFieldType(test.urn, atomicType(pipepb.AtomicType_STRING)),
+			}}}
+			if rt, err := ToType(incoming); err == nil {
+				t.Fatalf("rejected URN resolved to %v", rt)
+			}
+			if test.urn != "" {
+				RegisterPassThroughLogicalType(test.urn, typeOf[string]())
+				rt, err := ToType(incoming)
+				if err != nil {
+					t.Fatalf("ToType after valid registration: %v", err)
+				}
+				if got := rt.Field(0).Type; got != typeOf[string]() {
+					t.Errorf("field type = %v, want string", got)
+				}
+			}
+		})
 	}
 }
