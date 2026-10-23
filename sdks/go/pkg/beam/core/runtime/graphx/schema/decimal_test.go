@@ -17,9 +17,12 @@ package schema
 
 import (
 	"bytes"
+	"errors"
 	"math"
 	"math/big"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -243,5 +246,58 @@ func TestDecimal_StringExtremeScale(t *testing.T) {
 		if text := got.String(); text != test.want {
 			t.Errorf("String() = %q, want %q", text, test.want)
 		}
+	}
+}
+func TestDecimal_EncodeWriteErrors(t *testing.T) {
+	value := decimalOf("128", 128)
+	var encoded bytes.Buffer
+	if err := encodeDecimal(value, &encoded); err != nil {
+		t.Fatal(err)
+	}
+	writeErr := errors.New("decimal write failed")
+	for limit := 0; limit < encoded.Len(); limit++ {
+		t.Run(strconv.Itoa(limit), func(t *testing.T) {
+			writer := &decimalFailingWriter{remaining: limit, err: writeErr}
+			if err := encodeDecimal(value, writer); !errors.Is(err, writeErr) {
+				t.Fatalf("encodeDecimal() = %v, want %v", err, writeErr)
+			}
+		})
+	}
+}
+
+type decimalFailingWriter struct {
+	remaining int
+	err       error
+}
+
+func (w *decimalFailingWriter) Write(p []byte) (int, error) {
+	if len(p) > w.remaining {
+		n := w.remaining
+		w.remaining = 0
+		return n, w.err
+	}
+	w.remaining -= len(p)
+	return len(p), nil
+}
+
+func TestDecimal_DecodeTruncatedInput(t *testing.T) {
+	var encoded bytes.Buffer
+	if err := encodeDecimal(decimalOf("128", 128), &encoded); err != nil {
+		t.Fatal(err)
+	}
+	for length := 0; length < encoded.Len(); length++ {
+		t.Run(strconv.Itoa(length), func(t *testing.T) {
+			_, err := decodeDecimal(bytes.NewReader(encoded.Bytes()[:length]))
+			if err == nil {
+				t.Fatal("decodeDecimal() succeeded with truncated input")
+			}
+			want := "decoding decimal unscaled value"
+			if length < 2 {
+				want = "decoding decimal scale"
+			}
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("decodeDecimal() error = %q, want context %q", err, want)
+			}
+		})
 	}
 }
