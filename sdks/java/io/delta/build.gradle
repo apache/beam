@@ -122,7 +122,6 @@ task dataflowIntegrationTest(type: Test) {
 
     include '**/*IT.class'
     exclude '**/DeltaIOS3IT.class'
-    exclude '**/DeltaIOPrismIT.class'
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath
@@ -134,7 +133,6 @@ task integrationTest(type: Test) {
     description = "Runs integration tests locally."
     outputs.upToDateWhen { false }
     include '**/*IT.class'
-    exclude '**/DeltaIOPrismIT.class'
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 
@@ -146,7 +144,7 @@ project.evaluationDependsOn(":runners:prism")
 
 task prismIntegrationTest(type: Test) {
     group = "Verification"
-    description = "Runs Delta Lake integration tests with the Prism runner."
+    description = "Runs local Delta Lake Managed IO tests with the Prism runner."
 
     def prismProject = project(":runners:prism")
     dependsOn prismProject.tasks.named("build")
@@ -160,7 +158,13 @@ task prismIntegrationTest(type: Test) {
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(args)
 
     outputs.upToDateWhen { false }
-    include '**/DeltaIOPrismIT.class'
+    include '**/DeltaIOTest.class'
+    filter {
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaRead'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaReadWithVersion'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaReadWithTimestamp'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testReadChangesWithManaged'
+    }
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }
