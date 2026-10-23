@@ -96,24 +96,15 @@ postCommitPyDep.dependsOn "testPy311pandas-23"
 
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
-// Create a test task for each minor version of pytorch
+// Create a test task for the lower and upper bounds of supported pytorch.
+// Keep in sync with [testenv:py311-pytorch-...] in tox.ini.
+toxTask "testPy311pytorch-23", "py311-pytorch-23", "${posargs}"
+test.dependsOn "testPy311pytorch-23"
+postCommitPyDep.dependsOn "testPy311pytorch-23"
 
-toxTask "testPy311pytorch-111", "py311-pytorch-111", "${posargs}"
-test.dependsOn "testPy311pytorch-111"
-postCommitPyDep.dependsOn "testPy311pytorch-111"
-
-toxTask "testPy311pytorch-112", "py311-pytorch-112", "${posargs}"
-test.dependsOn "testPy311pytorch-112"
-postCommitPyDep.dependsOn "testPy311pytorch-112"
-
-toxTask "testPy311pytorch-113", "py311-pytorch-113", "${posargs}"
-test.dependsOn "testPy311pytorch-113"
-postCommitPyDep.dependsOn "testPy311pytorch-113"
-
-// run on precommit
-toxTask "testPy311pytorch-200", "py311-pytorch-200", "${posargs}"
-test.dependsOn "testPy311pytorch-200"
-postCommitPyDep.dependsOn "testPy311pytorch-200"
+toxTask "testPy311pytorch-214", "py311-pytorch-214", "${posargs}"
+test.dependsOn "testPy311pytorch-214"
+postCommitPyDep.dependsOn "testPy311pytorch-214"
 
 toxTask "testPy311tft-113", "py311-tft-113", "${posargs}"
 test.dependsOn "testPy311tft-113"
