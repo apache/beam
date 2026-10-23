@@ -131,13 +131,11 @@ public class WindmillSetTest {
 
     // 1st add: element is absent from storage. It should be added and return true.
     ReadableState<Boolean> add1 = setState.addIfAbsent(elem);
-    Boolean result1 = add1.read();
-    assertTrue("addIfAbsent should return true when element was absent", result1);
+    assertTrue("addIfAbsent should return true when element was absent", add1.read());
 
     // 2nd add: element is now already present in the set. It should return false.
     ReadableState<Boolean> add2 = setState.addIfAbsent(elem);
-    Boolean result2 = add2.read();
-    assertFalse("addIfAbsent should return false when element was already present", result2);
+    assertFalse("addIfAbsent should return false when element was already present", add2.read());
   }
 
   /** Tests basic add and contains on {@link WindmillSet}. */
@@ -176,6 +174,8 @@ public class WindmillSetTest {
   public void testIsEmpty() {
     StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
     SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    assertTrue(setState.isEmpty().read());
 
     setState.add("elem1");
     assertFalse(setState.isEmpty().read());
