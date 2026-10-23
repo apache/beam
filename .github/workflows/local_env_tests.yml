@@ -51,6 +51,7 @@ jobs:
         with:
           go-version: default
           python-version: default
+          java-version: default
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
