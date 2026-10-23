@@ -757,13 +757,10 @@ class ModelManager:
     try:
       with self._cv:
         self.logging_info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
-        baseline_snap, _, _ = self._monitor.get_stats()
+        # No estimator observation here: the estimator is fit on total memory
+        # readings, which release_model records along with the full snapshot
+        # of loaded models. A load delta would contradict those readings.
         instance = loader_func()
-        _, peak_during_load, _ = self._monitor.get_stats()
-
-        snapshot = {tag: 1}
-        self._estimator.add_observation(
-            snapshot, peak_during_load - baseline_snap)
 
         if not is_unknown:
           self._pending_reservations = max(

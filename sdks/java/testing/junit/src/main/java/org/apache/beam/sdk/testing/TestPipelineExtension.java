@@ -114,6 +114,9 @@ public class TestPipelineExtension
     // Set application name based on test method
     String appName = getAppName(context);
     pipeline.getOptions().as(ApplicationNameOptions.class).setAppName(appName);
+    if (Boolean.getBoolean(TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES)) {
+      pipeline.nameRoot(appName);
+    }
 
     // Set up enforcement based on annotations
     pipeline.setDeducedEnforcementLevel(getAnnotations(context));

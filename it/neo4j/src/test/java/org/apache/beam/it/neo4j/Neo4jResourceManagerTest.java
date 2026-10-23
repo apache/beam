@@ -179,4 +179,14 @@ public class Neo4jResourceManagerTest {
 
     assertThrows(Neo4jResourceManagerException.class, () -> testManager.cleanupAll());
   }
+
+  @Test
+  public void testSetsCustomNeo4jConfig() {
+    var builder =
+        Neo4jResourceManager.builder(TEST_ID)
+            .addNeo4jConfig("server.bolt.telemetry.enabled", "false");
+    new Neo4jResourceManager(neo4jDriver, container, builder);
+
+    verify(container).withNeo4jConfig("server.bolt.telemetry.enabled", "false");
+  }
 }

@@ -1607,7 +1607,6 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
-        'model_identifier': self._model_tag,
         **extra,
         **super().annotations()
     }
@@ -1715,47 +1714,54 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
-    if self._with_exception_handling:
-      # On timeouts, report back to the central model metadata
-      # that the model is invalid
-      model_tag = self._model_tag
-      share_across_processes = self._model_handler.share_model_across_processes(
-      )
-      timeout = self._timeout
+    # Attach model_identifier only to the inference step so that runners can
+    # associate it with the ParDo that actually loads and runs the model.
+    # TODO(https://github.com/apache/beam/issues/40715): When
+    # with_exception_handling(threshold<1) is used, the threshold-checking
+    # transforms added by _ExceptionHandlingWrapper also inherit this
+    # annotation. Refactor to annotate only the inner inference ParDo.
+    with batched_elements_pcoll.pipeline.transform_annotations(
+        model_identifier=self._model_tag):
+      if self._with_exception_handling:
+        # On timeouts, report back to the central model metadata
+        # that the model is invalid
+        model_tag = self._model_tag
+        share_across_processes = (
+            self._model_handler.share_model_across_processes())
+        timeout = self._timeout
 
-      def failure_callback(exception: Exception, element: Any):
-        if type(exception) is not TimeoutError:
-          return
-        model_metadata = load_model_status(model_tag, share_across_processes)
-        model_metadata.try_mark_current_model_invalid(timeout)
-        logging.warning(
-            "Inference failed with a timeout, marking the current " +
-            "model for garbage collection")
+        def failure_callback(exception: Exception, element: Any):
+          if type(exception) is not TimeoutError:
+            return
+          model_metadata = load_model_status(model_tag, share_across_processes)
+          model_metadata.try_mark_current_model_invalid(timeout)
+          logging.warning(
+              "Inference failed with a timeout, marking the current " +
+              "model for garbage collection")
 
-      callback = None
-      if (self._timeout is not None and
-          self._model_handler.should_garbage_collect_on_timeout()):
-        callback = failure_callback
-      results, bad_inference = (
-          batched_elements_pcoll
-          | 'BeamML_RunInference' >>
-          run_inference_pardo.with_exception_handling(
-          exc_class=self._exc_class,
-          use_subprocess=self._use_subprocess,
-          threshold=self._threshold,
-          timeout = self._timeout,
-          on_failure_callback=callback))
-    else:
-      results = (
-          batched_elements_pcoll
-          | 'BeamML_RunInference' >> run_inference_pardo)
+        callback = None
+        if (self._timeout is not None and
+            self._model_handler.should_garbage_collect_on_timeout()):
+          callback = failure_callback
+        results, bad_inference = (
+            batched_elements_pcoll
+            | 'BeamML_RunInference' >>
+            run_inference_pardo.with_exception_handling(
+            exc_class=self._exc_class,
+            use_subprocess=self._use_subprocess,
+            threshold=self._threshold,
+            timeout = self._timeout,
+            on_failure_callback=callback))
+      else:
+        results = (
+            batched_elements_pcoll
+            | 'BeamML_RunInference' >> run_inference_pardo)
 
     if self._monitoring_transform is not None:
-      with results.pipeline.transform_annotations(model_identifier=''):
-        _ = (
-            results
-            | 'BeamML_RunInference_MonitoringOutlet' >>
-            self._monitoring_transform)
+      _ = (
+          results
+          |
+          'BeamML_RunInference_MonitoringOutlet' >> self._monitoring_transform)
 
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')
