@@ -485,10 +485,7 @@ public class GroupIntoBatches<K, InputT>
       this.minBufferedTsSpec = StateSpecs.combining(minCombineFn);
 
       // Prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
-      this.prefetchFrequency =
-          (batchSize == Long.MAX_VALUE)
-              ? 100L
-              : ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
+      this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
 
     @Override
