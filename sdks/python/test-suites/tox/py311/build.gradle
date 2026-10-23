@@ -84,30 +84,15 @@ toxTask "testPy311pyarrow-25", "py311-pyarrow-25", "${posargs}"
 test.dependsOn "testPy311pyarrow-25"
 postCommitPyDep.dependsOn "testPy311pyarrow-25"
 
-// Create a test task for each supported minor version of pandas
-toxTask "testPy311pandas-14", "py311-pandas-14", "${posargs}"
-test.dependsOn "testPy311pandas-14"
-postCommitPyDep.dependsOn "testPy311pandas-14"
+// Create a test task for each supported minor version of pandas.
+// Keep in sync with [testenv:py311-pandas-...] in tox.ini.
+toxTask "testPy311pandas-22", "py311-pandas-22", "${posargs}"
+test.dependsOn "testPy311pandas-22"
+postCommitPyDep.dependsOn "testPy311pandas-22"
 
-toxTask "testPy311pandas-15", "py311-pandas-15", "${posargs}"
-test.dependsOn "testPy311pandas-15"
-postCommitPyDep.dependsOn "testPy311pandas-15"
-
-toxTask "testPy311pandas-20", "py311-pandas-20", "${posargs}"
-test.dependsOn "testPy311pandas-20"
-postCommitPyDep.dependsOn "testPy311pandas-20"
-
-// TODO(https://github.com/apache/beam/issues/31192): Add below suites
-// after dependency compat tests suite switches to Python 3.9 or we add
-// Python 2.2 support.
-
-// toxTask "testPy311pandas-21", "py311-pandas-21", "${posargs}"
-// test.dependsOn "testPy311pandas-21"
-// postCommitPyDep.dependsOn "testPy311pandas-21"
-
-// toxTask "testPy311pandas-22", "py311-pandas-22", "${posargs}"
-// test.dependsOn "testPy311pandas-22"
-// postCommitPyDep.dependsOn "testPy311pandas-22"
+toxTask "testPy311pandas-23", "py311-pandas-23", "${posargs}"
+test.dependsOn "testPy311pandas-23"
+postCommitPyDep.dependsOn "testPy311pandas-23"
 
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
@@ -145,11 +130,9 @@ toxTask "testPy311tensorflow-212", "py311-tensorflow-212", "${posargs}"
 test.dependsOn "testPy311tensorflow-212"
 postCommitPyDep.dependsOn "testPy311tensorflow-212"
 
-// Create a test task for each minor version of transformers
-toxTask "testPy311transformers-428", "py311-transformers-428", "${posargs}"
-test.dependsOn "testPy311transformers-428"
-postCommitPyDep.dependsOn "testPy311transformers-428"
-
+// Create a test task for each minor version of transformers.
+// Dropped transformers-428: sentence-transformers==2.2.2 + torch<1.14 is
+// ResolutionImpossible on Python 3.11 (see #30799).
 toxTask "testPy311transformers-447", "py311-transformers-447", "${posargs}"
 test.dependsOn "testPy311transformers-447"
 postCommitPyDep.dependsOn "testPy311transformers-447"
@@ -157,6 +140,15 @@ postCommitPyDep.dependsOn "testPy311transformers-447"
 toxTask "testPy311transformers-latest", "py311-transformers-latest", "${posargs}"
 test.dependsOn "testPy311transformers-latest"
 postCommitPyDep.dependsOn "testPy311transformers-latest"
+
+// Create a test task for each major version of xgboost
+toxTask "testPy311xgboost-200", "py311-xgboost-200", "${posargs}"
+test.dependsOn "testPy311xgboost-200"
+postCommitPyDep.dependsOn "testPy311xgboost-200"
+
+toxTask "testPy311xgboost-300", "py311-xgboost-300", "${posargs}"
+test.dependsOn "testPy311xgboost-300"
+postCommitPyDep.dependsOn "testPy311xgboost-300"
 
 toxTask "testPy311embeddingsMLTransform", "py311-embeddings", "${posargs}"
 test.dependsOn "testPy311embeddingsMLTransform"

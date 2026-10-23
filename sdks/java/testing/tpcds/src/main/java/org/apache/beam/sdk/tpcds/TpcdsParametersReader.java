@@ -30,12 +30,21 @@ public class TpcdsParametersReader {
 
   /** The data sizes that have been supported. */
   private static final Set<String> supportedDataSizes =
-      Stream.of("1G", "1GB", "10G", "10GB", "100G", "100GB")
+      Stream.of("10M", "10MB", "1G", "1GB", "10G", "10GB", "100G", "100GB")
           .collect(Collectors.toCollection(HashSet::new));
 
   private static final String QUERY_PREFIX = "query";
 
   public static final List<String> ALL_QUERY_NAMES = getAllQueryNames();
+
+  public static final List<String> SUPPORTED_QUERY_NAMES =
+      Stream.of(
+              "1", "3", "4", "7", "9", "10", "11", "12", "15", "17", "19", "20", "21", "26", "31",
+              "32", "33", "34", "35", "38", "40", "42", "43", "45", "46", "49", "50", "52", "53",
+              "55", "56", "59", "60", "61", "63", "65", "66", "68", "69", "71", "73", "74", "75",
+              "76", "79", "82", "84", "87", "88", "89", "92", "93", "96", "97", "99")
+          .map(s -> QUERY_PREFIX + s)
+          .collect(Collectors.toList());
 
   /**
    * Get and check dataSize entered by user. This dataSize has to have been supported.
@@ -55,9 +64,10 @@ public class TpcdsParametersReader {
   }
 
   /**
-   * Get and check queries entered by user. This has to be a string of numbers separated by commas
-   * or "all" which means run all 99 queries. All query numbers have to be between 1 and 99. Some
-   * queries (14, 23, 24 and 39) may contain suffixes "a" or "b", e.g. "14a" and "14b".
+   * Get and check queries entered by user. This has to be a string of numbers separated by commas,
+   * "supported" which means run all supported queries, or "all" which means run all 99 queries. All
+   * query numbers have to be between 1 and 99. Some queries (14, 23, 24 and 39) may contain
+   * suffixes "a" or "b", e.g. "14a" and "14b".
    *
    * @param tpcdsOptions TpcdsOptions object constructed from user input
    * @return An array of query names, for example "1,2,14b" will be output as
@@ -67,6 +77,8 @@ public class TpcdsParametersReader {
     if (tpcdsOptions.getQueries().equalsIgnoreCase("all")) {
       // All TPC-DS queries need to be executed.
       return ALL_QUERY_NAMES.toArray(new String[0]);
+    } else if (tpcdsOptions.getQueries().equalsIgnoreCase("supported")) {
+      return SUPPORTED_QUERY_NAMES.toArray(new String[0]);
     } else {
       List<String> queries = new ArrayList<>();
       Arrays.stream(tpcdsOptions.getQueries().split("[\\s,]+", -1))

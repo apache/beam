@@ -2219,6 +2219,25 @@ class RunInferenceBaseTest(unittest.TestCase):
         FakeModelHandler(), watch_model_pattern='fake/path/*')
     assert side_input_str in str(result_pcoll.producer.side_inputs[0])
 
+  def test_run_inference_only_attaches_model_identifier_to_inference_step(self):
+    pipeline = beam.Pipeline()
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    file_pattern_side_input = (
+        pipeline
+        | 'WatchFilePattern' >> WatchFilePattern(file_pattern='fake/path/*'))
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(),
+        model_metadata_pcoll=file_pattern_side_input,
+        model_identifier='my_custom_model_id')
+    proto = pipeline.to_runner_api()
+    transforms_with_model_id = [
+        t.unique_name for t in proto.components.transforms.values()
+        if t.annotations.get('model_identifier') == b'my_custom_model_id'
+    ]
+    self.assertEqual(
+        transforms_with_model_id, ['RunInference/BeamML_RunInference'])
+
   def test_model_status_provides_valid_tags(self):
     ms = base._ModelStatus(False)
 
