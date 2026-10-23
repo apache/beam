@@ -49,6 +49,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          # ubuntu-latest may ship Java 25 so Gradle 8.14 needs a supported JDK.
+          java-version: default
           go-version: default
           python-version: default
       - name: "Installing local env dependencies"
