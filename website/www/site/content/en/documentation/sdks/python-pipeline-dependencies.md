@@ -113,7 +113,7 @@ Staged files are downloaded onto the worker:
 
       import os
       staged_dir = os.path.join(
-          os.environ.get('SEMI_PERSISTENT_DIRECTORY'), 'staged')
+          os.environ.get('SEMI_PERSISTENT_DIRECTORY', '/tmp'), 'staged')
       config_path = os.path.join(staged_dir, 'data_config.json')
 
 ### Importing Plugins on Worker Startup
