@@ -16,6 +16,7 @@
 package gcsx
 
 import (
+	"flag"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,6 +24,37 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 )
+
+func TestGetGcsEndpoint(t *testing.T) {
+	const flagValue = "https://flag.example.com/storage/v1/"
+	const optionValue = "https://option.example.com/storage/v1/"
+
+	// On workers, the value arrives as a pipeline option rather than a flag.
+	runtime.GlobalOptions.Set("gcs_endpoint", optionValue)
+	t.Cleanup(func() {
+		runtime.GlobalOptions.Set("gcs_endpoint", "")
+	})
+
+	if flag.Lookup("gcs_endpoint") == nil {
+		if got := GetGcsEndpoint(); got != optionValue {
+			t.Errorf("GetGcsEndpoint() with flag unregistered = %q, want pipeline option %q", got, optionValue)
+		}
+		flag.String("gcs_endpoint", "", "")
+	}
+	origFlag := flag.Lookup("gcs_endpoint").Value.String()
+	t.Cleanup(func() {
+		_ = flag.Set("gcs_endpoint", origFlag)
+	})
+
+	_ = flag.Set("gcs_endpoint", "")
+	if got := GetGcsEndpoint(); got != optionValue {
+		t.Errorf("GetGcsEndpoint() with flag unset = %q, want pipeline option %q", got, optionValue)
+	}
+	_ = flag.Set("gcs_endpoint", flagValue)
+	if got := GetGcsEndpoint(); got != flagValue {
+		t.Errorf("GetGcsEndpoint() with flag set = %q, want flag %q", got, flagValue)
+	}
+}
 
 func TestNewUnauthenticatedClient_UsesGcsEndpoint(t *testing.T) {
 	var gotPath string
