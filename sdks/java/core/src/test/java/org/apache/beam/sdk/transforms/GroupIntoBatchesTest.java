@@ -831,6 +831,11 @@ public class GroupIntoBatchesTest implements Serializable {
     assertThat(displayData, hasDisplayItem("maxBufferingDuration", Duration.standardSeconds(5)));
   }
 
+  /**
+   * Tests that when elements arrive out of order, the watermark hold is updated to the minimum
+   * timestamp. With ofSize(3) and 2 elements, elements remain buffered until window expiration,
+   * exercising the updated timer watermark hold rather than flushing immediately in processElement.
+   */
   @Test
   @Category({
     ValidatesRunner.class,
@@ -855,7 +860,7 @@ public class GroupIntoBatchesTest implements Serializable {
     PCollection<Long> outputTimestamps =
         pipeline
             .apply(stream)
-            .apply(GroupIntoBatches.ofSize(2))
+            .apply(GroupIntoBatches.ofSize(3))
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, Iterable<String>>, Long>() {
