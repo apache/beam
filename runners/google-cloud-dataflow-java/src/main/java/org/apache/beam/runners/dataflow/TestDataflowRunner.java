@@ -347,10 +347,20 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Getting the final state may have timed out; it may not indicate a failure.
     // This cancellation may be the second
     if (finalState == null || !finalState.isTerminal()) {
-      LOG.info(
-          "Dataflow job {} took longer than {} seconds to complete, cancelling.",
-          job.getJobId(),
-          options.getTestTimeoutSeconds());
+      if (messageHandler.hasSeenRetryableInfrastructureError()) {
+        LOG.warn(
+            "Dataflow job {} did not complete within {} seconds while the service was retrying an"
+                + " infrastructure error; cancelling. The failure is most likely capacity, not the"
+                + " test: {}",
+            job.getJobId(),
+            options.getTestTimeoutSeconds(),
+            messageHandler.getErrorMessage());
+      } else {
+        LOG.info(
+            "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+            job.getJobId(),
+            options.getTestTimeoutSeconds());
+      }
       try {
         job.cancel();
       } catch (IOException e) {
@@ -358,6 +368,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
+      // Retryable infrastructure errors do not count: if the job still reached DONE, the service
+      // recovered from them and the pipeline ran to completion.
       return finalState == State.DONE && !messageHandler.hasSeenError();
     }
   }
@@ -569,56 +581,107 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Monitors job log output messages for errors.
    *
-   * <p>Creates an error message representing the concatenation of all error messages seen.
+   * <p>Errors come in two kinds. A <i>fatal</i> error is a failure of the pipeline itself: a {@link
+   * PAssert} that did not hold, user code that threw, a worker crash. A <i>retryable
+   * infrastructure</i> error is one the service announces it will recover from on its own, such as
+   * a worker pool that could not be started because the zone was out of capacity. The service keeps
+   * retrying those and the job usually goes on to succeed, so they must not be treated as a verdict
+   * on the test: {@link #hasSeenError()} reports fatal errors only. Both kinds are kept for {@link
+   * #getErrorMessage()}, so that a job that never recovers still reports the real cause.
    */
   static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuilder errorMessage;
+    private final StringBuilder retryableErrorMessage;
     private volatile boolean hasSeenError;
+    private volatile boolean hasSeenRetryableInfrastructureError;
 
     ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuilder();
+      this.retryableErrorMessage = new StringBuilder();
       this.hasSeenError = false;
+      this.hasSeenRetryableInfrastructureError = false;
     }
 
     @Override
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
-        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
-          String messageText = message.getMessageText();
-          if (messageText != null && messageText.contains("The service will retry")) {
-            LOG.info(
-                "Dataflow job {} reported transient error that the service will retry: {}",
-                job.getJobId(),
-                messageText);
-            continue;
-          }
-          LOG.info(
-              "Dataflow job {} threw exception. Failure message was: {}",
+        if (!"JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          continue;
+        }
+        String text = Strings.nullToEmpty(message.getMessageText());
+        if (isRetryableInfrastructureError(text)) {
+          LOG.warn(
+              "Dataflow job {} reported an infrastructure error that the service will retry;"
+                  + " waiting for it to recover: {}",
               job.getJobId(),
-              messageText);
-          errorMessage.append(messageText);
+              text);
+          synchronized (retryableErrorMessage) {
+            retryableErrorMessage.append(text);
+          }
+          hasSeenRetryableInfrastructureError = true;
+        } else {
+          LOG.info(
+              "Dataflow job {} threw exception. Failure message was: {}", job.getJobId(), text);
+          synchronized (errorMessage) {
+            errorMessage.append(text);
+          }
           hasSeenError = true;
         }
       }
     }
 
+    /** Whether a fatal error has been reported; retryable infrastructure errors do not count. */
     boolean hasSeenError() {
       return hasSeenError;
     }
 
+    boolean hasSeenRetryableInfrastructureError() {
+      return hasSeenRetryableInfrastructureError;
+    }
+
+    /**
+     * The fatal error messages seen so far, or, if there were none, the retryable infrastructure
+     * error messages. Empty if no error was reported at all.
+     */
     String getErrorMessage() {
-      return errorMessage.toString();
+      synchronized (errorMessage) {
+        if (errorMessage.length() > 0) {
+          return errorMessage.toString();
+        }
+      }
+      synchronized (retryableErrorMessage) {
+        return retryableErrorMessage.toString();
+      }
+    }
+
+    /**
+     * Whether {@code text} is a {@code JOB_MESSAGE_ERROR} that Dataflow itself reports as transient
+     * and keeps retrying, so that it says nothing about the pipeline under test. Kept deliberately
+     * narrow: only wording in which the service states that it will retry, plus the Compute Engine
+     * stockout that dominates ValidatesRunner failures. Anything else is fatal.
+     */
+    @VisibleForTesting
+    static boolean isRetryableInfrastructureError(String text) {
+      if (text.contains("ZONE_RESOURCE_POOL_EXHAUSTED")) {
+        return true;
+      }
+      if (text.contains("Startup of the worker pool") && text.contains("failed to bring up")) {
+        return true;
+      }
+      return text.contains("The service will retry");
     }
   }
 
   /**
-   * Polls a job and cancels it as soon as {@code messageHandler} has seen an error. Used for
-   * streaming jobs, where a failing step retries forever instead of failing the job.
+   * Polls a job and cancels it as soon as {@code messageHandler} has seen a fatal error. Used for
+   * streaming jobs, where a failing step retries forever instead of failing the job. Retryable
+   * infrastructure errors do not trigger cancellation; the service is given until the test timeout
+   * to recover from them.
    */
   static class CancelOnError implements Callable<Void> {
 

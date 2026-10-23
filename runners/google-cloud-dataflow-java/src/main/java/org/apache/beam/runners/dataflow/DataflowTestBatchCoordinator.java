@@ -1060,9 +1060,12 @@ class DataflowTestBatchCoordinator {
     return items.get(0);
   }
 
-  /** The job's error messages, formatted for appending to a log line, or empty if none. */
+  /**
+   * The job's error messages (fatal, or failing that the infrastructure errors the service was
+   * retrying), formatted for appending to a log line, or empty if none.
+   */
   private static String errorSuffix(@Nullable ErrorMonitorMessagesHandler messages) {
-    if (messages == null || !messages.hasSeenError()) {
+    if (messages == null || messages.getErrorMessage().isEmpty()) {
       return "";
     }
     return " Job errors: " + messages.getErrorMessage();

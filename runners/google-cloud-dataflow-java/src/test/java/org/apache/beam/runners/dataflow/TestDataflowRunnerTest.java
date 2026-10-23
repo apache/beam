@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -491,6 +492,144 @@ public class TestDataflowRunnerTest {
 
     assertEquals(mockJob, runner.run(pipeline, mockRunner));
     verify(mockJob, never()).cancel();
+  }
+
+  /** Verbatim wording of the stockout error that dominates streaming ValidatesRunner failures. */
+  private static final String STOCKOUT_ERROR =
+      "Startup of the worker pool in us-central1-c failed to bring up any of the desired 1"
+          + " workers. This is likely a quota issue or a Compute Engine stockout. The service will"
+          + " retry. For troubleshooting steps, see"
+          + " https://cloud.google.com/dataflow/docs/guides/common-errors#worker-pool-failure for"
+          + " help troubleshooting. ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS: Instance"
+          + " 'createtest0testcreate-run-10220559-928j-harness-zqmh' creation failed: The zone"
+          + " 'projects/apache-beam-testing/zones/us-central1-c' does not have enough resources"
+          + " available to fulfill the request.  '(resource type:compute)'.";
+
+  private static JobMessage errorMessage(String text) {
+    JobMessage message = new JobMessage();
+    message.setMessageText(text);
+    message.setTime(TimeUtil.toCloudTime(Instant.now()));
+    message.setMessageImportance("JOB_MESSAGE_ERROR");
+    return message;
+  }
+
+  /**
+   * A streaming job that reports a retryable infrastructure error (the service could not start the
+   * worker pool and says it will retry) and then goes on to finish is a success: the error was
+   * about capacity, not about the pipeline, and must neither cancel the job nor fail the test.
+   */
+  @Test
+  public void testStreamingJobSurvivesRetryableInfrastructureError() throws Exception {
+    options.setStreaming(true);
+    Pipeline pipeline = TestPipeline.create(options);
+    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3));
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.DONE);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              ((JobMessagesHandler) invocation.getArguments()[1])
+                  .process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
+              return State.DONE;
+            });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+    when(mockClient.getJobMetrics(anyString()))
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    assertEquals(mockJob, runner.run(pipeline, mockRunner));
+    verify(mockJob, never()).cancel();
+  }
+
+  /**
+   * If the service never recovers from the infrastructure error, the job runs into the test
+   * timeout; it is then cancelled and the failure names the infrastructure error as the cause.
+   */
+  @Test
+  public void testStreamingJobTimingOutOnInfrastructureErrorFailsWithThatCause() throws Exception {
+    options.setStreaming(true);
+    options.setTestTimeoutSeconds(1L);
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3));
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    // Still running when the wait times out; the background CancelOnError poller sees the job
+    // terminate afterwards and exits.
+    when(mockJob.getState()).thenReturn(State.RUNNING, State.RUNNING, State.CANCELLED);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              ((JobMessagesHandler) invocation.getArguments()[1])
+                  .process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
+              return null; // timed out
+            });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    try {
+      runner.run(pipeline, mockRunner);
+      fail("expected the test to fail");
+    } catch (RuntimeException expected) {
+      assertThat(expected.getMessage(), containsString("ZONE_RESOURCE_POOL_EXHAUSTED"));
+    }
+    verify(mockJob).cancel();
+  }
+
+  @Test
+  public void testErrorMonitorKeepsFatalAndInfrastructureErrorsApart() {
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getJobId()).thenReturn("test-job");
+    TestDataflowRunner.ErrorMonitorMessagesHandler handler =
+        new TestDataflowRunner.ErrorMonitorMessagesHandler(mockJob, messages -> {});
+
+    handler.process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
+    assertThat(handler.hasSeenError(), equalTo(false));
+    assertThat(handler.hasSeenRetryableInfrastructureError(), equalTo(true));
+    // With no fatal error, the infrastructure error is what gets reported.
+    assertThat(handler.getErrorMessage(), containsString("ZONE_RESOURCE_POOL_EXHAUSTED"));
+
+    handler.process(Arrays.asList(errorMessage("java.lang.AssertionError: BadAssert")));
+    assertThat(handler.hasSeenError(), equalTo(true));
+    // Once there is a fatal error, it takes precedence in the reported message.
+    assertThat(handler.getErrorMessage(), containsString("BadAssert"));
+    assertThat(handler.getErrorMessage(), not(containsString("ZONE_RESOURCE_POOL_EXHAUSTED")));
+  }
+
+  @Test
+  public void testRetryableInfrastructureErrorClassification() {
+    assertThat(
+        TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(
+            STOCKOUT_ERROR),
+        equalTo(true));
+    assertThat(
+        TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(
+            "Startup of the worker pool in us-central1-a failed to bring up any of the desired 1"
+                + " workers. QUOTA_EXCEEDED: Quota 'CPUS' exceeded."),
+        equalTo(true));
+    // Pipeline failures of every shape are fatal.
+    for (String fatal :
+        Arrays.asList(
+            "java.lang.RuntimeException: org.apache.beam.sdk.util.UserCodeException:"
+                + " java.lang.AssertionError: BadAssert: Expected: iterable with items",
+            "java.lang.IllegalStateException: ProbeExplode deliberate failure for 2",
+            "Workflow failed. Causes: S01:Read/Impulse+ParDo failed.",
+            "The worker lost contact with the service.",
+            "")) {
+      assertThat(
+          fatal,
+          TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(fatal),
+          equalTo(false));
+    }
   }
 
   @Test
