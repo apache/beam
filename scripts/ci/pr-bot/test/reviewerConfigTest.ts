@@ -22,15 +22,22 @@ const { ReviewerConfig } = require("../shared/reviewerConfig");
 const configPath = "test-config.yml";
 const configContents = `labels:
 - name: "Go"
+  priority: 2
   reviewers: ["testReviewer1", "testReviewer2"]
   exclusionList: ["testReviewer3"] # These users will never be suggested as reviewers
 # I don't know the other areas well enough to assess who the normal committers/contributors who might want to be reviewers are
 - name: "Java"
+  priority: 3
   reviewers: ["testReviewer3", "testReviewer2"]
   exclusionList: [] # These users will never be suggested as reviewers
 - name: "Python"
+  priority: 1
   reviewers: ["testReviewer4"]
   exclusionList: [] # These users will never be suggested as reviewers
+- name: "Kafka"
+  priority: 1
+  reviewers: ["testReviewer5"]
+  exclusionList: []
 fallbackReviewers: ["testReviewer5", "testReviewer1", "testReviewer3"] # List of committers to use when no label matches
 `;
 describe("ReviewerConfig", function () {
@@ -46,12 +53,13 @@ describe("ReviewerConfig", function () {
   });
 
   describe("getReviewersForLabels()", function () {
-    it("should return all reviewers configured for all labels", function () {
+    it("should return reviewers only for the highest-priority matching label", function () {
       const config = new ReviewerConfig(configPath);
       const reviewersForLabels = config.getReviewersForLabels(
-        [{ name: "Go" }, { name: "Java" }],
+        [{ name: "Java" }, { name: "Go" }],
         []
       );
+      assert.deepEqual(Object.keys(reviewersForLabels), ["Go"]);
       assert(
         reviewersForLabels["Go"].find(
           (reviewer) => reviewer === "testReviewer1"
@@ -76,42 +84,49 @@ describe("ReviewerConfig", function () {
         ),
         "Return value for Go label should not include testReviewer4"
       );
-
       assert(
-        reviewersForLabels["Java"].find(
-          (reviewer) => reviewer === "testReviewer3"
-        ),
-        "Return value for Java label should include testReviewer3"
+        Object.keys(reviewersForLabels).indexOf("Java") == -1,
+        "Lower-priority Java label should not be included when Go matches"
       );
-      assert(
-        reviewersForLabels["Java"].find(
-          (reviewer) => reviewer === "testReviewer2"
-        ),
-        "Return value for Java label should include testReviewer2"
-      );
-      assert(
-        !reviewersForLabels["Java"].find(
-          (reviewer) => reviewer === "testReviewer4"
-        ),
-        "Return value for Java label should not include testReviewer4"
-      );
-      assert(
-        !reviewersForLabels["Java"].find(
-          (reviewer) => reviewer === "testReviewer1"
-        ),
-        "Return value for Java label should not include testReviewer1"
-      );
-      assert(
-        !reviewersForLabels["Java"].find(
-          (reviewer) => reviewer === "testReviewer5"
-        ),
-        "Return value for Java label should not include testReviewer5"
-      );
-
       assert(
         Object.keys(reviewersForLabels).indexOf("Python") == -1,
         "No reviewers should be included for python"
       );
+    });
+
+    it("should choose randomly when multiple labels share the highest priority", function () {
+      const config = new ReviewerConfig(configPath);
+      const origRandom = Math.random;
+      try {
+        Math.random = () => 0.1;
+        const firstChoice = config.getReviewersForLabels(
+          [{ name: "Python" }, { name: "Kafka" }, { name: "Java" }],
+          []
+        );
+        assert.deepEqual(Object.keys(firstChoice), ["Python"]);
+
+        Math.random = () => 0.9;
+        const secondChoice = config.getReviewersForLabels(
+          [{ name: "Python" }, { name: "Kafka" }, { name: "Java" }],
+          []
+        );
+        assert.deepEqual(Object.keys(secondChoice), ["Kafka"]);
+      } finally {
+        Math.random = origRandom;
+      }
+    });
+
+    it("should fall back to next highest-priority label if top priority label has all reviewers excluded", function () {
+      const config = new ReviewerConfig(configPath);
+      const reviewersForLabels = config.getReviewersForLabels(
+        [{ name: "Python" }, { name: "Java" }],
+        ["testReviewer4"]
+      );
+      assert.deepEqual(Object.keys(reviewersForLabels), ["Java"]);
+      assert.deepEqual(reviewersForLabels["Java"], [
+        "testReviewer3",
+        "testReviewer2",
+      ]);
     });
 
     it("should return no entry if a label is not configured", function () {

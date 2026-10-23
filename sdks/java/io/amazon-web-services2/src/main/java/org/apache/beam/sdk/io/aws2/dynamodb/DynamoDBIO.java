@@ -280,8 +280,7 @@ public final class DynamoDBIO {
           do {
             ScanRequest scanRequest = spec.getScanRequestFn().apply(null);
             ScanRequest scanRequestWithSegment =
-                scanRequest
-                    .toBuilder()
+                scanRequest.toBuilder()
                     .segment(spec.getSegmentId())
                     .exclusiveStartKey(lastEvaluatedKey)
                     .build();

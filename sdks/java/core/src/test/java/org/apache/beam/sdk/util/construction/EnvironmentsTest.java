@@ -24,12 +24,15 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +61,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -398,5 +403,53 @@ public class EnvironmentsTest implements Serializable {
         Environments.resolveAnyOfEnvironment(
             env, BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL)),
         notNullValue());
+  }
+
+  @Test
+  public void testGetFileHashCachingAndInvalidation() throws Exception {
+    File file = File.createTempFile("hash-cache-test-", ".txt");
+    file.deleteOnExit();
+    Files.asCharSink(file, StandardCharsets.UTF_8).write("initial-content");
+
+    HashCode hash1 = Environments.getFileHash(file);
+    HashCode hash2 = Environments.getFileHash(file);
+    assertSame(hash1, hash2);
+
+    // Modifying the file content and length invalidates the cache entry.
+    Files.asCharSink(file, StandardCharsets.UTF_8).write("updated-longer-content");
+    HashCode hash3 = Environments.getFileHash(file);
+    assertThat(hash3, not(equalTo(hash1)));
+  }
+
+  @Test
+  public void testGetArtifactsDirectoryZipCachingAndInvalidation() throws Exception {
+    File tempDir = Files.createTempDir();
+    tempDir.deleteOnExit();
+    File child = new File(tempDir, "entry.txt");
+    child.deleteOnExit();
+    Files.asCharSink(child, StandardCharsets.UTF_8).write("v1");
+
+    List<ArtifactInformation> firstArtifacts =
+        Environments.getArtifacts(ImmutableList.of(tempDir.getAbsolutePath()));
+    List<ArtifactInformation> secondArtifacts =
+        Environments.getArtifacts(ImmutableList.of(tempDir.getAbsolutePath()));
+
+    RunnerApi.ArtifactFilePayload firstPayload =
+        RunnerApi.ArtifactFilePayload.parseFrom(firstArtifacts.get(0).getTypePayload());
+    RunnerApi.ArtifactFilePayload secondPayload =
+        RunnerApi.ArtifactFilePayload.parseFrom(secondArtifacts.get(0).getTypePayload());
+
+    // Unchanged directory reuses the same cached zip file and SHA-256 hash.
+    assertEquals(firstPayload.getPath(), secondPayload.getPath());
+    assertEquals(firstPayload.getSha256(), secondPayload.getSha256());
+
+    // Modifying a file inside the directory produces a new zip and hash.
+    Files.asCharSink(child, StandardCharsets.UTF_8).write("v2-modified");
+    List<ArtifactInformation> thirdArtifacts =
+        Environments.getArtifacts(ImmutableList.of(tempDir.getAbsolutePath()));
+    RunnerApi.ArtifactFilePayload thirdPayload =
+        RunnerApi.ArtifactFilePayload.parseFrom(thirdArtifacts.get(0).getTypePayload());
+    assertThat(thirdPayload.getPath(), not(equalTo(firstPayload.getPath())));
+    assertThat(thirdPayload.getSha256(), not(equalTo(firstPayload.getSha256())));
   }
 }

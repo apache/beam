@@ -92,7 +92,7 @@ class _BaseJmsIOTest(unittest.TestCase):
     subscriber_result = {}
 
     def publish():
-      self.produce(source_queue, remaining_records)
+      self.produce(source_queue, NUM_RECORDS)
 
     stop_event = threading.Event()
 
@@ -109,12 +109,6 @@ class _BaseJmsIOTest(unittest.TestCase):
           _LOGGER.warning('Error while browsing sink queue: %s', e)
           break
       _LOGGER.info('received %s messages', len(received_messages))
-
-    # TODO(https://github.com/apache/beam/issues/39446): Clean up
-    # pre-publishing Prism runner issue resolved
-    initial_records = 10
-    remaining_records = NUM_RECORDS - initial_records
-    self.produce(source_queue, initial_records)
 
     publisher = threading.Thread(target=publish, daemon=True)
     subscriber = threading.Thread(target=subscribe, daemon=True)
@@ -147,7 +141,7 @@ class _BaseJmsIOTest(unittest.TestCase):
       result = p.run()
       subscriber.start()
       try:
-        subscriber.join(timeout=20)  # 1.5 min
+        subscriber.join(timeout=20)
       finally:
         stop_event.set()
         publisher.join()
@@ -160,8 +154,7 @@ class _BaseJmsIOTest(unittest.TestCase):
 
     received = subscriber_result.get('received', [])
     self.assertEqual(len(received), NUM_RECORDS)
-    # there are identical records
-    self.assertEqual(len(set(received)), NUM_RECORDS - initial_records)
+    self.assertEqual(len(set(received)), NUM_RECORDS)
 
 
 class ActiveMQJmsIOTest(_BaseJmsIOTest):
@@ -313,7 +306,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
         cls.expansion_service_obj = BeamJarExpansionService(
             'sdks:java:io:messaging-expansion-service:shadowJar',
             classpath=[
-                'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25',
+                'com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25',
                 'org.json:json:20251224'
             ])
         cls.expansion_service = cls.expansion_service_obj.__enter__()
@@ -334,7 +327,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
       uri += '&' + connection_param
     return {
         'server_uri': uri,
-        'connection_factory_class_name': 'com.ibm.mq.jms.MQConnectionFactory',
+        'connection_factory_class_name': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'username': 'app',
         'password': 'admin123'
     }

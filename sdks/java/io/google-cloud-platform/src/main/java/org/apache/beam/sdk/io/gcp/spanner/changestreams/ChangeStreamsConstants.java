@@ -83,6 +83,7 @@ public class ChangeStreamsConstants {
    */
   private static final String SAMPLE_PARTITION_TOKEN =
       String.join("", Collections.nCopies(140, "*"));
+
   /**
    * We use a bogus partition here to estimate the average size of a partition metadata record.
    *

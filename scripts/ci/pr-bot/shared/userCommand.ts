@@ -41,7 +41,7 @@ export async function processCommand(
   commentText = commentText.toLowerCase();
 
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Notifications stopped, only "allow assign set of reviewers"
     if (commentText.indexOf("assign set of reviewers") > -1) {
       await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
@@ -92,23 +92,38 @@ async function assignToNextReviewer(
       labelOfReviewer
     );
     const pullAuthor = github.getPullAuthorFromPayload(payload);
+    const exclusionList = [commentAuthor, pullAuthor];
     let availableReviewers = reviewerConfig.getReviewersForLabel(
       labelOfReviewer,
-      [commentAuthor, pullAuthor]
+      exclusionList
     );
+    const fallbackReviewers =
+      reviewerConfig.getFallbackReviewers(exclusionList);
     let chosenReviewer = reviewersState.assignNextReviewer(availableReviewers);
+    let backupReviewer = reviewersState.getBackupReviewer(
+      availableReviewers,
+      chosenReviewer,
+      fallbackReviewers
+    );
     prState.reviewersAssignedForLabels[labelOfReviewer] = chosenReviewer;
+    const backupReviewersForLabels: { [key: string]: string } = backupReviewer
+      ? { [labelOfReviewer]: backupReviewer }
+      : {};
 
     // Comment assigning reviewer
     console.log(`Assigning ${chosenReviewer}`);
-    await github.addPrComment(
-      pullNumber,
-      commentStrings.assignReviewer(prState.reviewersAssignedForLabels)
-    );
-
-    // Set next action to reviewer
     const existingLabels =
       payload.issue?.labels || payload.pull_request?.labels;
+    await github.addPrComment(
+      pullNumber,
+      commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
+        labels: existingLabels,
+        backupReviewers: backupReviewersForLabels,
+      })
+    );
+    await github.requestPrReviewers(pullNumber, [chosenReviewer]);
+
+    // Set next action to reviewer
     await github.nextActionReviewers(pullNumber, existingLabels);
     prState.nextAction = "Reviewers";
 
@@ -185,7 +200,7 @@ async function assignReviewerSet(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Restore notifications, and clear any existing reviewer set to
     // allow new reviewers to be assigned.
     prState.stopReviewerNotifications = false;
@@ -203,11 +218,14 @@ async function assignReviewerSet(
 
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
   const pullAuthor = github.getPullAuthorFromPayload(payload);
+  const exclusionList = [pullAuthor];
   const reviewersForLabels = reviewerConfig.getReviewersForLabels(
     existingLabels,
-    [pullAuthor]
+    exclusionList
   );
+  const fallbackReviewers = reviewerConfig.getFallbackReviewers(exclusionList);
   let reviewerStateToUpdate = {};
+  let backupReviewersForLabels: { [key: string]: string } = {};
   var labels = Object.keys(reviewersForLabels);
   if (!labels || labels.length == 0) {
     await github.addPrComment(
@@ -221,13 +239,28 @@ async function assignReviewerSet(
     let availableReviewers = reviewersForLabels[label];
     let reviewersState = await stateClient.getReviewersForLabelState(label);
     let chosenReviewer = reviewersState.assignNextReviewer(availableReviewers);
+    let backupReviewer = reviewersState.getBackupReviewer(
+      availableReviewers,
+      chosenReviewer,
+      fallbackReviewers
+    );
     reviewerStateToUpdate[label] = reviewersState;
     prState.reviewersAssignedForLabels[label] = chosenReviewer;
+    if (backupReviewer) {
+      backupReviewersForLabels[label] = backupReviewer;
+    }
   }
   console.log(`Assigning reviewers for pr ${pullNumber}`);
   await github.addPrComment(
     pullNumber,
-    commentStrings.assignReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
+      labels: existingLabels,
+      backupReviewers: backupReviewersForLabels,
+    })
+  );
+  await github.requestPrReviewers(
+    pullNumber,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   github.nextActionReviewers(pullNumber, existingLabels);

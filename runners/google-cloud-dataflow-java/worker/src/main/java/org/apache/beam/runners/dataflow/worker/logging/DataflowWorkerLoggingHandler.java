@@ -137,6 +137,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       return Iterators.asEnumeration(Iterators.singletonIterator(LEVEL_KEY));
     }
   }
+
   // Since there are just a couple possible levels, we cache them.
   private static final ConcurrentHashMap<Level, ResourceBundle> resourceBundles =
       new ConcurrentHashMap<>();

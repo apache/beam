@@ -20,6 +20,7 @@
 
 import random
 import unittest
+from unittest import mock
 
 import apache_beam as beam
 from apache_beam.coders import StrUtf8Coder
@@ -30,6 +31,7 @@ from apache_beam.runners import common
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operations
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
@@ -429,6 +431,116 @@ class EnvironmentCompatibilityTest(unittest.TestCase):
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom"))
 
 
+class RuntimeStateCommitTest(unittest.TestCase):
+  STATE_TYPES = (
+      bundle_processor.SynchronousBagRuntimeState,
+      bundle_processor.SynchronousSetRuntimeState,
+      SynchronousOrderedListRuntimeState)
+
+  def setUp(self):
+    # Keep set compaction deterministic; it is exercised separately below.
+    patcher = mock.patch.object(random, 'random', return_value=0)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
+  def _create_state(self, state_type, append_errors=('', ), clear_error=''):
+    futures = []
+
+    def response_future(error):
+      future = sdk_worker._Future().set(
+          beam_fn_api_pb2.StateResponse(error=error))
+      future.get = mock.Mock(wraps=future.get)
+      futures.append(future)
+      return future
+
+    append_errors = iter(append_errors)
+    underlying = mock.Mock(spec=sdk_worker.StateHandler)
+    underlying.append_raw.side_effect = (
+        lambda *args: response_future(next(append_errors)))
+    underlying.clear.side_effect = lambda *args: response_future(clear_error)
+    underlying.get_raw.return_value = (b'', None)
+    handler = GlobalCachingStateHandler(StateCache(0), underlying)
+    if state_type is SynchronousOrderedListRuntimeState:
+      key = beam_fn_api_pb2.StateKey(
+          ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+          ))
+    else:
+      key = beam_fn_api_pb2.StateKey(
+          bag_user_state=beam_fn_api_pb2.StateKey.BagUserState())
+    return state_type(handler, key, StrUtf8Coder()), futures
+
+  def _add(self, state, value):
+    if isinstance(state, SynchronousOrderedListRuntimeState):
+      state.add((timestamp.Timestamp(1), value))
+    else:
+      state.add(value)
+
+  def test_commit_rejects_failed_append(self):
+    for state_type in self.STATE_TYPES:
+      with self.subTest(state_type=state_type):
+        state, _ = self._create_state(
+            state_type, append_errors=('append failed', ))
+        self._add(state, 'value')
+        with self.assertRaisesRegex(RuntimeError, 'append failed'):
+          state.commit()
+
+  def test_commit_rejects_failed_clear(self):
+    for state_type in self.STATE_TYPES:
+      with self.subTest(state_type=state_type):
+        state, _ = self._create_state(state_type, clear_error='clear failed')
+        state.clear()
+        with self.assertRaisesRegex(RuntimeError, 'clear failed'):
+          state.commit()
+
+  def test_clear_then_append_checks_every_response(self):
+    for state_type in self.STATE_TYPES:
+      for clear_error, append_error in (
+          ('', ''), ('clear failed', ''), ('clear failed', 'append failed')):
+        with self.subTest(state_type=state_type,
+                          clear_error=clear_error,
+                          append_error=append_error):
+          state, futures = self._create_state(
+              state_type, (append_error, ), clear_error)
+          state.clear()
+          self._add(state, 'replacement')
+          if clear_error:
+            with self.assertRaises(RuntimeError) as raised:
+              state.commit()
+            self.assertEqual(
+                str(raised.exception),
+                '\n'.join(
+                    error for error in (clear_error, append_error) if error))
+          else:
+            state.commit()
+          self.assertEqual(len(futures), 2)
+          for future in futures:
+            future.get.assert_called_once()
+
+  def test_commit_rejects_failure_in_earlier_append_chunk(self):
+    state, futures = self._create_state(
+        bundle_processor.SynchronousBagRuntimeState,
+        append_errors=('first append failed', ''))
+    state.add('first')
+    state.add('second')
+    with mock.patch.object(sdk_worker.data_plane,
+                           '_DEFAULT_SIZE_FLUSH_THRESHOLD',
+                           1):
+      with self.assertRaisesRegex(RuntimeError, 'first append failed'):
+        state.commit()
+    self.assertEqual(len(futures), 2)
+    for future in futures:
+      future.get.assert_called_once()
+
+  def test_commit_rejects_failed_set_compaction(self):
+    state, futures = self._create_state(
+        bundle_processor.SynchronousSetRuntimeState, clear_error='clear failed')
+    with mock.patch.object(random, 'random', return_value=1):
+      state.add('value')
+    with self.assertRaisesRegex(RuntimeError, 'clear failed'):
+      state.commit()
+    self.assertEqual(len(futures), 2)
+
+
 class OrderedListStateTest(unittest.TestCase):
   class NoStateCache(StateCache):
     def __init__(self):
@@ -734,6 +846,79 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A2, A7, B7], list(self.state.read_range(T2, T8)))
 
     self.assertEqual([A1, A2, A7, B7, A8], list(self.state.read()))
+
+
+class NamedDataStreamsTest(unittest.TestCase):
+  def test_named_data_streams_routing(self):
+    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(id='descriptor_id')
+
+    # Coders
+    CODER_ID = 'coder'
+    descriptor.coders[
+        CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+
+    # PCollections
+    PCOLLECTION_IN = 'pcoll_in'
+    descriptor.pcollections[PCOLLECTION_IN].unique_name = PCOLLECTION_IN
+    descriptor.pcollections[PCOLLECTION_IN].coder_id = CODER_ID
+
+    PCOLLECTION_OUT = 'pcoll_out'
+    descriptor.pcollections[PCOLLECTION_OUT].unique_name = PCOLLECTION_OUT
+    descriptor.pcollections[PCOLLECTION_OUT].coder_id = CODER_ID
+
+    # Source transform
+    SOURCE_ID = 'source'
+    source_transform = descriptor.transforms[SOURCE_ID]
+    source_transform.spec.urn = bundle_processor.DATA_INPUT_URN
+    source_port = beam_fn_api_pb2.RemoteGrpcPort(coder_id=CODER_ID)
+    source_port.api_service_descriptor.url = 'localhost:123'
+    source_transform.spec.payload = source_port.SerializeToString()
+    source_transform.outputs['None'] = PCOLLECTION_IN
+
+    # Sink transform
+    SINK_ID = 'sink'
+    sink_transform = descriptor.transforms[SINK_ID]
+    sink_transform.spec.urn = bundle_processor.DATA_OUTPUT_URN
+    sink_port = beam_fn_api_pb2.RemoteGrpcPort(coder_id=CODER_ID)
+    sink_port.api_service_descriptor.url = 'localhost:123'
+    sink_transform.spec.payload = sink_port.SerializeToString()
+    sink_transform.inputs['None'] = PCOLLECTION_IN
+    sink_transform.outputs['None'] = PCOLLECTION_OUT
+
+    data_channel_factory = mock.MagicMock()
+    mock_channel_default = mock.MagicMock()
+    mock_channel_named = mock.MagicMock()
+
+    def get_channel(port, data_stream_id):
+      if data_stream_id == 'named_stream':
+        return mock_channel_named
+      return mock_channel_default
+
+    data_channel_factory.create_data_channel.side_effect = get_channel
+
+    mock_channel_default.input_elements.return_value = []
+    mock_channel_named.input_elements.return_value = []
+
+    processor = BundleProcessor(
+        frozenset(), descriptor, None, data_channel_factory)
+
+    # Process on default stream
+    processor.process_bundle('inst_1')
+    data_channel_factory.create_data_channel.assert_any_call(source_port, None)
+    data_channel_factory.create_data_channel.assert_any_call(sink_port, None)
+    mock_channel_default.output_stream.assert_called_once_with(
+        'inst_1', SINK_ID)
+
+    processor.reset()
+
+    # Process on named stream
+    processor.process_bundle('inst_2', data_stream_id='named_stream')
+
+    data_channel_factory.create_data_channel.assert_any_call(
+        source_port, 'named_stream')
+    data_channel_factory.create_data_channel.assert_any_call(
+        sink_port, 'named_stream')
+    mock_channel_named.output_stream.assert_called_once_with('inst_2', SINK_ID)
 
 
 if __name__ == '__main__':

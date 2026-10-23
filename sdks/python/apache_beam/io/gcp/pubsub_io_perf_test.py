@@ -56,6 +56,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.pubsub_test_context import TestPubsubContext
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
@@ -88,6 +89,8 @@ class PubsubIOPerfTest(LoadTest):
         'pubsub_namespace_prefix')
     self.pubsub_namespace = pubsub_namespace_prefix + unique_id
 
+    self.pubsub_monitor = TestPubsubContext(project_id=self.project_id)
+
   def _setup_pubsub(self):
     self.pub_client = pubsub.PublisherClient()
     self.topic_name = self.pub_client.topic_path(
@@ -105,6 +108,10 @@ class PubsubIOPerfTest(LoadTest):
         self.project_id,
         self.pubsub_namespace + '_read_matcher',
     )
+    self.pubsub_monitor.register_topic(self.topic_name)
+    self.pubsub_monitor.register_topic(self.matcher_topic_name)
+    self.pubsub_monitor.register_subscription(self.read_sub_name)
+    self.pubsub_monitor.register_subscription(self.read_matcher_sub_name)
 
 
 class PubsubWritePerfTest(PubsubIOPerfTest):
@@ -205,10 +212,8 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     self.pipeline = TestPipeline(options=PipelineOptions(args))
 
   def cleanup(self):
-    self.sub_client.delete_subscription(subscription=self.read_sub_name)
-    self.sub_client.delete_subscription(subscription=self.read_matcher_sub_name)
-    self.pub_client.delete_topic(topic=self.topic_name)
-    self.pub_client.delete_topic(topic=self.matcher_topic_name)
+    with self.pubsub_monitor:
+      pass
 
 
 if __name__ == '__main__':

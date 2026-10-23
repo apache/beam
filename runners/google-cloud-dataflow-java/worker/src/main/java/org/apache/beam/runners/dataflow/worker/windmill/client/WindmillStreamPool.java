@@ -44,7 +44,9 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
   private final Duration streamTimeout;
   private final Supplier<StreamT> streamSupplier;
 
-  /** @implNote Size of streams never changes once initialized. */
+  /**
+   * @implNote Size of streams never changes once initialized.
+   */
   private final List<@Nullable StreamData<StreamT>> streams;
 
   @GuardedBy("this")

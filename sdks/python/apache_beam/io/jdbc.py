@@ -122,7 +122,8 @@ JdbcConfigSchema = typing.NamedTuple(
 Config = typing.NamedTuple(
     'Config',
     [('driver_class_name', str), ('jdbc_url', str), ('username', str),
-     ('password', str), ('connection_properties', typing.Optional[str]),
+     ('password', str), ('secret_manager', typing.Optional[str]),
+     ('connection_properties', typing.Optional[str]),
      ('connection_init_sqls', typing.Optional[list[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
@@ -169,6 +170,16 @@ class WriteToJdbc(ExternalTransform):
   The generated write_statement can be overridden by passing in a
   write_statment.
 
+  Secret Manager is supported to avoid storing sensitive credentials such as
+  database passwords in plain text. You can configure ``secret_manager`` (e.g.
+  ``'GoogleCloudSecretManager'``) and provide the secret specification string
+  in JSON format to ``password``, e.g.::
+
+    WriteToJdbc(
+        ...
+        password='{"name": "my-db-secret", "project": "my-project"}',
+        secret_manager='GoogleCloudSecretManager',
+    )
 
   Experimental; no backwards compatibility guarantees.
   """
@@ -191,6 +202,7 @@ class WriteToJdbc(ExternalTransform):
       expansion_service=None,
       classpath=None,
       write_batch_size=None,
+      secret_manager=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -198,7 +210,9 @@ class WriteToJdbc(ExternalTransform):
     :param driver_class_name: name of the jdbc driver class
     :param jdbc_url: full jdbc url to the database.
     :param username: database username
-    :param password: database password
+    :param password: database password. Can be specified as a plain password,
+                     or as a secret specification in JSON format if used with
+                     a secret manager.
     :param statement: sql statement to be executed
     :param connection_properties: properties of the jdbc connection
                                   passed as string with format
@@ -225,6 +239,11 @@ class WriteToJdbc(ExternalTransform):
     :param write_batch_size: sets the maximum size in number of SQL statement
                              for the batch.
                              default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
+    :param secret_manager: The secret manager to use for retrieving secrets.
+                           Available options: 'GoogleCloudSecretManager',
+                           'GoogleCloudHsmGeneratedSecretManager'. If not set,
+                           no secret manager is used and the password is
+                           treated as a plain password.
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
@@ -239,6 +258,7 @@ class WriteToJdbc(ExternalTransform):
                             jdbc_url=jdbc_url,
                             username=username,
                             password=password,
+                            secret_manager=secret_manager,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=statement,
@@ -296,6 +316,17 @@ class ReadFromJdbc(ExternalTransform):
 
   The generated read_query can be overridden by passing in a read_query.
 
+  Secret Manager is supported to avoid storing sensitive credentials such as
+  database passwords in plain text. You can configure ``secret_manager`` (e.g.
+  ``'GoogleCloudSecretManager'``) and provide the secret specification string
+  in JSON format to ``password``, e.g.::
+
+    ReadFromJdbc(
+        ...
+        password='{"name": "my-db-secret", "project": "my-project"}',
+        secret_manager='GoogleCloudSecretManager',
+    )
+
   Experimental; no backwards compatibility guarantees.
   """
 
@@ -320,14 +351,17 @@ class ReadFromJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
-      schema=None):
+      schema=None,
+      secret_manager=None):
     """
     Initializes a read operation from Jdbc.
 
     :param driver_class_name: name of the jdbc driver class
     :param jdbc_url: full jdbc url to the database.
     :param username: database username
-    :param password: database password
+    :param password: database password. Can be specified as a plain password,
+                     or as a secret specification in JSON format if used with
+                     a secret manager.
     :param query: sql query to be executed
     :param disable_autocommit: disable autocommit on read
     :param output_parallelization: is output parallelization on
@@ -360,6 +394,11 @@ class ReadFromJdbc(ExternalTransform):
                    this should be a NamedTuple type that defines the structure
                    of the output PCollection elements. This bypasses automatic
                    schema inference during pipeline construction.
+    :param secret_manager: The secret manager to use for retrieving secrets.
+                           Available options: 'GoogleCloudSecretManager',
+                           'GoogleCloudHsmGeneratedSecretManager'. If not set,
+                           no secret manager is used and the password is
+                           treated as a plain password.
     """
     # override new portable Date type with the current Jdbc type
     # TODO(https://github.com/apache/beam/issues/28359):
@@ -388,6 +427,7 @@ class ReadFromJdbc(ExternalTransform):
                             jdbc_url=jdbc_url,
                             username=username,
                             password=password,
+                            secret_manager=secret_manager,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=None,

@@ -19,12 +19,13 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import javax.annotation.Nullable;
+import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.SparkRunnerKryoRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,13 +137,20 @@ public final class SparkContextFactory {
       conf.setMaster(options.getSparkMaster());
     }
 
-    if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
+    // Skip staging jars in local mode since the driver and executor share the same JVM classpath.
+    // In portable runs, filesToStage is populated with the full classpath, which would otherwise
+    // be copied into a per-context temporary userFiles directory that is deleted on context stop.
+    if (options.getFilesToStage() != null
+        && !options.getFilesToStage().isEmpty()
+        && !SparkCommonPipelineOptions.isLocalSparkMaster(options)) {
       conf.setJars(options.getFilesToStage().toArray(new String[0]));
     }
 
     conf.setAppName(options.getAppName());
     // register immutable collections serializers because the SDK uses them.
     conf.set("spark.kryo.registrator", SparkRunnerKryoRegistrator.class.getName());
+    // Ensure SparkContext does not inherit a stale ExecutorClassLoader from a previous Spark job.
+    Thread.currentThread().setContextClassLoader(SparkContextFactory.class.getClassLoader());
     return new JavaSparkContext(conf);
   }
 }

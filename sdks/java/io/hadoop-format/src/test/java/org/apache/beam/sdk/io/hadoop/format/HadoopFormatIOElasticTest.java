@@ -117,6 +117,7 @@ public class HadoopFormatIOElasticTest implements Serializable {
               return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
             }
           });
+
   /**
    * Test to read data from embedded Elasticsearch instance based on query and verify whether data
    * is read successfully.

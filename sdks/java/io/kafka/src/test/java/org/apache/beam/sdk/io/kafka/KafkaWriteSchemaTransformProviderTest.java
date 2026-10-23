@@ -30,6 +30,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -146,9 +148,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "{\"name\":\"a\"}".getBytes(UTF_8)),
-            KV.of(new byte[1], "{\"name\":\"b\"}".getBytes(UTF_8)),
-            KV.of(new byte[1], "{\"name\":\"c\"}".getBytes(UTF_8)));
+            KV.of(null, "{\"name\":\"a\"}".getBytes(UTF_8)),
+            KV.of(null, "{\"name\":\"b\"}".getBytes(UTF_8)),
+            KV.of(null, "{\"name\":\"c\"}".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
@@ -159,6 +161,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -168,9 +173,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnRawSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "a".getBytes(UTF_8)),
-            KV.of(new byte[1], "b".getBytes(UTF_8)),
-            KV.of(new byte[1], "c".getBytes(UTF_8)));
+            KV.of(null, "a".getBytes(UTF_8)),
+            KV.of(null, "b".getBytes(UTF_8)),
+            KV.of(null, "c".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAM_RAW_SCHEMA);
@@ -182,6 +187,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -199,6 +207,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
     p.run().waitUntilFinish();
   }
 
@@ -223,8 +234,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     record3.put("name", "c");
 
     List<KV<byte[], GenericRecord>> msg =
-        Arrays.asList(
-            KV.of(new byte[1], record1), KV.of(new byte[1], record2), KV.of(new byte[1], record3));
+        Arrays.asList(KV.of(null, record1), KV.of(null, record2), KV.of(null, record3));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
@@ -238,7 +248,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     output.get(ERROR_TAG).setRowSchema(errorSchema);
     output
         .get(RECORD_OUTPUT_TAG)
-        .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)));
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), AvroCoder.of(avroSchema)));
     PAssert.that(output.get(RECORD_OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
   }
@@ -259,7 +269,11 @@ public class KafkaWriteSchemaTransformProviderTest {
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
-                + "message_name: MyMessage");
+                + "message_name: MyMessage",
+            "topic: topic_4\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: RAW\n"
+                + "with_gcp_adc: true");
 
     for (String config : configs) {
       // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand
@@ -272,6 +286,29 @@ public class KafkaWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testErrorOutputCarriesTheSchemaErrorCounterFnEmits() {
+    // The output schema is fixed while the graph is built, so this needs no runner.
+    p.enableAbandonedNodeEnforcement(false);
+
+    Schema inputSchema = Schema.builder().addByteArrayField("bytes").build();
+    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration configuration =
+        KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration.builder()
+            .setFormat("RAW")
+            .setTopic("test-topic")
+            .setBootstrapServers("host:9092")
+            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
+            .build();
+
+    PCollectionRowTuple output =
+        PCollectionRowTuple.of("input", p.apply(Create.empty(inputSchema)))
+            .apply(new KafkaWriteSchemaTransformProvider().from(configuration));
+
+    // ErrorCounterFn emits ErrorHandling.errorRecord(errorSchema, ...), where errorSchema is
+    // already ErrorHandling.errorSchema(inputSchema).
+    assertEquals(ErrorHandling.errorSchema(inputSchema), output.get("errors").getSchema());
+  }
+
+  @Test
   public void testKafkaWriteSchemaTransformConfigurationSchema() throws NoSuchSchemaException {
     Schema schema =
         SchemaRegistry.createDefault()
@@ -280,7 +317,7 @@ public class KafkaWriteSchemaTransformProviderTest {
 
     System.out.println("schema = " + schema);
 
-    assertEquals(8, schema.getFieldCount());
+    assertEquals(9, schema.getFieldCount());
 
     // Check field name, type, and nullability. Descriptions are not checked as they are not
     // critical for serialization.
@@ -332,5 +369,10 @@ public class KafkaWriteSchemaTransformProviderTest {
         Schema.Field.nullable("schema", Schema.FieldType.STRING)
             .withDescription(schema.getField(7).getDescription()),
         schema.getField(7));
+
+    assertEquals(
+        Schema.Field.nullable("withGcpAdc", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(8).getDescription()),
+        schema.getField(8));
   }
 }

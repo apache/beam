@@ -170,8 +170,8 @@ public class CatalogManagerSchema implements Schema {
 
   @Override
   public @Nullable Table getTable(String table) {
-    @Nullable
-    CatalogSchema catalogSchema = catalogSubSchemas.get(catalogManager.currentCatalog().name());
+    @Nullable CatalogSchema catalogSchema =
+        catalogSubSchemas.get(catalogManager.currentCatalog().name());
     return catalogSchema != null ? catalogSchema.getTable(table) : null;
   }
 

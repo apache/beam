@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -41,15 +43,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
  * Adds a {@link DirectRunner}-specific {@link WriteView} step for each {@link PCollectionView} for
  * scheduling materialization of side inputs.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
 
   /** Private URN for identifying {@link DirectRunner}-specific view writing transform. */
   static final String DIRECT_WRITE_VIEW_URN = "beam:directrunner:transforms:write_view:v1";
 
-  private Set<PCollectionView<?>> viewsToWrite;
+  private Set<PCollectionView<?>> viewsToWrite = new HashSet<>();
 
   @Override
   public void enterPipeline(Pipeline p) {
@@ -66,14 +65,16 @@ class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    if (node.getTransform() instanceof ParDo.MultiOutput) {
-      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) node.getTransform();
+    PTransform<?, ?> transform = node.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) transform;
       viewsToWrite.addAll(parDo.getSideInputs().values());
     }
   }
 
   private <ElemT, ViewT> void visitView(PCollectionView<ViewT> view) {
-    PCollection<ElemT> collectionToMaterialize = (PCollection<ElemT>) view.getPCollection();
+    PCollection<ElemT> collectionToMaterialize =
+        (PCollection<ElemT>) checkStateNotNull(view.getPCollection());
     collectionToMaterialize.apply("GroupAndWriteView", new GroupAndWriteView<>(view));
   }
 
@@ -95,7 +96,8 @@ class DirectWriteViewVisitor extends PipelineVisitor.Defaults {
         iterable =
             input
                 .apply(
-                    MapElements.into(TypeDescriptors.iterables(input.getTypeDescriptor()))
+                    MapElements.into(
+                            TypeDescriptors.iterables(checkStateNotNull(input.getTypeDescriptor())))
                         .via(Lists::newArrayList))
                 .setCoder(IterableCoder.of(input.getCoder()));
       } else {

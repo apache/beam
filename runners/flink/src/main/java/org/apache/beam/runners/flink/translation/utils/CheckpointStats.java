@@ -27,6 +27,7 @@ public class CheckpointStats {
 
   /** Checkpoint id => Checkpoint start (System.currentTimeMillis()). */
   private final Map<Long, Long> checkpointDurations = new HashMap<>();
+
   /** Distribution cell for reporting checkpoint durations. */
   private final Supplier<DistributionCell> distributionCellSupplier;
 

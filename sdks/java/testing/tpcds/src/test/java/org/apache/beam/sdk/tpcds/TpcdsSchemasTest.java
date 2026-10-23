@@ -68,8 +68,8 @@ public class TpcdsSchemasTest {
             .addNullableField("cc_state", Schema.FieldType.STRING)
             .addNullableField("cc_zip", Schema.FieldType.STRING)
             .addNullableField("cc_country", Schema.FieldType.STRING)
-            .addNullableField("cc_gmt_offset", Schema.FieldType.DOUBLE)
-            .addNullableField("cc_tax_percentage", Schema.FieldType.DOUBLE)
+            .addNullableField("cc_gmt_offset", Schema.FieldType.DECIMAL)
+            .addNullableField("cc_tax_percentage", Schema.FieldType.DECIMAL)
             .build();
 
     assertNotEquals(schemaMap.get("call_center"), callCenterSchema);
@@ -111,7 +111,7 @@ public class TpcdsSchemasTest {
             .addNullableField("ca_state", Schema.FieldType.STRING)
             .addNullableField("ca_zip", Schema.FieldType.STRING)
             .addNullableField("ca_country", Schema.FieldType.STRING)
-            .addNullableField("ca_gmt_offset", Schema.FieldType.DOUBLE)
+            .addNullableField("ca_gmt_offset", Schema.FieldType.DECIMAL)
             .addNullableField("ca_location_type", Schema.FieldType.STRING)
             .build();
 

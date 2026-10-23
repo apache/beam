@@ -1357,4 +1357,108 @@ public class RecordWriterManagerTest {
       }
     }
   }
+
+  @Test
+  public void testGetOrCreateTableWithSideInputHit() {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_side_input_hit");
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+    SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
+    String tableIdString = IcebergUtils.tableIdentifierToString(tableId);
+
+    Catalog mockCatalog = mock(Catalog.class);
+    IcebergCatalogConfig mockCatalogConfig = mockCatalogConfigFor(mockCatalog);
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableIdentifier(tableId)
+            .build();
+
+    Map<String, SerializableTableSpec> sideInputs = ImmutableMap.of(tableIdString, spec);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(mockCatalogConfig, "test_prefix", 1024L, 1, null, sideInputs);
+
+    Table resolvedTable = writerManager.getOrCreateTable(destination, BEAM_SCHEMA);
+    assertTrue(resolvedTable instanceof SideInputTable);
+    assertEquals(spec, ((SideInputTable) resolvedTable).getTableSpec());
+
+    // Verify catalog.loadTable was NEVER called
+    verify(mockCatalog, never()).loadTable(Mockito.any());
+  }
+
+  @Test
+  public void testGetOrCreateTableWithSideInputMissFallsBackToTableCache() {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_side_input_miss");
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+    TableIdentifier otherId = TableIdentifier.of("default", "test_other_table");
+    SerializableTableSpec otherSpec = SerializableTableSpec.fromTable(otherId, realTable);
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableIdentifier(tableId)
+            .build();
+
+    Map<String, SerializableTableSpec> sideInputs =
+        ImmutableMap.of(IcebergUtils.tableIdentifierToString(otherId), otherSpec);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_prefix", 1024L, 1, null, sideInputs);
+
+    Table resolvedTable = writerManager.getOrCreateTable(destination, BEAM_SCHEMA);
+    assertNotNull(resolvedTable);
+    assertFalse(resolvedTable instanceof SideInputTable);
+    assertEquals(realTable.location(), resolvedTable.location());
+  }
+
+  @Test
+  public void testGetOrCreateTableWithNullSideInputMapFallsBack() {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_null_side_input");
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableIdentifier(tableId)
+            .build();
+
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_prefix", 1024L, 1);
+
+    Table resolvedTable = writerManager.getOrCreateTable(destination, BEAM_SCHEMA, null);
+    assertNotNull(resolvedTable);
+    assertFalse(resolvedTable instanceof SideInputTable);
+    assertEquals(realTable.location(), resolvedTable.location());
+  }
+
+  @Test
+  public void testWriteWithSideInputTableProducesValidDataFiles() throws Exception {
+    TableIdentifier tableId = TableIdentifier.of("default", "test_side_input_write");
+    Table realTable = warehouse.createTable(tableId, ICEBERG_SCHEMA);
+    SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
+    String tableIdString = IcebergUtils.tableIdentifierToString(tableId);
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setFileFormat(FileFormat.PARQUET)
+            .setTableIdentifier(tableId)
+            .build();
+    WindowedValue<IcebergDestination> dest = WindowedValues.valueInGlobalWindow(destination);
+
+    Map<String, SerializableTableSpec> sideInputs = ImmutableMap.of(tableIdString, spec);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(
+            catalogConfig, "test_side_input", Long.MAX_VALUE, 5, null, sideInputs);
+
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "alice", true).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bob", false).build();
+
+    assertTrue(writerManager.write(dest, row1));
+    assertTrue(writerManager.write(dest, row2));
+    writerManager.close();
+
+    List<SerializableDataFile> dataFiles = writerManager.getSerializableDataFiles().get(dest);
+    assertNotNull(dataFiles);
+    assertEquals(1, dataFiles.size());
+    assertEquals(2L, dataFiles.get(0).getRecordCount());
+  }
 }

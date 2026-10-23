@@ -45,7 +45,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
-    /** @deprecated use {@link #THROUGHPUT_BASED}. */
+    /**
+     * @deprecated use {@link #THROUGHPUT_BASED}.
+     */
     @Deprecated
     BASIC("AUTOSCALING_ALGORITHM_BASIC"),
 
@@ -104,7 +106,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   void setDiskSizeGb(int value);
 
   /** Container image used as Dataflow worker harness image. */
-  /** @deprecated Use {@link #getSdkContainerImage} instead. */
+  /**
+   * @deprecated Use {@link #getSdkContainerImage} instead.
+   */
   @Description(
       "Container image used to configure a Dataflow worker. "
           + "Can only be used for official Dataflow container images. "
@@ -113,7 +117,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   @Hidden
   String getWorkerHarnessContainerImage();
 
-  /** @deprecated Use {@link #setSdkContainerImage} instead. */
+  /**
+   * @deprecated Use {@link #setSdkContainerImage} instead.
+   */
   @Deprecated
   @Hidden
   void setWorkerHarnessContainerImage(String value);
@@ -129,6 +135,23 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   String getSdkContainerImage();
 
   void setSdkContainerImage(String value);
+
+  /**
+   * Base repository (registry host and path prefix) of the default Dataflow container images, e.g.
+   * {@code docker.example.com/my-prefix/cloud-dataflow/v1beta3}. If unset, the default repository
+   * of the Dataflow runner is used.
+   */
+  @Description(
+      "Base repository (registry host and path prefix) from which the Dataflow runner pulls its "
+          + "default SDK container images, e.g. "
+          + "docker.example.com/my-prefix/cloud-dataflow/v1beta3. The runner appends the image "
+          + "name and tag, e.g. <base>/beam_java17_sdk:<version>. This is also used for the "
+          + "default images of cross-language Apache Beam environments. Ignored for the Java SDK "
+          + "image if sdkContainerImage is set. If not set, the Google Cloud Dataflow default "
+          + "(gcr.io/cloud-dataflow/v1beta3) is used.")
+  @Nullable String getDataflowContainerBaseRepository();
+
+  void setDataflowContainerBaseRepository(@Nullable String value);
 
   /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
@@ -195,15 +218,13 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
 
   /** Provisioned IOPS for the worker disk. */
   @Description("Provisioned IOPS for the worker disk.")
-  @Nullable
-  Long getDiskProvisionedIops();
+  @Nullable Long getDiskProvisionedIops();
 
   void setDiskProvisionedIops(Long value);
 
   /** Provisioned throughput in MiB/s for the worker disk. */
   @Description("Provisioned throughput in MiB/s for the worker disk.")
-  @Nullable
-  Long getDiskProvisionedThroughputMibps();
+  @Nullable Long getDiskProvisionedThroughputMibps();
 
   void setDiskProvisionedThroughputMibps(Long value);
 
@@ -215,8 +236,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
           + "This feature is available only through allowlist.")
-  @Nullable
-  Boolean getUsePublicIps();
+  @Nullable Boolean getUsePublicIps();
 
   void setUsePublicIps(@Nullable Boolean value);
 
@@ -228,8 +248,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
    * Pipeline Execution Parameters</a>.
    */
   @Description("GCE minimum CPU platform. Default is determined by GCP.")
-  @Nullable
-  String getMinCpuPlatform();
+  @Nullable String getMinCpuPlatform();
 
   void setMinCpuPlatform(String minCpuPlatform);
 }

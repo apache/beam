@@ -32,6 +32,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,6 +87,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -93,6 +95,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.Description;
@@ -108,6 +111,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,6 +196,47 @@ public class JdbcIOTest implements Serializable {
         DATA_SOURCE_CONFIGURATION.withUsername(username).withPassword(password);
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationPlainPasswordAndNullSecretManager() throws Exception {
+    String username = "sa";
+    String password = "my_plain_password";
+    JdbcIO.DataSourceConfiguration config =
+        DATA_SOURCE_CONFIGURATION
+            .withUsername(username)
+            .withPassword(password)
+            .withSecretManager((String) null);
+    DataSource dataSource = config.buildDatasource();
+    assertTrue(dataSource instanceof BasicDataSource);
+    assertEquals(password, ((BasicDataSource) dataSource).getPassword());
+    try (Connection conn = dataSource.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationWithMockedSecretManager() {
+    String secretSpec = "{'name': 'my-db-secret'}";
+    String resolvedPassword = "my_fetched_secret_password";
+    String secretManager = "GoogleCloudSecretManager";
+
+    Secret mockSecret = mock(Secret.class);
+    when(mockSecret.getString(false)).thenReturn(resolvedPassword);
+
+    try (MockedStatic<Secret> mockedSecret = mockStatic(Secret.class)) {
+      mockedSecret.when(() -> Secret.fromJson(secretSpec, secretManager)).thenReturn(mockSecret);
+
+      JdbcIO.DataSourceConfiguration config =
+          DATA_SOURCE_CONFIGURATION
+              .withUsername("sa")
+              .withPassword(secretSpec)
+              .withSecretManager(secretManager);
+
+      DataSource dataSource = config.buildDatasource();
+      assertTrue(dataSource instanceof BasicDataSource);
+      assertEquals(resolvedPassword, ((BasicDataSource) dataSource).getPassword());
     }
   }
 

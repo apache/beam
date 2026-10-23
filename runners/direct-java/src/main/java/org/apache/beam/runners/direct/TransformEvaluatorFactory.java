@@ -45,8 +45,7 @@ interface TransformEvaluatorFactory {
    *     can be constructed.
    * @throws Exception whenever constructing the underlying evaluator throws an exception
    */
-  @Nullable
-  <InputT> TransformEvaluator<InputT> forApplication(
+  @Nullable <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception;
 
   /**

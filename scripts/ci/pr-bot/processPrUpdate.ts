@@ -22,10 +22,12 @@ const { processCommand } = require("./shared/userCommand");
 const {
   addPrComment,
   getGitHubClient,
+  nextActionAuthor,
   nextActionReviewers,
   getPullAuthorFromPayload,
   getPullNumberFromPayload,
 } = require("./shared/githubUtils");
+const { processPull } = require("./processNewPrs");
 const { PersistentState } = require("./shared/persistentState");
 const { ReviewerConfig } = require("./shared/reviewerConfig");
 const {
@@ -35,6 +37,7 @@ const {
   REPO,
   SLOW_REVIEW_LABEL,
   REVIEWERS_ACTION,
+  AUTHOR_ACTION,
 } = require("./shared/constants");
 
 // Removes the slow label if the pr has been reviewed and returns an updated payload.
@@ -127,21 +130,42 @@ async function processPrComment(
 }
 
 /*
- * On pr push or author comment, we should put the attention set back on the reviewers
+ * On pr push, ready_for_review, or author comment, we should put the attention set back on the reviewers
  */
 async function setNextActionReviewers(
   payload: any,
   pull: any,
   stateClient: typeof PersistentState
 ) {
+  if (pull.draft) {
+    console.log("PR is a draft, not shifting attention to reviewers");
+    return;
+  }
   if (!(await areReviewersAssigned(pull, stateClient))) {
     console.log("No reviewers assigned, dont need to manipulate attention set");
     return;
   }
-  const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
+  const existingLabels =
+    pull.labels || payload.issue?.labels || payload.pull_request?.labels;
   await nextActionReviewers(pull.number, existingLabels);
   let prState = await stateClient.getPrState(pull.number);
   prState.nextAction = REVIEWERS_ACTION;
+  await stateClient.writePrState(pull.number, prState);
+}
+
+/*
+ * When a PR is marked as draft, set the next action state to Author
+ */
+async function setNextActionAuthor(
+  payload: any,
+  pull: any,
+  stateClient: typeof PersistentState
+) {
+  const existingLabels =
+    pull.labels || payload.issue?.labels || payload.pull_request?.labels;
+  await nextActionAuthor(pull.number, existingLabels);
+  let prState = await stateClient.getPrState(pull.number);
+  prState.nextAction = AUTHOR_ACTION;
   await stateClient.writePrState(pull.number, prState);
 }
 
@@ -197,6 +221,19 @@ async function processPrUpdate() {
       } else if (payload.action === "review_requested") {
         console.log("Processing review_requested action");
         await setNextActionReviewers(payload, pull, stateClient);
+      } else if (payload.action === "converted_to_draft") {
+        console.log("Processing converted_to_draft action");
+        await setNextActionAuthor(payload, pull, stateClient);
+      } else if (payload.action === "ready_for_review") {
+        console.log("Processing ready_for_review action");
+        // If reviewers are already assigned, shift attention back to them.
+        // Otherwise, try to assign initial reviewers immediately (e.g. when a draft
+        // PR with passing checks is marked ready for review) instead of waiting for cron.
+        if (await areReviewersAssigned(pull, stateClient)) {
+          await setNextActionReviewers(payload, pull, stateClient);
+        } else {
+          await processPull(pull, reviewerConfig, stateClient);
+        }
       }
       // TODO(damccorm) - it would be good to eventually handle the following events here, even though they're not part of the normal workflow
       // review requested, assigned, label added, label removed

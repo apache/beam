@@ -51,7 +51,7 @@ class TestSendingClient(unittest.TestCase):
             "items": [
                 {
                     "number": 1234,
-                    "title": "[SECURITY] Action Required: Unmanaged Service Account Keys Detected",
+                    "title": "[IAC_DRIFT_SA_KEY] Action Required: Unmanaged Service Account Keys Detected",
                     "body": "Test body",
                     "state": "open",
                     "html_url": "https://github.com/apache/beam/issues/1234",
@@ -64,7 +64,7 @@ class TestSendingClient(unittest.TestCase):
         mock_request.side_effect = [mock_response_fail, mock_response_success]
 
         # Call get_open_issues
-        issues = self.client._get_open_issues("[SECURITY] Action Required: Unmanaged Service Account Keys Detected")
+        issues = self.client._get_open_issues("[IAC_DRIFT_SA_KEY] Action Required: Unmanaged Service Account Keys Detected")
         
         # Verify that two requests were made (one retry)
         self.assertEqual(mock_request.call_count, 2)
@@ -79,7 +79,7 @@ class TestSendingClient(unittest.TestCase):
         mock_response.json.return_value = {"items": []}
         mock_request.return_value = mock_response
 
-        title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
+        title = "[IAC_DRIFT_SA_KEY] Action Required: Unmanaged Service Account Keys Detected"
         self.client._get_open_issues(title)
 
         # Verify that the query parameter was passed correctly to requests

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testutils;
 
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -83,6 +84,12 @@ public class NamedTestResult implements TestResult {
         .build();
   }
 
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Returns a Guava ImmutableMap."
+              + " Spotbugs matches its known-immutable list by fully qualified name, so it cannot recognise collections relocated into org.apache.beam.vendor.guava."
+              + " See https://github.com/spotbugs/spotbugs/issues/1601.")
   public static Map<String, String> getSchema() {
     return schema;
   }

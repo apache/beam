@@ -82,6 +82,10 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.secret import AwsSecret
+from apache_beam.utils.secret import GcpHsmGeneratedSecret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import Secret
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 
@@ -91,9 +95,11 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    'AwsSecret',
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
+    'GcpHsmGeneratedSecret',
     'GcpSecret',
     'GroupByEncryptedKey',
     'Keys',
@@ -325,247 +331,6 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
-
-
-class Secret():
-  """A secret management class used for handling sensitive data.
-
-  This class provides a generic interface for secret management. Implementations
-  of this class should handle fetching secrets from a secret management system.
-  """
-  def get_secret_bytes(self) -> bytes:
-    """Returns the secret as a byte string."""
-    raise NotImplementedError()
-
-  @staticmethod
-  def generate_secret_bytes() -> bytes:
-    """Generates a new secret key."""
-    return Fernet.generate_key()
-
-  @staticmethod
-  def parse_secret_option(secret) -> 'Secret':
-    """Parses a secret string and returns the appropriate secret type.
-
-    The secret string should be formatted like:
-    'type:<secret_type>;<secret_param>:<value>'
-
-    For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
-    would return a GcpSecret initialized with 'my_secret/versions/latest'.
-    """
-    param_map = {}
-    for param in secret.split(';'):
-      parts = param.split(':')
-      param_map[parts[0]] = parts[1]
-
-    if 'type' not in param_map:
-      raise ValueError('Secret string must contain a valid type parameter')
-
-    secret_type = param_map['type'].lower()
-    del param_map['type']
-    secret_class = Secret
-    secret_params = None
-    if secret_type == 'gcpsecret':
-      secret_class = GcpSecret  # type: ignore[assignment]
-      secret_params = ['version_name']
-    elif secret_type == 'gcphsmgeneratedsecret':
-      secret_class = GcpHsmGeneratedSecret  # type: ignore[assignment]
-      secret_params = [
-          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
-      ]
-    else:
-      raise ValueError(
-          f'Invalid secret type {secret_type}, currently only '
-          'GcpSecret and GcpHsmGeneratedSecret are supported')
-
-    for param_name in param_map.keys():
-      if param_name not in secret_params:
-        raise ValueError(
-            f'Invalid secret parameter {param_name}, '
-            f'{secret_type} only supports the following '
-            f'parameters: {secret_params}')
-    return secret_class(**param_map)
-
-
-class GcpSecret(Secret):
-  """A secret manager implementation that retrieves secrets from Google Cloud
-  Secret Manager.
-  """
-  def __init__(self, version_name: str):
-    """Initializes a GcpSecret object.
-
-    Args:
-      version_name: The full version name of the secret in Google Cloud Secret
-        Manager. For example:
-        projects/<id>/secrets/<secret_name>/versions/1.
-        For more info, see
-        https://cloud.google.com/python/docs/reference/secretmanager/latest/google.cloud.secretmanager_v1beta1.services.secret_manager_service.SecretManagerServiceClient#google_cloud_secretmanager_v1beta1_services_secret_manager_service_SecretManagerServiceClient_access_secret_version
-    """
-    self._version_name = version_name
-
-  def get_secret_bytes(self) -> bytes:
-    try:
-      from google.cloud import secretmanager
-      client = secretmanager.SecretManagerServiceClient()
-      response = client.access_secret_version(
-          request={"name": self._version_name})
-      secret = response.payload.data
-      return secret
-    except Exception as e:
-      raise RuntimeError(
-          'Failed to retrieve secret bytes for secret '
-          f'{self._version_name} with exception {e}')
-
-  def __eq__(self, secret):
-    return self._version_name == getattr(secret, '_version_name', None)
-
-
-class GcpHsmGeneratedSecret(Secret):
-  """A secret manager implementation that generates a secret using a GCP HSM key
-  and stores it in Google Cloud Secret Manager. If the secret already exists,
-  it will be retrieved.
-  """
-  def __init__(
-      self,
-      project_id: str,
-      location_id: str,
-      key_ring_id: str,
-      key_id: str,
-      job_name: str):
-    """Initializes a GcpHsmGeneratedSecret object.
-
-    Args:
-      project_id: The GCP project ID.
-      location_id: The GCP location ID for the HSM key.
-      key_ring_id: The ID of the KMS key ring.
-      key_id: The ID of the KMS key.
-      job_name: The name of the job, used to generate a unique secret name.
-    """
-    self._project_id = project_id
-    self._location_id = location_id
-    self._key_ring_id = key_ring_id
-    self._key_id = key_id
-    self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
-
-  def get_secret_bytes(self) -> bytes:
-    """Retrieves the secret bytes.
-
-    If the secret version already exists in Secret Manager, it is retrieved.
-    Otherwise, a new secret and version are created. The new secret is
-    generated using the HSM key.
-
-    Returns:
-      The secret as a byte string.
-    """
-    try:
-      from google.api_core import exceptions as api_exceptions
-      from google.cloud import secretmanager
-      client = secretmanager.SecretManagerServiceClient()
-
-      project_path = f"projects/{self._project_id}"
-      secret_path = f"{project_path}/secrets/{self._secret_version_name}"
-      # Since we may generate multiple versions when doing this on workers,
-      # just always take the first version added to maintain consistency.
-      secret_version_path = f"{secret_path}/versions/1"
-
-      try:
-        response = client.access_secret_version(
-            request={"name": secret_version_path})
-        return response.payload.data
-      except api_exceptions.NotFound:
-        # Don't bother logging yet, we'll only log if we actually add the
-        # secret version below
-        pass
-
-      try:
-        client.create_secret(
-            request={
-                "parent": project_path,
-                "secret_id": self._secret_version_name,
-                "secret": {
-                    "replication": {
-                        "automatic": {}
-                    }
-                },
-            })
-      except api_exceptions.AlreadyExists:
-        # Don't bother logging yet, we'll only log if we actually add the
-        # secret version below
-        pass
-
-      new_key = self.generate_dek()
-      try:
-        # Try one more time in case it was created while we were generating the
-        # DEK.
-        response = client.access_secret_version(
-            request={"name": secret_version_path})
-        return response.payload.data
-      except api_exceptions.NotFound:
-        _LOGGER.info(
-            "Secret version %s not found. "
-            "Creating new secret and version.",
-            secret_version_path)
-      client.add_secret_version(
-          request={
-              "parent": secret_path, "payload": {
-                  "data": new_key
-              }
-          })
-      response = client.access_secret_version(
-          request={"name": secret_version_path})
-      return response.payload.data
-
-    except Exception as e:
-      raise RuntimeError(
-          f'Failed to retrieve or create secret bytes for secret '
-          f'{self._secret_version_name} with exception {e}')
-
-  def generate_dek(self, dek_size: int = 32) -> bytes:
-    """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
-
-    This function follows a key derivation process that incorporates entropy
-    from the HSM-backed key into the nonce used for key derivation.
-
-    Args:
-      dek_size: The size of the DEK to generate.
-
-    Returns:
-        A new DEK of the specified size, url-safe base64-encoded.
-    """
-    try:
-      import base64
-      import os
-
-      from cryptography.hazmat.primitives import hashes
-      from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-      from google.cloud import kms
-
-      # 1. Generate a random nonce (nonce_one)
-      nonce_one = os.urandom(dek_size)
-
-      # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
-      kms_client = kms.KeyManagementServiceClient()
-      key_path = kms_client.crypto_key_path(
-          self._project_id, self._location_id, self._key_ring_id, self._key_id)
-      response = kms_client.encrypt(
-          request={
-              'name': key_path, 'plaintext': nonce_one
-          })
-      nonce_two = response.ciphertext
-
-      # 3. Generate a Derivation Key (DK)
-      dk = os.urandom(dek_size)
-
-      # 4. Use a KDF to derive the DEK using DK and nonce_two
-      hkdf = HKDF(
-          algorithm=hashes.SHA256(),
-          length=dek_size,
-          salt=nonce_two,
-          info=None,
-      )
-      dek = hkdf.derive(dk)
-      return base64.urlsafe_b64encode(dek)
-    except Exception as e:
-      raise RuntimeError(f'Failed to generate DEK with exception {e}')
 
 
 class _EncryptMessage(DoFn):
@@ -996,28 +761,57 @@ class _BatchSizeEstimator(object):
         self._data)
 
 
+def _unit_element_size(unused_element):
+  return 1
+
+
+def _element_size_and_weight(element, element_size_fn, max_batch_weight):
+  """Returns the contribution of an element to the size and weight of a batch.
+
+  Without max_batch_weight, element_size_fn determines the size of a batch.
+  With max_batch_weight, the size of a batch is its number of elements, and
+  element_size_fn determines its weight.
+  """
+  if max_batch_weight is None:
+    return element_size_fn(element), 0
+  return 1, element_size_fn(element)
+
+
 class _GlobalWindowsBatchingDoFn(DoFn):
-  def __init__(self, batch_size_estimator, element_size_fn):
+  def __init__(
+      self, batch_size_estimator, element_size_fn, max_batch_weight=None):
     self._batch_size_estimator = batch_size_estimator
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
 
   def start_bundle(self):
     self._batch = []
     self._running_batch_size = 0
+    self._running_batch_weight = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
-    element_size = self._element_size_fn(element)
-    if self._running_batch_size + element_size > self._target_batch_size:
+    element_size, element_weight = _element_size_and_weight(
+        element, self._element_size_fn, self._max_batch_weight)
+    would_exceed_size = (
+        self._running_batch_size + element_size > self._target_batch_size)
+    would_exceed_weight = (
+        self._max_batch_weight is not None and
+        self._running_batch_weight + element_weight > self._max_batch_weight)
+    # Never emit an empty batch: an element that exceeds the limits on its own
+    # is emitted in a batch by itself.
+    if self._batch and (would_exceed_size or would_exceed_weight):
       with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
+      self._running_batch_weight = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
     self._batch.append(element)
     self._running_batch_size += element_size
+    self._running_batch_weight += element_weight
 
   def finish_bundle(self):
     if self._batch:
@@ -1034,15 +828,18 @@ class _SizedBatch():
   def __init__(self):
     self.elements = []
     self.size = 0
+    self.weight = 0
 
 
 class _WindowAwareBatchingDoFn(DoFn):
 
   _MAX_LIVE_WINDOWS = 10
 
-  def __init__(self, batch_size_estimator, element_size_fn):
+  def __init__(
+      self, batch_size_estimator, element_size_fn, max_batch_weight=None):
     self._batch_size_estimator = batch_size_estimator
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
 
   def start_bundle(self):
     self._batches = collections.defaultdict(_SizedBatch)
@@ -1052,8 +849,15 @@ class _WindowAwareBatchingDoFn(DoFn):
 
   def process(self, element, window=DoFn.WindowParam):
     batch = self._batches[window]
-    element_size = self._element_size_fn(element)
-    if batch.size + element_size > self._target_batch_size:
+    element_size, element_weight = _element_size_and_weight(
+        element, self._element_size_fn, self._max_batch_weight)
+    would_exceed_size = batch.size + element_size > self._target_batch_size
+    would_exceed_weight = (
+        self._max_batch_weight is not None and
+        batch.weight + element_weight > self._max_batch_weight)
+    # Never emit an empty batch: an element that exceeds the limits on its own
+    # is emitted in a batch by itself.
+    if batch.elements and (would_exceed_size or would_exceed_weight):
       with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
             batch.elements, window.max_timestamp(), (window, ))
@@ -1062,6 +866,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
     self._batches[window].elements.append(element)
     self._batches[window].size += element_size
+    self._batches[window].weight += element_weight
 
     if len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, batch = max(
@@ -1184,6 +989,173 @@ def _pardo_stateful_batch_elements(
   return _StatefulBatchElementsDoFn()
 
 
+def _pardo_stateful_weighted_batch_elements(
+    input_coder: coders.Coder,
+    batch_size_estimator: _BatchSizeEstimator,
+    max_buffering_duration_secs: int,
+    element_size_fn: Callable[[Any], Any],
+    max_batch_weight: Optional[int] = None,
+    clock=time.time):
+  """Like _pardo_stateful_batch_elements, but honors element_size_fn.
+
+  Without max_batch_weight, element_size_fn determines the contribution of each
+  element to the batch size, as in the non-stateful implementation. With
+  max_batch_weight, the batch size is the number of elements, and
+  max_batch_weight limits the total element_size_fn of a batch.
+
+  This DoFn only adds a 'weight' state to the state and timers of the DoFn of
+  _pardo_stateful_batch_elements, and keeps its transform label, to minimize the
+  impact on the update compatibility of streaming pipelines. Pipelines that do
+  not set element_size_fn keep using _pardo_stateful_batch_elements.
+  """
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
+  # The sum of element_size_fn over the buffered elements.
+  WEIGHT_STATE = ReadModifyWriteStateSpec(
+      'weight', coders.FastPrimitivesCoder())
+  BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
+  BATCH_ESTIMATOR_STATE = ReadModifyWriteStateSpec(
+      'batch_estimator', coders.PickleCoder())
+
+  def batch_size(count, weight):
+    # The size of a batch, in the unit of the batch sizes of the estimator.
+    return weight if max_batch_weight is None else count
+
+  def exceeds_limits(count, weight, target_size):
+    return batch_size(count, weight) > target_size or (
+        max_batch_weight is not None and weight > max_batch_weight)
+
+  def reaches_limits(count, weight, target_size):
+    return batch_size(count, weight) >= target_size or (
+        max_batch_weight is not None and weight >= max_batch_weight)
+
+  class _StatefulWeightedBatchElementsDoFn(DoFn):
+    def default_label(self):
+      # Matches the label of the DoFn of _pardo_stateful_batch_elements, so that
+      # setting element_size_fn doesn't change the transform names of a
+      # pipeline, which streaming pipeline updates rely on.
+      return '_StatefulBatchElementsDoFn'
+
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      window_timer.set(window.end)
+      # Drop the fixed key since we don't care about it
+      value = element[1]
+      element_weight = element_size_fn(value)
+      target_size = batch_size_state.read()
+      # Should only happen on the first element
+      if target_size is None:
+        batch_estimator = batch_size_estimator
+        target_size = batch_estimator.next_batch_size()
+        batch_size_state.write(target_size)
+        batch_estimator_state.write(batch_estimator)
+
+      count = count_state.read()
+      weight = weight_state.read() or 0
+      if count and exceeds_limits(
+          count + 1, weight + element_weight, target_size):
+        # Emit the buffered elements first, so that adding this element
+        # doesn't make the batch exceed the limits. An element that exceeds
+        # the limits on its own is emitted in a batch by itself below.
+        yield from self.flush_batch(
+            element_state,
+            count_state,
+            weight_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+        count, weight = 0, 0
+        target_size = batch_size_state.read()
+
+      element_state.add(value)
+      count_state.add(1)
+      count += 1
+      weight += element_weight
+      weight_state.write(weight)
+
+      if count == 1 and max_buffering_duration_secs > 0:
+        # First element in batch, start buffering timer
+        buffering_timer.set(clock() + max_buffering_duration_secs)
+
+      if reaches_limits(count, weight, target_size):
+        yield from self.flush_batch(
+            element_state,
+            count_state,
+            weight_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          weight_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          weight_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    def flush_batch(
+        self,
+        element_state,
+        count_state,
+        weight_state,
+        batch_size_state,
+        batch_estimator_state,
+        buffering_timer):
+      batch = [element for element in element_state.read()]
+      if not batch:
+        return
+      size = batch_size(len(batch), weight_state.read() or 0)
+      element_state.clear()
+      count_state.clear()
+      weight_state.clear()
+      batch_estimator = batch_estimator_state.read()
+      with batch_estimator.record_time(size):
+        yield batch
+      batch_size_state.write(batch_estimator.next_batch_size())
+      batch_estimator_state.write(batch_estimator)
+      buffering_timer.clear()
+
+  return _StatefulWeightedBatchElementsDoFn()
+
+
 class SharedKey():
   """A class that holds a per-process UUID used to key elements for streaming
   BatchElements.
@@ -1285,7 +1257,15 @@ class BatchElements(PTransform):
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
-        a varying number of elements.
+        a varying number of elements. If max_batch_weight is set, the size of a
+        batch is its number of elements instead, and element_size_fn gives the
+        weight of an element.
+    max_batch_weight: (optional) the largest total weight of a batch, where the
+        weight of an element is given by element_size_fn, which must be set.
+        This bounds batches by both their number of elements, between
+        min_batch_size and max_batch_size, and their total weight, e.g. their
+        number of tokens. An element that exceeds max_batch_weight on its own
+        is emitted in a batch by itself.
     variance: (optional) the permitted (relative) amount of deviation from the
         (estimated) ideal batch size used to produce a wider base for
         linear interpolation
@@ -1296,7 +1276,8 @@ class BatchElements(PTransform):
     length_fn: (optional) a callable mapping an element to its length (int).
         When set together with bucket_boundaries, enables length-aware bucketed
         keying on the stateful path so that elements of similar length are
-        routed to the same batch, reducing padding waste.
+        routed to the same batch, reducing padding waste. Ignored, with a
+        warning, if max_batch_duration_secs is not set.
     bucket_boundaries: (optional) a sorted list of positive boundary values
         for length bucketing. Boundaries are lower-inclusive (bisect_right
         semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
@@ -1314,12 +1295,19 @@ class BatchElements(PTransform):
       target_batch_duration_secs_including_fixed_cost=None,
       max_batch_duration_secs=None,
       *,
-      element_size_fn=lambda x: 1,
+      element_size_fn=None,
+      max_batch_weight=None,
       variance=0.25,
       clock=time.time,
       record_metrics=True,
       length_fn=None,
       bucket_boundaries=None):
+    if max_batch_weight is not None:
+      if element_size_fn is None:
+        raise ValueError('max_batch_weight requires element_size_fn to be set.')
+      if max_batch_weight < 1:
+        raise ValueError(
+            f'max_batch_weight must be >= 1, got {max_batch_weight}')
     if bucket_boundaries is not None and length_fn is None:
       raise ValueError('bucket_boundaries requires length_fn to be set.')
     if bucket_boundaries is not None:
@@ -1328,6 +1316,10 @@ class BatchElements(PTransform):
         raise ValueError(
             'bucket_boundaries must be a non-empty sorted list of '
             'positive values.')
+    if length_fn is not None and max_batch_duration_secs is None:
+      _LOGGER.warning(
+          'BatchElements ignores length_fn and bucket_boundaries unless '
+          'max_batch_duration_secs is set.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1339,6 +1331,7 @@ class BatchElements(PTransform):
         clock=clock,
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
     self._length_fn = length_fn
@@ -1357,22 +1350,32 @@ class BatchElements(PTransform):
             self._length_fn, self._bucket_boundaries)
       else:
         keying_dofn = WithSharedKey()
-      return pcoll | ParDo(keying_dofn) | ParDo(
-          _pardo_stateful_batch_elements(
-              coder,
-              self._batch_size_estimator,
-              self._max_batch_dur,
-              self._clock))
+      if self._element_size_fn is None:
+        batching_dofn = _pardo_stateful_batch_elements(
+            coder, self._batch_size_estimator, self._max_batch_dur, self._clock)
+      else:
+        batching_dofn = _pardo_stateful_weighted_batch_elements(
+            coder,
+            self._batch_size_estimator,
+            self._max_batch_dur,
+            self._element_size_fn,
+            self._max_batch_weight,
+            self._clock)
+      return pcoll | ParDo(keying_dofn) | ParDo(batching_dofn)
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
       return pcoll | ParDo(
           _GlobalWindowsBatchingDoFn(
-              self._batch_size_estimator, self._element_size_fn))
+              self._batch_size_estimator,
+              self._element_size_fn or _unit_element_size,
+              self._max_batch_weight))
     else:
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
-              self._batch_size_estimator, self._element_size_fn))
+              self._batch_size_estimator,
+              self._element_size_fn or _unit_element_size,
+              self._max_batch_weight))
 
 
 class _SortAndBatchElementsDoFn(DoFn):
@@ -1441,7 +1444,7 @@ class _SortAndBatchElementsDoFn(DoFn):
       # Check if adding this element would exceed limits
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         # Emit current batch
@@ -1538,7 +1541,7 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
 
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
@@ -2215,7 +2218,12 @@ class LogElements(PTransform):
     def format_timestamp(self, timestamp):
       if self.use_epoch_time:
         return timestamp.seconds()
-      return timestamp.to_rfc3339()
+      try:
+        return timestamp.to_rfc3339()
+      except OverflowError:
+        # MIN_TIMESTAMP and the global window bounds are outside the datetime
+        # range.
+        return str(timestamp)
 
     def process(
         self,
@@ -2388,7 +2396,9 @@ class Regex(object):
   def all_matches(pcoll, regex):
     """
     Returns all matches (groups) if zero or more characters at the beginning
-    of string match the regular expression.
+    of string match the regular expression. Each output is a list of the
+    entire match followed by every group of the regex, with None for a group
+    that did not participate in the match.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -2398,7 +2408,7 @@ class Regex(object):
     def _process(element):
       m = regex.match(element)
       if m:
-        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+        yield [m.group(), *m.groups()]
 
     return pcoll | FlatMap(_process)
 
@@ -2451,28 +2461,29 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[list[str], list[tuple[str, str]]])
+  @typehints.with_output_types(Union[list[str], list[tuple[str, ...]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
     Returns the matches if a portion of the line matches the Regex. By default,
     list of group 0 will return with empty items. To get all groups, pass the
     `Regex.ALL` flag in the `group` parameter which returns all the groups in
-    the tuple format.
+    the tuple format. When using `Regex.ALL`, each item is formatted as a
+    tuple: `(match, group1, group2, ...)`.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
       group: (optional) name of the group, it can be integer or a string value.
-      outputEmpty: (optional) Should empty be output. True to output empties
-        and false if not.
+      outputEmpty: (optional) Whether to allow matches with empty groups.
+        If false, these outputs will be silently dropped.
     """
     regex = Regex._regex_compile(regex)
 
     def _process(element):
       matches = regex.finditer(element)
       if group == Regex.ALL:
-        yield [(m.group(), m.groups()[0]) for m in matches
-               if outputEmpty or m.groups()[0]]
+        yield [(m.group(), *m.groups()) for m in matches
+               if outputEmpty or m.group()]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
 

@@ -130,7 +130,7 @@ import org.apache.flink.util.OutputTag;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class FlinkStreamingPortablePipelineTranslator
+public final class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext> {
 
@@ -221,7 +221,9 @@ public class FlinkStreamingPortablePipelineTranslator
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
-  /** @deprecated Legacy non-portable source which can be replaced by a DoFn with timers. */
+  /**
+   * @deprecated Legacy non-portable source which can be replaced by a DoFn with timers.
+   */
   @Deprecated
   private static final String STREAMING_IMPULSE_TRANSFORM_URN =
       "flink:transform:streaming_impulse:v1";

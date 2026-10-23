@@ -171,7 +171,6 @@ public class MetricsEnvironment {
      *
      * @return The previous container for the associated {@link MetricsEnvironment}.
      */
-    @Nullable
-    MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
+    @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer);
   }
 }

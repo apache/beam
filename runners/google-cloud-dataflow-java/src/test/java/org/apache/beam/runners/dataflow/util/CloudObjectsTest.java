@@ -202,7 +202,7 @@ public class CloudObjectsTest {
 
     @Test
     public void toAndFromCloudObject() throws Exception {
-      CloudObject cloudObject = CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null);
+      CloudObject cloudObject = CloudObjects.asCloudObject(coder, /* sdkComponents= */ null);
       Coder<?> fromCloudObject = CloudObjects.coderFromCloudObject(cloudObject);
 
       assertEquals(coder.getClass(), fromCloudObject.getClass());

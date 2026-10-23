@@ -1641,7 +1641,7 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testReadWithBigTableOptionsSetsRetryOptions() {
+  public void testReadWithBigtableOptionsSetsRetryOptions() {
     final int initialBackoffMillis = -1;
 
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
@@ -1660,7 +1660,7 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testWriteWithBigTableOptionsSetsBulkOptionsAndRetryOptions() {
+  public void testWriteWithBigtableOptionsSetsBulkOptionsAndRetryOptions() {
     final int maxInflightRpcs = 1;
     final int initialBackoffMillis = -1;
 

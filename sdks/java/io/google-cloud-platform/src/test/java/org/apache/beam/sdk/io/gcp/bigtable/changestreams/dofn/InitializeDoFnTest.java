@@ -117,6 +117,7 @@ public class InitializeDoFnTest {
 
   @Test
   public void testInitializeStopWithoutDNP() throws IOException {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     // DNP row doesn't exist, so we don't need to stop the pipeline. But some random data row with
     // the same prefix exists. We want to make sure we clean it up even in "STOP" option.
     dataClient.mutateRow(
@@ -126,7 +127,10 @@ public class InitializeDoFnTest {
                     .getChangeStreamNamePrefix()
                     .concat(ByteString.copyFromUtf8("existing_row")))
             .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                123L));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(
@@ -138,6 +142,7 @@ public class InitializeDoFnTest {
 
   @Test
   public void testInitializeResumeWithoutDNP() throws IOException {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     dataClient.mutateRow(
         RowMutation.create(
                 tableId,
@@ -145,7 +150,10 @@ public class InitializeDoFnTest {
                     .getChangeStreamNamePrefix()
                     .concat(ByteString.copyFromUtf8("existing_row")))
             .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                123L));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(daoFactory, startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
@@ -158,6 +166,7 @@ public class InitializeDoFnTest {
   public void testInitializeResumeWithDNP() throws IOException {
     Instant resumeTime = Instant.now().minus(Duration.standardSeconds(10000));
     metadataTableDao.updateDetectNewPartitionWatermark(resumeTime);
+    long nowMicros = Instant.now().getMillis() * 1000L;
     dataClient.mutateRow(
         RowMutation.create(
                 tableId,
@@ -165,7 +174,10 @@ public class InitializeDoFnTest {
                     .getChangeStreamNamePrefix()
                     .concat(ByteString.copyFromUtf8("existing_row")))
             .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                123L));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(daoFactory, startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
@@ -180,10 +192,14 @@ public class InitializeDoFnTest {
         metadataTableAdminDao
             .getChangeStreamNamePrefix()
             .concat(ByteString.copyFromUtf8("existing_row"));
+    long nowMicros = Instant.now().getMillis() * 1000L;
     dataClient.mutateRow(
         RowMutation.create(tableId, metadataRowKey)
             .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                123L));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(daoFactory, startTime, ExistingPipelineOptions.SKIP_CLEANUP);
@@ -202,10 +218,14 @@ public class InitializeDoFnTest {
         metadataTableAdminDao
             .getChangeStreamNamePrefix()
             .concat(ByteString.copyFromUtf8("existing_row"));
+    long nowMicros = Instant.now().getMillis() * 1000L;
     dataClient.mutateRow(
         RowMutation.create(tableId, metadataRowKey)
             .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
+                MetadataTableAdminDao.CF_WATERMARK,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                123L));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(daoFactory, startTime, ExistingPipelineOptions.SKIP_CLEANUP);

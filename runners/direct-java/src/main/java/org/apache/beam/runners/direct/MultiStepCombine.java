@@ -65,7 +65,11 @@ import org.joda.time.Instant;
 /** A {@link Combine} that performs the combine in multiple steps. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  // The "nullness" suppression is retained deliberately: this class is generic over a nullable
+  // AccumT (e.g. an empty HllCount sketch has a null accumulator), so accumulator values, keys and
+  // combine inputs are legitimately nullable in normal operation. The checker cannot express that
+  // invariant here, and forcing @NonNull bounds converts valid nulls into runtime failures.
+  "nullness"
 })
 class MultiStepCombine<
         K extends @Nullable Object,
@@ -367,6 +371,7 @@ class MultiStepCombine<
 
   static final String DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN =
       "beam:directrunner:transforms:merge_accumulators_extract_output:v1";
+
   /**
    * A primitive {@link PTransform} that merges iterables of accumulators and extracts the output.
    *

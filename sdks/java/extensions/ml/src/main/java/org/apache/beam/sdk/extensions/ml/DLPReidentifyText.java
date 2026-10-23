@@ -137,6 +137,7 @@ public abstract class DLPReidentifyText
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
     public abstract Builder setBatchSizeBytes(int batchSize);
+
     /**
      * Sets list of column names if the input KV value is a delimited row.
      *

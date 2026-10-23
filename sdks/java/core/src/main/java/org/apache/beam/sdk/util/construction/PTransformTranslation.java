@@ -22,6 +22,7 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -150,6 +151,7 @@ public class PTransformTranslation {
       "beam:transform:sdf_pair_with_restriction:v1";
   public static final String SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN =
       "beam:transform:sdf_truncate_sized_restrictions:v1";
+
   /**
    * @deprecated runners should move away from using `SplittableProcessKeyedElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -157,6 +159,7 @@ public class PTransformTranslation {
   @Deprecated
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       "beam:transform:sdf_process_keyed_elements:v1";
+
   /**
    * @deprecated runners should move away from using `SplittableProcessElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -329,8 +332,7 @@ public class PTransformTranslation {
    * the Java representation while registering components that transform references.
    */
   public interface TransformTranslator<T extends PTransform<?, ?>> {
-    @Nullable
-    String getUrn(T transform);
+    @Nullable String getUrn(T transform);
 
     boolean canTranslate(PTransform<?, ?> pTransform);
 
@@ -416,6 +418,12 @@ public class PTransformTranslation {
       knownPayloadTranslators;
 
   @Internal
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Returns a Guava ImmutableMap."
+              + " Spotbugs matches its known-immutable list by fully qualified name, so it cannot recognise collections relocated into org.apache.beam.vendor.guava."
+              + " See https://github.com/spotbugs/spotbugs/issues/1601.")
   public static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       getKnownPayloadTranslators() {
     if (knownPayloadTranslators == null) {
@@ -656,9 +664,8 @@ public class PTransformTranslation {
      *     value is null, transform should include an empty spec.
      * @throws IOException
      */
-    @Nullable
-    FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
-        throws IOException;
+    @Nullable FunctionSpec translate(
+        AppliedPTransform<?, ?, T> application, SdkComponents components) throws IOException;
 
     /**
      * Generates a Row-based construction configuration for the provided transform.

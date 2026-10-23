@@ -25,7 +25,6 @@ import java.util.EnumMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -83,6 +82,10 @@ public final class Work implements RefreshableWork {
   private final long serializedWorkItemSize;
   private volatile TimedState currentState;
   private volatile boolean isFailed;
+  // If true, this work item will not be batched with other work items in a multi-key bundle.
+  // This is used to isolate work items that failed validation (e.g. commit size limit exceeded)
+  // so they can be retried individually and potentially truncated.
+  private volatile boolean disableMultiKeyBatching = false;
   private volatile String processingThreadName = "";
   private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
       new AtomicReference<>(null);
@@ -399,6 +402,22 @@ public final class Work implements RefreshableWork {
     return isFailed;
   }
 
+  /**
+   * Sets whether multi-key batching should be disabled for this work item. When true, this work
+   * item will not be batched with other work items upon local retry.
+   */
+  public void setMultiKeyBatchingDisabled(boolean disableMultiKeyBatching) {
+    this.disableMultiKeyBatching = disableMultiKeyBatching;
+  }
+
+  /**
+   * Returns true if multi-key batching is disabled for this work item (e.g. after a prior batch
+   * commit size validation failure).
+   */
+  public boolean isMultiKeyBatchingDisabled() {
+    return disableMultiKeyBatching;
+  }
+
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
@@ -534,7 +553,7 @@ public final class Work implements RefreshableWork {
 
     @Override
     public int hashCode() {
-      return Objects.hash(high, low);
+      return 31 * Long.hashCode(high) + Long.hashCode(low);
     }
 
     @Override

@@ -28,6 +28,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
@@ -1399,6 +1400,7 @@ public class DatastoreV1 {
   public static class Write extends PTransform<PCollection<Entity>, PDone> {
 
     WriteWithSummary inner;
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
@@ -1983,6 +1985,7 @@ public class DatastoreV1 {
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
+
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
@@ -2338,9 +2341,12 @@ public class DatastoreV1 {
       Mutation mutation = c.element();
       int size = mutation.getSerializedSize();
       ProcessContextAdapter<OutT> contextAdapter = new ProcessContextAdapter<>(c);
+      com.google.datastore.v1.Key key = getKey(mutation);
 
-      if (!uniqueMutationKeys.add(getKey(mutation))) {
+      if (!uniqueMutationKeys.add(key)) {
         flushBatch(contextAdapter);
+        checkState(
+            uniqueMutationKeys.add(key), "Key %s still present in batch after flushing.", key);
       }
 
       if (mutations.size() > 0

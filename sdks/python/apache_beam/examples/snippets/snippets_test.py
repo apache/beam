@@ -50,6 +50,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -1467,12 +1468,53 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
 
+  def test_side_input_slow_update_global_window(self):
+    side_input_interval = 5
+    main_input_interval = 5
+    duration = 30
+
+    first_ts = math.floor(time.time()) - duration
+    # Aligning the timestamp to get persistent results.
+    first_ts = first_ts - (
+        first_ts % (side_input_interval * main_input_interval))
+    last_ts = first_ts + duration
+
+    expected_main_input_elements = sorted(
+        first_ts + main_input_interval * i
+        for i in range(duration // main_input_interval))
+    expected_side_input_values = set(
+        str(first_ts + side_input_interval * i)
+        for i in range(duration // side_input_interval))
+
+    def check_enriched_elements(actual):
+      main_input_elements = sorted(element for element, _ in actual)
+      assert main_input_elements == expected_main_input_elements, (
+          'Expected main input elements %s, got %s' %
+          (expected_main_input_elements, main_input_elements))
+
+      side_input_values = set(value for _, value in actual)
+      assert None not in side_input_values, (
+          'Some elements were processed before the side input was ready.')
+      unexpected_values = side_input_values - expected_side_input_values
+      assert not unexpected_values, (
+          'Observed side input values that the side input never produced: %s' %
+          unexpected_values)
+
+    pipeline, pipeline_result = snippets.side_input_slow_update_global_window(
+        first_ts, last_ts, side_input_interval, main_input_interval)
+
+    with pipeline:
+      assert_that(pipeline_result, check_enriched_elements)
+
 
 class ValueProviderInfoTest(unittest.TestCase):
   """Tests for accessing value provider info after run."""
   def test_accessing_valueprovider_info_after_run(self):
-    with self.assertLogs(level='INFO') as log_capture:
-      snippets.accessing_valueprovider_info_after_run()
+    # Prism's loopback worker runs in this process and does not initialize
+    # RuntimeValueProvider through sdk_worker_main.
+    with mock.patch.object(RuntimeValueProvider, 'runtime_options', {}):
+      with self.assertLogs(level='INFO') as log_capture:
+        snippets.accessing_valueprovider_info_after_run()
     expected_log_message = "The string value is"
     self.assertTrue(
         any(expected_log_message in log for log in log_capture.output),

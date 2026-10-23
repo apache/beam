@@ -1,0 +1,156 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # Gives shop.orders two snapshots: three new orders, then an update, a delete
+  # and a new order. Each row carries its change type (op) and sequence number
+  # (seq).
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {id: 1, item: "apple", qty: 3, op: "INSERT", seq: 1}
+              - {id: 2, item: "pear", qty: 5, op: "INSERT", seq: 1}
+              - {id: 3, item: "plum", qty: 2, op: "INSERT", seq: 1}
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "op"
+            sequence_number_column: "seq"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {id: 1, item: "apple", qty: 3, op: "UPDATE_BEFORE", seq: 2}
+              - {id: 1, item: "apple", qty: 4, op: "UPDATE_AFTER", seq: 2}
+              - {id: 2, item: "pear", qty: 5, op: "DELETE", seq: 2}
+              - {id: 4, item: "kiwi", qty: 1, op: "INSERT", seq: 2}
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "op"
+            sequence_number_column: "seq"
+
+  # Batch: replays every change in shop.orders into shop.orders_mirror.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIcebergCDC
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            include_metadata_columns:
+              ["_change_type", "_commit_snapshot_sequence_number"]
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders_mirror"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "_change_type"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIceberg
+          config:
+            table: "shop.orders_mirror"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, item: "apple", qty: 4}
+              - {id: 3, item: "plum", qty: 2}
+              - {id: 4, item: "kiwi", qty: 1}
+
+  # Streaming: replays the same changes into shop.orders_streaming_mirror. The
+  # far-future to_timestamp stops the stream at the latest snapshot. One-second
+  # commit windows put the two snapshots in separate commits, so the second
+  # commit updates and deletes rows that the first one wrote.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIcebergCDC
+          config:
+            table: "shop.orders"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            streaming: true
+            starting_strategy: "earliest"
+            to_timestamp: 4102444800000
+            include_metadata_columns:
+              ["_change_type", "_commit_snapshot_sequence_number"]
+        - type: WriteToIceberg
+          config:
+            table: "shop.orders_streaming_mirror"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+            mode: "merge-on-read"
+            equality_columns: ["id"]
+            change_type_column: "_change_type"
+            triggering_frequency_seconds: 1
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromIceberg
+          config:
+            table: "shop.orders_streaming_mirror"
+            catalog_name: "hadoop_catalog"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, item: "apple", qty: 4}
+              - {id: 3, item: "plum", qty: 2}
+              - {id: 4, item: "kiwi", qty: 1}

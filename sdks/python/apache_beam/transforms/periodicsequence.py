@@ -166,9 +166,16 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       current_output_timestamp = start + interval * current_output_index
 
       if current_output_timestamp > time.time():
-        # we are too ahead of time, let's wait.
-        restriction_tracker.defer_remainder(
-            timestamp.Timestamp(current_output_timestamp))
+        # We are ahead of time, let's wait. No element will be produced before
+        # the next fire time, so advance the watermark up to that timestamp.
+        next_output_timestamp = timestamp.Timestamp(current_output_timestamp)
+        if not self._is_pre_timestamped:
+          current_watermark = watermark_estimator.current_watermark()
+          if current_watermark is None or \
+              next_output_timestamp > current_watermark:
+            # ensure watermark is monotonic
+            watermark_estimator.set_watermark(next_output_timestamp)
+        restriction_tracker.defer_remainder(next_output_timestamp)
         break
 
       if not restriction_tracker.try_claim(current_output_index):
@@ -292,7 +299,10 @@ class PeriodicImpulse(PTransform):
       data: Optional[Sequence[Any]] = None,
       rebase: RebaseMode = RebaseMode.REBASE_NONE):
     '''
-    :param start_timestamp: Timestamp for first element.
+    :param start_timestamp: Timestamp for first element. Defaults to the time
+      this module was first imported, not the time the transform is created
+      or the pipeline starts. Pass an explicit timestamp, or use `rebase`, to
+      start relative to pipeline execution.
     :param stop_timestamp: Timestamp at or after which no elements will be
       output.
     :param fire_interval: Interval in seconds at which to output elements.

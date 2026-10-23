@@ -331,6 +331,19 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+    # Test cases reported in BEAM-28559
+    df_single_index = df.reset_index().set_index('class')
+    self._run_test(
+        lambda df: df.num_legs.xs('mammal'), df_single_index, check_proxy=False)
+    self._run_test(lambda df: df.num_legs.xs('bird'), df_single_index)
+
+    # Categorical Series single match
+    s_cat = pd.Series(
+        pd.Categorical(['a', 'b', 'c']),
+        index=['r1', 'r2', 'r3'],
+        name='cat_col')
+    self._run_test(lambda s: s.xs('r1'), s_cat, check_proxy=False)
+
   def test_dataframe_xs(self):
     # Test cases reported in BEAM-13421
     df = pd.DataFrame(
@@ -342,9 +355,66 @@ class DeferredFrameTest(_AbstractFrameTest):
         ]),
         columns=['provider', 'time', 'value'])
 
-    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'),
+        df.set_index(['provider']),
+        check_proxy=False)
     self._run_test(
         lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
+    # Test cases reported in BEAM-28559
+    self._run_test(lambda df: df.xs('county'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs(('state', 'day1')),
+        df.set_index(['provider', 'time']),
+        check_proxy=False)
+
+    df_unique = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+    self._run_test(
+        lambda df: df.xs(('state', 'day2')),
+        df_unique.set_index(['provider', 'time']))
+
+    # Categorical and extension dtype tests
+    df_cat = pd.DataFrame({
+        'cat': pd.Categorical(['a', 'b', 'c']), 'val': [1, 2, 3]
+    },
+                          index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_cat)
+
+    df_dt_tz = pd.DataFrame({
+        'dt': pd.Series([
+            pd.Timestamp('2023-01-01', tz='UTC'),
+            pd.Timestamp('2023-01-02', tz='UTC')
+        ],
+                        dtype='datetime64[ns, UTC]'),
+        'val': [1, 2]
+    },
+                            index=['r1', 'r2'])
+    self._run_test(lambda df: df.xs('r1'), df_dt_tz)
+
+    df_null_int = pd.DataFrame({'num': pd.Series([1, 2, None], dtype='Int64')},
+                               index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_null_int)
+
+  def test_dataframe_xs_non_empty_duplicate_proxy(self):
+    df_dups = pd.DataFrame({'a': [1, 2]}, index=['x', 'x'])
+    p = beam.Pipeline()
+    deferred = to_dataframe(p | beam.Create([{'a': 1}]), proxy=df_dups)
+    res = deferred.xs('x')
+    self.assertIsInstance(res, frames.DeferredSeries)
+    self.assertTrue(res._expr.proxy().empty)
+
+    s_dups = pd.Series(pd.Categorical(['a', 'b']), index=['x', 'x'], name='s')
+    deferred_s = to_dataframe(
+        p | 'CreateSeries' >> beam.Create(['a']), proxy=s_dups)
+    res_s = deferred_s.xs('x')
+    self.assertIsInstance(res_s, frame_base.DeferredBase)
 
   def test_set_column(self):
     def new_column(df):
@@ -725,6 +795,15 @@ class DeferredFrameTest(_AbstractFrameTest):
             lambda df, dropna=dropna, normalize=normalize: df.num_wings.
             value_counts(dropna=dropna, normalize=normalize),
             df)
+
+  def test_series_value_counts_with_bins(self):
+    s = pd.Series([1, 2, 2, 3, 5, 8, 8, 9, np.nan])
+
+    self._run_test(lambda s: s.value_counts(bins=3), s, nonparallel=True)
+    self._run_test(
+        lambda s: s.value_counts(bins=3, normalize=True), s, nonparallel=True)
+    self._run_test(
+        lambda s: s.value_counts(bins=[0, 5, 10]), s, nonparallel=True)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
@@ -2111,6 +2190,12 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda s: s.agg(['mean']), s)
     self._run_test(lambda s: s.agg('mean'), s)
 
+  def test_series_agg_list_keeps_name(self):
+    s = pd.Series(list(range(16)), name='x')
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['std', 'var']), s)
+
   def test_dataframe_agg_modes(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
@@ -2119,6 +2204,14 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
     self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
+
+  def test_agg_list_with_count_and_size(self):
+    s = pd.Series([1.0, None, 3.0, 4.0])
+    self._run_test(lambda s: s.agg(['count']), s)
+    self._run_test(lambda s: s.agg(['count', 'size', 'mean']), s)
+
+    df = pd.DataFrame({'A': [1.0, None, 3.0, 4.0], 'B': [2, 3, 5, 7]})
+    self._run_test(lambda df: df.agg(['count', 'mean']), df)
 
   @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):

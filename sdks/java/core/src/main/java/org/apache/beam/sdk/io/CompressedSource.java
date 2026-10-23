@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -65,6 +66,12 @@ import org.joda.time.Instant;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
@@ -74,7 +81,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel) throws IOException;
   }
 
-  /** @deprecated Use {@link Compression} instead */
+  /**
+   * @deprecated Use {@link Compression} instead
+   */
   @Deprecated
   public enum CompressionMode implements DecompressingChannelFactory {
     /** See {@link Compression#UNCOMPRESSED}. */

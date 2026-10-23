@@ -36,8 +36,9 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
   void setDataSize(String dataSize);
 
   // Set the return type to be String since reading from the command line (user input will be like
-  // "1,2,55" which represent TPC-DS query1, query3, query55)
-  @Description("The queries numbers, read user input as string, numbers separated by commas")
+  // "1,2,55" which represent TPC-DS query1, query3, query55, or "supported" / "all")
+  @Description(
+      "The queries numbers, read user input as string, numbers separated by commas, or 'supported' / 'all'")
   String getQueries();
 
   void setQueries(String queries);
@@ -80,8 +81,7 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
 
   @Description("Base name of BigQuery table name if using BigQuery output.")
   @Default.String("nexmark")
-  @Nullable
-  String getBigQueryTable();
+  @Nullable String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
 
@@ -92,14 +92,12 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
   void setBigQueryDataset(String bigQueryDataset);
 
   @Description("InfluxDB host.")
-  @Nullable
-  String getInfluxHost();
+  @Nullable String getInfluxHost();
 
   void setInfluxHost(@Nullable String host);
 
   @Description("InfluxDB database.")
-  @Nullable
-  String getInfluxDatabase();
+  @Nullable String getInfluxDatabase();
 
   void setInfluxDatabase(@Nullable String database);
 
@@ -111,20 +109,17 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
 
   @Description("Base name of measurement name if using InfluxDB output.")
   @Default.String("tpcds")
-  @Nullable
-  String getBaseInfluxMeasurement();
+  @Nullable String getBaseInfluxMeasurement();
 
   void setBaseInfluxMeasurement(String influxDBMeasurement);
 
   @Description("Name of retention policy for Influx data.")
-  @Nullable
-  String getInfluxRetentionPolicy();
+  @Nullable String getInfluxRetentionPolicy();
 
   void setInfluxRetentionPolicy(String influxRetentionPolicy);
 
   @Description("Additional tags for Influx data")
-  @Nullable
-  Map<String, String> getInfluxTags();
+  @Nullable Map<String, String> getInfluxTags();
 
   void setInfluxTags(Map<String, String> influxTags);
 }

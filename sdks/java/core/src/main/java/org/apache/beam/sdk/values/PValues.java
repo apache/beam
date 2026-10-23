@@ -97,8 +97,7 @@ public class PValues {
                     PCollection.class.getSimpleName(),
                     valueComponent.getValue()));
           }
-          @Nullable
-          PCollection<?> previous =
+          @Nullable PCollection<?> previous =
               result.put(valueComponent.getKey(), (PCollection<?>) valueComponent.getValue());
           if (previous != null) {
             throw new IllegalArgumentException(

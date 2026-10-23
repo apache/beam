@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.construction;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
@@ -30,12 +31,19 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.ShardedKey;
+import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
@@ -173,6 +181,77 @@ class CoderTranslators {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
         return RowCoder.of(schema);
+      }
+    };
+  }
+
+  static <T> CoderTranslator<SchemaCoder<T>> schema() {
+    return new CoderTranslator<SchemaCoder<T>>() {
+      private static final String TO_ROW_FUNCTION_URN = "beam:torowfn:javasdk:v1";
+      private static final String FROM_ROW_FUNCTION_URN = "beam:fromrowfn:javasdk:v1";
+      private static final String TYPE_DESCRIPTOR_URN = "beam:typedescriptor:javasdk:v1";
+
+      @Override
+      public ImmutableList<? extends Coder<?>> getComponents(SchemaCoder<T> from) {
+        return ImmutableList.of();
+      }
+
+      @Override
+      public byte[] getPayload(SchemaCoder<T> from) {
+        SchemaApi.SchemaCoderPayload.Builder payload = SchemaApi.SchemaCoderPayload.newBuilder();
+        payload.setSchema(SchemaTranslation.schemaToProto(from.getSchema(), true));
+        payload
+            .getToRowFnBuilder()
+            .setUrn(TO_ROW_FUNCTION_URN)
+            .setPayload(
+                ByteString.copyFrom(
+                    SerializableUtils.serializeToByteArray(from.getToRowFunction())));
+        payload
+            .getFromRowFnBuilder()
+            .setUrn(FROM_ROW_FUNCTION_URN)
+            .setPayload(
+                ByteString.copyFrom(
+                    SerializableUtils.serializeToByteArray(from.getFromRowFunction())));
+        payload
+            .addAdditionalCoderInfosBuilder()
+            .setUrn(TYPE_DESCRIPTOR_URN)
+            .setPayload(
+                ByteString.copyFrom(
+                    SerializableUtils.serializeToByteArray(from.getEncodedTypeDescriptor())));
+        return payload.build().toByteArray();
+      }
+
+      @Override
+      public SchemaCoder<T> fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
+        checkArgument(
+            components.isEmpty(), "Expected empty component list, but received: %s", components);
+        try {
+          SchemaApi.SchemaCoderPayload schemaCoderPayload =
+              SchemaApi.SchemaCoderPayload.parseFrom(payload);
+          if (schemaCoderPayload.getAdditionalCoderInfosCount() == 0) {
+            throw new IllegalArgumentException("Missing serialized typeDescriptor");
+          }
+          TypeDescriptor<T> typeDescriptor =
+              (TypeDescriptor<T>)
+                  SerializableUtils.deserializeFromByteArray(
+                      schemaCoderPayload.getAdditionalCoderInfos(0).getPayload().toByteArray(),
+                      "typeDescriptor");
+          SerializableFunction<T, Row> toRowFunction =
+              (SerializableFunction<T, Row>)
+                  SerializableUtils.deserializeFromByteArray(
+                      schemaCoderPayload.getToRowFn().getPayload().toByteArray(), "toRowFunction");
+          SerializableFunction<Row, T> fromRowFunction =
+              (SerializableFunction<Row, T>)
+                  SerializableUtils.deserializeFromByteArray(
+                      schemaCoderPayload.getFromRowFn().getPayload().toByteArray(),
+                      "fromRowFunction");
+
+          Schema schema = SchemaTranslation.schemaFromProto(schemaCoderPayload.getSchema());
+          return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
+        } catch (IOException | IllegalArgumentException e) {
+          throw new RuntimeException(e);
+        }
       }
     };
   }

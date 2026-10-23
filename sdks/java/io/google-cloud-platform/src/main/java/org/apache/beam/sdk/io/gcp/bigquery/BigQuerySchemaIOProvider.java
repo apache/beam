@@ -153,10 +153,11 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
      *
      * @return null
      */
+    // SchemaIO.schema() is declared non-null, but the BigQuery schema is only known once the
+    // table is read. The suppression cannot be narrowed below the method: a @Nullable local
+    // would just move the error to the return statement.
     @Override
-    @SuppressWarnings({
-      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-    })
+    @SuppressWarnings("nullness")
     public Schema schema() {
       return null;
     }

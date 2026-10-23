@@ -937,6 +937,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** The SideInput tag ID. */
     String value();
   }
+
   /**
    * Annotation that may be added to a {@link ProcessElement}, {@link OnTimer}, or {@link
    * OnWindowExpiration} method to indicate that the runner must ensure that the observable contents

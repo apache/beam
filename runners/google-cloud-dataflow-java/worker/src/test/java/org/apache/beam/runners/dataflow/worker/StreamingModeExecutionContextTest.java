@@ -78,7 +78,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -158,13 +159,13 @@ public class StreamingModeExecutionContextTest {
         executionStateRegistry,
         configHandle,
         Long.MAX_VALUE,
-        /*throwExceptionOnLargeOutput=*/ false,
+        /* throwExceptionOnLargeOutput= */ false,
         new HotKeyLogger(),
-        /*hotKeyLoggingEnabled=*/ false,
-        /*stepName=*/ "stepName",
-        /*systemName=*/ "systemName",
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ "stepName",
+        /* systemName= */ "systemName",
         StreamingCounters.create(),
-        mock(FailureTracker.class),
+        StreamingEngineFailureTracker.create(10, 10),
         "sourceBytesProcessCounterName",
         MultiKeyBundleOptions.fromOptions(options),
         SideInputStateFetcherFactory.fromOptions(options));
@@ -243,10 +244,11 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
-    Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
+    assertEquals(1, result.workItemCommits().size());
+    Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+    Windmill.Timer timer = commitRequest.getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
     assertThat(timer.getType(), equalTo(Windmill.Timer.Type.WATERMARK));
@@ -497,9 +499,10 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
+    assertEquals(1, result.workItemCommits().size());
+    assertEquals(1234, result.workItemCommits().get(0).getSourceBacklogBytes());
   }
 
   @Test
@@ -866,7 +869,7 @@ public class StreamingModeExecutionContextTest {
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
-    executionContext.flushState();
+    executionContext.flushStateAndReset();
 
     // Verify timerInternals is poisoned
     try {
@@ -899,5 +902,45 @@ public class StreamingModeExecutionContextTest {
     } catch (IllegalStateException e) {
       assertThat(e.getMessage(), Matchers.containsString("poisoned"));
     }
+  }
+
+  @Test
+  public void testAdvance_stopsWhenCurrentWorkBatchingDisabled() throws Exception {
+    DataflowWorkerHarnessOptions optionsMultiKey =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsMultiKey
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsMultiKey, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+
+    Work work1 =
+        createMockWork(
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.copyFromUtf8("key1"))
+                .setWorkToken(1L)
+                .setKeyGroup(keyGroup)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+    work1.setMultiKeyBatchingDisabled(true);
+
+    AtomicBoolean transitionListenerCalled = new AtomicBoolean(false);
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> transitionListenerCalled.set(true),
+        FAILING_FAILED_WORK_HANDLER);
+
+    assertFalse(context.advance());
+    assertFalse(transitionListenerCalled.get());
+    verifyNoInteractions(mockExecutor);
   }
 }

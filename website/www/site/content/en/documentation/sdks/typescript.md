@@ -87,7 +87,7 @@ themselves, producing multiple outputs is done by following with a new
 `PCollection<{a?: AType, b: BType, ... }>` and produces an object
 `{a: PCollection<AType>, b: PCollection<BType>, ...}`.
 
-* JavaScript supports (and encourages) an asynchronous programing model, with
+* JavaScript supports (and encourages) an asynchronous programming model, with
 many libraries requiring use of the async/await paradigm.
 As there is no way (by design) to go from the asynchronous style back to
 the synchronous style, this needs to be taken into account

@@ -52,18 +52,22 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20260731'
-ext.dataflowFnapiContainerVersion = 'beam-master-20260731'
+// These should always be in sync to avoid issues like https://github.com/apache/beam/issues/30634
+ext.dataflowLegacyContainerVersion = 'beam-master-20260916'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260916'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
-  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+  // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+  def resourceTokens = [
     'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
     'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
     'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
+  inputs.property('resourceTokens', resourceTokens)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 // Exclude tests that need a runner
@@ -85,6 +89,8 @@ configurations {
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation platform(library.java.opentelemetry_bom)
+  permitUnusedDeclared platform(library.java.opentelemetry_bom)
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -113,9 +119,12 @@ dependencies {
   implementation library.java.google_cloud_logging
   permitUnusedDeclared library.java.google_cloud_logging // BEAM-11761
   implementation library.java.opentelemetry_context
-  runtimeOnly library.java.opentelemetry_exporter_otlp
-  runtimeOnly library.java.opentelemetry_extension_autoconfigure
-  runtimeOnly project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+  implementation library.java.opentelemetry_exporter_otlp
+  permitUnusedDeclared library.java.opentelemetry_exporter_otlp
+  implementation library.java.opentelemetry_extension_autoconfigure
+  permitUnusedDeclared library.java.opentelemetry_extension_autoconfigure
+  implementation project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+  permitUnusedDeclared project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -123,6 +132,11 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_69_0
+  // TestDataflowRunner inspects TestPipeline, a JUnit TestRule, which needs JUnit at compile
+  // time (as in sdks/java/core and runners/direct-java). Users of TestDataflowRunner already have
+  // JUnit on their classpath.
+  provided library.java.junit
+  permitUnusedDeclared library.java.junit
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -169,7 +183,11 @@ def legacyPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -186,8 +204,12 @@ def runnerV2CommonPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -224,6 +246,58 @@ def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
+// ValidatesRunner parallelism. Each test worker JVM runs ValidatesRunner tests on several threads;
+// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching, batch mode only
+// for now) many more threads are useful since most of them just contribute a member to the next
+// merged job rather than a job of their own. Tests that cannot be merged, including every test
+// of a streaming task, are still one job each, so their thread count is kept at the pre-batching
+// level to bound the number of concurrent jobs per worker JVM.
+def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
+def validatesRunnerTestBatchWindowMs = project.findProperty('testBatchWindowMs') ?: '3000'
+def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcurrentStandaloneJobs') ?: '12'
+
+def configureValidatesRunnerParallelism = { Test task, List pipelineOptions ->
+  def streaming = pipelineOptions.any { it == '--streaming' || it == '--streaming=true' }
+  def batching = validatesRunnerTestBatching == 'true' && !streaming
+  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '6')
+  def batchMaxSize = project.findProperty('testBatchMaxSize') ?: parallelThreads
+
+  task.systemProperty "beam.validatesRunner.parallelThreads", parallelThreads
+  task.systemProperty "beam.dataflow.testBatching", batching.toString()
+  task.systemProperty "beam.dataflow.testBatchMaxSize", batchMaxSize
+  task.systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
+  task.systemProperty "beam.dataflow.maxConcurrentStandaloneJobs", validatesRunnerMaxConcurrentStandaloneJobs
+  // Merged jobs tell member tests apart by their unique TestPipeline root names.
+  task.systemProperty "beamTestPipelineUniqueRootNames", batching.toString()
+}
+
+def isValidatesRunnerTestClass = { FileTreeElement element ->
+  if (element.isDirectory()) {
+    return true
+  }
+  // Classes that reference the ValidatesRunner annotation but are not ValidatesRunner tests:
+  // BeamParallelJunit4RunnerTest's nested fixtures carry @Category(ValidatesRunner.class) to test
+  // the runner itself and must not be executed against a real service.
+  if (!element.name.endsWith('.class') ||
+      element.name.startsWith('ValidateRunnerXlangTest') ||
+      element.name.startsWith('BeamParallelJunit4RunnerTest')) {
+    return false
+  }
+  def content = new String(element.file.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+  if (content.contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')) {
+    return true
+  }
+  if (content.contains('Lorg/junit/experimental/runners/Enclosed;')) {
+    def prefix = element.name.substring(0, element.name.length() - 6) + '$'
+    return element.file.parentFile.listFiles()?.any { File f ->
+      f.name.startsWith(prefix) && f.name.endsWith('.class') &&
+        new String(f.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+          .contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')
+    } ?: false
+  }
+  return false
+}
+
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def name = args.name
   def pipelineOptions = args.pipelineOptions ?: legacyPipelineOptions
@@ -234,13 +308,16 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+    configureValidatesRunnerParallelism(it, pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    maxHeapSize = '2g'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
+    include isValidatesRunnerTestClass
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonLegacyExcludeCategories.each {
@@ -267,13 +344,18 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   return tasks.create(name: name, type: Test, group: "Verification") {
     dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+    configureValidatesRunnerParallelism(it, pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    // Same as the legacy task: in batch mode a fork hosts up to 30 concurrent test threads plus
+    // the translation of each merged job, not just a handful of standalone pipelines.
+    maxHeapSize = '2g'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
+    include isValidatesRunnerTestClass
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
@@ -462,8 +544,13 @@ task validatesRunner {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
     ],
-    // Batch legacy worker does not support bundle finalization.
-    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
+    // Batch legacy worker does not support bundle finalization, triggered side inputs, or unbounded PCollections.
+    excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesBundleFinalizer',
+      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
+      'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
+      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
+    ],
   ))
 }
 
@@ -591,8 +678,8 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
       // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideCount',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -634,7 +721,7 @@ task validatesRunnerV2Streaming {
 
       // TestStream with processing time control not supported
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -683,6 +770,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/BigQueryTimestampPicosIT.java'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/DicomIOReadIT.class'
@@ -740,6 +828,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/BigQueryTimestampPicosIT.java'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'

@@ -26,7 +26,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class ExecutableFile {
+public final class ExecutableFile {
 
   String fileName;
 

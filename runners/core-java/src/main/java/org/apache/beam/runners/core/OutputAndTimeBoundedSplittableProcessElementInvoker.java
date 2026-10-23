@@ -245,8 +245,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     DoFn.ProcessContinuation cont = invoker.invokeProcessElement(invokerArgumentProvider);
     processContext.cancelScheduledCheckpoint();
-    @Nullable
-    KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
+    @Nullable KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
         processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
       checkState(
@@ -282,7 +281,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       processContext.tracker.checkDone();
     }
     if (residual == null) {
-      return new Result(null, cont, null, null);
+      return new Result(null, cont, null, null, 0.0);
     }
     final KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residualForGetSize = residual;
     // For a list of all DoFnInvoker arguments, see DoFn.java.

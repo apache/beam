@@ -188,7 +188,8 @@ class GroupingBuffer(object):
       self,
       pre_grouped_coder: coders.Coder,
       post_grouped_coder: coders.Coder,
-      windowing: core.Windowing) -> None:
+      windowing: core.Windowing,
+      clock: Optional[Union[TestClock, RealClock]] = None) -> None:
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
@@ -196,6 +197,7 @@ class GroupingBuffer(object):
                                          list[Any]] = collections.defaultdict(
                                              list)
     self._windowing = windowing
+    self._clock = clock
     self._grouped_output: Optional[list[list[bytes]]] = None
 
   def copy(self) -> 'GroupingBuffer':
@@ -250,11 +252,9 @@ class GroupingBuffer(object):
             globally_window((key, values))
         ]
       else:
-        # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
-        #   note that this only comes through if windowing is default - but what
-        #   about having multiple firings on the global window.
-        #   May need to revise.
-        trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+        # Processing-time triggers read the clock when an element arrives.
+        trigger_driver = trigger.create_trigger_driver(
+            self._windowing, True, clock=self._clock)
         windowed_key_values = trigger_driver.process_entire_key
       coder_impl = self._post_grouped_coder.get_impl()
       key_coder_impl = self._key_coder.get_impl()
@@ -780,9 +780,9 @@ class FnApiRunnerExecutionContext(object):
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           coder_id = self.data_channel_coders[only_element(
               transform.outputs.values())]
-          coder = self.pipeline_context.coders[self.safe_coders.get(
-              coder_id, coder_id)]
           if transform.spec.payload == translations.IMPULSE_BUFFER:
+            coder = self.pipeline_context.coders[self.safe_coders.get(
+                coder_id, coder_id)]
             data_input[transform.unique_name] = ListBuffer(coder.get_impl())
             data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
           else:
@@ -1148,7 +1148,10 @@ class BundleContextManager(object):
                     self.execution_context.pipeline_components.
                     pcollections[input_pcoll].windowing_strategy_id]])
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
-            pre_gbk_coder, post_gbk_coder, windowing_strategy)
+            pre_gbk_coder,
+            post_gbk_coder,
+            windowing_strategy,
+            clock=self.execution_context.clock)
     else:
       # These should be the only two identifiers we produce for now,
       # but special side input writes may go here.

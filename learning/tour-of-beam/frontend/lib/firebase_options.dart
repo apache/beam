@@ -53,7 +53,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAg7ZLslQRrEhwVVVzZb1OFMRMHL8kNL38',
+    apiKey: 'AIzaSyA4MXDLiEEdY-Bm_Iyxrg3W_cmdCSa4lvg',
     authDomain: 'apache-beam-testing.firebaseapp.com',
     projectId: 'apache-beam-testing',
     storageBucket: 'apache-beam-testing.appspot.com',

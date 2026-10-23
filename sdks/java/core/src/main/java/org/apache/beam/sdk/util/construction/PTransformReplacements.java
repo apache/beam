@@ -23,12 +23,13 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilty class for PTransform replacements. */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class PTransformReplacements {
   /**
    * Gets the singleton input of an {@link AppliedPTransform}, ignoring any additional inputs
@@ -42,7 +43,7 @@ public class PTransformReplacements {
 
   private static <T> PCollection<T> getSingletonMainInput(
       Map<TupleTag<?>, PCollection<?>> inputs, Set<TupleTag<?>> ignoredTags) {
-    PCollection<T> mainInput = null;
+    @Nullable PCollection<T> mainInput = null;
     for (Map.Entry<TupleTag<?>, PCollection<?>> input : inputs.entrySet()) {
       if (!ignoredTags.contains(input.getKey())) {
         checkArgument(
@@ -58,16 +59,17 @@ public class PTransformReplacements {
         mainInput = (PCollection<T>) input.getValue();
       }
     }
-    checkArgument(
-        mainInput != null,
+    return Preconditions.checkArgumentNotNull(
+        mainInput,
         "No main input found in inputs: Inputs %s, Side Input tags %s",
         inputs,
         ignoredTags);
-    return mainInput;
   }
 
   public static <T> PCollection<T> getSingletonMainOutput(
       AppliedPTransform<?, PCollection<T>, ? extends PTransform<?, PCollection<T>>> transform) {
-    return (PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values());
+    return (PCollection<T>)
+        Preconditions.checkArgumentNotNull(
+            Iterables.getOnlyElement(transform.getOutputs().values()));
   }
 }

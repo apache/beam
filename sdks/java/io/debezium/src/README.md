@@ -93,6 +93,8 @@ If you want to use this built-in JSON Mapper, you can do it by setting an instan
 ```
 > **Note:** `SourceRecordJsonMapper`comes out of the box, but you may use any Format Function you prefer.
 
+By default, the JSON `metadata` object holds `connector`, `version`, `name`, `database`, `schema` and `table`. Call `withFullMetadata(true)` on `readAsJson()` to also add the change event's `op` (`c`, `u`, `d`, `r` or `t`) and every other field of the Debezium `source` block to `metadata` (for example `ts_ms`, MySQL `file`, `pos` and `row`, or PostgreSQL `lsn` and `txId`). Fields that `metadata` already carries aren't repeated. For MySQL, `file` is the actual binlog file name, which the default output exposes under `schema`. The option is off by default, so the output is unchanged unless you enable it.
+
 ## Quick Example
 
 The following example is how an actual setup would look like using a **MySQL Debezium Connector** and **SourceRecordJsonMapper** as the Serializable Function.

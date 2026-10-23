@@ -88,7 +88,7 @@ public class CallingSubProcessUtils {
   }
 
   /** Permit class for access to worker cpu resources. */
-  public static class Permit implements AutoCloseable {
+  public static final class Permit implements AutoCloseable {
 
     private String binaryName;
 

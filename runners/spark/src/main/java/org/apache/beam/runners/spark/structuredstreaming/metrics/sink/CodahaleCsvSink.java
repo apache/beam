@@ -36,7 +36,7 @@ import org.apache.spark.metrics.sink.Sink;
  * "spark.metrics.conf.*.sink.csv.unit"=seconds
  * }</pre>
  */
-public class CodahaleCsvSink implements Sink {
+public final class CodahaleCsvSink implements Sink {
 
   // Initialized reflectively as done by Spark's MetricsSystem
   private final org.apache.spark.metrics.sink.CsvSink delegate;

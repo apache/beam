@@ -62,8 +62,8 @@ public class StreamingCommitFinalizerTest {
                 .setNameFormat("FinalizationCallback-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useFairMonitor= */ false,
+            /* multiKeyBundleEnabled= */ false);
 
     cleanupExecutor =
         Executors.newScheduledThreadPool(

@@ -1,5 +1,7 @@
 ---
 title: "Go SDK Roadmap"
+aliases:
+  - /roadmap/connectors-go-sdk/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +19,23 @@ limitations under the License.
 
 # Go SDK Roadmap
 
+_Last updated on Aug 2026._
+
 The Go SDK is [fully released as of v2.33.0](/blog/go-sdk-release/).
 
-The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)
+The Go SDK is the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)
 and can execute pipelines on portable runners, like Flink, Spark, and Google Cloud Dataflow.
 
 Current roadmap:
-* continue building up unbounded pipeline facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).
-* improve IO support via cross language transforms, and add scalable native transforms. [Go SDK Connector Roadmap](/roadmap/connectors-go-sdk/)
+* Continue building up unbounded pipeline facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).
+* Improve I/O support via cross-language transforms:
+  * Complete Beam portable schema support for Go SDK ([Issue](https://github.com/apache/beam/issues/39684)).
+  * Utilize currently available Java and Python connectors through the cross-language transforms feature.
+  * Support auto-generated cross-language transform wrappers ([doc](https://s.apache.org/autogen-wrappers)), currently supported by Python.
 
 Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)
 for assistance in finding a place to help out.
 
- - Issues: [sdk-go](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go)
+ - Issues: [sdk-go](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ago)
  - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters.

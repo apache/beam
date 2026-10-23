@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -173,10 +174,13 @@ public final class StreamingDataflowWorker {
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
+  private static final AtomicLong DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS =
+      new AtomicLong(TimeUnit.SECONDS.toMillis(15));
 
   @SuppressWarnings("unused")
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
       "streaming_engine_use_job_settings_for_heartbeat_pool";
+
   // Experiment make the monitor within BoundedQueueExecutor fair
   public static final String BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT =
       "windmill_bounded_queue_executor_use_fair_monitor";
@@ -867,16 +871,20 @@ public final class StreamingDataflowWorker {
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
-                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
+                          DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
-            config ->
-                channelCache.consumeFlowControlSettings(
-                    config.userWorkerJobSettings().getFlowControlSettings()));
+            config -> {
+              DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS.set(
+                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitMillis());
+              channelCache.consumeFlowControlSettings(
+                  config.userWorkerJobSettings().getFlowControlSettings());
+            });
     return channelCache;
   }
 
@@ -1047,7 +1055,6 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions options, MultiKeyBundleOptions multiKeyBundleOptions) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
-    boolean useKeyGroupWorkQueue = multiKeyBundleOptions.multiKeyBundleEnabled();
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1056,7 +1063,7 @@ public final class StreamingDataflowWorker {
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
         useFairMonitor,
-        useKeyGroupWorkQueue);
+        multiKeyBundleOptions.multiKeyBundleEnabled());
   }
 
   public static void main(String[] args) throws Exception {
@@ -1074,23 +1081,7 @@ public final class StreamingDataflowWorker {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
     }
 
-    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
-    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
-      openTelemetryProperties.forEach(
-          (k, v) -> {
-            if (k != null && v != null) {
-              System.setProperty(k, v);
-            }
-          });
-      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
-    } else {
-      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
-      // JvmInitializer.
-      if (System.getProperty("google.otel.auth.target.signals") == null) {
-        System.setProperty("google.otel.auth.target.signals", "none");
-      }
-    }
+    SdkHarnessOptions.configureOpenTelemetry(options);
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
@@ -1142,8 +1133,8 @@ public final class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.executorQueueIsEmpty();
+  public boolean workExecutorIsEmptyForTesting() {
+    return workUnitExecutor.executorQueueIsEmptyForTesting();
   }
 
   @VisibleForTesting

@@ -25,9 +25,11 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -56,9 +58,11 @@ import org.joda.time.Instant;
  * Factory to create a {@link DoFnRunner}. The factory supports fusing multiple {@link DoFnRunner
  * runners} into a single one.
  */
-abstract class DoFnRunnerFactory<InT, T> implements Serializable {
+@Internal
+public abstract class DoFnRunnerFactory<InT, T> implements Serializable {
 
-  interface DoFnRunnerWithTeardown<InT, T> extends DoFnRunner<InT, T> {
+  @Internal
+  public interface DoFnRunnerWithTeardown<InT, T> extends DoFnRunner<InT, T> {
     void teardown();
   }
 
@@ -72,12 +76,28 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
       PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output);
 
   /**
+   * Creates a runner backed by {@code stepContext} so that state and timers are available.
+   *
+   * <p>Only supported for a single, unfused {@link DoFn}: a fused runner cannot drive timers.
+   */
+  @Internal
+  public DoFnRunnerWithTeardown<InT, T> create(
+      PipelineOptions options,
+      MetricsAccumulator metrics,
+      WindowedValueMultiReceiver output,
+      StepContext stepContext) {
+    throw new UnsupportedOperationException(
+        "Stateful execution is not supported by " + getClass().getSimpleName());
+  }
+
+  /**
    * Fuses the factory for the following {@link DoFnRunner} into a single factory that processes
    * both DoFns in a single step.
    */
   abstract <T2> DoFnRunnerFactory<InT, T2> fuse(DoFnRunnerFactory<T, T2> next);
 
-  static <InT, T> DoFnRunnerFactory<InT, T> simple(
+  @Internal
+  public static <InT, T> DoFnRunnerFactory<InT, T> simple(
       AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, T>> appliedPT,
       PCollection<InT> input,
       SideInputReader sideInputReader,
@@ -128,6 +148,15 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
     @Override
     DoFnRunnerWithTeardown<InT, T> create(
         PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output) {
+      return create(options, metrics, output, new NoOpStepContext());
+    }
+
+    @Override
+    public DoFnRunnerWithTeardown<InT, T> create(
+        PipelineOptions options,
+        MetricsAccumulator metrics,
+        WindowedValueMultiReceiver output,
+        StepContext stepContext) {
       DoFnRunner<InT, T> simpleRunner =
           DoFnRunners.simpleRunner(
               options,
@@ -136,7 +165,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
               filterMainOutput ? new FilteredOutput<>(output, mainOutput) : output,
               mainOutput,
               additionalOutputs,
-              new NoOpStepContext(),
+              stepContext,
               coder,
               outputCoders,
               windowingStrategy,

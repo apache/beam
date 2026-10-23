@@ -39,8 +39,7 @@ public interface ExperimentalOptions extends PipelineOptions {
       "Apache Beam provides a number of experimental features that can "
           + "be enabled with this flag. If executing against a managed service, please contact the "
           + "service owners before enabling any experiments.")
-  @Nullable
-  List<String> getExperiments();
+  @Nullable List<String> getExperiments();
 
   void setExperiments(@Nullable List<String> value);
 

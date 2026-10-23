@@ -19,11 +19,11 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
     val mavenCentralMirrorUrl = settings.providers.gradleProperty("mavenCentralMirrorUrl").orNull
-    val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    val isCi = System.getenv("GITHUB_ACTIONS") != null
     val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
     if (useMirror) {
-        logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+        logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
     }
 
     repositories {
@@ -42,11 +42,10 @@ plugins {
     id("com.gradle.common-custom-user-data-gradle-plugin") version "2.8.0"
 }
 
-// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
-val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
 // GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
-val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
-val isCi = isJenkinsBuild || isGithubActionsBuild
+val isCi = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
+
+val hasDevelocityAccessKey = !System.getenv("DEVELOCITY_ACCESS_KEY").isNullOrBlank()
 
 develocity {
     server = "https://develocity.apache.org"
@@ -65,15 +64,13 @@ buildCache {
     local {
         isEnabled = true
     }
-    remote<HttpBuildCache> {
-        url = uri("https://beam-cache.apache.org/cache/")
-        isAllowUntrustedServer = false
-        credentials {
-            username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
-            password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
-        }
-        isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-        isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    remote(develocity.buildCache) {
+        isEnabled = true
+        isPush =
+            isCi &&
+                (System.getenv("GITHUB_EVENT_NAME") == "schedule" ||
+                    System.getenv("GITHUB_EVENT_NAME") == "push") &&
+                hasDevelocityAccessKey
     }
 }
 
@@ -157,6 +154,18 @@ include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
 include(":runners:java-job-service")
 include(":runners:jet")
+// The Kafka Streams runner is opt-in, and is left out of the build unless it is asked for with
+// -Pwith-kafka-streams-runner. It is being developed in the open so that others can build it and
+// work on it, but it is not ready to be released: bundles are not yet closed after a bounded time
+// (https://github.com/apache/beam/issues/39633), among other things. Keeping it out of the default
+// build means it reaches nobody who did not ask for it, and the flag can be dropped when the runner
+// is stable enough - or the runner can be dropped, without either affecting users.
+if (startParameter.projectProperties.containsKey("with-kafka-streams-runner")) {
+    include(":runners:kafka-streams")
+    include(":runners:kafka-streams:proto")
+    include(":runners:kafka-streams:job-server")
+    include(":runners:kafka-streams:measurement")
+}
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
@@ -210,7 +219,6 @@ include(":sdks:java:extensions:sql:payloads")
 include(":sdks:java:extensions:sql:perf-tests")
 include(":sdks:java:extensions:sql:jdbc")
 include(":sdks:java:extensions:sql:hcatalog")
-include(":sdks:java:extensions:sql:datacatalog")
 include(":sdks:java:extensions:sql:expansion-service")
 include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
@@ -303,6 +311,7 @@ include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
+include(":sdks:python:apache_beam:testing:benchmarks:tpcds")
 include(":sdks:python:container")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
@@ -385,5 +394,8 @@ include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
 include("sdks:java:extensions:sql:iceberg")
 findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("sdks:java:extensions:sql:delta")
+findProject(":sdks:java:extensions:sql:delta")?.name = "delta"
 include("examples:java:iceberg")
 findProject(":examples:java:iceberg")?.name = "iceberg"
+

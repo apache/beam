@@ -50,6 +50,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private boolean logOrderingKeyUnconfigured = false;
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
   @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction;
+
   /** Last TopicPath that reported Lineage. */
   private transient @Nullable String reportedLineage;
 
@@ -148,8 +149,8 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
 
   PreparePubsubWriteDoFn(
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
-      @Nullable
-          SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
+      @Nullable SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic>
+          topicFunction,
       boolean usesOrderingKey,
       int maxPublishBatchSize,
       BadRecordRouter badRecordRouter,

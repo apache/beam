@@ -18,8 +18,8 @@
 package org.apache.beam.testinfra.metrics
 
 import org.junit.Test
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import static groovy.test.GroovyAssert.shouldFail
 
 /**
  * Prober tests which performs health checks on deployed infrastructure for
@@ -39,14 +39,90 @@ class ProberTests {
     assert dashboardNames.size() > 0 : "No dashboards found. Check Grafana dashboard initialization script."
   }
 
+  /**
+   * Queries Community Metrics data through the Grafana API and verifies that
+   * GitHub Issues and Pull Requests metrics are present and have been
+   * synchronized within the last 8 hours.
+   */
   @Test
-  void CheckGrafanaStalenessAlerts() {
-    def alertsJson = "${grafanaEndpoint}/api/alerts?dashboardQuery=Source%20Data%20Freshness".toURL().text
-    def alerts = new JsonSlurper().parseText(alertsJson)
-    assert alerts.size() > 0
-    alerts.each { alert ->
-      assert alert.state == 'ok' : "Input data is stale! ${alert}\n   See: ${grafanaEndpoint}/d/data-freshness"
+  void CheckGrafanaDataFreshness() {
+    def query = '''
+    WITH sources AS (
+      SELECT
+        'GitHub Issues' AS source,
+        timestamp AS last_sync
+      FROM gh_sync_metadata
+      WHERE name = 'gh_issue_sync'
+
+      UNION ALL
+
+      SELECT
+        'GitHub Pull Requests' AS source,
+        timestamp AS last_sync
+      FROM gh_sync_metadata
+      WHERE name = 'gh_pr_sync'
+    )
+    SELECT
+      COUNT(*) AS source_count,
+      COUNT(last_sync) AS synced_source_count,
+      MAX(EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / 60)
+        AS max_staleness_minutes
+    FROM sources
+  '''
+
+    def requestBody = [
+      queries: [[
+                  refId: 'A',
+                  datasource: [
+                    uid: 'beampsql',
+                    type: 'grafana-postgresql-datasource'
+                  ],
+                  editorMode: 'code',
+                  format: 'table',
+                  rawQuery: true,
+                  rawSql: query
+                ]],
+      from: 'now-5m',
+      to: 'now'
+    ]
+
+    def connection = new URL("${grafanaEndpoint}/api/ds/query").openConnection()
+    connection.requestMethod = 'POST'
+    connection.doOutput = true
+    connection.setRequestProperty('Content-Type', 'application/json')
+
+    connection.outputStream.withWriter('UTF-8') {
+      it << JsonOutput.toJson(requestBody)
     }
+
+    assert connection.responseCode == 200 :
+      "Grafana datasource query failed with HTTP ${connection.responseCode}"
+
+    def response = new JsonSlurper().parse(connection.inputStream)
+    def frame = response.results.A.frames[0]
+
+    def fieldNames = frame.schema.fields.collect { it.name }
+
+    def value = { String fieldName ->
+      def index = fieldNames.indexOf(fieldName)
+      assert index >= 0 : "Missing field '${fieldName}' in Grafana response"
+      frame.data.values[index][0]
+    }
+
+    def sourceCount = value('source_count')
+    def syncedSourceCount = value('synced_source_count')
+    def maxStalenessMinutes = value('max_staleness_minutes')
+
+    assert sourceCount == 2 :
+      "Expected 2 metrics sources, got ${sourceCount}"
+
+    assert syncedSourceCount == 2 :
+      "One or more metrics sources have no synchronization timestamp"
+
+    assert maxStalenessMinutes != null
+
+    assert maxStalenessMinutes <= 480 :
+      "Input data is stale: ${maxStalenessMinutes} minutes\n" +
+        "See: ${grafanaEndpoint}/d/data-freshness"
   }
 }
-

@@ -65,6 +65,15 @@ public class TpcdsParametersReaderTest {
   }
 
   @Test
+  public void testGetAndCheckSupportedQueries() throws Exception {
+    TpcdsOptions tpcdsOptionsSupported = PipelineOptionsFactory.as(TpcdsOptions.class);
+    tpcdsOptionsSupported.setQueries("supported");
+    String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptionsSupported);
+    List<String> expected = TpcdsParametersReader.SUPPORTED_QUERY_NAMES;
+    Assert.assertArrayEquals(expected.toArray(new String[0]), queryNames);
+  }
+
+  @Test
   public void testGetAndCheckSpecifiedQueries() throws Exception {
     String[] queryNames = TpcdsParametersReader.getAndCheckQueryNames(tpcdsOptions);
     String[] expected = {"query1", "query2", "query3", "query14a"};

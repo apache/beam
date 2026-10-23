@@ -49,6 +49,8 @@ import org.apache.beam.sdk.io.TFRecordWriteSchemaTransformProvider.TFRecordWrite
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -66,10 +68,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for TFRecordIO Read and Write transforms. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class TFRecordSchemaTransformProviderTest {
 
   /*
@@ -236,6 +237,34 @@ public class TFRecordSchemaTransformProviderTest {
             .setCompression("UNCOMPRESSED")
             .setNoSpilling(true)
             .build());
+  }
+
+  @Test
+  public void testWriteErrorSchemaMatchesTheRowsErrorFnEmits() throws Exception {
+    // The schema is fixed when the graph is built, so this needs no runner.
+    writePipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.of(Schema.Field.of("record", Schema.FieldType.BYTES));
+
+    TFRecordWriteSchemaTransformProvider provider = new TFRecordWriteSchemaTransformProvider();
+    TFRecordWriteSchemaTransform transform =
+        (TFRecordWriteSchemaTransform)
+            provider.from(
+                TFRecordWriteSchemaTransformConfiguration.builder()
+                    .setOutputPrefix(tempFolder.getRoot().toPath().resolve("errors").toString())
+                    .setCompression("UNCOMPRESSED")
+                    .setNumShards(0)
+                    .setNoSpilling(true)
+                    .build());
+
+    Row row = Row.withSchema(schema).addValue("foo".getBytes(StandardCharsets.UTF_8)).build();
+    PCollection<Row> input =
+        writePipeline.apply(Create.of(Collections.singletonList(row)).withRowSchema(schema));
+    PCollectionRowTuple result = PCollectionRowTuple.of("input", input).apply(transform);
+
+    // ErrorFn emits ErrorHandling.errorRecord(errorSchema, ..), so the collection has to carry
+    // that schema. Wrapping it a second time declares a shape no element it emits can match.
+    assertEquals(ErrorHandling.errorSchema(schema), result.get("errors").getSchema());
   }
 
   @Test
