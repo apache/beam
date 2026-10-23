@@ -1,0 +1,202 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.runners.dataflow.worker.windmill.state;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaceForTest;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
+import org.hamcrest.Matchers;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+/** Unit tests for {@link WindmillSet}. */
+@RunWith(JUnit4.class)
+public class WindmillSetTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  private static final String STATE_FAMILY = "family";
+  private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
+
+  @Mock private WindmillStateReader mockReader;
+  @Mock private Supplier<Closeable> readStateSupplier;
+
+  private WindmillStateCache cache;
+  private WindmillStateInternals<String> underTest;
+
+  private <K> ByteString protoKey(String tagId, @Nullable K tag, Coder<K> keyCoder)
+      throws IOException {
+    ByteStringOutputStream keyStream = new ByteStringOutputStream();
+    keyStream.write(NAMESPACE.stringKey().getBytes(StandardCharsets.UTF_8));
+    keyStream.write("+u".getBytes(StandardCharsets.UTF_8));
+    keyStream.write(tagId.getBytes(StandardCharsets.UTF_8));
+    if (tag != null) {
+      keyCoder.encode(tag, keyStream, Context.OUTER);
+    }
+    return keyStream.toByteString();
+  }
+
+  @Before
+  public void setUp() {
+    MockitoAnnotations.initMocks(this);
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    cache = WindmillStateCache.builder().setSizeMb(options.getWorkerCacheMb()).build();
+
+    WindmillTagEncoding tagEncoding = WindmillTagEncodingV1.instance();
+    underTest =
+        new WindmillStateInternals<>(
+            "key",
+            STATE_FAMILY,
+            mockReader,
+            false,
+            cache
+                .forComputation("comp")
+                .forKey(
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("key", StandardCharsets.UTF_8), 123),
+                    17L,
+                    1L)
+                .forFamily(STATE_FAMILY),
+            tagEncoding,
+            readStateSupplier);
+
+    when(mockReader.valuePrefixFuture(any(), any(), any()))
+        .thenReturn(Futures.immediateFuture(Collections.emptyList()));
+  }
+
+  /**
+   * Tests that {@link WindmillSet#addIfAbsent} returns {@code true} when the element was absent
+   * (and newly added), and returns {@code false} when the element was already present.
+   */
+  @Test
+  public void testAddIfAbsentReturn() throws Exception {
+    StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
+    SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    final String elem = "elem1";
+    SettableFuture<Boolean> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKey("set", elem, StringUtf8Coder.of()), STATE_FAMILY, BooleanCoder.of()))
+        .thenReturn(future);
+    future.set(null); // null indicates not in Windmill storage
+
+    // 1st add: element is absent from storage. It should be added and return true.
+    ReadableState<Boolean> add1 = setState.addIfAbsent(elem);
+    Boolean result1 = add1.read();
+    assertTrue("addIfAbsent should return true when element was absent", result1);
+
+    // 2nd add: element is now already present in the set. It should return false.
+    ReadableState<Boolean> add2 = setState.addIfAbsent(elem);
+    Boolean result2 = add2.read();
+    assertFalse("addIfAbsent should return false when element was already present", result2);
+  }
+
+  /** Tests basic add and contains on {@link WindmillSet}. */
+  @Test
+  public void testBasicAddAndContains() throws Exception {
+    StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
+    SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    when(mockReader.valueFuture(
+            protoKey("set", "elem1", StringUtf8Coder.of()), STATE_FAMILY, BooleanCoder.of()))
+        .thenReturn(Futures.immediateFuture(null));
+
+    assertFalse(setState.contains("elem1").read());
+    setState.add("elem1");
+    assertTrue(setState.contains("elem1").read());
+  }
+
+  /** Tests read() iteration on {@link WindmillSet}. */
+  @Test
+  public void testReadIteration() throws Exception {
+    StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
+    SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    when(mockReader.valuePrefixFuture(
+            protoKey("set", null, StringUtf8Coder.of()), STATE_FAMILY, BooleanCoder.of()))
+        .thenReturn(Futures.immediateFuture(Collections.emptyList()));
+
+    setState.add("a");
+    setState.add("b");
+
+    assertThat(setState.read(), Matchers.containsInAnyOrder("a", "b"));
+  }
+
+  /** Tests isEmpty on {@link WindmillSet}. */
+  @Test
+  public void testIsEmpty() {
+    StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
+    SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    setState.add("elem1");
+    assertFalse(setState.isEmpty().read());
+
+    setState.clear();
+    assertTrue(setState.isEmpty().read());
+  }
+
+  /** Tests that {@link WindmillSet#persistDirectly} correctly persists added elements. */
+  @Test
+  public void testPersistDirectly() throws Exception {
+    StateTag<SetState<String>> addr = StateTags.set("set", StringUtf8Coder.of());
+    SetState<String> setState = underTest.state(NAMESPACE, addr);
+
+    setState.add("elem1");
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getValueUpdatesCount());
+    assertEquals(
+        protoKey("set", "elem1", StringUtf8Coder.of()), commitBuilder.getValueUpdates(0).getTag());
+  }
+}
