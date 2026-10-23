@@ -67,6 +67,7 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
 * Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
+* [IcebergIO] Added opt-in sorted write support (`withSortedWrites()` / `sort_on_write`) across `NONE`, `HASH`, and `RANGE` distribution modes to write data files in the table's sort order, spilling to local disk via Beam's external sorter when groups exceed memory. Also added `DistributionMode.RANGE`, which dynamically computes non-overlapping quantile key ranges per partition (or accepts a custom `withDistributionFunction(...)`) so each shard writes sorted, non-overlapping file(s) (Java) ([#38406](https://github.com/apache/beam/issues/38406)).
 
 ## New Features / Improvements
 

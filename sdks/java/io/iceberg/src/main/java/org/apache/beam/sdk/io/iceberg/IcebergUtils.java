@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.catalog.TableIdentifierParser;
@@ -334,6 +335,44 @@ public class IcebergUtils {
       nestedFieldId = typeAndMaxId.maxId + 1;
     }
     return new org.apache.iceberg.Schema(fields.toArray(new Types.NestedField[fields.size()]));
+  }
+
+  /**
+   * Converts a Beam field value to its Iceberg-compatible equivalent based on the Iceberg {@link
+   * Type}.
+   */
+  public static @Nullable Object beamValueToIcebergValue(Type type, @Nullable Object value) {
+    if (value == null) {
+      return null;
+    }
+    switch (type.typeId()) {
+      case BOOLEAN:
+      case INTEGER:
+      case LONG:
+      case FLOAT:
+      case DOUBLE:
+      case DATE:
+      case TIME:
+      case DECIMAL:
+      case STRING:
+      case FIXED:
+        return value;
+      case TIMESTAMP:
+        Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
+        return getIcebergTimestampValue(value, ts.shouldAdjustToUTC());
+      case UUID:
+        if (value instanceof byte[]) {
+          return UUID.nameUUIDFromBytes((byte[]) value);
+        }
+        return value;
+      case BINARY:
+        if (value instanceof byte[]) {
+          return ByteBuffer.wrap((byte[]) value);
+        }
+        return value;
+      default:
+        return value;
+    }
   }
 
   /** Converts a Beam {@link Row} to an Iceberg {@link Record}. */
@@ -774,5 +813,49 @@ public class IcebergUtils {
 
   static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
     return directWriteByteLimit != null && directWriteByteLimit >= 0;
+  }
+
+  /**
+   * Estimates the in-memory/encoded byte size of a Beam {@link Row} without the overhead of coder
+   * serialization.
+   */
+  static int estimateRowBytes(@Nullable Row row) {
+    if (row == null) {
+      return 0;
+    }
+    long size = 0L;
+    int fieldCount = row.getFieldCount();
+    for (int i = 0; i < fieldCount; i++) {
+      size += estimateObjectBytes(row.getValue(i));
+    }
+    return Ints.saturatedCast(size);
+  }
+
+  private static long estimateObjectBytes(@Nullable Object value) {
+    if (value == null) {
+      return 1L;
+    }
+    if (value instanceof CharSequence) {
+      return org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8.encodedLength(
+          (CharSequence) value);
+    } else if (value instanceof byte[]) {
+      return ((byte[]) value).length;
+    } else if (value instanceof Row) {
+      return estimateRowBytes((Row) value);
+    } else if (value instanceof Iterable) {
+      long listSize = 0L;
+      for (Object item : (Iterable<?>) value) {
+        listSize += estimateObjectBytes(item);
+      }
+      return listSize;
+    } else if (value instanceof Map) {
+      long mapSize = 0L;
+      for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+        mapSize += estimateObjectBytes(entry.getKey()) + estimateObjectBytes(entry.getValue());
+      }
+      return mapSize;
+    } else {
+      return 8L;
+    }
   }
 }

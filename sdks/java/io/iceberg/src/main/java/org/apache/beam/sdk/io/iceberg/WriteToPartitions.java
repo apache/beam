@@ -24,9 +24,11 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -42,7 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWriteResult> {
-  private static final long DEFAULT_BYTES_PER_FILE = (1L << 29); // 512mb
+  static final long DEFAULT_BYTES_PER_FILE = (1L << 29); // 512mb
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
@@ -50,6 +52,7 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
   private final boolean autoSharding;
   private final @Nullable Map<String, String> writeProperties;
   private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+  private final boolean sortedWrites;
 
   WriteToPartitions(
       IcebergCatalogConfig catalogConfig,
@@ -63,7 +66,8 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
         triggeringFrequency,
         autoSharding,
         writeProperties,
-        null);
+        null,
+        false);
   }
 
   WriteToPartitions(
@@ -73,6 +77,24 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
       boolean autoSharding,
       @Nullable Map<String, String> writeProperties,
       @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        triggeringFrequency,
+        autoSharding,
+        writeProperties,
+        metadataView,
+        false);
+  }
+
+  WriteToPartitions(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      boolean autoSharding,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+      boolean sortedWrites) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
@@ -81,11 +103,35 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
     this.autoSharding = autoSharding;
     this.writeProperties = writeProperties;
     this.metadataView = metadataView;
+    this.sortedWrites = sortedWrites;
+  }
+
+  /** Recovers the grouping-key {@link RowCoder} that the upstream assignment step established. */
+  private static RowCoder partitionKeyCoder(PCollection<KV<Row, Row>> input) {
+    Coder<KV<Row, Row>> inputCoder = input.getCoder();
+    if (!(inputCoder instanceof KvCoder)) {
+      throw new IllegalArgumentException(
+          "Expected the partitioned write input to use a KvCoder, but got: " + inputCoder);
+    }
+    Coder<?> keyCoder = ((KvCoder<?, ?>) inputCoder).getKeyCoder();
+    if (!(keyCoder instanceof RowCoder)) {
+      throw new IllegalArgumentException(
+          "Expected the partition grouping key to use a RowCoder, but got: " + keyCoder);
+    }
+    return (RowCoder) keyCoder;
   }
 
   private PCollection<KV<Row, Iterable<Row>>> groupByPartition(PCollection<KV<Row, Row>> input) {
-    RowCoder destinationCoder = RowCoder.of(AssignDestinationsAndPartitions.OUTPUT_SCHEMA);
+    // The grouping key shape depends on the upstream distribution mode (RANGE carries an extra
+    // shard field). Derive it from the input coder so the two can never drift apart.
+    RowCoder destinationCoder = partitionKeyCoder(input);
     RowCoder dataCoder = RowCoder.of(dynamicDestinations.getDataSchema());
+
+    if (!IcebergUtils.isUnbounded(input) && !autoSharding) {
+      return input
+          .apply(GroupByKey.create())
+          .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
+    }
 
     GroupIntoBatches<Row, Row> groupIntoPartitions =
         GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
@@ -119,7 +165,12 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
     PCollection<FileWriteResult> writtenFiles =
         groupedRows.apply(
             new WritePartitionedRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, writeProperties, metadataView));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                writeProperties,
+                metadataView,
+                sortedWrites));
 
     if (IcebergUtils.isUnbounded(input) && triggeringFrequency != null) {
       writtenFiles =

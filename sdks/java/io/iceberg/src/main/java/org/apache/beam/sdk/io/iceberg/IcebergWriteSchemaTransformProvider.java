@@ -188,14 +188,22 @@ public class IcebergWriteSchemaTransformProvider
             + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
             + "Direction defaults to ascending; null order defaults to nulls-first for ascending and "
             + "nulls-last for descending. Note: this sets the table's declared sort order as metadata; "
-            + "it does not cause Beam to physically sort records before writing.\n"
+            + "to also physically sort records before writing, set `sort_on_write` to true.\n"
             + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
     public abstract @Nullable List<String> getSortFields();
 
     @SchemaFieldDescription(
+        "When true, physically sorts records within each written data file according to the target"
+            + " table's sort order. Automatically enabled when distribution_mode is set to 'range'."
+            + " Defaults to false.")
+    public abstract @Nullable Boolean getSortOnWrite();
+
+    @SchemaFieldDescription(
         "Defines distribution of write data. Supported distributions:"
             + "\n- none: don't shuffle rows (default)"
-            + "\n- hash: shuffle rows by partition key before writing data")
+            + "\n- hash: shuffle rows by partition key before writing data"
+            + "\n- range: shuffle rows into non-overlapping sort-key ranges per partition and sort"
+            + " within each file")
     public abstract @Nullable String getDistributionMode();
 
     @SchemaFieldDescription(
@@ -310,6 +318,8 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setSortFields(List<String> sortFields);
 
+      public abstract Builder setSortOnWrite(Boolean sortOnWrite);
+
       public abstract Builder setDistributionMode(String mode);
 
       public abstract Builder setAutosharding(Boolean autosharding);
@@ -418,6 +428,7 @@ public class IcebergWriteSchemaTransformProvider
       requireMode(Mode.APPEND, "direct_write_byte_limit", getDirectWriteByteLimit(), unsupported);
       requireMode(Mode.APPEND, "distribution_mode", getDistributionMode(), unsupported);
       requireMode(Mode.APPEND, "autosharding", getAutosharding(), unsupported);
+      requireMode(Mode.APPEND, "sort_on_write", getSortOnWrite(), unsupported);
       requireMode(Mode.APPEND, "write_properties", getWriteProperties(), unsupported);
       requireMode(
           Mode.APPEND, "using_side_input_table_cache", getUseSideInputTableCache(), unsupported);
@@ -528,6 +539,11 @@ public class IcebergWriteSchemaTransformProvider
       @Nullable Boolean autoSharding = configuration.getAutosharding();
       if (autoSharding != null && autoSharding) {
         writeTransform = writeTransform.withAutosharding();
+      }
+
+      @Nullable Boolean sortOnWrite = configuration.getSortOnWrite();
+      if (sortOnWrite != null && sortOnWrite) {
+        writeTransform = writeTransform.withSortedWrites();
       }
 
       @Nullable Map<String, String> writeProperties = configuration.getWriteProperties();

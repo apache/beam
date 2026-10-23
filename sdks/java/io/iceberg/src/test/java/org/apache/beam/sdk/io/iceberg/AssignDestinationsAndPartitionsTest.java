@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -196,5 +202,46 @@ public class AssignDestinationsAndPartitionsTest implements Serializable {
     PAssert.that(partitionPaths).containsInAnyOrder("name_trunc=ali/bool=true");
 
     pipeline.run();
+  }
+
+  @Test
+  public void testWeightedReservoirSamplingMergesSkewedBundlesCorrectly() {
+    AssignDestinationsAndPartitions.PartitionQuantilesCombineFn combineFn =
+        new AssignDestinationsAndPartitions.PartitionQuantilesCombineFn(1000L);
+    AssignDestinationsAndPartitions.PartitionSample accum = combineFn.createAccumulator();
+
+    // First, fill the 2048-slot reservoir using 11 small bundles of 200 rows each (2,200 rows total
+    // with keys "small_0000" .. "small_0199").
+    for (int b = 0; b < 11; b++) {
+      List<byte[]> smallSamples = new ArrayList<>();
+      for (int i = 0; i < 200; i++) {
+        smallSamples.add(String.format("small_%04d", i).getBytes(StandardCharsets.UTF_8));
+      }
+      accum =
+          combineFn.addInput(
+              accum, new AssignDestinationsAndPartitions.PartitionSample(200L, 200L, smallSamples));
+    }
+
+    // Next, merge a single huge bundle representing 1,000,000 rows (with 200 reservoir samples
+    // "z_huge_0000" .. "z_huge_0199"). Because the huge bundle represents >99.7% of all rows,
+    // weighted reservoir sampling must ensure that the resulting quantile splits come from the
+    // huge bundle's key domain rather than being drowned out by the earlier small bundles.
+    List<byte[]> hugeSamples = new ArrayList<>();
+    for (int i = 0; i < 200; i++) {
+      hugeSamples.add(String.format("z_huge_%04d", i).getBytes(StandardCharsets.UTF_8));
+    }
+    accum =
+        combineFn.addInput(
+            accum,
+            new AssignDestinationsAndPartitions.PartitionSample(10_000L, 1_000_000L, hugeSamples));
+
+    List<byte[]> splits = combineFn.extractOutput(accum);
+    assertFalse("Expected non-empty split points", splits.isEmpty());
+    for (byte[] split : splits) {
+      String splitKey = new String(split, StandardCharsets.UTF_8);
+      assertTrue(
+          "Expected split point to reflect the 1M-row bundle, but got: " + splitKey,
+          splitKey.startsWith("z_huge_"));
+    }
   }
 }

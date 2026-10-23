@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -62,6 +60,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final @Nullable Integer directWriteByteLimit;
   private final @Nullable Map<String, String> writeProperties;
   private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+  private final boolean sortedWrites;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
@@ -75,7 +74,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         triggeringFrequency,
         directWriteByteLimit,
         writeProperties,
-        null);
+        null,
+        false);
   }
 
   WriteToDestinations(
@@ -85,12 +85,31 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       @Nullable Integer directWriteByteLimit,
       @Nullable Map<String, String> writeProperties,
       @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        triggeringFrequency,
+        directWriteByteLimit,
+        writeProperties,
+        metadataView,
+        false);
+  }
+
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+      boolean sortedWrites) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     this.directWriteByteLimit = directWriteByteLimit;
     this.writeProperties = writeProperties;
     this.metadataView = metadataView;
+    this.sortedWrites = sortedWrites;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -139,7 +158,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             filePrefix,
             DEFAULT_MAX_BYTES_PER_FILE,
             writeProperties,
-            metadataView));
+            metadataView,
+            sortedWrites));
   }
 
   private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
@@ -189,7 +209,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
                 writeProperties,
-                metadataView));
+                metadataView,
+                sortedWrites));
 
     PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
@@ -226,7 +247,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
                 writeProperties,
-                metadataView));
+                metadataView,
+                sortedWrites));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -241,7 +263,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                     filePrefix,
                     DEFAULT_MAX_BYTES_PER_FILE,
                     writeProperties,
-                    metadataView));
+                    metadataView,
+                    sortedWrites));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)
@@ -255,45 +278,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private static class RowSizer implements SerializableFunction<KV<String, Row>, Integer> {
     @Override
     public Integer apply(KV<String, Row> element) {
-      return estimateRowSize(element.getValue());
-    }
-
-    private int estimateRowSize(Row row) {
-      if (row == null) {
-        return 0;
-      }
-      int size = 0;
-      for (Object value : row.getValues()) {
-        size += estimateObjectSize(value);
-      }
-      return size;
-    }
-
-    private int estimateObjectSize(@Nullable Object value) {
-      if (value == null) {
-        return 0;
-      }
-      if (value instanceof String) {
-        return ((String) value).getBytes(UTF_8).length;
-      } else if (value instanceof byte[]) {
-        return ((byte[]) value).length;
-      } else if (value instanceof Row) {
-        return estimateRowSize((Row) value);
-      } else if (value instanceof List) {
-        int listSize = 0;
-        for (Object item : (List) value) {
-          listSize += estimateObjectSize(item);
-        }
-        return listSize;
-      } else if (value instanceof Map) {
-        int mapSize = 0;
-        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-          mapSize += estimateObjectSize(entry.getKey()) + estimateObjectSize(entry.getValue());
-        }
-        return mapSize;
-      } else {
-        return 8; // Approximation for other fields
-      }
+      return IcebergUtils.estimateRowBytes(element.getValue());
     }
   }
 }
