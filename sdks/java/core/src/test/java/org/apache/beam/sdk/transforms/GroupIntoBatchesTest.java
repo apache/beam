@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -44,6 +46,7 @@ import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -804,5 +807,77 @@ public class GroupIntoBatchesTest implements Serializable {
       }
     }
     return true;
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testZeroBatchSizeThrows() {
+    GroupIntoBatches.ofSize(0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testNegativeBatchSizeThrows() {
+    GroupIntoBatches.ofSize(-1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testZeroBatchSizeBytesThrows() {
+    GroupIntoBatches.ofByteSize(0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testNegativeBatchSizeBytesThrows() {
+    GroupIntoBatches.ofByteSize(-1);
+  }
+
+  @Test
+  public void testDisplayData() {
+    GroupIntoBatches<String, String> gib =
+        GroupIntoBatches.<String, String>ofSize(100)
+            .withByteSize(1000)
+            .withMaxBufferingDuration(Duration.standardSeconds(5));
+    DisplayData displayData = DisplayData.from(gib);
+    assertThat(displayData, hasDisplayItem("batchSize", 100L));
+    assertThat(displayData, hasDisplayItem("batchSizeBytes", 1000L));
+    assertThat(displayData, hasDisplayItem("maxBufferingDuration", Duration.standardSeconds(5)));
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesTestStream.class,
+    UsesOnWindowExpiration.class
+  })
+  public void testOutOfOrderTimestampsInBatch() {
+    Instant baseTs = new Instant(0L);
+    TestStream<KV<String, String>> stream =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(baseTs)
+            .addElements(
+                TimestampedValue.of(
+                    KV.of("key", "val1"), baseTs.plus(Duration.standardSeconds(10))))
+            .addElements(
+                TimestampedValue.of(KV.of("key", "val2"), baseTs.plus(Duration.standardSeconds(5))))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Long> outputTimestamps =
+        pipeline
+            .apply(stream)
+            .apply(GroupIntoBatches.ofSize(2))
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<String, Iterable<String>>, Long>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Timestamp Instant ts, OutputReceiver<Long> receiver) {
+                        receiver.output(ts.getMillis());
+                      }
+                    }));
+
+    PAssert.that(outputTimestamps)
+        .containsInAnyOrder(baseTs.plus(Duration.standardSeconds(5)).getMillis());
+    pipeline.run();
   }
 }

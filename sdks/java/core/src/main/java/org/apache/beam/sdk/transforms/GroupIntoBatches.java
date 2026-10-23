@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -78,13 +77,13 @@ import org.slf4j.LoggerFactory;
  * PCollection<KV<String, Iterable<String>>> batched = input
  *     .apply(GroupIntoBatches.<String, String>ofSize(batchSize))
  *     .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
- *     .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() }{
- *        {@code @ProcessElement
+ *     .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
+ *        @ProcessElement
  *         public void processElement(@Element KV<String, Iterable<String>> element,
  *             OutputReceiver<KV<String, String>> r) {
  *             r.output(KV.of(element.getKey(), callWebService(element.getValue())));
  *         }
- *     }}));
+ *     }));
  * </pre>
  *
  * <p>Example 2 (batch unbounded input in a global window):
@@ -171,7 +170,9 @@ public class GroupIntoBatches<K, InputT>
 
   /** Aim to create batches each with the specified element count. */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
-    Preconditions.checkState(batchSize < Long.MAX_VALUE);
+    checkArgument(
+        batchSize > 0 && batchSize < Long.MAX_VALUE,
+        "batchSize must be greater than 0 and less than Long.MAX_VALUE");
     return new GroupIntoBatches<K, InputT>(BatchingParams.createDefault()).withSize(batchSize);
   }
 
@@ -210,9 +211,25 @@ public class GroupIntoBatches<K, InputT>
     return super.toString() + ", params=" + params;
   }
 
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    if (params.getBatchSize() < Long.MAX_VALUE) {
+      builder.add(DisplayData.item("batchSize", params.getBatchSize()));
+    }
+    if (params.getBatchSizeBytes() < Long.MAX_VALUE) {
+      builder.add(DisplayData.item("batchSizeBytes", params.getBatchSizeBytes()));
+    }
+    if (params.getMaxBufferingDuration().isLongerThan(Duration.ZERO)) {
+      builder.add(DisplayData.item("maxBufferingDuration", params.getMaxBufferingDuration()));
+    }
+  }
+
   /** See {@link #ofSize(long)}. */
   public GroupIntoBatches<K, InputT> withSize(long batchSize) {
-    Preconditions.checkState(batchSize < Long.MAX_VALUE);
+    checkArgument(
+        batchSize > 0 && batchSize < Long.MAX_VALUE,
+        "batchSize must be greater than 0 and less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             batchSize,
@@ -223,7 +240,9 @@ public class GroupIntoBatches<K, InputT>
 
   /** See {@link #ofByteSize(long)}. */
   public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    checkArgument(
+        batchSizeBytes > 0 && batchSizeBytes < Long.MAX_VALUE,
+        "batchSizeBytes must be greater than 0 and less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             params.getBatchSize(),
@@ -235,7 +254,9 @@ public class GroupIntoBatches<K, InputT>
   /** See {@link #ofByteSize(long, SerializableFunction)}. */
   public GroupIntoBatches<K, InputT> withByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
-    Preconditions.checkState(batchSizeBytes < Long.MAX_VALUE);
+    checkArgument(
+        batchSizeBytes > 0 && batchSizeBytes < Long.MAX_VALUE,
+        "batchSizeBytes must be greater than 0 and less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             params.getBatchSize(),
@@ -308,6 +329,20 @@ public class GroupIntoBatches<K, InputT>
           .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder))
           .apply(new GroupIntoBatches<>(getBatchingParams()));
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      if (params.getBatchSize() < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSize", params.getBatchSize()));
+      }
+      if (params.getBatchSizeBytes() < Long.MAX_VALUE) {
+        builder.add(DisplayData.item("batchSizeBytes", params.getBatchSizeBytes()));
+      }
+      if (params.getMaxBufferingDuration().isLongerThan(Duration.ZERO)) {
+        builder.add(DisplayData.item("maxBufferingDuration", params.getMaxBufferingDuration()));
+      }
+    }
   }
 
   private static class ByteSizeObserver extends ElementByteSizeObserver {
@@ -322,7 +357,6 @@ public class GroupIntoBatches<K, InputT>
       return this.elementByteSize;
     }
   }
-  ;
 
   @Override
   public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
@@ -457,7 +491,10 @@ public class GroupIntoBatches<K, InputT>
       this.minBufferedTsSpec = StateSpecs.combining(minCombineFn);
 
       // Prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
-      this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
+      this.prefetchFrequency =
+          (batchSize == Long.MAX_VALUE)
+              ? 100L
+              : ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
 
     @Override
@@ -492,13 +529,11 @@ public class GroupIntoBatches<K, InputT>
       storedBatchSize.readLater();
       minBufferedTs.readLater();
 
-      // Make sure we always include the current timestamp in the minBufferedTs.
-      minBufferedTs.add(elementTs.getMillis());
-
       LOG.debug("*** BATCH *** Add element for window {} ", window);
       if (shouldCareAboutWeight) {
         final long elementWeight = weigher.apply(element.getValue());
-        if (elementWeight + storedBatchSizeBytes.read() > batchSizeBytes) {
+        if (storedBatchSizeBytes.read() > 0
+            && elementWeight + storedBatchSizeBytes.read() > batchSizeBytes) {
           // Firing by count and size limits behave differently.
           //
           // We always increase the count by one, so we will fire at the exact limit without any
@@ -527,36 +562,47 @@ public class GroupIntoBatches<K, InputT>
         }
         storedBatchSizeBytes.add(elementWeight);
       }
+
+      long oldMinBufferedTs =
+          MoreObjects.firstNonNull(
+              minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+
       batch.add(element.getValue());
       // Blind add is supported with combiningState
       storedBatchSize.add(1L);
-      // Add the timestamp back into minBufferedTs as it might be cleared by flushBatch above.
       minBufferedTs.add(elementTs.getMillis());
 
       final long num = storedBatchSize.read();
+      long currentMinBufferedTs = minBufferedTs.read();
 
       // If this is the first element in the batch or if the timer's output timestamp needs
       // modifying, then set a timer.
-      long oldOutputTs =
-          MoreObjects.firstNonNull(
-              minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
-      boolean needsNewTimer = num == 1 || minBufferedTs.read() != oldOutputTs;
+      boolean needsNewTimer = num == 1 || currentMinBufferedTs < oldMinBufferedTs;
       if (needsNewTimer) {
         if (shouldCareAboutMaxBufferingDuration) {
-          long targetTs =
-              MoreObjects.firstNonNull(
-                  timerTs.read(),
-                  bufferingTimer.getCurrentRelativeTime().getMillis()
-                      + maxBufferingDuration.getMillis());
+          Long existingTargetTs = timerTs.read();
+          long targetTs;
+          if (existingTargetTs == null) {
+            targetTs =
+                bufferingTimer.getCurrentRelativeTime().getMillis()
+                    + maxBufferingDuration.getMillis();
+            timerTs.write(targetTs);
+          } else {
+            targetTs = existingTargetTs;
+          }
           bufferingTimer
-              .withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read()))
+              .withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs))
               .set(Instant.ofEpochMilli(targetTs));
         } else {
           // The only way to hold the watermark is to set a timer. Since there is no buffering
           // timer, we set a dummy
           // timer at the end of the window to manage the hold.
-          Instant windowEnd = window.maxTimestamp().plus(allowedLateness);
-          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read())).set(windowEnd);
+          Instant windowMax = window.maxTimestamp();
+          Instant windowEnd =
+              windowMax.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(allowedLateness))
+                  ? windowMax.plus(allowedLateness)
+                  : BoundedWindow.TIMESTAMP_MAX_VALUE;
+          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs)).set(windowEnd);
         }
       }
 
@@ -619,8 +665,16 @@ public class GroupIntoBatches<K, InputT>
     }
 
     @OnTimer(TIMER_HOLD_ID)
-    public void onHoldTimer() {
-      // Do nothing. The associated watermark hold will be automatically removed.
+    public void onHoldTimer(
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Key K key,
+        @StateId(BATCH_ID) BagState<InputT> batch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSize,
+        @StateId(NUM_BYTES_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSizeBytes,
+        @StateId(TIMER_TIMESTAMP) ValueState<Long> timerTs,
+        @StateId(MIN_BUFFERED_TS) CombiningState<Long, long[], Long> minBufferedTs) {
+      flushBatch(
+          receiver, key, batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
     }
 
     // We no longer set this timer, since OnWindowExpiration takes care of his. However we leave the
