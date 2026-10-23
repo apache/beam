@@ -78,6 +78,7 @@ dependencies {
     testImplementation library.java.testcontainers_localstack
     testImplementation library.java.hadoop_aws
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly project(path: ":runners:prism:java")
     testRuntimeOnly library.java.slf4j_simple
 }
 
@@ -137,4 +138,33 @@ task integrationTest(type: Test) {
 
     systemProperty "org.slf4j.simpleLogger.log.org.apache.hadoop.fs.s3a", "info"
     systemProperty "org.slf4j.simpleLogger.log.software.amazon.awssdk", "info"
+}
+
+project.evaluationDependsOn(":runners:prism")
+
+task prismIntegrationTest(type: Test) {
+    group = "Verification"
+    description = "Runs local Delta Lake Managed IO tests with the Prism runner."
+
+    def prismProject = project(":runners:prism")
+    dependsOn prismProject.tasks.named("build")
+    def args = [
+            "--runner=TestPrismRunner",
+            "--defaultEnvironmentType=LOOPBACK",
+            "--enableWebUI=false",
+            "--prismLocation=${prismProject.property('buildTarget').toString()}",
+            "--prismLogLevel=warn",
+    ]
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(args)
+
+    outputs.upToDateWhen { false }
+    include '**/DeltaIOTest.class'
+    filter {
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaRead'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaReadWithVersion'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testManagedDeltaReadWithTimestamp'
+        includeTestsMatching 'org.apache.beam.sdk.io.delta.DeltaIOTest.testReadChangesWithManaged'
+    }
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }
