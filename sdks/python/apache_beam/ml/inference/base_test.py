@@ -2860,14 +2860,20 @@ class RunInferenceModelIdentifierTest(unittest.TestCase):
       assert_that(out, equal_to(['1:my-step-model', '2:my-step-model']))
 
   def test_generated_uuid_identifier_matches_annotation(self):
-    transform = base.RunInference(IdentifierReportingModelHandler())
-    annotated = transform.annotations()['model_identifier']
     # No model_identifier given: RunInference generates a uuid hex, annotates
-    # the step with it, and reports that same value to the handler.
-    self.assertRegex(annotated, r'^[0-9a-f]{32}$')
+    # the inference step with it, and reports that same value to the handler.
     with TestPipeline('FnApiRunner') as p:
-      out = p | beam.Create([1], reshuffle=False) | transform
-      assert_that(out, equal_to([f'1:{annotated}']))
+      out = (
+          p | beam.Create([1], reshuffle=False)
+          | base.RunInference(IdentifierReportingModelHandler()))
+      annotated = [
+          t.annotations['model_identifier'].decode()
+          for t in p.to_runner_api().components.transforms.values()
+          if t.unique_name == 'RunInference/BeamML_RunInference'
+      ]
+      self.assertEqual(len(annotated), 1)
+      self.assertRegex(annotated[0], r'^[0-9a-f]{32}$')
+      assert_that(out, equal_to([f'1:{annotated[0]}']))
 
   def test_identifier_forwarded_through_wrappers(self):
     handler = base.KeyedModelHandler(

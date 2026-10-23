@@ -35,10 +35,10 @@ to a particular server; a handler only decides which extractor is its default.
 
 # pytype: skip-file
 
+import dataclasses
 from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
-import dataclasses
 from dataclasses import dataclass
 from typing import Any
 from typing import Optional

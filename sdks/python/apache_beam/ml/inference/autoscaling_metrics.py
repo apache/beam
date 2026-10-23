@@ -45,13 +45,13 @@ piece is just the pair of metric names passed to :class:`CompletionRateSignal`.
 
 # pytype: skip-file
 
+import dataclasses
 import logging
 import threading
 import time
 import urllib.request
 from collections.abc import Callable
 from collections.abc import Mapping
-import dataclasses
 from dataclasses import dataclass
 from typing import Optional
 
@@ -239,17 +239,17 @@ class NumLoadedModelsPublisher:
       self,
       tag: str,
       signal_fn: Callable[[], Optional[float]],
-      poll_interval_secs: float = 5.0,
-      aggregation: str = 'lifetime_max',
-      aggregation_window_secs: float = 60.0,
-      multiplier: float = 1.0,
+      poll_interval_secs: float = DEFAULT_POLL_INTERVAL_SECS,
+      aggregation: str = DEFAULT_AGGREGATION,
+      aggregation_window_secs: float = DEFAULT_AGGREGATION_WINDOW_SECS,
+      multiplier: float = DEFAULT_MULTIPLIER,
   ):
     if not tag:
       raise ValueError('num_loaded_models tag must be a non-empty string.')
     self._metric_name = NUM_LOADED_MODELS_METRIC_PREFIX + tag
     self._signal_fn = signal_fn
     self._poll_interval_secs = poll_interval_secs
-    self._aggregation = (aggregation or 'lifetime_max').lower()
+    self._aggregation = (aggregation or DEFAULT_AGGREGATION).lower()
     self._aggregation_window_secs = max(float(aggregation_window_secs), 0.0)
     self._multiplier = float(multiplier)
     # Trailing (timestamp, value) samples for the windowed aggregation modes.
@@ -575,7 +575,7 @@ class AutoscalingMetricConfig:
                                 Optional[float]]) -> NumLoadedModelsPublisher:
     if not self.tag:
       raise ValueError(
-          'AutoscalingMetricConfig.tag is unset; call resolve(model_name) '
+          'AutoscalingMetricConfig.tag is unset; call resolve(default_tag) '
           'first.')
     return NumLoadedModelsPublisher(
         tag=self.tag,
