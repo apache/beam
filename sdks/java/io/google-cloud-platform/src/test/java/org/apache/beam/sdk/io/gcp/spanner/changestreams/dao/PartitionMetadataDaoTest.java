@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -31,7 +33,9 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
@@ -405,5 +409,82 @@ public class PartitionMetadataDaoTest {
   public void testExtractTvfName() {
     assertEquals("tvf", PartitionMetadataDao.extractTvfName("partitionToken123#tvf"));
     assertEquals("", PartitionMetadataDao.extractTvfName("partitionToken123"));
+  }
+
+  @Test
+  public void testTableExistsGoogleSql() {
+    ReadOnlyTransaction readOnlyTx = mock(ReadOnlyTransaction.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUseReadOnlyTransaction()).thenReturn(readOnlyTx);
+    when(readOnlyTx.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true);
+
+    assertTrue(partitionMetadataDao.tableExists());
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readOnlyTx).executeQuery(statementCaptor.capture(), any());
+    assertEquals(
+        "SELECT t.table_name FROM information_schema.tables AS t "
+            + "WHERE t.table_catalog = '' AND "
+            + "t.table_schema = '' AND "
+            + "t.table_name = '"
+            + METADATA_TABLE_NAME
+            + "'",
+        statementCaptor.getValue().getSql());
+  }
+
+  @Test
+  public void testTableExistsPostgres() {
+    ReadOnlyTransaction readOnlyTx = mock(ReadOnlyTransaction.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUseReadOnlyTransaction()).thenReturn(readOnlyTx);
+    when(readOnlyTx.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+
+    PartitionMetadataDao pgDao =
+        new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, Dialect.POSTGRESQL);
+    assertTrue(pgDao.tableExists());
+    assertFalse(pgDao.tableExists());
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readOnlyTx, times(2)).executeQuery(statementCaptor.capture(), any());
+    assertEquals(
+        "SELECT t.table_name FROM information_schema.tables AS t "
+            + "WHERE t.table_schema = 'public' AND "
+            + "t.table_name = '"
+            + METADATA_TABLE_NAME
+            + "'",
+        statementCaptor.getValue().getSql());
+  }
+
+  @Test
+  public void testInTransactionContextUpdateToScheduledPostgres() {
+    PartitionMetadataDao.InTransactionContext pgTransactionContext =
+        new PartitionMetadataDao.InTransactionContext(
+            METADATA_TABLE_NAME, transaction, Dialect.POSTGRESQL);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any(), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(any())).thenReturn(PARTITION_TOKEN);
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    doNothing().when(transaction).buffer(mutations.capture());
+
+    assertNull(pgTransactionContext.updateToScheduled(Collections.singletonList(PARTITION_TOKEN)));
+
+    verify(transaction).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT * FROM \""
+            + METADATA_TABLE_NAME
+            + "\" WHERE \"State\" = $1 AND \"PartitionToken\" = ANY ($2)",
+        captured.getSql());
+    assertEquals(State.CREATED.toString(), captured.getParameters().get("p1").getString());
+    assertEquals(
+        Collections.singletonList(PARTITION_TOKEN),
+        captured.getParameters().get("p2").getStringArray());
+    assertEquals(1, mutations.getValue().size());
   }
 }
