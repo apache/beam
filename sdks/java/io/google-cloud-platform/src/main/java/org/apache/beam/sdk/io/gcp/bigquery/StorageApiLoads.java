@@ -76,6 +76,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean allowInconsistentWrites;
   private final boolean allowAutosharding;
   private final boolean autoUpdateSchema;
+  private final @Nullable Duration autoUpdateSchemaStrictTimeout;
   private final boolean ignoreUnknownValues;
   private final boolean usesCdc;
 
@@ -100,6 +101,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       boolean allowInconsistentWrites,
       boolean allowAutosharding,
       boolean autoUpdateSchema,
+      @Nullable Duration autoUpdateSchemaStrictTimeout,
       boolean ignoreUnknownValues,
       boolean propagateSuccessfulStorageApiWrites,
       Predicate<String> propagateSuccessfulStorageApiWritesPredicate,
@@ -121,6 +123,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.allowInconsistentWrites = allowInconsistentWrites;
     this.allowAutosharding = allowAutosharding;
     this.autoUpdateSchema = autoUpdateSchema;
+    this.autoUpdateSchemaStrictTimeout = autoUpdateSchemaStrictTimeout;
     this.ignoreUnknownValues = ignoreUnknownValues;
     if (propagateSuccessfulStorageApiWrites) {
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
@@ -196,7 +199,9 @@ public class StorageApiLoads<DestinationT, ElementT>
                     successfulRowsPredicate,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     TableRowJsonCoder.of(),
+                    destinationCoder,
                     autoUpdateSchema,
+                    autoUpdateSchemaStrictTimeout,
                     ignoreUnknownValues,
                     createDisposition,
                     kmsKey,
@@ -301,9 +306,11 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulWrittenRowsTag,
                 successfulRowsPredicate,
                 autoUpdateSchema,
+                autoUpdateSchemaStrictTimeout,
                 ignoreUnknownValues,
                 defaultMissingValueInterpretation,
-                bigLakeConfiguration));
+                bigLakeConfiguration,
+                hasSchemaUpdateOptions));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -404,6 +411,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 TableRowJsonCoder.of(),
                 autoUpdateSchema,
+                autoUpdateSchemaStrictTimeout,
                 ignoreUnknownValues,
                 createDisposition,
                 kmsKey,

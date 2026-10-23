@@ -47,8 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The Beam key becomes the Kafka record key so Kafka Streams shuffles by it. The topology is a
  * {@link ShuffleByKeyProcessor} that sets that key and passes watermark reports through, a sink to
- * an internal repartition topic using a {@link GroupByKeyBroadcastPartitioner} that hashes data by
- * key and fans watermarks out to every partition, a source reading that topic back, and the {@link
+ * an internal repartition topic using a {@link KStreamsPayloadPartitioner} that hashes data by key
+ * and fans watermarks out to every partition, a source reading that topic back, and the {@link
  * WindowedGroupByKeyProcessor} with its state and timer stores.
  */
 class GroupByKeyTranslator implements PTransformTranslator {
@@ -114,16 +114,20 @@ class GroupByKeyTranslator implements PTransformTranslator {
         shuffleName,
         () ->
             new ShuffleByKeyProcessor(
-                keyCoder, upstreamPartitionCount, shuffleName, context.getTerminationTracker()),
+                keyCoder,
+                upstreamPartitionCount,
+                partitionCount,
+                shuffleName,
+                context.getTerminationTracker()),
         parentProcessor);
 
-    // Shuffle through the repartition topic: data partitioned by key, watermark broadcast.
+    // Shuffle through the repartition topic: data by key, watermarks broadcast, flushes targeted.
     topology.addSink(
         sinkName,
         repartitionTopic,
         Serdes.ByteArray().serializer(),
         payloadSerde.serializer(),
-        new GroupByKeyBroadcastPartitioner<>(),
+        new KStreamsPayloadPartitioner<>(partitionCount),
         shuffleName);
     topology.addSource(
         sourceName,

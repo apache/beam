@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -105,10 +106,24 @@ public class SchemaEvolutionConfigTest {
             .setIncompatibleSchemaHandling(IncompatibleSchemaHandling.ROUTE_TO_ERRORS)
             .build();
 
-    assertEquals(IncompatibleSchemaHandling.FAIL_PIPELINE, unset.incompatibleSchemaHandling(true));
     assertEquals(
-        IncompatibleSchemaHandling.ROUTE_TO_ERRORS, unset.incompatibleSchemaHandling(false));
+        IncompatibleSchemaHandling.FAIL_PIPELINE,
+        unset.incompatibleSchemaHandlingFor(PCollection.IsBounded.BOUNDED));
     assertEquals(
-        IncompatibleSchemaHandling.ROUTE_TO_ERRORS, forced.incompatibleSchemaHandling(true));
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        unset.incompatibleSchemaHandlingFor(PCollection.IsBounded.UNBOUNDED));
+    assertEquals(
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        forced.incompatibleSchemaHandlingFor(PCollection.IsBounded.BOUNDED));
+  }
+
+  /** A dry run of nothing is a config error, not a silent real run. */
+  @Test
+  public void testDryRunAloneIsRejectedAtBuild() {
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SchemaEvolutionConfig.builder().setDryRun(true).build());
+    assertTrue(e.getMessage(), e.getMessage().contains("dry run"));
   }
 }

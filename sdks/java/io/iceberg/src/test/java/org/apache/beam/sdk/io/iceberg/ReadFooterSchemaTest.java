@@ -164,6 +164,25 @@ public class ReadFooterSchemaTest {
     pipeline.run();
   }
 
+  /** Hive names its output files like this, with no extension. */
+  @Test
+  public void testExtensionlessParquetEmitsSchema() throws IOException {
+    String file = writeParquet("000000_0", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertSchemas(run(file), FLAT_SCHEMA);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtensionlessNonParquetEmitsNothing() throws IOException {
+    String marker = writeBytes("_SUCCESS", new byte[0]);
+
+    PAssert.that(run(marker)).empty();
+
+    pipeline.run();
+  }
+
   /**
    * The schema is emitted exactly as declared; which columns proved null-free travels beside it.
    */
@@ -250,10 +269,43 @@ public class ReadFooterSchemaTest {
     return total;
   }
 
+  /** The footer reads, but its schema does not convert: the file contributes no schema. */
+  @Test
+  public void testUnconvertibleSchemaEmitsNothing() throws IOException {
+    File file = new File(temporaryFolder.getRoot(), "legacy.parquet");
+    writeLegacyRepeated(file);
+
+    PAssert.that(run(file.getAbsolutePath())).empty();
+
+    pipeline.run();
+  }
+
+  /** Readable Parquet whose unannotated repeated field Iceberg's converter rejects. */
+  private static void writeLegacyRepeated(File file) throws IOException {
+    org.apache.parquet.schema.MessageType legacy =
+        org.apache.parquet.schema.Types.buildMessage()
+            .required(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("id")
+            .repeated(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("vals")
+            .named("root");
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.parquet.example.data.Group> writer =
+        org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withType(legacy)
+            .build()) {
+      org.apache.parquet.example.data.Group group =
+          new org.apache.parquet.example.data.simple.SimpleGroupFactory(legacy).newGroup();
+      group.add("id", 1);
+      group.add("vals", 2);
+      writer.write(group);
+    }
+  }
+
   private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))
-        .apply(ParDo.of(new ReadFooterSchema()))
+        .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled())))
         .setCoder(CollectDistinctSchemas.groupCoder());
   }
 

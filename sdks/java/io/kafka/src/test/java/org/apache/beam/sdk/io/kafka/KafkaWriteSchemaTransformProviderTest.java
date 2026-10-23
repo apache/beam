@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -268,7 +269,11 @@ public class KafkaWriteSchemaTransformProviderTest {
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
-                + "message_name: MyMessage");
+                + "message_name: MyMessage",
+            "topic: topic_4\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: RAW\n"
+                + "with_gcp_adc: true");
 
     for (String config : configs) {
       // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand
@@ -281,6 +286,29 @@ public class KafkaWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testErrorOutputCarriesTheSchemaErrorCounterFnEmits() {
+    // The output schema is fixed while the graph is built, so this needs no runner.
+    p.enableAbandonedNodeEnforcement(false);
+
+    Schema inputSchema = Schema.builder().addByteArrayField("bytes").build();
+    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration configuration =
+        KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration.builder()
+            .setFormat("RAW")
+            .setTopic("test-topic")
+            .setBootstrapServers("host:9092")
+            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
+            .build();
+
+    PCollectionRowTuple output =
+        PCollectionRowTuple.of("input", p.apply(Create.empty(inputSchema)))
+            .apply(new KafkaWriteSchemaTransformProvider().from(configuration));
+
+    // ErrorCounterFn emits ErrorHandling.errorRecord(errorSchema, ...), where errorSchema is
+    // already ErrorHandling.errorSchema(inputSchema).
+    assertEquals(ErrorHandling.errorSchema(inputSchema), output.get("errors").getSchema());
+  }
+
+  @Test
   public void testKafkaWriteSchemaTransformConfigurationSchema() throws NoSuchSchemaException {
     Schema schema =
         SchemaRegistry.createDefault()
@@ -289,7 +317,7 @@ public class KafkaWriteSchemaTransformProviderTest {
 
     System.out.println("schema = " + schema);
 
-    assertEquals(8, schema.getFieldCount());
+    assertEquals(9, schema.getFieldCount());
 
     // Check field name, type, and nullability. Descriptions are not checked as they are not
     // critical for serialization.
@@ -341,5 +369,10 @@ public class KafkaWriteSchemaTransformProviderTest {
         Schema.Field.nullable("schema", Schema.FieldType.STRING)
             .withDescription(schema.getField(7).getDescription()),
         schema.getField(7));
+
+    assertEquals(
+        Schema.Field.nullable("withGcpAdc", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(8).getDescription()),
+        schema.getField(8));
   }
 }

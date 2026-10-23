@@ -39,7 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Splits a Beam source and assigns its splits to Flink source readers round-robin. */
-public class FlinkSourceSplitEnumerator<T>
+public final class FlinkSourceSplitEnumerator<T>
     implements SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceSplitEnumerator.class);
 

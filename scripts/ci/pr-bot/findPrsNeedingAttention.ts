@@ -29,6 +29,7 @@ const {
   REASSIGNED_REVIEWERS_LABEL,
   AWAITING_TRIAGE_LABEL,
   NEXT_ACTION_REVIEWERS_LABEL,
+  AUTHOR_ACTION,
 } = require("./shared/constants");
 const { hasLabel } = github;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -111,9 +112,11 @@ async function assignToNewReviewers(
   reviewersToExclude.push(pull.user.login);
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(labelObjects, reviewersToExclude);
-  const fallbackReviewers = reviewerConfig.getFallbackReviewers();
-  for (const labelObject of labelObjects) {
-    const label = labelObject.name;
+  const fallbackReviewers =
+    reviewerConfig.getFallbackReviewers(reviewersToExclude);
+  let backupReviewersForLabels: { [key: string]: string } = {};
+  prState.reviewersAssignedForLabels = {};
+  for (const label of Object.keys(reviewersForLabels)) {
     let availableReviewers = reviewersForLabels[label];
     if (availableReviewers && availableReviewers.length > 0) {
       let reviewersState = await stateClient.getReviewersForLabelState(label);
@@ -121,8 +124,16 @@ async function assignToNewReviewers(
         availableReviewers,
         fallbackReviewers
       );
+      let backupReviewer = reviewersState.getBackupReviewer(
+        availableReviewers,
+        chosenReviewer,
+        fallbackReviewers
+      );
       reviewerStateToUpdate[label] = reviewersState;
       prState.reviewersAssignedForLabels[label] = chosenReviewer;
+      if (backupReviewer) {
+        backupReviewersForLabels[label] = backupReviewer;
+      }
     }
   }
 
@@ -131,7 +142,12 @@ async function assignToNewReviewers(
     pull.number,
     commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels, {
       labels: pull.labels,
+      backupReviewers: backupReviewersForLabels,
     })
+  );
+  await github.requestPrReviewers(
+    pull.number,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   await stateClient.writePrState(pull.number, prState);
@@ -161,6 +177,15 @@ async function processPull(
     console.log(`Skipping PR ${pull.number} - awaiting triage`);
     return;
   }
+  if (pull.draft) {
+    if (hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)) {
+      await github.nextActionAuthor(pull.number, pull.labels);
+      prState.nextAction = AUTHOR_ACTION;
+      await stateClient.writePrState(pull.number, prState);
+    }
+    console.log(`Skipping PR ${pull.number} - draft`);
+    return;
+  }
 
   const sixtyDaysAgo = new Date(Date.now() - 60 * ONE_DAY_MS);
   const initialReviewDate = prState.reviewersAssignedAt
@@ -183,7 +208,10 @@ async function processPull(
     return;
   }
 
-  if (hasLabel(pull, SLOW_REVIEW_LABEL)) {
+  if (
+    hasLabel(pull, SLOW_REVIEW_LABEL) &&
+    hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)
+  ) {
     const lastModified = new Date(pull.updated_at);
     const twoWeekDaysAgo = getTwoWeekdaysAgo();
     console.log(

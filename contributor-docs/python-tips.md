@@ -506,7 +506,7 @@ When we build Python [container images for the Apache Beam SDK](https://beam.ap
 
 We [expect](https://github.com/apache/beam/blob/release-2.35.0/sdks/python/container/Dockerfile#L41-L42) all Beam dependencies (including transitive dependencies, and deps for some of the 'extra's, like [gcp]) to be specified with exact versions in the requirements files. When you modify the Python SDK's dependencies in setup.py, you might need to regenerate the requirements files when or wait until a [PR updating Python dependency files](https://github.com/apache/beam/pulls?q=is%3Apr+author%3Aapp%2Fgithub-actions) is merged.
 
-Regenerate the requirements files by running: `./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting the changes. Execution can take up to 5 min per Python version and is somewhat resource-demanding. You can also regenerate the dependencies individually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
+Regenerate the requirements files by running: `./gradlew :sdks:python:container:generatePythonRequirementsAll` and committing the changes. Execution can take up to 5 min per Python version and is somewhat resource-demanding. You can also regenerate the dependencies individually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
 
 To run the command successfully, you will need  Python interpreters for all versions supported by Beam. See: [Installing Python Interpreters](#installing-python-interpreters).
 

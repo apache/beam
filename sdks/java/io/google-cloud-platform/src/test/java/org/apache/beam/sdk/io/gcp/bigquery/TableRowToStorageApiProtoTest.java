@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1901,6 +1902,184 @@ public class TableRowToStorageApiProtoTest {
     List<DynamicMessage> repeatednof2 =
         (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeatednof2"));
     assertTrue(repeatednof2.isEmpty());
+  }
+
+  @Test
+  public void testAllowMissingRequiredFieldsMatchesStrictBuildForInitializedMessage()
+      throws Exception {
+    TableSchema tableSchema = requiredStringTableSchema();
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor optionalDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false);
+    TableRow tableRow =
+        new TableRow().set("requiredvalue", "present").set("unknownvalue", "preserved");
+    TableRow strictUnknownFields = new TableRow();
+    TableRow allowMissingUnknownFields = new TableRow();
+
+    DynamicMessage strictMessage =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            optionalDescriptor,
+            tableRow,
+            true,
+            false,
+            strictUnknownFields,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    DynamicMessage allowMissingMessage =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            optionalDescriptor,
+            tableRow,
+            true,
+            true,
+            allowMissingUnknownFields,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertArrayEquals(strictMessage.toByteArray(), allowMissingMessage.toByteArray());
+    assertEquals(strictUnknownFields, allowMissingUnknownFields);
+    assertEquals(new TableRow().set("unknownvalue", "preserved"), strictUnknownFields);
+    assertTrue(strictMessage.isInitialized());
+    assertTrue(allowMissingMessage.isInitialized());
+  }
+
+  @Test
+  public void testStrictDescriptorRejectsMissingRequiredFieldWhenNotAllowed() throws Exception {
+    TableSchema tableSchema = requiredStringTableSchema();
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor strictDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+
+    try {
+      TableRowToStorageApiProto.messageFromTableRow(
+          schemaInformation,
+          strictDescriptor,
+          new TableRow().setF(Collections.emptyList()),
+          false,
+          false,
+          null,
+          null,
+          -1,
+          TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+      fail("Expected strict descriptor validation to reject the missing field");
+    } catch (TableRowToStorageApiProto.SchemaDoesntMatchException e) {
+      assertEquals(
+          "Could convert schema for . Exception: "
+              + "com.google.protobuf.UninitializedMessageException: Message missing required "
+              + "fields: requiredvalue",
+          e.getMessage());
+    }
+  }
+
+  @Test
+  public void testNestedStrictDescriptorPreservesExactFailureChain() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema()
+                                    .setName("requiredvalue")
+                                    .setType("STRING")
+                                    .setMode("REQUIRED")))));
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor strictDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+
+    try {
+      TableRowToStorageApiProto.messageFromTableRow(
+          schemaInformation,
+          strictDescriptor,
+          new TableRow().set("nested", new TableRow()),
+          false,
+          false,
+          null,
+          null,
+          -1,
+          TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+      fail("Expected nested strict descriptor validation to reject the missing field");
+    } catch (TableRowToStorageApiProto.SchemaDoesntMatchException e) {
+      assertEquals(
+          "Problem converting field nested expected type: STRUCT. Exception: "
+              + "org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto$"
+              + "SchemaMissingRequiredFieldException: Missing required fields: "
+              + "[nested.requiredvalue]",
+          e.getMessage());
+      Throwable cause = e;
+      while (cause != null
+          && !(cause instanceof TableRowToStorageApiProto.SchemaMissingRequiredFieldException)) {
+        cause = cause.getCause();
+      }
+      assertNotNull(cause);
+      assertEquals(
+          Collections.singleton("nested.requiredvalue"),
+          ((TableRowToStorageApiProto.SchemaMissingRequiredFieldException) cause)
+              .getMissingFields());
+    }
+  }
+
+  @Test
+  public void testAllowMissingRequiredFieldsReturnsPartialMessageFromMap() throws Exception {
+    TableSchema tableSchema = requiredStringTableSchema();
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor strictDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            strictDescriptor,
+            new TableRow(),
+            false,
+            true,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertFalse(message.isInitialized());
+    assertTrue(message.findInitializationErrors().contains("requiredvalue"));
+  }
+
+  @Test
+  public void testAllowMissingRequiredFieldsReturnsPartialMessageFromPositionalRow()
+      throws Exception {
+    TableSchema tableSchema = requiredStringTableSchema();
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor strictDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            strictDescriptor,
+            new TableRow().setF(Collections.emptyList()),
+            false,
+            true,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertFalse(message.isInitialized());
+    assertTrue(message.findInitializationErrors().contains("requiredvalue"));
+  }
+
+  private static TableSchema requiredStringTableSchema() {
+    return new TableSchema()
+        .setFields(
+            ImmutableList.of(
+                new TableFieldSchema()
+                    .setName("requiredvalue")
+                    .setType("STRING")
+                    .setMode("REQUIRED")));
   }
 
   @Test

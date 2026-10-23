@@ -166,6 +166,17 @@ dataframe_dependency = [
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 qdrant_dependency = ['qdrant-client>=1.15.0']
+# NOTE: When updating these bounds, also update the bounds in
+# apache_beam/ml/inference/xgboost_tests_requirements.txt, which is used by the
+# XGBoost RunInference integration tests, and the py311-xgboost-* environments
+# in tox.ini.
+xgboost_dependency = [
+    'xgboost>=2.0.0,<4',
+    # apache_beam.ml.inference.xgboost_inference imports datatable directly.
+    # 1.1.0 is the first release with Python 3.10+ wheels; no release has
+    # wheels for Python 3.13+.
+    'datatable>=1.1.0,<2',
+]
 
 # google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
@@ -207,13 +218,13 @@ ml_base_core = [
 ]
 
 ml_adk_dependency = [
-    'google-adk==1.28.1',
+    'google-adk>=2.0.0,<3',
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api==1.37.0',
-    'opentelemetry-sdk==1.37.0',
-    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    'opentelemetry-api>=1.36.0,<1.43',
+    'opentelemetry-sdk>=1.36.0,<1.43',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -416,7 +427,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0,<51.0.0',
+          'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -427,7 +438,7 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow>=12.1.1,<13',
+          'pillow>=12.1.1,<14',
           'pymongo>=3.8.0,<5.0.0',
           # ADK / OpenTelemetry need proto-plus>=1.26.1 (protobuf>=5); that
           # floor is declared on ml_adk_dependency only so core installs stay
@@ -525,7 +536,7 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-storage>=3.0.0,<4',
               'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
@@ -534,7 +545,8 @@ if __name__ == '__main__':
               'google-cloud-core>=2.0.0,<3',
               # 2.44.0 changed DirectRow mutation storage; native WriteToBigTable
               # requires this version on both driver and workers.
-              'google-cloud-bigtable>=2.44.0,<3',
+              # TODO: restore upper bound to "<3". Tests breaking in 2.48.0.
+              'google-cloud-bigtable>=2.44.0,<2.48.0',
               'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
@@ -607,9 +619,12 @@ if __name__ == '__main__':
           'p310_ml_test': [
             'datatable',
           ] + ml_base + qdrant_dependency,
+          # xgboost_dependency includes datatable, which only has wheels for
+          # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
+          'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
           'p312_ml_test': [
-              'datatable',
-          ] + ml_base + qdrant_dependency,
+              'typesafe-sdk>=0.7.1,<0.8',
+          ] + ml_base + xgboost_dependency + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
@@ -677,7 +692,7 @@ if __name__ == '__main__':
               'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
-          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
+          'xgboost': xgboost_dependency,
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
@@ -689,7 +704,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
           'Programming Language :: Python :: 3.13',

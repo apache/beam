@@ -62,6 +62,11 @@ pipelines:
               auto.offset.reset: "earliest"
               group.id: "yaml-kafka-test-group"
             max_read_time_seconds: 10 # will read forever if not set
+            redistributed: true
+            redistribute_num_keys: 2
+            allow_duplicates: false
+            offset_deduplication: true
+            redistribute_by_record_key: true
         - type: MapToFields
           config:
             language: python

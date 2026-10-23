@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Values;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.MetadataDef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.MetadataHandler;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
@@ -55,6 +56,11 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
 
     if (rel instanceof BeamRelNode) {
       return this.getBeamNodeStats((BeamRelNode) rel, bmq);
+    }
+
+    if (rel instanceof Values) {
+      Values values = (Values) rel;
+      return NodeStats.create(values.getTuples().size());
     }
 
     // We can later define custom methods for all different RelNodes to prevent hitting this point.

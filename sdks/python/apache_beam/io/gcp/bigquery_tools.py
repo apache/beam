@@ -33,9 +33,11 @@ import decimal
 import io
 import json
 import logging
+import os
 import re
 import sys
 import time
+import urllib.parse
 import uuid
 from json.decoder import JSONDecodeError
 from typing import Optional
@@ -59,6 +61,8 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import BigQueryOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -79,6 +83,11 @@ try:
 except Exception:
   gcp_bigquery = None
   pass
+
+try:
+  from google.cloud import bigquery_storage_v1 as bq_storage
+except ImportError:
+  bq_storage = None
 
 try:
   from orjson import dumps as fast_json_dumps
@@ -106,8 +115,86 @@ UNKNOWN_MIME_TYPE = 'application/octet-stream'
 BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
-_DATASET_PATTERN = r'\w{1,1024}'
+# Dots are allowed because Lakehouse runtime catalog tables are addressed with
+# a composite 'catalog.namespace' dataset id.
+_DATASET_PATTERN = r'[-\w.]{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
+# A single segment of a project id (no dots or colons).
+_PROJECT_NAME_SEGMENT_PATTERN = r'[-a-z0-9]*[a-z0-9]'
+
+# For CI: temp dataset of this name are automatically deleted
+_TEMP_DATASET_PREFIX = 'beam_temp_dataset_'
+
+_DEFAULT_UNIVERSE_DOMAIN = 'googleapis.com'
+_UNIVERSE_DOMAIN_ENV = 'GOOGLE_CLOUD_UNIVERSE_DOMAIN'
+_BIGQUERY_SERVICE_PATH = '/bigquery/v2'
+
+
+def _get_bigquery_endpoint(
+    pipeline_options: Optional[PipelineOptions] = None) -> Optional[str]:
+  """Returns the BigQuery root URL set via ``--bigquery_endpoint``, or None.
+
+  The given pipeline options are checked first. If they do not set the
+  endpoint, the options of the running pipeline are checked; these are
+  available on workers, where BigQuery clients are often created without
+  access to the pipeline options.
+
+  The returned URL always has a scheme and never has a trailing slash or the
+  ``/bigquery/v2`` service path.
+  """
+  endpoint = None
+  if pipeline_options is not None:
+    endpoint = pipeline_options.view_as(BigQueryOptions).big_query_endpoint
+  if not endpoint:
+    endpoint = value_provider.RuntimeValueProvider.get_value(
+        'big_query_endpoint', str, None)
+  if not endpoint:
+    return None
+  endpoint = endpoint.strip().rstrip('/')
+  if endpoint.endswith(_BIGQUERY_SERVICE_PATH):
+    endpoint = endpoint[:-len(_BIGQUERY_SERVICE_PATH)]
+  if '://' not in endpoint:
+    endpoint = 'https://' + endpoint
+  return endpoint
+
+
+def get_bigquery_api_url(
+    pipeline_options: Optional[PipelineOptions] = None) -> str:
+  """Returns the base URL of the BigQuery v2 REST API.
+
+  The URL is resolved in the following order:
+
+  1. ``--bigquery_endpoint``, if set.
+  2. ``https://bigquery.<domain>``, if the ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``
+     environment variable is set to a non-default universe domain. This
+     matches how the google-cloud-bigquery client library resolves its
+     endpoint.
+  3. The default public URL.
+  """
+  endpoint = _get_bigquery_endpoint(pipeline_options)
+  if endpoint is None:
+    universe_domain = (
+        os.environ.get(_UNIVERSE_DOMAIN_ENV, '').strip() or
+        _DEFAULT_UNIVERSE_DOMAIN)
+    if universe_domain == _DEFAULT_UNIVERSE_DOMAIN:
+      return bigquery.BigqueryV2.BASE_URL
+    endpoint = 'https://bigquery.%s' % universe_domain
+  return endpoint + _BIGQUERY_SERVICE_PATH + '/'
+
+
+def get_bigquery_client_options(
+    pipeline_options: Optional[PipelineOptions] = None) -> Optional[dict]:
+  """Returns ``client_options`` for a ``google.cloud.bigquery.Client``.
+
+  Returns None when ``--bigquery_endpoint`` is not set, so that the client
+  library resolves the endpoint itself (it honors
+  ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``).
+  """
+  endpoint = _get_bigquery_endpoint(pipeline_options)
+  if endpoint is None:
+    return None
+  return {'api_endpoint': endpoint}
+
 
 # TODO(https://github.com/apache/beam/issues/25946): Add support for
 # more Beam portable schema types as Python types
@@ -249,9 +336,15 @@ def parse_table_reference(table, dataset=None, project=None):
     table: The ID of the table. The ID must contain only letters
       (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
-      'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
-      TableReference instance in which case dataset and project are
-      ignored and the reference is returned as a result.  Additionally, for date
+      'DATASET.TABLE', 'PROJECT:DATASET.TABLE' or 'PROJECT.DATASET.TABLE'.
+      Lakehouse runtime catalog tables use four parts,
+      'PROJECT.CATALOG.NAMESPACE.TABLE' (the canonical spelling) or
+      'PROJECT:CATALOG.NAMESPACE.TABLE', which parse to a composite
+      'CATALOG.NAMESPACE' dataset id. The project id is required for these,
+      because a composite dataset id without one would be ambiguous with
+      'PROJECT.DATASET.TABLE'. This argument can be a TableReference instance
+      in which case dataset and project are ignored and the reference is
+      returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
     dataset: The ID of the dataset containing this table or null if the table
@@ -285,22 +378,82 @@ def parse_table_reference(table, dataset=None, project=None):
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
-    pattern = (
-        f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
-        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
-    match = regex.fullmatch(pattern, table)
-    if not match:
-      raise ValueError(
-          'Expected a table reference (PROJECT:DATASET.TABLE or '
-          'DATASET.TABLE) instead of %s.' % table)
-    table_reference.projectId = match.group('project')
-    table_reference.datasetId = match.group('dataset')
-    table_reference.tableId = match.group('table')
+    project_id, dataset_id, table_id = _split_table_spec(table)
+    table_reference.projectId = project_id
+    table_reference.datasetId = dataset_id
+    table_reference.tableId = table_id
   else:
     table_reference.projectId = project
     table_reference.datasetId = dataset
     table_reference.tableId = table
   return table_reference
+
+
+def _invalid_table_spec(table_spec):
+  return ValueError(
+      'Expected a table reference (PROJECT:DATASET.TABLE, '
+      'PROJECT.DATASET.TABLE, DATASET.TABLE, '
+      'PROJECT:CATALOG.NAMESPACE.TABLE or PROJECT.CATALOG.NAMESPACE.TABLE) '
+      'instead of %s.' % table_spec)
+
+
+def _split_table_spec(table_spec):
+  """Splits a table spec string into (project, dataset, table).
+
+  The regex only validates the character set; segment assignment is done by
+  explicit splitting so that composite Lakehouse dataset ids ('catalog.ns')
+  and domain-scoped project ids ('example.com:proj') are both handled. This
+  mirrors BigQueryHelpers.parseTableSpec in the Java SDK.
+  """
+  pattern = (
+      f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
+      f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
+  if not regex.fullmatch(pattern, table_spec):
+    raise _invalid_table_spec(table_spec)
+
+  # Table ids cannot contain '.', so the table is always the last segment.
+  last_dot = table_spec.rfind('.')
+  table = table_spec[last_dot + 1:]
+  prefix = table_spec[:last_dot]
+
+  colon_count = prefix.count(':')
+  if colon_count == 0:
+    # Purely dotted form: 'd.t', 'p.d.t', 'p.catalog.ns.t'. A dataset id may
+    # itself contain dots (a composite 'catalog.namespace'), so omitting the
+    # project id would be ambiguous with 'PROJECT.DATASET.TABLE'. Only the
+    # plain two-segment 'DATASET.TABLE' may leave the project id out.
+    first_dot = prefix.find('.')
+    if first_dot < 0:
+      return None, prefix, table
+    project = prefix[:first_dot]
+    dataset = prefix[first_dot + 1:]
+    if not regex.fullmatch(_PROJECT_PATTERN, project) or not dataset:
+      raise _invalid_table_spec(table_spec)
+    return project, dataset, table
+
+  if colon_count == 1:
+    # 'p:d.t', 'p:catalog.ns.t', 'example.com:proj.ds.t'. If the part before
+    # the colon is dotted it is the domain half of a legacy domain-scoped
+    # project id; the first segment after the colon completes the project
+    # and any remaining segments are the (possibly composite) dataset.
+    colon = prefix.find(':')
+    project = prefix[:colon]
+    dataset = prefix[colon + 1:]
+    first_dot = dataset.find('.')
+    if (first_dot >= 0 and first_dot < len(dataset) - 1 and '.' in project and
+        regex.fullmatch(_PROJECT_NAME_SEGMENT_PATTERN, dataset[:first_dot])):
+      project = project + ':' + dataset[:first_dot]
+      dataset = dataset[first_dot + 1:]
+    return project, dataset, table
+
+  if colon_count == 2:
+    # The last colon terminates a domain-scoped project id spelled with its
+    # own colon: 'example.com:proj:ds.t' or 'example.com:proj:catalog.ns.t'.
+    last_colon = prefix.rfind(':')
+    return prefix[:last_colon], prefix[last_colon + 1:], table
+
+  # Project ids contain at most one colon, so more than two is never valid.
+  raise _invalid_table_spec(table_spec)
 
 
 # -----------------------------------------------------------------------------
@@ -346,6 +499,58 @@ def _build_dataset_encryption_config(kms_key):
   return bigquery.EncryptionConfiguration(kmsKeyName=kms_key)
 
 
+def _quota_project_id_from_options(pipeline_options):
+  """Returns --quota_project_id from pipeline options, if any."""
+  if pipeline_options is None:
+    return None
+  return pipeline_options.view_as(GoogleCloudOptions).quota_project_id
+
+
+def create_bq_storage_client(quota_project_id=None):
+  """Create a BigQueryReadClient with optional quota project.
+
+  Args:
+    quota_project_id: Optional GCP project ID to use for quota and billing.
+      The client applies it to the credentials it resolves itself.
+
+  Returns:
+    A BigQueryReadClient instance.
+  """
+  if not quota_project_id:
+    return bq_storage.BigQueryReadClient()
+  return bq_storage.BigQueryReadClient(
+      client_options={'quota_project_id': quota_project_id})
+
+
+class _HttpWithHeaders(object):
+  """Wraps an httplib2.Http to add fixed headers to requests to given hosts.
+
+  Sits below the credentials layer, so the headers are applied on every
+  attempt and take precedence over headers set by the credentials. The
+  credentials refresh their token through the same Http, so requests to other
+  hosts (token endpoint, metadata server, IAM Credentials API) are passed
+  through unchanged.
+  """
+  def __init__(self, http, headers, hosts):
+    object.__setattr__(self, '_http', http)
+    object.__setattr__(self, '_headers', headers)
+    object.__setattr__(self, '_hosts', frozenset(hosts))
+
+  def request(self, uri, method='GET', body=None, headers=None, **kwargs):
+    if urllib.parse.urlsplit(uri).hostname in self._hosts:
+      headers = dict(headers or {})
+      headers.update(self._headers)
+    return self._http.request(uri, method, body=body, headers=headers, **kwargs)
+
+  def __getattr__(self, name):
+    if name == '_http':  # object created without __init__ (copy/unpickle)
+      raise AttributeError(name)
+    return getattr(self._http, name)
+
+  def __setattr__(self, name, value):
+    setattr(self._http, name, value)
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -354,8 +559,10 @@ class BigQueryWrapper(object):
   In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
 
-  Note that client parameter in constructor is only for testing purposes and
-  should not be used in production code.
+  Note that the client and gcp_client parameters in the constructor are only
+  for testing purposes and should not be used in production code. Production
+  code should pass pipeline_options (and optionally quota_project_id) so that
+  every client is built here with the right quota attribution.
   """
 
   # If updating following names, also update the corresponding pydocs in
@@ -365,16 +572,30 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
-    self.gcp_bq_client = client or gcp_bigquery.Client(
-        client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+  def __init__(
+      self,
+      client=None,
+      temp_dataset_id=None,
+      temp_table_ref=None,
+      quota_project_id=None,
+      *,
+      gcp_client=None,
+      pipeline_options=None):
+    self.quota_project_id = (
+        quota_project_id or _quota_project_id_from_options(pipeline_options))
+    self._pipeline_options = pipeline_options
+    self.client = client or BigQueryWrapper._bigquery_client(
+        pipeline_options or PipelineOptions(),
+        quota_project_id=self.quota_project_id)
+    # Test-only overrides. `client` also stands in for the google-cloud-bigquery
+    # client, which several tests rely on; pass `gcp_client` as well as `client`
+    # to override only that one.
+    self._gcp_bq_client = gcp_client or client
 
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
-    self._row_id_prefix = '' if client else uuid.uuid4()
+    self._row_id_prefix = '' if (client or gcp_client) else uuid.uuid4()
     self._latency_histogram_metric = Metrics.histogram(
         self.__class__,
         'latency_histogram_ms',
@@ -400,6 +621,18 @@ class BigQueryWrapper(object):
       self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
 
     self.created_temp_dataset = False
+
+  @property
+  def gcp_bq_client(self):
+    """The google-cloud-bigquery client, created on first use.
+
+    Only the streaming insert path needs it, so it is not built eagerly.
+    """
+    if self._gcp_bq_client is None:
+      self._gcp_bq_client = BigQueryWrapper._gcp_bigquery_client(
+          quota_project_id=self.quota_project_id,
+          pipeline_options=self._pipeline_options)
+    return self._gcp_bq_client
 
   @property
   def unique_row_id(self):
@@ -777,7 +1010,10 @@ class BigQueryWrapper(object):
         service_call_metric.call('ok')
       else:
         for insert_error in errors:
-          service_call_metric.call(insert_error['errors'][0])
+          # Record the BigQuery reason (e.g. 'invalid') of the first error for
+          # each failed row.
+          row_errors = insert_error.get('errors') or [{}]
+          service_call_metric.call(row_errors[0].get('reason') or 'unknown')
     except (ClientError, GoogleAPICallError) as e:
       # e.code contains the numeric http status code.
       service_call_metric.call(e.code)
@@ -1414,18 +1650,75 @@ class BigQueryWrapper(object):
 
   @staticmethod
   def from_pipeline_options(pipeline_options: PipelineOptions):
-    return BigQueryWrapper(
-        client=BigQueryWrapper._bigquery_client(pipeline_options))
+    """Create a BigQueryWrapper from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options containing GCP configuration.
+        The quota_project_id is read from GoogleCloudOptions if set.
+    """
+    return BigQueryWrapper(pipeline_options=pipeline_options)
 
   @staticmethod
-  def _bigquery_client(pipeline_options: PipelineOptions):
+  def _bigquery_client(
+      pipeline_options: PipelineOptions, quota_project_id: str = None):
+    """Create a BigQuery API client from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options for credentials.
+      quota_project_id: Optional quota project ID. If not provided, will be
+        extracted from pipeline_options.
+    """
+    credentials = auth.get_service_credentials(pipeline_options)
+    # Use explicit quota_project_id if provided, otherwise get from options
+    quota_project_id = quota_project_id or _quota_project_id_from_options(
+        pipeline_options)
+    url = get_bigquery_api_url(pipeline_options)
+    http = get_new_http()
+    if quota_project_id:
+      if credentials is None:
+        # Ignoring the request would silently bill a different project.
+        raise ValueError(
+            'quota_project_id was set to %r, but no credentials were found to '
+            'apply it to.' % quota_project_id)
+      # Send the quota project as a request header rather than deriving new
+      # credentials: credentials.with_quota_project() returns a copy without
+      # the cached token, and this keeps the shared credentials untouched.
+      # The header is set below the credentials layer so that it is applied on
+      # every attempt and wins over a quota project the credentials carry.
+      http = _HttpWithHeaders(
+          http, {'x-goog-user-project': quota_project_id},
+          hosts=[
+              urllib.parse.urlsplit(u).hostname for u in (
+                  url, bigquery.BigqueryV2.BASE_URL,
+                  bigquery.BigqueryV2.MTLS_BASE_URL)
+          ])
     return bigquery.BigqueryV2(
-        http=get_new_http(),
-        credentials=auth.get_service_credentials(pipeline_options),
+        url=url,
+        http=http,
+        credentials=credentials,
         response_encoding='utf8',
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__
         })
+
+  @staticmethod
+  def _gcp_bigquery_client(
+      quota_project_id: str = None,
+      pipeline_options: Optional[PipelineOptions] = None):
+    """Create a google-cloud-bigquery Client with optional quota project.
+
+    The client applies the quota project to the credentials it resolves
+    itself, so no credentials are derived here. If ``--bigquery_endpoint`` is
+    set, it is used as the API endpoint; otherwise the client library resolves
+    the endpoint itself, honoring ``GOOGLE_CLOUD_UNIVERSE_DOMAIN``.
+    """
+    client_options = get_bigquery_client_options(pipeline_options) or {}
+    if quota_project_id:
+      client_options['quota_project_id'] = quota_project_id
+    return gcp_bigquery.Client(
+        client_options=client_options or None,
+        client_info=ClientInfo(
+            user_agent="apache-beam-%s" % apache_beam.__version__))
 
 
 class RowAsDictJsonCoder(coders.Coder):

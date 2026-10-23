@@ -16,11 +16,8 @@
 package schema
 
 import (
-	"io"
-	"math"
 	"time"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -36,10 +33,10 @@ const (
 
 // Date is a calendar date without a time zone or time of day, the
 // beam:logical_type:date:v1 logical type. It is stored as the number of days
-// since 1970-01-01 in an INT64 field. Time and String normalize out of range
-// fields as time.Date does. Encoding fails unless the fields form a valid
-// date with a year from -999999999 to 999999999, and decoding fails for a day
-// count outside that range.
+// since 1970-01-01 in an INT64 field. The zero Date is the epoch, 1970-01-01.
+// Time and String normalize out of range fields as time.Date does. Encoding
+// fails unless the fields form a valid date with a year from -999999999 to
+// 999999999, and decoding fails for a day count outside that range.
 type Date struct {
 	Year  int
 	Month time.Month
@@ -52,8 +49,14 @@ func DateOf(t time.Time) Date {
 	return Date{Year: y, Month: m, Day: d}
 }
 
+// epochDate is the date that the zero Date stands for.
+var epochDate = Date{Year: 1970, Month: time.January, Day: 1}
+
 // Time returns the start of the date in UTC.
 func (d Date) Time() time.Time {
+	if d == (Date{}) {
+		d = epochDate
+	}
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC)
 }
 
@@ -71,6 +74,9 @@ var (
 )
 
 func dateToStorage(d Date) (int64, error) {
+	if d == (Date{}) {
+		d = epochDate
+	}
 	t := d.Time()
 	// Out of range fields can overflow in time.Date, so only a date that
 	// round trips is encoded.
@@ -103,6 +109,17 @@ func (m MicrosInstant) Time() time.Time {
 	return time.Time(m)
 }
 
+// String returns the instant in RFC 3339 format with microseconds, such as
+// 2020-08-13T14:14:14.123456Z.
+func (m MicrosInstant) String() string {
+	return time.Time(m).Format("2006-01-02T15:04:05.000000Z07:00")
+}
+
+// Equals reports whether m and o are the same instant.
+func (m MicrosInstant) Equals(o MicrosInstant) bool {
+	return time.Time(m).Equal(time.Time(o))
+}
+
 // microsInstantStorage is the storage type of MicrosInstant.
 type microsInstantStorage struct {
 	Seconds int64 `beam:"seconds"`
@@ -130,8 +147,6 @@ func microsInstantFromStorage(s microsInstantStorage) (MicrosInstant, error) {
 func registerStandardLogicalTypes(r *Registry) {
 	registerLogicalTypeConversion(r, ToLogicalType(URNDate, typeOf[Date](), reflectx.Int64), dateToStorage, dateFromStorage)
 	registerLogicalTypeConversion(r, ToLogicalType(URNMicrosInstant, typeOf[MicrosInstant](), typeOf[microsInstantStorage]()), microsInstantToStorage, microsInstantFromStorage)
-	registerLogicalTypeCoder(r, ToLogicalType(URNMillisInstant, typeOf[MillisInstant](), reflectx.Int64), encodeMillisInstant, decodeMillisInstant)
-	registerLogicalTypeCoder(r, ToLogicalType(URNDecimal, typeOf[Decimal](), reflectx.ByteSlice), encodeDecimal, decodeDecimal)
 	r.RegisterPassThroughLogicalType(URNFixedChar, reflectx.String)
 	r.RegisterPassThroughLogicalType(URNVarChar, reflectx.String)
 	r.RegisterPassThroughLogicalType(URNFixedBytes, reflectx.ByteSlice)
@@ -152,42 +167,8 @@ const (
 	URNVarBytes = "beam:logical_type:var_bytes:v1"
 )
 
-// URNMillisInstant identifies the MillisInstant logical type.
-const URNMillisInstant = "beam:logical_type:millis_instant:v1"
-
-// MillisInstant is a timestamp with millisecond precision, the
-// beam:logical_type:millis_instant:v1 logical type. Its representation is the
-// milliseconds since the epoch as an INT64, encoded as 8 big endian bytes
-// shifted by the minimum int64 so that the byte order matches the
-// chronological order. Encoding a value with sub millisecond precision fails;
-// truncate such values with time.Time.Truncate first.
-type MillisInstant time.Time
-
-// Time returns the instant as a time.Time.
-func (m MillisInstant) Time() time.Time {
-	return time.Time(m)
-}
-
-func encodeMillisInstant(m MillisInstant, w io.Writer) error {
-	t := time.Time(m)
-	if t.Nanosecond()%int(time.Millisecond) != 0 {
-		return errors.Errorf("MillisInstant %v has sub millisecond precision", t)
-	}
-	return coder.EncodeUint64(uint64(t.UnixMilli()-math.MinInt64), w)
-}
-
-func decodeMillisInstant(r io.Reader) (MillisInstant, error) {
-	shifted, err := coder.DecodeUint64(r)
-	if err != nil {
-		return MillisInstant{}, err
-	}
-	return MillisInstant(time.UnixMilli(int64(shifted) + math.MinInt64).UTC()), nil
-}
-
 func init() {
 	// Pipeline graphs serialize the standard logical types by name.
 	runtime.RegisterType(typeOf[Date]())
 	runtime.RegisterType(typeOf[MicrosInstant]())
-	runtime.RegisterType(typeOf[MillisInstant]())
-	runtime.RegisterType(typeOf[Decimal]())
 }
