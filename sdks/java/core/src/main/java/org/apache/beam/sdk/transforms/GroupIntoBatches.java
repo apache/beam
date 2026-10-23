@@ -656,16 +656,8 @@ public class GroupIntoBatches<K, InputT>
     }
 
     @OnTimer(TIMER_HOLD_ID)
-    public void onHoldTimer(
-        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
-        @Key K key,
-        @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSize,
-        @StateId(NUM_BYTES_IN_BATCH_ID) CombiningState<Long, long[], Long> storedBatchSizeBytes,
-        @StateId(TIMER_TIMESTAMP) ValueState<Long> timerTs,
-        @StateId(MIN_BUFFERED_TS) CombiningState<Long, long[], Long> minBufferedTs) {
-      flushBatch(
-          receiver, key, batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
+    public void onHoldTimer() {
+      // Do nothing. The associated watermark hold will be automatically removed.
     }
 
     // We no longer set this timer, since OnWindowExpiration takes care of his. However we leave the
