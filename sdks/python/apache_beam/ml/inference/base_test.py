@@ -3136,6 +3136,7 @@ class ModelManagerTest(unittest.TestCase):
       # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
       self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
       self.assertEqual(dofn._cur_tag, 'model_v1')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
       self.assertEqual(
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
 
@@ -3145,6 +3146,7 @@ class ModelManagerTest(unittest.TestCase):
       # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
       self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
       self.assertEqual(dofn._cur_tag, 'model_v2')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
       self.assertEqual(
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
