@@ -40,11 +40,14 @@ public class BeamBuiltinAnalyticFunctions {
               // Navigation Functions
               .put("FIRST_VALUE", typeName -> navigationFirstValue())
               .put("LAST_VALUE", typeName -> navigationLastValue())
+              // Placeholder entry; BeamWindowRel instantiates NTH_VALUE with the actual offset n.
+              .put("NTH_VALUE", typeName -> navigationNthValue(1L, false))
               // Numbering Functions
               .put("ROW_NUMBER", typeName -> numberingRowNumber())
               .put("DENSE_RANK", typeName -> numberingDenseRank())
               .put("RANK", typeName -> numberingRank())
               .put("PERCENT_RANK", typeName -> numberingPercentRank())
+              .put("CUME_DIST", typeName -> numberingCumeDist())
               .build();
 
   public static Combine.CombineFn<?, ?, ?> create(String functionName, Schema.FieldType fieldType) {
@@ -66,8 +69,103 @@ public class BeamBuiltinAnalyticFunctions {
     return new LastValueCombineFn();
   }
 
-  private static class FirstValueCombineFn<T> extends Combine.CombineFn<T, Optional<T>, T> {
+  /**
+   * FIRST_VALUE that optionally skips nulls. With {@code ignoreNulls=true} it returns the first
+   * non-null value in the frame; otherwise it behaves like {@link #navigationFirstValue()}.
+   */
+  public static <T> Combine.CombineFn<T, ?, T> navigationFirstValue(boolean ignoreNulls) {
+    return ignoreNulls ? new FirstValueIgnoreNullsCombineFn() : new FirstValueCombineFn();
+  }
+
+  /**
+   * LAST_VALUE that optionally skips nulls. With {@code ignoreNulls=true} it returns the last
+   * non-null value in the frame; otherwise it behaves like {@link #navigationLastValue()}.
+   */
+  public static <T> Combine.CombineFn<T, ?, T> navigationLastValue(boolean ignoreNulls) {
+    return ignoreNulls ? new LastValueIgnoreNullsCombineFn() : new LastValueCombineFn();
+  }
+
+  /**
+   * NTH_VALUE(expr, n) [IGNORE NULLS]: the value of {@code expr} from the n-th row of the frame
+   * (frame-absolute, 1-based, counted from the frame start). Returns {@code null} when the frame
+   * has fewer than n rows. With {@code ignoreNulls=true}, n counts only non-null values.
+   */
+  public static Combine.CombineFn<?, ?, ?> navigationNthValue(long n, boolean ignoreNulls) {
+    return new NthValueCombineFn<>(n, ignoreNulls);
+  }
+
+  /**
+   * Accumulator for FIRST_VALUE / LAST_VALUE that, unlike {@link Optional}, can represent a {@code
+   * null} value distinct from "no row seen yet". Plain {@code Optional.of(input)} throws an NPE
+   * when a row's value is null, but FIRST_VALUE / LAST_VALUE (without IGNORE NULLS) must faithfully
+   * return the first / last row's value even when that value is null.
+   */
+  private static class ValueHolder<T> {
+    private boolean seen;
+    private T value;
+
+    void set(T input) {
+      this.seen = true;
+      this.value = input;
+    }
+  }
+
+  private static class FirstValueCombineFn<T> extends Combine.CombineFn<T, ValueHolder<T>, T> {
     private FirstValueCombineFn() {}
+
+    @Override
+    public ValueHolder<T> createAccumulator() {
+      return new ValueHolder<>();
+    }
+
+    @Override
+    public ValueHolder<T> addInput(ValueHolder<T> accumulator, T input) {
+      if (!accumulator.seen) {
+        accumulator.set(input);
+      }
+      return accumulator;
+    }
+
+    @Override
+    public ValueHolder<T> mergeAccumulators(Iterable<ValueHolder<T>> accumulators) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T extractOutput(ValueHolder<T> accumulator) {
+      return accumulator.seen ? accumulator.value : null;
+    }
+  }
+
+  private static class LastValueCombineFn<T> extends Combine.CombineFn<T, ValueHolder<T>, T> {
+    private LastValueCombineFn() {}
+
+    @Override
+    public ValueHolder<T> createAccumulator() {
+      return new ValueHolder<>();
+    }
+
+    @Override
+    public ValueHolder<T> addInput(ValueHolder<T> accumulator, T input) {
+      accumulator.set(input);
+      return accumulator;
+    }
+
+    @Override
+    public ValueHolder<T> mergeAccumulators(Iterable<ValueHolder<T>> accumulators) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public T extractOutput(ValueHolder<T> accumulator) {
+      return accumulator.seen ? accumulator.value : null;
+    }
+  }
+
+  /** FIRST_VALUE(... IGNORE NULLS): the first non-null value in the frame. */
+  private static class FirstValueIgnoreNullsCombineFn<T>
+      extends Combine.CombineFn<T, Optional<T>, T> {
+    private FirstValueIgnoreNullsCombineFn() {}
 
     @Override
     public Optional<T> createAccumulator() {
@@ -76,11 +174,10 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public Optional<T> addInput(Optional<T> accumulator, T input) {
-      Optional<T> r = accumulator;
-      if (!accumulator.isPresent()) {
-        r = Optional.of(input);
+      if (!accumulator.isPresent() && input != null) {
+        return Optional.of(input);
       }
-      return r;
+      return accumulator;
     }
 
     @Override
@@ -94,8 +191,10 @@ public class BeamBuiltinAnalyticFunctions {
     }
   }
 
-  private static class LastValueCombineFn<T> extends Combine.CombineFn<T, Optional<T>, T> {
-    private LastValueCombineFn() {}
+  /** LAST_VALUE(... IGNORE NULLS): the last non-null value in the frame. */
+  private static class LastValueIgnoreNullsCombineFn<T>
+      extends Combine.CombineFn<T, Optional<T>, T> {
+    private LastValueIgnoreNullsCombineFn() {}
 
     @Override
     public Optional<T> createAccumulator() {
@@ -104,8 +203,10 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public Optional<T> addInput(Optional<T> accumulator, T input) {
-      Optional<T> r = Optional.of(input);
-      return r;
+      if (input != null) {
+        return Optional.of(input);
+      }
+      return accumulator;
     }
 
     @Override
@@ -116,6 +217,74 @@ public class BeamBuiltinAnalyticFunctions {
     @Override
     public T extractOutput(Optional<T> accumulator) {
       return accumulator.isPresent() ? accumulator.get() : null;
+    }
+  }
+
+  /**
+   * NTH_VALUE(expr, n) [IGNORE NULLS]. A position-aware combiner: it receives every frame row's
+   * value column (via the {@link PositionAwareCombineFn#addInput(Object, Object, Object, Long,
+   * Long, Long)} overload) and keeps the value seen at the n-th eligible position. Eligibility is
+   * "every row" by default, or "only non-null values" with IGNORE NULLS.
+   */
+  private static class NthValueCombineFn<T>
+      extends PositionAwareCombineFn<BigDecimal, NthValueCombineFn.NthAccum<T>, T> {
+
+    /** Tracks how many eligible rows have been seen and the value captured at position n. */
+    private static class NthAccum<T> {
+      long eligibleSeen = 0L;
+      boolean captured = false;
+      T value = null;
+    }
+
+    private final long n;
+    private final boolean ignoreNulls;
+
+    private NthValueCombineFn(long n, boolean ignoreNulls) {
+      this.n = n;
+      this.ignoreNulls = ignoreNulls;
+    }
+
+    @Override
+    public NthAccum<T> createAccumulator() {
+      return new NthAccum<>();
+    }
+
+    @Override
+    public NthAccum<T> addInput(
+        NthAccum<T> accumulator,
+        BigDecimal input,
+        Long cursorWindow,
+        Long cursorPartition,
+        Long countPartition) {
+      return addInput(accumulator, input, input, cursorWindow, cursorPartition, countPartition);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public NthAccum<T> addInput(
+        NthAccum<T> accumulator,
+        BigDecimal input,
+        Object inputValue,
+        Long cursorWindow,
+        Long cursorPartition,
+        Long countPartition) {
+      if (accumulator.captured) {
+        return accumulator;
+      }
+      if (ignoreNulls && inputValue == null) {
+        return accumulator;
+      }
+      accumulator.eligibleSeen++;
+      if (accumulator.eligibleSeen == n) {
+        accumulator.captured = true;
+        accumulator.value = (T) inputValue;
+      }
+      return accumulator;
+    }
+
+    @Override
+    public T extractOutput(NthAccum<T> accumulator) {
+      return accumulator.captured ? accumulator.value : null;
     }
   }
 
@@ -136,6 +305,10 @@ public class BeamBuiltinAnalyticFunctions {
     return new PercentRankCombineFn();
   }
 
+  public static <T> Combine.CombineFn<T, ?, T> numberingCumeDist() {
+    return new CumeDistCombineFn();
+  }
+
   public abstract static class PositionAwareCombineFn<InputT, AccumT, OutputT>
       extends Combine.CombineFn<InputT, AccumT, OutputT> {
     public abstract AccumT addInput(
@@ -144,6 +317,23 @@ public class BeamBuiltinAnalyticFunctions {
         Long cursorWindow,
         Long cursorPartition,
         Long countPartition);
+
+    /**
+     * Position-aware addInput that, in addition to the ORDER-BY key ({@code input}), receives the
+     * row's actual VALUE column ({@code inputValue}). Numbering / ranking functions only need the
+     * ORDER-BY key and ignore {@code inputValue}; navigation functions such as NTH_VALUE need the
+     * value column at the n-th position within the frame. The default routes to the key-only
+     * overload so existing combiners are unaffected.
+     */
+    public AccumT addInput(
+        AccumT accumulator,
+        InputT input,
+        Object inputValue,
+        Long cursorWindow,
+        Long cursorPartition,
+        Long countPartition) {
+      return addInput(accumulator, input, cursorWindow, cursorPartition, countPartition);
+    }
 
     @Override
     public AccumT addInput(AccumT mutableAccumulator, InputT input) {
@@ -248,6 +438,44 @@ public class BeamBuiltinAnalyticFunctions {
     public Long extractOutput(KV<BigDecimal, Long> accumulator) {
       // 1-based result
       return accumulator != null ? accumulator.getValue() + 1 : null;
+    }
+  }
+
+  /**
+   * CUME_DIST: the relative rank of the current row, computed as {@code (number of rows preceding
+   * or peer with the current row) / (total rows in the partition)}.
+   *
+   * <p>Beam evaluates analytic functions over the per-row frame. With the SQL-standard default
+   * frame for CUME_DIST (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), the frame handed to
+   * this combiner already contains exactly the "preceding or peer" rows, so the numerator is simply
+   * the number of {@code addInput} calls. The denominator is the partition size, which is supplied
+   * to every {@code addInput} call as {@code countPartition}.
+   */
+  private static class CumeDistCombineFn<T>
+      extends PositionAwareCombineFn<BigDecimal, KV<Long, Long>, Double> {
+
+    @Override
+    public KV<Long, Long> createAccumulator() {
+      return KV.of(0L, 0L);
+    }
+
+    @Override
+    public KV<Long, Long> addInput(
+        KV<Long, Long> accumulator,
+        BigDecimal input,
+        Long cursorPosition,
+        Long cursorPartition,
+        Long countPartition) {
+      return KV.of(accumulator.getKey() + 1L, countPartition);
+    }
+
+    @Override
+    public Double extractOutput(KV<Long, Long> accumulator) {
+      long total = accumulator.getValue();
+      if (total <= 0L) {
+        return 0.0;
+      }
+      return accumulator.getKey().doubleValue() / (double) total;
     }
   }
 

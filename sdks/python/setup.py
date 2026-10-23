@@ -156,12 +156,11 @@ else:
     'pyarrow>=14.0.1,<26.0.0',
   ]
 
-# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-# Exclude 1.5.0 and 1.5.1 because of
-# https://github.com/pandas-dev/pandas/issues/45725
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.4',
+    # pandas 2.2.2 is the first version that works with numpy 2.0.0+
+    # TODO(https://github.com/apache/beam/issues/40709): support pandas 3+
+    'pandas>=2.2.2,<2.4',
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
@@ -209,8 +208,8 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
-    'torch<2.12.0',
+    # Keep in line with the py*-pytorch-* environments in tox.ini.
+    'torch>=2.3.0,<2.15.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
@@ -435,10 +434,12 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
+          # Increment the lower bound when the minimum Python version is
+          # updated.
+          'numpy>=1.23.2,<2.6.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow>=12.1.1,<13',
+          'pillow>=12.1.1,<14',
           'pymongo>=3.8.0,<5.0.0',
           # ADK / OpenTelemetry need proto-plus>=1.26.1 (protobuf>=5); that
           # floor is declared on ml_adk_dependency only so core installs stay
@@ -490,7 +491,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'markdown',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
@@ -501,7 +502,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'parameterized>=0.7.1,<0.10.0',
               'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
@@ -658,16 +659,19 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch>=1.9.0,<2.8.0'],
+          'torch': ['torch>=2.3.0,<2.15.0'],
           'tensorflow': [
               'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
               'absl-py>=0.12.0'
           ],
           'transformers': [
-              'transformers>=4.28.0,<4.56.0',
+              # Keep in line with the py311-transformers-* environments in
+              # tox.ini.
+              'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'tensorflow>=2.12.0',
-              # Avoid torch 2.12.0+ which fails to run unit tests with segfault
-              'torch>=1.9.0,<2.12.0'
+              # torch>=2.12 Linux wheels require triton>=3.7,
+              # which segfaults/aborts when imported after tensorflow.
+              'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',

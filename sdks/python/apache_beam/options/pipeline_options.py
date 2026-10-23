@@ -1388,6 +1388,39 @@ class GoogleCloudOptions(PipelineOptions):
     return None
 
 
+class BigQueryOptions(PipelineOptions):
+  """BigQuery-specific options, mirroring Java's ``BigQueryOptions``.
+
+  Option names (``dest``) are chosen so that they map to the Java option names
+  when pipeline options are passed to Java, e.g. to cross-language BigQuery
+  transforms: Java converts ``big_query_endpoint`` to ``bigQueryEndpoint``.
+  """
+
+  # Alternative attribute names, mapped to the option names they stand for.
+  _ATTRIBUTE_ALIASES = {'bigquery_endpoint': 'big_query_endpoint'}
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bigquery_endpoint',
+        '--big_query_endpoint',
+        dest='big_query_endpoint',
+        default=None,
+        help=(
+            'The root URL for the BigQuery API, e.g. '
+            '"https://bigquery.googleapis.com". If not set, the endpoint is '
+            'derived from the GOOGLE_CLOUD_UNIVERSE_DOMAIN environment '
+            'variable when present, and otherwise the default public URL is '
+            'used. Also passed to Java cross-language BigQuery transforms as '
+            'bigQueryEndpoint.'))
+
+  def __getattr__(self, name):
+    return super().__getattr__(self._ATTRIBUTE_ALIASES.get(name, name))
+
+  def __setattr__(self, name, value):
+    super().__setattr__(self._ATTRIBUTE_ALIASES.get(name, name), value)
+
+
 class AzureOptions(PipelineOptions):
   """Azure Blob Storage options."""
   @classmethod
