@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Qdrant enrichment handler added (Python) ([#40628](https://github.com/apache/beam/issues/40628)). `QdrantSearchEnrichmentHandler` supports dense, sparse and hybrid (RRF/DBSF fusion) search with payload filters, and reads collections written by `QdrantWriteConfig`.
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
 * Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
 
