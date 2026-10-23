@@ -665,8 +665,12 @@ if __name__ == '__main__':
               'absl-py>=0.12.0'
           ],
           'transformers': [
-              'transformers>=4.28.0,<4.56.0',
+              # Keep in line with the py311-transformers-* environments in
+              # tox.ini.
+              'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'tensorflow>=2.12.0',
+              # torch>=2.12 Linux wheels require triton>=3.7,
+              # which segfaults/aborts when imported after tensorflow.
               'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
