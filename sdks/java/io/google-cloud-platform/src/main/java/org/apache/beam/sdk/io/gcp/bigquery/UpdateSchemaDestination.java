@@ -257,9 +257,9 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
     if (!loadConfig
             .getWriteDisposition()
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
-        && !loadConfig
+        && (!loadConfig
             .getWriteDisposition()
-            .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE_DATA.toString()
+            .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE_DATA.toString())
         && !loadConfig
             .getWriteDisposition()
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
@@ -286,6 +286,11 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       return null;
     }
     loadConfig.setSchema(schema);
+    if (!loadConfig
+        .getWriteDisposition()
+        .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE_DATA.toString()){
+      loadConfig.setSchema(destinationSchema);
+    }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
