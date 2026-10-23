@@ -208,8 +208,8 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
-    'torch<2.12.0',
+    # Keep in line with the py*-pytorch-* environments in tox.ini.
+    'torch>=2.3.0,<2.15.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
@@ -659,7 +659,7 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch>=1.9.0,<2.8.0'],
+          'torch': ['torch>=2.3.0,<2.15.0'],
           'tensorflow': [
               'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
               'absl-py>=0.12.0'
@@ -667,8 +667,7 @@ if __name__ == '__main__':
           'transformers': [
               'transformers>=4.28.0,<4.56.0',
               'tensorflow>=2.12.0',
-              # Avoid torch 2.12.0+ which fails to run unit tests with segfault
-              'torch>=1.9.0,<2.12.0'
+              'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
