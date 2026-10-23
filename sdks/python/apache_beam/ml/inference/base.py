@@ -179,6 +179,25 @@ class KeyModelPathMapping(Generic[KeyT]):
   model_id: str = ''
 
 
+def _validate_batching_args(
+    max_batch_weight=None,
+    element_size_fn=None,
+    batch_length_fn=None,
+    batch_bucket_boundaries=None,
+):
+  if max_batch_weight is not None:
+    if element_size_fn is None:
+      raise ValueError('max_batch_weight requires element_size_fn to be set.')
+    if batch_length_fn is not None or batch_bucket_boundaries is not None:
+      raise ValueError(
+          'max_batch_weight cannot be combined with length-based batching '
+          '(batch_length_fn or batch_bucket_boundaries).')
+
+  if batch_bucket_boundaries is not None and batch_length_fn is None:
+    raise ValueError(
+        'batch_bucket_boundaries requires batch_length_fn to be set.')
+
+
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
   def __init__(
@@ -204,7 +223,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_weight: the maximum total weight of a batch, where the weight
         of an element is given by element_size_fn, which must be set. The
         batch size limits (min_batch_size and max_batch_size) then count
-        elements.
+        elements. Cannot be combined with batch_length_fn or
+        batch_bucket_boundaries.
       element_size_fn: a function that returns the size (weight) of an element.
         Without max_batch_weight, the batch size limits are expressed in this
         size instead of in number of elements.
@@ -214,6 +234,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         padding waste for variable-length inputs. Bucket assignment uses
         bisect_right so boundaries are lower-inclusive: e.g., for boundaries
         [10, 50], buckets are (-inf, 10), [10, 50), [50, inf).
+        Cannot be used together with max_batch_weight.
       batch_bucket_boundaries: a sorted list of positive boundary values for
         length bucketing. Boundaries are lower-inclusive (bisect_right
         semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
@@ -227,6 +248,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before loading the model.
     """
     self._env_vars = kwargs.get('env_vars', {})
+
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
+
     self._batching_kwargs: dict[str, Any] = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
