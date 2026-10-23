@@ -17,6 +17,7 @@ package schema
 
 import (
 	"bytes"
+	"math"
 	"math/big"
 	"reflect"
 	"testing"
@@ -213,5 +214,34 @@ func TestDecimal_NegativeScaleEncoding(t *testing.T) {
 	}
 	if got, want := (Decimal{Unscaled: big.NewInt(0), Scale: -2}).String(), "0"; got != want {
 		t.Errorf("zero with negative scale String() = %q, want %q", got, want)
+	}
+}
+
+func TestDecimal_StringExtremeScale(t *testing.T) {
+	for _, test := range []struct {
+		decimal Decimal
+		want    string
+	}{
+		{decimalOf("1", math.MinInt32), "1E+2147483648"},
+		{decimalOf("-12", math.MinInt32), "-12E+2147483648"},
+		{decimalOf("1", math.MaxInt32), "1E-2147483647"},
+		{decimalOf("-12", math.MaxInt32), "-12E-2147483647"},
+		{decimalOf("0", math.MinInt32), "0"},
+		{decimalOf("0", math.MaxInt32), "0E-2147483647"},
+	} {
+		var buf bytes.Buffer
+		if err := encodeDecimal(test.decimal, &buf); err != nil {
+			t.Fatal(err)
+		}
+		got, err := decodeDecimal(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !decimalEqual(got, test.decimal) {
+			t.Fatalf("round trip = %v, want %v", got, test.decimal)
+		}
+		if text := got.String(); text != test.want {
+			t.Errorf("String() = %q, want %q", text, test.want)
+		}
 	}
 }

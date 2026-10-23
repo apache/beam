@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -59,6 +60,7 @@ func ParseDecimal(s string) (Decimal, error) {
 }
 
 // String returns the decimal in plain notation, such as -100.123.
+// It uses scientific notation when scale padding would exceed 1 MiB.
 func (d Decimal) String() string {
 	unscaled := d.Unscaled
 	if unscaled == nil {
@@ -69,8 +71,15 @@ func (d Decimal) String() string {
 		if unscaled.Sign() == 0 {
 			return "0"
 		}
-		digits += strings.Repeat("0", int(-d.Scale))
+		zeros := -int64(d.Scale)
+		if int64(len(digits))+zeros > 1<<20 {
+			return unscaled.String() + "E+" + strconv.FormatInt(zeros, 10)
+		}
+		digits += strings.Repeat("0", int(zeros))
 	} else {
+		if int64(d.Scale)+2 > 1<<20 {
+			return unscaled.String() + "E-" + strconv.FormatInt(int64(d.Scale), 10)
+		}
 		scale := int(d.Scale)
 		if len(digits) <= scale {
 			digits = strings.Repeat("0", scale-len(digits)+1) + digits
