@@ -161,27 +161,58 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
   private Callable<ReadResult> createReadTask(
       String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     return () -> {
-      FileFormat format;
-      try {
-        format = AddFiles.inferFormat(filePath);
-      } catch (AddFiles.UnknownFormatException e) {
-        return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
+      ParquetMetadata footer;
+      if (AddFiles.hasNoExtension(filePath)) {
+        try {
+          footer = ParquetFooters.read(filePath);
+        } catch (Exception e) {
+          return unknownFormat(timestamp, window, paneInfo);
+        }
+      } else {
+        FileFormat format;
+        try {
+          format = AddFiles.inferFormat(filePath);
+        } catch (AddFiles.UnknownFormatException e) {
+          return unknownFormat(timestamp, window, paneInfo);
+        }
+        if (!format.equals(FileFormat.PARQUET)) {
+          return new ReadResult(
+              dryRunMarker(UNCHECKED_FORMAT_KEY), false, timestamp, window, paneInfo);
+        }
+        try {
+          footer = ParquetFooters.read(filePath);
+        } catch (Exception e) {
+          return unreadableFooter(filePath, e, timestamp, window, paneInfo);
+        }
       }
-      if (!format.equals(FileFormat.PARQUET)) {
-        return new ReadResult(
-            dryRunMarker(UNCHECKED_FORMAT_KEY), false, timestamp, window, paneInfo);
-      }
       try {
-        ParquetMetadata footer = ParquetFooters.read(filePath);
         return new ReadResult(FileSchemas.schemaGroup(footer), false, timestamp, window, paneInfo);
       } catch (Exception e) {
-        LOG.warn(
-            "Could not read the footer of {}; the file will not contribute to schema inference: {}",
-            filePath,
-            AddFiles.errorMessage(e));
-        return new ReadResult(dryRunMarker(UNREADABLE_KEY), true, timestamp, window, paneInfo);
+        return unconvertibleSchema(filePath, e, timestamp, window, paneInfo);
       }
     };
+  }
+
+  private ReadResult unknownFormat(Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
+  }
+
+  private ReadResult unreadableFooter(
+      String filePath, Exception e, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    LOG.warn(
+        "Could not read the footer of {}; the file will not contribute to schema inference: {}",
+        filePath,
+        AddFiles.errorMessage(e));
+    return new ReadResult(dryRunMarker(UNREADABLE_KEY), true, timestamp, window, paneInfo);
+  }
+
+  private ReadResult unconvertibleSchema(
+      String filePath, Exception e, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    LOG.warn(
+        "Could not convert the schema of {}; the file will not contribute to schema inference: {}",
+        filePath,
+        AddFiles.errorMessage(e));
+    return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
   }
 
   /** A dry run counts files that contribute no schema; a real run handles them at registration. */

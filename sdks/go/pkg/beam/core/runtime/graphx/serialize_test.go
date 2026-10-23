@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 )
 
@@ -86,6 +87,21 @@ func TestEncodeType(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "try to wrap the type as a field in a struct") {
 			t.Errorf("expected error about wrapping in a struct, got %q", err.Error())
+		}
+	})
+	t.Run("StandardLogicalTypes", func(t *testing.T) {
+		rt := reflect.TypeOf(struct {
+			D schema.Date
+			M schema.MicrosInstant
+		}{})
+		pbT, err := encodeType(rt)
+		if err != nil {
+			t.Fatalf("got error = %v, want nil", err)
+		}
+		for _, f := range pbT.GetFields() {
+			if got, want := f.GetType().GetKind(), v1pb.Type_EXTERNAL; got != want {
+				t.Errorf("got field %v kind == %v, want %v", f.GetName(), got, want)
+			}
 		}
 	})
 }
