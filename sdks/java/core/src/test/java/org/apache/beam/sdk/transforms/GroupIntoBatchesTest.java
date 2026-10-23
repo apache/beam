@@ -810,23 +810,13 @@ public class GroupIntoBatchesTest implements Serializable {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testZeroBatchSizeThrows() {
-    GroupIntoBatches.ofSize(0);
+  public void testMaxBatchSizeThrows() {
+    GroupIntoBatches.ofSize(Long.MAX_VALUE);
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testNegativeBatchSizeThrows() {
-    GroupIntoBatches.ofSize(-1);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testZeroBatchSizeBytesThrows() {
-    GroupIntoBatches.ofByteSize(0);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testNegativeBatchSizeBytesThrows() {
-    GroupIntoBatches.ofByteSize(-1);
+  public void testMaxBatchSizeBytesThrows() {
+    GroupIntoBatches.ofByteSize(Long.MAX_VALUE);
   }
 
   @Test

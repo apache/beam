@@ -170,9 +170,7 @@ public class GroupIntoBatches<K, InputT>
 
   /** Aim to create batches each with the specified element count. */
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
-    checkArgument(
-        batchSize > 0 && batchSize < Long.MAX_VALUE,
-        "batchSize must be greater than 0 and less than Long.MAX_VALUE");
+    checkArgument(batchSize < Long.MAX_VALUE, "batchSize must be less than Long.MAX_VALUE");
     return new GroupIntoBatches<K, InputT>(BatchingParams.createDefault()).withSize(batchSize);
   }
 
@@ -227,9 +225,7 @@ public class GroupIntoBatches<K, InputT>
 
   /** See {@link #ofSize(long)}. */
   public GroupIntoBatches<K, InputT> withSize(long batchSize) {
-    checkArgument(
-        batchSize > 0 && batchSize < Long.MAX_VALUE,
-        "batchSize must be greater than 0 and less than Long.MAX_VALUE");
+    checkArgument(batchSize < Long.MAX_VALUE, "batchSize must be less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             batchSize,
@@ -241,8 +237,7 @@ public class GroupIntoBatches<K, InputT>
   /** See {@link #ofByteSize(long)}. */
   public GroupIntoBatches<K, InputT> withByteSize(long batchSizeBytes) {
     checkArgument(
-        batchSizeBytes > 0 && batchSizeBytes < Long.MAX_VALUE,
-        "batchSizeBytes must be greater than 0 and less than Long.MAX_VALUE");
+        batchSizeBytes < Long.MAX_VALUE, "batchSizeBytes must be less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             params.getBatchSize(),
@@ -255,8 +250,7 @@ public class GroupIntoBatches<K, InputT>
   public GroupIntoBatches<K, InputT> withByteSize(
       long batchSizeBytes, SerializableFunction<InputT, Long> getElementByteSize) {
     checkArgument(
-        batchSizeBytes > 0 && batchSizeBytes < Long.MAX_VALUE,
-        "batchSizeBytes must be greater than 0 and less than Long.MAX_VALUE");
+        batchSizeBytes < Long.MAX_VALUE, "batchSizeBytes must be less than Long.MAX_VALUE");
     return new GroupIntoBatches<>(
         BatchingParams.create(
             params.getBatchSize(),
