@@ -23,12 +23,20 @@ Tests:
   - ReadBigQueryChangeHistory validation
 """
 
+import contextlib
 import datetime
 import unittest
+from unittest import mock
 
+import apache_beam as beam
+from apache_beam import typehints
+from apache_beam.io.gcp import bigquery_change_history as bqch
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
 from apache_beam.io.gcp.bigquery_change_history import build_changes_query
 from apache_beam.io.gcp.bigquery_change_history import compute_ranges
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -67,13 +75,54 @@ class BuildChangesQueryTest(unittest.TestCase):
     self.assertIn('CHANGES', sql)
     self.assertIn('TABLE `proj.ds.tbl`', sql)
 
+  def test_changes_hides_is_for_update(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'CHANGES')
+    self.assertIn(
+        'EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP, _CHANGE_IS_FOR_UPDATE)', sql)
+
+  def test_appends_has_no_is_for_update(self):
+    """APPENDS() has no _CHANGE_IS_FOR_UPDATE; EXCEPT on it would fail."""
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'APPENDS')
+    self.assertIn('EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP)', sql)
+    self.assertNotIn('_CHANGE_IS_FOR_UPDATE', sql)
+
   def test_columns_select(self):
     start = _ts(2025, 1, 1)
     end = _ts(2025, 1, 2)
     sql = build_changes_query(
         'proj.ds.tbl', start, end, 'APPENDS', columns=['col_a', 'col_b'])
-    self.assertIn('SELECT col_a, col_b, _CHANGE_TYPE AS', sql)
+    self.assertIn('SELECT `col_a`, `col_b`, _CHANGE_TYPE AS', sql)
     self.assertNotIn('EXCEPT', sql)
+
+  def test_columns_empty_selects_only_pseudo_columns(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'APPENDS', columns=[])
+    self.assertIn('SELECT _CHANGE_TYPE AS', sql)
+
+  def test_pseudo_column_names_quoted(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query(
+        'proj.ds.tbl',
+        start,
+        end,
+        'APPENDS',
+        change_type_column='op type',
+        change_timestamp_column='from')
+    self.assertIn('_CHANGE_TYPE AS `op type`', sql)
+    self.assertIn('_CHANGE_TIMESTAMP AS `from`', sql)
+
+  def test_column_with_backtick_rejected(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    with self.assertRaises(ValueError):
+      build_changes_query(
+          'proj.ds.tbl', start, end, 'APPENDS', columns=['a` FROM x --'])
 
   def test_columns_none_selects_all(self):
     start = _ts(2025, 1, 1)
@@ -106,7 +155,7 @@ class BuildChangesQueryTest(unittest.TestCase):
         'CHANGES',
         columns=['id', 'name'],
         row_filter='id > 100')
-    self.assertIn('SELECT id, name, _CHANGE_TYPE AS', sql)
+    self.assertIn('SELECT `id`, `name`, _CHANGE_TYPE AS', sql)
     self.assertNotIn('EXCEPT', sql)
     self.assertIn('WHERE id > 100', sql)
 
@@ -203,6 +252,98 @@ class ValidationTest(unittest.TestCase):
     self.assertEqual(t._buffer_sec, 10)
     t = ReadBigQueryChangeHistory(table='p:d.t', change_function='APPENDS')
     self.assertEqual(t._buffer_sec, 10)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class QuotaProjectTest(unittest.TestCase):
+  """Tests that the quota project reaches every BigQuery client."""
+  _QUOTA = 'my-billing-project'
+
+  def _assert_wrapper_quota(self, fn):
+    with mock.patch.object(bigquery_tools, 'BigQueryWrapper') as mock_wrapper:
+      fn.setup()
+    self.assertEqual(
+        mock_wrapper.call_args.kwargs['quota_project_id'], self._QUOTA)
+
+  def test_poll_fn_setup_passes_quota_project(self):
+    fn = bqch._PollChangeHistoryFn(
+        table='proj:dataset.table',
+        project='p',
+        change_function='APPENDS',
+        buffer=Duration(seconds=10),
+        start_time=Timestamp(0),
+        stop_time=Timestamp(100),
+        poll_interval=Duration(seconds=60),
+        quota_project_id=self._QUOTA)
+    self._assert_wrapper_quota(fn)
+
+  def test_execute_query_fn_setup_passes_quota_project(self):
+    fn = bqch._ExecuteQueryFn(
+        table='proj:dataset.table',
+        project='p',
+        change_function='APPENDS',
+        temp_dataset='tmp',
+        location='US',
+        quota_project_id=self._QUOTA)
+    self._assert_wrapper_quota(fn)
+
+  def test_cleanup_fn_setup_passes_quota_project(self):
+    self._assert_wrapper_quota(bqch._CleanupTempTablesFn(self._QUOTA))
+
+  def test_read_sdf_creates_storage_client_with_quota_project(self):
+    fn = bqch._ReadStorageStreamsSDF(quota_project_id=self._QUOTA)
+    with mock.patch.object(bigquery_tools,
+                           'create_bq_storage_client') as mock_create:
+      fn.setup()
+    mock_create.assert_called_once_with(self._QUOTA)
+
+  def test_expand_resolves_quota_project_from_options(self):
+    options = PipelineOptions(
+        ['--quota_project_id=' + self._QUOTA, '--no_pipeline_type_check'])
+    classes = [
+        '_PollChangeHistoryFn',
+        '_ExecuteQueryFn',
+        '_ReadStorageStreamsSDF',
+        '_CleanupTempTablesFn'
+    ]
+    p = TestPipeline(options=options)
+    with contextlib.ExitStack() as stack:
+      mocks = [
+          stack.enter_context(
+              mock.patch.object(
+                  getattr(bqch, name),
+                  '__init__',
+                  autospec=True,
+                  side_effect=getattr(bqch, name).__init__)) for name in classes
+      ]
+      _ = p | ReadBigQueryChangeHistory(
+          table='p:d.t', project='p', start_time=0, temp_dataset='tmp')
+    for name, m in zip(classes, mocks):
+      self.assertEqual(
+          m.call_args.kwargs['quota_project_id'], self._QUOTA, name)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class PipelineConstructionTest(unittest.TestCase):
+  """Applies the transform with pipeline type checking on (the default)."""
+  def _apply(self, reshuffle_decompress):
+    p = beam.Pipeline()
+    return p | ReadBigQueryChangeHistory(
+        table='p:d.t',
+        project='p',
+        temp_dataset='tmp',
+        location='US',
+        start_time=1700000000,
+        stop_time=1700000060,
+        reshuffle_decompress=reshuffle_decompress)
+
+  def test_reshuffle_decompress_output_type(self):
+    rows = self._apply(reshuffle_decompress=True)
+    self.assertEqual(rows.element_type, typehints.Dict[str, typehints.Any])
+
+  def test_inline_decompress_output_type(self):
+    rows = self._apply(reshuffle_decompress=False)
+    self.assertEqual(rows.element_type, typehints.Dict[str, typehints.Any])
 
 
 if __name__ == '__main__':

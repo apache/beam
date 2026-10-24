@@ -33,6 +33,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Notification;
 import com.google.cloud.storage.NotificationInfo;
 import com.google.cloud.storage.Storage;
@@ -696,6 +698,182 @@ public class AddFilesIT {
         .containsInAnyOrder(
             expected.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
     s.run().waitUntilFinish();
+  }
+
+  /**
+   * Hive names Parquet files without an extension (000000_0), and Spark and Hadoop leave a _SUCCESS
+   * marker beside them. The files register and read back, BigQuery included; the marker is one
+   * error row and must not seed the table.
+   */
+  @Test
+  public void testBatchImportOfParquetFilesWithoutExtension() throws IOException {
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
+    q.apply(Create.of(TEST_ROWS))
+        .setRowSchema(ROW_SCHEMA)
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(record -> String.valueOf(record.get("id")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(
+                    id ->
+                        (window, pane, numShards, shardIndex, compression) ->
+                            format("%06d_%d", Long.parseLong(id), shardIndex))
+                .withTempDirectory(tempDir)
+                .to(parquetDir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
+    String marker = parquetDir + "_SUCCESS";
+    storage.create(
+        BlobInfo.newBuilder(BlobId.of(DATA_BUCKET, dirName + "/_SUCCESS")).build(), new byte[0]);
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> dataFiles = new ArrayList<>();
+    for (StorageObject object : gcsUtil.listObjects(DATA_BUCKET, dirName + "/", null).getItems()) {
+      String path = format("gs://%s/%s", object.getBucket(), object.getName());
+      if (!path.equals(marker)) {
+        dataFiles.add(path);
+      }
+    }
+    LOG.info("Extensionless files: {}", dataFiles);
+    assertEquals(TEST_ROWS.size(), dataFiles.size());
+    for (String path : dataFiles) {
+      assertFalse(path, path.substring(path.lastIndexOf('/') + 1).contains("."));
+    }
+    List<String> inputs = new ArrayList<>(dataFiles);
+    inputs.add(marker);
+
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(inputs))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    null,
+                    null,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null));
+    PAssert.that(tuple.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              String error = String.valueOf(row.getString("error"));
+              LOG.info("Marker error row: {}", row);
+              assertEquals(marker, row.getString("file"));
+              assertTrue(error, error.startsWith(AddFiles.ConvertToDataFile.NOT_PARQUET_ERROR));
+              return null;
+            });
+    p.run().waitUntilFinish();
+
+    assertTrue(checkTableHasRegisteredParquetFiles(dataFiles));
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
+  }
+
+  /**
+   * Files under dt=2024-01-15/ and dt=2024-01-16/ with no dt column, into a table with a required
+   * dt: dt stays required, and Beam and BigQuery read it from the folder names.
+   */
+  @Test
+  public void testBatchImportOfRequiredPartitionColumnFromThePath() throws IOException {
+    org.apache.iceberg.Schema withDt =
+        new org.apache.iceberg.Schema(
+            org.apache.iceberg.types.Types.NestedField.required(
+                1, "id", org.apache.iceberg.types.Types.LongType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                2, "name", org.apache.iceberg.types.Types.StringType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                3, "age", org.apache.iceberg.types.Types.IntegerType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                4, "dt", org.apache.iceberg.types.Types.StringType.get()));
+    catalog.createTable(
+        destTableId, withDt, PartitionSpec.builderFor(withDt).identity("dt").build());
+
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    writeParquet(
+        TEST_ROWS.subList(0, 10), ROW_SCHEMA, parquetDir + "dt=2024-01-15/", tempDir + "a/");
+    writeParquet(
+        TEST_ROWS.subList(10, 20), ROW_SCHEMA, parquetDir + "dt=2024-01-16/", tempDir + "b/");
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> files = new ArrayList<>();
+    for (StorageObject object : gcsUtil.listObjects(DATA_BUCKET, dirName + "/", null).getItems()) {
+      files.add(format("gs://%s/%s", object.getBucket(), object.getName()));
+    }
+    assertEquals(20, files.size());
+
+    SchemaEvolutionConfig evolution =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .build();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(files))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    parquetDir,
+                    null,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null,
+                    evolution));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    Table destTable = catalog.loadTable(destTableId);
+    assertTrue("dt stays required", destTable.schema().findField("dt").isRequired());
+
+    List<String> expected = new ArrayList<>();
+    for (Row row : TEST_ROWS) {
+      String dt = checkStateNotNull(row.getInt64("id")) < 10 ? "2024-01-15" : "2024-01-16";
+      expected.add(canonicalRecord(row) + "|" + dt);
+    }
+    Pipeline s = Pipeline.create();
+    PCollection<String> icebergRows =
+        s.apply(
+                Managed.read(Managed.ICEBERG)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
+            .getSinglePCollection()
+            .apply(
+                "canonicalize iceberg rows", MapElements.into(strings()).via(AddFilesIT::withDt));
+    PAssert.that(icebergRows).containsInAnyOrder(expected);
+    PCollection<String> bqRows =
+        s.apply(
+                "read with BigQueryIO",
+                Managed.read(Managed.BIGQUERY)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            format(
+                                "%s.%s.%s.%s",
+                                PROJECT,
+                                LakehouseTestCatalog.CATALOG_ID,
+                                destTableId.namespace(),
+                                destTableId.name()))))
+            .getSinglePCollection()
+            .apply("canonicalize bq rows", MapElements.into(strings()).via(AddFilesIT::withDt));
+    PAssert.that(bqRows).containsInAnyOrder(expected);
+    s.run().waitUntilFinish();
+  }
+
+  private static String withDt(Row row) {
+    return canonicalRecord(row) + "|" + String.valueOf((Object) row.getValue("dt"));
   }
 
   private static void writeParquet(List<Row> rows, Schema schema, String dir, String tempDir) {

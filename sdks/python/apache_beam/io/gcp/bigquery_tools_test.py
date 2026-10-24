@@ -23,6 +23,7 @@ import io
 import json
 import logging
 import math
+import os
 import re
 import unittest
 from typing import Optional
@@ -35,10 +36,12 @@ import pytz
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
@@ -50,6 +53,9 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import BigQueryOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
@@ -239,6 +245,133 @@ class TestTableReferenceParser(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryEndpoint(unittest.TestCase):
+  def setUp(self):
+    self._saved_runtime_options = RuntimeValueProvider.runtime_options
+    self._saved_experiments = RuntimeValueProvider.experiments
+    RuntimeValueProvider.runtime_options = None
+    env_patcher = mock.patch.dict(os.environ)
+    env_patcher.start()
+    self.addCleanup(env_patcher.stop)
+    os.environ.pop('GOOGLE_CLOUD_UNIVERSE_DOMAIN', None)
+
+  def tearDown(self):
+    RuntimeValueProvider.runtime_options = self._saved_runtime_options
+    RuntimeValueProvider.experiments = self._saved_experiments
+
+  def test_default_endpoint(self):
+    options = PipelineOptions([])
+    self.assertIsNone(options.view_as(BigQueryOptions).bigquery_endpoint)
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bigquery.googleapis.com/bigquery/v2/')
+    self.assertIsNone(bigquery_tools.get_bigquery_client_options(options))
+
+  def test_default_universe_domain_uses_default_endpoint(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'googleapis.com'
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(PipelineOptions([])),
+        'https://bigquery.googleapis.com/bigquery/v2/')
+
+  def test_universe_domain_from_env(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'example-tpc.goog'
+    options = PipelineOptions([])
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bigquery.example-tpc.goog/bigquery/v2/')
+    # google-cloud-bigquery resolves the universe domain by itself.
+    self.assertIsNone(bigquery_tools.get_bigquery_client_options(options))
+
+  @parameterized.expand([
+      ('https://bq.example.com', ),
+      ('https://bq.example.com/', ),
+      ('https://bq.example.com/bigquery/v2', ),
+      ('https://bq.example.com/bigquery/v2/', ),
+      ('bq.example.com', ),
+  ])
+  def test_explicit_endpoint(self, endpoint):
+    options = PipelineOptions(['--bigquery_endpoint', endpoint])
+    self.assertEqual(
+        options.view_as(BigQueryOptions).bigquery_endpoint, endpoint)
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'https://bq.example.com/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(options),
+        {'api_endpoint': 'https://bq.example.com'})
+
+  def test_explicit_endpoint_takes_precedence_over_universe_domain(self):
+    os.environ['GOOGLE_CLOUD_UNIVERSE_DOMAIN'] = 'example-tpc.goog'
+    options = PipelineOptions(['--bigquery_endpoint=http://localhost:9050'])
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(options),
+        'http://localhost:9050/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(options),
+        {'api_endpoint': 'http://localhost:9050'})
+
+  def test_endpoint_from_runtime_options(self):
+    # On workers, clients may be created without the pipeline options.
+    RuntimeValueProvider.set_runtime_options(
+        {'big_query_endpoint': 'https://bq.example.com'})
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(PipelineOptions([])),
+        'https://bq.example.com/bigquery/v2/')
+    self.assertEqual(
+        bigquery_tools.get_bigquery_client_options(None),
+        {'api_endpoint': 'https://bq.example.com'})
+
+  def test_endpoint_attribute_alias_setter(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    bq_options.bigquery_endpoint = 'https://bq.example.com'
+    self.assertEqual(
+        bigquery_tools.get_bigquery_api_url(bq_options),
+        'https://bq.example.com/bigquery/v2/')
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  def test_bigquery_client_uses_endpoint(self, unused_mock_credentials):
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    client = bigquery_tools.BigQueryWrapper._bigquery_client(options)
+    self.assertEqual(client.url, 'https://bq.example.com/bigquery/v2/')
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_wrapper_applies_endpoint_to_both_clients(
+      self, mock_gcp_bq, unused_mock_credentials):
+    mock_gcp_client = mock_gcp_bq.Client
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    wrapper = bigquery_tools.BigQueryWrapper(pipeline_options=options)
+    self.assertEqual(wrapper.client.url, 'https://bq.example.com/bigquery/v2/')
+    # The google-cloud-bigquery client is created on first use.
+    wrapper.gcp_bq_client  # pylint: disable=pointless-statement
+    self.assertEqual(
+        mock_gcp_client.call_args.kwargs['client_options'],
+        {'api_endpoint': 'https://bq.example.com'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_client_merges_endpoint_and_quota_project(self, mock_gcp_bq):
+    mock_gcp_client = mock_gcp_bq.Client
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    bigquery_tools.BigQueryWrapper._gcp_bigquery_client(
+        quota_project_id='billing', pipeline_options=options)
+    self.assertEqual(
+        mock_gcp_client.call_args.kwargs['client_options'], {
+            'api_endpoint': 'https://bq.example.com',
+            'quota_project_id': 'billing'
+        })
+
+  @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
+  def test_quota_project_header_sent_to_custom_endpoint(self, mock_credentials):
+    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    bigquery_tools.BigQueryWrapper._bigquery_client(
+        options, quota_project_id='billing')
+    # apitools wraps the given http with credentials.authorize().
+    http = mock_credentials.return_value.authorize.call_args.args[0]
+    self.assertIsInstance(http, bigquery_tools._HttpWithHeaders)
+    self.assertIn('bq.example.com', http._hosts)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
@@ -299,14 +432,16 @@ class TestBigQueryWrapper(unittest.TestCase):
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(
       self, http_mock, patched_skip_get_credentials, patched_sleep):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
-    try:
-      wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
-    except:  # pylint: disable=bare-except
-      # Ignore errors. The errors come from the fact that we did not mock
-      # the response from the API, so the overall insert_all_rows call fails
-      # soon after the BQ API is called.
-      pass
+    # Set GOOGLE_CLOUD_PROJECT to ensure Client creation succeeds in test env
+    with mock.patch.dict(os.environ, {'GOOGLE_CLOUD_PROJECT': 'test-project'}):
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+      try:
+        wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
+      except:  # pylint: disable=bare-except
+        # Ignore errors. The errors come from the fact that we did not mock
+        # the response from the API, so the overall insert_all_rows call fails
+        # soon after the BQ API is called.
+        pass
     call = http_mock.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
 
@@ -1199,8 +1334,6 @@ class TestGeographyTypeSupport(unittest.TestCase):
 
   def test_geography_field_conversion(self):
     """Test that GEOGRAPHY fields are converted correctly."""
-    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-
     # Create a mock field with GEOGRAPHY type
     field = bigquery.TableFieldSchema()
     field.type = 'GEOGRAPHY'
@@ -1322,8 +1455,6 @@ class TestGeographyTypeSupport(unittest.TestCase):
 
   def test_geography_with_special_characters(self):
     """Test GEOGRAPHY values with special characters and geometries."""
-    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-
     field = bigquery.TableFieldSchema()
     field.type = 'GEOGRAPHY'
     field.name = 'complex_geo'
@@ -1500,6 +1631,215 @@ class TestTypeOverrides(unittest.TestCase):
     # Or map to dict
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryWrapperQuotaProject(unittest.TestCase):
+  """Tests for quota_project_id in BigQueryWrapper."""
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_quota_project_id_stored(self, mock_gcp_client, mock_bq_client):
+    """Test that quota_project_id is stored in BigQueryWrapper."""
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    wrapper = BigQueryWrapper(quota_project_id='my-billing-project')
+    self.assertEqual(wrapper.quota_project_id, 'my-billing-project')
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_from_pipeline_options_reads_quota_from_options(
+      self, mock_gcp_client, mock_bq_client):
+    """Test from_pipeline_options reads quota_project_id from
+    GoogleCloudOptions."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+
+    self.assertEqual(wrapper.quota_project_id, 'my-billing-project')
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_from_pipeline_options_none_when_not_set(
+      self, mock_gcp_client, mock_bq_client):
+    """Test from_pipeline_options returns None when quota_project_id not set."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    options = PipelineOptions([])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+
+    self.assertIsNone(wrapper.quota_project_id)
+
+  def test_http_with_headers_sets_headers_and_delegates(self):
+    from apache_beam.io.gcp.bigquery_tools import _HttpWithHeaders
+    inner = mock.MagicMock()
+    inner.request.return_value = ('response', b'content')
+    inner.redirect_codes = {301, 302}
+    http = _HttpWithHeaders(
+        inner, {'x-goog-user-project': 'p'}, hosts=['example.com'])
+
+    result = http.request(
+        'https://example.com',
+        method='GET',
+        headers={
+            'x-goog-user-project': 'other', 'accept': 'json'
+        },
+        redirections=3)
+
+    self.assertEqual(result, ('response', b'content'))
+    inner.request.assert_called_once_with(
+        'https://example.com',
+        'GET',
+        body=None,
+        headers={
+            'x-goog-user-project': 'p', 'accept': 'json'
+        },
+        redirections=3)
+    # Attribute reads and writes reach the wrapped http.
+    self.assertEqual(http.redirect_codes, {301, 302})
+    http.redirect_codes = {301}
+    self.assertEqual(inner.redirect_codes, {301})
+
+  def test_http_with_headers_survives_copy(self):
+    import copy
+
+    from apache_beam.io.gcp.bigquery_tools import _HttpWithHeaders
+    inner = mock.MagicMock()
+    http = copy.copy(
+        _HttpWithHeaders(
+            inner, {'x-goog-user-project': 'p'}, hosts=['example.com']))
+
+    http.request('https://example.com')
+    inner.request.assert_called_once_with(
+        'https://example.com',
+        'GET',
+        body=None,
+        headers={'x-goog-user-project': 'p'})
+
+  def test_http_with_headers_skips_other_hosts(self):
+    from apache_beam.io.gcp.bigquery_tools import _HttpWithHeaders
+    inner = mock.MagicMock()
+    http = _HttpWithHeaders(
+        inner, {'x-goog-user-project': 'p'}, hosts=['example.com'])
+
+    http.request('https://oauth2.googleapis.com/token', headers={'a': 'b'})
+    inner.request.assert_called_once_with(
+        'https://oauth2.googleapis.com/token',
+        'GET',
+        body=None,
+        headers={'a': 'b'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.bq_storage')
+  def test_create_bq_storage_client_with_quota_project(self, mock_bq_storage):
+    """The quota project is passed as a client option; the client applies it
+    to the credentials it resolves itself."""
+    bigquery_tools.create_bq_storage_client('my-billing-project')
+    mock_bq_storage.BigQueryReadClient.assert_called_once_with(
+        client_options={'quota_project_id': 'my-billing-project'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.bq_storage')
+  def test_create_bq_storage_client_without_quota_project(
+      self, mock_bq_storage):
+    """Without a quota project the client is created with defaults."""
+    bigquery_tools.create_bq_storage_client(None)
+    mock_bq_storage.BigQueryReadClient.assert_called_once_with()
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.auth.get_service_credentials')
+  def test_bigquery_client_raises_without_credentials(
+      self, mock_get_credentials):
+    """An explicit quota project must fail loudly rather than fall back to
+    apitools' own credential discovery, which would bill another project."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+    mock_get_credentials.return_value = None
+
+    with self.assertRaisesRegex(ValueError, 'no credentials were found'):
+      BigQueryWrapper._bigquery_client(
+          PipelineOptions(), quota_project_id='requested-project')
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.get_new_http')
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.auth.get_service_credentials')
+  def test_bigquery_client_quota_project_wins_over_credentials(
+      self, mock_get_credentials, mock_get_new_http):
+    """The requested quota project must reach every BigQuery request,
+    including the retry after a 401 refresh, even when the credentials carry
+    their own, but not the token refresh requests."""
+    import httplib2
+    from google.auth import credentials as ga_credentials
+
+    from apache_beam.internal.gcp import auth
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    class CredentialsWithQuotaProject(ga_credentials.Credentials):
+      def __init__(self):
+        super().__init__()
+        self._quota_project_id = 'adc-project'
+
+      def refresh(self, request):
+        # Token refreshes go through the same Http as the API requests.
+        request('https://oauth2.googleapis.com/token', method='POST')
+        self.token = 'token'
+
+    seen_headers = []
+    token_request_headers = []
+    statuses = iter([401, 200])
+
+    class FakeHttp(object):
+      connections = {}
+      redirect_codes = set()
+
+      def request(self, uri, method='GET', body=None, headers=None, **kwargs):
+        if uri.startswith('https://oauth2.googleapis.com/'):
+          token_request_headers.append(dict(headers or {}))
+          return httplib2.Response({'status': 200}), b'{}'
+        seen_headers.append(dict(headers))
+        response = httplib2.Response({
+            'status': next(statuses), 'content-type': 'application/json'
+        })
+        return response, b'{}'
+
+    mock_get_new_http.return_value = FakeHttp()
+    mock_get_credentials.return_value = auth._ApitoolsCredentialsAdapter(
+        CredentialsWithQuotaProject())
+
+    client = BigQueryWrapper._bigquery_client(
+        PipelineOptions(), quota_project_id='requested-project')
+    client.projects.List(bigquery.BigqueryProjectsListRequest())
+
+    self.assertEqual(len(seen_headers), 2)
+    for headers in seen_headers:
+      self.assertEqual(headers['x-goog-user-project'], 'requested-project')
+      self.assertEqual(headers['authorization'], 'Bearer token')
+    # The quota project must not be sent to the token endpoint.
+    self.assertTrue(token_request_headers)
+    for headers in token_request_headers:
+      self.assertNotIn('x-goog-user-project', headers)
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_passes_quota_project(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
+    BigQueryWrapper._gcp_bigquery_client(quota_project_id='my-billing-project')
+    self.assertEqual(
+        mock_client.call_args.kwargs['client_options'],
+        {'quota_project_id': 'my-billing-project'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_gcp_bq):
+    mock_client = mock_gcp_bq.Client
+    BigQueryWrapper._gcp_bigquery_client()
+    self.assertIsNone(mock_client.call_args.kwargs['client_options'])
 
 
 if __name__ == '__main__':
