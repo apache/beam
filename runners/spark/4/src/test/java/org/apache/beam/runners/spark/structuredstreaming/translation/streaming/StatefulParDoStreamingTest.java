@@ -125,11 +125,12 @@ public class StatefulParDoStreamingTest implements Serializable {
     String c1 = StreamingTestUtils.newCollectorId("r1");
     String c2 = StreamingTestUtils.newCollectorId("r2");
 
+    TestUnboundedSource.extend(TAG_RESTART, 3);
     Pipeline p1 =
         pipeline(
             StreamingTestUtils.streamingOptions(checkpoint),
             TAG_RESTART,
-            3,
+            10,
             new RestartTestFn(),
             c1);
     assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(p1).getState());
