@@ -896,4 +896,51 @@ public class RowTest {
     assertEquals(expectedCamelCaseInnerRow, row.toCamelCase().getRow("myRowField"));
     assertEquals(expectedCamelCaseRow, row.toCamelCase());
   }
+
+  @Test
+  public void testLogicalTypeBytesEqualsAndHashCode() {
+    Schema.LogicalType<ByteBuffer, byte[]> wrappedBytesType =
+        new Schema.LogicalType<ByteBuffer, byte[]>() {
+          @Override
+          public String getIdentifier() {
+            return "wrapped_bytes";
+          }
+
+          @Override
+          public FieldType getArgumentType() {
+            return FieldType.STRING;
+          }
+
+          @Override
+          public String getArgument() {
+            return "";
+          }
+
+          @Override
+          public FieldType getBaseType() {
+            return FieldType.BYTES;
+          }
+
+          @Override
+          public byte[] toBaseType(ByteBuffer input) {
+            byte[] bytes = new byte[input.remaining()];
+            input.duplicate().get(bytes);
+            return bytes;
+          }
+
+          @Override
+          public ByteBuffer toInputType(byte[] base) {
+            return ByteBuffer.wrap(base);
+          }
+        };
+
+    Schema schema = Schema.builder().addLogicalTypeField("f_bytes", wrappedBytesType).build();
+    Row row1 =
+        Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+    Row row2 =
+        Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+
+    assertEquals(row1, row2);
+    assertEquals(row1.hashCode(), row2.hashCode());
+  }
 }
