@@ -21,16 +21,12 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
-import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -43,10 +39,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @SuppressWarnings("rawtypes")
 public class RowWithGetters<T extends @NonNull Object> extends Row {
+  private static final Object NULL_VALUE = new Object();
+
   private final T getterTarget;
   private final TypeDescriptor<?> getterTargetType;
   private final List<FieldValueGetter<T, Object>> getters;
-  private @Nullable Map<Integer, @Nullable Object> cache = null;
+  private transient @Nullable Object @Nullable [] cache = null;
 
   RowWithGetters(
       Schema schema,
@@ -63,28 +61,20 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <W> W getValue(int fieldIdx) {
     Field field = getSchema().getField(fieldIdx);
-    boolean cacheField = cacheFieldType(field);
-
-    if (cacheField && cache == null) {
-      cache = new TreeMap<>();
-    }
-
     @Nullable Object fieldValue;
-    if (cacheField) {
+    if (cacheFieldType(field)) {
       if (cache == null) {
-        cache = new TreeMap<>();
+        cache = new Object[getters.size()];
       }
-      fieldValue =
-          cache.computeIfAbsent(
-              fieldIdx,
-              new Function<Integer, @Nullable Object>() {
-                @Override
-                public @Nullable Object apply(Integer idx) {
-                  FieldValueGetter<T, Object> getter = getters.get(idx);
-                  checkStateNotNull(getter);
-                  return getter.get(getterTarget);
-                }
-              });
+      Object cached = cache[fieldIdx];
+      if (cached == null) {
+        FieldValueGetter<T, Object> getter = getters.get(fieldIdx);
+        checkStateNotNull(getter);
+        fieldValue = getter.get(getterTarget);
+        cache[fieldIdx] = (fieldValue == null) ? NULL_VALUE : fieldValue;
+      } else {
+        fieldValue = (cached == NULL_VALUE) ? null : cached;
+      }
     } else {
       fieldValue = getters.get(fieldIdx).get(getterTarget);
     }
@@ -100,10 +90,16 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
   }
 
   private boolean cacheFieldType(Field field) {
-    TypeName typeName = field.getType().getTypeName();
-    return typeName.equals(TypeName.MAP)
-        || typeName.equals(TypeName.ARRAY)
-        || typeName.equals(TypeName.ITERABLE);
+    switch (field.getType().getTypeName()) {
+      case MAP:
+      case ARRAY:
+      case ITERABLE:
+      case ROW:
+      case LOGICAL_TYPE:
+        return true;
+      default:
+        return false;
+    }
   }
 
   @Override

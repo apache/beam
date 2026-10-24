@@ -18,22 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
-import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
-import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
-import org.apache.beam.sdk.values.RowUtils.RowPosition;
 
 public abstract class SchemaVerification implements Serializable {
   public static Object verifyFieldValue(Object value, FieldType type, String fieldName) {
-    Schema schema = Schema.builder().addField(fieldName, type).build();
-    return new RowFieldMatcher()
-        .match(
-            new CapturingRowCases(schema, new FieldOverrides(schema)),
-            type,
-            new RowPosition(FieldAccessDescriptor.withFieldIds(0)),
-            value);
+    return RowUtils.captureValue(type, value, fieldName);
   }
 }
