@@ -1064,15 +1064,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 if (descriptor != null) {
                   for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
                     ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
+                    TableRow row;
                     try {
-                      TableRow row =
+                      row =
                           Preconditions.checkStateNotNull(appendClientInfo)
                               .toTableRow(rowBytes, successfulRowsPredicate);
-                      org.joda.time.Instant timestamp = c.timestamps.get(i);
-                      successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                     } catch (Exception e) {
                       LOG.warn("Failure parsing TableRow", e);
+                      continue;
                     }
+                    org.joda.time.Instant timestamp = c.timestamps.get(i);
+                    successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                   }
                 }
               }
