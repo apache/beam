@@ -63,7 +63,13 @@ public class CdcReadUtilsTest {
       new org.apache.iceberg.Schema(
           ImmutableList.of(
               Types.NestedField.required(1, "id", Types.LongType.get()),
-              Types.NestedField.optional(2, "data", Types.StringType.get())),
+              Types.NestedField.optional(2, "data", Types.StringType.get()),
+              Types.NestedField.optional(
+                  3,
+                  "metadata",
+                  Types.StructType.of(
+                      Types.NestedField.optional(4, "source", Types.StringType.get()),
+                      Types.NestedField.optional(5, "region", Types.StringType.get())))),
           ImmutableSet.of(1));
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -206,19 +212,27 @@ public class CdcReadUtilsTest {
                 record(0L, "already-hidden-by-position"),
                 record(1L, "still-live-one"),
                 record(2L, "already-hidden-by-equality"),
-                record(3L, "still-live-two")));
+                record(3L, "still-live-two"),
+                record(4L, "already-hidden-by-nested-equality", "hidden")));
 
     DeleteFile existingPositionDelete =
         writePositionDelete(table, dataFile, "cdc-deleted-file-pos-delete.parquet", 0L);
     DeleteFile existingEqualityDelete =
         writeEqualityDelete(
             table, dataFile, "cdc-deleted-file-eq-delete.parquet", "already-hidden-by-equality");
+    DeleteFile existingNestedEqualityDelete =
+        writeSourceEqualityDelete(
+            table,
+            dataFile,
+            "cdc-deleted-file-nested-eq-delete.parquet",
+            record(-1L, null, "hidden"));
     SerializableChangelogTask task =
         task(
             SerializableChangelogTask.Type.DELETED_FILE,
             dataFile,
             ImmutableList.of(),
-            ImmutableList.of(existingPositionDelete, existingEqualityDelete),
+            ImmutableList.of(
+                existingPositionDelete, existingEqualityDelete, existingNestedEqualityDelete),
             table);
 
     CloseableIterable<Record> records =
@@ -276,10 +290,119 @@ public class CdcReadUtilsTest {
     assertEquals(ImmutableList.of(1L), idsOf(records));
   }
 
+  @Test
+  public void deletedRowsPushesDownNestedEqualityDeletes() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    DataFile dataFile =
+        warehouse.writeRecords(
+            "cdc-nested-eq.parquet",
+            table.schema(),
+            ImmutableList.of(
+                record(0L, "a", "new-equality-delete"),
+                record(1L, "b", "already-hidden-by-equality"),
+                record(2L, "c", "new-position-delete")));
+    DeleteFile existingEqualityDelete =
+        writeSourceEqualityDelete(
+            table,
+            dataFile,
+            "cdc-nested-existing-eq-delete.parquet",
+            record(-1L, null, "already-hidden-by-equality"));
+    DeleteFile addedEqualityDelete =
+        writeSourceEqualityDelete(
+            table,
+            dataFile,
+            "cdc-nested-added-eq-delete.parquet",
+            record(-1L, null, "new-equality-delete"));
+    DeleteFile addedPositionDelete =
+        writePositionDelete(table, dataFile, "cdc-nested-pos-delete.parquet", 2L);
+
+    // the pushed down IN expression references the full column path
+    assertEquals(
+        Expressions.in("metadata.source", "new-equality-delete").toString(),
+        CdcReadUtils.buildEqualityDeletePushdown(
+                table, table.schema(), ImmutableList.of(addedEqualityDelete))
+            .residual
+            .toString());
+
+    SerializableChangelogTask equalityOnly =
+        task(
+            SerializableChangelogTask.Type.DELETED_ROWS,
+            dataFile,
+            ImmutableList.of(addedEqualityDelete),
+            ImmutableList.of(existingEqualityDelete),
+            table);
+    SerializableChangelogTask positionAndEquality =
+        task(
+            SerializableChangelogTask.Type.DELETED_ROWS,
+            dataFile,
+            ImmutableList.of(addedPositionDelete, addedEqualityDelete),
+            ImmutableList.of(existingEqualityDelete),
+            table);
+    // the projection leaves out metadata.source, or keeps only its sibling
+    for (List<String> keep :
+        ImmutableList.of(ImmutableList.of("id"), ImmutableList.of("id", "metadata.region"))) {
+      IcebergScanConfig scanConfig = scanConfig(table, tableId, keep);
+      assertEquals(
+          ImmutableList.of(0L),
+          idsOf(CdcReadUtils.changelogRecordsForTask(equalityOnly, table, scanConfig, true)));
+      assertEquals(
+          ImmutableList.of(0L, 2L),
+          idsOf(
+              CdcReadUtils.changelogRecordsForTask(positionAndEquality, table, scanConfig, true)));
+    }
+  }
+
+  @Test
+  public void deletedRowsHandlesNullNestedEqualityDeletesWithoutPushdown() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    DataFile dataFile =
+        warehouse.writeRecords(
+            "cdc-nested-null-eq.parquet",
+            table.schema(),
+            ImmutableList.of(
+                record(0L, "live", "x"),
+                record(1L, "null-source", null),
+                record(2L, "null-metadata")));
+    DeleteFile nullEqualityDeletes =
+        writeSourceEqualityDelete(
+            table,
+            dataFile,
+            "cdc-nested-null-eq-delete.parquet",
+            record(-1L, null, null),
+            record(-2L, null));
+
+    assertEquals(
+        Expressions.alwaysTrue().toString(),
+        CdcReadUtils.buildEqualityDeletePushdown(
+                table, table.schema(), ImmutableList.of(nullEqualityDeletes))
+            .residual
+            .toString());
+    SerializableChangelogTask task =
+        task(
+            SerializableChangelogTask.Type.DELETED_ROWS,
+            dataFile,
+            ImmutableList.of(nullEqualityDeletes),
+            ImmutableList.of(),
+            table);
+    assertEquals(
+        ImmutableList.of(1L, 2L),
+        idsOf(CdcReadUtils.changelogRecordsForTask(task, table, scanConfig(table, tableId), true)));
+  }
+
   private static Record record(long id, String data) {
     GenericRecord record = GenericRecord.create(CDC_SCHEMA);
     record.setField("id", id);
     record.setField("data", data);
+    return record;
+  }
+
+  private static Record record(long id, String data, @Nullable String source) {
+    GenericRecord metadata = GenericRecord.create(CDC_SCHEMA.findType("metadata").asStructType());
+    metadata.setField("source", source);
+    Record record = record(id, data);
+    record.setField("metadata", metadata);
     return record;
   }
 
@@ -320,7 +443,32 @@ public class CdcReadUtilsTest {
     return writer.toDeleteFile();
   }
 
+  /** Writes whole rows as equality deletes on {@code metadata.source}. */
+  private static DeleteFile writeSourceEqualityDelete(
+      Table table, DataFile dataFile, String filename, Record... deletes) throws IOException {
+    int sourceId = table.schema().findField("metadata.source").fieldId();
+    GenericAppenderFactory appenderFactory =
+        new GenericAppenderFactory(
+            table.schema(), table.spec(), new int[] {sourceId}, table.schema(), null);
+    EqualityDeleteWriter<Record> writer =
+        appenderFactory.newEqDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table.io().newOutputFile(dataFile.location() + "." + filename)),
+            FileFormat.PARQUET,
+            null);
+    try (writer) {
+      for (Record delete : deletes) {
+        writer.write(delete);
+      }
+    }
+    return writer.toDeleteFile();
+  }
+
   private IcebergScanConfig scanConfig(Table table, TableIdentifier tableId) {
+    return scanConfig(table, tableId, ImmutableList.of("id"));
+  }
+
+  private IcebergScanConfig scanConfig(Table table, TableIdentifier tableId, List<String> keep) {
     return IcebergScanConfig.builder()
         .setCatalogConfig(
             IcebergCatalogConfig.builder()
@@ -329,7 +477,7 @@ public class CdcReadUtilsTest {
                 .build())
         .setTableIdentifier(tableId)
         .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-        .setKeepFields(ImmutableList.of("id"))
+        .setKeepFields(keep)
         .build();
   }
 

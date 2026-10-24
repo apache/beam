@@ -28,6 +28,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
@@ -75,7 +76,12 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.deletes.EqualityDeleteWriter;
+import org.apache.iceberg.deletes.PositionDelete;
+import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.mapping.MappedField;
 import org.apache.iceberg.mapping.MappedFields;
@@ -454,6 +460,87 @@ public class IcebergIOReadTest {
               assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
               return null;
             });
+
+    testPipeline.run();
+  }
+
+  /** A projected read applies deletes on the row position, 'id' and nested 'metadata.source'. */
+  @Test
+  public void testScanWithMergeOnReadDeletes() throws Exception {
+    assumeFalse(useIncrementalScan);
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table table =
+        warehouse.createTable(
+            tableId,
+            TestFixtures.NESTED_SCHEMA,
+            null,
+            ImmutableMap.of(TableProperties.FORMAT_VERSION, "2"));
+    DataFile file =
+        warehouse.writeRecords(
+            testName.getMethodName() + ".parquet",
+            table.schema(),
+            ImmutableList.of(
+                createRecord(table.schema(), ImmutableMap.of("id", 1L, "data", "a")),
+                createRecord(table.schema(), ImmutableMap.of("id", 2L, "data", "b")),
+                createRecord(table.schema(), ImmutableMap.of("id", 3L, "data", "c")),
+                createRecord(table.schema(), ImmutableMap.of("id", 4L, "data", "d")),
+                icebergGenericRecord(
+                    table.schema().asStruct(),
+                    ImmutableMap.of(
+                        "id", 5L, "data", "e", "metadata", ImmutableMap.of("source", "x")))));
+    table.newFastAppend().appendFile(file).commit();
+    org.apache.iceberg.Schema idSchema = table.schema().select("id");
+    GenericAppenderFactory deletes =
+        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {1}, idSchema, null);
+    PositionDeleteWriter<Record> positionDeletes =
+        deletes.newPosDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table.io().newOutputFile(file.location() + ".pos.parquet")),
+            FileFormat.PARQUET,
+            null);
+    try (positionDeletes) {
+      positionDeletes.write(PositionDelete.<Record>create().set(file.location(), 1L));
+    }
+    EqualityDeleteWriter<Record> equalityDeletes =
+        deletes.newEqDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table.io().newOutputFile(file.location() + ".eq.parquet")),
+            FileFormat.PARQUET,
+            null);
+    try (equalityDeletes) {
+      equalityDeletes.write(createRecord(idSchema, ImmutableMap.of("id", 3L)));
+    }
+    org.apache.iceberg.Schema sourceSchema = table.schema().select("metadata.source");
+    EqualityDeleteWriter<Record> nestedDeletes =
+        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {4}, sourceSchema, null)
+            .newEqDeleteWriter(
+                EncryptedFiles.plainAsEncryptedOutput(
+                    table.io().newOutputFile(file.location() + ".nested.parquet")),
+                FileFormat.PARQUET,
+                null);
+    try (nestedDeletes) {
+      nestedDeletes.write(
+          icebergGenericRecord(
+              sourceSchema.asStruct(),
+              ImmutableMap.of("metadata", ImmutableMap.of("source", "x"))));
+    }
+    table
+        .newRowDelta()
+        .addDeletes(positionDeletes.toDeleteFile())
+        .addDeletes(equalityDeletes.toDeleteFile())
+        .addDeletes(nestedDeletes.toDeleteFile())
+        .commit();
+
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withFilter("\"data\" <> 'd'")
+            .keeping(singletonList("data"));
+    Schema outputSchema = icebergSchemaToBeamSchema(table.schema().select("data"));
+
+    PAssert.that(testPipeline.apply(read))
+        .containsInAnyOrder(Row.withSchema(outputSchema).addValue("a").build());
 
     testPipeline.run();
   }
