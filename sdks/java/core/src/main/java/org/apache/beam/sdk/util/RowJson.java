@@ -384,8 +384,8 @@ public class RowJson {
       return Row.withSchema(rowSchema).addValues(Arrays.asList(values)).build();
     }
 
-    private Object jsonArrayToList(
-        String fieldName, FieldType elementType, JsonParser jsonParser) throws IOException {
+    private Object jsonArrayToList(String fieldName, FieldType elementType, JsonParser jsonParser)
+        throws IOException {
       JsonToken token = jsonParser.currentToken();
       if (token != JsonToken.START_ARRAY) {
         throw new UnsupportedRowJsonException(
@@ -435,10 +435,7 @@ public class RowJson {
     }
 
     private static Object extractWithExtractor(
-        String fieldName,
-        TypeName typeName,
-        JsonParser jsonParser,
-        ValueExtractor<?> extractor)
+        String fieldName, TypeName typeName, JsonParser jsonParser, ValueExtractor<?> extractor)
         throws IOException {
       try {
         return extractor.extractValue(jsonParser);
