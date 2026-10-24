@@ -946,7 +946,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(lambda df: df.corrwith(df.a, axis=2), df)
     self._run_error_test(lambda df: df.corrwith(df, axis=5), df)
 
-  @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
+  @unittest.skipIf(
+      PD_VERSION < (1, 2) or PD_VERSION >= (3, 0),
+      "na_action added in pandas 1.2.0; applymap removed in pandas 3.0")
   @pytest.mark.filterwarnings(
       "ignore:The default of observed=False is deprecated:FutureWarning")
   def test_applymap_na_action(self):
@@ -1054,11 +1056,16 @@ class DeferredFrameTest(_AbstractFrameTest):
          [np.nan, 3, np.nan, 4], [3, np.nan, np.nan, 4]],
         columns=list('ABCD'))
 
-    self._run_test(lambda df: df.fillna(method='ffill', axis='columns'), df)
-    self._run_test(
-        lambda df: df.fillna(method='ffill', axis='columns', limit=1), df)
-    self._run_test(
-        lambda df: df.fillna(method='bfill', axis='columns', limit=1), df)
+    if PD_VERSION < (3, 0):
+      self._run_test(lambda df: df.fillna(method='ffill', axis='columns'), df)
+      self._run_test(
+          lambda df: df.fillna(method='ffill', axis='columns', limit=1), df)
+      self._run_test(
+          lambda df: df.fillna(method='bfill', axis='columns', limit=1), df)
+    else:
+      self._run_test(lambda df: df.ffill(axis='columns'), df)
+      self._run_test(lambda df: df.ffill(axis='columns', limit=1), df)
+      self._run_test(lambda df: df.bfill(axis='columns', limit=1), df)
 
     # Intended behavior is unclear here. See
     # https://github.com/pandas-dev/pandas/issues/40989

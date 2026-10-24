@@ -264,10 +264,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Arbitrary()))
 
   @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.args_to_kwargs(
+      pd.DataFrame, removed_args=['method'] if PD_VERSION >= (3, 0) else None)
+  @frame_base.populate_defaults(
+      pd.DataFrame, removed_args=['method'] if PD_VERSION >= (3, 0) else None)
   @frame_base.maybe_inplace
-  def fillna(self, value, method, axis, limit, **kwargs):
+  def fillna(self, value=None, method=None, axis=None, limit=None, **kwargs):
     """When ``axis="index"``, both ``method`` and ``limit`` must be ``None``.
     otherwise this operation is order-sensitive."""
     # Default value is None, but is overriden with index.
@@ -317,12 +319,21 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       get_value = lambda x: x
       requires = partitionings.Arbitrary()
 
+    def _do_fillna(df, value):
+      val = get_value(value)
+      if method is not None:
+        if PD_VERSION >= (3, 0):
+          fill_fn = getattr(df, method, None)
+          if fill_fn is not None:
+            return fill_fn(axis=axis, limit=limit)
+        return df.fillna(val, method=method, axis=axis, limit=limit, **kwargs)
+      else:
+        return df.fillna(val, axis=axis, limit=limit, **kwargs)
+
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
         expressions.ComputedExpression(
-            'fillna', lambda df, value: df.fillna(
-                get_value(value), method=method, axis=axis, limit=limit, **
-                kwargs), [self._expr, value_expr],
+            'fillna', _do_fillna, [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=requires))
 
@@ -335,40 +346,44 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   if hasattr(pd.DataFrame, 'pad'):
     pad = _fillna_alias('pad')
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  def first(self, offset):
-    per_partition = expressions.ComputedExpression(
-        'first-per-partition', lambda df: df.sort_index().first(offset=offset),
-        [self._expr],
-        preserves_partition_by=partitionings.Arbitrary(),
-        requires_partition_by=partitionings.Arbitrary())
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'first', lambda df: df.sort_index().first(offset=offset),
-              [per_partition],
-              preserves_partition_by=partitionings.Arbitrary(),
-              requires_partition_by=partitionings.Singleton()))
+  if hasattr(pd.DataFrame, 'first'):
+    @frame_base.with_docs_from(pd.DataFrame)
+    def first(self, offset):
+      per_partition = expressions.ComputedExpression(
+          'first-per-partition', lambda df: df.sort_index().first(offset=offset),
+          [self._expr],
+          preserves_partition_by=partitionings.Arbitrary(),
+          requires_partition_by=partitionings.Arbitrary())
+      with expressions.allow_non_parallel_operations(True):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'first', lambda df: df.sort_index().first(offset=offset),
+                [per_partition],
+                preserves_partition_by=partitionings.Arbitrary(),
+                requires_partition_by=partitionings.Singleton()))
+
+  if hasattr(pd.DataFrame, 'last'):
+    @frame_base.with_docs_from(pd.DataFrame)
+    def last(self, offset):
+      per_partition = expressions.ComputedExpression(
+          'last-per-partition', lambda df: df.sort_index().last(offset=offset),
+          [self._expr],
+          preserves_partition_by=partitionings.Arbitrary(),
+          requires_partition_by=partitionings.Arbitrary())
+      with expressions.allow_non_parallel_operations(True):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'last', lambda df: df.sort_index().last(offset=offset),
+                [per_partition],
+                preserves_partition_by=partitionings.Arbitrary(),
+                requires_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.DataFrame)
-  def last(self, offset):
-    per_partition = expressions.ComputedExpression(
-        'last-per-partition', lambda df: df.sort_index().last(offset=offset),
-        [self._expr],
-        preserves_partition_by=partitionings.Arbitrary(),
-        requires_partition_by=partitionings.Arbitrary())
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'last', lambda df: df.sort_index().last(offset=offset),
-              [per_partition],
-              preserves_partition_by=partitionings.Arbitrary(),
-              requires_partition_by=partitionings.Singleton()))
-
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
+  @frame_base.args_to_kwargs(
+      pd.DataFrame, removed_args=['axis'] if PD_VERSION >= (3, 0) else None)
+  @frame_base.populate_defaults(
+      pd.DataFrame, removed_args=['axis'] if PD_VERSION >= (3, 0) else None)
+  def groupby(self, by=None, level=None, axis=0, as_index=True, group_keys=True, **kwargs):
     """``as_index`` must be ``True``.
 
     Aggregations grouping by a categorical column with ``observed=False`` set
@@ -379,6 +394,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       raise NotImplementedError('groupby(as_index=False)')
 
     if axis in (1, 'columns'):
+      if PD_VERSION >= (3, 0):
+        raise NotImplementedError(
+            "groupby(axis=1) is removed in Pandas 3.0+")
       return _DeferredGroupByCols(
           expressions.ComputedExpression(
               'groupbycols', lambda df: df.groupby(
@@ -3034,7 +3052,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
-  applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
+  if hasattr(pd.DataFrame, 'applymap'):
+    applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
   if PD_VERSION >= (2, 1):
     map = frame_base._elementwise_method('map', base=pd.DataFrame)
   add_prefix = frame_base._elementwise_method('add_prefix', base=pd.DataFrame)
@@ -4847,9 +4866,11 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
   describe = frame_base.not_implemented_method('describe',
                                                base_type=DataFrameGroupBy)
   diff = frame_base._elementwise_method('diff', base=DataFrameGroupBy)
-  fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
+  if hasattr(DataFrameGroupBy, 'fillna'):
+    fillna = frame_base._elementwise_method('fillna', base=DataFrameGroupBy)
   filter = frame_base._elementwise_method('filter', base=DataFrameGroupBy)
-  first = frame_base._elementwise_method('first', base=DataFrameGroupBy)
+  if hasattr(DataFrameGroupBy, 'first'):
+    first = frame_base._elementwise_method('first', base=DataFrameGroupBy)
   get_group = frame_base._elementwise_method('get_group', base=DataFrameGroupBy)
   head = frame_base.wont_implement_method(
       DataFrameGroupBy, 'head', explanation=_PEEK_METHOD_EXPLANATION)
@@ -4857,7 +4878,8 @@ class _DeferredGroupByCols(frame_base.DeferredFrame):
       DataFrameGroupBy, 'hist', reason="plotting-tools")
   idxmax = frame_base._elementwise_method('idxmax', base=DataFrameGroupBy)
   idxmin = frame_base._elementwise_method('idxmin', base=DataFrameGroupBy)
-  last = frame_base._elementwise_method('last', base=DataFrameGroupBy)
+  if hasattr(DataFrameGroupBy, 'last'):
+    last = frame_base._elementwise_method('last', base=DataFrameGroupBy)
   max = frame_base._elementwise_method('max', base=DataFrameGroupBy)
   mean = frame_base._elementwise_method('mean', base=DataFrameGroupBy)
   median = frame_base._elementwise_method('median', base=DataFrameGroupBy)
@@ -5170,7 +5192,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             'get_dummies',
             lambda series: pd.concat(
               [proxy, series.str.get_dummies(**kwargs)]
-              ).fillna(value=0, method=None).astype('int64'),
+              ).fillna(value=0).astype('int64'),
             [self._expr],
             proxy=proxy,
             requires_partition_by=partitionings.Arbitrary(),
