@@ -2200,7 +2200,7 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_watch_file_pattern_side_input_label(self):
     pipeline = TestPipeline()
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     from apache_beam.ml.inference.utils import WatchFilePattern
     file_pattern_side_input = (
         pipeline
@@ -2212,7 +2212,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_watch_file_pattern_keyword_arg_side_input_label(self):
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result_pcoll = pcoll | base.RunInference(
