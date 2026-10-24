@@ -131,7 +131,11 @@ def dtype_to_fieldtype(dtype):
 
   if fieldtype is not None:
     return fieldtype
-  elif str(dtype) in ('str', 'string') or isinstance(dtype, pd.StringDtype):
+  elif getattr(dtype, 'kind', None) == 'O' or dtype is object:
+    return Any
+  elif (str(dtype) in ('str', 'string') or
+        isinstance(dtype, pd.StringDtype) or
+        pd.api.types.is_string_dtype(dtype)):
     return Optional[str]
   elif getattr(dtype, 'kind', None) == 'S':
     return bytes
