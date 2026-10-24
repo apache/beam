@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.io.payloads;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -77,12 +75,12 @@ public class JsonPayloadSerializerProvider implements PayloadSerializerProvider 
 
     @Override
     public byte[] serialize(Row row) {
-      return RowJsonUtils.rowToJson(getSerializeMapper(), row).getBytes(UTF_8);
+      return RowJsonUtils.rowToJsonAsBytes(getSerializeMapper(), row);
     }
 
     @Override
     public Row deserialize(byte[] bytes) {
-      return RowJsonUtils.jsonToRow(getDeserializeMapper(), new String(bytes, UTF_8));
+      return RowJsonUtils.jsonToRow(getDeserializeMapper(), bytes);
     }
   }
 }

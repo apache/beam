@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,8 +96,7 @@ public class JsonUtils {
     return new JsonToRowFn<byte[]>(beamSchema) {
       @Override
       public Row apply(byte[] input) {
-        String jsonString = byteArrayToJsonString(input);
-        return RowJsonUtils.jsonToRow(objectMapper, jsonString);
+        return RowJsonUtils.jsonToRow(objectMapper, input);
       }
     };
   }
@@ -115,8 +116,7 @@ public class JsonUtils {
     return new RowToJsonFn<byte[]>(beamSchema) {
       @Override
       public byte[] apply(Row input) {
-        String jsonString = RowJsonUtils.rowToJson(objectMapper, input);
-        return jsonStringToByteArray(jsonString);
+        return RowJsonUtils.rowToJsonAsBytes(objectMapper, input);
       }
     };
   }
@@ -319,22 +319,40 @@ public class JsonUtils {
   }
 
   private abstract static class JsonToRowFn<T> extends SimpleFunction<T, Row> {
-    final RowJson.RowJsonDeserializer deserializer;
-    final ObjectMapper objectMapper;
+    final Schema beamSchema;
+    transient ObjectMapper objectMapper;
 
     private JsonToRowFn(Schema beamSchema) {
-      deserializer = RowJson.RowJsonDeserializer.forSchema(beamSchema);
-      objectMapper = RowJsonUtils.newObjectMapperWith(deserializer);
+      this.beamSchema = beamSchema;
+      objectMapper = newObjectMapper(beamSchema);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
+      objectMapper = newObjectMapper(beamSchema);
+    }
+
+    private static ObjectMapper newObjectMapper(Schema schema) {
+      return RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schema));
     }
   }
 
   private abstract static class RowToJsonFn<T> extends SimpleFunction<Row, T> {
-    final RowJson.RowJsonSerializer serializer;
-    final ObjectMapper objectMapper;
+    final Schema beamSchema;
+    transient ObjectMapper objectMapper;
 
     private RowToJsonFn(Schema beamSchema) {
-      serializer = RowJson.RowJsonSerializer.forSchema(beamSchema);
-      objectMapper = RowJsonUtils.newObjectMapperWith(serializer);
+      this.beamSchema = beamSchema;
+      objectMapper = newObjectMapper(beamSchema);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
+      objectMapper = newObjectMapper(beamSchema);
+    }
+
+    private static ObjectMapper newObjectMapper(Schema schema) {
+      return RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schema));
     }
   }
 

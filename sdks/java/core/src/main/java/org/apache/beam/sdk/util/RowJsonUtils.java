@@ -141,9 +141,30 @@ public class RowJsonUtils {
     }
   }
 
+  public static Row jsonToRow(ObjectMapper objectMapper, byte[] jsonBytes) {
+    try {
+      return objectMapper.readValue(jsonBytes, Row.class);
+    } catch (JsonParseException | JsonMappingException jsonException) {
+      throw new UnsupportedRowJsonException("Unable to parse Row", jsonException);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "Unable to parse json object: "
+              + new String(jsonBytes, java.nio.charset.StandardCharsets.UTF_8),
+          e);
+    }
+  }
+
   public static String rowToJson(ObjectMapper objectMapper, Row row) {
     try {
       return objectMapper.writeValueAsString(row);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to serialize row: " + row, e);
+    }
+  }
+
+  public static byte[] rowToJsonAsBytes(ObjectMapper objectMapper, Row row) {
+    try {
+      return objectMapper.writeValueAsBytes(row);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to serialize row: " + row, e);
     }
