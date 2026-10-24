@@ -344,6 +344,25 @@ class RuntimeTypeCheckWrapperDoFnTest(unittest.TestCase):
         r'Runtime type violation detected within ParDo\(MyStep\)'):
       wrapper.process('not-an-int')
 
+  def test_wrapper_labels_output_type_check_error_once(self):
+    @with_output_types(int)
+    class BadOutputDoFn(beam.DoFn):
+      def process(self, element):
+        return ['not-an-int']
+
+    dofn = BadOutputDoFn()
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    with self.assertRaises(typecheck.TypeCheckError) as context:
+      wrapper.process(1)
+
+    prefix = 'Runtime type violation detected within ParDo(MyStep):'
+    error_message = str(context.exception)
+
+    self.assertEqual(error_message.count(prefix), 1)
+    self.assertIn('not-an-int', error_message)
+
   def test_wrapper_preserves_results(self):
     dofn = _AddOneDoFn()
     wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
