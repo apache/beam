@@ -943,4 +943,27 @@ public class RowTest {
     assertEquals(row1, row2);
     assertEquals(row1.hashCode(), row2.hashCode());
   }
+
+  @Test
+  public void testRejectsMismatchedNestedRowSchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema = Schema.builder().addRowField("nested", expectedNestedSchema).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addValue(wrongNestedRow).build();
+  }
+
+  @Test
+  public void testRejectsMismatchedRowInArraySchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema =
+        Schema.builder().addArrayField("items", FieldType.row(expectedNestedSchema)).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addArray(ImmutableList.of(wrongNestedRow)).build();
+  }
 }
