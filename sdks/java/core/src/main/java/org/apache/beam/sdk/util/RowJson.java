@@ -45,8 +45,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -55,9 +55,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -241,7 +240,6 @@ public class RowJson {
     private static final ValueExtractor<LocalDateTime> LOCAL_DATETIME_EXTRACTOR =
         localDatetimeValueExtractor();
 
-    private final Schema schema;
     private final FieldType rootRowType;
     private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
@@ -253,7 +251,6 @@ public class RowJson {
 
     private RowJsonDeserializer(Schema schema) {
       super(Row.class);
-      this.schema = schema;
       this.rootRowType = FieldType.row(schema);
     }
 
@@ -270,15 +267,18 @@ public class RowJson {
     @Override
     public Row deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
         throws IOException {
-
+      if (jsonParser.currentToken() == null) {
+        jsonParser.nextToken();
+      }
       // Parse and convert the root object to Row as if it's a nested field with name 'root'
-      return (Row) extractJsonNodeValue("root", rootRowType, jsonParser.readValueAsTree());
+      return (Row) extractJsonValue("root", rootRowType, jsonParser);
     }
 
-    private @Nullable Object extractJsonNodeValue(
-        String fieldName, FieldType fieldType, @Nullable JsonNode jsonValue) {
+    private @Nullable Object extractJsonValue(
+        String fieldName, FieldType fieldType, JsonParser jsonParser) throws IOException {
+      JsonToken token = jsonParser.currentToken();
       if (fieldType.getNullable()) {
-        if (jsonValue == null) {
+        if (token == null) {
           switch (this.nullBehavior) {
             case ACCEPT_MISSING_OR_NULL:
             case REQUIRE_MISSING:
@@ -289,7 +289,7 @@ public class RowJson {
           }
         }
 
-        if (jsonValue.isNull()) {
+        if (token == JsonToken.VALUE_NULL) {
           switch (this.nullBehavior) {
             case ACCEPT_MISSING_OR_NULL:
             case REQUIRE_NULL:
@@ -301,10 +301,10 @@ public class RowJson {
         }
       } else {
         // field is not nullable
-        if (jsonValue == null) {
+        if (token == null) {
           throw new UnsupportedRowJsonException(
               "Non-nullable field '" + fieldName + "' is not present in the JSON object.");
-        } else if (jsonValue.isNull()) {
+        } else if (token == JsonToken.VALUE_NULL) {
           throw new UnsupportedRowJsonException(
               "Non-nullable field '" + fieldName + "' has value null in the JSON object.");
         }
@@ -313,110 +313,135 @@ public class RowJson {
       TypeName typeName = fieldType.getTypeName();
       switch (typeName) {
         case ROW:
-          return jsonObjectToRow(fieldName, fieldType.getRowSchema(), jsonValue);
+          return jsonObjectToRow(fieldName, fieldType.getRowSchema(), jsonParser);
         case ARRAY:
         case ITERABLE:
-          return jsonArrayToList(fieldName, fieldType.getCollectionElementType(), jsonValue);
+          return jsonArrayToList(fieldName, fieldType.getCollectionElementType(), jsonParser);
         case MAP:
-          return jsonObjectToMap(fieldName, fieldType.getMapValueType(), jsonValue);
+          return jsonObjectToMap(fieldName, fieldType.getMapValueType(), jsonParser);
         case LOGICAL_TYPE:
           Schema.LogicalType<Object, Object> logicalType =
               (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
           String identifier = logicalType.getIdentifier();
           if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
-            return extractWithExtractor(fieldName, typeName, jsonValue, DATE_EXTRACTOR);
+            return extractWithExtractor(fieldName, typeName, jsonParser, DATE_EXTRACTOR);
           } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
-            return extractWithExtractor(fieldName, typeName, jsonValue, TIME_EXTRACTOR);
+            return extractWithExtractor(fieldName, typeName, jsonParser, TIME_EXTRACTOR);
           } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
-            return extractWithExtractor(fieldName, typeName, jsonValue, LOCAL_DATETIME_EXTRACTOR);
+            return extractWithExtractor(fieldName, typeName, jsonParser, LOCAL_DATETIME_EXTRACTOR);
           } else {
             return logicalType.toInputType(
-                extractJsonNodeValue(fieldName, logicalType.getBaseType(), jsonValue));
+                extractJsonValue(fieldName, logicalType.getBaseType(), jsonParser));
           }
         default:
-          return extractJsonPrimitiveValue(fieldName, typeName, jsonValue);
+          return extractJsonPrimitiveValue(fieldName, typeName, jsonParser);
       }
     }
 
-    private Row jsonObjectToRow(String fieldName, Schema rowSchema, JsonNode jsonValue) {
-      if (!jsonValue.isObject()) {
+    private Row jsonObjectToRow(String fieldName, Schema rowSchema, JsonParser jsonParser)
+        throws IOException {
+      if (jsonParser.currentToken() != JsonToken.START_OBJECT) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
                 + fieldName
                 + "'. Unable to convert '"
-                + jsonValue.asText()
+                + jsonParser.getValueAsString("")
                 + "' to Beam Row, it is not a JSON object. Currently only JSON objects can be parsed to Beam Rows");
       }
 
       int fieldCount = rowSchema.getFieldCount();
-      List<Object> values = new ArrayList<>(fieldCount);
-      for (int i = 0; i < fieldCount; i++) {
-        Field schemaField = rowSchema.getField(i);
-        String schemaFieldName = schemaField.getName();
-        values.add(
-            extractJsonNodeValue(
-                schemaFieldName, schemaField.getType(), jsonValue.get(schemaFieldName)));
+      Object[] values = new Object[fieldCount];
+      boolean[] fieldPresent = new boolean[fieldCount];
+
+      while (jsonParser.nextToken() != JsonToken.END_OBJECT) {
+        String propertyName = jsonParser.currentName();
+        jsonParser.nextToken();
+        if (rowSchema.hasField(propertyName)) {
+          int index = rowSchema.indexOf(propertyName);
+          Field schemaField = rowSchema.getField(index);
+          fieldPresent[index] = true;
+          values[index] = extractJsonValue(propertyName, schemaField.getType(), jsonParser);
+        } else {
+          jsonParser.skipChildren();
+        }
       }
-      return Row.withSchema(rowSchema).addValues(values).build();
+
+      for (int i = 0; i < fieldCount; i++) {
+        if (!fieldPresent[i]) {
+          Field schemaField = rowSchema.getField(i);
+          if (!schemaField.getType().getNullable()) {
+            throw new UnsupportedRowJsonException(
+                "Non-nullable field '"
+                    + schemaField.getName()
+                    + "' is not present in the JSON object.");
+          } else if (this.nullBehavior == NullBehavior.REQUIRE_NULL) {
+            throw new UnsupportedRowJsonException(
+                "Field '" + schemaField.getName() + "' is not present in the JSON object.");
+          }
+        }
+      }
+
+      return Row.withSchema(rowSchema).addValues(Arrays.asList(values)).build();
     }
 
     private Object jsonArrayToList(
-        String fieldName, FieldType elementType, JsonNode jsonArrayNode) {
-      if (!jsonArrayNode.isArray()) {
+        String fieldName, FieldType elementType, JsonParser jsonParser) throws IOException {
+      JsonToken token = jsonParser.currentToken();
+      if (token != JsonToken.START_ARRAY) {
         throw new UnsupportedRowJsonException(
             "Expected JSON array for field '"
                 + fieldName
                 + "'. Instead got "
-                + jsonArrayNode.getNodeType().name());
+                + tokenNodeTypeName(token));
       }
 
-      int size = jsonArrayNode.size();
-      if (size == 0) {
+      if (jsonParser.nextToken() == JsonToken.END_ARRAY) {
         return ImmutableList.of();
       }
       String elementFieldName = fieldName + "[]";
-      ImmutableList.Builder<Object> builder = ImmutableList.builderWithExpectedSize(size);
-      for (int i = 0; i < size; i++) {
-        builder.add(extractJsonNodeValue(elementFieldName, elementType, jsonArrayNode.get(i)));
-      }
+      ImmutableList.Builder<Object> builder = ImmutableList.builder();
+      do {
+        builder.add(extractJsonValue(elementFieldName, elementType, jsonParser));
+      } while (jsonParser.nextToken() != JsonToken.END_ARRAY);
       return builder.build();
     }
 
     private Map<String, Object> jsonObjectToMap(
-        String fieldName, FieldType mapValueType, JsonNode jsonObjectNode) {
-      if (!jsonObjectNode.isObject()) {
+        String fieldName, FieldType mapValueType, JsonParser jsonParser) throws IOException {
+      JsonToken token = jsonParser.currentToken();
+      if (token != JsonToken.START_OBJECT) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
                 + fieldName
                 + "'. Instead got "
-                + jsonObjectNode.getNodeType().name());
+                + tokenNodeTypeName(token));
       }
 
-      Map<String, Object> result = Maps.newHashMapWithExpectedSize(jsonObjectNode.size());
-      Iterator<Map.Entry<String, JsonNode>> fields = jsonObjectNode.fields();
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> field = fields.next();
-        String key = field.getKey();
-        JsonNode value = field.getValue();
-
+      Map<String, Object> result = new HashMap<>();
+      while (jsonParser.nextToken() != JsonToken.END_OBJECT) {
+        String key = jsonParser.currentName();
+        jsonParser.nextToken();
         Object extractedValue =
-            extractJsonNodeValue(fieldName + "['" + key + "']", mapValueType, value);
-
+            extractJsonValue(fieldName + "['" + key + "']", mapValueType, jsonParser);
         result.put(key, extractedValue);
       }
       return result;
     }
 
     private static Object extractJsonPrimitiveValue(
-        String fieldName, TypeName typeName, JsonNode jsonValue) {
+        String fieldName, TypeName typeName, JsonParser jsonParser) throws IOException {
       return extractWithExtractor(
-          fieldName, typeName, jsonValue, JSON_VALUE_GETTERS.get(typeName));
+          fieldName, typeName, jsonParser, JSON_VALUE_GETTERS.get(typeName));
     }
 
     private static Object extractWithExtractor(
-        String fieldName, TypeName typeName, JsonNode jsonValue, ValueExtractor<?> extractor) {
+        String fieldName,
+        TypeName typeName,
+        JsonParser jsonParser,
+        ValueExtractor<?> extractor)
+        throws IOException {
       try {
-        return extractor.extractValue(jsonValue);
+        return extractor.extractValue(jsonParser);
       } catch (RuntimeException e) {
         throw new UnsupportedRowJsonException(
             "Unable to get value from field '"
@@ -424,8 +449,37 @@ public class RowJson {
                 + "'. Schema type '"
                 + typeName
                 + "'. JSON node type "
-                + jsonValue.getNodeType().name(),
+                + tokenNodeTypeName(jsonParser.currentToken()),
             e);
+      }
+    }
+
+    private static String tokenNodeTypeName(@Nullable JsonToken token) {
+      if (token == null) {
+        return "MISSING";
+      }
+      switch (token) {
+        case START_OBJECT:
+        case END_OBJECT:
+        case FIELD_NAME:
+          return "OBJECT";
+        case START_ARRAY:
+        case END_ARRAY:
+          return "ARRAY";
+        case VALUE_STRING:
+          return "STRING";
+        case VALUE_NUMBER_INT:
+        case VALUE_NUMBER_FLOAT:
+          return "NUMBER";
+        case VALUE_TRUE:
+        case VALUE_FALSE:
+          return "BOOLEAN";
+        case VALUE_NULL:
+          return "NULL";
+        case VALUE_EMBEDDED_OBJECT:
+          return "POJO";
+        default:
+          return token.name();
       }
     }
   }
