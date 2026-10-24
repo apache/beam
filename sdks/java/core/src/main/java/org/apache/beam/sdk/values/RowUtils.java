@@ -423,6 +423,12 @@ class RowUtils {
         }
         retValue = new RowWithStorage(schema, values);
       }
+      if (retValue != null && !schema.equals(retValue.getSchema())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Expected schema %s for field %s, but got %s",
+                schema, rowPosition.descriptor, retValue.getSchema()));
+      }
       return retValue;
     }
 
