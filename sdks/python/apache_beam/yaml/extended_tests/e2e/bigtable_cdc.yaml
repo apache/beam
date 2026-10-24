@@ -1,0 +1,74 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: BT_CDC
+    type: "apache_beam.yaml.integration_tests.temp_bigtable_change_stream_table"
+    config:
+      project: "apache-beam-testing"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigtableCDC
+          config:
+            project: "{BT_CDC[PROJECT]}"
+            instance: "{BT_CDC[INSTANCE]}"
+            table: "{BT_CDC[TABLE]}"
+            app_profile: "{BT_CDC[APP_PROFILE]}"
+            start_at: "{BT_CDC[START_AT]}"
+            end_at: "{BT_CDC[END_AT]}"
+            flatten: true
+
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              key:
+                callable: |
+                  def decode_key(row):
+                    return row.key.decode("utf-8")
+
+              mutation_type:
+                mutation_type
+
+              type:
+                type
+
+              family_name:
+                family_name
+
+              column_qualifier:
+                callable: |
+                  def decode_qualifier(row):
+                    return row.column_qualifier.decode("utf-8")
+
+              value:
+                callable: |
+                  def decode_value(row):
+                    return row.value.decode("utf-8")
+
+        - type: AssertEqual
+          config:
+            elements:
+              - key: "row1"
+                mutation_type: "USER"
+                type: "SET_CELL"
+                family_name: "cf1"
+                column_qualifier: "cq1"
+                value: "value1"
