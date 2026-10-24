@@ -19,9 +19,13 @@ package org.apache.beam.sdk.fn;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -79,6 +83,25 @@ public class CancellableQueue<T extends @NonNull Object> {
     }
   }
 
+  public boolean tryPut(T t) throws Exception {
+    lock.lock();
+    try {
+      if (cancellationException != null) {
+        throw cancellationException;
+      }
+      if (count >= capacity) {
+        return false;
+      }
+      elements[addIndex] = t;
+      addIndex = (addIndex + 1) % elements.length;
+      count += 1;
+      notEmpty.signal();
+      return true;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   /**
    * Takes an element from this queue. Will block until the queue is not full or is cancelled.
    *
@@ -116,27 +139,50 @@ public class CancellableQueue<T extends @NonNull Object> {
    * queue clears the exception.
    */
   public void cancel(Exception exception) {
+    cancel(exception, null);
+  }
+
+  /**
+   * Like {@link #cancel(Exception)}, and passes each element that the queue drops to {@code
+   * onDrop}.
+   *
+   * <p>{@code onDrop} runs after the queue releases its lock, so it may take other locks, including
+   * locks that a thread holds while it calls {@link #tryPut}.
+   */
+  public void cancel(Exception exception, @Nullable Consumer<T> onDrop) {
     checkNotNull(exception);
+    List<T> dropped = Collections.emptyList();
     lock.lock();
     try {
       if (cancellationException == null) {
         cancellationException = exception;
-        clearElementsLocked();
+        dropped = clearElementsLocked(onDrop != null);
       }
       notEmpty.signalAll();
       notFull.signalAll();
     } finally {
       lock.unlock();
     }
+    if (onDrop != null) {
+      for (T element : dropped) {
+        onDrop.accept(element);
+      }
+    }
   }
 
-  private void clearElementsLocked() {
+  @SuppressWarnings({"cast"})
+  private List<T> clearElementsLocked(boolean collect) {
+    List<T> dropped = collect ? new ArrayList<>(count) : Collections.emptyList();
     for (int i = takeIndex; count > 0; i = (i + 1) % elements.length) {
+      if (collect && elements[i] != null) {
+        dropped.add((T) elements[i]);
+      }
       elements[i] = null;
       --count;
     }
     addIndex = 0;
     takeIndex = 0;
+    return dropped;
   }
 
   /** Enables the queue to be re-used after it has been cancelled. */
@@ -144,7 +190,7 @@ public class CancellableQueue<T extends @NonNull Object> {
     lock.lock();
     try {
       cancellationException = null;
-      clearElementsLocked();
+      clearElementsLocked(false);
     } finally {
       lock.unlock();
     }

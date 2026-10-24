@@ -20,6 +20,10 @@ package org.apache.beam.sdk.fn.stream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.Executors;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
@@ -37,6 +41,8 @@ public class OutboundObserverFactoryTest {
   @Mock private StreamObserver<Integer> mockRequestObserver;
   @Mock private CallStreamObserver<String> mockResponseObserver;
 
+  private interface StalledStreamObserver<T> extends StreamObserver<T>, StalledPollHandler {}
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
@@ -48,6 +54,36 @@ public class OutboundObserverFactoryTest {
         OutboundObserverFactory.clientDirect()
             .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(DirectStreamObserver.class));
+  }
+
+  @Test
+  public void testClientDirectWithStalledPollHandler() {
+    @SuppressWarnings("unchecked")
+    StalledStreamObserver<Integer> stalledObserver = mock(StalledStreamObserver.class);
+    StreamObserver<String> observer =
+        OutboundObserverFactory.clientDirect()
+            .outboundObserverFor(this.fakeFactory(), stalledObserver);
+    assertThat(observer, instanceOf(DirectStreamObserver.class));
+  }
+
+  @Test
+  public void testServerDirectInstantiation() {
+    StreamObserver<String> observer =
+        OutboundObserverFactory.serverDirect()
+            .outboundObserverFor(inbound -> mockResponseObserver, mockRequestObserver);
+    assertThat(observer, instanceOf(DirectStreamObserver.class));
+    verify(mockResponseObserver).setOnReadyHandler(any());
+  }
+
+  @Test
+  public void testServerDirectWithStalledPollHandler() {
+    @SuppressWarnings("unchecked")
+    StalledStreamObserver<Integer> stalledObserver = mock(StalledStreamObserver.class);
+    StreamObserver<String> observer =
+        OutboundObserverFactory.serverDirect()
+            .outboundObserverFor(inbound -> mockResponseObserver, stalledObserver);
+    assertThat(observer, instanceOf(DirectStreamObserver.class));
+    verify(mockResponseObserver).setOnReadyHandler(any());
   }
 
   @Test
@@ -65,6 +101,14 @@ public class OutboundObserverFactoryTest {
             .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
     assertEquals(1, ((BufferingStreamObserver<String>) observer).getBufferSize());
+  }
+
+  @Test
+  public void testTrivial() {
+    StreamObserver<String> observer =
+        OutboundObserverFactory.trivial()
+            .outboundObserverFor(inbound -> mockResponseObserver, mockRequestObserver);
+    assertSame(mockResponseObserver, observer);
   }
 
   private OutboundObserverFactory.BasicFactory<Integer, String> fakeFactory() {

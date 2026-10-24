@@ -89,13 +89,17 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver =
-          ForwardingClientResponseObserver.create(
-              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
-              baseOutboundObserverFactory.outboundObserverFor(inboundObserver);
-      return new DirectStreamObserver<>(phaser, outboundObserver);
+              baseOutboundObserverFactory.outboundObserverFor(
+                  ForwardingClientResponseObserver.create(
+                      inboundObserver, phaser::arrive, phaser::forceTermination));
+      return new DirectStreamObserver<>(
+          phaser,
+          outboundObserver,
+          inboundObserver instanceof StalledPollHandler
+              ? (StalledPollHandler) inboundObserver
+              : null);
     }
   }
 
@@ -109,7 +113,12 @@ public abstract class OutboundObserverFactory {
           (CallStreamObserver<RespT>)
               baseOutboundObserverFactory.outboundObserverFor(inboundObserver);
       outboundObserver.setOnReadyHandler(phaser::arrive);
-      return new DirectStreamObserver<>(phaser, outboundObserver);
+      return new DirectStreamObserver<>(
+          phaser,
+          outboundObserver,
+          inboundObserver instanceof StalledPollHandler
+              ? (StalledPollHandler) inboundObserver
+              : null);
     }
   }
 
@@ -128,13 +137,19 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver =
-          ForwardingClientResponseObserver.create(
-              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
-              baseOutboundObserverFactory.outboundObserverFor(inboundObserver);
-      return new BufferingStreamObserver<>(phaser, outboundObserver, executorService, bufferSize);
+              baseOutboundObserverFactory.outboundObserverFor(
+                  ForwardingClientResponseObserver.create(
+                      inboundObserver, phaser::arrive, phaser::forceTermination));
+      return new BufferingStreamObserver<>(
+          phaser,
+          outboundObserver,
+          executorService,
+          bufferSize,
+          inboundObserver instanceof StalledPollHandler
+              ? (StalledPollHandler) inboundObserver
+              : null);
     }
   }
 

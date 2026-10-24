@@ -23,6 +23,7 @@ import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
-  private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 100;
+  private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 0;
 
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
@@ -55,15 +56,34 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private final Object lock = new Object();
   private int numMessages;
 
+  private final @Nullable StalledPollHandler stalledPollHandler;
+
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
-    this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
+    this(phaser, outboundObserver, null);
+  }
+
+  public DirectStreamObserver(
+      Phaser phaser,
+      CallStreamObserver<T> outboundObserver,
+      @Nullable StalledPollHandler stalledPollHandler) {
+
+    this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK, stalledPollHandler);
   }
 
   DirectStreamObserver(
       Phaser phaser, CallStreamObserver<T> outboundObserver, int maxMessagesBeforeCheck) {
+    this(phaser, outboundObserver, maxMessagesBeforeCheck, null);
+  }
+
+  DirectStreamObserver(
+      Phaser phaser,
+      CallStreamObserver<T> outboundObserver,
+      int maxMessagesBeforeCheck,
+      @Nullable StalledPollHandler stalledPollHandler) {
     this.phaser = phaser;
     this.outboundObserver = outboundObserver;
     this.maxMessagesBeforeCheck = maxMessagesBeforeCheck;
+    this.stalledPollHandler = stalledPollHandler;
   }
 
   @Override
@@ -71,8 +91,8 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     synchronized (lock) {
       if (numMessages >= maxMessagesBeforeCheck) {
         numMessages = 0;
-        int waitSeconds = 1;
-        int totalSecondsWaited = 0;
+        int waitMs = 50;
+        int totalMsWaited = 0;
         int phase = phaser.getPhase();
         // Record the initial phase in case we are in the inbound gRPC thread where the phase won't
         // advance.
@@ -80,35 +100,38 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // A negative phase indicates that the phaser is terminated.
         while (phase >= 0 && !outboundObserver.isReady()) {
           try {
-            phase = phaser.awaitAdvanceInterruptibly(phase, waitSeconds, TimeUnit.SECONDS);
+            phase = phaser.awaitAdvanceInterruptibly(phase, waitMs, TimeUnit.MILLISECONDS);
           } catch (TimeoutException e) {
-            totalSecondsWaited += waitSeconds;
-            // Double the backoff for re-evaluating the isReady bit up to a maximum of once per
-            // minute. This bounds the waiting if the onReady callback is not called as expected.
-            waitSeconds = Math.min(waitSeconds * 2, 60);
+            totalMsWaited += waitMs;
+            if (stalledPollHandler != null && totalMsWaited >= 500 && totalMsWaited % 500 == 0) {
+              stalledPollHandler.onStalledPoll();
+            }
+            waitMs = 50;
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
           }
         }
-        if (totalSecondsWaited > 0) {
+        // Log only waits of a second or more, as with the earlier one-second poll. A shorter wait
+        // is normal backpressure, and isReady() can turn true just before onReady runs.
+        if (totalMsWaited >= 1000) {
           // If the phase didn't change, this means that the installed onReady callback had not
           // been invoked.
           if (initialPhase == phase) {
             LOG.info(
                 "Output channel stalled for {}s, outbound thread {}. OnReady notification was "
                     + "not invoked, ensure the inbound gRPC thread is not used for output.",
-                totalSecondsWaited,
+                totalMsWaited / 1000,
                 Thread.currentThread().getName());
-          } else if (totalSecondsWaited > 60) {
+          } else if (totalMsWaited > 60000) {
             LOG.warn(
                 "Output channel stalled for {}s, outbound thread {}.",
-                totalSecondsWaited,
+                totalMsWaited / 1000,
                 Thread.currentThread().getName());
           } else {
             LOG.debug(
                 "Output channel stalled for {}s, outbound thread {}.",
-                totalSecondsWaited,
+                totalMsWaited / 1000,
                 Thread.currentThread().getName());
           }
         }
