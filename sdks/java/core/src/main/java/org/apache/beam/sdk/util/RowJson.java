@@ -41,7 +41,6 @@ import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.timeValueExtractor;
-import static org.apache.beam.sdk.values.Row.toRow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -50,19 +49,16 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -73,6 +69,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableInstant;
 
@@ -191,8 +188,6 @@ public class RowJson {
   /** Jackson deserializer for parsing JSON into {@link Row Rows}. */
   public static class RowJsonDeserializer extends StdDeserializer<Row> {
 
-    private static final boolean SEQUENTIAL = false;
-
     /**
      * An enumeration type for specifying how {@link RowJsonDeserializer} should expect null values
      * to be represented.
@@ -227,20 +222,27 @@ public class RowJson {
     }
 
     private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
-        ImmutableMap.<TypeName, ValueExtractor<?>>builder()
-            .put(BYTE, byteValueExtractor())
-            .put(INT16, shortValueExtractor())
-            .put(INT32, intValueExtractor())
-            .put(INT64, longValueExtractor())
-            .put(FLOAT, floatValueExtractor())
-            .put(DOUBLE, doubleValueExtractor())
-            .put(BOOLEAN, booleanValueExtractor())
-            .put(STRING, stringValueExtractor())
-            .put(DECIMAL, decimalValueExtractor())
-            .put(DATETIME, datetimeValueExtractor())
-            .build();
+        Maps.immutableEnumMap(
+            ImmutableMap.<TypeName, ValueExtractor<?>>builder()
+                .put(BYTE, byteValueExtractor())
+                .put(INT16, shortValueExtractor())
+                .put(INT32, intValueExtractor())
+                .put(INT64, longValueExtractor())
+                .put(FLOAT, floatValueExtractor())
+                .put(DOUBLE, doubleValueExtractor())
+                .put(BOOLEAN, booleanValueExtractor())
+                .put(STRING, stringValueExtractor())
+                .put(DECIMAL, decimalValueExtractor())
+                .put(DATETIME, datetimeValueExtractor())
+                .build());
+
+    private static final ValueExtractor<LocalDate> DATE_EXTRACTOR = dateValueExtractor();
+    private static final ValueExtractor<LocalTime> TIME_EXTRACTOR = timeValueExtractor();
+    private static final ValueExtractor<LocalDateTime> LOCAL_DATETIME_EXTRACTOR =
+        localDatetimeValueExtractor();
 
     private final Schema schema;
+    private final FieldType rootRowType;
     private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
@@ -252,6 +254,7 @@ public class RowJson {
     private RowJsonDeserializer(Schema schema) {
       super(Row.class);
       this.schema = schema;
+      this.rootRowType = FieldType.row(schema);
     }
 
     /**
@@ -269,235 +272,160 @@ public class RowJson {
         throws IOException {
 
       // Parse and convert the root object to Row as if it's a nested field with name 'root'
-      return (Row)
-          extractJsonNodeValue(
-              FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree()));
+      return (Row) extractJsonNodeValue("root", rootRowType, jsonParser.readValueAsTree());
     }
 
-    private Object extractJsonNodeValue(FieldValue fieldValue) {
-      if (fieldValue.type().getNullable()) {
-        if (!fieldValue.isJsonValuePresent()) {
+    private @Nullable Object extractJsonNodeValue(
+        String fieldName, FieldType fieldType, @Nullable JsonNode jsonValue) {
+      if (fieldType.getNullable()) {
+        if (jsonValue == null) {
           switch (this.nullBehavior) {
             case ACCEPT_MISSING_OR_NULL:
             case REQUIRE_MISSING:
               return null;
             case REQUIRE_NULL:
               throw new UnsupportedRowJsonException(
-                  "Field '" + fieldValue.name() + "' is not present in the JSON object.");
+                  "Field '" + fieldName + "' is not present in the JSON object.");
           }
         }
 
-        if (fieldValue.isJsonNull()) {
+        if (jsonValue.isNull()) {
           switch (this.nullBehavior) {
             case ACCEPT_MISSING_OR_NULL:
             case REQUIRE_NULL:
               return null;
             case REQUIRE_MISSING:
               throw new UnsupportedRowJsonException(
-                  "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+                  "Field '" + fieldName + "' has a null value in the JSON object.");
           }
         }
       } else {
         // field is not nullable
-        if (!fieldValue.isJsonValuePresent()) {
+        if (jsonValue == null) {
           throw new UnsupportedRowJsonException(
-              "Non-nullable field '" + fieldValue.name() + "' is not present in the JSON object.");
-        } else if (fieldValue.isJsonNull()) {
+              "Non-nullable field '" + fieldName + "' is not present in the JSON object.");
+        } else if (jsonValue.isNull()) {
           throw new UnsupportedRowJsonException(
-              "Non-nullable field '" + fieldValue.name() + "' has value null in the JSON object.");
+              "Non-nullable field '" + fieldName + "' has value null in the JSON object.");
         }
       }
 
-      if (fieldValue.isRowType()) {
-        return jsonObjectToRow(fieldValue);
+      TypeName typeName = fieldType.getTypeName();
+      switch (typeName) {
+        case ROW:
+          return jsonObjectToRow(fieldName, fieldType.getRowSchema(), jsonValue);
+        case ARRAY:
+        case ITERABLE:
+          return jsonArrayToList(fieldName, fieldType.getCollectionElementType(), jsonValue);
+        case MAP:
+          return jsonObjectToMap(fieldName, fieldType.getMapValueType(), jsonValue);
+        case LOGICAL_TYPE:
+          Schema.LogicalType<Object, Object> logicalType =
+              (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+          String identifier = logicalType.getIdentifier();
+          if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+            return extractWithExtractor(fieldName, typeName, jsonValue, DATE_EXTRACTOR);
+          } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+            return extractWithExtractor(fieldName, typeName, jsonValue, TIME_EXTRACTOR);
+          } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+            return extractWithExtractor(fieldName, typeName, jsonValue, LOCAL_DATETIME_EXTRACTOR);
+          } else {
+            return logicalType.toInputType(
+                extractJsonNodeValue(fieldName, logicalType.getBaseType(), jsonValue));
+          }
+        default:
+          return extractJsonPrimitiveValue(fieldName, typeName, jsonValue);
       }
-
-      if (fieldValue.isArrayType()) {
-        return jsonArrayToList(fieldValue);
-      }
-
-      if (fieldValue.isMapType()) {
-        return jsonObjectToMap(fieldValue);
-      }
-
-      if (fieldValue.typeName().isLogicalType()) {
-        Schema.LogicalType<Object, Object> logicalType =
-            (Schema.LogicalType<Object, Object>) fieldValue.type().getLogicalType();
-        String identifier = logicalType.getIdentifier();
-        if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
-          return dateValueExtractor().extractValue(fieldValue.jsonValue());
-        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
-          return timeValueExtractor().extractValue(fieldValue.jsonValue());
-        } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
-          return localDatetimeValueExtractor().extractValue(fieldValue.jsonValue());
-        } else {
-          return logicalType.toInputType(
-              extractJsonNodeValue(
-                  FieldValue.of(
-                      fieldValue.name(), logicalType.getBaseType(), fieldValue.jsonValue())));
-        }
-      }
-
-      return extractJsonPrimitiveValue(fieldValue);
     }
 
-    private Row jsonObjectToRow(FieldValue rowFieldValue) {
-      if (!rowFieldValue.isJsonObject()) {
+    private Row jsonObjectToRow(String fieldName, Schema rowSchema, JsonNode jsonValue) {
+      if (!jsonValue.isObject()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
-                + rowFieldValue.name()
+                + fieldName
                 + "'. Unable to convert '"
-                + rowFieldValue.jsonValue().asText()
+                + jsonValue.asText()
                 + "' to Beam Row, it is not a JSON object. Currently only JSON objects can be parsed to Beam Rows");
       }
 
-      return rowFieldValue.rowSchema().getFields().stream()
-          .map(
-              schemaField ->
-                  extractJsonNodeValue(
-                      FieldValue.of(
-                          schemaField.getName(),
-                          schemaField.getType(),
-                          rowFieldValue.jsonFieldValue(schemaField.getName()))))
-          .collect(toRow(rowFieldValue.rowSchema()));
+      int fieldCount = rowSchema.getFieldCount();
+      List<Object> values = new ArrayList<>(fieldCount);
+      for (int i = 0; i < fieldCount; i++) {
+        Field schemaField = rowSchema.getField(i);
+        String schemaFieldName = schemaField.getName();
+        values.add(
+            extractJsonNodeValue(
+                schemaFieldName, schemaField.getType(), jsonValue.get(schemaFieldName)));
+      }
+      return Row.withSchema(rowSchema).addValues(values).build();
     }
 
-    private Object jsonArrayToList(FieldValue arrayFieldValue) {
-      if (!arrayFieldValue.isJsonArray()) {
+    private Object jsonArrayToList(
+        String fieldName, FieldType elementType, JsonNode jsonArrayNode) {
+      if (!jsonArrayNode.isArray()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON array for field '"
-                + arrayFieldValue.name()
+                + fieldName
                 + "'. Instead got "
-                + arrayFieldValue.jsonNodeType().name());
+                + jsonArrayNode.getNodeType().name());
       }
 
-      return arrayFieldValue
-          .jsonArrayElements()
-          .map(
-              jsonArrayElement ->
-                  extractJsonNodeValue(
-                      FieldValue.of(
-                          arrayFieldValue.name() + "[]",
-                          arrayFieldValue.arrayElementType(),
-                          jsonArrayElement)))
-          .collect(toImmutableList());
+      int size = jsonArrayNode.size();
+      if (size == 0) {
+        return ImmutableList.of();
+      }
+      String elementFieldName = fieldName + "[]";
+      ImmutableList.Builder<Object> builder = ImmutableList.builderWithExpectedSize(size);
+      for (int i = 0; i < size; i++) {
+        builder.add(extractJsonNodeValue(elementFieldName, elementType, jsonArrayNode.get(i)));
+      }
+      return builder.build();
     }
 
-    private Map<String, Object> jsonObjectToMap(FieldValue mapFieldValue) {
-      if (!mapFieldValue.isJsonObject()) {
+    private Map<String, Object> jsonObjectToMap(
+        String fieldName, FieldType mapValueType, JsonNode jsonObjectNode) {
+      if (!jsonObjectNode.isObject()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
-                + mapFieldValue.name()
+                + fieldName
                 + "'. Instead got "
-                + mapFieldValue.jsonNodeType().name());
+                + jsonObjectNode.getNodeType().name());
       }
 
-      Map<String, Object> result = new HashMap<>();
-      Iterator<Map.Entry<String, JsonNode>> fields = mapFieldValue.jsonValue().fields();
+      Map<String, Object> result = Maps.newHashMapWithExpectedSize(jsonObjectNode.size());
+      Iterator<Map.Entry<String, JsonNode>> fields = jsonObjectNode.fields();
       while (fields.hasNext()) {
         Map.Entry<String, JsonNode> field = fields.next();
         String key = field.getKey();
         JsonNode value = field.getValue();
 
         Object extractedValue =
-            extractJsonNodeValue(
-                FieldValue.of(
-                    mapFieldValue.name() + "['" + key + "']", mapFieldValue.mapValueType(), value));
+            extractJsonNodeValue(fieldName + "['" + key + "']", mapValueType, value);
 
         result.put(key, extractedValue);
       }
       return result;
     }
 
-    private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
+    private static Object extractJsonPrimitiveValue(
+        String fieldName, TypeName typeName, JsonNode jsonValue) {
+      return extractWithExtractor(
+          fieldName, typeName, jsonValue, JSON_VALUE_GETTERS.get(typeName));
+    }
+
+    private static Object extractWithExtractor(
+        String fieldName, TypeName typeName, JsonNode jsonValue, ValueExtractor<?> extractor) {
       try {
-        return JSON_VALUE_GETTERS.get(fieldValue.typeName()).extractValue(fieldValue.jsonValue());
+        return extractor.extractValue(jsonValue);
       } catch (RuntimeException e) {
         throw new UnsupportedRowJsonException(
             "Unable to get value from field '"
-                + fieldValue.name()
+                + fieldName
                 + "'. Schema type '"
-                + fieldValue.typeName()
+                + typeName
                 + "'. JSON node type "
-                + fieldValue.jsonNodeType().name(),
+                + jsonValue.getNodeType().name(),
             e);
-      }
-    }
-
-    /**
-     * Helper class to keep track of schema field type, name, and actual json value for the field.
-     */
-    @AutoValue
-    abstract static class FieldValue {
-      abstract String name();
-
-      abstract FieldType type();
-
-      abstract @Nullable JsonNode jsonValue();
-
-      TypeName typeName() {
-        return type().getTypeName();
-      }
-
-      boolean isJsonValuePresent() {
-        return jsonValue() != null;
-      }
-
-      boolean isJsonNull() {
-        return jsonValue().isNull();
-      }
-
-      JsonNodeType jsonNodeType() {
-        return jsonValue().getNodeType();
-      }
-
-      boolean isJsonArray() {
-        return jsonValue().isArray();
-      }
-
-      Stream<JsonNode> jsonArrayElements() {
-        return StreamSupport.stream(jsonValue().spliterator(), SEQUENTIAL);
-      }
-
-      boolean isArrayType() {
-        return TypeName.ARRAY.equals(type().getTypeName())
-            || TypeName.ITERABLE.equals(type().getTypeName());
-      }
-
-      FieldType arrayElementType() {
-        return type().getCollectionElementType();
-      }
-
-      boolean isJsonObject() {
-        return jsonValue().isObject();
-      }
-
-      JsonNode jsonFieldValue(String fieldName) {
-        return jsonValue().get(fieldName);
-      }
-
-      boolean isRowType() {
-        return TypeName.ROW.equals(type().getTypeName());
-      }
-
-      Schema rowSchema() {
-        return type().getRowSchema();
-      }
-
-      boolean isMapType() {
-        return TypeName.MAP.equals(type().getTypeName());
-      }
-
-      FieldType mapKeyType() {
-        return type().getMapKeyType();
-      }
-
-      FieldType mapValueType() {
-        return type().getMapValueType();
-      }
-
-      static FieldValue of(String name, FieldType type, JsonNode jsonValue) {
-        return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue);
       }
     }
   }
@@ -506,7 +434,7 @@ public class RowJson {
   public static class RowJsonSerializer extends StdSerializer<Row> {
 
     private final Schema schema;
-    private Boolean dropNullsOnWrite = false;
+    private boolean dropNullsOnWrite = false;
 
     /** Creates a serializer for a {@link Row} {@link Schema}. */
     public static RowJsonSerializer forSchema(Schema schema) {
@@ -521,7 +449,7 @@ public class RowJson {
 
     /** Serializer drops nulls on write if set to true instead of writing fieldName: null. */
     public RowJsonSerializer withDropNullsOnWrite(Boolean dropNullsOnWrite) {
-      this.dropNullsOnWrite = dropNullsOnWrite;
+      this.dropNullsOnWrite = Boolean.TRUE.equals(dropNullsOnWrite);
       return this;
     }
 
