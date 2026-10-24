@@ -966,4 +966,22 @@ public class RowTest {
     thrown.expect(IllegalArgumentException.class);
     Row.withSchema(parentSchema).addArray(ImmutableList.of(wrongNestedRow)).build();
   }
+
+  @Test
+  public void testSlicedAndReadOnlyByteBufferEquality() {
+    byte[] expected = new byte[] {2, 3, 4};
+    ByteBuffer sliced = ByteBuffer.wrap(new byte[] {99, 2, 3, 4, 99}, 1, 3).slice();
+    ByteBuffer readOnly = ByteBuffer.wrap(expected).asReadOnlyBuffer();
+
+    Schema schema = Schema.of(Schema.Field.of("bytes", Schema.FieldType.BYTES));
+
+    Row rowFromBytes = Row.withSchema(schema).addValue(expected).build();
+    Row rowFromSlice = Row.withSchema(schema).addValue(sliced).build();
+    Row rowFromReadOnly = Row.withSchema(schema).withFieldValue("bytes", readOnly).build();
+
+    assertEquals(rowFromBytes, rowFromSlice);
+    assertEquals(rowFromBytes, rowFromReadOnly);
+    assertTrue(Arrays.equals(expected, rowFromSlice.getBytes(0)));
+    assertTrue(Arrays.equals(expected, rowFromReadOnly.getBytes(0)));
+  }
 }
