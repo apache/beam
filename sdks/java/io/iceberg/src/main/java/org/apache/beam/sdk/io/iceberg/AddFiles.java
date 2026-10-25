@@ -211,7 +211,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
   /**
    * @param locationPrefix when set on a partitioned table, the partition is read from the path
-   *     after this prefix instead of from the file's column stats
+   *     after this prefix instead of from the file's column stats. A table partitioned by {@code
+   *     dt} then accepts files under {@code dt=2024-01-15/} that have no {@code dt} column
    * @param partitionFields partition spec applied when the table is created by this transform
    * @param sortFields sort order applied when the table is created by this transform
    * @param tableProps table properties applied when the table is created by this transform
@@ -343,7 +344,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private PCollection<List<CollectDistinctSchemas.SchemaGroup>> distinctSchemas(
       PCollection<String> windowed) {
     return windowed
-        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution)))
+        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution, locationPrefix)))
         .setCoder(CollectDistinctSchemas.groupCoder())
         .apply(
             "CollectDistinctSchemas",
@@ -468,6 +469,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     static final String PREFIX_ERROR = "File path did not start with the specified prefix";
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
+    static final String NOT_PARQUET_ERROR =
+        UNKNOWN_FORMAT_ERROR + ": the file name has no extension and the file is not Parquet: ";
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
     static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
     static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
@@ -626,10 +629,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       return () -> {
         FileFormat format;
-        try {
-          format = inferFormat(filePath);
-        } catch (UnknownFormatException e) {
-          return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+        @Nullable ParquetMetadata parquetFooter = null;
+        if (hasNoExtension(filePath)) {
+          try {
+            parquetFooter = ParquetFooters.read(filePath);
+          } catch (Exception e) {
+            return errorResult(
+                filePath, NOT_PARQUET_ERROR + errorMessage(e), timestamp, window, paneInfo);
+          }
+          format = FileFormat.PARQUET;
+        } else {
+          try {
+            format = inferFormat(filePath);
+          } catch (UnknownFormatException e) {
+            return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+          }
         }
 
         // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
@@ -670,8 +684,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
 
         // ---- Per-file phase: every failure below is one error row, never a failed bundle.
-        @Nullable ParquetMetadata parquetFooter = null;
-        if (format.equals(FileFormat.PARQUET)) {
+        if (format.equals(FileFormat.PARQUET) && parquetFooter == null) {
           try {
             parquetFooter = ParquetFooters.read(filePath);
           } catch (Exception e) {
@@ -799,11 +812,26 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       } catch (Exception e) {
         return Verdict.error(UNREADABLE_SCHEMA_ERROR + errorMessage(e));
       }
-      @Nullable String uncovered = uncoveredReason(fileSchema);
+      Set<Integer> identityPartitionColumnsFromPath = identityPartitionColumnsFromPath(filePath);
+      @Nullable String uncovered = uncoveredReason(fileSchema, identityPartitionColumnsFromPath);
       if (uncovered != null) {
         return Verdict.error(uncovered);
       }
-      return checkPins(filePath, fileSchema, parquetFooter);
+      return checkPins(filePath, fileSchema, parquetFooter, identityPartitionColumnsFromPath);
+    }
+
+    /**
+     * Identity partition columns this file may lack because its path gives them a value: {@code dt}
+     * for a file under {@code dt=2024-01-15/} when the table is partitioned by {@code dt}. Empty
+     * without a prefix.
+     */
+    private Set<Integer> identityPartitionColumnsFromPath(String filePath) {
+      Table table = checkStateNotNull(this.table);
+      if (Strings.isNullOrEmpty(prefix) || table.spec().isUnpartitioned()) {
+        return Collections.emptySet();
+      }
+      return PartitionPaths.identityColumnsFilledByKeys(
+          table.spec(), PartitionPaths.partitionKeysInPath(filePath, prefix));
     }
 
     /**
@@ -811,9 +839,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * covers every file. If not, refresh once per bundle (a commit may have landed since the table
      * was cached) and report the remaining delta. Never changes the schema.
      */
-    private @Nullable String uncoveredReason(org.apache.iceberg.Schema fileSchema) {
+    private @Nullable String uncoveredReason(
+        org.apache.iceberg.Schema fileSchema, Set<Integer> identityPartitionColumnsFromPath) {
       Table table = checkStateNotNull(this.table);
-      SchemaDelta delta = SchemaDelta.classify(table, fileSchema);
+      SchemaDelta delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
@@ -824,7 +853,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           table.refresh();
         }
       }
-      delta = SchemaDelta.classify(table, fileSchema);
+      delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
@@ -845,14 +874,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * goes on, so a pin the footer does count nulls for still fails the file.
      */
     private Verdict checkPins(
-        String filePath, org.apache.iceberg.Schema fileSchema, ParquetMetadata footer) {
+        String filePath,
+        org.apache.iceberg.Schema fileSchema,
+        ParquetMetadata footer,
+        Set<Integer> identityPartitionColumnsFromPath) {
       Table table = checkStateNotNull(this.table);
       List<String> unproven = new ArrayList<>();
       for (String pinned : evolution.getRequiredColumns()) {
-        if (table.schema().findField(pinned) == null) {
+        org.apache.iceberg.types.Types.@Nullable NestedField tableField =
+            table.schema().findField(pinned);
+        if (tableField == null) {
           continue;
         }
         if (fileSchema.findField(pinned) == null) {
+          if (identityPartitionColumnsFromPath.contains(tableField.fieldId())) {
+            // the path gives it a value, e.g. dt=2024-01-15, so it is never null
+            continue;
+          }
           return Verdict.error(PINNED_COLUMN_ERROR + pinned + " is absent from the file");
         }
         @Nullable Long nulls = FileSchemas.nullCount(footer, fileSchema, pinned);
@@ -957,10 +995,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       if (checkStateNotNull(table).spec().isUnpartitioned()) {
         return "";
       }
-      String partitionPath = filePath.substring(checkStateNotNull(prefix).length());
-      int lastSlashIndex = partitionPath.lastIndexOf('/');
-
-      return lastSlashIndex > 0 ? partitionPath.substring(0, lastSlashIndex) : "";
+      return PartitionPaths.relative(filePath, checkStateNotNull(prefix));
     }
 
     /**
@@ -1369,7 +1404,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
-  /** Tries to infer other file formats. Defaults to Parquet. */
+  /** Attempt to infer file format from extension. */
   public static FileFormat inferFormat(String path) {
     String lowerPath = path.toLowerCase();
 
@@ -1382,6 +1417,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     } else {
       throw new UnknownFormatException();
     }
+  }
+
+  /**
+   * A name with no extension, as Hive and other engines write by default, says nothing about the
+   * format, so the file is read to see whether it is Parquet. A name with a dot names some format.
+   */
+  static boolean hasNoExtension(String path) {
+    String name = path.substring(path.lastIndexOf('/') + 1);
+    return !name.isEmpty() && name.indexOf('.') < 0;
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

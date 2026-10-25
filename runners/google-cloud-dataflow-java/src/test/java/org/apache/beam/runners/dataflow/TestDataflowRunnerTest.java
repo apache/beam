@@ -19,7 +19,10 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -32,12 +35,18 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -668,5 +677,107 @@ public class TestDataflowRunnerTest {
 
     @Override
     public void describeTo(Description description) {}
+  }
+
+  /** A sleeper that records requested sleeps instead of performing them. */
+  private static class RecordingSleeper implements Sleeper {
+    final List<Long> sleepsMillis = new ArrayList<>();
+
+    @Override
+    public void sleep(long millis) {
+      sleepsMillis.add(millis);
+    }
+  }
+
+  private static RuntimeException quotaRejection() {
+    GoogleJsonError details = new GoogleJsonError();
+    details.setMessage("Quota exceeded for quota metric 'Job creation requests'");
+    GoogleJsonResponseException http429 =
+        new GoogleJsonResponseException(
+            new HttpResponseException.Builder(429, "Too Many Requests", new HttpHeaders()),
+            details);
+    // DataflowRunner wraps the service exception exactly like this.
+    return new RuntimeException(
+        "Failed to create a workflow job: " + details.getMessage(), http429);
+  }
+
+  @Test
+  public void testSubmitRetriesQuotaRejections() {
+    Pipeline p = Pipeline.create(options);
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class)))
+        .thenThrow(quotaRejection())
+        .thenThrow(quotaRejection())
+        .thenReturn(mockJob);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    assertSame(mockJob, runner.submit(mockRunner, p));
+    verify(mockRunner, Mockito.times(3)).run(p);
+    assertEquals(2, sleeper.sleepsMillis.size());
+    for (long sleep : sleeper.sleepsMillis) {
+      assertThat(sleep, greaterThan(0L));
+    }
+  }
+
+  @Test
+  public void testSubmitDoesNotRetryOtherFailures() {
+    Pipeline p = Pipeline.create(options);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    RuntimeException failure = new RuntimeException("Failed to create a workflow job: bad graph");
+    when(mockRunner.run(any(Pipeline.class))).thenThrow(failure);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    try {
+      runner.submit(mockRunner, p);
+      fail("Expected the submission failure to propagate");
+    } catch (RuntimeException e) {
+      assertSame(failure, e);
+    }
+    verify(mockRunner, Mockito.times(1)).run(p);
+    assertThat(sleeper.sleepsMillis, empty());
+  }
+
+  @Test
+  public void testSubmitGivesUpAfterRepeatedQuotaRejections() {
+    Pipeline p = Pipeline.create(options);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              throw quotaRejection();
+            });
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    try {
+      runner.submit(mockRunner, p);
+      fail("Expected the submission to fail once retries are exhausted");
+    } catch (RuntimeException e) {
+      assertThat(TestDataflowRunner.quotaRejection(e), notNullValue());
+    }
+    // One initial attempt plus a bounded number of retries, each preceded by a sleep.
+    int attempts = Mockito.mockingDetails(mockRunner).getInvocations().size();
+    assertThat(attempts, greaterThan(1));
+    assertEquals(attempts - 1, sleeper.sleepsMillis.size());
+  }
+
+  @Test
+  public void testQuotaRejectionDetection() {
+    assertThat(TestDataflowRunner.quotaRejection(quotaRejection()), notNullValue());
+    assertNull(TestDataflowRunner.quotaRejection(new RuntimeException("boom")));
+    GoogleJsonResponseException http400 =
+        new GoogleJsonResponseException(
+            new HttpResponseException.Builder(400, "Bad Request", new HttpHeaders()),
+            new GoogleJsonError());
+    assertNull(TestDataflowRunner.quotaRejection(new RuntimeException("wrapped", http400)));
   }
 }

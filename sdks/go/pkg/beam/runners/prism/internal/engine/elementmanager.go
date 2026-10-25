@@ -2318,9 +2318,20 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	// A key stays assigned to this bundle while any primary element still
+	// carries it. Releasing it would let a residual of the same key run in a
+	// second bundle while the primary is still processing it, so both bundles
+	// would start from the same state and the last commit would drop the
+	// other's state changes.
+	primKeys := set[string]{}
+	for _, e := range prim {
+		primKeys.insert(string(e.keyBytes))
+	}
 	for _, e := range res {
-		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
-		delete(ss.inprogressKeys, string(e.keyBytes))
+		if k := string(e.keyBytes); !primKeys.present(k) {
+			delete(ss.inprogressKeysByBundle[rb.BundleID], k)
+			delete(ss.inprogressKeys, k)
+		}
 
 		if e.IsTimer() {
 			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
