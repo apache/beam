@@ -28,6 +28,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpResponseException;
@@ -118,8 +120,18 @@ public class BigqueryClientTest {
   }
 
   private static GoogleJsonResponseException jsonError(int statusCode) {
+    return jsonError(statusCode, "error");
+  }
+
+  private static GoogleJsonResponseException jsonError(int statusCode, String reason) {
+    ErrorInfo errorInfo = new ErrorInfo();
+    errorInfo.setDomain("global");
+    errorInfo.setReason(reason);
+    GoogleJsonError details = new GoogleJsonError();
+    details.setCode(statusCode);
+    details.setErrors(Collections.singletonList(errorInfo));
     return new GoogleJsonResponseException(
-        new HttpResponseException.Builder(statusCode, "error", new HttpHeaders()), null);
+        new HttpResponseException.Builder(statusCode, reason, new HttpHeaders()), details);
   }
 
   private void stubQueryUnflattened() throws IOException {
@@ -138,23 +150,52 @@ public class BigqueryClientTest {
     when(mockGetQueryResults.setLocation(any())).thenReturn(mockGetQueryResults);
   }
 
+  private static GetQueryResultsResponse completeResponse(List<TableRow> rows) {
+    return new GetQueryResultsResponse().setJobComplete(true).setRows(rows);
+  }
+
   @Test
-  public void testQueryUnflattenedRetriesServerError() throws Exception {
+  public void testQueryUnflattenedStartsNewJobAfterServerError() throws Exception {
     stubQueryUnflattened();
     List<TableRow> rows = Collections.singletonList(new TableRow().set("f0_", "1"));
     when(mockGetQueryResults.execute())
-        .thenThrow(jsonError(503))
-        .thenReturn(new GetQueryResultsResponse().setJobComplete(true).setRows(rows));
+        .thenThrow(jsonError(503, "backendError"))
+        .thenReturn(completeResponse(rows));
+
+    assertEquals(rows, bqClient.queryUnflattened(query, projectId, false, true));
+    verify(mockJobs, times(2)).insert(eq(projectId), any(Job.class));
+    verify(mockDatasets).delete(eq(projectId), anyString());
+  }
+
+  @Test
+  public void testQueryUnflattenedRetriesJobInsertError() throws Exception {
+    stubQueryUnflattened();
+    List<TableRow> rows = Collections.singletonList(new TableRow().set("f0_", "1"));
+    when(mockJobInsert.execute())
+        .thenThrow(jsonError(503, "backendError"))
+        .thenReturn(new Job().setJobReference(new JobReference().setJobId("job-id")));
+    when(mockGetQueryResults.execute()).thenReturn(completeResponse(rows));
+
+    assertEquals(rows, bqClient.queryUnflattened(query, projectId, false, true));
+    verify(mockJobInsert, times(2)).execute();
+  }
+
+  @Test
+  public void testQueryUnflattenedRetriesRateLimitExceeded() throws Exception {
+    stubQueryUnflattened();
+    List<TableRow> rows = Collections.singletonList(new TableRow().set("f0_", "1"));
+    when(mockGetQueryResults.execute())
+        .thenThrow(jsonError(403, "rateLimitExceeded"))
+        .thenReturn(completeResponse(rows));
 
     assertEquals(rows, bqClient.queryUnflattened(query, projectId, false, true));
     verify(mockGetQueryResults, times(2)).execute();
-    verify(mockDatasets).delete(eq(projectId), anyString());
   }
 
   @Test
   public void testQueryUnflattenedDoesNotRetryClientError() throws Exception {
     stubQueryUnflattened();
-    when(mockGetQueryResults.execute()).thenThrow(jsonError(400));
+    when(mockGetQueryResults.execute()).thenThrow(jsonError(400, "invalidQuery"));
 
     thrown.expect(GoogleJsonResponseException.class);
     try {
@@ -162,6 +203,20 @@ public class BigqueryClientTest {
     } finally {
       verify(mockGetQueryResults, times(1)).execute();
       verify(mockDatasets).delete(eq(projectId), anyString());
+    }
+  }
+
+  @Test
+  public void testQueryUnflattenedDoesNotRetryNonJsonClientError() throws Exception {
+    stubQueryUnflattened();
+    when(mockGetQueryResults.execute())
+        .thenThrow(new HttpResponseException.Builder(404, "Not Found", new HttpHeaders()).build());
+
+    thrown.expect(HttpResponseException.class);
+    try {
+      bqClient.queryUnflattened(query, projectId, false, true);
+    } finally {
+      verify(mockGetQueryResults, times(1)).execute();
     }
   }
 
