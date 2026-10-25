@@ -130,9 +130,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   @Override
   public void close() throws Exception {
     int cleared = queue.cancel(CloseException.INSTANCE);
-    IntConsumer callback = onElementsConsumed;
-    if (cleared > 0 && callback != null) {
-      callback.accept(cleared);
+    if (cleared > 0) {
+      IntConsumer callback = onElementsConsumed;
+      if (callback != null) {
+        callback.accept(cleared);
+      }
     }
   }
 
@@ -210,9 +212,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       }
     } catch (Exception e) {
       int cleared = queue.cancel(e);
-      IntConsumer callback = onElementsConsumed;
-      if (cleared > 0 && callback != null) {
-        callback.accept(cleared);
+      if (cleared > 0) {
+        IntConsumer callback = onElementsConsumed;
+        if (callback != null) {
+          callback.accept(cleared);
+        }
       }
       throw e;
     } finally {
@@ -312,9 +316,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       }
     }
     int cleared = queue.reset();
-    IntConsumer callback = onElementsConsumed;
-    if (cleared > 0 && callback != null) {
-      callback.accept(cleared);
+    if (cleared > 0) {
+      IntConsumer callback = onElementsConsumed;
+      if (callback != null) {
+        callback.accept(cleared);
+      }
     }
     onElementsConsumed = null;
   }
