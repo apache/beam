@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.TableReference;
@@ -113,8 +115,8 @@ public class TableDestination implements Serializable {
 
   /**
    * Creates a destination with range partitioning. BigQuery doesn't allow both time and range
-   * partitioning on one table, so set at most one of {@code timePartitioning} and {@code
-   * rangePartitioning}.
+   * partitioning on one table, so this throws {@link IllegalArgumentException} if both {@code
+   * timePartitioning} and {@code rangePartitioning} are set.
    */
   public TableDestination(
       String tableSpec,
@@ -150,6 +152,10 @@ public class TableDestination implements Serializable {
       @Nullable String jsonTimePartitioning,
       @Nullable String jsonClustering,
       @Nullable String jsonRangePartitioning) {
+    checkArgument(
+        jsonTimePartitioning == null || jsonRangePartitioning == null,
+        "Table %s has both time and range partitioning, but a BigQuery table can only have one.",
+        tableSpec);
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;

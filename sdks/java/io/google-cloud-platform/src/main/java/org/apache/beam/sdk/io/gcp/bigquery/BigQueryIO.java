@@ -4344,6 +4344,13 @@ public class BigQueryIO {
                     jsonRangePartitioning),
             "When writing to dynamic destinations, set range partitioning in the returned"
                 + " TableDestination objects and call withRangePartitioning() with no arguments.");
+      } else if (jsonRangePartitioning != null && jsonRangePartitioning.isAccessible()) {
+        checkArgument(
+            ConstantTimePartitioningClusteringDestinations.isJsonConfigPresent(
+                jsonRangePartitioning),
+            "withRangePartitioning() with no arguments only applies to to(SerializableFunction)"
+                + " and to(DynamicDestinations). To write to a single table, pass a"
+                + " RangePartitioning.");
       }
 
       if (getJsonTimePartitioning() != null) {

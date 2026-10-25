@@ -801,6 +801,46 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testTableFunctionWithTimeAndRangePartitioningFails() throws Exception {
+    p.apply(Create.<TableRow>of(new TableRow().set("date", "2018-01-01").set("number", "1")))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination(
+                            "project-id:dataset-id.table-id",
+                            null,
+                            new TimePartitioning().setType("DAY").setField("date"),
+                            null,
+                            testRangePartitioning()))
+                .withRangePartitioning()
+                .withTestServices(fakeBqServices)
+                .withMethod(writeMethodForTestParameters())
+                .withSchema(rangePartitioningTestSchema())
+                .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("has both time and range partitioning");
+    p.run();
+  }
+
+  @Test
+  public void testNoArgRangePartitioningNotAllowedWithSingleTable() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("To write to a single table, pass a RangePartitioning");
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(rangePartitioningTestSchema())
+                .withRangePartitioning()
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+  }
+
   /** Writes every element to one range partitioned table, with a configurable coder. */
   static class RangePartitionedDestinations
       extends DynamicDestinations<TableRow, TableDestination> {
