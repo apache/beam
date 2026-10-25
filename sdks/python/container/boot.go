@@ -217,6 +217,12 @@ func launchSDKProcess() error {
 	// artifacts (requirements.txt, pickled_main_session, etc.,).
 	semiPersist := filepath.Join(*semiPersistDir, *id)
 	dir := filepath.Join(semiPersist, "staged")
+	// Remove this worker's directory on exit so that it does not accumulate on
+	// runners that reuse the environment for multiple pipelines. Only a direct
+	// child of semiPersistDir is ever removed.
+	if filepath.Dir(semiPersist) == filepath.Clean(*semiPersistDir) {
+		defer os.RemoveAll(semiPersist)
+	}
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
