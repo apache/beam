@@ -312,7 +312,8 @@ public class DebeziumIO {
     /**
      * Adds {@code op} and the remaining Debezium {@code source} fields (e.g. MySQL {@code file},
      * {@code pos}, {@code row}, {@code ts_ms}; PostgreSQL {@code lsn}, {@code txId}, {@code ts_ms})
-     * to {@code metadata} when reading as JSON.
+     * to {@code metadata} when reading as JSON, plus the change event's {@code transaction} block
+     * as a nested object when the connector has {@code provide.transaction.metadata=true}.
      *
      * <p>Only applies to {@link DebeziumIO#readAsJson()} / {@link
      * SourceRecordJson.SourceRecordJsonMapper}; combining it with a custom {@link
