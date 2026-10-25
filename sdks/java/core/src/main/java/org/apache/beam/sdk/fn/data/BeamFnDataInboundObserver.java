@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,6 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Closing the receiver will unblock any upstream producer and downstream consumer exceptionally.
  */
 public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFnApi.Elements> {
+
+  static final int DEFAULT_QUEUE_CAPACITY = 100;
 
   /**
    * Creates a receiver that is able to consume elements multiplexing on to the provided set of
@@ -86,6 +89,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private int numEndpointsThatAreIncomplete;
 
   private final AtomicBoolean consumingReceivedData;
+  private @Nullable IntConsumer onElementsConsumed;
 
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
@@ -99,10 +103,18 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
           .computeIfAbsent(endpoint.getTransformId(), unused -> new HashMap<>())
           .put(endpoint.getTimerFamilyId(), new EndpointStatus<>(endpoint));
     }
-    this.queue = new CancellableQueue<>(100);
+    this.queue = new CancellableQueue<>(DEFAULT_QUEUE_CAPACITY);
     this.totalNumEndpoints = dataEndpoints.size() + timerEndpoints.size();
     this.numEndpointsThatAreIncomplete = totalNumEndpoints;
     this.consumingReceivedData = new AtomicBoolean(false);
+  }
+
+  void setOnElementsConsumed(@Nullable IntConsumer onElementsConsumed) {
+    this.onElementsConsumed = onElementsConsumed;
+  }
+
+  void add(BeamFnApi.Elements elements) throws Exception {
+    queue.add(elements);
   }
 
   @Override
@@ -117,7 +129,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
 
   @Override
   public void close() throws Exception {
-    queue.cancel(CloseException.INSTANCE);
+    int cleared = queue.cancel(CloseException.INSTANCE);
+    IntConsumer callback = onElementsConsumed;
+    if (cleared > 0 && callback != null) {
+      callback.accept(cleared);
+    }
   }
 
   public boolean isConsumingReceivedData() {
@@ -179,6 +195,10 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         Iterator<Elements.Timers> timersIterator;
         {
           BeamFnApi.Elements elements = queue.take();
+          IntConsumer callback = onElementsConsumed;
+          if (callback != null) {
+            callback.accept(1);
+          }
           dataIterator = createDiscardingIterator(elements.getDataList());
           timersIterator = createDiscardingIterator(elements.getTimersList());
         }
@@ -189,7 +209,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         }
       }
     } catch (Exception e) {
-      queue.cancel(e);
+      int cleared = queue.cancel(e);
+      IntConsumer callback = onElementsConsumed;
+      if (cleared > 0 && callback != null) {
+        callback.accept(cleared);
+      }
       throw e;
     } finally {
       consumingReceivedData.set(false);
@@ -287,7 +311,12 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
         status.isDone = false;
       }
     }
-    queue.reset();
+    int cleared = queue.reset();
+    IntConsumer callback = onElementsConsumed;
+    if (cleared > 0 && callback != null) {
+      callback.accept(cleared);
+    }
+    onElementsConsumed = null;
   }
 
   /**

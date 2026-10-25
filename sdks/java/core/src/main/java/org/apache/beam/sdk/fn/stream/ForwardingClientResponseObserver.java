@@ -70,8 +70,12 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
     inboundObserver.onCompleted();
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public void beforeStart(ClientCallStreamObserver<RespT> stream) {
+    if (inboundObserver instanceof ClientResponseObserver) {
+      ((ClientResponseObserver<RespT, ReqT>) inboundObserver).beforeStart(stream);
+    }
     stream.setOnReadyHandler(onReadyHandler);
   }
 }

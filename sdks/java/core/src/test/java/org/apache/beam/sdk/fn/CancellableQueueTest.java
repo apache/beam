@@ -247,4 +247,22 @@ public class CancellableQueueTest {
     assertTrue(weakReference1.get() == null);
     assertTrue(weakReference2.get() == null);
   }
+
+  @Test
+  public void testAddGrowsQueueWithoutBlocking() throws Exception {
+    CancellableQueue<Integer> queue = new CancellableQueue<>(4);
+    queue.add(0);
+    queue.add(1);
+    assertEquals(Integer.valueOf(0), queue.take());
+    // Wrap around ring buffer before growing
+    for (int i = 2; i < 15; i++) {
+      queue.add(i);
+    }
+    for (int i = 1; i < 10; i++) {
+      assertEquals(Integer.valueOf(i), queue.take());
+    }
+    assertEquals(5, queue.cancel(new RuntimeException("cancelled")));
+    assertEquals(0, queue.cancel(new RuntimeException("cancelled again")));
+    assertEquals(0, queue.reset());
+  }
 }

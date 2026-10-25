@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.fn.data;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
@@ -25,10 +27,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -54,8 +59,20 @@ import org.slf4j.LoggerFactory;
 public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
   private static final Duration POISONED_INSTRUCTION_ID_CACHE_TIMEOUT = Duration.ofMinutes(20);
+  private static final VarHandle FLOW_CONTROL_STATE;
+
+  static {
+    try {
+      FLOW_CONTROL_STATE =
+          MethodHandles.lookup()
+              .findVarHandle(BeamFnDataGrpcMultiplexer.class, "flowControlState", int.class);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
+
   private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
-  private final StreamObserver<BeamFnApi.Elements> inboundObserver;
+  private final InboundObserver inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentHashMap<
           /* instructionId= */ String,
@@ -63,12 +80,21 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       receivers;
   private final Cache</* instructionId= */ String, /* unused= */ Boolean> poisonedInstructionIds;
 
+  /**
+   * Encodes {@code (paused ? Integer.MIN_VALUE : 0) | bufferedElements}.
+   *
+   * <p>The sign bit is {@code 1} ({@code flowControlState < 0}) iff the single gRPC {@code
+   * request(1)} flow-control token is parked because {@code bufferedElements >=
+   * BeamFnDataInboundObserver.DEFAULT_QUEUE_CAPACITY}.
+   */
+  @SuppressWarnings("UnusedVariable")
+  private volatile int flowControlState;
+
   private static class PoisonedException extends RuntimeException {
     private PoisonedException() {
       super("Instruction poisoned");
     }
   }
-  ;
 
   public BeamFnDataGrpcMultiplexer(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
@@ -114,6 +140,9 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void registerConsumer(
       String instructionId, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+    if (receiver instanceof BeamFnDataInboundObserver && inboundObserver.requestObserver != null) {
+      ((BeamFnDataInboundObserver) receiver).setOnElementsConsumed(inboundObserver);
+    }
     receivers.compute(
         instructionId,
         (unused, existing) -> {
@@ -207,59 +236,124 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    * harness to initiate transmitting data without needing for the receiving harness to signal that
    * it is ready to consume that data.
    */
-  private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
+  private final class InboundObserver
+      implements ClientResponseObserver<BeamFnApi.Elements, BeamFnApi.Elements>, IntConsumer {
+    private volatile @Nullable ClientCallStreamObserver<BeamFnApi.Elements> requestObserver;
+
+    @Override
+    public void beforeStart(ClientCallStreamObserver<BeamFnApi.Elements> requestObserver) {
+      this.requestObserver = requestObserver;
+      requestObserver.disableAutoInboundFlowControl();
+    }
+
+    @Override
+    public void accept(int count) {
+      if (count <= 0) {
+        throw new IllegalArgumentException("Count must be positive");
+      }
+      int s = (int) FLOW_CONTROL_STATE.getVolatile(BeamFnDataGrpcMultiplexer.this);
+      while (true) {
+        int next = s - count;
+        if ((s ^ next) < 0) {
+          throw new IllegalStateException("Count exceeds buffered elements");
+        }
+        boolean wakeUp =
+            next < (Integer.MIN_VALUE | BeamFnDataInboundObserver.DEFAULT_QUEUE_CAPACITY);
+        int nextState = wakeUp ? (next & Integer.MAX_VALUE) : next;
+        int prev =
+            (int)
+                FLOW_CONTROL_STATE.compareAndExchange(BeamFnDataGrpcMultiplexer.this, s, nextState);
+        if (prev == s) {
+          if (wakeUp) {
+            @Nullable ClientCallStreamObserver<BeamFnApi.Elements> observer = this.requestObserver;
+            if (observer != null) {
+              observer.request(1);
+            }
+          }
+          return;
+        }
+        s = prev;
+      }
+    }
+
+    private void releaseOrParkFlowControlToken() {
+      @Nullable ClientCallStreamObserver<BeamFnApi.Elements> observer = this.requestObserver;
+      if (observer == null) {
+        return;
+      }
+      int s = (int) FLOW_CONTROL_STATE.getVolatile(BeamFnDataGrpcMultiplexer.this);
+      while (true) {
+        if (Integer.compareUnsigned(s, BeamFnDataInboundObserver.DEFAULT_QUEUE_CAPACITY) < 0) {
+          observer.request(1);
+          return;
+        }
+        int prev =
+            (int)
+                FLOW_CONTROL_STATE.compareAndExchange(
+                    BeamFnDataGrpcMultiplexer.this, s, s | Integer.MIN_VALUE);
+        if (prev == s) {
+          return;
+        }
+        s = prev;
+      }
+    }
+
     @SuppressWarnings("LabelledBreakTarget")
     @Override
     public void onNext(BeamFnApi.Elements value) {
-      // Have a fast path to handle the common case and provide a short circuit to exit if we detect
-      // multiple instruction ids.
-      SINGLE_INSTRUCTION_ID:
-      {
-        String instructionId = null;
-        for (BeamFnApi.Elements.Data data : value.getDataList()) {
-          if (instructionId == null) {
-            instructionId = data.getInstructionId();
-          } else if (!instructionId.equals(data.getInstructionId())) {
-            // Multiple instruction ids detected, break out of this block
-            break SINGLE_INSTRUCTION_ID;
+      try {
+        // Have a fast path to handle the common case and provide a short circuit to exit if we
+        // detect multiple instruction ids.
+        SINGLE_INSTRUCTION_ID:
+        {
+          String instructionId = null;
+          for (BeamFnApi.Elements.Data data : value.getDataList()) {
+            if (instructionId == null) {
+              instructionId = data.getInstructionId();
+            } else if (!instructionId.equals(data.getInstructionId())) {
+              // Multiple instruction ids detected, break out of this block
+              break SINGLE_INSTRUCTION_ID;
+            }
           }
-        }
-        for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
-          if (instructionId == null) {
-            instructionId = timers.getInstructionId();
-          } else if (!instructionId.equals(timers.getInstructionId())) {
-            // Multiple instruction ids detected, break out of this block
-            break SINGLE_INSTRUCTION_ID;
+          for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
+            if (instructionId == null) {
+              instructionId = timers.getInstructionId();
+            } else if (!instructionId.equals(timers.getInstructionId())) {
+              // Multiple instruction ids detected, break out of this block
+              break SINGLE_INSTRUCTION_ID;
+            }
           }
-        }
-        if (instructionId == null) {
+          if (instructionId == null) {
+            return;
+          }
+          forwardToConsumerForInstructionId(instructionId, value);
           return;
         }
-        forwardToConsumerForInstructionId(instructionId, value);
-        return;
-      }
 
-      // Handle the case if there are multiple instruction ids.
-      HashSet<String> instructionIds = new HashSet<>();
-      for (BeamFnApi.Elements.Data data : value.getDataList()) {
-        instructionIds.add(data.getInstructionId());
-      }
-      for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
-        instructionIds.add(timers.getInstructionId());
-      }
-      for (String instructionId : instructionIds) {
-        BeamFnApi.Elements.Builder builder = BeamFnApi.Elements.newBuilder();
+        // Handle the case if there are multiple instruction ids.
+        HashSet<String> instructionIds = new HashSet<>();
         for (BeamFnApi.Elements.Data data : value.getDataList()) {
-          if (instructionId.equals(data.getInstructionId())) {
-            builder.addData(data);
-          }
+          instructionIds.add(data.getInstructionId());
         }
         for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
-          if (instructionId.equals(timers.getInstructionId())) {
-            builder.addTimers(timers);
-          }
+          instructionIds.add(timers.getInstructionId());
         }
-        forwardToConsumerForInstructionId(instructionId, builder.build());
+        for (String instructionId : instructionIds) {
+          BeamFnApi.Elements.Builder builder = BeamFnApi.Elements.newBuilder();
+          for (BeamFnApi.Elements.Data data : value.getDataList()) {
+            if (instructionId.equals(data.getInstructionId())) {
+              builder.addData(data);
+            }
+          }
+          for (BeamFnApi.Elements.Timers timers : value.getTimersList()) {
+            if (instructionId.equals(timers.getInstructionId())) {
+              builder.addTimers(timers);
+            }
+          }
+          forwardToConsumerForInstructionId(instructionId, builder.build());
+        }
+      } finally {
+        releaseOrParkFlowControlToken();
       }
     }
 
@@ -310,10 +404,20 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         return;
       }
 
-      try {
-        consumer.accept(value);
-      } catch (Exception e) {
-        poisonInstructionId(instructionId);
+      if (consumer instanceof BeamFnDataInboundObserver && this.requestObserver != null) {
+        FLOW_CONTROL_STATE.getAndAdd(BeamFnDataGrpcMultiplexer.this, 1);
+        try {
+          ((BeamFnDataInboundObserver) consumer).add(value);
+        } catch (Exception e) {
+          accept(1);
+          poisonInstructionId(instructionId);
+        }
+      } else {
+        try {
+          consumer.accept(value);
+        } catch (Exception e) {
+          poisonInstructionId(instructionId);
+        }
       }
     }
 

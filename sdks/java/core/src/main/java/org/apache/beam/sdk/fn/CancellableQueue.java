@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class CancellableQueue<T extends @NonNull Object> {
 
   private final int capacity;
-  private final @Nullable Object[] elements;
+  private @Nullable Object[] elements;
   private final Lock lock;
   private final Condition notFull;
   private final Condition notEmpty;
@@ -52,6 +52,35 @@ public class CancellableQueue<T extends @NonNull Object> {
     this.lock = new ReentrantLock();
     this.notFull = lock.newCondition();
     this.notEmpty = lock.newCondition();
+  }
+
+  /**
+   * Adds an element to this queue without blocking, growing the backing array if necessary.
+   *
+   * @throws Exception if the queue is cancelled.
+   */
+  public void add(T t) throws Exception {
+    lock.lock();
+    try {
+      if (cancellationException != null) {
+        throw cancellationException;
+      }
+      if (count == elements.length) {
+        @Nullable Object[] newElements = new Object[elements.length * 2];
+        int firstPart = elements.length - takeIndex;
+        System.arraycopy(elements, takeIndex, newElements, 0, firstPart);
+        System.arraycopy(elements, 0, newElements, firstPart, takeIndex);
+        elements = newElements;
+        takeIndex = 0;
+        addIndex = count;
+      }
+      elements[addIndex] = t;
+      addIndex = (addIndex + 1) % elements.length;
+      count += 1;
+      notEmpty.signal();
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
@@ -80,7 +109,7 @@ public class CancellableQueue<T extends @NonNull Object> {
   }
 
   /**
-   * Takes an element from this queue. Will block until the queue is not full or is cancelled.
+   * Takes an element from this queue. Will block until the queue is not empty or is cancelled.
    *
    * @throws InterruptedException if this thread was interrupted waiting for an element. The caller
    *     must invoke {@link #cancel} if the interrupt is unrecoverable.
@@ -102,7 +131,9 @@ public class CancellableQueue<T extends @NonNull Object> {
       elements[takeIndex] = null;
       takeIndex = (takeIndex + 1) % elements.length;
       count -= 1;
-      notFull.signal();
+      if (count < capacity) {
+        notFull.signal();
+      }
     } finally {
       lock.unlock();
     }
@@ -114,37 +145,52 @@ public class CancellableQueue<T extends @NonNull Object> {
    *
    * <p>The first call to {@link #cancel} sets the exception that will be thrown. Resetting the
    * queue clears the exception.
+   *
+   * @return the number of queued elements cleared by this cancellation.
    */
-  public void cancel(Exception exception) {
+  public int cancel(Exception exception) {
     checkNotNull(exception);
     lock.lock();
     try {
+      int cleared = 0;
       if (cancellationException == null) {
         cancellationException = exception;
-        clearElementsLocked();
+        cleared = clearElementsLocked();
       }
       notEmpty.signalAll();
       notFull.signalAll();
+      return cleared;
     } finally {
       lock.unlock();
     }
   }
 
-  private void clearElementsLocked() {
-    for (int i = takeIndex; count > 0; i = (i + 1) % elements.length) {
-      elements[i] = null;
-      --count;
+  private int clearElementsLocked() {
+    int cleared = count;
+    if (elements.length > capacity) {
+      elements = new Object[capacity];
+      count = 0;
+    } else {
+      for (int i = takeIndex; count > 0; i = (i + 1) % elements.length) {
+        elements[i] = null;
+        --count;
+      }
     }
     addIndex = 0;
     takeIndex = 0;
+    return cleared;
   }
 
-  /** Enables the queue to be re-used after it has been cancelled. */
-  public void reset() {
+  /**
+   * Enables the queue to be re-used after it has been cancelled.
+   *
+   * @return the number of queued elements cleared by this reset.
+   */
+  public int reset() {
     lock.lock();
     try {
       cancellationException = null;
-      clearElementsLocked();
+      return clearElementsLocked();
     } finally {
       lock.unlock();
     }
