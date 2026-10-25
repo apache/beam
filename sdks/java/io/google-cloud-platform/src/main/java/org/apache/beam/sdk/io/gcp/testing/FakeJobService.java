@@ -37,6 +37,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics4;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -401,6 +402,9 @@ public class FakeJobService implements JobService, Serializable {
       if (load.getClustering() != null) {
         existingTable = existingTable.setClustering(load.getClustering());
       }
+      if (load.getRangePartitioning() != null) {
+        existingTable = existingTable.setRangePartitioning(load.getRangePartitioning());
+      }
       datasetService.createTable(existingTable);
     }
 
@@ -430,6 +434,7 @@ public class FakeJobService implements JobService, Serializable {
     }
     TimePartitioning partitioning = null;
     Clustering clustering = null;
+    RangePartitioning rangePartitioning = null;
     TableSchema schema = null;
     boolean first = true;
     List<TableRow> allRows = Lists.newArrayList();
@@ -442,12 +447,16 @@ public class FakeJobService implements JobService, Serializable {
         if (!Objects.equals(clustering, table.getClustering())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
+        if (!Objects.equals(rangePartitioning, table.getRangePartitioning())) {
+          return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
+        }
         if (!Objects.equals(schema, table.getSchema())) {
           return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
         }
       }
       partitioning = table.getTimePartitioning();
       clustering = table.getClustering();
+      rangePartitioning = table.getRangePartitioning();
       schema = table.getSchema();
       first = false;
       allRows.addAll(
@@ -460,6 +469,7 @@ public class FakeJobService implements JobService, Serializable {
             .setSchema(schema)
             .setTimePartitioning(partitioning)
             .setClustering(clustering)
+            .setRangePartitioning(rangePartitioning)
             .setEncryptionConfiguration(copy.getDestinationEncryptionConfiguration()));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");

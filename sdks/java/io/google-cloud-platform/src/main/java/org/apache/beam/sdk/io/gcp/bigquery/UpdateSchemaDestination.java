@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -169,6 +170,7 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
               tableReference,
               tableDestination.getTimePartitioning(),
               tableDestination.getClustering(),
+              tableDestination.getRangePartitioning(),
               schema,
               writeDisposition,
               createDisposition,
@@ -237,6 +239,7 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       TableReference tableReference,
       @Nullable TimePartitioning timePartitioning,
       @Nullable Clustering clustering,
+      @Nullable RangePartitioning rangePartitioning,
       @Nullable TableSchema schema,
       BigQueryIO.Write.WriteDisposition writeDisposition,
       BigQueryIO.Write.CreateDisposition createDisposition,
@@ -289,6 +292,10 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
 
     if (clustering != null) {
       loadConfig.setClustering(clustering);
+    }
+
+    if (rangePartitioning != null) {
+      loadConfig.setRangePartitioning(rangePartitioning);
     }
 
     if (kmsKey != null) {

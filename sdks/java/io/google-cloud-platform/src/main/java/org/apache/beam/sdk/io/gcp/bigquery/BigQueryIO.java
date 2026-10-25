@@ -33,6 +33,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableConstraints;
@@ -94,6 +95,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RangePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
@@ -429,6 +431,25 @@ import org.slf4j.LoggerFactory;
  *            .set(..other columns..))
  *         .to("my-project:my_dataset.my_table")
  *         .withTimePartitioning(new TimePartitioning().setField("time")));
+ * }</pre>
+ *
+ * <h3>Writing to integer-range partitioned BigQuery tables</h3>
+ *
+ * <p>To create tables with <a
+ * href="https://cloud.google.com/bigquery/docs/partitioned-tables#integer_range">integer-range
+ * partitioning</a>, specify {@link BigQueryIO.Write#withRangePartitioning(RangePartitioning)}. For
+ * example:
+ *
+ * <pre>{@code
+ * PCollection<Order> orders = ...;
+ *
+ * orders.apply(BigQueryIO.write()
+ *         .withSchema(schema)
+ *         .withFormatFunction(order -> new TableRow()...)
+ *         .to("my-project:my_dataset.my_table")
+ *         .withRangePartitioning(new RangePartitioning()
+ *             .setField("customer_id")
+ *             .setRange(new RangePartitioning.Range().setStart(0L).setEnd(1000L).setInterval(10L))));
  * }</pre>
  *
  * <h3>Writing different values to different tables</h3>
@@ -3016,6 +3037,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonClustering();
 
+    abstract @Nullable ValueProvider<String> getJsonRangePartitioning();
+
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
@@ -3136,6 +3159,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
       abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
+
+      abstract Builder<T> setJsonRangePartitioning(ValueProvider<String> jsonRangePartitioning);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -3358,7 +3383,8 @@ public class BigQueryIO {
      *
      * <p>If any of the returned destinations are configured with clustering fields, ensure that the
      * passed {@link DynamicDestinations} object returns {@link TableDestinationCoderV3} when {@link
-     * DynamicDestinations#getDestinationCoder()} is called.
+     * DynamicDestinations#getDestinationCoder()} is called. If any of the returned destinations are
+     * configured with range partitioning, return {@link TableDestinationCoderV4} instead.
      */
     public Write<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
       checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
@@ -3548,6 +3574,63 @@ public class BigQueryIO {
      */
     public Write<T> withClustering() {
       return withClustering(new Clustering());
+    }
+
+    /**
+     * Sets the <a
+     * href="https://cloud.google.com/bigquery/docs/partitioned-tables#integer_range">integer-range
+     * partitioning</a> of tables created by this write. BigQuery doesn't allow both time and range
+     * partitioning on one table, so this can't be combined with {@link #withTimePartitioning}.
+     *
+     * <p>This form is only for writing to a single table. With {@link #to(SerializableFunction)},
+     * call {@link #withRangePartitioning()} instead and set the range partitioning in each returned
+     * {@link TableDestination}. With {@link #to(DynamicDestinations)}, also return {@link
+     * TableDestinationCoderV4} from {@link DynamicDestinations#getDestinationCoder()}.
+     *
+     * <p>This option switches the destination coder to {@link TableDestinationCoderV4}, which also
+     * encodes range partitioning. V4 can't read state written by the older coders, so a running
+     * pipeline can't be updated in place to turn this on: drain it and start a new one. New
+     * pipelines can set it whether or not their tables are range partitioned.
+     */
+    public Write<T> withRangePartitioning(RangePartitioning partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
+      return withJsonRangePartitioning(
+          StaticValueProvider.of(BigQueryHelpers.toJsonString(partitioning)));
+    }
+
+    /**
+     * Like {@link #withRangePartitioning(RangePartitioning)} but using a deferred {@link
+     * ValueProvider}.
+     */
+    public Write<T> withRangePartitioning(ValueProvider<RangePartitioning> partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
+      return withJsonRangePartitioning(
+          NestedValueProvider.of(partitioning, new RangePartitioningToJson()));
+    }
+
+    /**
+     * The same as {@link #withRangePartitioning(RangePartitioning)}, but takes a JSON-serialized
+     * object. For example: {@code {"field": "id", "range": {"start": "0", "end": "100", "interval":
+     * "10"}}}
+     */
+    public Write<T> withJsonRangePartitioning(ValueProvider<String> partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
+      return toBuilder().setJsonRangePartitioning(partitioning).build();
+    }
+
+    /**
+     * Turns on range partitioning for dynamic destinations. Each {@link TableDestination} returned
+     * by {@link #to(SerializableFunction)} sets its own range partitioning. With {@link
+     * #to(DynamicDestinations)}, also return {@link TableDestinationCoderV4} from {@link
+     * DynamicDestinations#getDestinationCoder()}. For a single table, use {@link
+     * #withRangePartitioning(RangePartitioning)}.
+     *
+     * <p>Like {@link #withRangePartitioning(RangePartitioning)}, this switches to {@link
+     * TableDestinationCoderV4}, so a running pipeline has to be drained and restarted to turn it
+     * on.
+     */
+    public Write<T> withRangePartitioning() {
+      return withRangePartitioning(new RangePartitioning());
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -4247,6 +4330,22 @@ public class BigQueryIO {
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
+      checkArgument(
+          !(hasJsonConfig(getJsonTimePartitioning()) && hasJsonConfig(getJsonRangePartitioning())),
+          "A BigQuery table can be either time partitioned or range partitioned. Only one of"
+              + " withTimePartitioning and withRangePartitioning may be set.");
+
+      ValueProvider<String> jsonRangePartitioning = getJsonRangePartitioning();
+      if (jsonRangePartitioning != null
+          && (getDynamicDestinations() != null || getTableFunction() != null)) {
+        checkArgument(
+            jsonRangePartitioning.isAccessible()
+                && !ConstantTimePartitioningClusteringDestinations.isJsonConfigPresent(
+                    jsonRangePartitioning),
+            "When writing to dynamic destinations, set range partitioning in the returned"
+                + " TableDestination objects and call withRangePartitioning() with no arguments.");
+      }
+
       if (getJsonTimePartitioning() != null) {
         checkArgument(
             getDynamicDestinations() == null,
@@ -4268,13 +4367,18 @@ public class BigQueryIO {
         if (jsonTableRef != null) {
           tableDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  jsonTableRef, getTableDescription(), jsonClustering != null);
+                  jsonTableRef,
+                  getTableDescription(),
+                  jsonClustering != null,
+                  jsonRangePartitioning != null);
         } else {
           // Checked above: exactly one of jsonTableRef, tableFunction or dynamicDestinations is
           // set.
           tableDestinations =
               new TableFunctionDestinations<>(
-                  checkStateNotNull(tableFunction), jsonClustering != null);
+                  checkStateNotNull(tableFunction),
+                  jsonClustering != null,
+                  jsonRangePartitioning != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -4287,12 +4391,15 @@ public class BigQueryIO {
           tableDestinations = new SchemaFromViewDestinations<>(tableDestinations, schemaFromView);
         }
 
-        // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
+        // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning,
+        // Clustering and RangePartitioning.
         ValueProvider<String> jsonTimePartitioning = getJsonTimePartitioning();
-        if (jsonTimePartitioning != null || jsonClustering != null) {
+        if (jsonTimePartitioning != null
+            || jsonClustering != null
+            || jsonRangePartitioning != null) {
           tableDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
-                  tableDestinations, jsonTimePartitioning, jsonClustering);
+                  tableDestinations, jsonTimePartitioning, jsonClustering, jsonRangePartitioning);
         }
         List<String> primaryKey = getPrimaryKey();
         if (primaryKey != null) {
@@ -4431,7 +4538,10 @@ public class BigQueryIO {
           input
               .apply(
                   "PrepareWrite",
-                  new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+                  new PrepareWrite<>(
+                      dynamicDestinations,
+                      SerializableFunctions.identity(),
+                      PrepareWrite.dropsRangePartitioning(destinationCoder)))
               .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
       return continueExpandTyped(
@@ -4558,6 +4668,7 @@ public class BigQueryIO {
                 rowWriterFactory,
                 getKmsKey(),
                 getJsonClustering() != null,
+                getJsonRangePartitioning() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),
@@ -4741,6 +4852,13 @@ public class BigQueryIO {
         }
       }
       return false;
+    }
+
+    /** Returns true if the JSON config is accessible at construction time and not empty. */
+    private static boolean hasJsonConfig(@Nullable ValueProvider<String> json) {
+      return json != null
+          && json.isAccessible()
+          && ConstantTimePartitioningClusteringDestinations.isJsonConfigPresent(json);
     }
 
     @Override

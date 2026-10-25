@@ -483,6 +483,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("bad_record_error_handler")
             .addNullableByteArrayField("bad_record_router")
             .addNullableInt64Field("auto_schema_update_strict_timeout_ms")
+            .addNullableStringField("json_range_partitioning")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -556,6 +557,10 @@ public class BigQueryIOTranslation {
       ValueProvider<String> jsonClustering = transform.getJsonClustering();
       if (jsonClustering != null) {
         fieldValues.put("clustering", jsonClustering.get());
+      }
+      ValueProvider<String> jsonRangePartitioning = transform.getJsonRangePartitioning();
+      if (jsonRangePartitioning != null) {
+        fieldValues.put("json_range_partitioning", jsonRangePartitioning.get());
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -747,6 +752,15 @@ public class BigQueryIOTranslation {
           String jsonClustering = configRow.getString("clustering");
           if (jsonClustering != null) {
             builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+          }
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.78.0") >= 0) {
+          // This property was added for Beam 2.78.0 hence not available when
+          // upgrading the transform from previous Beam versions.
+          String jsonRangePartitioning = configRow.getString("json_range_partitioning");
+          if (jsonRangePartitioning != null) {
+            builder =
+                builder.setJsonRangePartitioning(StaticValueProvider.of(jsonRangePartitioning));
           }
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");

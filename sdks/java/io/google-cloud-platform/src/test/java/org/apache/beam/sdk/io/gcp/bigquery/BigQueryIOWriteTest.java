@@ -46,6 +46,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
@@ -596,18 +597,20 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
+  private BigQueryIO.Write.Method writeMethodForTestParameters() {
+    if (useStorageApi) {
+      return useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    } else if (useStreaming) {
+      return Method.STREAMING_INSERTS;
+    } else {
+      return Method.FILE_LOADS;
+    }
+  }
+
   void testTimePartitioningAndClusteringWithAllMethods(
       Boolean enablePartitioning, Boolean enableClustering) throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testTimePartitioningAndClustering(method, enablePartitioning, enableClustering);
+    testTimePartitioningAndClustering(
+        writeMethodForTestParameters(), enablePartitioning, enableClustering);
   }
 
   @Test
@@ -677,6 +680,314 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(schema, table.getSchema());
     assertEquals(timePartitioning, table.getTimePartitioning());
     assertEquals(clustering, table.getClustering());
+  }
+
+  private static RangePartitioning testRangePartitioning() {
+    return new RangePartitioning()
+        .setField("number")
+        .setRange(new RangePartitioning.Range().setStart(0L).setEnd(100L).setInterval(10L));
+  }
+
+  private static TableSchema rangePartitioningTestSchema() {
+    return new TableSchema()
+        .setFields(
+            ImmutableList.of(
+                new TableFieldSchema().setName("date").setType("DATE"),
+                new TableFieldSchema().setName("number").setType("INTEGER")));
+  }
+
+  void testRangePartitioning(boolean enableClustering) throws Exception {
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+
+    RangePartitioning rangePartitioning = testRangePartitioning();
+    Clustering clustering = new Clustering().setFields(ImmutableList.of("date"));
+    TableSchema schema = rangePartitioningTestSchema();
+
+    Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withTestServices(fakeBqServices)
+            .withMethod(writeMethodForTestParameters())
+            .withSchema(schema)
+            .withRangePartitioning(rangePartitioning)
+            .withoutValidation();
+    if (enableClustering) {
+      writeTransform = writeTransform.withClustering(clustering);
+    }
+
+    p.apply(Create.of(row1, row2)).apply(writeTransform);
+    p.run();
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+
+    assertEquals(schema, table.getSchema());
+    assertEquals(rangePartitioning, table.getRangePartitioning());
+    assertNull(table.getTimePartitioning());
+    if (enableClustering) {
+      assertEquals(clustering, table.getClustering());
+    }
+  }
+
+  @Test
+  public void testRangePartitioningWithoutClustering() throws Exception {
+    testRangePartitioning(false);
+  }
+
+  @Test
+  public void testRangePartitioningWithClustering() throws Exception {
+    testRangePartitioning(true);
+  }
+
+  @Test
+  public void testRangePartitioningTableFunction() throws Exception {
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+    TableSchema schema = rangePartitioningTestSchema();
+
+    p.apply(Create.of(row1, row2))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) -> {
+                      String tableSpec =
+                          "project-id:dataset-id.table-" + vsw.getValue().get("number");
+                      return new TableDestination(
+                          tableSpec,
+                          null,
+                          null,
+                          new Clustering().setFields(ImmutableList.of("date")),
+                          testRangePartitioning());
+                    })
+                .withTestServices(fakeBqServices)
+                .withMethod(writeMethodForTestParameters())
+                .withSchema(schema)
+                .withClustering()
+                .withRangePartitioning()
+                .withoutValidation());
+    p.run();
+
+    for (String tableId : ImmutableList.of("table-1", "table-2")) {
+      Table table =
+          fakeDatasetService.getTable(
+              BigQueryHelpers.parseTableSpec("project-id:dataset-id." + tableId));
+      assertEquals(schema, table.getSchema());
+      assertEquals(testRangePartitioning(), table.getRangePartitioning());
+      assertEquals(new Clustering().setFields(ImmutableList.of("date")), table.getClustering());
+    }
+  }
+
+  @Test
+  public void testRangePartitioningTableFunctionRequiresOptIn() throws Exception {
+    p.apply(Create.<TableRow>of(new TableRow().set("date", "2018-01-01").set("number", "1")))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination(
+                            "project-id:dataset-id.table-id",
+                            null,
+                            null,
+                            null,
+                            testRangePartitioning()))
+                .withTestServices(fakeBqServices)
+                .withMethod(writeMethodForTestParameters())
+                .withSchema(rangePartitioningTestSchema())
+                .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("range partitioning is not enabled");
+    p.run();
+  }
+
+  /** Writes every element to one range partitioned table, with a configurable coder. */
+  static class RangePartitionedDestinations
+      extends DynamicDestinations<TableRow, TableDestination> {
+    private final Coder<TableDestination> destinationCoder;
+
+    RangePartitionedDestinations(Coder<TableDestination> destinationCoder) {
+      this.destinationCoder = destinationCoder;
+    }
+
+    @Override
+    public TableDestination getDestination(@Nullable ValueInSingleWindow<TableRow> element) {
+      return new TableDestination(
+          "project-id:dataset-id.table-id", null, null, null, testRangePartitioning());
+    }
+
+    @Override
+    public TableDestination getTable(TableDestination destination) {
+      return destination;
+    }
+
+    @Override
+    public TableSchema getSchema(TableDestination destination) {
+      return rangePartitioningTestSchema();
+    }
+
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return destinationCoder;
+    }
+  }
+
+  @Test
+  public void testRangePartitioningDynamicDestinations() throws Exception {
+    p.apply(Create.<TableRow>of(new TableRow().set("date", "2018-01-01").set("number", "1")))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(new RangePartitionedDestinations(TableDestinationCoderV4.of()))
+                .withTestServices(fakeBqServices)
+                .withMethod(writeMethodForTestParameters())
+                .withRangePartitioning()
+                .withoutValidation());
+    p.run();
+
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    assertEquals(testRangePartitioning(), table.getRangePartitioning());
+  }
+
+  @Test
+  public void testRangePartitioningDynamicDestinationsRequiresV4Coder() throws Exception {
+    p.apply(Create.<TableRow>of(new TableRow().set("date", "2018-01-01").set("number", "1")))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(new RangePartitionedDestinations(TableDestinationCoderV3.of()))
+                .withTestServices(fakeBqServices)
+                .withMethod(writeMethodForTestParameters())
+                .withRangePartitioning()
+                .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("also return TableDestinationCoderV4 from getDestinationCoder()");
+    p.run();
+  }
+
+  @Test
+  public void testConstantRangePartitioningNotAllowedWithTableFunction() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("call withRangePartitioning() with no arguments");
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination("project-id:dataset-id.table-id", null))
+                .withSchema(rangePartitioningTestSchema())
+                .withRangePartitioning(testRangePartitioning())
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+  }
+
+  @Test
+  public void testTimeAndRangePartitioningNotAllowed() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Only one of withTimePartitioning and withRangePartitioning may be set");
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(rangePartitioningTestSchema())
+                .withTimePartitioning(new TimePartitioning().setType("DAY").setField("date"))
+                .withRangePartitioning(testRangePartitioning())
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+  }
+
+  @Test
+  public void testRangePartitioningWithTempTables() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withRangePartitioning(testRangePartitioning())
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    assertEquals(testRangePartitioning(), table.getRangePartitioning());
+    for (Job job : fakeJobService.getAllJobs()) {
+      JobConfigurationLoad load = job.getConfiguration().getLoad();
+      if (load != null) {
+        assertEquals(testRangePartitioning(), load.getRangePartitioning());
+      }
+    }
+  }
+
+  @Test
+  public void testTempTablesInheritRangePartitioningOfExistingTable() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("str").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"))
+            .setSchema(schema)
+            .setRangePartitioning(testRangePartitioning()));
+
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 1; i < 10; i++) {
+      elements.add(new TableRow().set("str", "a").set("number", i));
+    }
+
+    // No withRangePartitioning() here: the temp tables should take their range partitioning from
+    // the existing destination table.
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+    int tempTableLoads = 0;
+    for (Job job : fakeJobService.getAllJobs()) {
+      JobConfigurationLoad load = job.getConfiguration().getLoad();
+      if (load != null && !"table-id".equals(load.getDestinationTable().getTableId())) {
+        assertEquals(testRangePartitioning(), load.getRangePartitioning());
+        tempTableLoads++;
+      }
+    }
+    assertTrue("Expected the write to use temp tables", tempTableLoads > 0);
   }
 
   public void runStreamingFileLoads(String tableRef, boolean useTempTables, boolean useTempDataset)
@@ -3169,7 +3480,7 @@ public class BigQueryIOWriteTest implements Serializable {
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
     DynamicDestinations<String, TableDestination> dynamicDestinations =
         new DynamicDestinationsHelpers.ConstantTableDestinations<>(
-            ValueProvider.StaticValueProvider.of("SINGLETON"), "", false);
+            ValueProvider.StaticValueProvider.of("SINGLETON"), "", false, false);
     List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
       expectedPartitions.add(ShardedKey.of(new TableDestination("SINGLETON", ""), 1));
