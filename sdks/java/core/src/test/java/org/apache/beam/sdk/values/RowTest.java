@@ -935,10 +935,8 @@ public class RowTest {
         };
 
     Schema schema = Schema.builder().addLogicalTypeField("f_bytes", wrappedBytesType).build();
-    Row row1 =
-        Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
-    Row row2 =
-        Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+    Row row1 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+    Row row2 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
 
     assertEquals(row1, row2);
     assertEquals(row1.hashCode(), row2.hashCode());
