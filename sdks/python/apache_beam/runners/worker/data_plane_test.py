@@ -107,6 +107,56 @@ class DataChannelTest(unittest.TestCase):
     finally:
       server.stop(0)
 
+  def test_grpc_data_channel_preserves_input_failure(self):
+    channel = data_plane._GrpcDataChannel()
+    input_error = ValueError('injected data stream failure')
+
+    def failed_inputs():
+      raise input_error
+      yield
+
+    try:
+      with self.assertLogs(data_plane._LOGGER, level=logging.ERROR):
+        with self.assertRaises(ValueError) as reader_error:
+          channel._read_inputs(failed_inputs())
+      self.assertIs(reader_error.exception, input_error)
+      with self.assertRaisesRegex(
+          RuntimeError, 'Channel closed prematurely') as consumer_error:
+        list(channel.input_elements('instruction', ['input']))
+      self.assertIs(consumer_error.exception.__cause__, input_error)
+    finally:
+      with self.assertRaises(ValueError) as close_error:
+        channel.close()
+      self.assertIs(close_error.exception, input_error)
+
+  def test_grpc_data_channel_premature_eof(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    channel._read_inputs(iter([]))
+    with self.assertRaisesRegex(RuntimeError,
+                                'Channel closed prematurely') as consumer_error:
+      list(channel.input_elements('instruction', ['input']))
+    self.assertIsNone(consumer_error.exception.__cause__)
+    self.assertTrue(consumer_error.exception.__suppress_context__)
+
+  def test_grpc_data_channel_completed_input_before_eof(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    data = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction', transform_id='input', data=b'abc')
+    end = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction', transform_id='input', is_last=True)
+    channel._read_inputs(iter([beam_fn_api_pb2.Elements(data=[data, end])]))
+    self.assertEqual(
+        list(channel.input_elements('instruction', ['input'])), [data])
+
+  def test_grpc_data_channel_input_aborted(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    self.assertEqual(
+        list(channel.input_elements('instruction', ['input'], lambda: True)),
+        [])
+
   def test_in_memory_data_channel(self):
     channel = data_plane.InMemoryDataChannel()
     self._data_channel_test(channel, channel.inverse())
