@@ -211,10 +211,8 @@ class _InferenceAPIHandler(ModelHandler):
   def run_inference(
       self, batch, session: requests.Session, inference_args=None):
     # HF router feature-extraction accepts inputs only (not nested options).
-    response = session.post(
-        self._config.api_url,
-        headers=self._config.authorization_token,
-        json={"inputs": batch})
+    response = session.post(self._config.api_url, json={"inputs": batch})
+    response.raise_for_status()
     return response.json()
 
 
