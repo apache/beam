@@ -89,4 +89,18 @@ public class ForwardingClientResponseObserverTest {
     verifyNoMoreInteractions(delegateObserver, callStreamObserver);
     verify(onDoneHandler).run();
   }
+
+  @Test
+  public void testBeforeStartForwardsToClientResponseObserver() {
+    @SuppressWarnings("unchecked")
+    ClientResponseObserver<Object, Object> delegateObserver = mock(ClientResponseObserver.class);
+    @SuppressWarnings("unchecked")
+    ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
+    Runnable onReadyHandler = () -> {};
+    ClientResponseObserver<Object, Object> observer =
+        ForwardingClientResponseObserver.create(delegateObserver, onReadyHandler);
+    observer.beforeStart(callStreamObserver);
+    verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
+    verify(delegateObserver).beforeStart(callStreamObserver);
+  }
 }

@@ -20,6 +20,9 @@ package org.apache.beam.sdk.fn.stream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.Executors;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
@@ -51,6 +54,15 @@ public class OutboundObserverFactoryTest {
   }
 
   @Test
+  public void testServerDirectInstantiation() {
+    StreamObserver<String> observer =
+        OutboundObserverFactory.serverDirect()
+            .outboundObserverFor(inbound -> mockResponseObserver, mockRequestObserver);
+    assertThat(observer, instanceOf(DirectStreamObserver.class));
+    verify(mockResponseObserver).setOnReadyHandler(any());
+  }
+
+  @Test
   public void testBufferedStreamInstantiation() {
     StreamObserver<String> observer =
         OutboundObserverFactory.clientBuffered(Executors.newSingleThreadExecutor())
@@ -65,6 +77,14 @@ public class OutboundObserverFactoryTest {
             .outboundObserverFor(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
     assertEquals(1, ((BufferingStreamObserver<String>) observer).getBufferSize());
+  }
+
+  @Test
+  public void testTrivial() {
+    StreamObserver<String> observer =
+        OutboundObserverFactory.trivial()
+            .outboundObserverFor(inbound -> mockResponseObserver, mockRequestObserver);
+    assertSame(mockResponseObserver, observer);
   }
 
   private OutboundObserverFactory.BasicFactory<Integer, String> fakeFactory() {
