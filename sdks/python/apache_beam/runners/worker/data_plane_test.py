@@ -112,27 +112,22 @@ class DataChannelTest(unittest.TestCase):
   def test_grpc_data_channel_preserves_input_failure(self):
     channel = data_plane._GrpcDataChannel()
     input_error = ValueError('injected data stream failure')
+    self.addCleanup(self.assertRaises, ValueError, channel.close)
 
     def failed_inputs():
       raise input_error
       yield
 
-    try:
-      with self.assertLogs(data_plane._LOGGER, level=logging.ERROR):
-        with self.assertRaises(ValueError) as reader_error:
-          channel._read_inputs(failed_inputs())
-      self.assertIs(reader_error.exception, input_error)
-      channel._received['instruction'] = mock.Mock(
-          spec=data_plane.ByteLimitedQueue,
-          get=mock.Mock(side_effect=queue.Empty))
-      with self.assertRaisesRegex(
-          RuntimeError, 'Channel closed prematurely') as consumer_error:
-        list(channel.input_elements('instruction', ['input']))
-      self.assertIs(consumer_error.exception.__cause__, input_error)
-    finally:
-      with self.assertRaises(ValueError) as close_error:
-        channel.close()
-      self.assertIs(close_error.exception, input_error)
+    with self.assertLogs(data_plane._LOGGER, level=logging.ERROR):
+      with self.assertRaises(ValueError):
+        channel._read_inputs(failed_inputs())
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
+    with self.assertRaisesRegex(RuntimeError,
+                                'Channel closed prematurely') as consumer_error:
+      list(channel.input_elements('instruction', ['input']))
+    self.assertIs(consumer_error.exception.__cause__, input_error)
 
   def test_grpc_data_channel_premature_eof(self):
     channel = data_plane._GrpcDataChannel()
