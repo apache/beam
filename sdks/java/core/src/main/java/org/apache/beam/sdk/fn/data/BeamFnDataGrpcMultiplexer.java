@@ -21,11 +21,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -61,6 +57,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Duration POISONED_INSTRUCTION_ID_CACHE_TIMEOUT = Duration.ofMinutes(20);
   private static final VarHandle FLOW_CONTROL_STATE;
 
+  private static final Object UNREGISTERED = new Object();
+  private static final Object DRAINING = new Object();
+  private static final Object POISONED = new Object();
+
   static {
     try {
       FLOW_CONTROL_STATE =
@@ -74,10 +74,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
   private final InboundObserver inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
-  private final ConcurrentHashMap<
-          /* instructionId= */ String,
-          CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
-      receivers;
+  private final ConcurrentHashMap</* instructionId= */ String, ReceiverEntry> receivers;
   private final Cache</* instructionId= */ String, /* unused= */ Boolean> poisonedInstructionIds;
 
   /**
@@ -90,9 +87,88 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   @SuppressWarnings("UnusedVariable")
   private volatile int flowControlState;
 
-  private static class PoisonedException extends RuntimeException {
-    private PoisonedException() {
-      super("Instruction poisoned");
+  /**
+   * A Treiber-stack node for {@link BeamFnApi.Elements} that arrive before a consumer has finished
+   * registering and draining. Once detached via CAS/getAndSet on {@link ReceiverEntry#STATE}, the
+   * chain is exclusively owned by the detaching thread and reversed in-place via {@link #reverse}
+   * for FIFO delivery.
+   */
+  private static final class BufferedNode {
+    final BeamFnApi.Elements value;
+    final boolean hasPermit;
+    final boolean draining;
+    @Nullable BufferedNode nextNode;
+
+    BufferedNode(BeamFnApi.Elements value, boolean hasPermit, Object nextState) {
+      this.value = value;
+      this.hasPermit = hasPermit;
+      if (nextState instanceof BufferedNode) {
+        BufferedNode next = (BufferedNode) nextState;
+        this.draining = next.draining;
+        this.nextNode = next;
+      } else {
+        this.draining = (nextState == DRAINING);
+        this.nextNode = null;
+      }
+    }
+
+    static @Nullable BufferedNode reverse(@Nullable BufferedNode head) {
+      @Nullable BufferedNode prev = null;
+      @Nullable BufferedNode curr = head;
+      while (curr != null) {
+        @Nullable BufferedNode next = curr.nextNode;
+        curr.nextNode = prev;
+        prev = curr;
+        curr = next;
+      }
+      return prev;
+    }
+
+    static int countPermits(@Nullable BufferedNode head) {
+      int permits = 0;
+      for (BufferedNode curr = head; curr != null; curr = curr.nextNode) {
+        if (curr.hasPermit) {
+          permits++;
+        }
+      }
+      return permits;
+    }
+  }
+
+  /**
+   * Lock-free state holder for an {@code instructionId} in {@link #receivers}.
+   *
+   * <p>{@link #state} transitions monotonically through:
+   *
+   * <ol>
+   *   <li>{@link #UNREGISTERED} or a {@link BufferedNode} stack with {@code draining == false}
+   *   <li>{@link #DRAINING} or a {@link BufferedNode} stack with {@code draining == true} while
+   *       {@link #registerConsumer} drains pre-registration elements in FIFO order
+   *   <li>The registered {@link CloseableFnDataReceiver} once drained (or immediately on
+   *       construction if registered before any inbound data arrives)
+   *   <li>{@link #POISONED} when unregistered, poisoned, or closed
+   * </ol>
+   */
+  private static final class ReceiverEntry {
+    private static final VarHandle STATE;
+
+    static {
+      try {
+        STATE = MethodHandles.lookup().findVarHandle(ReceiverEntry.class, "state", Object.class);
+      } catch (ReflectiveOperationException e) {
+        throw new ExceptionInInitializerError(e);
+      }
+    }
+
+    @SuppressWarnings("UnusedVariable")
+    private volatile Object state;
+
+    ReceiverEntry() {
+      this.state = UNREGISTERED;
+    }
+
+    ReceiverEntry(CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+      this.state = receiver;
     }
   }
 
@@ -140,39 +216,94 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void registerConsumer(
       String instructionId, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+    if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
+      throw new IllegalArgumentException("Instruction id was poisoned");
+    }
     // beforeStart() is invoked synchronously during BeamFnDataGrpcMultiplexer construction on
     // client-side gRPC streams (setting requestObserver) and is never invoked on server-side
     // streams or plain StreamObserver test doubles (where forwardToConsumerForInstructionId falls
-    // back to blocking consumer.accept()). We must also set onElementsConsumed before completing
-    // the receiver future in receivers.compute() below to establish a happens-before edge to the
-    // inbound gRPC thread calling consumerFuture.get() -> consumer.add().
+    // back to blocking consumer.accept()). We must also set onElementsConsumed before publishing
+    // the receiver in receivers below to establish a happens-before edge to the inbound gRPC
+    // thread reading ReceiverEntry.STATE -> consumer.add().
     if (receiver instanceof BeamFnDataInboundObserver && inboundObserver.requestObserver != null) {
       ((BeamFnDataInboundObserver) receiver).setOnElementsConsumed(inboundObserver);
     }
-    receivers.compute(
-        instructionId,
-        (unused, existing) -> {
-          if (existing != null) {
-            if (!existing.complete(receiver)) {
-              throw new IllegalArgumentException("Instruction id was registered twice");
-            }
-            return existing;
-          }
-          if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
-            throw new IllegalArgumentException("Instruction id was poisoned");
-          }
-          return CompletableFuture.completedFuture(receiver);
-        });
+    ReceiverEntry newEntry = new ReceiverEntry(receiver);
+    @Nullable ReceiverEntry existing = receivers.putIfAbsent(instructionId, newEntry);
+    if (existing == null) {
+      if (poisonedInstructionIds.getIfPresent(instructionId) != null
+          && receivers.remove(instructionId, newEntry)) {
+        ReceiverEntry.STATE.setVolatile(newEntry, POISONED);
+        throw new IllegalArgumentException("Instruction id was poisoned");
+      }
+      return;
+    }
+
+    Object s = ReceiverEntry.STATE.getVolatile(existing);
+    while (true) {
+      if (s instanceof CloseableFnDataReceiver
+          || s == DRAINING
+          || (s instanceof BufferedNode && ((BufferedNode) s).draining)) {
+        throw new IllegalArgumentException("Instruction id was registered twice");
+      }
+      if (s == POISONED || poisonedInstructionIds.getIfPresent(instructionId) != null) {
+        throw new IllegalArgumentException("Instruction id was poisoned");
+      }
+      Object target = (s == UNREGISTERED) ? receiver : DRAINING;
+      Object prev = ReceiverEntry.STATE.compareAndExchange(existing, s, target);
+      if (prev == s) {
+        if (s != UNREGISTERED) {
+          inboundObserver.drain(instructionId, existing, (BufferedNode) s, receiver);
+        }
+        return;
+      }
+      s = prev;
+    }
   }
 
   /** Unregisters a previously registered consumer. */
   public void unregisterConsumer(String instructionId) {
-    @Nullable CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
-        receivers.remove(instructionId);
-    if (receiverFuture != null && !receiverFuture.isDone()) {
-      // The future must have been inserted by the inbound observer since registerConsumer completes
-      // the future.
-      throw new IllegalArgumentException("Unregistering consumer which was not registered.");
+    @Nullable ReceiverEntry entry = receivers.remove(instructionId);
+    if (entry != null) {
+      Object prev = ReceiverEntry.STATE.getAndSet(entry, POISONED);
+      if (prev instanceof BufferedNode) {
+        BufferedNode node = (BufferedNode) prev;
+        int permits = BufferedNode.countPermits(node);
+        if (permits > 0) {
+          inboundObserver.accept(permits);
+        }
+        if (!node.draining) {
+          throw new IllegalArgumentException("Unregistering consumer which was not registered.");
+        }
+      } else if (prev == UNREGISTERED) {
+        // The entry must have been inserted by the inbound observer since registerConsumer
+        // transitions the state out of UNREGISTERED.
+        throw new IllegalArgumentException("Unregistering consumer which was not registered.");
+      }
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private @Nullable CloseableFnDataReceiver<BeamFnApi.Elements> releaseEntry(ReceiverEntry entry) {
+    Object prev = ReceiverEntry.STATE.getAndSet(entry, POISONED);
+    if (prev instanceof BufferedNode) {
+      int permits = BufferedNode.countPermits((BufferedNode) prev);
+      if (permits > 0) {
+        inboundObserver.accept(permits);
+      }
+      return null;
+    }
+    if (prev instanceof CloseableFnDataReceiver) {
+      return (CloseableFnDataReceiver<BeamFnApi.Elements>) prev;
+    }
+    return null;
+  }
+
+  private static void closeReceiverQuietly(CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+    try {
+      receiver.close();
+    } catch (Exception e) {
+      LOG.warn("Unexpected error closing existing observer", e);
     }
   }
 
@@ -184,18 +315,11 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void poisonInstructionId(String instructionId) {
     poisonedInstructionIds.put(instructionId, Boolean.TRUE);
-    @Nullable CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
-        receivers.remove(instructionId);
-    if (receiverFuture != null) {
-      // Completing exceptionally has no effect if the future was already notified. In that case
-      // whatever registered the receiver needs to handle cancelling it.
-      receiverFuture.completeExceptionally(new PoisonedException());
-      if (!receiverFuture.isCompletedExceptionally()) {
-        try {
-          receiverFuture.get().close();
-        } catch (Exception e) {
-          LOG.warn("Unexpected error closing existing observer");
-        }
+    @Nullable ReceiverEntry entry = receivers.remove(instructionId);
+    if (entry != null) {
+      @Nullable CloseableFnDataReceiver<BeamFnApi.Elements> receiver = releaseEntry(entry);
+      if (receiver != null) {
+        closeReceiverQuietly(receiver);
       }
     }
   }
@@ -208,14 +332,11 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   @Override
   public void close() throws Exception {
     Exception exception = null;
-    for (CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiver :
-        ImmutableList.copyOf(receivers.values())) {
-      // Cancel any observer waiting for the client to complete. If the receiver has already been
-      // completed or cancelled, this call will be ignored.
-      receiver.cancel(true);
-      if (!receiver.isCompletedExceptionally()) {
+    for (ReceiverEntry entry : ImmutableList.copyOf(receivers.values())) {
+      @Nullable CloseableFnDataReceiver<BeamFnApi.Elements> receiver = releaseEntry(entry);
+      if (receiver != null) {
         try {
-          receiver.get().close();
+          receiver.close();
         } catch (Exception e) {
           if (exception == null) {
             exception = e;
@@ -238,9 +359,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    * A multiplexing {@link StreamObserver} that selects the inbound {@link Consumer} to pass the
    * elements to.
    *
-   * <p>The inbound observer blocks until the {@link Consumer} is bound allowing for the sending
-   * harness to initiate transmitting data without needing for the receiving harness to signal that
-   * it is ready to consume that data.
+   * <p>If data arrives for an instruction before its {@link Consumer} is registered, the elements
+   * are buffered in {@link ReceiverEntry} without blocking the inbound gRPC thread, allowing the
+   * sending harness to initiate transmitting data without needing the receiving harness to signal
+   * that it is ready to consume that data.
    */
   private final class InboundObserver
       implements ClientResponseObserver<BeamFnApi.Elements, BeamFnApi.Elements>, IntConsumer {
@@ -363,53 +485,71 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       }
     }
 
-    private void forwardToConsumerForInstructionId(String instructionId, BeamFnApi.Elements value) {
-      CloseableFnDataReceiver<BeamFnApi.Elements> consumer;
-      try {
-        CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> consumerFuture =
-            receivers.computeIfAbsent(
-                instructionId,
-                (unused) -> {
-                  if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
-                    throw new PoisonedException();
-                  }
-                  LOG.debug(
-                      "Received data for instruction {} without consumer ready. "
-                          + "Waiting for consumer to be registered.",
-                      instructionId);
-                  return new CompletableFuture<>();
-                });
-        // The consumer may not be registered until the bundle processor is fully constructed so we
-        // conservatively set
-        // a high timeout.  Poisoning will prevent this for occurring for consumers that will not be
-        // registered.
-        consumer = consumerFuture.get(3, TimeUnit.HOURS);
-        /*
-         * TODO: On failure we should fail any bundles that were impacted eagerly
-         * instead of relying on the Runner harness to do all the failure handling.
-         */
-      } catch (TimeoutException e) {
-        LOG.error(
-            "Timed out waiting to observe consumer data stream for instruction {}",
-            instructionId,
-            e);
-        outboundObserver.onError(e);
-        return;
-      } catch (ExecutionException | InterruptedException | PoisonedException e) {
-        if (e instanceof PoisonedException || e.getCause() instanceof PoisonedException) {
-          LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
-          return;
+    private @Nullable ReceiverEntry getOrCreateEntry(String instructionId) {
+      @Nullable ReceiverEntry entry = receivers.get(instructionId);
+      if (entry != null) {
+        return entry;
+      }
+      if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
+        return null;
+      }
+      ReceiverEntry newEntry = new ReceiverEntry();
+      @Nullable ReceiverEntry existing = receivers.putIfAbsent(instructionId, newEntry);
+      if (existing != null) {
+        return existing;
+      }
+      if (poisonedInstructionIds.getIfPresent(instructionId) != null) {
+        if (receivers.remove(instructionId, newEntry)) {
+          releaseEntry(newEntry);
         }
-        LOG.error(
-            "Client interrupted during handling of data for instruction {}", instructionId, e);
-        outboundObserver.onError(e);
-        return;
-      } catch (RuntimeException e) {
-        LOG.error("Client failed to handle data for instruction {}", instructionId, e);
-        outboundObserver.onError(e);
+        return null;
+      }
+      LOG.debug(
+          "Received data for instruction {} without consumer ready. "
+              + "Buffering until consumer is registered.",
+          instructionId);
+      return newEntry;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void forwardToConsumerForInstructionId(String instructionId, BeamFnApi.Elements value) {
+      @Nullable ReceiverEntry entry = getOrCreateEntry(instructionId);
+      if (entry == null) {
+        LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
         return;
       }
 
+      Object s = ReceiverEntry.STATE.getVolatile(entry);
+      if (!(s instanceof CloseableFnDataReceiver)) {
+        boolean hasPermit = this.requestObserver != null;
+        if (hasPermit) {
+          FLOW_CONTROL_STATE.getAndAdd(BeamFnDataGrpcMultiplexer.this, 1);
+        }
+        while (true) {
+          if (s == POISONED) {
+            if (hasPermit) {
+              accept(1);
+            }
+            LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
+            return;
+          }
+          if (s instanceof CloseableFnDataReceiver) {
+            if (hasPermit) {
+              accept(1);
+            }
+            break;
+          }
+          BufferedNode node = new BufferedNode(value, hasPermit, s);
+          Object prev = ReceiverEntry.STATE.compareAndExchange(entry, s, node);
+          if (prev == s) {
+            return;
+          }
+          s = prev;
+        }
+      }
+
+      CloseableFnDataReceiver<BeamFnApi.Elements> consumer =
+          (CloseableFnDataReceiver<BeamFnApi.Elements>) s;
       if (consumer instanceof BeamFnDataInboundObserver && this.requestObserver != null) {
         FLOW_CONTROL_STATE.getAndAdd(BeamFnDataGrpcMultiplexer.this, 1);
         try {
@@ -423,6 +563,83 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
           consumer.accept(value);
         } catch (Exception e) {
           poisonInstructionId(instructionId);
+        }
+      }
+    }
+
+    private void drain(
+        String instructionId,
+        ReceiverEntry entry,
+        BufferedNode initialBatch,
+        CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+      boolean isFlowControlledInboundObserver =
+          receiver instanceof BeamFnDataInboundObserver && this.requestObserver != null;
+      @Nullable BufferedNode batch = initialBatch;
+      while (true) {
+        for (BufferedNode curr = BufferedNode.reverse(batch); curr != null; curr = curr.nextNode) {
+          if (ReceiverEntry.STATE.getVolatile(entry) == POISONED) {
+            int remainingPermits = BufferedNode.countPermits(curr);
+            if (remainingPermits > 0) {
+              accept(remainingPermits);
+            }
+            closeReceiverQuietly(receiver);
+            return;
+          }
+          boolean hasPermit = curr.hasPermit;
+          if (isFlowControlledInboundObserver) {
+            if (!hasPermit) {
+              FLOW_CONTROL_STATE.getAndAdd(BeamFnDataGrpcMultiplexer.this, 1);
+            }
+            try {
+              ((BeamFnDataInboundObserver) receiver).add(curr.value);
+            } catch (Exception e) {
+              int remainingPermits = 1 + BufferedNode.countPermits(curr.nextNode);
+              accept(remainingPermits);
+              poisonInstructionId(instructionId);
+              closeReceiverQuietly(receiver);
+              return;
+            }
+          } else {
+            try {
+              receiver.accept(curr.value);
+            } catch (Exception e) {
+              int remainingPermits = (hasPermit ? 1 : 0) + BufferedNode.countPermits(curr.nextNode);
+              if (remainingPermits > 0) {
+                accept(remainingPermits);
+              }
+              poisonInstructionId(instructionId);
+              closeReceiverQuietly(receiver);
+              if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+              }
+              throw new RuntimeException(e);
+            }
+            if (hasPermit) {
+              accept(1);
+            }
+          }
+        }
+
+        Object s = ReceiverEntry.STATE.getVolatile(entry);
+        while (true) {
+          if (s == POISONED) {
+            closeReceiverQuietly(receiver);
+            return;
+          }
+          if (s == DRAINING) {
+            Object prev = ReceiverEntry.STATE.compareAndExchange(entry, DRAINING, receiver);
+            if (prev == DRAINING) {
+              return;
+            }
+            s = prev;
+          } else {
+            Object prev = ReceiverEntry.STATE.compareAndExchange(entry, s, DRAINING);
+            if (prev == s) {
+              batch = (BufferedNode) s;
+              break;
+            }
+            s = prev;
+          }
         }
       }
     }
