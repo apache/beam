@@ -317,46 +317,79 @@ public class BigqueryClient {
             .setTableId(temporaryTableId);
 
     createNewDataset(projectId, temporaryDatasetId, null, location);
-    createNewTable(
-        projectId,
-        temporaryDatasetId,
-        new Table().setTableReference(tempTableReference).setLocation(location));
+    try {
+      createNewTable(
+          projectId,
+          temporaryDatasetId,
+          new Table().setTableReference(tempTableReference).setLocation(location));
 
-    JobConfigurationQuery jcQuery =
-        new JobConfigurationQuery()
-            .setFlattenResults(false)
-            .setAllowLargeResults(true)
-            .setDestinationTable(tempTableReference)
-            .setUseLegacySql(!useStandardSql)
-            .setQuery(query);
-    JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
+      JobConfigurationQuery jcQuery =
+          new JobConfigurationQuery()
+              .setFlattenResults(false)
+              .setAllowLargeResults(true)
+              .setDestinationTable(tempTableReference)
+              .setUseLegacySql(!useStandardSql)
+              .setQuery(query);
+      JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
 
-    Job job = new Job().setConfiguration(jc);
+      Job job = new Job().setConfiguration(jc);
 
-    Job insertedJob = bqClient.jobs().insert(projectId, job).execute();
+      Job insertedJob = bqClient.jobs().insert(projectId, job).execute();
 
-    GetQueryResultsResponse qResponse;
-    do {
-      qResponse =
-          bqClient
-              .jobs()
-              .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
-              .setLocation(location)
-              .execute();
+      GetQueryResultsResponse qResponse;
+      do {
+        qResponse =
+            getQueryResultsWithRetries(
+                projectId, insertedJob.getJobReference().getJobId(), location);
+      } while (!Boolean.TRUE.equals(qResponse.getJobComplete()));
 
-    } while (!qResponse.getJobComplete());
-
-    final TableSchema schema = qResponse.getSchema();
-    final List<TableRow> rows = qResponse.getRows();
-    if (rows == null) {
-      return Collections.EMPTY_LIST;
+      final TableSchema schema = qResponse.getSchema();
+      final List<TableRow> rows = qResponse.getRows();
+      if (rows == null) {
+        return Collections.EMPTY_LIST;
+      }
+      return !typed
+          ? rows
+          : rows.stream()
+              .map(r -> getTypedTableRow(schema.getFields(), r))
+              .collect(Collectors.toList());
+    } finally {
+      deleteDataset(projectId, temporaryDatasetId);
     }
-    deleteDataset(projectId, temporaryDatasetId);
-    return !typed
-        ? rows
-        : rows.stream()
-            .map(r -> getTypedTableRow(schema.getFields(), r))
-            .collect(Collectors.toList());
+  }
+
+  /**
+   * Calls jobs.getQueryResults and retries 5xx errors, such as a 503 backendError, and 429 rate
+   * limiting. Throws other 4xx errors, such as a failed query, right away.
+   */
+  private GetQueryResultsResponse getQueryResultsWithRetries(
+      String projectId, String jobId, @Nullable String location)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying getQueryResults for job ({}) after exception", jobId, lastException);
+      }
+      try {
+        return bqClient.jobs().getQueryResults(projectId, jobId).setLocation(location).execute();
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() < 500 && e.getStatusCode() != 429) {
+          throw e;
+        }
+        lastException = e;
+      } catch (IOException e) {
+        // ignore and retry
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery query results after retrying %d times for job (%s)",
+            MAX_QUERY_RETRIES, jobId),
+        lastException);
   }
 
   @Nonnull

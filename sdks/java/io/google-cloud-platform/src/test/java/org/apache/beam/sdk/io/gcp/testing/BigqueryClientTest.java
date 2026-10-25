@@ -17,17 +17,31 @@
  */
 package org.apache.beam.sdk.io.gcp.testing;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.GetQueryResultsResponse;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.QueryRequest;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,6 +65,13 @@ public class BigqueryClientTest {
   @Mock private Bigquery mockBigqueryClient;
   @Mock private Bigquery.Jobs mockJobs;
   @Mock private Bigquery.Jobs.Query mockQuery;
+  @Mock private Bigquery.Jobs.Insert mockJobInsert;
+  @Mock private Bigquery.Jobs.GetQueryResults mockGetQueryResults;
+  @Mock private Bigquery.Datasets mockDatasets;
+  @Mock private Bigquery.Datasets.Insert mockDatasetInsert;
+  @Mock private Bigquery.Datasets.Delete mockDatasetDelete;
+  @Mock private Bigquery.Tables mockTables;
+  @Mock private Bigquery.Tables.Insert mockTableInsert;
   private MockedStatic<BigqueryClient> mockStatic;
 
   @Before
@@ -94,5 +115,63 @@ public class BigqueryClientTest {
       verify(mockJobs, atLeast(BigqueryClient.MAX_QUERY_RETRIES))
           .query(eq(projectId), any(QueryRequest.class));
     }
+  }
+
+  private static GoogleJsonResponseException jsonError(int statusCode) {
+    return new GoogleJsonResponseException(
+        new HttpResponseException.Builder(statusCode, "error", new HttpHeaders()), null);
+  }
+
+  private void stubQueryUnflattened() throws IOException {
+    when(mockBigqueryClient.datasets()).thenReturn(mockDatasets);
+    when(mockDatasets.insert(anyString(), any(Dataset.class))).thenReturn(mockDatasetInsert);
+    when(mockDatasetInsert.execute()).thenReturn(new Dataset());
+    when(mockDatasets.delete(anyString(), anyString())).thenReturn(mockDatasetDelete);
+    when(mockDatasetDelete.setDeleteContents(true)).thenReturn(mockDatasetDelete);
+    when(mockBigqueryClient.tables()).thenReturn(mockTables);
+    when(mockTables.insert(anyString(), anyString(), any(Table.class))).thenReturn(mockTableInsert);
+    when(mockTableInsert.execute()).thenReturn(new Table());
+    when(mockJobs.insert(anyString(), any(Job.class))).thenReturn(mockJobInsert);
+    when(mockJobInsert.execute())
+        .thenReturn(new Job().setJobReference(new JobReference().setJobId("job-id")));
+    when(mockJobs.getQueryResults(anyString(), anyString())).thenReturn(mockGetQueryResults);
+    when(mockGetQueryResults.setLocation(any())).thenReturn(mockGetQueryResults);
+  }
+
+  @Test
+  public void testQueryUnflattenedRetriesServerError() throws Exception {
+    stubQueryUnflattened();
+    List<TableRow> rows = Collections.singletonList(new TableRow().set("f0_", "1"));
+    when(mockGetQueryResults.execute())
+        .thenThrow(jsonError(503))
+        .thenReturn(new GetQueryResultsResponse().setJobComplete(true).setRows(rows));
+
+    assertEquals(rows, bqClient.queryUnflattened(query, projectId, false, true));
+    verify(mockGetQueryResults, times(2)).execute();
+    verify(mockDatasets).delete(eq(projectId), anyString());
+  }
+
+  @Test
+  public void testQueryUnflattenedDoesNotRetryClientError() throws Exception {
+    stubQueryUnflattened();
+    when(mockGetQueryResults.execute()).thenThrow(jsonError(400));
+
+    thrown.expect(GoogleJsonResponseException.class);
+    try {
+      bqClient.queryUnflattened(query, projectId, false, true);
+    } finally {
+      verify(mockGetQueryResults, times(1)).execute();
+      verify(mockDatasets).delete(eq(projectId), anyString());
+    }
+  }
+
+  @Test
+  public void testQueryUnflattenedDeletesDatasetWhenNoRows() throws Exception {
+    stubQueryUnflattened();
+    when(mockGetQueryResults.execute())
+        .thenReturn(new GetQueryResultsResponse().setJobComplete(true));
+
+    assertTrue(bqClient.queryUnflattened(query, projectId, false, true).isEmpty());
+    verify(mockDatasets).delete(eq(projectId), anyString());
   }
 }
