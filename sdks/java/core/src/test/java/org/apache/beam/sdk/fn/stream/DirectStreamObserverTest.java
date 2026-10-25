@@ -328,6 +328,7 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext((String t) -> {}).withIsReady(isReady::get).build(),
+            0,
             handler);
 
     Future<?> future = executor.submit(() -> streamObserver.onNext("test"));
