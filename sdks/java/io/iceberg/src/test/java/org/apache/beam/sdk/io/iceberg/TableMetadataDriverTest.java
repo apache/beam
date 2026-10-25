@@ -717,6 +717,28 @@ public class TableMetadataDriverTest implements Serializable {
                 .build()
                 .asView());
 
+    // Check the snapshots independently of when consumers read the streaming view.
+    PAssert.that(checkNotNull(metadataView.getPCollection()))
+        .satisfies(
+            snapshots -> {
+              boolean foundValidTable = false;
+              for (Object value : snapshots) {
+                Map<?, ?> snapshot = (Map<?, ?>) value;
+                assertNotNull(snapshot);
+                assertTrue(!snapshot.containsKey("default.mixed_missing_table"));
+                if (snapshot.containsKey("default.mixed_valid_table")) {
+                  SerializableTableSpec spec =
+                      (SerializableTableSpec) snapshot.get("default.mixed_valid_table");
+                  assertNotNull(spec);
+                  assertEquals("default.mixed_valid_table", spec.getTableIdentifierString());
+                  assertEquals(ICEBERG_SCHEMA.asStruct(), spec.getSchema().asStruct());
+                  foundValidTable = true;
+                }
+              }
+              assertTrue("Expected valid table metadata in the snapshots", foundValidTable);
+              return null;
+            });
+
     PCollection<String> consumerObserved =
         input.apply(
             "ConsumeSideInput",
@@ -731,20 +753,13 @@ public class TableMetadataDriverTest implements Serializable {
                         }
                         Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
                         assertNotNull(viewMap);
-                        String dest = row.getString("dest");
-                        if ("default.mixed_valid_table".equals(dest)) {
-                          assertNotNull(viewMap.get(dest));
-                          out.output("VALID_TABLE_FOUND");
-                        } else {
-                          assertTrue(!viewMap.containsKey(dest));
-                          out.output("MISSING_TABLE_NOT_FOUND");
-                        }
+                        assertTrue(!viewMap.containsKey("default.mixed_missing_table"));
+                        out.output(data);
                       }
                     })
                 .withSideInputs(metadataView));
 
-    PAssert.that(consumerObserved)
-        .containsInAnyOrder("VALID_TABLE_FOUND", "MISSING_TABLE_NOT_FOUND");
+    PAssert.that(consumerObserved).containsInAnyOrder("v1", "v2");
 
     pipeline.run();
   }
