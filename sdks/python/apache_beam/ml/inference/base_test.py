@@ -2415,7 +2415,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
-    raise Exception
+    raise RuntimeError('fake remote inference request failed')
 
   def batch_elements_kwargs(self):
     return {
@@ -2475,22 +2475,29 @@ class RunInferenceRemoteTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_repeated_requests_fail(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_repeated_requests_fail(self, sleep, unused_throttle):
     test_pipeline = TestPipeline()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(RuntimeError,
+                                'fake remote inference request failed'):
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
           | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
       test_pipeline.run()
+    self.assertEqual(sleep.call_count, 2)
 
-  def test_works_on_retry(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_works_on_retry(self, sleep, unused_throttle):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+    sleep.assert_called()
 
   def test_exception_on_load_model_override(self):
     with self.assertRaises(Exception):
