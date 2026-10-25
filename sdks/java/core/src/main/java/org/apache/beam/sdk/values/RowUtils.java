@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.base.AbstractInstant;
 
 @SuppressWarnings({
@@ -52,8 +53,8 @@ class RowUtils {
   }
 
   @SuppressWarnings("unchecked")
-  static @Nullable Object captureValue(
-      FieldType fieldType, @Nullable Object value, String fieldName) {
+  static @PolyNull Object captureValue(
+      FieldType fieldType, @PolyNull Object value, String fieldName) {
     if (value == null) {
       if (!fieldType.getNullable()) {
         throw new IllegalArgumentException(

@@ -19,9 +19,11 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 
 public abstract class SchemaVerification implements Serializable {
-  public static Object verifyFieldValue(Object value, FieldType type, String fieldName) {
+  public static @PolyNull Object verifyFieldValue(
+      @PolyNull Object value, FieldType type, String fieldName) {
     return RowUtils.captureValue(type, value, fieldName);
   }
 }

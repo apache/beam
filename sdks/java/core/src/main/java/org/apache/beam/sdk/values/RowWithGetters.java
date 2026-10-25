@@ -63,8 +63,10 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
     Field field = getSchema().getField(fieldIdx);
     @Nullable Object fieldValue;
     if (cacheFieldType(field)) {
+      @Nullable Object[] cache = this.cache;
       if (cache == null) {
         cache = new Object[getters.size()];
+        this.cache = cache;
       }
       Object cached = cache[fieldIdx];
       if (cached == null) {
