@@ -89,6 +89,10 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private int numEndpointsThatAreIncomplete;
 
   private final AtomicBoolean consumingReceivedData;
+  // Plain field: visibility is established by the happens-before chain from
+  // setOnElementsConsumed() -> CompletableFuture completion in registerConsumer() ->
+  // consumerFuture.get() -> queue.add() (unlocking queue.lock) -> queue.take()/cancel()/reset()
+  // (locking queue.lock). Must only be read after queue.take() returns or when cleared > 0.
   private @Nullable IntConsumer onElementsConsumed;
 
   private BeamFnDataInboundObserver(

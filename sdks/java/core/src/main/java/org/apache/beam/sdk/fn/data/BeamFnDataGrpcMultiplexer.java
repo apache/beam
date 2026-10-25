@@ -140,6 +140,12 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void registerConsumer(
       String instructionId, CloseableFnDataReceiver<BeamFnApi.Elements> receiver) {
+    // beforeStart() is invoked synchronously during BeamFnDataGrpcMultiplexer construction on
+    // client-side gRPC streams (setting requestObserver) and is never invoked on server-side
+    // streams or plain StreamObserver test doubles (where forwardToConsumerForInstructionId falls
+    // back to blocking consumer.accept()). We must also set onElementsConsumed before completing
+    // the receiver future in receivers.compute() below to establish a happens-before edge to the
+    // inbound gRPC thread calling consumerFuture.get() -> consumer.add().
     if (receiver instanceof BeamFnDataInboundObserver && inboundObserver.requestObserver != null) {
       ((BeamFnDataInboundObserver) receiver).setOnElementsConsumed(inboundObserver);
     }
