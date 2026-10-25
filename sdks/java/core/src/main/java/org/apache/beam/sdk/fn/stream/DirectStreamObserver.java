@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
-  private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 0;
+  private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 100;
 
   private final Phaser phaser;
   private final CallStreamObserver<T> outboundObserver;
