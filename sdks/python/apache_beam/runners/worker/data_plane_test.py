@@ -21,8 +21,10 @@
 
 import itertools
 import logging
+import queue
 import time
 import unittest
+from unittest import mock
 
 import grpc
 
@@ -120,6 +122,9 @@ class DataChannelTest(unittest.TestCase):
         with self.assertRaises(ValueError) as reader_error:
           channel._read_inputs(failed_inputs())
       self.assertIs(reader_error.exception, input_error)
+      channel._received['instruction'] = mock.Mock(
+          spec=data_plane.ByteLimitedQueue,
+          get=mock.Mock(side_effect=queue.Empty))
       with self.assertRaisesRegex(
           RuntimeError, 'Channel closed prematurely') as consumer_error:
         list(channel.input_elements('instruction', ['input']))
@@ -133,6 +138,9 @@ class DataChannelTest(unittest.TestCase):
     channel = data_plane._GrpcDataChannel()
     self.addCleanup(channel.close)
     channel._read_inputs(iter([]))
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
     with self.assertRaisesRegex(RuntimeError,
                                 'Channel closed prematurely') as consumer_error:
       list(channel.input_elements('instruction', ['input']))
@@ -153,6 +161,9 @@ class DataChannelTest(unittest.TestCase):
   def test_grpc_data_channel_input_aborted(self):
     channel = data_plane._GrpcDataChannel()
     self.addCleanup(channel.close)
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
     self.assertEqual(
         list(channel.input_elements('instruction', ['input'], lambda: True)),
         [])
