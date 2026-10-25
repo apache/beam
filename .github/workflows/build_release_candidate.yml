@@ -448,14 +448,19 @@ jobs:
             git push -f --set-upstream origin $BRANCH_NAME
         env:
           GITHUB_EVENT_INPUTS_RELEASE: ${{ github.event.inputs.RELEASE }}
-      - name: Create beam-site PR
+      - name: Create or update beam-site PR
         working-directory: beam-site
         env:
           GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
           PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release"
           PR_BODY: "Content generated from https://github.com/apache/beam/tree/${{ env.RC_TAG }}."
         run: |
-            gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
+            existing_pr=$(gh api --method GET repos/apache/beam-site/pulls -f head="apache:${BRANCH_NAME}" -f base=release-docs -f state=open --jq '.[0].number // empty')
+            if [[ -n "$existing_pr" ]]; then
+              gh pr edit "$existing_pr" --repo apache/beam-site --title "$PR_TITLE" --body "$PR_BODY"
+            else
+              gh pr create --repo apache/beam-site --head "$BRANCH_NAME" --title "$PR_TITLE" --body "$PR_BODY" --base release-docs
+            fi
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
