@@ -1,0 +1,15 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "is_table_empty",
+  "description": "_is_table_empty('p','d','t')",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/data",
+      "query": {
+        "maxResults": "1"
+      }
+    }
+  ]
+}
