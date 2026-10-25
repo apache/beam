@@ -37,15 +37,14 @@ package integration
 
 import (
 	"fmt"
-	"math/rand"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/google/uuid"
 )
 
 // Filters for temporarily skipping integration tests. All filters are regex
@@ -323,9 +322,7 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
-	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
+	*jobopts.JobName = dataflowJobName(n, uuid.New())
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
@@ -361,4 +358,31 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently filtered for runner %v", n, runner)
 		}
 	}
+}
+
+// dataflowJobName keeps the test name readable while adding enough random
+// suffix bits to avoid collisions between concurrent integration runs.
+func dataflowJobName(testName string, id uuid.UUID) string {
+	const (
+		maxLength  = 40
+		prefix     = "go-"
+		suffixSize = 18 // 66 random bits from a UUIDv4.
+	)
+
+	readableName := strings.ToLower(testName)
+	readableName = strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
+			return r
+		}
+		return '-'
+	}, readableName)
+
+	const separator = "-"
+	maxReadableNameLength := maxLength - len(prefix) - len(separator) - suffixSize
+	if len(readableName) > maxReadableNameLength {
+		readableName = readableName[:maxReadableNameLength]
+	}
+
+	suffix := strings.ReplaceAll(id.String(), "-", "")[:suffixSize]
+	return prefix + readableName + separator + suffix
 }
