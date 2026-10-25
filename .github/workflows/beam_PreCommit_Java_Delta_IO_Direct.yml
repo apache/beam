@@ -96,7 +96,7 @@ jobs:
             -Pjava17Home=$JAVA_HOME_17_X64 \
             --info
       - name: run Delta IO Prism integration tests
-        uses: ./.github/actions/gradle-command-self-hosted-action
+        uses: $/.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:delta:prismIntegrationTest
           arguments: |
