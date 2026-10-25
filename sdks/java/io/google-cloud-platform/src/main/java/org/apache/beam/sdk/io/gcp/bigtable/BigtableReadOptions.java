@@ -53,15 +53,15 @@ abstract class BigtableReadOptions implements Serializable {
   abstract @Nullable Integer getMaxBufferElementCount();
 
   /** Returns the attempt timeout of the reads. */
-  abstract @Nullable Duration getAttemptTimeout();
+  abstract @Nullable ValueProvider<Duration> getAttemptTimeout();
 
   /** Returns the operation timeout of the reads. */
-  abstract @Nullable Duration getOperationTimeout();
+  abstract @Nullable ValueProvider<Duration> getOperationTimeout();
 
   /**
    * Watchdog will kill the stream after waiting this much time for the next response from server.
    */
-  abstract @Nullable Duration getWaitTimeout();
+  abstract @Nullable ValueProvider<Duration> getWaitTimeout();
 
   abstract Builder toBuilder();
 
@@ -82,11 +82,23 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
-    abstract Builder setAttemptTimeout(Duration timeout);
+    abstract Builder setAttemptTimeout(ValueProvider<Duration> timeout);
 
-    abstract Builder setOperationTimeout(Duration timeout);
+    Builder setAttemptTimeout(Duration timeout) {
+      return setAttemptTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
 
-    abstract Builder setWaitTimeout(Duration timeout);
+    abstract Builder setOperationTimeout(ValueProvider<Duration> timeout);
+
+    Builder setOperationTimeout(Duration timeout) {
+      return setOperationTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    abstract Builder setWaitTimeout(ValueProvider<Duration> timeout);
+
+    Builder setWaitTimeout(Duration timeout) {
+      return setWaitTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
 
     abstract BigtableReadOptions build();
   }
@@ -152,9 +164,12 @@ abstract class BigtableReadOptions implements Serializable {
       }
     }
 
-    if (getAttemptTimeout() != null && getOperationTimeout() != null) {
+    if (getAttemptTimeout() != null
+        && getAttemptTimeout().isAccessible()
+        && getOperationTimeout() != null
+        && getOperationTimeout().isAccessible()) {
       checkArgument(
-          getAttemptTimeout().isShorterThan(getOperationTimeout()),
+          getAttemptTimeout().get().isShorterThan(getOperationTimeout().get()),
           "attempt timeout can't be longer than operation timeout");
     }
   }

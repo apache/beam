@@ -37,10 +37,10 @@ abstract class BigtableWriteOptions implements Serializable {
   abstract @Nullable ValueProvider<String> getTableId();
 
   /** Returns the attempt timeout for writes. */
-  abstract @Nullable Duration getAttemptTimeout();
+  abstract @Nullable ValueProvider<Duration> getAttemptTimeout();
 
   /** Returns the operation timeout for writes. */
-  abstract @Nullable Duration getOperationTimeout();
+  abstract @Nullable ValueProvider<Duration> getOperationTimeout();
 
   /** Returns the max number of elements of a batch. */
   abstract @Nullable Long getMaxElementsPerBatch();
@@ -61,7 +61,7 @@ abstract class BigtableWriteOptions implements Serializable {
   abstract @Nullable Boolean getFlowControl();
 
   /** Returns the time to wait when closing the writer. */
-  abstract @Nullable Duration getCloseWaitTimeout();
+  abstract @Nullable ValueProvider<Duration> getCloseWaitTimeout();
 
   abstract Builder toBuilder();
 
@@ -74,9 +74,17 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setTableId(ValueProvider<String> tableId);
 
-    abstract Builder setAttemptTimeout(Duration timeout);
+    abstract Builder setAttemptTimeout(ValueProvider<Duration> timeout);
 
-    abstract Builder setOperationTimeout(Duration timeout);
+    Builder setAttemptTimeout(Duration timeout) {
+      return setAttemptTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    abstract Builder setOperationTimeout(ValueProvider<Duration> timeout);
+
+    Builder setOperationTimeout(Duration timeout) {
+      return setOperationTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
 
     abstract Builder setMaxElementsPerBatch(long size);
 
@@ -90,7 +98,11 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setFlowControl(boolean enableFlowControl);
 
-    abstract Builder setCloseWaitTimeout(Duration timeout);
+    abstract Builder setCloseWaitTimeout(ValueProvider<Duration> timeout);
+
+    Builder setCloseWaitTimeout(Duration timeout) {
+      return setCloseWaitTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
 
     abstract BigtableWriteOptions build();
   }
@@ -130,9 +142,12 @@ abstract class BigtableWriteOptions implements Serializable {
         getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
         "Could not obtain Bigtable table id");
 
-    if (getAttemptTimeout() != null && getOperationTimeout() != null) {
+    if (getAttemptTimeout() != null
+        && getAttemptTimeout().isAccessible()
+        && getOperationTimeout() != null
+        && getOperationTimeout().isAccessible()) {
       checkArgument(
-          getAttemptTimeout().isShorterThan(getOperationTimeout()),
+          getAttemptTimeout().get().isShorterThan(getOperationTimeout().get()),
           "attempt timeout can't be longer than operation timeout");
     }
   }
