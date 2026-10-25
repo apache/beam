@@ -152,13 +152,9 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     fail("An injected failure did not affect the pipeline as expected.");
   }
 
-  private void testTimeoutPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testTimeoutPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     result.waitUntilFinish(Duration.millis(1));
 
@@ -168,27 +164,19 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testCanceledPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testCanceledPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     result.cancel();
 
-    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
+    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testRunningPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testRunningPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 
@@ -198,12 +186,12 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   @Test
   public void testBatchPipelineRunningState() throws Exception {
-    testRunningPipeline(getBatchOptions());
+    testRunningPipeline();
   }
 
   @Test
   public void testBatchPipelineCanceledState() throws Exception {
-    testCanceledPipeline(getBatchOptions());
+    testCanceledPipeline();
   }
 
   @Test
@@ -213,13 +201,13 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   @Test
   public void testBatchPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(getBatchOptions());
+    testTimeoutPipeline();
   }
 
   @Test
   public void testBatchCancelStopsRunningJob() throws Exception {
     SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
-    assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+    result.cancel();
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
     assertTrue("owned session not stopped", SparkSession.getDefaultSession().isEmpty());
   }
@@ -229,7 +217,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     SparkSession session = SparkSessionFactory.sessionBuilder("local[1]").getOrCreate();
     try {
       SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
-      assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+      result.cancel();
       assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
       assertFalse("shared session stopped", session.sparkContext().isStopped());
     } finally {
@@ -241,7 +229,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   @Test
   public void testCancelFollowedImmediatelyBySecondPipeline() throws Exception {
     SparkStructuredStreamingPipelineResult first = runBlockingPipeline();
-    assertThat(first.cancel(), is(PipelineResult.State.CANCELLED));
+    first.cancel();
     Pipeline secondPipeline = Pipeline.create(getBatchOptions());
     secondPipeline.apply(Create.of("a", "b")).apply(printParDo("second"));
     SparkStructuredStreamingPipelineResult second =
