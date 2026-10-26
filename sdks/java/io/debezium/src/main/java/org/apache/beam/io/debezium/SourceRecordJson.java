@@ -29,6 +29,7 @@ import java.util.Set;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.GsonBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.annotations.SerializedName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -60,6 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *         <li>schema - Database Schema (for MySQL, the binlog file name)
  *         <li>table - Table name
  *       </ul>
+ *   <li>transaction - {@link #loadTransaction}: the Debezium {@code transaction} block of the
+ *       change event ({@code id}, {@code total_order} and {@code data_collection_order}), or {@code
+ *       null} unless the connector has {@code provide.transaction.metadata=true}
  * </ul>
  *
  * <h3>Full metadata</h3>
@@ -75,9 +79,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Every other field of the Debezium {@code source} block, in schema order, that is not
  *       already represented above (for example {@code ts_ms}, {@code snapshot}, MySQL {@code file},
  *       {@code pos}, {@code row}, or PostgreSQL {@code lsn}, {@code txId})
- *   <li>transaction - The Debezium {@code transaction} block of the change event ({@code id},
- *       {@code total_order} and {@code data_collection_order}) as a nested object, if the connector
- *       has {@code provide.transaction.metadata=true}
  * </ul>
  *
  * <p>By default ({@code fullMetadata = false}) the output only contains the six keys above.
@@ -86,8 +87,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>When the connector has {@code provide.transaction.metadata=true}, Debezium also emits a {@code
  * BEGIN} and an {@code END} event around the change events of each transaction. These have no
- * {@code source}, {@code before} or {@code after}, so they are mapped to their own payload instead:
- * {@code status}, {@code id}, {@code ts_ms}, {@code event_count} and {@code data_collections}.
+ * {@code source}, {@code before} or {@code after}, so they are mapped to their own payload instead
+ * ({@link #loadTransactionEvent}): {@code status}, {@code id}, {@code ts_ms}, {@code event_count}
+ * and {@code data_collections}.
  *
  * <h3>Usage Example</h3>
  *
@@ -121,8 +123,8 @@ public class SourceRecordJson {
 
   private final @Nullable Struct value;
   private final @Nullable Event event;
+  private final @Nullable TransactionEvent transactionEvent;
   private final Map<String, Object> metadataExtras;
-  private final @Nullable Map<String, Object> transactionMetadata;
 
   /**
    * Initializer.
@@ -148,20 +150,21 @@ public class SourceRecordJson {
     this.value = (Struct) sourceRecord.value();
 
     if (this.value == null) {
-      this.event = new Event(null, null, null);
+      this.event = new Event(null, null, null, null);
+      this.transactionEvent = null;
       this.metadataExtras = Collections.emptyMap();
-      this.transactionMetadata = null;
     } else if (isTransactionMetadataEvent(sourceRecord.keySchema())) {
       this.event = null;
+      this.transactionEvent = this.loadTransactionEvent();
       this.metadataExtras = Collections.emptyMap();
-      this.transactionMetadata = this.loadTransactionMetadata();
     } else {
-      this.transactionMetadata = null;
       Event.Metadata metadata = this.loadMetadata();
       Event.Before before = this.loadBefore();
       Event.After after = this.loadAfter();
+      Event.Transaction transaction = this.loadTransaction();
 
-      this.event = new Event(metadata, before, after);
+      this.event = new Event(metadata, before, after, transaction);
+      this.transactionEvent = null;
       this.metadataExtras =
           fullMetadata && metadata != null ? this.loadMetadataExtras() : Collections.emptyMap();
     }
@@ -205,7 +208,7 @@ public class SourceRecordJson {
   /**
    * Extracts the full metadata extras: the envelope's {@code op} (if the value schema has one),
    * then every field of the Debezium {@code source} block, in schema order, that isn't already
-   * represented in {@link Event.Metadata}, then the envelope's {@code transaction} block (if set).
+   * represented in {@link Event.Metadata}.
    *
    * @return extra metadata keys, in insertion order
    */
@@ -221,51 +224,12 @@ public class SourceRecordJson {
         extras.put(fieldName, toJsonFriendly(source.get(field)));
       }
     }
-
-    Struct transaction =
-        this.value.schema().field("transaction") != null
-            ? this.value.getStruct("transaction")
-            : null;
-    if (transaction != null) {
-      Map<String, Object> transactionFields = new LinkedHashMap<>();
-      for (Field field : transaction.schema().fields()) {
-        transactionFields.put(field.name(), transaction.get(field));
-      }
-      extras.put("transaction", transactionFields);
-    }
     return extras;
   }
 
   private static @Nullable Object toJsonFriendly(@Nullable Object value) {
     // Source fields are flat primitives today; stringify a nested Struct to keep metadata flat.
     return value instanceof Struct ? String.valueOf(value) : value;
-  }
-
-  /**
-   * Extracts the payload of a transaction BEGIN/END event.
-   *
-   * @return status, id, ts_ms, event_count and data_collections, in insertion order
-   */
-  private Map<String, Object> loadTransactionMetadata() {
-    List<Map<String, Object>> dataCollections = null;
-    List<Struct> dataCollectionStructs = this.value.getArray("data_collections");
-    if (dataCollectionStructs != null) {
-      dataCollections = new ArrayList<>();
-      for (Struct dataCollectionStruct : dataCollectionStructs) {
-        Map<String, Object> dataCollection = new LinkedHashMap<>();
-        dataCollection.put("data_collection", dataCollectionStruct.getString("data_collection"));
-        dataCollection.put("event_count", dataCollectionStruct.getInt64("event_count"));
-        dataCollections.add(dataCollection);
-      }
-    }
-
-    Map<String, Object> transactionMetadata = new LinkedHashMap<>();
-    transactionMetadata.put("status", this.value.getString("status"));
-    transactionMetadata.put("id", this.value.getString("id"));
-    transactionMetadata.put("ts_ms", this.value.getInt64("ts_ms"));
-    transactionMetadata.put("event_count", this.value.getInt64("event_count"));
-    transactionMetadata.put("data_collections", dataCollections);
-    return transactionMetadata;
   }
 
   /**
@@ -317,13 +281,62 @@ public class SourceRecordJson {
   }
 
   /**
+   * Extracts the transaction field within SourceRecord, set when the connector has {@code
+   * provide.transaction.metadata=true}.
+   *
+   * @return Transaction
+   */
+  private Event.Transaction loadTransaction() {
+    @Nullable Struct transaction;
+    try {
+      transaction = (Struct) this.value.get("transaction");
+    } catch (DataException e) {
+      return null;
+    }
+    if (transaction == null) {
+      return null;
+    }
+
+    return new Event.Transaction(
+        transaction.getString("id"),
+        transaction.getInt64("total_order"),
+        transaction.getInt64("data_collection_order"));
+  }
+
+  /**
+   * Extracts the payload of a transaction BEGIN/END event.
+   *
+   * @return TransactionEvent
+   */
+  private TransactionEvent loadTransactionEvent() {
+    @Nullable List<TransactionEvent.DataCollection> dataCollections = null;
+    @Nullable List<Struct> dataCollectionStructs = this.value.getArray("data_collections");
+    if (dataCollectionStructs != null) {
+      dataCollections = new ArrayList<>();
+      for (Struct dataCollection : dataCollectionStructs) {
+        dataCollections.add(
+            new TransactionEvent.DataCollection(
+                dataCollection.getString("data_collection"),
+                dataCollection.getInt64("event_count")));
+      }
+    }
+
+    return new TransactionEvent(
+        this.value.getString("status"),
+        this.value.getString("id"),
+        this.value.getInt64("ts_ms"),
+        this.value.getInt64("event_count"),
+        dataCollections);
+  }
+
+  /**
    * Transforms the extracted data to a JSON string.
    *
    * @return JSON String
    */
   public String toJson() {
-    if (this.transactionMetadata != null) {
-      return GSON.toJson(this.transactionMetadata);
+    if (this.transactionEvent != null) {
+      return this.transactionEvent.toJson();
     }
     return this.event.toJson(this.metadataExtras);
   }
@@ -359,6 +372,7 @@ public class SourceRecordJson {
     private final SourceRecordJson.Event.Metadata metadata;
     private final SourceRecordJson.Event.Before before;
     private final SourceRecordJson.Event.After after;
+    private final SourceRecordJson.Event.Transaction transaction;
 
     /**
      * Event Initializer.
@@ -366,14 +380,17 @@ public class SourceRecordJson {
      * @param metadata Metadata retrieved from SourceRecord
      * @param before Before data retrieved from SourceRecord
      * @param after After data retrieved from SourceRecord
+     * @param transaction Transaction block retrieved from SourceRecord
      */
     public Event(
         SourceRecordJson.Event.Metadata metadata,
         SourceRecordJson.Event.Before before,
-        SourceRecordJson.Event.After after) {
+        SourceRecordJson.Event.After after,
+        SourceRecordJson.Event.Transaction transaction) {
       this.metadata = metadata;
       this.before = before;
       this.after = after;
+      this.transaction = transaction;
     }
 
     /**
@@ -466,6 +483,100 @@ public class SourceRecordJson {
        */
       public After(@Nullable Map<String, Object> fields) {
         this.fields = fields;
+      }
+    }
+
+    /** Depicts the transaction field within SourceRecord. */
+    @SuppressWarnings("unused") // Unused params are validated as JSON
+    static class Transaction implements Serializable {
+      private final @Nullable String id;
+
+      @SerializedName("total_order")
+      private final @Nullable Long totalOrder;
+
+      @SerializedName("data_collection_order")
+      private final @Nullable Long dataCollectionOrder;
+
+      /**
+       * Transaction Initializer.
+       *
+       * @param id Transaction id
+       * @param totalOrder Position of the event among all events of the transaction
+       * @param dataCollectionOrder Position of the event among the events of its data collection
+       */
+      public Transaction(
+          @Nullable String id, @Nullable Long totalOrder, @Nullable Long dataCollectionOrder) {
+        this.id = id;
+        this.totalOrder = totalOrder;
+        this.dataCollectionOrder = dataCollectionOrder;
+      }
+    }
+  }
+
+  /** Depicts a transaction BEGIN/END SourceRecord as a TransactionEvent to be mapped as JSON. */
+  @SuppressWarnings("unused") // Unused params are validated as JSON
+  static class TransactionEvent implements Serializable {
+    private final @Nullable String status;
+    private final @Nullable String id;
+
+    @SerializedName("ts_ms")
+    private final @Nullable Long tsMs;
+
+    @SerializedName("event_count")
+    private final @Nullable Long eventCount;
+
+    @SerializedName("data_collections")
+    private final @Nullable List<DataCollection> dataCollections;
+
+    /**
+     * TransactionEvent Initializer.
+     *
+     * @param status {@code BEGIN} or {@code END}
+     * @param id Transaction id
+     * @param tsMs Time the transaction began or ended, in milliseconds
+     * @param eventCount Number of events in the transaction, only set on {@code END}
+     * @param dataCollections Number of events per data collection, only set on {@code END}
+     */
+    public TransactionEvent(
+        @Nullable String status,
+        @Nullable String id,
+        @Nullable Long tsMs,
+        @Nullable Long eventCount,
+        @Nullable List<DataCollection> dataCollections) {
+      this.status = status;
+      this.id = id;
+      this.tsMs = tsMs;
+      this.eventCount = eventCount;
+      this.dataCollections = dataCollections;
+    }
+
+    /**
+     * Transforms the TransactionEvent to a JSON string.
+     *
+     * @return JSON String
+     */
+    public String toJson() {
+      return GSON.toJson(this);
+    }
+
+    /** Depicts an entry of the data_collections field within SourceRecord. */
+    @SuppressWarnings("unused") // Unused params are validated as JSON
+    static class DataCollection implements Serializable {
+      @SerializedName("data_collection")
+      private final @Nullable String dataCollection;
+
+      @SerializedName("event_count")
+      private final @Nullable Long eventCount;
+
+      /**
+       * DataCollection Initializer.
+       *
+       * @param dataCollection Data collection (table) name
+       * @param eventCount Number of events of the transaction in this data collection
+       */
+      public DataCollection(@Nullable String dataCollection, @Nullable Long eventCount) {
+        this.dataCollection = dataCollection;
+        this.eventCount = eventCount;
       }
     }
   }

@@ -289,7 +289,7 @@ public class DebeziumIOMySqlConnectorIT {
             + "\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\",\"table\":\"addresses\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
             + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
-            + "\"type\":\"SHIPPING\"}}}";
+            + "\"type\":\"SHIPPING\"}},\"transaction\":null}";
 
     PAssert.that(results)
         .satisfies(
