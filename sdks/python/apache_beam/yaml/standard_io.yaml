@@ -710,7 +710,7 @@
     underlying_provider:
       type: beamJar
       transforms:
-        'IcebergAddFiles': 'beam:schematransform:iceberg_add_files:v1'
+        'IcebergAddFiles': 'beam:schematransform:org.apache.beam:iceberg_add_files:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
