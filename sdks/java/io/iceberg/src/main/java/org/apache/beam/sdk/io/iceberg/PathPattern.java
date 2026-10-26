@@ -40,6 +40,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Pattern {@code gs://lake/export/{table}/**} over path {@code
  * gs://lake/export/orders/part-0.parquet} captures {@code table=orders}. The whole path has to
  * match, so the pattern decides both which table a file belongs to and whether it belongs at all.
+ *
+ * <p>A pattern may hold at most one {@code **}, before or after its placeholders. A second one can
+ * leave a placeholder between the two with nothing fixing which directory it names, so two are
+ * refused. {@code *} and {@code ?} are unrestricted: neither crosses a directory, so neither can
+ * move a placeholder.
+ *
+ * <p>Two edges follow from Beam's glob translation. A {@code **} matches one directory or more,
+ * never none, so a pattern with a {@code **} above its placeholder does not match a file with no
+ * directory in that position. And a placeholder with nothing after it captures the file name rather
+ * than a directory.
  */
 final class PathPattern implements Serializable {
   private static final Pattern PLACEHOLDER = Pattern.compile("\\{(.+?)}");
@@ -65,7 +75,7 @@ final class PathPattern implements Serializable {
     checkNamesAreBindable(names, pathPattern);
     // the -1 keeps a trailing empty part, so "gs://lake/{tbl}" still yields a group
     String[] fixedParts = PLACEHOLDER.split(pathPattern, -1);
-    checkNoDoubleStarAbovePlaceholders(fixedParts, pathPattern);
+    checkAtMostOneDoubleStar(pathPattern);
     checkArgument(
         !pathPattern.endsWith("/"),
         "'%s' ends with '/', so it names a folder and matches no file; end it with a selector for"
@@ -97,17 +107,18 @@ final class PathPattern implements Serializable {
     }
   }
 
-  // A '**' crosses directory levels, so one above a placeholder leaves the folder that placeholder
-  // names undetermined: gs://lake/**/{tbl}/** over gs://lake/a/b/c/f.parquet binds tbl to c, but
-  // only because the regex is greedy. Only the text after the last placeholder may hold one.
-  private static void checkNoDoubleStarAbovePlaceholders(String[] fixedParts, String pathPattern) {
-    for (int i = 0; i < fixedParts.length - 1; i++) {
-      checkArgument(
-          !fixedParts[i].contains("**"),
-          "'%s' has a '**' above a placeholder, so the folder that placeholder names is not"
-              + " determined; a '**' can only come after the last placeholder.",
-          pathPattern);
-    }
+  // Two '**' can sit either side of a placeholder, and then nothing fixes which directory it
+  // names: gs://lake/**/{tbl}/** binds tbl to a different folder for every path depth. One '**'
+  // cannot do that wherever it sits, since it is only ever on one side of a given placeholder,
+  // so one is the limit. A '*' or '?' never crosses a directory and is not restricted.
+  private static void checkAtMostOneDoubleStar(String pathPattern) {
+    int first = pathPattern.indexOf("**");
+    checkArgument(
+        first < 0 || pathPattern.indexOf("**", first + 2) < 0,
+        "'%s' holds more than one '**'. One is allowed, before or after the placeholders; a"
+            + " second can leave a placeholder between them with no directory fixing it. Use '*'"
+            + " for a single directory level.",
+        pathPattern);
   }
 
   /**

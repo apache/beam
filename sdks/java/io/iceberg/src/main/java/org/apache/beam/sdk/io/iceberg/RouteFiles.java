@@ -36,13 +36,8 @@ final class RouteFiles extends DoFn<String, KV<String, String>> {
   static final TupleTag<KV<String, String>> ROUTED = new TupleTag<>();
   static final TupleTag<Row> ERRORS = new TupleTag<>();
 
-  /** {@code table} is empty when nothing matched, since there is no table to attribute it to. */
-  static final Schema ERROR_SCHEMA =
-      Schema.builder()
-          .addStringField("file")
-          .addStringField("error")
-          .addStringField("table")
-          .build();
+  /** The same rows as the transform's other errors, so one output can carry both. */
+  static final Schema ERROR_SCHEMA = AddFiles.ERROR_SCHEMA;
 
   private final String pathPattern;
   private final String tableTemplate;
@@ -62,14 +57,14 @@ final class RouteFiles extends DoFn<String, KV<String, String>> {
 
     if (match == null) {
       String error = "did not match path_pattern '" + pathPattern + "'";
-      output.get(ERRORS).output(errorRow(path, error, ""));
+      output.get(ERRORS).output(errorRow(path, error));
       return;
     }
     String table = PathPattern.render(tableTemplate, match.captures());
     output.get(ROUTED).output(KV.of(table, path));
   }
 
-  private static Row errorRow(String file, String error, String table) {
-    return Row.withSchema(ERROR_SCHEMA).addValues(file, error, table).build();
+  private static Row errorRow(String file, String error) {
+    return Row.withSchema(ERROR_SCHEMA).addValues(file, error).build();
   }
 }

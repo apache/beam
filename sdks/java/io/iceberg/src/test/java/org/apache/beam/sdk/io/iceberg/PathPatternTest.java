@@ -195,11 +195,35 @@ public class PathPatternTest {
 
   /** A '**' above a placeholder would swallow the folder the placeholder is meant to name. */
   @Test
-  public void doubleStarAboveAPlaceholderIsRefused() {
+  public void moreThanOneDoubleStarIsRefused() {
     assertThrows(
         IllegalArgumentException.class, () -> PathPattern.compile("gs://lake/**/{tbl}/**"));
     assertThrows(
         IllegalArgumentException.class, () -> PathPattern.compile("gs://lake/{db}/**/{tbl}/**"));
+    assertThrows(
+        IllegalArgumentException.class, () -> PathPattern.compile("gs://lake/**/**/{tbl}/*"));
+  }
+
+  @Test
+  public void oneDoubleStarMayComeBeforeThePlaceholder() {
+    PathPattern.Match match =
+        matched("gs://lake/**/{tbl}/*.parquet", "gs://lake/a/b/orders/part-0.parquet");
+    assertEquals("orders", match.captures().get("tbl"));
+  }
+
+  /** A '**' stands for one directory or more, so the table cannot sit at the pattern's root. */
+  @Test
+  public void aDoubleStarDoesNotMatchZeroDirectories() {
+    PathPattern pattern = PathPattern.compile("gs://lake/**/{tbl}/*.parquet");
+    assertNull(pattern.match("gs://lake/orders/part-0.parquet"));
+  }
+
+  /** Beam's glob translator leaves brackets unescaped, so they act as a character class. */
+  @Test
+  public void bracketsInLiteralTextAreACharacterClass() {
+    PathPattern pattern = PathPattern.compile("gs://lake/a[bc]/{tbl}/**");
+    assertNotNull(pattern.match("gs://lake/ab/orders/part-0.parquet"));
+    assertNull(pattern.match("gs://lake/a[bc]/orders/part-0.parquet"));
   }
 
   @Test
