@@ -1521,7 +1521,9 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 	// Late Data is data that has arrived after that window has expired.
 	// We only need to drop late data before aggregations.
 	// TODO - handle for side inputs too.
-	threshold := ss.output
+	// Expiration is relative to the input PCollection watermark. Pending
+	// windows and output holds must not re-admit expired input elements.
+	_, threshold := ss.UpstreamWatermark()
 	origPending := make([]element, 0, ss.pending.Len())
 	for _, e := range newPending {
 		if ss.strat.EarliestCompletion(e.window) < threshold {
