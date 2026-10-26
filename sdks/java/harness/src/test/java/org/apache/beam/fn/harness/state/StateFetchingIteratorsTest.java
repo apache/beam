@@ -49,6 +49,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.fn.data.WeightedList;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -527,6 +528,87 @@ public class StateFetchingIteratorsTest {
       assertTrue(byteStrings.isReady());
 
       assertEquals(Arrays.asList(expected), results);
+    }
+  }
+
+  /** Tests for {@link StateFetchingIterators#readAllAndDecodeStartingFrom} without caching. */
+  @RunWith(JUnit4.class)
+  public static class UncachedStateIterableTest {
+
+    @Test
+    public void testEmpty() throws Exception {
+      testFetch(4);
+    }
+
+    @Test
+    public void testNonEmpty() throws Exception {
+      testFetch(4, 0);
+    }
+
+    @Test
+    public void testMultipleElementsPerChunk() throws Exception {
+      testFetch(8, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testSingleElementPerChunk() throws Exception {
+      testFetch(4, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkSmallerThanElementSize() throws Exception {
+      testFetch(3, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkLargerThanElementSize() throws Exception {
+      testFetch(5, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testIsReadyAndPrefetch() throws Exception {
+      AtomicInteger callCount = new AtomicInteger();
+      BeamFnStateClient fakeStateClient =
+          fakeStateClient(callCount, ByteString.copyFromUtf8("BC"), ByteString.copyFromUtf8("DEF"));
+      PrefetchableIterable<byte[]> iterable =
+          StateFetchingIterators.readAllAndDecodeStartingFrom(
+              fakeStateClient,
+              StateRequest.getDefaultInstance(),
+              org.apache.beam.sdk.coders.ByteArrayCoder.of());
+      // Not yet iterated or prefetched
+      PrefetchableIterator<byte[]> iterator = iterable.iterator();
+      assertFalse(iterator.isReady());
+    }
+
+    private void testFetch(int chunkSize, int... expected) {
+      StateRequest requestForFirstChunk =
+          StateRequest.newBuilder()
+              .setStateKey(
+                  StateKey.newBuilder()
+                      .setBagUserState(
+                          StateKey.BagUserState.newBuilder()
+                              .setTransformId("transformId")
+                              .setUserStateId("stateId")
+                              .setKey(ByteString.copyFromUtf8("key"))
+                              .setWindow(ByteString.copyFromUtf8("window"))))
+              .setGet(StateGetRequest.getDefaultInstance())
+              .build();
+      FakeBeamFnStateClient fakeStateClient =
+          new FakeBeamFnStateClient(
+              BigEndianIntegerCoder.of(),
+              ImmutableMap.of(requestForFirstChunk.getStateKey(), Ints.asList(expected)),
+              chunkSize);
+
+      PrefetchableIterable<Integer> iterable =
+          StateFetchingIterators.readAllAndDecodeStartingFrom(
+              fakeStateClient, requestForFirstChunk, BigEndianIntegerCoder.of());
+
+      PrefetchableIterator<Integer> iterator = iterable.iterator();
+      List<Integer> results = new ArrayList<>();
+      while (iterator.hasNext()) {
+        results.add(iterator.next());
+      }
+      assertEquals(Ints.asList(expected), results);
     }
   }
 }
