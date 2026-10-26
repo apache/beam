@@ -808,8 +808,10 @@ public class GroupIntoBatchesTest implements Serializable {
 
   /**
    * Tests that when elements arrive out of order, the watermark hold is updated to the minimum
-   * timestamp. With ofSize(3) and 2 elements, elements remain buffered until window expiration,
-   * exercising the updated timer watermark hold rather than flushing immediately in processElement.
+   * timestamp. With ofSize(3) and 2 elements, elements remain buffered while the watermark advances
+   * past the second element's timestamp. If the watermark hold were not updated to the minimum
+   * timestamp, the watermark would advance past the window of the second element and the batch
+   * would be dropped as late data downstream.
    */
   @Test
   @Category({
@@ -829,25 +831,35 @@ public class GroupIntoBatchesTest implements Serializable {
                 TimestampedValue.of(
                     KV.of("key", "val1"), baseTs.plus(Duration.standardSeconds(10))))
             .addElements(
-                TimestampedValue.of(KV.of("key", "val2"), baseTs.plus(Duration.standardSeconds(5))))
+                TimestampedValue.of(KV.of("key", "val2"), baseTs.plus(Duration.standardSeconds(2))))
+            .advanceWatermarkTo(baseTs.plus(Duration.standardSeconds(7)))
             .advanceWatermarkToInfinity();
 
-    PCollection<Long> outputTimestamps =
+    PCollection<KV<String, Iterable<String>>> output =
         pipeline
             .apply(stream)
             .apply(GroupIntoBatches.ofSize(3))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
             .apply(
                 ParDo.of(
-                    new DoFn<KV<String, Iterable<String>>, Long>() {
+                    new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(
-                          @Timestamp Instant ts, OutputReceiver<Long> receiver) {
-                        receiver.output(ts.getMillis());
+                          @Element KV<String, Iterable<String>> element,
+                          OutputReceiver<KV<String, String>> receiver) {
+                        receiver.output(KV.of(element.getKey(), "val"));
                       }
-                    }));
+                    }))
+            .apply(GroupByKey.create());
 
-    PAssert.that(outputTimestamps)
-        .containsInAnyOrder(baseTs.plus(Duration.standardSeconds(5)).getMillis());
+    PAssert.that(output)
+        .satisfies(
+            iterable -> {
+              assertTrue(
+                  "Expected output from GroupByKey but was dropped as late data",
+                  iterable.iterator().hasNext());
+              return null;
+            });
     pipeline.run();
   }
 }
