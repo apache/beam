@@ -13,14 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpopts
+package gcpx
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"golang.org/x/oauth2/google"
 )
 
@@ -30,6 +29,7 @@ func TestGetUniverseDomain(t *testing.T) {
 		env       string
 		credsUD   string
 		credsErr  error
+		udErr     error
 		want      string
 		wantCalls int // credential lookups across two calls
 	}{
@@ -51,6 +51,12 @@ func TestGetUniverseDomain(t *testing.T) {
 			want:      "",
 			wantCalls: 2,
 		},
+		{
+			name:      "universe domain provider errors are not cached",
+			udErr:     errors.New("metadata server error"),
+			want:      "",
+			wantCalls: 2,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -64,7 +70,7 @@ func TestGetUniverseDomain(t *testing.T) {
 					return nil, test.credsErr
 				}
 				return &google.Credentials{
-					UniverseDomainProvider: func() (string, error) { return test.credsUD, nil },
+					UniverseDomainProvider: func() (string, error) { return test.credsUD, test.udErr },
 				}, nil
 			}
 			t.Cleanup(func() { findDefaultCredentials = orig })
@@ -95,26 +101,4 @@ func resetUniverseDomainCache(t *testing.T) {
 	}
 	reset()
 	t.Cleanup(reset)
-}
-
-func TestGetGcsEndpoint(t *testing.T) {
-	const flagValue = "https://flag.example.com/storage/v1/"
-	const optionValue = "https://option.example.com/storage/v1/"
-
-	origFlag := *GcsEndpoint
-	t.Cleanup(func() {
-		*GcsEndpoint = origFlag
-		runtime.GlobalOptions.Set("gcs_endpoint", "")
-	})
-	// On workers, the value arrives as a pipeline option rather than a flag.
-	runtime.GlobalOptions.Set("gcs_endpoint", optionValue)
-
-	*GcsEndpoint = ""
-	if got := GetGcsEndpoint(); got != optionValue {
-		t.Errorf("GetGcsEndpoint() with flag unset = %q, want pipeline option %q", got, optionValue)
-	}
-	*GcsEndpoint = flagValue
-	if got := GetGcsEndpoint(); got != flagValue {
-		t.Errorf("GetGcsEndpoint() with flag set = %q, want flag %q", got, flagValue)
-	}
 }

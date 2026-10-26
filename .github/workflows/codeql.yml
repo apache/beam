@@ -145,6 +145,11 @@ jobs:
       uses: actions/setup-go@v7
       with:
         go-version-file: 'sdks/go.mod'
+        cache-dependency-path: |
+          sdks/go.sum
+          playground/backend/go.sum
+          learning/katas/go/go.sum
+          learning/tour-of-beam/backend/go.sum
 
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
@@ -174,6 +179,9 @@ jobs:
     - name: Run manual build steps
       if: matrix.build-mode == 'manual'
       shell: bash
+      env:
+        GOTMPDIR: ${{ runner.temp }}
+        TMPDIR: ${{ runner.temp }}
       run: |
         if [ "${{ matrix.language }}" = "go" ]; then
           echo "Building sdks module..."

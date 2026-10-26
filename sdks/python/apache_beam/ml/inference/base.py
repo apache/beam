@@ -179,6 +179,25 @@ class KeyModelPathMapping(Generic[KeyT]):
   model_id: str = ''
 
 
+def _validate_batching_args(
+    max_batch_weight=None,
+    element_size_fn=None,
+    batch_length_fn=None,
+    batch_bucket_boundaries=None,
+):
+  if max_batch_weight is not None:
+    if element_size_fn is None:
+      raise ValueError('max_batch_weight requires element_size_fn to be set.')
+    if batch_length_fn is not None or batch_bucket_boundaries is not None:
+      raise ValueError(
+          'max_batch_weight cannot be combined with length-based batching '
+          '(batch_length_fn or batch_bucket_boundaries).')
+
+  if batch_bucket_boundaries is not None and batch_length_fn is None:
+    raise ValueError(
+        'batch_bucket_boundaries requires batch_length_fn to be set.')
+
+
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
   def __init__(
@@ -204,7 +223,8 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       max_batch_weight: the maximum total weight of a batch, where the weight
         of an element is given by element_size_fn, which must be set. The
         batch size limits (min_batch_size and max_batch_size) then count
-        elements.
+        elements. Cannot be combined with batch_length_fn or
+        batch_bucket_boundaries.
       element_size_fn: a function that returns the size (weight) of an element.
         Without max_batch_weight, the batch size limits are expressed in this
         size instead of in number of elements.
@@ -214,6 +234,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         padding waste for variable-length inputs. Bucket assignment uses
         bisect_right so boundaries are lower-inclusive: e.g., for boundaries
         [10, 50], buckets are (-inf, 10), [10, 50), [50, inf).
+        Cannot be used together with max_batch_weight.
       batch_bucket_boundaries: a sorted list of positive boundary values for
         length bucketing. Boundaries are lower-inclusive (bisect_right
         semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
@@ -227,6 +248,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before loading the model.
     """
     self._env_vars = kwargs.get('env_vars', {})
+
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
+
     self._batching_kwargs: dict[str, Any] = {}
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size
@@ -1607,7 +1635,6 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
-        'model_identifier': self._model_tag,
         **extra,
         **super().annotations()
     }
@@ -1715,47 +1742,54 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
-    if self._with_exception_handling:
-      # On timeouts, report back to the central model metadata
-      # that the model is invalid
-      model_tag = self._model_tag
-      share_across_processes = self._model_handler.share_model_across_processes(
-      )
-      timeout = self._timeout
+    # Attach model_identifier only to the inference step so that runners can
+    # associate it with the ParDo that actually loads and runs the model.
+    # TODO(https://github.com/apache/beam/issues/40715): When
+    # with_exception_handling(threshold<1) is used, the threshold-checking
+    # transforms added by _ExceptionHandlingWrapper also inherit this
+    # annotation. Refactor to annotate only the inner inference ParDo.
+    with batched_elements_pcoll.pipeline.transform_annotations(
+        model_identifier=self._model_tag):
+      if self._with_exception_handling:
+        # On timeouts, report back to the central model metadata
+        # that the model is invalid
+        model_tag = self._model_tag
+        share_across_processes = (
+            self._model_handler.share_model_across_processes())
+        timeout = self._timeout
 
-      def failure_callback(exception: Exception, element: Any):
-        if type(exception) is not TimeoutError:
-          return
-        model_metadata = load_model_status(model_tag, share_across_processes)
-        model_metadata.try_mark_current_model_invalid(timeout)
-        logging.warning(
-            "Inference failed with a timeout, marking the current " +
-            "model for garbage collection")
+        def failure_callback(exception: Exception, element: Any):
+          if type(exception) is not TimeoutError:
+            return
+          model_metadata = load_model_status(model_tag, share_across_processes)
+          model_metadata.try_mark_current_model_invalid(timeout)
+          logging.warning(
+              "Inference failed with a timeout, marking the current " +
+              "model for garbage collection")
 
-      callback = None
-      if (self._timeout is not None and
-          self._model_handler.should_garbage_collect_on_timeout()):
-        callback = failure_callback
-      results, bad_inference = (
-          batched_elements_pcoll
-          | 'BeamML_RunInference' >>
-          run_inference_pardo.with_exception_handling(
-          exc_class=self._exc_class,
-          use_subprocess=self._use_subprocess,
-          threshold=self._threshold,
-          timeout = self._timeout,
-          on_failure_callback=callback))
-    else:
-      results = (
-          batched_elements_pcoll
-          | 'BeamML_RunInference' >> run_inference_pardo)
+        callback = None
+        if (self._timeout is not None and
+            self._model_handler.should_garbage_collect_on_timeout()):
+          callback = failure_callback
+        results, bad_inference = (
+            batched_elements_pcoll
+            | 'BeamML_RunInference' >>
+            run_inference_pardo.with_exception_handling(
+            exc_class=self._exc_class,
+            use_subprocess=self._use_subprocess,
+            threshold=self._threshold,
+            timeout = self._timeout,
+            on_failure_callback=callback))
+      else:
+        results = (
+            batched_elements_pcoll
+            | 'BeamML_RunInference' >> run_inference_pardo)
 
     if self._monitoring_transform is not None:
-      with results.pipeline.transform_annotations(model_identifier=''):
-        _ = (
-            results
-            | 'BeamML_RunInference_MonitoringOutlet' >>
-            self._monitoring_transform)
+      _ = (
+          results
+          |
+          'BeamML_RunInference_MonitoringOutlet' >> self._monitoring_transform)
 
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')
@@ -2073,15 +2107,31 @@ class _SharedModelWrapper():
 
     This allows us to round robin calls to models sitting in different
     processes so that we can more efficiently use resources (e.g. GPUs).
+
+    Args:
+      models: Either a list of loaded models or a ModelManager.
+      model_tag: Tag identifying the model version currently in use. When a
+        model is updated via side input this is the new model path, so the
+        ModelManager caches and evicts each version independently.
+      loader_func: Function used by ModelManager to load a new instance.
+      metric_tag: Stable tag (the RunInference model_identifier) that
+        ModelManager reports num_loaded_models_* and memory_estimate_mb_*
+        metrics under, so the metric name does not change when the model
+        version changes. Defaults to model_tag. Since these metrics span model
+        versions, runtime model updates should ideally only change weights
+        rather than swap to a model with a different memory footprint, which
+        would skew the reported estimates.
   """
   def __init__(
       self,
       models: Union[list[Any], ModelManager],
       model_tag: str,
-      loader_func: Optional[Callable[[], Any]] = None):
+      loader_func: Optional[Callable[[], Any]] = None,
+      metric_tag: Optional[str] = None):
     self.models = models
     self.use_model_manager = not isinstance(models, list)
     self.model_tag = model_tag
+    self.metric_tag = metric_tag or model_tag
     self.loader_func = loader_func
     if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
@@ -2092,7 +2142,8 @@ class _SharedModelWrapper():
   def next_model(self):
     if self.use_model_manager:
       loader_wrapper = _ProxyLoader(self.loader_func, self.model_tag)
-      return self.models.acquire_model(self.model_tag, loader_wrapper)
+      return self.models.acquire_model(
+          self.model_tag, loader_wrapper, metric_tag=self.metric_tag)
 
     if len(self.models) == 1:
       # Short circuit if there's no routing strategy needed in order to
@@ -2201,7 +2252,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           tag='model_manager',
           always_proxy=True).acquire()
       model_wrapper = _SharedModelWrapper(
-          model_manager, self._cur_tag, self._model_handler.load_model)
+          model_manager,
+          self._cur_tag,
+          self._model_handler.load_model,
+          metric_tag=self._model_tag)
     elif self._model_handler.share_model_across_processes():
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
