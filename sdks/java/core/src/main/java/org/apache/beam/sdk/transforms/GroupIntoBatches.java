@@ -525,7 +525,7 @@ public class GroupIntoBatches<K, InputT>
         storedBatchSizeBytes.add(elementWeight);
       }
 
-      long oldMinBufferedTs =
+      long oldOutputTs =
           MoreObjects.firstNonNull(
               minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
 
@@ -535,32 +535,26 @@ public class GroupIntoBatches<K, InputT>
       minBufferedTs.add(elementTs.getMillis());
 
       final long num = storedBatchSize.read();
-      long currentMinBufferedTs = minBufferedTs.read();
 
       // If this is the first element in the batch or if the timer's output timestamp needs
       // modifying, then set a timer.
-      boolean needsNewTimer = num == 1 || currentMinBufferedTs < oldMinBufferedTs;
+      boolean needsNewTimer = num == 1 || minBufferedTs.read() < oldOutputTs;
       if (needsNewTimer) {
         if (shouldCareAboutMaxBufferingDuration) {
-          Long existingTargetTs = timerTs.read();
-          long targetTs;
-          if (existingTargetTs == null) {
-            targetTs =
-                bufferingTimer.getCurrentRelativeTime().getMillis()
-                    + maxBufferingDuration.getMillis();
-            timerTs.write(targetTs);
-          } else {
-            targetTs = existingTargetTs;
-          }
+          long targetTs =
+              MoreObjects.firstNonNull(
+                  timerTs.read(),
+                  bufferingTimer.getCurrentRelativeTime().getMillis()
+                      + maxBufferingDuration.getMillis());
           bufferingTimer
-              .withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs))
+              .withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read()))
               .set(Instant.ofEpochMilli(targetTs));
         } else {
           // The only way to hold the watermark is to set a timer. Since there is no buffering
           // timer, we set a dummy
           // timer at the end of the window to manage the hold.
           Instant windowEnd = window.maxTimestamp().plus(allowedLateness);
-          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs)).set(windowEnd);
+          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read())).set(windowEnd);
         }
       }
 
