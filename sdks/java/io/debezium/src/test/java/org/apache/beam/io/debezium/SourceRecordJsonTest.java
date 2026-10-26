@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.util.Collections;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -51,7 +52,8 @@ public class SourceRecordJsonTest implements Serializable {
             + "\"temperature\":104.4,\"childrenAndAge\":null,\"age\":16}},"
             + "\"after\":{\"fields\":{\"country\":null,\"distance\":123.423,\"birthYear\":null,"
             + "\"name\":\"after-name\","
-            + "\"temperature\":104.4,\"childrenAndAge\":null,\"age\":16}}}";
+            + "\"temperature\":104.4,\"childrenAndAge\":null,\"age\":16}},"
+            + "\"transaction\":null}";
 
     assertEquals(expectedJson, jsonString);
   }
@@ -113,7 +115,8 @@ public class SourceRecordJsonTest implements Serializable {
         "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.5.2.Final\",\"name\":\"n\","
             + "\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\",\"table\":\"customers\","
             + "\"op\":\"c\",\"ts_ms\":1791689147000,\"gtid\":null,\"file\":\"mysql-bin.000003\","
-            + "\"pos\":796,\"row\":0},\"before\":null,\"after\":{\"fields\":{\"id\":1001}}}",
+            + "\"pos\":796,\"row\":0},\"before\":null,\"after\":{\"fields\":{\"id\":1001}},"
+            + "\"transaction\":null}",
         new SourceRecordJson(buildEnvelopeRecord(mySql, "c"), true).toJson());
 
     // PostgreSQL "schema" is a source field: it stays the existing key and isn't repeated.
@@ -121,18 +124,73 @@ public class SourceRecordJsonTest implements Serializable {
         "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.5.2.Final\",\"name\":\"n\","
             + "\"database\":\"postgres\",\"schema\":\"inventory\",\"table\":\"customers\","
             + "\"op\":\"u\",\"ts_ms\":1791689147000,\"lsn\":37094192},"
-            + "\"before\":null,\"after\":{\"fields\":{\"id\":1001}}}",
+            + "\"before\":null,\"after\":{\"fields\":{\"id\":1001}},\"transaction\":null}",
         new SourceRecordJson(buildEnvelopeRecord(postgresSource(), "u"), true).toJson());
 
     // With provide.transaction.metadata, the envelope's transaction block is included.
     assertEquals(
         "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.5.2.Final\",\"name\":\"n\","
             + "\"database\":\"postgres\",\"schema\":\"inventory\",\"table\":\"customers\","
-            + "\"op\":\"c\",\"ts_ms\":1791689147000,\"lsn\":37094192,"
+            + "\"op\":\"c\",\"ts_ms\":1791689147000,\"lsn\":37094192},"
+            + "\"before\":null,\"after\":{\"fields\":{\"id\":1001}},"
             + "\"transaction\":{\"id\":\"796:48630784\",\"total_order\":1,"
-            + "\"data_collection_order\":1}},"
-            + "\"before\":null,\"after\":{\"fields\":{\"id\":1001}}}",
+            + "\"data_collection_order\":1}}",
         new SourceRecordJson(transactionRecord, true).toJson());
+  }
+
+  @Test
+  public void testTransactionMetadataEvent() {
+    Schema keySchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.common.TransactionMetadataKey")
+            .field("id", Schema.STRING_SCHEMA)
+            .build();
+    Schema dataCollectionSchema =
+        SchemaBuilder.struct()
+            .field("data_collection", Schema.STRING_SCHEMA)
+            .field("event_count", Schema.INT64_SCHEMA)
+            .build();
+    Schema valueSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.common.TransactionMetadataValue")
+            .field("status", Schema.STRING_SCHEMA)
+            .field("id", Schema.STRING_SCHEMA)
+            .field("event_count", Schema.OPTIONAL_INT64_SCHEMA)
+            .field("data_collections", SchemaBuilder.array(dataCollectionSchema).optional().build())
+            .field("ts_ms", Schema.INT64_SCHEMA)
+            .build();
+    Struct key = new Struct(keySchema).put("id", "781:39950456");
+
+    Struct begin =
+        new Struct(valueSchema)
+            .put("status", "BEGIN")
+            .put("id", "781:39950456")
+            .put("ts_ms", 1792926401751L);
+    assertEquals(
+        "{\"status\":\"BEGIN\",\"id\":\"781:39950456\",\"ts_ms\":1792926401751,"
+            + "\"event_count\":null,\"data_collections\":null}",
+        new SourceRecordJson(new SourceRecord(null, null, null, keySchema, key, valueSchema, begin))
+            .toJson());
+
+    Struct end =
+        new Struct(valueSchema)
+            .put("status", "END")
+            .put("id", "781:39950456")
+            .put("event_count", 3L)
+            .put(
+                "data_collections",
+                Collections.singletonList(
+                    new Struct(dataCollectionSchema)
+                        .put("data_collection", "inventory.customers")
+                        .put("event_count", 3L)))
+            .put("ts_ms", 1792926401760L);
+    assertEquals(
+        "{\"status\":\"END\",\"id\":\"781:39950456\",\"ts_ms\":1792926401760,"
+            + "\"event_count\":3,\"data_collections\":"
+            + "[{\"data_collection\":\"inventory.customers\",\"event_count\":3}]}",
+        new SourceRecordJson(
+                new SourceRecord(null, null, null, keySchema, key, valueSchema, end), true)
+            .toJson());
   }
 
   @Test

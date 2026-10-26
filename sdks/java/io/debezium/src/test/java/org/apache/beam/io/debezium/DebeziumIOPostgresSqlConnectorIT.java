@@ -188,7 +188,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
         "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.5.2.Final\",\"name\":\"beam-debezium-connector\","
             + "\"database\":\"inventory\",\"schema\":\"inventory\",\"table\":\"customers\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"last_name\":\"Thomas\",\"id\":1001,\"first_name\":\"Sally\","
-            + "\"email\":\"sally.thomas@acme.com\"}}}";
+            + "\"email\":\"sally.thomas@acme.com\"}},\"transaction\":null}";
 
     PAssert.that(results)
         .satisfies(
