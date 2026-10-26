@@ -1963,8 +1963,8 @@ public class TableRowToStorageApiProto {
         return fieldValue.toString();
       case JSON:
       case GEOGRAPHY:
-        // The above types have native representations in JSON for all their
-        // possible values.
+      // The above types have native representations in JSON for all their
+      // possible values.
       case STRING:
         return fieldValue.toString();
       case INT64:

@@ -199,15 +199,10 @@ tasks.register("InitInfrastructure") {
     apply.mustRunAfter(init)
 }
 
-tasks.register("indexcreate") {
+tasks.register<Exec>("indexcreate") {
     group = "deploy"
-    val indexpath = "../index.yaml"
-    doLast {
-        exec {
-            executable("gcloud")
-            args("app", "deploy", indexpath)
-        }
-    }
+    workingDir(project.projectDir)
+    commandLine("gcloud", "app", "deploy", "../index.yaml")
 }
 
 tasks.register<TerraformTask>("setPlaygroundStaticIpAddress") {
@@ -384,33 +379,39 @@ func_view: ${pgfuncview}
     }
 }
 
-task("applyMigrations") {
-    doLast {
-        val namespace = if (project.hasProperty("datastore-namespace")) (project.property("datastore-namespace") as String) else ""
-        val projectId = project.rootProject.extra["playground_gke_project"]
-        val modulePath = project(":playground").projectDir.absolutePath
-        val sdkConfig = "$modulePath/sdks.yaml"
-        exec {
-            workingDir("$modulePath/backend")
-            executable("go")
-            args("run", "cmd/migration_tool/migration_tool.go",
-            "-project-id", projectId,
-            "-sdk-config", sdkConfig,
-            "-namespace", namespace)
-        }
+tasks.register<Exec>("applyMigrations") {
+    group = "deploy"
+
+    val modulePath = project(":playground").projectDir.absolutePath
+    val sdkConfig = "$modulePath/sdks.yaml"
+
+    workingDir("$modulePath/backend")
+
+    val namespace = if (project.hasProperty("datastore-namespace")) {
+        project.property("datastore-namespace") as String
+    } else {
+        ""
     }
+
+    val projectId = project.rootProject.extra["playground_gke_project"]
+
+    commandLine(
+        "go",
+        "run",
+        "cmd/migration_tool/migration_tool.go",
+        "-project-id", projectId.toString(),
+        "-sdk-config", sdkConfig,
+        "-namespace", namespace
+    )
 }
 
-tasks.register("helmRelease") {
+tasks.register<Exec>("helmRelease") {
     group = "deploy"
+
     val modulePath = project(":playground").projectDir.absolutePath
     val helmdir = File("$modulePath/infrastructure/helm-playground/")
-    doLast{
-    exec {
-        executable("helm")
-    args("upgrade", "--install", "playground", "$helmdir")
-    }
-  }
+
+    commandLine("helm", "upgrade", "--install", "playground", helmdir.absolutePath)
 }
 
 tasks.register("gkebackend") {

@@ -34,7 +34,7 @@ ext {
 def createFlinkRunnerTestTask(String workerType, String flinkVersion) {
   String taskName
 
-  // project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath is not resolvable until runtime, so hard-code it here.
+  // project(":runners:flink:${flinkVersion}:job-server").shadowJar.archiveFile.get().asFile is not resolvable until runtime, so hard-code it here.
   def jobServerJar = "${rootDir}/runners/flink/${flinkVersion}/job-server/build/libs/beam-runners-flink-${flinkVersion}-job-server-${version}.jar"
   def options = "--flink_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (flinkVersion.startsWith('1')) {
@@ -148,7 +148,7 @@ tasks.register("portableLocalRunnerTestWithRequirementsFile") {
 
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
-  // `project(':runners:spark:3:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
+  // `project(':runners:spark:3:job-server').shadowJar.archiveFile.get().asFile` is not resolvable until runtime, so hard-code it here.
   def jobServerJar = "${rootDir}/runners/spark/3/job-server/build/libs/beam-runners-spark-3-job-server-${version}.jar"
   def options = "--spark_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (workerType == 'PROCESS') {
@@ -296,7 +296,7 @@ project.tasks.register("flinkExamples") {
             "--project=apache-beam-testing",
             "--environment_type=LOOPBACK",
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-            "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archiveFile.get().asFile}",
             "--flink_conf_dir=${flink_conf_dir}",
             // Log spam for Flink runner with embedded jar
             '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
@@ -421,7 +421,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         "--project=apache-beam-testing",
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archiveFile.get().asFile}",
         "--flink_conf_dir=${flink_conf_dir}",
         // Log spam for Flink runner with embedded jar
         '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
@@ -435,7 +435,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
     ])
-    def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+    def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archiveFile.get().asFile
 
     exec {
       if (fork_java_home != null) {
@@ -471,7 +471,7 @@ project.tasks.register("xlangSpannerIOIT") {
         "--project=apache-beam-testing",
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlink1Version}:job-server").shadowJar.archiveFile.get().asFile}",
         // Log spam for Flink runner with embedded jar
         '--job_server_jvm_properties=-Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider',
         '--job_server_jvm_properties=-Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error',
@@ -500,7 +500,7 @@ def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
         executable "sh"
         def options = [
             "--runner ${runner}",
-            "--job_server_jar ${jobServerJarTask.archivePath}",
+            "--job_server_jar ${jobServerJarTask.archiveFile.get().asFile}",
             "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
             "--python_root_dir ${project.rootDir}/sdks/python",
             "--python_version ${project.ext.pythonVersion}",
@@ -527,8 +527,8 @@ def addTestFlinkUberJar(boolean saveMainSession) {
       exec {
         executable "sh"
         def options = [
-            "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar").archivePath}",
-            "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:miniCluster").archivePath}",
+            "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar").archiveFile.get().asFile}",
+            "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:miniCluster").archiveFile.get().asFile}",
             "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
             "--python_root_dir ${project.rootDir}/sdks/python",
             "--python_version ${project.ext.pythonVersion}",

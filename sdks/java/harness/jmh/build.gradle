@@ -47,19 +47,19 @@ dependencies {
 }
 
 jmh {
-    configurations.jammAgent.resolvedConfiguration.files.each {
+    configurations.jammAgent.files.each {
         jvmArgs '-javaagent:' + it
     }
 }
 
 jmhTest {
-    configurations.jammAgent.resolvedConfiguration.files.each {
+    configurations.jammAgent.files.each {
         jvmArgs '-javaagent:' + it
     }
 }
 
 test {
-    configurations.jammAgent.resolvedConfiguration.files.each {
+    configurations.jammAgent.files.each {
         jvmArgs '-javaagent:' + it
     }
 }

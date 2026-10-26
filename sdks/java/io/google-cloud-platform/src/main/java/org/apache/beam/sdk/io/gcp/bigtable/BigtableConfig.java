@@ -62,9 +62,8 @@ public abstract class BigtableConfig implements Serializable {
   abstract @Nullable BigtableOptions getBigtableOptions();
 
   /** Configurator of the effective Bigtable Options. */
-  abstract @Nullable
-      SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-          getBigtableOptionsConfigurator();
+  abstract @Nullable SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
+      getBigtableOptionsConfigurator();
 
   /** Weather validate that table exists before writing. */
   abstract boolean getValidate();

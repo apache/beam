@@ -293,8 +293,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   @AutoValue
   abstract static class CreateRetryManagerResult<DestinationT> {
-    abstract @Nullable
-        RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> getRetryManager();
+    abstract @Nullable RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>>
+        getRetryManager();
 
     abstract boolean getSchemaMismatchSeen();
 

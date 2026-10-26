@@ -64,9 +64,9 @@ dependencies {
     exclude(group="org.codehaus.plexus", module="plexus-xml") // plexus-xml 4.x requires Java17
   }
   runtimeOnly("org.codehaus.plexus:plexus-xml:3.0.2") // Do not bump to plexus-xml 4.x which requires Java17
-  implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
+  implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:6.0.3")
 
-  runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
+  runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.9.6")                                         // Enable proto code generation
   runtimeOnly("com.github.davidmc24.gradle.plugin:gradle-avro-plugin:1.9.1")                               // Enable Avro code generation. Version 1.1.0 is the last supporting avro 1.10.2
   runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")                                        // Enable a code formatting plugin
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                         // Adds a 'taskTree' task to print task dependency tree
@@ -77,7 +77,7 @@ dependencies {
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.16.12")                                     // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
-  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.56")                                // Enable enhanced static checking plugin
+  implementation("org.checkerframework:org.checkerframework.gradle.plugin:1.0.2")                                // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

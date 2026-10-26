@@ -28,7 +28,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: UDF test provider"
 ext.summary = "Java UDFs for testing. This project must be built separately from its parent so the UDF provider is not included in the context classloader for tests."
 
-project.ext.jarPath = jar.archivePath
+project.ext.jarPath = jar.archiveFile.get().asFile
 
 dependencies {
   // No dependency (direct or transitive) on :sdks:java:core.

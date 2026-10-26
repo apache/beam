@@ -2638,12 +2638,12 @@ public class KafkaIO {
     abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
-    abstract @Nullable
-        SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
+    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
+        getExtractOutputTimestampFn();
 
     @Pure
-    abstract @Nullable
-        SerializableFunction<Instant, WatermarkEstimator<Instant>> getCreateWatermarkEstimatorFn();
+    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
+        getCreateWatermarkEstimatorFn();
 
     @Pure
     abstract boolean isCommitOffsetEnabled();
@@ -3321,8 +3321,8 @@ public class KafkaIO {
     public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    public abstract @Nullable
-        SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
+    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
+        getProducerFactoryFn();
 
     @Pure
     public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
@@ -3331,8 +3331,8 @@ public class KafkaIO {
     public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    public abstract @Nullable
-        KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
+    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
+        getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
@@ -3349,8 +3349,8 @@ public class KafkaIO {
     public abstract int getNumShards();
 
     @Pure
-    public abstract @Nullable
-        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
+    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+        getConsumerFactoryFn();
 
     @Pure
     public abstract BadRecordRouter getBadRecordRouter();

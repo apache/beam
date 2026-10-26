@@ -17,21 +17,17 @@
  */
 
 ext.getGitCommitHash = () -> {
-   def stdout = new ByteArrayOutputStream()
-   exec {
-      executable('git')
-      args('rev-parse', 'HEAD')
-      standardOutput = stdout
-   }
-   return stdout.toString().trim()
+   def output = providers.exec {
+      commandLine('git', 'rev-parse', 'HEAD')
+   }.standardOutput.asText.get().trim()
+
+   return output
 } as Closure<String>
 
 ext.getGitCommitTimestamp = () -> {
-   def stdout = new ByteArrayOutputStream()
-   exec {
-      executable('git')
-      args('show', '-s', '--format=%ct', 'HEAD')
-      standardOutput = stdout
-   }
-   return stdout.toString().trim()
+   def output = providers.exec {
+      commandLine('git', 'show', '-s', '--format=%ct', 'HEAD')
+   }.standardOutput.asText.get().trim()
+
+   return output
 } as Closure<String>

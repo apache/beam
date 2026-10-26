@@ -221,7 +221,7 @@ task dataflowIntegrationTest(type: Test) {
     dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
     finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
-    def dataflowLegacyWorkerJar = project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowLegacyWorkerJar = project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
 
     def args = [
             "--runner=DataflowRunner",

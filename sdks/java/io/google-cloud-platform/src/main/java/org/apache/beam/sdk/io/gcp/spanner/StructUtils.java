@@ -177,7 +177,7 @@ final class StructUtils {
                 structBuilder.set(column).to(decimal);
               }
               break;
-              // TODO: implement logical type date and timestamp
+            // TODO: implement logical type date and timestamp
             case DATETIME:
               @Nullable ReadableDateTime dateTime = row.getDateTime(column);
               if (dateTime == null) {
@@ -259,7 +259,7 @@ final class StructUtils {
         return Type.string();
       case BOOLEAN:
         return Type.bool();
-        // TODO: implement logical type date and timestamp
+      // TODO: implement logical type date and timestamp
       case DATETIME:
         return Type.timestamp();
       default:
@@ -332,7 +332,7 @@ final class StructUtils {
       case STRING:
         structBuilder.set(column).toStringArray((Iterable<String>) ((Object) iterable));
         break;
-        // TODO: implement logical date and datetime
+      // TODO: implement logical date and datetime
       case DATETIME:
         if (iterable == null) {
           structBuilder.set(column).toTimestampArray(null);
@@ -369,7 +369,7 @@ final class StructUtils {
         return struct.getBoolean(column);
       case BYTES:
         return struct.getBytes(column).toByteArray();
-        // TODO: implement logical datetime
+      // TODO: implement logical datetime
       case TIMESTAMP:
         Timestamp spannerTimestamp = struct.getTimestamp(column);
 
@@ -384,7 +384,7 @@ final class StructUtils {
         // Default DATETIME behavior: convert to Joda DateTime
         return Instant.ofEpochSecond(spannerTimestamp.getSeconds()).toDateTime();
 
-        // TODO: implement logical date
+      // TODO: implement logical date
       case DATE:
         return DateTime.parse(struct.getDate(column).toString());
       case INT64:
@@ -445,7 +445,7 @@ final class StructUtils {
             .map(timestamp -> Instant.ofEpochSecond(timestamp.getSeconds()).toDateTime())
             .collect(toList());
 
-        // TODO: implement logical date
+      // TODO: implement logical date
       case DATE:
         return struct.getDateList(column).stream()
             .map(date -> DateTime.parse(date.toString()))

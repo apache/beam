@@ -265,7 +265,7 @@ task postCommit {
 }
 
 task emptyJar(type: Jar) {
-  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  archiveBaseName = "${project.extensions.getByType(org.gradle.api.plugins.BasePluginExtension).archivesName.get()}-empty-jar"
   from fileTree(dir: getTemporaryDir().createNewFile().toString())
 }
 
@@ -286,7 +286,7 @@ hadoopVersions.each { kv ->
     // Pass jars used by Java UDF tests via system properties.
     evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
     systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
-    systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+    systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archiveFile.get().asFile
   }
 }
 
@@ -295,5 +295,5 @@ test {
   // Pass jars used by Java UDF tests via system properties.
   evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
   systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
-  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archiveFile.get().asFile
 }

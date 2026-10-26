@@ -151,7 +151,7 @@ avroVersions.each { k, v ->
     group = "build"
     description = "Generate Avro classes for Avro version $v"
     classpath = configurations."avroVersion${k}Generate"
-    main = "org.apache.avro.tool.Main"
+    mainClass = "org.apache.avro.tool.Main"
     args = [
         "compile",
         "-bigDecimal", // Use BigDecimal for logical type decimal, similarly to what gradle-avro-plugin does

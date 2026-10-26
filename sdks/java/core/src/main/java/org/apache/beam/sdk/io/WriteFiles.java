@@ -186,8 +186,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   public abstract FileBasedSink<UserT, DestinationT, OutputT> getSink();
 
-  public abstract @Nullable
-      PTransform<PCollection<UserT>, PCollectionView<Integer>> getComputeNumShards();
+  public abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>>
+      getComputeNumShards();
 
   // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
