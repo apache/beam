@@ -73,13 +73,13 @@ public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<Ke
     if (!iterator.hasNext()) {
       ValueT inserted = mappingFunction.apply(key);
       multimap.put(key, inserted);
-      return ReadableStates.immediate(null);
+      return ReadableStates.immediate(inserted);
     } else {
       ValueT existing = Iterators.getOnlyElement(iterator);
       if (existing == null) {
         ValueT inserted = mappingFunction.apply(key);
         put(key, inserted);
-        return ReadableStates.immediate(null);
+        return ReadableStates.immediate(inserted);
       }
       return ReadableStates.immediate(existing);
     }

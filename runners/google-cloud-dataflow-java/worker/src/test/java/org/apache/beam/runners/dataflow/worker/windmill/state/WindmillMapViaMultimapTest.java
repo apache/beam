@@ -126,11 +126,11 @@ public class WindmillMapViaMultimapTest {
   }
 
   /**
-   * Tests that {@link WindmillMapViaMultimap#computeIfAbsent} returns {@code null} on insertion,
-   * conforming to the {@link MapState#computeIfAbsent} specification.
+   * Tests that {@link WindmillMapViaMultimap#computeIfAbsent} returns the computed value on
+   * insertion, conforming to the {@link MapState#computeIfAbsent} specification.
    */
   @Test
-  public void testComputeIfAbsentReturnsNullOnInsert() {
+  public void testComputeIfAbsentReturnsComputedValueOnInsert() {
     StateTag<MapState<String, Integer>> addr =
         StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
     MapState<String, Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
@@ -146,8 +146,9 @@ public class WindmillMapViaMultimapTest {
     future.set(Collections.emptyList());
 
     ReadableState<Integer> result = mapState.computeIfAbsent(key, k -> 42);
-    assertNull(
-        "computeIfAbsent returns null when key was absent and computed value is inserted",
+    assertEquals(
+        "computeIfAbsent returns computed value when key was absent and computed value is inserted",
+        Integer.valueOf(42),
         result.read());
     assertEquals(Integer.valueOf(42), mapState.get(key).read());
   }
@@ -250,7 +251,7 @@ public class WindmillMapViaMultimapTest {
 
   /**
    * Tests that computeIfAbsent computes and inserts a new value when the key is currently mapped to
-   * null.
+   * null, returning the computed value.
    */
   @Test
   public void testComputeIfAbsentWhenMappedToNull() {
@@ -268,8 +269,21 @@ public class WindmillMapViaMultimapTest {
               return "computed";
             });
 
-    assertNull(result.read());
+    assertEquals("computed", result.read());
     assertTrue("Mapping function should be called when key is mapped to null", called.get());
     assertEquals("computed", mapState.get("key1").read());
+  }
+
+  /** Tests that computeIfAbsent returns null if the computed value is null. */
+  @Test
+  public void testComputeIfAbsentReturnsNullWhenComputedValueIsNull() {
+    StateTag<MapState<String, String>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), NullableCoder.of(StringUtf8Coder.of()));
+    MapState<String, String> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    ReadableState<String> result = mapState.computeIfAbsent("key1", k -> null);
+
+    assertNull(result.read());
+    assertNull(mapState.get("key1").read());
   }
 }
