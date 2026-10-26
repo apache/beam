@@ -197,6 +197,45 @@ public class BagUserStateTest {
   }
 
   @Test
+  public void testPartialIterationThenAppendDoesNotTruncateCache() throws Exception {
+    // Initial data contains multiple elements across multiple chunks.
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3", "A4")), 2);
+
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state: simulates BagState.isEmpty().read() or partial iteration, followed by
+      // append.
+      BagUserState<String> userState =
+          new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+
+      // Calling iterator().hasNext() only loads the first chunk into the cache with nextToken !=
+      // null.
+      assertTrue(userState.get().iterator().hasNext());
+
+      // User appends a new element.
+      userState.append("A5");
+
+      // asyncClose persists the append to runner and updates the cache.
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state accesses the state for the same key.
+      BagUserState<String> userState =
+          new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+
+      // All elements (A1, A2, A3, A4, A5) must be present; unread pages (A2, A3, A4) must not be
+      // lost.
+      assertArrayEquals(
+          new String[] {"A1", "A2", "A3", "A4", "A5"},
+          Iterables.toArray(userState.get(), String.class));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
   public void testClear() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
