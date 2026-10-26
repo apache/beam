@@ -269,6 +269,29 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
 
+  def test_batch_pardo_default_element(self):
+    class ProcessDefaults(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray = None,
+          ts=beam.DoFn.TimestampParam,
+          side_input=3) -> Iterator[np.ndarray]:
+        yield batch * (ts.seconds() + side_input)
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda value: window.TimestampedValue(value, 123)).
+          with_output_types(np.int64)
+          | beam.ParDo(ProcessDefaults(), 2))
+      assert_that(result, equal_to([125, 250, 375]))
+
   def test_batch_pardo_window_param(self):
     class PerWindowDoFn(beam.DoFn):
       @no_type_check

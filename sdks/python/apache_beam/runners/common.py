@@ -717,8 +717,11 @@ def _get_arg_placeholders(
       self.placeholder = placeholder
 
   if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
-    # TODO(https://github.com/apache/beam/issues/19631): Handle cases in which
-    #   len(arg_names) == len(default_arg_values).
+    if (default_arg_values and len(arg_names) == len(default_arg_values) and
+        not isinstance(default_arg_values[0], core._DoFnParam) and
+        default_arg_values[0] is not core.DoFn.BundleFinalizerParam):
+      # The implicit element occupies the first slot even if it has a default.
+      default_arg_values = default_arg_values[1:]
     args_to_pick = len(arg_names) - len(default_arg_values) - 1
     # Positional argument values for process(), with placeholders for special
     # values such as the element, timestamp, etc.
