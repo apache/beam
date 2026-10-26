@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.python.transforms;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -40,13 +39,42 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * Tests the Java RunInference wrapper against the Python test expansion service.
+ *
+ * <p>The test expansion service attaches a small sklearn model to the Python environment as a
+ * staged file named {@code sklearn_model} (see
+ * sdks/python/apache_beam/runners/portability/expansion_service_test.py). Where the Python SDK
+ * harness puts staged files is only known on the worker, so the tests pass the staged file name and
+ * resolve the full path when the model is loaded.
+ */
 @RunWith(JUnit4.class)
 public class RunInferenceTransformTest extends BaseExternalTest {
+  private static final String STAGED_MODEL_NAME = "sklearn_model";
+
+  // A SklearnModelHandlerNumpy whose model_uri is the name of a file staged with the Python
+  // environment. load_model() runs on the worker, after the SDK harness has set
+  // SEMI_PERSISTENT_DIRECTORY.
+  private static final String STAGED_MODEL_HANDLER =
+      "import os\n"
+          + "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n"
+          + "class StagedSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):\n"
+          + "  def __init__(self, model_uri, *args, **kwargs):\n"
+          + "    super().__init__(model_uri, *args, **kwargs)\n"
+          + "    self._staged_name = model_uri\n"
+          + "  def load_model(self):\n"
+          + "    staged_dir = os.environ.get('SEMI_PERSISTENT_DIRECTORY')\n"
+          + "    if not staged_dir:\n"
+          + "      raise RuntimeError(\n"
+          + "          'SEMI_PERSISTENT_DIRECTORY is not set, cannot locate staged file '\n"
+          + "          + self._staged_name)\n"
+          + "    self.update_model_path(\n"
+          + "        os.path.join(staged_dir, 'staged', self._staged_name))\n"
+          + "    return super().load_model()\n";
+
   @Test
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void testRunInference() {
-    String stagingLocation =
-        Optional.ofNullable(System.getProperty("semiPersistDir")).orElse("/tmp");
     Schema schema =
         Schema.of(
             Schema.Field.of("example", Schema.FieldType.array(Schema.FieldType.INT64)),
@@ -58,25 +86,17 @@ public class RunInferenceTransformTest extends BaseExternalTest {
             .apply(Create.<Iterable<Long>>of(Arrays.asList(0L, 0L), Arrays.asList(1L, 1L)))
             .setCoder(IterableCoder.of(VarLongCoder.of()))
             .apply(
-                RunInference.of(
-                        "apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy",
-                        schema)
-                    .withKwarg(
-                        // The test expansion service creates the test model and saves it to the
-                        // returning external environment as a dependency.
-                        // (sdks/python/apache_beam/runners/portability/expansion_service_test.py)
-                        // The dependencies for Python SDK harness are supposed to be staged to
-                        // $SEMI_PERSIST_DIR/staged directory.
-                        "model_uri", String.format("%s/staged/sklearn_model", stagingLocation))
+                RunInference.of(STAGED_MODEL_HANDLER, schema)
+                    .withKwarg("model_uri", STAGED_MODEL_NAME)
                     .withExpansionService(expansionAddr));
     PAssert.that(col).containsInAnyOrder(row0, row1);
   }
 
   private String getModelLoaderScriptWithKVs() {
-    String s = "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n";
+    String s = STAGED_MODEL_HANDLER;
     s = s + "from apache_beam.ml.inference.base import KeyedModelHandler\n";
     s = s + "def get_model_handler(model_uri):\n";
-    s = s + "  return KeyedModelHandler(SklearnModelHandlerNumpy(model_uri))\n";
+    s = s + "  return KeyedModelHandler(StagedSklearnModelHandlerNumpy(model_uri))\n";
 
     return s;
   }
@@ -92,8 +112,6 @@ public class RunInferenceTransformTest extends BaseExternalTest {
   @Test
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void testRunInferenceWithKVs() {
-    String stagingLocation =
-        Optional.ofNullable(System.getProperty("semiPersistDir")).orElse("/tmp");
     Schema schema =
         Schema.of(
             Schema.Field.of("example", Schema.FieldType.array(Schema.FieldType.INT64)),
@@ -107,13 +125,7 @@ public class RunInferenceTransformTest extends BaseExternalTest {
             .setCoder(KvCoder.of(VarLongCoder.of(), IterableCoder.of(VarLongCoder.of())))
             .apply(
                 RunInference.ofKVs(getModelLoaderScriptWithKVs(), schema, VarLongCoder.of())
-                    .withKwarg(
-                        // The test expansion service creates the test model and saves it to the
-                        // returning external environment as a dependency.
-                        // (sdks/python/apache_beam/runners/portability/expansion_service_test.py)
-                        // The dependencies for Python SDK harness are supposed to be staged to
-                        // $SEMI_PERSIST_DIR/staged directory.
-                        "model_uri", String.format("%s/staged/sklearn_model", stagingLocation))
+                    .withKwarg("model_uri", STAGED_MODEL_NAME)
                     .withExpansionService(expansionAddr))
             .apply(Values.<Row>create());
 
