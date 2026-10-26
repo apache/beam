@@ -42,8 +42,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RunInferenceTransformTest extends BaseExternalTest {
   // The test expansion service stages the test model with the Python environment as
-  // "sklearn_model" (sdks/python/apache_beam/runners/portability/expansion_service_test.py).
-  // Staged files are only reachable on the worker, so the path is resolved in load_model().
+  // "sklearn_model". Staged files are only reachable on the worker, so the path is resolved
+  // in load_model().
   private static final String STAGED_MODEL_HANDLER =
       "import os\n"
           + "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n"

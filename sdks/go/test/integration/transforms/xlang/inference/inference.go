@@ -26,10 +26,8 @@ import (
 )
 
 // stagedSklearnModelHandler loads the model the test expansion service stages
-// with the Python environment as "sklearn_model"
-// (sdks/python/apache_beam/runners/portability/expansion_service_test.py).
-// Staged files are only reachable on the worker, so the path is resolved in
-// load_model().
+// with the Python environment as "sklearn_model". Staged files are only
+// reachable on the worker, so the path is resolved in load_model().
 const stagedSklearnModelHandler = `import os
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 
