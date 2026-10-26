@@ -20,6 +20,7 @@ import gc
 import inspect
 import math
 import multiprocessing
+import multiprocessing.connection
 import os
 import pickle
 import random
@@ -3151,6 +3152,235 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
+
+
+class PidReportingModel:
+  """Model that reports the OS PIDs where it was loaded and invoked."""
+  def __init__(self, model_path: str, env_var_name: Optional[str] = None):
+    self._model_path = model_path
+    self._env_var_name = env_var_name
+    self._load_pid = os.getpid()
+    self._load_env = os.environ.get(env_var_name) if env_var_name else None
+
+  def predict(self, example: int) -> dict[str, Any]:
+    return {
+        'example': example,
+        'load_pid': self._load_pid,
+        'infer_pid': os.getpid(),
+        'model_path': self._model_path,
+        'load_env': self._load_env,
+        'infer_env': (
+            os.environ.get(self._env_var_name) if self._env_var_name else None),
+    }
+
+
+class PidReportingModelHandler(base.ModelHandler[int,
+                                                 dict[str, Any],
+                                                 PidReportingModel]):
+  def __init__(
+      self,
+      *,
+      model_path: str = 'default_path',
+      model_copies: int = 1,
+      env_vars: Optional[dict[str, Any]] = None,
+      env_var_name: Optional[str] = None,
+      inference_fn=None):
+    super().__init__(env_vars=env_vars or {})
+    self._model_path = model_path
+    self._model_copies = model_copies
+    self._env_var_name = env_var_name
+    self._inference_fn = inference_fn
+
+  def load_model(self) -> PidReportingModel:
+    return PidReportingModel(
+        model_path=self._model_path, env_var_name=self._env_var_name)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    if model_path:
+      self._model_path = model_path
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: PidReportingModel,
+      inference_args=None) -> Iterable[dict[str, Any]]:
+    worker_pid = os.getpid()
+    for example in batch:
+      res = model.predict(example)
+      res['worker_pid'] = worker_pid
+      if self._inference_fn is not None:
+        res['fn_out'] = self._inference_fn(example)
+      yield res
+
+  def share_model_across_processes(self) -> bool:
+    return True
+
+  def model_copies(self) -> int:
+    return self._model_copies
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
+class SpawnedModelProcessTest(unittest.TestCase):
+  """Tests verifying shared models spawn in dedicated processes (#40673)."""
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        p.terminate()
+        p.join(timeout=2)
+
+  def test_shared_model_spawns_in_dedicated_process(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      results_path = os.path.join(tmp_dir, 'results.csv')
+      mh = PidReportingModelHandler(model_path='single_v1')
+      with TestPipeline('FnApiRunner') as pipeline:
+        _ = (
+            pipeline
+            | 'Create' >> beam.Create([10, 20, 30])
+            | 'Infer' >> base.RunInference(
+                mh, model_identifier='dedicated_single_' + uuid.uuid4().hex)
+            | 'Write' >> beam.Map(
+                lambda r: open(results_path, 'a').write(
+                    f'{r["worker_pid"]},{r["load_pid"]},{r["infer_pid"]},{r["model_path"]}\n'
+                )  # pylint: disable=line-too-long
+            ))
+
+      with open(results_path) as f:
+        rows = [line.strip().split(',') for line in f if line.strip()]
+      self.assertEqual(len(rows), 3)
+      load_pids = {int(r[1]) for r in rows}
+      self.assertEqual(len(load_pids), 1)
+      for worker_pid_s, load_pid_s, infer_pid_s, model_path in rows:
+        self.assertEqual(int(load_pid_s), int(infer_pid_s))
+        self.assertNotEqual(int(load_pid_s), int(worker_pid_s))
+        self.assertEqual(model_path, 'single_v1')
+
+  def test_shared_model_multiple_copies_spawn_distinct_processes(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      results_path = os.path.join(tmp_dir, 'results.csv')
+      mh = PidReportingModelHandler(model_path='multi_copy', model_copies=3)
+      with TestPipeline('FnApiRunner') as pipeline:
+        _ = (
+            pipeline
+            | 'Create' >> beam.Create([1, 2, 3, 4, 5, 6], reshuffle=False)
+            | 'Infer' >> base.RunInference(
+                mh, model_identifier='dedicated_copies_' + uuid.uuid4().hex)
+            | 'Write' >> beam.Map(
+                lambda r: open(results_path, 'a').write(
+                    f'{r["worker_pid"]},{r["load_pid"]},{r["infer_pid"]}\n')  # pylint: disable=line-too-long
+            ))
+
+      with open(results_path) as f:
+        rows = [line.strip().split(',') for line in f if line.strip()]
+      self.assertEqual(len(rows), 6)
+      worker_pids = {int(r[0]) for r in rows}
+      model_pids = {int(r[1]) for r in rows}
+      self.assertEqual(
+          len(model_pids), 3, f'Expected 3 distinct model PIDs: {rows}')
+      self.assertTrue(model_pids.isdisjoint(worker_pids))
+      for _, load_pid_s, infer_pid_s in rows:
+        self.assertEqual(int(load_pid_s), int(infer_pid_s))
+
+  def test_shared_model_env_vars_propagated_to_spawned_process(self):
+    env_key = 'BEAM_TEST_SPAWNED_MODEL_ENV_' + uuid.uuid4().hex[:8]
+    try:
+      mh = PidReportingModelHandler(
+          model_path='env_test',
+          env_vars={env_key: 'expected_env_value'},
+          env_var_name=env_key)
+      dofn = base._RunInferenceDoFn(
+          mh,
+          FakeClock(),
+          metrics_namespace=None,
+          model_tag='env_tag_' + uuid.uuid4().hex)
+      dofn.setup()
+      preds = dofn.process([1], None, None)
+      self.assertEqual(len(preds), 1)
+      self.assertNotEqual(preds[0]['load_pid'], os.getpid())
+      self.assertEqual(preds[0]['load_env'], 'expected_env_value')
+      self.assertEqual(preds[0]['infer_env'], 'expected_env_value')
+    finally:
+      os.environ.pop(env_key, None)
+
+  def test_shared_model_local_closure_and_side_input_updates_no_gc_deadlock(
+      self):
+    """End-to-end regression test for https://github.com/apache/beam/issues/40673."""
+    factor = 10
+
+    def local_closure_fn(x: int) -> int:
+      return x * factor
+
+    orig_accept = multiprocessing.connection.Listener.accept
+
+    def gc_on_accepter_accept(listener_self):
+      if 'accepter' in threading.current_thread().name:
+        gc.collect()
+      return orig_accept(listener_self)
+
+    stop_bg_gc = threading.Event()
+
+    def background_gc():
+      while not stop_bg_gc.is_set():
+        gc.collect()
+        time.sleep(0.005)
+
+    errors = []
+    seen_pids = []
+
+    def run_updates():
+      try:
+        mh = PidReportingModelHandler(
+            model_path='init', inference_fn=local_closure_fn)
+        dofn = base._RunInferenceDoFn(
+            mh,
+            FakeClock(),
+            metrics_namespace='gc_test',
+            load_model_at_runtime=True,
+            model_tag='gc_dofn_' + uuid.uuid4().hex)
+        dofn.setup()
+
+        for i in range(5):
+          model_id = f'side_model_{i}_{uuid.uuid4().hex[:6]}'
+          si = base.ModelMetadata(model_id=model_id, model_name=f'm{i}')
+          out = dofn.process([i + 1], None, si)
+          self.assertEqual(out[0]['model_path'], model_id)
+          self.assertEqual(out[0]['fn_out'], (i + 1) * 10)
+          self.assertNotEqual(out[0]['load_pid'], os.getpid())
+          seen_pids.append(out[0]['load_pid'])
+
+          cycle = []
+          cycle.append(cycle)
+          cycle.append(dofn._model)
+          del cycle
+          gc.collect()
+
+        last_pid = seen_pids[-1]
+        last_proc = next(
+            p for p in multiprocessing.active_children() if p.pid == last_pid)
+        dofn._model_metadata.try_mark_current_model_invalid(0)
+        dofn.finish_bundle()
+        last_proc.join(timeout=5)
+        self.assertFalse(last_proc.is_alive())
+      except BaseException as e:  # pylint: disable=broad-exception-caught
+        errors.append(e)
+
+    with unittest.mock.patch.object(multiprocessing.connection.Listener,
+                                    'accept',
+                                    gc_on_accepter_accept):
+      gc_thread = threading.Thread(target=background_gc, daemon=True)
+      worker_thread = threading.Thread(target=run_updates, daemon=True)
+      gc_thread.start()
+      worker_thread.start()
+      worker_thread.join(timeout=45)
+      stop_bg_gc.set()
+      gc_thread.join(timeout=5)
+
+    self.assertFalse(
+        worker_thread.is_alive(),
+        'Deadlock detected during RunInference side-input model updates')
+    self.assertEqual(errors, [])
+    self.assertEqual(len(set(seen_pids)), 5)
 
 
 if __name__ == '__main__':
