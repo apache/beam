@@ -215,6 +215,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
 
     try (Connection connection = getPostgresDatasource().getConnection();
         Statement statement = connection.createStatement()) {
+      // Create the slot first so it captures the commit below (no_data skips the snapshot).
       statement.execute(
           "SELECT pg_create_logical_replication_slot('beam_transaction_metadata', 'decoderbufs')");
       connection.setAutoCommit(false);
