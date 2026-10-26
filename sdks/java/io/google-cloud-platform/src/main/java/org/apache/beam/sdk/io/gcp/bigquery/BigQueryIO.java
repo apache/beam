@@ -1936,6 +1936,12 @@ public class BigQueryIO {
                       .setJobId(
                           BigQueryResourceNaming.createJobIdPrefix(
                               bqOptions.getJobName(), jobUuid, JobType.EXPORT));
+              // Job lookups must specify the location for regional locations; without it the
+              // job isn't found, or some endpoints reject the request.
+              String location = getExtractJobLocation(bqOptions);
+              if (location != null) {
+                jobRef.setLocation(location);
+              }
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1947,6 +1953,28 @@ public class BigQueryIO {
                       extractFiles, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
               }
+            }
+
+            /**
+             * Returns the location the extract job ran in, which job lookups must specify for
+             * regional locations: the source table's dataset location for table reads, or the query
+             * location for query reads, resolved as {@link BigQueryQueryHelper#executeQuery} does
+             * (explicit location, or inferred from the referenced tables).
+             */
+            private @Nullable String getExtractJobLocation(BigQueryOptions bqOptions)
+                throws Exception {
+              if (sourceDef instanceof BigQueryTableSourceDef) {
+                TableReference tableRef =
+                    ((BigQueryTableSourceDef) sourceDef).getTableReference(bqOptions);
+                try (DatasetService datasetService =
+                    getBigQueryServices().getDatasetService(bqOptions)) {
+                  return BigQueryHelpers.getDatasetLocation(
+                      datasetService, tableRef.getProjectId(), tableRef.getDatasetId());
+                }
+              } else if (sourceDef instanceof BigQueryQuerySourceDef) {
+                return ((BigQueryQuerySourceDef) sourceDef).getQueryLocation(bqOptions);
+              }
+              return null;
             }
           };
 
