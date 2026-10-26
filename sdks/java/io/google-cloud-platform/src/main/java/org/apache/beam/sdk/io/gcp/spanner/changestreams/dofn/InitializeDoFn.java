@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A DoFn responsible for initializing the change stream Connector. It handles the creation of the
@@ -40,6 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements Serializable {
 
   private static final long serialVersionUID = -8921188388649003102L;
+  private static final Logger LOG = LoggerFactory.getLogger(InitializeDoFn.class);
 
   private final long heartbeatMillis;
 
@@ -117,10 +122,11 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
    * specified in {@link InitializeDoFn#DEFAULT_HEARTBEAT_MILLIS}.
    */
   private void createFakeParentPartition() {
+    List<PartitionMetadata> parentPartitions = new ArrayList<>();
     if (daoFactory.getTvfNameList().isEmpty()) {
       // For IMMUTABLE_KEY_RANGE change stream or MUTABLE_KEY_RANGE
       // change stream without the specified tvf name list.
-      PartitionMetadata parentPartition =
+      parentPartitions.add(
           PartitionMetadata.newBuilder()
               .setPartitionToken(InitialPartition.PARTITION_TOKEN)
               .setTvfName(ChangeStreamsConstants.DEFAULT_TVF_NAME)
@@ -129,13 +135,11 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
               .setHeartbeatMillis(heartbeatMillis)
               .setState(State.CREATED)
               .setWatermark(startTimestamp)
-              .build();
-      daoFactory.getPartitionMetadataDao().insert(parentPartition);
+              .build());
     } else {
       // For MUTABLE_KEY_RANGE change stream with the specified tvf name list.
-      List<PartitionMetadata> parentPartitions = new ArrayList<>();
       for (String tvfName : daoFactory.getTvfNameList()) {
-        PartitionMetadata parentPartition =
+        parentPartitions.add(
             PartitionMetadata.newBuilder()
                 .setPartitionToken(InitialPartition.PARTITION_TOKEN)
                 .setTvfName(tvfName)
@@ -144,10 +148,36 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
                 .setHeartbeatMillis(heartbeatMillis)
                 .setState(State.CREATED)
                 .setWatermark(startTimestamp)
-                .build();
-        parentPartitions.add(parentPartition);
+                .build());
       }
-      daoFactory.getPartitionMetadataDao().insert(parentPartitions);
+    }
+    try {
+      daoFactory
+          .getPartitionMetadataDao()
+          .runInTransaction(
+              transaction -> {
+                List<PartitionMetadata> partitionsToInsert = new ArrayList<>();
+                for (PartitionMetadata parentPartition : parentPartitions) {
+                  String composedToken =
+                      PartitionMetadataDao.composePartitionTokenWithTvfName(
+                          parentPartition.getPartitionToken(), parentPartition.getTvfName());
+                  if (transaction.getPartition(composedToken) == null) {
+                    partitionsToInsert.add(parentPartition);
+                  }
+                }
+                if (!partitionsToInsert.isEmpty()) {
+                  transaction.insert(partitionsToInsert);
+                  return true;
+                }
+                return false;
+              },
+              "InsertFakeParentPartition");
+    } catch (SpannerException e) {
+      if (e.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
+        LOG.info("Initial parent partition already exists in metadata table, skipping insertion.");
+      } else {
+        throw e;
+      }
     }
   }
 }
