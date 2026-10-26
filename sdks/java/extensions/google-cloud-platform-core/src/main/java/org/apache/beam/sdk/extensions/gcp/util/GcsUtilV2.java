@@ -109,6 +109,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class GcsUtilV2 {
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
 
+  /** Environment variable that selects the Google Cloud universe domain. */
+  @VisibleForTesting static final String UNIVERSE_DOMAIN_ENV_VAR = "GOOGLE_CLOUD_UNIVERSE_DOMAIN";
+
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
     @Override
     public GcsUtilV2 create(PipelineOptions options) {
@@ -208,6 +211,16 @@ class GcsUtilV2 {
     String endpoint = gcsOptions.getGcsEndpoint();
     if (endpoint != null) {
       storageOptionsBuilder.setHost(rootUrlOf(endpoint));
+    } else {
+      // java-storage only takes the universe domain from StorageOptions; unlike the Google API
+      // client used by GcsUtilV1, it ignores GOOGLE_CLOUD_UNIVERSE_DOMAIN and the credentials'
+      // universe domain. Set it explicitly so that non-default universes (e.g. Trusted Partner
+      // Cloud) resolve to their own storage endpoint instead of storage.googleapis.com.
+      @Nullable String universeDomain =
+          resolveUniverseDomain(System.getenv(UNIVERSE_DOMAIN_ENV_VAR), credentials);
+      if (universeDomain != null) {
+        storageOptionsBuilder.setUniverseDomain(universeDomain);
+      }
     }
 
     // Use the process-wide shared HTTP transport rather than letting each client create its own, so
@@ -405,6 +418,35 @@ class GcsUtilV2 {
     } catch (MalformedURLException e) {
       throw new IllegalArgumentException("Invalid gcsEndpoint URL: " + endpoint, e);
     }
+  }
+
+  /**
+   * Returns the non-default universe domain to use for the storage client, or null for the default
+   * universe ({@code googleapis.com}).
+   *
+   * <p>{@code envUniverseDomain} (the value of {@code GOOGLE_CLOUD_UNIVERSE_DOMAIN}) takes
+   * precedence; otherwise the credentials' universe domain is used. This matches how the Google API
+   * client libraries, and Beam's Python SDK, resolve the universe domain.
+   */
+  @VisibleForTesting
+  static @Nullable String resolveUniverseDomain(
+      @Nullable String envUniverseDomain, @Nullable Credentials credentials) {
+    String universeDomain = envUniverseDomain == null ? "" : envUniverseDomain.trim();
+    if (universeDomain.isEmpty() && credentials != null) {
+      try {
+        universeDomain = credentials.getUniverseDomain();
+      } catch (IOException e) {
+        LOG.warn(
+            "Unable to determine the universe domain of the credentials; using the default.", e);
+        return null;
+      }
+    }
+    if (universeDomain == null
+        || universeDomain.isEmpty()
+        || Credentials.GOOGLE_DEFAULT_UNIVERSE.equals(universeDomain)) {
+      return null;
+    }
+    return universeDomain;
   }
 
   // AccessDeniedException/FileAlreadyExistsException permit a null "other" argument, and these
