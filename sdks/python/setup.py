@@ -216,8 +216,10 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    # Keep in line with the py*-pytorch-* environments in tox.ini.
-    'torch>=2.3.0,<2.15.0',
+    # torch>=2.12 Linux wheels require triton>=3.7, which segfaults/aborts when
+    # imported after tensorflow. Keep this cap while tensorflow is part of
+    # ml_base_core.
+    'torch>=2.3.0,<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
