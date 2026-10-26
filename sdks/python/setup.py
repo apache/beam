@@ -177,9 +177,9 @@ xgboost_dependency = [
     'datatable>=1.1.0,<2',
 ]
 
-# google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
-# ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
-# cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
+# tensorflow-transform 1.21 (via tfx-bsl 1.21) requires
+# google-api-python-client<2, so tensorflow-transform stays out of ml_base and
+# is only added to ml_test.
 ml_base_core = [
     'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
@@ -191,10 +191,18 @@ ml_base_core = [
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
-    'tensorflow',
+    # Keep in line with the tensorflow extra and the py*-tensorflow-*
+    # environments in tox.ini.
+    'tensorflow>=2.16.0,<2.22',
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
-    'tensorflow-hub',
+    # tensorflow-hub<0.16 imports tf.compat.v1.estimator, which was removed in
+    # tensorflow 2.16.
+    'tensorflow-hub>=0.16.1,<0.17',
+    # tensorflow-hub imports pkg_resources, which was removed in setuptools 82.
+    # Without this cap, Python 3.12+ environments (no bundled setuptools)
+    # resolve setuptools>=82 and the TensorFlow tests are skipped.
+    'setuptools<82',
     # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
     # processors.RobertaProcessing (and BertProcessing) from `cls` to
     # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
@@ -208,8 +216,10 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    # Keep in line with the py*-pytorch-* environments in tox.ini.
-    'torch>=2.3.0,<2.15.0',
+    # torch>=2.12 Linux wheels require triton>=3.7, which segfaults/aborts when
+    # imported after tensorflow. Keep this cap while tensorflow is part of
+    # ml_base_core.
+    'torch>=2.3.0,<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
@@ -613,8 +623,8 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-              # tft needs protobuf<5; tf2onnx 1.17+ allows protobuf 5 on the
-              # ADK-only path.
+              # tf2onnx 1.16.x pins protobuf~=3.20; 1.17+ allows protobuf 6,
+              # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
           'p310_ml_test': [
@@ -661,7 +671,11 @@ if __name__ == '__main__':
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=2.3.0,<2.15.0'],
           'tensorflow': [
-              'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
+              # tensorflow 2.16 is the first release with Keras 3 and
+              # Python 3.12 wheels. tensorflow<2.20 requires protobuf<6, which
+              # cannot be installed alongside the gcp extra (protobuf>=6.33.5
+              # via google-cloud-bigtable).
+              'tensorflow>=2.16.0,<2.22',
               'absl-py>=0.12.0'
           ],
           'transformers': [
@@ -697,7 +711,15 @@ if __name__ == '__main__':
               'absl-py>=0.12.0'
           ],
           'xgboost': xgboost_dependency,
-          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
+          'tensorflow-hub': [
+              # tensorflow-hub<0.16 imports tf.compat.v1.estimator, which was
+              # removed in tensorflow 2.16. tensorflow-hub 0.16 depends on
+              # tf-keras.
+              'tensorflow-hub>=0.16.1,<0.17',
+              # tensorflow-hub imports pkg_resources, which was removed in
+              # setuptools 82.
+              'setuptools<82',
+          ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
           'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
