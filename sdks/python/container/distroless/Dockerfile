@@ -24,7 +24,7 @@ LABEL Author="Apache Beam <dev@beam.apache.org>"
 
 RUN if [ -z "${TARGETARCH}" ]; then echo "fatal: TARGETARCH not set; run as docker buildx build or use --build-arg=TARGETARCH=amd64|arm64" >&2; exit 1; fi
 
-FROM gcr.io/distroless/python3-debian12:latest-${TARGETARCH} AS distroless
+FROM gcr.io/distroless/python3-debian13:latest-${TARGETARCH} AS distroless
 
 # Prevents internal errors found with distroless container images and Flex templates.
 COPY --from=base /usr/lib/locale /usr/lib/locale
