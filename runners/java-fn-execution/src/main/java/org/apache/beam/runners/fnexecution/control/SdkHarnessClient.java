@@ -522,7 +522,6 @@ public class SdkHarnessClient implements AutoCloseable {
         // output than the inbound queue and the SDK's own send buffer hold together: the SDK
         // blocks sending, the response never arrives, and nothing drains the queue. Batch runners
         // that hand a whole partition to the SDK as one bundle hit this with ~1 GB of output.
-        boolean inboundDrained = false;
         Exception drainException = null;
         if (exception == null && beamFnDataInboundObserver.isPresent()) {
           BeamFnDataInboundObserver inboundObserver = beamFnDataInboundObserver.get();
@@ -543,12 +542,23 @@ public class SdkHarnessClient implements AutoCloseable {
                   LOG.debug("Dropping the response elements of failed bundle {}", bundleId, e);
                 }
               });
-          inboundDrained = true;
           try {
             inboundObserver.awaitCompletion();
             fnApiDataService.unregisterReceiver(bundleId);
           } catch (Exception e) {
             drainException = e;
+          }
+        }
+        if (beamFnDataInboundObserver.isPresent()) {
+          // Idempotent. Also releases the observer when sending the bundle's input failed.
+          try {
+            beamFnDataInboundObserver.get().close();
+          } catch (Exception e) {
+            if (drainException == null) {
+              drainException = e;
+            } else {
+              drainException.addSuppressed(e);
+            }
           }
         }
         try {
@@ -602,18 +612,6 @@ public class SdkHarnessClient implements AutoCloseable {
             exception = e;
           } else {
             exception.addSuppressed(e);
-          }
-        }
-        if (beamFnDataInboundObserver.isPresent() && !inboundDrained) {
-          // Sending the bundle's input failed, so its output was never consumed.
-          try {
-            beamFnDataInboundObserver.get().close();
-          } catch (Exception e) {
-            if (exception == null) {
-              exception = e;
-            } else {
-              exception.addSuppressed(e);
-            }
           }
         }
         if (exception != null) {
