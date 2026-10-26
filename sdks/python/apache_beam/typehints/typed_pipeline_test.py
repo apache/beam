@@ -486,6 +486,19 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.Map(fn)
     self.assertCountEqual([None, 2, 3], result)
 
+  def test_typed_map_protocol_input(self):
+    # https://github.com/apache/beam/issues/20986
+    class HasUpper(typing.Protocol):
+      def upper(self) -> str:
+        ...
+
+    def fn(element: HasUpper) -> str:
+      return element.upper()
+
+    with TestPipeline() as p:
+      result = p | beam.Create(['a', 'b']) | beam.Map(fn)
+      assert_that(result, equal_to(['A', 'B']))
+
   def test_inferred_type_of_tuple_slice(self):
     # https://github.com/apache/beam/issues/20899
     rows = [('day1', 'a', 1), ('day2', 'a', 2), ('day1', 'b', 3)]

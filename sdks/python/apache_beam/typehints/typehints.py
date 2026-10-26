@@ -368,6 +368,16 @@ def is_typing_generic(type_param):
   return isinstance(type_param, typing._GenericAlias)
 
 
+def _is_unchecked_protocol(type_param):
+  """Determines if an object is a typing.Protocol class that is not
+  runtime_checkable, which isinstance() and issubclass() reject.
+  """
+  return (
+      isinstance(type_param, type) and
+      getattr(type_param, '_is_protocol', False) and
+      not getattr(type_param, '_is_runtime_protocol', False))
+
+
 def validate_composite_type_param(type_param, error_msg_prefix):
   """Determines if an object is a valid type parameter to a
   :class:`CompositeTypeHint`.
@@ -429,6 +439,8 @@ def check_constraint(type_constraint, object_instance):
     pass
   elif not isinstance(type_constraint, type):
     raise RuntimeError("bad type: %s" % (type_constraint, ))
+  elif _is_unchecked_protocol(type_constraint):
+    pass
   elif not isinstance(object_instance, type_constraint):
     raise SimpleTypeHintError
 
@@ -1536,6 +1548,9 @@ def is_consistent_with(
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
+  elif _is_unchecked_protocol(base):
+    # Protocols are matched structurally, which issubclass cannot check.
+    return True
   if use_beartype:
     try:
       return is_subhint(sub, base)
