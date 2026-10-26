@@ -535,10 +535,11 @@ public class GroupIntoBatches<K, InputT>
       minBufferedTs.add(elementTs.getMillis());
 
       final long num = storedBatchSize.read();
+      long currentMinBufferedTs = minBufferedTs.read();
 
       // If this is the first element in the batch or if the timer's output timestamp needs
       // modifying, then set a timer.
-      boolean needsNewTimer = num == 1 || minBufferedTs.read() < oldOutputTs;
+      boolean needsNewTimer = num == 1 || currentMinBufferedTs < oldOutputTs;
       if (needsNewTimer) {
         if (shouldCareAboutMaxBufferingDuration) {
           long targetTs =
@@ -547,14 +548,14 @@ public class GroupIntoBatches<K, InputT>
                   bufferingTimer.getCurrentRelativeTime().getMillis()
                       + maxBufferingDuration.getMillis());
           bufferingTimer
-              .withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read()))
+              .withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs))
               .set(Instant.ofEpochMilli(targetTs));
         } else {
           // The only way to hold the watermark is to set a timer. Since there is no buffering
           // timer, we set a dummy
           // timer at the end of the window to manage the hold.
           Instant windowEnd = window.maxTimestamp().plus(allowedLateness);
-          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read())).set(windowEnd);
+          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs)).set(windowEnd);
         }
       }
 
