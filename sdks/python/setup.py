@@ -688,12 +688,16 @@ if __name__ == '__main__':
           ],
           'tfrecord': ['crcmod>=1.7,<2.0'],
           'onnx': [
-              'onnxruntime==1.13.1',
-              'torch==1.13.1',
-              'tensorflow==2.11.0',
-              'tf2onnx==1.17.0',
-              'skl2onnx==1.13',
-              'transformers==4.25.1',  # tensorflow transient dep
+              # Keep in line with the py311-onnx-* environments in tox.ini.
+              'onnx>=1.16.0,<2',
+              'onnxruntime>=1.19.0,<2',
+              # Converters for producing ONNX models from scikit-learn,
+              # TensorFlow and PyTorch models.
+              'skl2onnx>=1.17.0,<2',
+              'tf2onnx>=1.17.0,<1.18',
+              'tensorflow>=2.18.0,<2.22',
+              'torch>=2.3.0,<2.12.0',
+              'onnxscript>=0.5.0,<1',
               'absl-py>=0.12.0'
           ],
           'xgboost': xgboost_dependency,

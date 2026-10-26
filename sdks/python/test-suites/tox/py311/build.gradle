@@ -110,11 +110,15 @@ toxTask "testPy311tft-113", "py311-tft-113", "${posargs}"
 test.dependsOn "testPy311tft-113"
 postCommitPyDep.dependsOn "testPy311tft-113"
 
-// TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
-// Create a test task for each minor version of onnx
-// toxTask "testPy311onnx-113", "py311-onnx-113", "${posargs}"
-// test.dependsOn "testPy311onnx-113"
-// postCommitPyDep.dependsOn "testPy311onnx-113"
+// Create a test task for the lower and upper bounds of supported onnx.
+// Keep in sync with [testenv:py311-onnx-...] in tox.ini.
+toxTask "testPy311onnx-119", "py311-onnx-119", "${posargs}"
+test.dependsOn "testPy311onnx-119"
+postCommitPyDep.dependsOn "testPy311onnx-119"
+
+toxTask "testPy311onnx-latest", "py311-onnx-latest", "${posargs}"
+test.dependsOn "testPy311onnx-latest"
+postCommitPyDep.dependsOn "testPy311onnx-latest"
 
 // Create a test task for each minor version of tensorflow
 toxTask "testPy311tensorflow-212", "py311-tensorflow-212", "${posargs}"
