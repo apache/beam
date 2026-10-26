@@ -59,6 +59,7 @@ data: {
         "PARTITIONS"
         "USE"
         "UNSET"
+        "ENFORCED"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -409,6 +410,7 @@ data: {
         "PROPERTIES"
         "PARTITIONED"
         "USE"
+        "ENFORCED"
       ]
 
       # List of non-reserved keywords to add;
