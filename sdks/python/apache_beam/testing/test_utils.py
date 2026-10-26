@@ -22,12 +22,16 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import contextlib
 import hashlib
 import importlib
+import importlib.abc
 import os
 import shutil
 import struct
+import sys
 import tempfile
+from unittest import SkipTest
 
 import numpy as np
 
@@ -123,6 +127,88 @@ def patch_retry(testcase, module):
     importlib.reload(module)
 
   testcase.addCleanup(remove_patches)
+
+
+class _ImportBlocker(importlib.abc.MetaPathFinder):
+  """A meta path finder that blocks, and records, imports of given packages."""
+  def __init__(self, packages):
+    self._packages = tuple(packages)
+    self.attempted_imports = []
+
+  def blocks(self, module_name):
+    return any(
+        module_name == package or module_name.startswith(package + '.')
+        for package in self._packages)
+
+  def find_spec(self, fullname, path, target=None):
+    if self.blocks(fullname):
+      self.attempted_imports.append(fullname)
+      raise ModuleNotFoundError(
+          'Import of %s is blocked for testing.' % fullname, name=fullname)
+    return None
+
+
+@contextlib.contextmanager
+def block_imports(*packages):
+  """Context manager that makes the given packages unimportable.
+
+  Within the context, importing any of the given packages, or their
+  submodules, raises a ModuleNotFoundError as if they were not installed. This
+  also applies to packages that were already imported. Such packages are
+  restored when exiting the context.
+
+  This is useful, for example, for verifying that constructing and submitting
+  a pipeline neither requires, nor tries to import, a dependency that is only
+  needed when executing the pipeline on workers::
+
+    with block_imports('sentence_transformers') as attempted_imports:
+      ...  # Construct and serialize the pipeline.
+    assert not attempted_imports
+
+  Args:
+    *packages: names of the top-level packages, or modules, to block.
+
+  Yields:
+    A list with the names of all modules whose import was attempted, and
+    blocked, within the context.
+  """
+  blocker = _ImportBlocker(packages)
+  hidden_modules = {
+      name: module
+      for name, module in list(sys.modules.items()) if blocker.blocks(name)
+  }
+  for name in hidden_modules:
+    del sys.modules[name]
+  sys.meta_path.insert(0, blocker)
+  try:
+    yield blocker.attempted_imports
+  finally:
+    sys.meta_path.remove(blocker)
+    sys.modules.update(hidden_modules)
+
+
+def require_linux_docker():
+  """Raises ``unittest.SkipTest`` unless Docker can run Linux containers.
+
+  Intended for tests that start containers via testcontainers, e.g. from
+  ``setUpClass``. Such tests need a reachable Docker daemon running Linux
+  containers. Some environments have no daemon at all (e.g. GitHub macOS
+  runners), while others only run Windows containers (e.g. GitHub Windows
+  runners).
+  """
+  try:
+    import docker
+    client = docker.from_env()
+    try:
+      os_type = client.info().get('OSType')
+    finally:
+      client.close()
+  except Exception as e:  # pylint: disable=broad-except
+    raise SkipTest(f'Docker is not available: {e}')
+  if os_type != 'linux':
+    raise SkipTest(
+        f'Docker daemon runs {os_type} containers; '
+        'Linux containers are required.')
 
 
 @retry.with_exponential_backoff(

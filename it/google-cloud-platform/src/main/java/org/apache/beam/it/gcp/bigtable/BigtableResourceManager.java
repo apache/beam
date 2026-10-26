@@ -77,7 +77,7 @@ import org.threeten.bp.Duration;
  *
  * <p>The class is thread-safe.
  */
-public class BigtableResourceManager implements ResourceManager {
+public final class BigtableResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableResourceManager.class);
   private static final String DEFAULT_CLUSTER_ZONE = "us-central1-b";

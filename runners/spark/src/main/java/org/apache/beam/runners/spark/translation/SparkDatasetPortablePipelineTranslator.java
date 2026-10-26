@@ -81,7 +81,7 @@ import scala.Tuple2;
   "unchecked",
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SparkDatasetPortablePipelineTranslator
+public final class SparkDatasetPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkDatasetTranslationContext> {
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;

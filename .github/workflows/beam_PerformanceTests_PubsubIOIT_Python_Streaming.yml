@@ -42,9 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
@@ -86,5 +84,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.io.gcp.pubsub_io_perf_test \
             -Prunner=TestDataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_PerformanceTests_PubsubIOIT_Python_Streaming_test_arguments_1 }}'

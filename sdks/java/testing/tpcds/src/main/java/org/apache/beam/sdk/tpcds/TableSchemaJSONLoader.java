@@ -78,9 +78,7 @@ public class TableSchemaJSONLoader {
             // Use long type to represent int, prevent overflow
             schemaStringBuilder.append("bigint");
           } else if (value.contains("decimal")) {
-            // Currently Beam SQL doesn't handle "decimal" type properly, use "double" to replace it
-            // for now.
-            schemaStringBuilder.append("double");
+            schemaStringBuilder.append("decimal");
           } else {
             // Currently Beam SQL doesn't handle "date" type properly, use "varchar" replace it for
             // now.

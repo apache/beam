@@ -291,7 +291,7 @@ public class Sample {
    *
    * @param <T> the type of the elements
    */
-  public static class FixedSizedSampleFn<T>
+  public static final class FixedSizedSampleFn<T>
       extends CombineFn<
           T, Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>, Iterable<T>> {
     private final int sampleSize;

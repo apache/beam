@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class MemoryMonitor implements Runnable {
+public final class MemoryMonitor implements Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryMonitor.class);
 
   /** Amount of time (in ms) this thread must sleep between two consecutive iterations. */

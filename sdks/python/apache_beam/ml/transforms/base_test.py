@@ -150,8 +150,8 @@ class BaseMLTransformTest(unittest.TestCase):
       ),
       param(
           input_data=[{
-              'x': np.array([1], dtype=np.int64),
-              'y': np.array([2.0], dtype=np.float32),
+              'x': np.int64(1),
+              'y': np.float32(2.0),
           }],
           input_types={
               'x': np.int32, 'y': np.float32

@@ -461,6 +461,79 @@ public class IncrementalChangelogSourceTest {
   }
 
   /**
+   * 'keep' and 'drop' may leave out the primary key and watermark column. The source still reads
+   * them to pair updates and timestamp rows.
+   */
+  @Test
+  public void keyAndWatermarkCanBeLeftOutOfOutput() throws Exception {
+    LocalDateTime t1 =
+        LocalDateTime.ofInstant(
+            java.time.Instant.ofEpochMilli(System.currentTimeMillis() - 3_000L), ZoneOffset.UTC);
+    LocalDateTime t2 = t1.plusSeconds(1);
+    LocalDateTime t3 = t1.plusSeconds(2);
+    // SPLIT_SIZE=1 resolves updates through the CoGroupByKey, the default resolves them locally
+    Map<String, IcebergScanConfig> reads =
+        ImmutableMap.of(
+            "Keep",
+            eventChanges("1", t1, t2, t3).setKeepFields(ImmutableList.of("data")).build(),
+            "Drop",
+            eventChanges(String.valueOf(TableProperties.SPLIT_SIZE_DEFAULT), t1, t2, t3)
+                .setDropFields(ImmutableList.of("id", "event_time"))
+                .build());
+
+    for (Map.Entry<String, IcebergScanConfig> read : reads.entrySet()) {
+      PCollection<Row> rows =
+          pipeline.apply(read.getKey(), new IncrementalChangelogSource(read.getValue()));
+      assertEquals(
+          Schema.builder().addNullableField("data", Schema.FieldType.STRING).build(),
+          rows.getSchema());
+      PAssert.that(
+              rows.apply(read.getKey() + " Format", ParDo.of(new FormatValueKindAndValues()))
+                  .apply(read.getKey() + " Timestamps", Reify.timestamps()))
+          .containsInAnyOrder(
+              TimestampedValue.of("INSERT:[a]", millis(t1)),
+              TimestampedValue.of("INSERT:[b]", millis(t2)),
+              // only event_time changed, so pairing compared full rows
+              TimestampedValue.of("UPDATE_BEFORE:[a]", millis(t1)),
+              TimestampedValue.of("UPDATE_AFTER:[a]", millis(t3)),
+              TimestampedValue.of("DELETE:[b]", millis(t2)),
+              TimestampedValue.of("INSERT:[c]", millis(t3)));
+    }
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Commits id 1 and 2, then an overwrite that changes only id 1's event_time, deletes 2, adds 3.
+   */
+  private IcebergScanConfig.Builder eventChanges(
+      String splitSize, LocalDateTime t1, LocalDateTime t2, LocalDateTime t3) throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName() + splitSize);
+    Table table =
+        warehouse.createTable(
+            tableId,
+            EVENT_SCHEMA,
+            null,
+            ImmutableMap.of(
+                TableProperties.FORMAT_VERSION, "2", TableProperties.SPLIT_SIZE, splitSize));
+    DataFile v1 =
+        commitAppend(
+            table,
+            splitSize + "-v1.parquet",
+            ImmutableList.of(eventRecord(1L, "a", t1), eventRecord(2L, "b", t2)));
+    commitOverwrite(
+        table, splitSize + "-v2.parquet", v1, eventRecord(1L, "a", t3), eventRecord(3L, "c", t3));
+    return baseConfigBuilder(table, tableId)
+        .setWatermarkColumn("event_time")
+        .setStartingStrategy(StartingStrategy.EARLIEST)
+        .setToSnapshot(table.currentSnapshot().snapshotId());
+  }
+
+  private static Instant millis(LocalDateTime time) {
+    return new Instant(time.toInstant(ZoneOffset.UTC).toEpochMilli());
+  }
+
+  /**
    * Bi-directional rows are windowed per snapshot with zero allowed lateness, so a record that
    * reaches the CoGroupByKey after the watermark has passed its snapshot's window is dropped
    * silently. Drive several consecutive snapshots through the shuffle path and assert that
@@ -516,12 +589,10 @@ public class IncrementalChangelogSourceTest {
   }
 
   private DataFile commitOverwrite(
-      Table table, String fileName, DataFile replaced, Record replacement) throws IOException {
+      Table table, String fileName, DataFile replaced, Record... replacements) throws IOException {
     DataFile file =
         warehouse.writeRecords(
-            testName.getMethodName() + "-" + fileName,
-            table.schema(),
-            ImmutableList.of(replacement));
+            testName.getMethodName() + "-" + fileName, table.schema(), Arrays.asList(replacements));
     table.newOverwrite().deleteFile(replaced).addFile(file).commit();
     table.refresh();
     return file;
@@ -580,6 +651,14 @@ public class IncrementalChangelogSourceTest {
         @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
       outputReceiver.output(
           valueKind.name() + ":" + row.getInt64("id") + ":" + row.getString("data"));
+    }
+  }
+
+  private static final class FormatValueKindAndValues extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(valueKind.name() + ":" + row.getValues());
     }
   }
 

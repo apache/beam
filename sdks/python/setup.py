@@ -156,20 +156,30 @@ else:
     'pyarrow>=14.0.1,<26.0.0',
   ]
 
-# Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
-# Exclude 1.5.0 and 1.5.1 because of
-# https://github.com/pandas-dev/pandas/issues/45725
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.4',
+    # pandas 2.2.2 is the first version that works with numpy 2.0.0+
+    # TODO(https://github.com/apache/beam/issues/40709): support pandas 3+
+    'pandas>=2.2.2,<2.4',
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 qdrant_dependency = ['qdrant-client>=1.15.0']
+# NOTE: When updating these bounds, also update the bounds in
+# apache_beam/ml/inference/xgboost_tests_requirements.txt, which is used by the
+# XGBoost RunInference integration tests, and the py311-xgboost-* environments
+# in tox.ini.
+xgboost_dependency = [
+    'xgboost>=2.0.0,<4',
+    # apache_beam.ml.inference.xgboost_inference imports datatable directly.
+    # 1.1.0 is the first release with Python 3.10+ wheels; no release has
+    # wheels for Python 3.13+.
+    'datatable>=1.1.0,<2',
+]
 
-# google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
-# ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
-# cannot be installed together, so ADK deps stay out of ml_test (use ml_base).
+# tensorflow-transform 1.21 (via tfx-bsl 1.21) requires
+# google-api-python-client<2, so tensorflow-transform stays out of ml_base and
+# is only added to ml_test.
 ml_base_core = [
     'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
@@ -181,10 +191,18 @@ ml_base_core = [
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
-    'tensorflow',
+    # Keep in line with the tensorflow extra and the py*-tensorflow-*
+    # environments in tox.ini.
+    'tensorflow>=2.16.0,<2.22',
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
     'absl-py>=0.12.0',
-    'tensorflow-hub',
+    # tensorflow-hub<0.16 imports tf.compat.v1.estimator, which was removed in
+    # tensorflow 2.16.
+    'tensorflow-hub>=0.16.1,<0.17',
+    # tensorflow-hub imports pkg_resources, which was removed in setuptools 82.
+    # Without this cap, Python 3.12+ environments (no bundled setuptools)
+    # resolve setuptools>=82 and the TensorFlow tests are skipped.
+    'setuptools<82',
     # tokenizers 0.23.0rc0 renamed the PyO3 kwarg of
     # processors.RobertaProcessing (and BertProcessing) from `cls` to
     # `cls_token` -- the rename was a drive-by inside huggingface/tokenizers
@@ -198,8 +216,10 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
-    'torch<2.12.0',
+    # torch>=2.12 Linux wheels require triton>=3.7, which segfaults/aborts when
+    # imported after tensorflow. Keep this cap while tensorflow is part of
+    # ml_base_core.
+    'torch>=2.3.0,<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
@@ -207,13 +227,13 @@ ml_base_core = [
 ]
 
 ml_adk_dependency = [
-    'google-adk==1.28.1',
+    'google-adk>=2.0.0,<3',
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api==1.37.0',
-    'opentelemetry-sdk==1.37.0',
-    'opentelemetry-exporter-otlp-proto-http==1.37.0',
+    'opentelemetry-api>=1.36.0,<1.43',
+    'opentelemetry-sdk>=1.36.0,<1.43',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -416,7 +436,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0',
+          'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -424,10 +444,13 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
+          # Increment the lower bound when the minimum Python version is
+          # updated.
+          'numpy>=1.23.2,<2.6.0; python_version >= "3.12"',  # Update pyproject.toml as well.
+          'numpy>=1.23.2,<2.5.0; python_version < "3.12"',
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pillow>=12.1.1,<13',
+          'pillow>=12.1.1,<14',
           'pymongo>=3.8.0,<5.0.0',
           # ADK / OpenTelemetry need proto-plus>=1.26.1 (protobuf>=5); that
           # floor is declared on ml_adk_dependency only so core installs stay
@@ -479,7 +502,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'markdown',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
@@ -490,7 +513,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.4.0',
+              'pandas<2.6.0',
               'parameterized>=0.7.1,<0.10.0',
               'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
@@ -601,16 +624,19 @@ if __name__ == '__main__':
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
-              # tft needs protobuf<5; tf2onnx 1.17+ allows protobuf 5 on the
-              # ADK-only path.
+              # tf2onnx 1.16.x pins protobuf~=3.20; 1.17+ allows protobuf 6,
+              # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
           'p310_ml_test': [
             'datatable',
           ] + ml_base + qdrant_dependency,
+          # xgboost_dependency includes datatable, which only has wheels for
+          # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
+          'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
           'p312_ml_test': [
-              'datatable',
-          ] + ml_base + qdrant_dependency,
+              'typesafe-sdk>=0.7.1,<0.8',
+          ] + ml_base + xgboost_dependency + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
@@ -644,16 +670,23 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch>=1.9.0,<2.8.0'],
+          'torch': ['torch>=2.3.0,<2.15.0'],
           'tensorflow': [
-              'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
+              # tensorflow 2.16 is the first release with Keras 3 and
+              # Python 3.12 wheels. tensorflow<2.20 requires protobuf<6, which
+              # cannot be installed alongside the gcp extra (protobuf>=6.33.5
+              # via google-cloud-bigtable).
+              'tensorflow>=2.16.0,<2.22',
               'absl-py>=0.12.0'
           ],
           'transformers': [
-              'transformers>=4.28.0,<4.56.0',
+              # Keep in line with the py311-transformers-* environments in
+              # tox.ini.
+              'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'tensorflow>=2.12.0',
-              # Avoid torch 2.12.0+ which fails to run unit tests with segfault
-              'torch>=1.9.0,<2.12.0'
+              # torch>=2.12 Linux wheels require triton>=3.7,
+              # which segfaults/aborts when imported after tensorflow.
+              'torch>=2.3.0,<2.12.0'
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
@@ -678,8 +711,16 @@ if __name__ == '__main__':
               'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
-          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
-          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
+          'xgboost': xgboost_dependency,
+          'tensorflow-hub': [
+              # tensorflow-hub<0.16 imports tf.compat.v1.estimator, which was
+              # removed in tensorflow 2.16. tensorflow-hub 0.16 depends on
+              # tf-keras.
+              'tensorflow-hub>=0.16.1,<0.17',
+              # tensorflow-hub imports pkg_resources, which was removed in
+              # setuptools 82.
+              'setuptools<82',
+          ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
           'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
@@ -690,7 +731,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
           'Programming Language :: Python :: 3.13',

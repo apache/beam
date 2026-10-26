@@ -16,6 +16,8 @@
 #
 
 """Tests for apache_beam.ml.base."""
+import gc
+import inspect
 import math
 import multiprocessing
 import os
@@ -23,9 +25,11 @@ import pickle
 import random
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import unittest.mock
+import uuid
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -52,6 +56,26 @@ from apache_beam.utils import multi_process_shared
 class FakeModel:
   def predict(self, example: int) -> int:
     return example + 1
+
+
+class _Unpicklable:
+  """Mimics an object that cannot be pickled, e.g. a C extension object."""
+  def __init__(self):
+    self._lock = threading.Lock()
+
+
+class FakeModelHandlerSendsUnpicklableData(base.ModelHandler[int,
+                                                             int,
+                                                             FakeModel]):
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    # Calls on a model shared across processes pickle their arguments.
+    return [model.predict(_Unpicklable()) for _ in batch]
+
+  def share_model_across_processes(self):
+    return True
 
 
 class FakeStatefulModel:
@@ -118,6 +142,22 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def batch_elements_kwargs(self):
     return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
+_LOAD_COUNTS: dict[str, int] = {}
+
+
+class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
+  """Counts load_model() calls per key in the module-level _LOAD_COUNTS."""
+  def __init__(self, key: str):
+    self._key = key
+
+  def load_model(self):
+    _LOAD_COUNTS[self._key] = _LOAD_COUNTS.get(self._key, 0) + 1
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -234,6 +274,41 @@ class FakeModelHandlerReturnsPredictionResult(
     return self._multi_process_shared
 
 
+class FakeModelWithPath:
+  """A model that reports the path it was loaded from."""
+  def __init__(self, path: str):
+    self._path = path
+
+  def predict(self, example: int) -> str:
+    return self._path
+
+
+class FakeModelHandlerWithPath(base.ModelHandler[int, str, FakeModelWithPath]):
+  """Predicts the path of the model that actually served each example."""
+  def __init__(self, path: str):
+    self._path = path
+
+  def load_model(self):
+    return FakeModelWithPath(self._path)
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModelWithPath,
+      inference_args=None) -> Iterable[str]:
+    return [model.predict(example) for example in batch]
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    if model_path:
+      self._path = model_path
+
+
+class SingleElementBatchesKeyedModelHandler(base.KeyedModelHandler):
+  """Runs inference on one element at a time, so pipelines have many batches."""
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
+
+
 class FakeModelHandlerNoEnvVars(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self, clock=None, min_batch_size=1, max_batch_size=9999, **kwargs):
@@ -330,6 +405,25 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_unpicklable_data_multi_process_shared(self):
+    with self.assertRaisesRegex(Exception, 'Pickling error encountered'):
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | 'start' >> beam.Create([1])
+            | base.RunInference(FakeModelHandlerSendsUnpicklableData()))
+
+  def test_is_pickling_error(self):
+    self.assertTrue(base._is_pickling_error(pickle.PicklingError('x')))
+    self.assertTrue(
+        base._is_pickling_error(
+            TypeError("cannot pickle '_thread.lock' object")))
+    self.assertTrue(
+        base._is_pickling_error(
+            AttributeError("Can't pickle local object 'f.<locals>.g'")))
+    self.assertFalse(base._is_pickling_error(TypeError('unsupported type')))
+    self.assertFalse(base._is_pickling_error(ValueError('pickle')))
 
   def test_run_inference_impl_simple_examples_multi_process_shared_multi_copy(
       self):
@@ -552,6 +646,208 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
     with self.assertRaises(ValueError):
       base.KeyedModelHandler(mhs)
+
+  def test_run_inference_keyed_many_mhs_with_pre_and_post_processing(self):
+    def mult_two_keyed(element):
+      return (element[0], element[1] * 2)
+
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    # Key 0 maps to a stateful model which always returns 200, the remaining
+    # keys map to a model which returns example + 1.
+    expected = [(0, 400)] + [(i, ((example * 2) + 1) * 2)
+                             for i, example in enumerate(examples)][1:]
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    actual = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs).with_preprocess_fn(
+            mult_two_keyed).with_postprocess_fn(mult_two_keyed),
+        metrics_namespace='test_namespace')
+    assert_that(actual, equal_to(expected), label='assert:inferences')
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    # Per-key metrics are still reported by the wrapped KeyedModelHandler.
+    metrics_filter = MetricsFilter().with_name('0-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    self.assertEqual(metrics['counters'][0].committed, 1)
+    metrics_filter = MetricsFilter().with_name('1-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    self.assertEqual(metrics['counters'][0].committed, 3)
+
+  def test_run_inference_keyed_many_mhs_with_no_batching(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      expected[0] = (0, 200)
+      mhs = [
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
+      ]
+      # Each element is a pre-batched list of keyed examples.
+      pcoll = pipeline | 'start' >> beam.Create([keyed_examples])
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(mhs).with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_wrapped_keyed_many_mhs_delegates_hooks(self):
+    class FakeModelManager:
+      def __init__(self):
+        self.updates = []
+
+      def update_model_handler(self, key, model_path, previous_key):
+        self.updates.append((key, model_path, previous_key))
+
+    wrappers = {
+        'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
+        'postprocess': lambda mh: mh.with_postprocess_fn(lambda x: x),
+        'no_batching': lambda mh: mh.with_no_batching(),
+    }
+    for name, wrap in wrappers.items():
+      with self.subTest(wrapper=name):
+        keyed_mh = base.KeyedModelHandler([
+            base.KeyModelMapping([0],
+                                 FakeModelHandler(multi_process_shared=True)),
+            base.KeyModelMapping([1, 2],
+                                 FakeModelHandler(multi_process_shared=True))
+        ])
+        wrapped = wrap(keyed_mh)
+
+        self.assertTrue(wrapped.override_metrics('test_namespace'))
+        self.assertEqual(set(keyed_mh._metrics_collectors), {0, 1})
+        self.assertIsNotNone(keyed_mh._default_metrics_collector)
+        self.assertFalse(wrapped.should_garbage_collect_on_timeout())
+
+        manager = FakeModelManager()
+        wrapped.update_model_paths(
+            manager,
+            [
+                base.KeyModelPathMapping(keys=[0], update_path='path/0'),
+                base.KeyModelPathMapping(keys=[1, 2], update_path='path/1'),
+            ])
+        self.assertEqual(manager.updates, [(0, 'path/0', 0), (1, 'path/1', 1)])
+
+  def test_wrapper_model_handlers_delegate_hooks(self):
+    class HookRecordingModelHandler(FakeModelHandler):
+      def __init__(self):
+        super().__init__(multi_process_shared=True)
+        self.metrics_namespace = None
+        self.model_paths = None
+
+      def override_metrics(self, metrics_namespace=''):
+        self.metrics_namespace = metrics_namespace
+        return True
+
+      def should_garbage_collect_on_timeout(self):
+        return False
+
+      def update_model_paths(self, model, model_paths=None):
+        self.model_paths = model_paths
+
+    wrappers = {
+        'maybe_keyed': base.MaybeKeyedModelHandler,
+        'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
+        'postprocess': lambda mh: mh.with_postprocess_fn(lambda x: x),
+        'no_batching': lambda mh: mh.with_no_batching(),
+    }
+    for name, wrap in wrappers.items():
+      with self.subTest(wrapper=name):
+        inner = HookRecordingModelHandler()
+        wrapped = wrap(inner)
+        self.assertTrue(wrapped.override_metrics('test_namespace'))
+        self.assertEqual(inner.metrics_namespace, 'test_namespace')
+        self.assertFalse(wrapped.should_garbage_collect_on_timeout())
+        wrapped.update_model_paths(None, 'new/path')
+        self.assertEqual(inner.model_paths, 'new/path')
+
+  def test_wrapper_model_handlers_override_all_model_handler_methods(self):
+    # Wrappers must forward every ModelHandler hook to the handler they wrap,
+    # otherwise behavior of the wrapped handler is silently dropped.
+    not_forwarded = {
+        'with_preprocess_fn',
+        'with_postprocess_fn',
+        'with_no_batching',
+        'set_environment_vars',  # Wrappers copy _env_vars instead.
+    }
+    methods = [
+        name for name, _ in inspect.getmembers(
+            base.ModelHandler, inspect.isfunction)
+        if not name.startswith('_') and name not in not_forwarded
+    ]
+    for cls in (base.MaybeKeyedModelHandler,
+                base._PrebatchedModelHandler,
+                base._PreProcessingModelHandler,
+                base._PostProcessingModelHandler):
+      for name in methods:
+        with self.subTest(cls=cls.__name__, method=name):
+          self.assertIsNot(
+              getattr(cls, name),
+              getattr(base.ModelHandler, name),
+              f'{cls.__name__} must forward {name}() to the wrapped handler')
+
+  def test_keyed_model_handler_respects_inner_no_batching(self):
+    self.assertTrue(
+        base.KeyedModelHandler(
+            FakeModelHandler().with_no_batching()).should_skip_batching())
+    self.assertFalse(
+        base.KeyedModelHandler(FakeModelHandler()).should_skip_batching())
+
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      # Each element is a pre-batched list of keyed examples.
+      pcoll = pipeline | 'start' >> beam.Create(
+          [keyed_examples[:2], keyed_examples[2:]])
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler().with_no_batching()))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_keyed_many_mhs_ignores_inner_no_batching_with_warning(self):
+    mhs = [
+        base.KeyModelMapping(
+            [0],
+            FakeModelHandler(multi_process_shared=True).with_no_batching()),
+        base.KeyModelMapping([1], FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertLogs(level='WARNING') as logs:
+      mh = base.KeyedModelHandler(mhs)
+    self.assertFalse(mh.should_skip_batching())
+    self.assertTrue(any('skips batching' in line for line in logs.output))
+
+  def test_keyed_many_model_handlers_with_model_manager_raises(self):
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    keyed_mh = base.KeyedModelHandler(mhs)
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(keyed_mh, use_model_manager=True)
+
+    # Wrapped handlers should be rejected as well.
+    with self.assertRaisesRegex(ValueError, r'use_model_manager=True'):
+      base.RunInference(
+          keyed_mh.with_preprocess_fn(lambda x: x).with_no_batching(),
+          use_model_manager=True)
+
+    # Without the model manager, or with a single keyed model, it is allowed.
+    base.RunInference(keyed_mh)
+    base.RunInference(
+        base.KeyedModelHandler(FakeModelHandler()), use_model_manager=True)
 
   def test_keyed_model_handler_get_num_bytes(self):
     mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
@@ -1202,6 +1498,41 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected))
 
+  def _count_update_model_calls(self):
+    """Returns per-DoFn-instance update_model() call counts and a patcher.
+
+    The counts are only collected when the pipeline runs in this process,
+    e.g. on FnApiRunner.
+    """
+    calls: dict[str, int] = {}
+    original_update_model = base._RunInferenceDoFn.update_model
+
+    def counting_update_model(dofn, *args, **kwargs):
+      instance_id = dofn.__dict__.setdefault(
+          '_test_instance_id', uuid.uuid4().hex)
+      calls[instance_id] = calls.get(instance_id, 0) + 1
+      return original_update_model(dofn, *args, **kwargs)
+
+    return calls, unittest.mock.patch.object(
+        base._RunInferenceDoFn, 'update_model', counting_update_model)
+
+  def test_run_inference_empty_side_input_loads_model_once(self):
+    examples = list(range(10))
+    update_model_calls, count_calls = self._count_update_model_calls()
+    with count_calls, TestPipeline('FnApiRunner') as pipeline:
+      side_pcoll = pipeline | 'side' >> beam.Create([])
+      result_pcoll = (
+          pipeline
+          | beam.Create(examples)
+          | base.RunInference(
+              FakeModelHandler(min_batch_size=1, max_batch_size=1),
+              model_metadata_pcoll=side_pcoll))
+      assert_that(result_pcoll, equal_to([e + 1 for e in examples]))
+
+    # The model is loaded once per DoFn instance, not once per batch.
+    self.assertTrue(update_model_calls)
+    self.assertEqual({1}, set(update_model_calls.values()))
+
   def test_run_inference_side_input_in_batch(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
@@ -1484,6 +1815,58 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected_result))
 
+  def test_run_inference_side_input_per_key_models_used_from_first_batch(self):
+    model_handler = SingleElementBatchesKeyedModelHandler([
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandlerWithPath('original/key1')),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandlerWithPath('original/key2')),
+    ])
+    key_model_paths = [
+        base.KeyModelPathMapping(keys=['key1'], update_path='updated/key1'),
+        base.KeyModelPathMapping(keys=['key2'], update_path='updated/key2'),
+    ]
+    examples = [('key1', 1), ('key2', 2), ('key1', 3), ('key2', 4)]
+    update_model_calls, count_calls = self._count_update_model_calls()
+    with count_calls, TestPipeline('FnApiRunner') as pipeline:
+      side_input = pipeline | 'SideInput' >> beam.Create([key_model_paths])
+      result_pcoll = (
+          pipeline
+          | 'Examples' >> beam.Create(examples)
+          | base.RunInference(model_handler, model_metadata_pcoll=side_input))
+      # Every example, including the ones in the first batch, is served by
+      # the model loaded from the path given in the side input.
+      assert_that(
+          result_pcoll,
+          equal_to([(key, 'updated/' + key) for key, _ in examples]))
+
+    # The unchanged mapping is applied once per DoFn instance, not per batch.
+    self.assertTrue(update_model_calls)
+    self.assertEqual({1}, set(update_model_calls.values()))
+
+  def test_side_input_model_reloaded_after_invalidation(self):
+    dofn = base._RunInferenceDoFn(
+        FakeModelHandler(multi_process_shared=True),
+        FakeClock(),
+        metrics_namespace=None,
+        load_model_at_runtime=True,
+        model_tag='test_model_' + uuid.uuid4().hex)
+    dofn.setup()
+    model_id = 'side_input_model_' + uuid.uuid4().hex
+    side_input = base.ModelMetadata(model_id=model_id, model_name='model')
+    self.assertEqual([2], dofn.process([1], None, side_input))
+    self.assertEqual(model_id, dofn._cur_tag)
+
+    # Simulate an inference timeout: the model is marked invalid and, since
+    # its grace period is 0s here, deleted in finish_bundle().
+    dofn._model_metadata.try_mark_current_model_invalid(0)
+    dofn.finish_bundle()
+
+    # The same side input value reloads the model under a new tag instead of
+    # serving the deleted one.
+    self.assertEqual([3], dofn.process([2], None, side_input))
+    self.assertEqual(f'{model_id}_reload_1', dofn._cur_tag)
+
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
@@ -1740,6 +2123,41 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
+  def test_model_handler_manager_increments_once_per_process(self):
+    mhs = {
+        'key1': FakeModelHandler(state=1),
+        'key2': FakeModelHandler(state=2),
+        'key3': FakeModelHandler(state=3)
+    }
+    mm = base._ModelHandlerManager(mh_map=mhs)
+    mm.increment_max_models(1, process_id=1)
+    mm.increment_max_models(1, process_id=1)
+    mm.load('key1')
+    mm.load('key2')
+    mm.load('key3')
+    self.assertEqual(['key3'], list(mm._tag_map.keys()))
+
+    mm.increment_max_models(1, process_id=2)
+    mm.load('key1')
+    self.assertEqual(['key3', 'key1'], list(mm._tag_map.keys()))
+
+  def test_keyed_model_handler_max_models_hint_with_handler_copies(self):
+    mhs = [
+        base.KeyModelMapping([k],
+                             FakeModelHandler(
+                                 state=i, multi_process_shared=True))
+        for i, k in enumerate(['a', 'b', 'c'])
+    ]
+    keyed_mh = base.KeyedModelHandler(mhs, max_models_per_worker_hint=1)
+    mm = keyed_mh.load_model()
+    # Each DoFn instance in a process deserializes its own copy of the model
+    # handler, but they all share the same _ModelHandlerManager.
+    for _ in range(5):
+      mh_copy = pickle.loads(pickle.dumps(keyed_mh))
+      mh_copy.override_metrics('test_namespace')
+      list(mh_copy.run_inference([('a', 1), ('b', 2), ('c', 3)], mm))
+    self.assertEqual(1, len(mm._tag_map))
+
   def test_run_inference_loads_different_models(self):
     mh1 = FakeModelHandler(incrementing=True, min_batch_size=3)
     with TestPipeline() as pipeline:
@@ -1801,6 +2219,25 @@ class RunInferenceBaseTest(unittest.TestCase):
         FakeModelHandler(), watch_model_pattern='fake/path/*')
     assert side_input_str in str(result_pcoll.producer.side_inputs[0])
 
+  def test_run_inference_only_attaches_model_identifier_to_inference_step(self):
+    pipeline = beam.Pipeline()
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    file_pattern_side_input = (
+        pipeline
+        | 'WatchFilePattern' >> WatchFilePattern(file_pattern='fake/path/*'))
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(),
+        model_metadata_pcoll=file_pattern_side_input,
+        model_identifier='my_custom_model_id')
+    proto = pipeline.to_runner_api()
+    transforms_with_model_id = [
+        t.unique_name for t in proto.components.transforms.values()
+        if t.annotations.get('model_identifier') == b'my_custom_model_id'
+    ]
+    self.assertEqual(
+        transforms_with_model_id, ['RunInference/BeamML_RunInference'])
+
   def test_model_status_provides_valid_tags(self):
     ms = base._ModelStatus(False)
 
@@ -1836,6 +2273,35 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     self.assertTrue(ms.is_valid_tag('tag1_reload_2'))
     self.assertTrue(ms.is_valid_tag('tag2_reload_2'))
+
+  def test_load_model_status_returns_same_status_per_tag(self):
+    tag = 'tag1' + uuid.uuid4().hex
+    status = base.load_model_status(tag, False)
+    self.assertIs(status, base.load_model_status(tag, False))
+    self.assertIsNot(status, base.load_model_status(tag + '_other', False))
+
+    self.assertTrue(status.is_valid_tag('model'))
+    base.load_model_status(tag, False).try_mark_current_model_invalid(0)
+    self.assertFalse(base.load_model_status(tag, False).is_valid_tag('model'))
+
+  def test_new_dofn_instances_reuse_previously_loaded_models(self):
+    # Runners may recreate DoFn instances, e.g. when the SDK
+    # harness evicts an idle bundle processor.
+    model_tag = 'tag2' + uuid.uuid4().hex
+    handler = LoadCountingModelHandler(model_tag)
+    dofn = base._RunInferenceDoFn(
+        handler, clock=FakeClock(), metrics_namespace=None, model_tag=model_tag)
+    serialized_dofn = pickle.dumps(dofn)
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+    del dofn_instance
+    gc.collect()
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+
+    self.assertEqual(1, _LOAD_COUNTS[model_tag])
 
   def test_model_status_provides_valid_garbage_collection(self):
     ms = base._ModelStatus(True)
@@ -2199,24 +2665,28 @@ class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
 class ModelHandlerBatchingArgsTest(unittest.TestCase):
   """Tests for ModelHandler.__init__ batching parameters."""
   def test_batch_elements_kwargs_all_args(self):
-    """All batching args passed to __init__ are in batch_elements_kwargs."""
-    def size_fn(x):
-      return 10
-
+    """All non-weight batching args are passed to batch_elements_kwargs."""
     handler = FakeModelHandlerForBatching(
-        min_batch_size=5,
-        max_batch_size=20,
-        max_batch_duration_secs=30,
-        max_batch_weight=100,
-        element_size_fn=size_fn)
+        min_batch_size=5, max_batch_size=20, max_batch_duration_secs=30)
 
     kwargs = handler.batch_elements_kwargs()
 
     self.assertEqual(kwargs['min_batch_size'], 5)
     self.assertEqual(kwargs['max_batch_size'], 20)
     self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+
+  def test_batch_elements_kwargs_weight_args(self):
+    """Weight-based batching args are passed through to kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        max_batch_weight=100, element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
     self.assertEqual(kwargs['max_batch_weight'], 100)
-    self.assertIn('element_size_fn', kwargs)
+    self.assertIs(kwargs['element_size_fn'], size_fn)
     self.assertEqual(kwargs['element_size_fn'](1), 10)
 
   def test_batch_elements_kwargs_partial_args(self):
@@ -2296,16 +2766,28 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertNotIn('bucket_boundaries', kwargs)
 
   def test_batch_bucket_boundaries_without_batch_length_fn(self):
-    """Passing batch_bucket_boundaries without batch_length_fn should fail in
-    BatchElements.
+    with self.assertRaisesRegex(
+        ValueError, 'batch_bucket_boundaries requires batch_length_fn'):
+      FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
 
-    Note: ModelHandler.__init__ doesn't validate this; the error is raised
-    by BatchElements when batch_elements_kwargs are used."""
-    handler = FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
-    kwargs = handler.batch_elements_kwargs()
-    # The kwargs are stored, but BatchElements will reject them
-    self.assertEqual(kwargs['bucket_boundaries'], [10, 20])
-    self.assertNotIn('length_fn', kwargs)
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError,
+                                'max_batch_weight requires element_size_fn'):
+      FakeModelHandlerForBatching(max_batch_weight=10)
+
+  def test_max_batch_weight_rejects_length_based_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10, element_size_fn=len, batch_length_fn=len)
+
+  def test_max_batch_weight_rejects_bucket_boundaries(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10,
+          element_size_fn=len,
+          batch_bucket_boundaries=[10, 20])
 
   def test_batching_kwargs_none_values_omitted(self):
     """None values for batch_length_fn and batch_bucket_boundaries are not in
@@ -2348,6 +2830,144 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
       assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
 
 
+class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):
+  """Predicts the lengths of the examples in the batch of each example."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    lengths = tuple(len(example) for example in batch)
+    return [lengths] * len(batch)
+
+
+class NonEmptyBatchLengthsModelHandler(BatchLengthsModelHandler):
+  """Fails on an empty batch, which RunInference should never produce."""
+  def run_inference(self, batch, model, inference_args=None):
+    if not batch:
+      raise ValueError('run_inference received an empty batch')
+    return super().run_inference(batch, model, inference_args)
+
+
+class RunInferenceWeightedBatchingTest(unittest.TestCase):
+  """End-to-end tests for max_batch_weight and element_size_fn."""
+  def _handler(self, **kwargs):
+    # At most 2 examples of length 4 fit within max_batch_weight.
+    return BatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len,
+        **kwargs)
+
+  def test_max_batch_weight(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6, reshuffle=False)
+          | base.RunInference(self._handler()))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_max_batch_weight_with_max_batch_duration_secs(self):
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['aaaa'] * 6)
+          | base.RunInference(self._handler(max_batch_duration_secs=60)))
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_keyed_model_handler_sizes_examples(self):
+    # element_size_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create([(i, 'aaaa') for i in range(6)], reshuffle=False)
+          | base.RunInference(handler)
+          | beam.Values())
+      assert_that(results, equal_to([(4, 4)] * 6))
+
+  def test_maybe_keyed_model_handler_sizes_examples(self):
+    handler = base.MaybeKeyedModelHandler(self._handler())
+    with TestPipeline('FnApiRunner') as p:
+      keyed = (
+          p
+          | 'CreateKeyed' >> beam.Create([(i, 'aaaa') for i in range(6)],
+                                         reshuffle=False)
+          | 'RunInferenceKeyed' >> base.RunInference(handler)
+          | beam.Values())
+      assert_that(keyed, equal_to([(4, 4)] * 6), label='CheckKeyed')
+      unkeyed = (
+          p
+          | 'CreateUnkeyed' >> beam.Create(['aaaa'] * 6, reshuffle=False)
+          | 'RunInferenceUnkeyed' >> base.RunInference(handler))
+      assert_that(unkeyed, equal_to([(4, 4)] * 6), label='CheckUnkeyed')
+
+  def test_keyed_model_handler_buckets_examples(self):
+    # batch_length_fn applies to examples, not to (key, example) pairs.
+    handler = base.KeyedModelHandler(
+        PaddingReportingStringModelHandler(
+            min_batch_size=2,
+            max_batch_size=2,
+            max_batch_duration_secs=60,
+            batch_length_fn=len,
+            batch_bucket_boundaries=[5]))
+    examples = [('k1', 'a'), ('k2', 'cccccc'), ('k3', 'bb'), ('k4', 'ddddddd')]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([('k1', 'a:2'), ('k2', 'cccccc:7'), ('k3', 'bb:2'),
+                    ('k4', 'ddddddd:7')]))
+
+  def test_keyed_batch_elements_kwargs(self):
+    unkeyed = FakeModelHandlerForBatching(
+        min_batch_size=2, element_size_fn=len, batch_length_fn=len)
+    keyed_kwargs = base.KeyedModelHandler(unkeyed).batch_elements_kwargs()
+    self.assertEqual(keyed_kwargs['min_batch_size'], 2)
+    self.assertEqual(keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(keyed_kwargs['length_fn'](('key', 'abc')), 3)
+    maybe_keyed_kwargs = base.MaybeKeyedModelHandler(
+        unkeyed).batch_elements_kwargs()
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn'](('key', 'abc')), 3)
+    self.assertEqual(maybe_keyed_kwargs['element_size_fn']('abc'), 3)
+    # The kwargs of the unkeyed ModelHandler are unchanged.
+    self.assertIs(unkeyed.batch_elements_kwargs()['element_size_fn'], len)
+
+  def test_oversized_example_is_batched_alone(self):
+    # An example heavier than max_batch_weight reaches run_inference in a
+    # batch by itself, and the model never receives an empty batch. The
+    # oversized example is not first, so that the estimator does not replay a
+    # batch size of 1 for the batch after it.
+    handler = NonEmptyBatchLengthsModelHandler(
+        min_batch_size=3,
+        max_batch_size=3,
+        max_batch_weight=10,
+        element_size_fn=len)
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(['a', 'a', 'a' * 20, 'a', 'a'], reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(results, equal_to([(1, 1)] * 4 + [(20, )]))
+
+  def test_pipeline_construction_with_max_batch_weight(self):
+    # Regression test for https://github.com/apache/beam/issues/40644:
+    # RunInference.expand raised a TypeError because BatchElements did not
+    # accept max_batch_weight, before any model was loaded.
+    unkeyed_examples = ['a', 'bb']
+    keyed_examples = [('k1', 'a'), ('k2', 'bb')]
+    for handler, examples in (
+        (self._handler(), unkeyed_examples),
+        (self._handler(max_batch_duration_secs=60), unkeyed_examples),
+        (base.KeyedModelHandler(self._handler()), keyed_examples),
+        (base.MaybeKeyedModelHandler(self._handler()), unkeyed_examples)):
+      p = beam.Pipeline()
+      _ = p | beam.Create(examples) | base.RunInference(handler)
+
+
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def load_model(self):
     return FakeModel()
@@ -2361,6 +2981,24 @@ class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       yield model.predict(example)
 
 
+class IncrementingFakeModelHandler(base.ModelHandler[int,
+                                                     int,
+                                                     FakeIncrementingModel]):
+  def load_model(self):
+    return FakeIncrementingModel()
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeIncrementingModel,
+      inference_args=None) -> Iterable[int]:
+    for _ in batch:
+      yield model.predict(0)
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 2, 'max_batch_size': 2}
+
+
 def try_import_model_manager():
   try:
     # pylint: disable=unused-import
@@ -2370,9 +3008,15 @@ def try_import_model_manager():
     return False
 
 
+@pytest.mark.no_xdist
 class ModelManagerTest(unittest.TestCase):
   """Tests for RunInference with Model Manager integration."""
   def tearDown(self):
+    if multi_process_shared._process_level_singleton_manager.has_singleton(
+        'model_manager'):
+      multi_process_shared.MultiProcessShared(
+          lambda: None, tag='model_manager',
+          always_proxy=True).acquire().force_reset()
     for p in multiprocessing.active_children():
       p.terminate()
       p.join()
@@ -2431,6 +3075,82 @@ class ModelManagerTest(unittest.TestCase):
         actual = pcoll | base.RunInference(
             OOMFakeModelHandler(), use_model_manager=True)
         assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_shared_model_wrapper_all_models_with_model_manager(self):
+    from apache_beam.ml.inference.model_manager import ModelManager
+    mm = ModelManager()
+    try:
+      tag = 'test_tag'
+      instance = mm.acquire_model(tag, lambda: 'fake_model_instance')
+      mm.release_model(tag, instance)
+      wrapper = base._SharedModelWrapper(mm, tag, lambda: 'fake_model_instance')
+      self.assertEqual(wrapper.all_models(), ['fake_model_instance'])
+      wrapper.force_reset()
+      self.assertEqual(wrapper.all_models(), [])
+    finally:
+      mm.shutdown()
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_with_model_manager_and_model_metadata_pcoll_reuses_model(
+      self):
+    with TestPipeline('FnApiRunner') as pipeline:
+      model_metadata = pipeline | 'ModelMetadata' >> beam.Create(
+          [base.ModelMetadata(model_id='model_v2', model_name='v2')])
+      actual = (
+          pipeline
+          | 'start' >> beam.Create([0, 0, 0, 0])
+          | base.RunInference(
+              IncrementingFakeModelHandler(),
+              use_model_manager=True,
+              model_metadata_pcoll=model_metadata))
+      # Since the model is reused across the 2 batches (4 elements total),
+      # FakeIncrementingModel increments from 1 to 4 instead of resetting to 1
+      # on the second batch.
+      assert_that(actual, equal_to([1, 2, 3, 4]), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_dofn_model_update_acquires_and_releases_matching_tag(
+      self):
+    dofn = base._RunInferenceDoFn(
+        model_handler=IncrementingFakeModelHandler(),
+        clock=FakeClock(),
+        metrics_namespace='test',
+        load_model_at_runtime=False,
+        model_tag='initial_tag',
+        use_model_manager=True)
+    dofn.setup()
+    try:
+      # 1. Before any update, batches use 'initial_tag' and reuse the same model
+      self.assertEqual(dofn.process([0, 0], None, None), [1, 2])
+      self.assertEqual(dofn.process([0, 0], None, None), [3, 4])
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for initial_tag')
+
+      # 2. Update to 'model_v1' via side input metadata
+      meta_v1 = base.ModelMetadata(model_id='model_v1', model_name='v1')
+      self.assertEqual(dofn.process([0, 0], None, meta_v1), [1, 2])
+      # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
+      self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
+      self.assertEqual(dofn._cur_tag, 'model_v1')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
+
+      # 3. Update to 'model_v2' via side input metadata
+      meta_v2 = base.ModelMetadata(model_id='model_v2', model_name='v2')
+      self.assertEqual(dofn.process([0, 0], None, meta_v2), [1, 2])
+      # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
+      self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
+      self.assertEqual(dofn._cur_tag, 'model_v2')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
+      self.assertEqual(
+          len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
+    finally:
+      dofn._model.force_reset()
 
 
 if __name__ == '__main__':

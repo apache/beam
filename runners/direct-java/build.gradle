@@ -121,7 +121,6 @@ task needsRunnerTests(type: Test) {
   description = "Runs tests that require a runner to validate that pipelines/transforms work correctly"
 
   maxParallelForks 4
-  testLogging.showStandardStreams = true
 
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
@@ -147,10 +146,6 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesExternalService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-  }
-  testLogging {
-    outputs.upToDateWhen {false}
-    showStandardStreams = true
   }
 }
 
@@ -222,8 +217,6 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 task examplesIntegrationTest(type: Test) {
   description = "Runs examples tests on DirectRunner"
-
-  testLogging.showStandardStreams = true
 
   String[] pipelineOptions = [
           "--runner=DirectRunner",

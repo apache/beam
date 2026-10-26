@@ -87,9 +87,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = [
-    '3.10', '3.11', '3.12', '3.13', '3.14'
-]
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.11', '3.12', '3.13', '3.14']
 
 
 class Environment(object):
@@ -182,12 +180,7 @@ class Environment(object):
               name=package))
 
     pool = dataflow.WorkerPool(
-        kind='local' if self.local else 'harness',
-        packages=package_descriptors,
-        taskrunner_settings=dataflow.TaskRunnerSettings(
-            parallel_worker_settings=dataflow.WorkerSettings(
-                base_url=GoogleCloudOptions.DATAFLOW_ENDPOINT,
-                service_path=self.google_cloud_options.dataflow_endpoint)))
+        kind='local' if self.local else 'harness', packages=package_descriptors)
 
     pool.autoscaling_settings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
@@ -796,7 +789,8 @@ class DataflowApplicationClient(object):
     return None
 
   @staticmethod
-  def _update_container_image_for_dataflow(beam_container_image_url):
+  def _update_container_image_for_dataflow(
+      beam_container_image_url, pipeline_options=None):
     # By default Dataflow pipelines use containers hosted in Dataflow GCR
     # instead of Docker Hub.
     image_suffix = beam_container_image_url.rsplit('/', 1)[1]
@@ -806,7 +800,9 @@ class DataflowApplicationClient(object):
     if len(check_rc) == 2:
       image_suffix = image_suffix[:-2 - len(check_rc[1])]
 
-    return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
+    return (
+        get_container_base_repository_from_options(pipeline_options) + '/' +
+        image_suffix)
 
   @staticmethod
   def _apply_sdk_environment_overrides(
@@ -838,7 +834,7 @@ class DataflowApplicationClient(object):
           new_container_image != current_sdk_container_image):
         new_container_image = (
             DataflowApplicationClient._update_container_image_for_dataflow(
-                docker_payload.container_image))
+                docker_payload.container_image, pipeline_options))
 
       if not new_container_image:
         raise ValueError(
@@ -904,7 +900,7 @@ class DataflowApplicationClient(object):
           'HTTP status %d trying to create job'
           ' at dataflow service endpoint %s',
           e.code,
-          self.google_cloud_options.dataflow_endpoint)
+          self._jobs_client.api_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
 
@@ -1207,6 +1203,26 @@ def _get_container_image_tag():
   return base_version
 
 
+def get_container_base_repository_from_options(pipeline_options):
+  """For internal use only; no backwards-compatibility guarantees.
+
+    Args:
+      pipeline_options (PipelineOptions): A container for pipeline options.
+        May be None, in which case the default repository is returned.
+
+    Returns:
+      str: Base repository of the default Dataflow container images, without
+        a trailing slash.
+  """
+  base_repository = None
+  if pipeline_options is not None:
+    base_repository = pipeline_options.view_as(
+        WorkerOptions).dataflow_container_base_repository
+  if base_repository:
+    base_repository = base_repository.strip().rstrip('/')
+  return base_repository or names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+
+
 def get_container_image_from_options(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -1222,7 +1238,7 @@ def get_container_image_from_options(pipeline_options):
 
   # Dataflow Legacy and Portable Runner exist in different repositories.
   # Set to legacy format, override if Dataflow Portable Runner
-  container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
+  container_repo = get_container_base_repository_from_options(pipeline_options)
   image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
       repository=container_repo,
       major=sys.version_info[0],

@@ -52,10 +52,7 @@ public class TestChangelogTasks {
   private static List<SerializableDeleteFile> serializableDeletes(
       Table table, List<DeleteFile> deletes) {
     return deletes.stream()
-        .map(
-            delete ->
-                SerializableDeleteFile.from(
-                    delete, table.spec().partitionToPath(delete.partition()), true))
+        .map(delete -> SerializableDeleteFile.from(delete, table.specs(), true))
         .collect(Collectors.toList());
   }
 }

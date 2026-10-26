@@ -72,7 +72,7 @@ import scala.collection.JavaConverters;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SparkStreamingPortablePipelineTranslator
+public final class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
