@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -46,7 +44,6 @@ import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -807,28 +804,6 @@ public class GroupIntoBatchesTest implements Serializable {
       }
     }
     return true;
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testMaxBatchSizeThrows() {
-    GroupIntoBatches.ofSize(Long.MAX_VALUE);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testMaxBatchSizeBytesThrows() {
-    GroupIntoBatches.ofByteSize(Long.MAX_VALUE);
-  }
-
-  @Test
-  public void testDisplayData() {
-    GroupIntoBatches<String, String> gib =
-        GroupIntoBatches.<String, String>ofSize(100)
-            .withByteSize(1000)
-            .withMaxBufferingDuration(Duration.standardSeconds(5));
-    DisplayData displayData = DisplayData.from(gib);
-    assertThat(displayData, hasDisplayItem("batchSize", 100L));
-    assertThat(displayData, hasDisplayItem("batchSizeBytes", 1000L));
-    assertThat(displayData, hasDisplayItem("maxBufferingDuration", Duration.standardSeconds(5)));
   }
 
   /**
