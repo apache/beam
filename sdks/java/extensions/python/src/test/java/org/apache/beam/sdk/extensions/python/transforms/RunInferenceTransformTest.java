@@ -39,37 +39,19 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the Java RunInference wrapper against the Python test expansion service.
- *
- * <p>The test expansion service attaches a small sklearn model to the Python environment as a
- * staged file named {@code sklearn_model} (see
- * sdks/python/apache_beam/runners/portability/expansion_service_test.py). Where the Python SDK
- * harness puts staged files is only known on the worker, so the tests pass the staged file name and
- * resolve the full path when the model is loaded.
- */
 @RunWith(JUnit4.class)
 public class RunInferenceTransformTest extends BaseExternalTest {
-  private static final String STAGED_MODEL_NAME = "sklearn_model";
-
-  // A SklearnModelHandlerNumpy whose model_uri is the name of a file staged with the Python
-  // environment. load_model() runs on the worker, after the SDK harness has set
-  // SEMI_PERSISTENT_DIRECTORY.
+  // The test expansion service stages the test model with the Python environment as
+  // "sklearn_model" (sdks/python/apache_beam/runners/portability/expansion_service_test.py).
+  // Staged files are only reachable on the worker, so the path is resolved in load_model().
   private static final String STAGED_MODEL_HANDLER =
       "import os\n"
           + "from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy\n"
           + "class StagedSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):\n"
-          + "  def __init__(self, model_uri, *args, **kwargs):\n"
-          + "    super().__init__(model_uri, *args, **kwargs)\n"
-          + "    self._staged_name = model_uri\n"
           + "  def load_model(self):\n"
-          + "    staged_dir = os.environ.get('SEMI_PERSISTENT_DIRECTORY')\n"
-          + "    if not staged_dir:\n"
-          + "      raise RuntimeError(\n"
-          + "          'SEMI_PERSISTENT_DIRECTORY is not set, cannot locate staged file '\n"
-          + "          + self._staged_name)\n"
-          + "    self.update_model_path(\n"
-          + "        os.path.join(staged_dir, 'staged', self._staged_name))\n"
+          + "    self.update_model_path(os.path.join(\n"
+          + "        os.environ['SEMI_PERSISTENT_DIRECTORY'], 'staged',\n"
+          + "        os.path.basename(self._model_uri)))\n"
           + "    return super().load_model()\n";
 
   @Test
@@ -87,7 +69,7 @@ public class RunInferenceTransformTest extends BaseExternalTest {
             .setCoder(IterableCoder.of(VarLongCoder.of()))
             .apply(
                 RunInference.of(STAGED_MODEL_HANDLER, schema)
-                    .withKwarg("model_uri", STAGED_MODEL_NAME)
+                    .withKwarg("model_uri", "sklearn_model")
                     .withExpansionService(expansionAddr));
     PAssert.that(col).containsInAnyOrder(row0, row1);
   }
@@ -125,7 +107,7 @@ public class RunInferenceTransformTest extends BaseExternalTest {
             .setCoder(KvCoder.of(VarLongCoder.of(), IterableCoder.of(VarLongCoder.of())))
             .apply(
                 RunInference.ofKVs(getModelLoaderScriptWithKVs(), schema, VarLongCoder.of())
-                    .withKwarg("model_uri", STAGED_MODEL_NAME)
+                    .withKwarg("model_uri", "sklearn_model")
                     .withExpansionService(expansionAddr))
             .apply(Values.<Row>create());
 

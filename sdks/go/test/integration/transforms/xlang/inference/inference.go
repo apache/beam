@@ -25,31 +25,19 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python"
 )
 
-// stagedModelName is the name under which the test expansion service
-// (sdks/python/apache_beam/runners/portability/expansion_service_test.py)
-// stages the test model with the Python environment.
-const stagedModelName = "sklearn_model"
-
-// stagedSklearnModelHandler is a SklearnModelHandlerNumpy whose model_uri is
-// the name of a file staged with the Python environment. Where the Python SDK
-// harness puts staged files is only known on the worker, so the full path is
-// resolved in load_model(), after the harness has set SEMI_PERSISTENT_DIRECTORY.
+// stagedSklearnModelHandler loads the model the test expansion service stages
+// with the Python environment as "sklearn_model"
+// (sdks/python/apache_beam/runners/portability/expansion_service_test.py).
+// Staged files are only reachable on the worker, so the path is resolved in
+// load_model().
 const stagedSklearnModelHandler = `import os
 from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
 
 class StagedSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
-  def __init__(self, model_uri, *args, **kwargs):
-    super().__init__(model_uri, *args, **kwargs)
-    self._staged_name = model_uri
-
   def load_model(self):
-    staged_dir = os.environ.get('SEMI_PERSISTENT_DIRECTORY')
-    if not staged_dir:
-      raise RuntimeError(
-          'SEMI_PERSISTENT_DIRECTORY is not set, cannot locate staged file '
-          + self._staged_name)
-    self.update_model_path(
-        os.path.join(staged_dir, 'staged', self._staged_name))
+    self.update_model_path(os.path.join(
+        os.environ['SEMI_PERSISTENT_DIRECTORY'], 'staged',
+        os.path.basename(self._model_uri)))
     return super().load_model()
 `
 
@@ -68,7 +56,7 @@ func SklearnInference(expansionAddr string) *beam.Pipeline {
 			Inference: 1,
 		},
 	}
-	model := inference.SklearnModel(stagedModelName)
+	model := inference.SklearnModel("sklearn_model")
 	model.ModelHandlerProvider = python.CallableSource(stagedSklearnModelHandler)
 	outCol := model.RunInference(s, input, inference.WithExpansionAddr(expansionAddr))
 	passert.Equals(s, outCol, output[0], output[1])
