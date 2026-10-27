@@ -182,6 +182,22 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater.stopReportingProgress();
   }
 
+  @Test
+  public void workProgressAbortBeforeWorkerIsSetAbortsItOnceSet() throws Exception {
+    // the batch worker starts reporting while the executor is still being created
+    progressUpdater.setWorker(null);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceAbort());
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+    Mockito.verify(worker, Mockito.never()).abort();
+
+    progressUpdater.setWorker(worker);
+
+    Mockito.verify(worker, Mockito.times(1)).abort();
+    progressUpdater.stopReportingProgress();
+  }
+
   /** Verifies that the update after a split is requested acknowledeges it. */
   @Test
   public void workProgressSendsSplitResults() throws Exception {

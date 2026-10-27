@@ -22,6 +22,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Function;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -233,6 +234,9 @@ public class BatchDataflowWorker implements Closeable {
     LOG.debug("Executing: {}", workItem);
 
     DataflowWorkExecutor worker = null;
+    DataflowWorkProgressUpdater progressUpdater = null;
+    // once execution starts, executeStartedWork owns stopping the progress updater
+    boolean executionStarted = false;
     try {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
@@ -263,6 +267,12 @@ public class BatchDataflowWorker implements Closeable {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
 
+        // creating the executor runs every DoFn.setup, which can take longer than the 3 minute
+        // lease. Reporting starts first so the lease keeps being extended; without this the service
+        // fails the work item, and after 4 failures of the same item it fails the whole job
+        progressUpdater =
+            new DataflowWorkProgressUpdater(workItemStatusClient, workItem, null, options);
+        progressUpdater.startReportingProgress();
         worker =
             mapTaskExecutorFactory.create(
                 network,
@@ -286,14 +296,30 @@ public class BatchDataflowWorker implements Closeable {
       }
       workItemStatusClient.setWorker(worker, executionContext);
 
-      DataflowWorkProgressUpdater progressUpdater =
-          new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
-      executeWork(worker, progressUpdater);
+      if (Objects.isNull(progressUpdater)) {
+        progressUpdater =
+            new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
+        executionStarted = true;
+        executeWork(worker, progressUpdater);
+      } else {
+        progressUpdater.setWorker(worker);
+        executionStarted = true;
+        executeStartedWork(worker, progressUpdater);
+      }
       workItemStatusClient.reportSuccess();
       return true;
     } catch (OutOfMemoryError oom) {
       throw oom;
     } catch (Throwable e) {
+      // executor creation failed while progress was already being reported; stop it first so no
+      // lease extension is sent after the error report
+      if (Objects.nonNull(progressUpdater) && !executionStarted) {
+        try {
+          progressUpdater.stopReportingProgress();
+        } catch (Exception stopExn) {
+          e.addSuppressed(stopExn);
+        }
+      }
       workItemStatusClient.reportError(e);
       return false;
     } finally {
@@ -314,6 +340,11 @@ public class BatchDataflowWorker implements Closeable {
   void executeWork(DataflowWorkExecutor worker, DataflowWorkProgressUpdater progressUpdater)
       throws Exception {
     progressUpdater.startReportingProgress();
+    executeStartedWork(worker, progressUpdater);
+  }
+
+  private void executeStartedWork(
+      DataflowWorkExecutor worker, DataflowWorkProgressUpdater progressUpdater) throws Exception {
     // Blocks while executing the work.
     try {
       worker.execute();

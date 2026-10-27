@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -58,7 +59,13 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private HotKeyLogger hotKeyLogger;
 
-  private boolean wasAskedToAbort = false;
+  private volatile boolean wasAskedToAbort = false;
+
+  /**
+   * Guards the hand-off between an abort that arrives while the executor is still being created and
+   * {@link #setWorker}, so the abort reaches the executor whichever thread runs first.
+   */
+  private final Object abortLock = new Object();
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
@@ -94,6 +101,19 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   }
 
   @Override
+  public void setWorker(WorkExecutor worker) {
+    boolean abortRequested;
+    synchronized (abortLock) {
+      super.setWorker(worker);
+      abortRequested = wasAskedToAbort;
+    }
+    // a map task executor remembers the abort, so its read loop stops as soon as execute() starts
+    if (abortRequested) {
+      worker.abort();
+    }
+  }
+
+  @Override
   protected String workString() {
     return workItemStatusClient.uniqueWorkId();
   }
@@ -122,8 +142,15 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       if (result.getCompleteWorkStatus() != null
           && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
         LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
-        wasAskedToAbort = true;
-        worker.abort();
+        WorkExecutor currentWorker;
+        synchronized (abortLock) {
+          wasAskedToAbort = true;
+          currentWorker = worker;
+        }
+        // the executor may still be under construction, in which case setWorker aborts it
+        if (Objects.nonNull(currentWorker)) {
+          currentWorker.abort();
+        }
         return;
       }
 
@@ -154,7 +181,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
               leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
-      if (suggestedStopPoint != null) {
+      // there is nothing to split until the executor exists, the service asks again later
+      if (suggestedStopPoint != null && Objects.nonNull(worker)) {
         LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
         dynamicSplitResultToReport =
             worker.requestDynamicSplit(

@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -176,11 +177,14 @@ public class WorkItemStatusClient {
     return execute(status);
   }
 
-  /** Return the {@link WorkItemServiceState} resulting from sending a progress update. */
+  /**
+   * Return the {@link WorkItemServiceState} resulting from sending a progress update. Before {@link
+   * #setWorker} is called the update carries no progress, counters or metrics and only extends the
+   * lease.
+   */
   public synchronized @Nullable WorkItemServiceState reportUpdate(
       @Nullable DynamicSplitResult dynamicSplitResult, Duration requestedLeaseDuration)
       throws Exception {
-    checkState(worker != null, "setWorker should be called before reportUpdate");
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
     checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
     if (wasAskedToAbort) {
@@ -261,6 +265,11 @@ public class WorkItemStatusClient {
 
   @VisibleForTesting
   synchronized void populateProgress(WorkItemStatus status) throws Exception {
+    // updates sent while the executor is still being created only extend the lease
+    if (Objects.isNull(worker)) {
+      return;
+    }
+
     Progress progress = worker.getWorkerProgress();
     if (progress != null) {
       status.setReportedProgress(SourceTranslationUtils.readerProgressToCloudProgress(progress));
