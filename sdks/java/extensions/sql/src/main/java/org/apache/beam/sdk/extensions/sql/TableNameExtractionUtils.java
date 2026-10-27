@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.sdk.extensions.sql.impl.parser.TableClause;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlAsOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
@@ -44,6 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   ... FROM table1 JOIN (LEFT, INNER, OUTER etc) table2 JOIN table3 ...
  *   ... FROM table1 UNION (INTERSECT etc) SELECT ...
  * </pre>
+ *
+ * <p>A table with a {@code WITH} clause is extracted by its name alone.
  */
 public class TableNameExtractionUtils {
 
@@ -94,6 +97,9 @@ public class TableNameExtractionUtils {
   }
 
   private static List<TableName> extractFromIdentifier(SqlIdentifier identifier) {
-    return ImmutableList.of(TableName.create(identifier.names));
+    int last = identifier.names.size() - 1;
+    @Nullable TableClause clause = TableClause.decode(identifier.names.get(last));
+    SqlIdentifier name = clause == null ? identifier : identifier.setName(last, clause.baseName());
+    return ImmutableList.of(TableName.create(name.names));
   }
 }

@@ -140,6 +140,10 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
 
   @Override
   public void execute(CalcitePrepare.Context context) {
+    checkArgument(
+        TableClause.decode(name(name)) == null,
+        "Table name '%s' is reserved for WITH options.",
+        name(name));
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, name);
     if (pair.left.plus().getTable(pair.right) != null) {
       // Table exists.

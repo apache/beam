@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -55,4 +56,28 @@ public interface BeamSqlTable {
    * estimate the row count or rate it will return BeamTableStatistics.BOUNDED_UNKNOWN.
    */
   BeamTableStatistics getTableStatistics(PipelineOptions options);
+
+  /**
+   * Returns a new table for one reference in FROM with a {@code WITH} clause. The new table may
+   * differ in schema, boundedness and push-down support.
+   *
+   * <p>Must not mutate this table or its {@link Table}, and must be cheap with no catalog calls,
+   * because planning calls it several times per reference.
+   *
+   * @throws IllegalArgumentException for an unknown option key, naming it and the accepted keys
+   * @throws UnsupportedOperationException if this table does not support options
+   */
+  default BeamSqlTable forRead(Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support WITH options for reads", getClass().getSimpleName()));
+  }
+
+  /**
+   * Returns a new table for an INSERT target with a {@code WITH} clause. The contract of {@link
+   * #forRead} applies.
+   */
+  default BeamSqlTable forWrite(Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support WITH options for writes", getClass().getSimpleName()));
+  }
 }

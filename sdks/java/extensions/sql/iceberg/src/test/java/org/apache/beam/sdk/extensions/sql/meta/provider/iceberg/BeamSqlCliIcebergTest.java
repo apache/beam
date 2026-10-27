@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -38,6 +41,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Before;
@@ -232,5 +236,62 @@ public class BeamSqlCliIcebergTest {
     p3.run().waitUntilFinish();
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     assertEquals("my_namespace", catalogManager.currentCatalog().currentDatabase());
+  }
+
+  @Test
+  public void testInsertWithOptions() {
+    sqlEnv.executeDdl(createCatalog("my_catalog"));
+    sqlEnv.executeDdl("USE CATALOG my_catalog");
+    sqlEnv.executeDdl(
+        "CREATE EXTERNAL TABLE orders (id BIGINT NOT NULL, name VARCHAR) TYPE 'iceberg'");
+    // Merge-on-read applies each row as a change, given by the extra change type and sequence
+    // columns. A colon in an option must not reach the Hadoop catalog as a database name.
+    String applyChanges =
+        "INSERT INTO orders WITH ('mode' = 'merge-on-read', 'equality_columns' = ARRAY['id'],"
+            + " 'num_shards' = 2, 'snapshot_properties' = MAP['source', 'sql:test'],"
+            + " 'change_type_column' = 'op', 'sequence_number_column' = 'seq') VALUES ";
+    for (String changes :
+        new String[] {
+          "(1, 'a', 'INSERT', 1), (2, 'b', 'INSERT', 1)",
+          "(1, 'a', 'UPDATE_BEFORE', 2), (1, 'aa', 'UPDATE_AFTER', 2), (2, 'b', 'DELETE', 2)"
+        }) {
+      Pipeline p = Pipeline.create();
+      BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery(applyChanges + changes));
+      p.run().waitUntilFinish();
+    }
+
+    Pipeline p = Pipeline.create();
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery("SELECT * FROM orders"));
+    PAssert.that(output)
+        .containsInAnyOrder(Row.withSchema(output.getSchema()).addValues(1L, "aa").build());
+    p.run().waitUntilFinish();
+
+    String[][] invalidStatements = {
+      {"SELECT * FROM orders WITH ('mode' = 'append')", "does not support WITH options for reads"},
+      {
+        "INSERT INTO orders WITH ('partition_fields' = ARRAY['id']) SELECT * FROM orders",
+        "Option 'partition_fields' cannot be set in WITH: it applies only when the write creates"
+            + " the table"
+      },
+      {
+        "INSERT INTO orders WITH ('streaming' = TRUE) SELECT * FROM orders",
+        "Unknown option 'streaming' for an Iceberg write. Accepted options: ["
+      },
+      {
+        "INSERT INTO orders WITH ('num_shards' = 'two') SELECT * FROM orders",
+        "Option 'num_shards' must be of type INTEGER"
+      },
+      {
+        "INSERT INTO orders WITH ('mode' = 'merge-on-read', 'sequence_number_column' = 'name')"
+            + " SELECT * FROM orders",
+        "Merge-on-read control column 'name' collides with another column"
+      },
+    };
+    for (String[] invalid : invalidStatements) {
+      Exception e =
+          assertThrows(invalid[0], RuntimeException.class, () -> sqlEnv.parseQuery(invalid[0]));
+      assertThat(invalid[0], Throwables.getStackTraceAsString(e), containsString(invalid[1]));
+    }
   }
 }
