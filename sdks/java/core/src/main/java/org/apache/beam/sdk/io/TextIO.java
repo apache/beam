@@ -713,6 +713,9 @@ public class TextIO {
     /** Batch max buffering duration for input records. */
     abstract @Nullable Duration getBatchMaxBufferingDuration();
 
+    /** Byte threshold above which a streaming bundle is written directly to temporary files. */
+    abstract @Nullable Long getDirectWriteByteThreshold();
+
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
@@ -779,6 +782,9 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setBatchMaxBufferingDuration(
           @Nullable Duration batchMaxBufferingDuration);
+
+      abstract Builder<UserT, DestinationT> setDirectWriteByteThreshold(
+          @Nullable Long directWriteByteThreshold);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
@@ -924,6 +930,13 @@ public class TextIO {
     public TypedWrite<UserT, DestinationT> withBatchMaxBufferingDuration(
         @Nullable Duration batchMaxBufferingDuration) {
       return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
+    }
+
+    /** See {@link WriteFiles#withDirectWriteByteThreshold(long)}. */
+    public TypedWrite<UserT, DestinationT> withDirectWriteByteThreshold(long thresholdBytes) {
+      checkArgument(
+          thresholdBytes > 0, "thresholdBytes must be positive, but was: %s", thresholdBytes);
+      return toBuilder().setDirectWriteByteThreshold(thresholdBytes).build();
     }
 
     /** Set the base directory used to generate temporary files. */
@@ -1195,6 +1208,9 @@ public class TextIO {
       if (getBatchMaxBufferingDuration() != null) {
         write = write.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
       }
+      if (getDirectWriteByteThreshold() != null) {
+        write = write.withDirectWriteByteThreshold(getDirectWriteByteThreshold());
+      }
       return input.apply("WriteFiles", write);
     }
 
@@ -1386,6 +1402,11 @@ public class TextIO {
     /** See {@link TypedWrite#withBatchMaxBufferingDuration(Duration)}. */
     public Write withBatchMaxBufferingDuration(@Nullable Duration batchMaxBufferingDuration) {
       return new Write(inner.withBatchMaxBufferingDuration(batchMaxBufferingDuration));
+    }
+
+    /** See {@link TypedWrite#withDirectWriteByteThreshold(long)}. */
+    public Write withDirectWriteByteThreshold(long thresholdBytes) {
+      return new Write(inner.withDirectWriteByteThreshold(thresholdBytes));
     }
 
     /**
