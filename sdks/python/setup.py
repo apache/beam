@@ -183,10 +183,8 @@ xgboost_dependency = [
 ml_base_core = [
     'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
-    # onnx 1.12–1.13 cap protobuf in ways that trigger huge backtracking with
-    # Beam[gcp]+ml_test; pip can fall back to onnx 1.11 sdist which needs cmake.
-    # 1.14.1+ matches tf2onnx>=1.16 and ships manylinux wheels for py3.10.
     'onnx>=1.14.1,<2',
+    'onnxscript>=0.5.0,<1',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
