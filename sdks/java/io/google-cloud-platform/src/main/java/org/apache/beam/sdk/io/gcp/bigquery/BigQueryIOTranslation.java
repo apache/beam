@@ -483,6 +483,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("bad_record_error_handler")
             .addNullableByteArrayField("bad_record_router")
             .addNullableInt64Field("auto_schema_update_strict_timeout_ms")
+            .addNullableBooleanField("table_labels_enabled")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -643,6 +644,7 @@ public class BigQueryIOTranslation {
       fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
+      fieldValues.put("table_labels_enabled", transform.getTableLabelsEnabled());
       org.joda.time.Duration autoSchemaUpdateTimeout = transform.getAutoSchemaUpdateStrictTimeout();
       if (autoSchemaUpdateTimeout != null) {
         fieldValues.put(
@@ -937,6 +939,14 @@ public class BigQueryIOTranslation {
         Boolean autoSchemaUpdate = configRow.getBoolean("auto_schema_update");
         if (autoSchemaUpdate != null) {
           builder = builder.setAutoSchemaUpdate(autoSchemaUpdate);
+        }
+        Boolean tableLabelsEnabled = configRow.getBoolean("table_labels_enabled");
+        // rows written by SDKs without table labels have no value here, and the builder has no
+        // default for this required property, so building the transform would fail without it
+        if (tableLabelsEnabled != null) {
+          builder = builder.setTableLabelsEnabled(tableLabelsEnabled);
+        } else {
+          builder = builder.setTableLabelsEnabled(false);
         }
         Long autoSchemaUpdateStrictTimeoutMillis =
             configRow.getInt64("auto_schema_update_strict_timeout_ms");
