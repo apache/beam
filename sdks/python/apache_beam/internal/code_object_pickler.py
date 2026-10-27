@@ -446,8 +446,7 @@ def get_code_from_identifier(code_object_identifier: str):
       continue
   if obj is None:
     raise AttributeError(f'Module {parts[0]} not found in sys.modules')
-  obj = sys.modules[parts[0]]
-  for part in parts[start_index]:
+  for part in parts[start_index:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
       obj = _get_code_object_from_single_name_pattern(
           obj, name_result, code_object_identifier)
