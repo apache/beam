@@ -55,6 +55,20 @@ class PrefixBatchingTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       ChatPrefixKeyFn(prefix_char_len=0)
 
+  def test_chat_prefix_key_fn_rejects_unknown_message_schema(self):
+    """Unknown schemas must fail loudly instead of all sharing one key."""
+    key_fn = ChatPrefixKeyFn()
+    with self.assertRaisesRegex(TypeError, 'key_fn'):
+      key_fn([{'speaker': 'system', 'text': 'You are A'}])
+    with self.assertRaisesRegex(TypeError, 'key_fn'):
+      key_fn(['You are A'])
+    # A message with a None content (e.g. an assistant tool call) is still a
+    # valid chat message.
+    self.assertEqual(
+        key_fn([{
+            'role': 'assistant', 'content': None
+        }]), 'assistant:')
+
   def test_config_resolve_and_batching_kwargs(self):
     # Default: the handler's extractor is built with prefix_char_len.
     cfg = PrefixBatchingConfig(prefix_char_len=32, num_shards=4)

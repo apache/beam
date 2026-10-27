@@ -94,7 +94,10 @@ class ChatPrefixKeyFn:
   Keys a conversation by the role and leading ``prefix_char_len`` characters of
   its first (typically system) message, so conversations sharing the same
   system prompt are routed to the same worker and batched together. Messages
-  may be objects with ``role``/``content`` attributes or dicts with those keys.
+  may be objects with ``role``/``content`` attributes (e.g.
+  ``OpenAIChatMessage``) or dicts with those keys. Any other message schema
+  raises ``TypeError`` rather than silently collapsing every conversation onto
+  one key; pass ``PrefixBatchingConfig(key_fn=...)`` for custom schemas.
   """
   def __init__(self, prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN):
     if prefix_char_len <= 0:
@@ -109,11 +112,16 @@ class ChatPrefixKeyFn:
     if not element:
       return ''
     first_msg = element[0]
-    role = getattr(first_msg, 'role', None)
-    content = getattr(first_msg, 'content', None)
-    if role is None and isinstance(first_msg, dict):
-      role = first_msg.get('role', '')
-      content = first_msg.get('content', '')
+    if hasattr(first_msg, 'role') and hasattr(first_msg, 'content'):
+      role, content = first_msg.role, first_msg.content
+    elif (isinstance(first_msg, Mapping) and 'role' in first_msg and
+          'content' in first_msg):
+      role, content = first_msg['role'], first_msg['content']
+    else:
+      raise TypeError(
+          'Chat message has no role/content attributes or keys (got '
+          f'{type(first_msg).__name__}); pass '
+          'PrefixBatchingConfig(key_fn=...) to key a custom message schema.')
     content_str = str(content or '')
     return f'{role or ""}:{content_str[:self._prefix_char_len]}'
 
