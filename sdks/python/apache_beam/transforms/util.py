@@ -1292,6 +1292,11 @@ class WithBatchKey(DoFn):
     yield (key, element)
 
 
+# Buffering applied by BatchElements(key_fn=...) when max_batch_duration_secs is
+# unset, so incomplete per-key batches still flush in streaming pipelines.
+_DEFAULT_KEYED_MAX_BUFFERING_SECS = 1.0
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -1372,8 +1377,10 @@ class BatchElements(PTransform):
     key_fn: (optional) a callable mapping an element to a grouping key. When
         set, elements are keyed via ``WithBatchKey`` (without a per-worker UUID)
         and grouped across workers using ``GroupIntoBatches`` up to
-        ``max_batch_size`` (and ``max_batch_duration_secs`` if provided),
-        producing homogeneous batches per key (e.g., for LLM prefix caching).
+        ``max_batch_size``, producing homogeneous batches per key (e.g., for LLM
+        prefix caching). Incomplete batches are flushed after
+        ``max_batch_duration_secs``, or after 1 second when it is unset, so
+        low-traffic keys still make progress in streaming pipelines.
     num_shards: (optional) bounds hot-key fanout when ``key_fn`` is set: an
         ``int`` applied to every key, a ``Mapping[key, int]`` giving per-key
         shard counts for a known skewed distribution (unlisted keys get 1), or
@@ -1448,8 +1455,11 @@ class BatchElements(PTransform):
   def expand(self, pcoll):
     if self._key_fn is not None:
       element_type = pcoll.element_type
+      # GroupIntoBatches treats a buffering duration of 0 as "no limit", which
+      # in a streaming global window would hold an incomplete batch forever.
       buffering_secs = (
-          self._max_batch_dur if self._max_batch_dur is not None else 0)
+          self._max_batch_dur if self._max_batch_dur is not None else
+          _DEFAULT_KEYED_MAX_BUFFERING_SECS)
       return (
           pcoll
           | 'WithBatchKey' >> ParDo(

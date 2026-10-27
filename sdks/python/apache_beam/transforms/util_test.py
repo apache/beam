@@ -1365,6 +1365,25 @@ class BatchElementsTest(unittest.TestCase):
     util.BatchElements(key_fn=len, num_shards={'a': 2})
     util.BatchElements(key_fn=len, num_shards=lambda k: 2)
 
+  def test_batch_elements_key_fn_default_buffering(self):
+    """Keyed batching never runs GroupIntoBatches without a flush timer."""
+    def buffering_secs(**kwargs):
+      p = beam.Pipeline()
+      _ = p | beam.Create(['a']) | util.BatchElements(key_fn=len, **kwargs)
+      found = []
+
+      class Visitor(beam.pipeline.PipelineVisitor):
+        def enter_composite_transform(self, node):
+          if isinstance(node.transform, util.GroupIntoBatches):
+            found.append(node.transform.params.max_buffering_duration_secs)
+
+      p.visit(Visitor())
+      self.assertEqual(len(found), 1)
+      return found[0]
+
+    self.assertEqual(buffering_secs(), 1.0)
+    self.assertEqual(buffering_secs(max_batch_duration_secs=2.5), 2.5)
+
   def test_global_batching_dofn_single_vs_multiple_bundles(self):
     # This test directly verifies how bundling affects the batch sizes produced by
     # the internal _GlobalWindowsBatchingDoFn of BatchElements.
