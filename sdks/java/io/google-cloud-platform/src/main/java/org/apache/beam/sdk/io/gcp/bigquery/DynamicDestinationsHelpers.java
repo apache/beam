@@ -473,6 +473,32 @@ class DynamicDestinationsHelpers {
     return new MatchTableDynamicDestinations<>(inner, bqServices);
   }
 
+  static <T, DestinationT>
+      DynamicDestinations<T, DestinationT> cloneSourceSchemaDynamicDestinations(
+          DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+    return new CloneSourceSchemaDestinations<>(inner, bqServices);
+  }
+
+  /** Uses the clone source schema for temporary load tables when no schema was supplied. */
+  static class CloneSourceSchemaDestinations<T, DestinationT>
+      extends MatchTableDynamicDestinations<T, DestinationT> {
+    private CloneSourceSchemaDestinations(
+        DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+      super(inner, bqServices);
+    }
+
+    @Override
+    public @Nullable TableSchema getSchema(DestinationT destination) {
+      @Nullable TableSchema schema = inner.getSchema(destination);
+      return schema != null ? schema : getCloneSourceSchema(destination);
+    }
+
+    @Override
+    public TableDestination getTable(DestinationT destination) {
+      return inner.getTable(destination);
+    }
+  }
+
   static class MatchTableDynamicDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
     private final BigQueryServices bqServices;
@@ -540,6 +566,16 @@ class DynamicDestinationsHelpers {
       return updated;
     }
 
+    @Nullable TableSchema getCloneSourceSchema(DestinationT destination) {
+      @Nullable TableReference cloneSource = super.getCloneSource(destination);
+      if (cloneSource == null) {
+        return null;
+      }
+      TableReference destinationRef = super.getTable(destination).getTableReference();
+      @Nullable Table sourceTable = getBigQueryTable(cloneSource, destinationRef.getProjectId());
+      return sourceTable == null ? null : sourceTable.getSchema();
+    }
+
     /** Identical to {@link BackOffUtils#next} but without checked IOException. */
     private static boolean nextBackOff(Sleeper sleeper, BackOff backoff)
         throws InterruptedException {
@@ -584,19 +620,13 @@ class DynamicDestinationsHelpers {
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       TableReference tableReference = wrappedDestination.getTableReference();
-      @Nullable String destinationProjectId = tableReference.getProjectId();
       @Nullable Table existingTable = getBigQueryTable(tableReference);
       if (existingTable == null
           || existingTable.getSchema() == null
           || existingTable.getSchema().isEmpty()) {
-        @Nullable TableReference cloneSource = super.getCloneSource(destination);
-        if (cloneSource != null) {
-          @Nullable Table cloneSourceTable = getBigQueryTable(cloneSource, destinationProjectId);
-          if (cloneSourceTable != null
-              && cloneSourceTable.getSchema() != null
-              && !cloneSourceTable.getSchema().isEmpty()) {
-            return cloneSourceTable.getSchema();
-          }
+        @Nullable TableSchema cloneSchema = getCloneSourceSchema(destination);
+        if (cloneSchema != null && !cloneSchema.isEmpty()) {
+          return cloneSchema;
         }
         return super.getSchema(destination);
       } else {

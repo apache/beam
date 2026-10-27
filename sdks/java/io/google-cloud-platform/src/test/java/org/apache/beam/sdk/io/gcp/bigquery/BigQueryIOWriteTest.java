@@ -181,6 +181,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -428,6 +429,77 @@ public class BigQueryIOWriteTest implements Serializable {
             .flatMap(copy -> copy.getSourceTables().stream())
             .collect(Collectors.toList()),
         hasItem(sourceTable));
+  }
+
+  @Test
+  public void testWriteCreatesCloneTableWithSchemaUpdateOptionsAndMultiplePartitions()
+      throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING")));
+    TableReference sourceTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.source_table");
+    TableReference destinationTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.destination_table");
+    TableRow baseRow = new TableRow().set("name", "base");
+    List<TableRow> appendedRows =
+        IntStream.range(0, 30)
+            .mapToObj(i -> new TableRow().set("name", "appended-" + i))
+            .collect(Collectors.toList());
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTable).setSchema(schema));
+    fakeDatasetService.insertAll(sourceTable, ImmutableList.of(baseRow), null);
+
+    p.apply(Create.of(appendedRows))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.destination_table")
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.FILE_LOADS)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withSchemaUpdateOptions(EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withCloneFrom("project-id:dataset-id.source_table")
+                .withoutValidation());
+    p.run();
+
+    assertEquals(schema, fakeDatasetService.getTable(destinationTable).getSchema());
+    List<TableRow> expectedRows = new ArrayList<>(appendedRows);
+    expectedRows.add(baseRow);
+    assertThat(
+        fakeDatasetService.getAllRows(destinationTable),
+        containsInAnyOrder(expectedRows.toArray(new TableRow[0])));
+    assertTrue(
+        fakeJobService.getAllJobs().stream()
+            .map(Job::getConfiguration)
+            .map(configuration -> configuration.getCopy())
+            .anyMatch(copy -> copy != null && !"CLONE".equals(copy.getOperationType())));
+  }
+
+  @Test
+  public void testCloneJobIdStableAcrossSerializationAndUniqueAcrossRuns() throws Exception {
+    BigQueryOptions first = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    first.setJobName("same-job-name");
+    BigQueryOptions second = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    second.setJobName("same-job-name");
+    TableReference source = BigQueryHelpers.parseTableSpec("project-id:dataset-id.source_table");
+    TableReference destination =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.destination_table");
+
+    String firstPrefix = CreateTableHelpers.createCloneJobIdPrefix(first, source, destination);
+    String restoredPrefix =
+        CreateTableHelpers.createCloneJobIdPrefix(
+            PipelineOptionsTranslation.fromJson(PipelineOptionsTranslation.toJson(first))
+                .as(BigQueryOptions.class),
+            source,
+            destination);
+    String secondPrefix = CreateTableHelpers.createCloneJobIdPrefix(second, source, destination);
+
+    assertEquals(firstPrefix, restoredPrefix);
+    assertFalse(firstPrefix.equals(secondPrefix));
   }
 
   @Test

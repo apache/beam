@@ -369,13 +369,16 @@ public class CreateTableHelpers {
     return updated;
   }
 
-  private static String createCloneJobIdPrefix(
+  @VisibleForTesting
+  static String createCloneJobIdPrefix(
       BigQueryOptions options, TableReference source, TableReference destination) {
     String jobName = MoreObjects.firstNonNull(options.getJobName(), "beam_bq_clone");
     String stepToken =
         Hashing.murmur3_128()
             .hashUnencodedChars(
-                BigQueryHelpers.toJsonString(source) + BigQueryHelpers.toJsonString(destination))
+                BigQueryHelpers.toJsonString(source)
+                    + BigQueryHelpers.toJsonString(destination)
+                    + options.getCloneJobIdToken())
             .toString();
     return BigQueryResourceNaming.createJobIdPrefix(jobName, stepToken, JobType.CLONE);
   }

@@ -4178,6 +4178,8 @@ public class BigQueryIO {
 
       // Perform some argument checks
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      // Resolve the token before the options are serialized to workers.
+      bqOptions.getCloneJobIdToken();
       Write.Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED) {
         if (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API) {
