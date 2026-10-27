@@ -415,7 +415,7 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
       sys.modules.pop("_fake_pkg", None)
       sys.modules.pop("_fake_pkg.leaf", None)
 
-def test_same_named_nested_functions_with_different_args_roundtrip(self):
+  def test_same_named_nested_functions_with_different_args_roundtrip(self):
     fn_true = get_same_named_nested_functions_different_args(True)
     fn_false = get_same_named_nested_functions_different_args(False)
     path_true = code_object_pickler.get_code_object_identifier(fn_true)
@@ -431,7 +431,7 @@ def test_same_named_nested_functions_with_different_args_roundtrip(self):
         fn_false.__code__,
     )
 
-def test_same_named_nested_functions_with_same_args_roundtrip(self):
+  def test_same_named_nested_functions_with_same_args_roundtrip(self):
     fn_true = get_same_named_nested_functions_same_args(True)
     fn_false = get_same_named_nested_functions_same_args(False)
     path_true = code_object_pickler.get_code_object_identifier(fn_true)
