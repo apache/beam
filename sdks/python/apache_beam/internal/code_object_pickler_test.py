@@ -65,9 +65,11 @@ def get_lambda_from_dictionary_same_args():
   d = {"a": lambda x: 1, "b": lambda x: x + 1}
   return d["a"]
 
+
 def get_lambda_from_dictionary_no_args():
   d = {"a": lambda: 1, "b": lambda y: 2}
   return d["a"]
+
 
 def function_with_lambda_default_argument(fn=lambda x: 1):
   return fn
@@ -79,6 +81,7 @@ def function_with_function_default_argument(fn=top_level_function):
 
 def function_decorator(f):
   return lambda x: f(f(x))
+
 
 def get_zero_arg_and_one_arg_lambdas():
   return (lambda: 1, lambda x: 2)
@@ -115,11 +118,14 @@ def outer_decorated_with_shared_wrapper():
 
   return inner_decorated
 
+
 def get_same_named_nested_functions_different_args(branch):
   if branch:
+    
     def nested_fn(x):
       return x + 1
   else:
+    
     def nested_fn(x, y):
       return x + y
 
@@ -128,9 +134,11 @@ def get_same_named_nested_functions_different_args(branch):
 
 def get_same_named_nested_functions_same_args(branch):
   if branch:
+    
     def nested_fn(x):
       return x + 1
   else:
+    
     def nested_fn(x):
       return x + 2
 
@@ -209,84 +217,68 @@ test_cases = [
         (
             f"{prefix}"
             ".get_lambda_from_dictionary_no_args.__code__.co_consts"
-            "[<lambda>, ()]"
-        ),
+            "[<lambda>, ()]"),
     ),
     (
         get_lambda_from_dictionary_same_args(),
         (
             f"{prefix}"
             ".get_lambda_from_dictionary_same_args.__code__.co_consts"
-            "[<lambda>, ('x',), "
-            + code_object_pickler._create_bytecode_hash(
-                get_lambda_from_dictionary_same_args().__code__
-            )
-            + "]"
-        ),
+            "[<lambda>, ('x',), " + code_object_pickler._create_bytecode_hash(
+                get_lambda_from_dictionary_same_args().__code__) + "]"),
     ),
     (
         get_zero_arg_and_one_arg_lambdas()[0],
         (
             f"{prefix}"
             ".get_zero_arg_and_one_arg_lambdas.__code__.co_consts"
-            "[<lambda>, ()]"
-        ),
+            "[<lambda>, ()]"),
     ),
     (
         get_zero_arg_and_one_arg_lambdas()[1],
         (
             f"{prefix}"
             ".get_zero_arg_and_one_arg_lambdas.__code__.co_consts"
-            "[<lambda>, ('x',)]"
-        ),
+            "[<lambda>, ('x',)]"),
     ),
     (
         get_single_lambda_and_nested_function_with_lambda(),
         (
             f"{prefix}"
             ".get_single_lambda_and_nested_function_with_lambda.__code__"
-            ".co_consts[inner_fn].co_consts[<lambda>]"
-        ),
+            ".co_consts[inner_fn].co_consts[<lambda>]"),
     ),
     (
         get_same_named_nested_functions_different_args(True),
         (
             f"{prefix}"
             ".get_same_named_nested_functions_different_args.__code__.co_consts"
-            "[nested_fn, ('x',)]"
-        ),
+            "[nested_fn, ('x',)]"),
     ),
     (
         get_same_named_nested_functions_different_args(False),
         (
             f"{prefix}"
             ".get_same_named_nested_functions_different_args.__code__.co_consts"
-            "[nested_fn, ('x', 'y')]"
-        ),
+            "[nested_fn, ('x', 'y')]"),
     ),
     (
         get_same_named_nested_functions_same_args(True),
         (
             f"{prefix}"
             ".get_same_named_nested_functions_same_args.__code__.co_consts"
-            "[nested_fn, ('x',), "
-            + code_object_pickler._create_bytecode_hash(
-                get_same_named_nested_functions_same_args(True).__code__
-            )
-            + "]"
-        ),
+            "[nested_fn, ('x',), " + code_object_pickler._create_bytecode_hash(
+                get_same_named_nested_functions_same_args(True).__code__) +
+            "]"),
     ),
     (
         get_same_named_nested_functions_same_args(False),
         (
             f"{prefix}"
             ".get_same_named_nested_functions_same_args.__code__.co_consts"
-            "[nested_fn, ('x',), "
-            + code_object_pickler._create_bytecode_hash(
-                get_same_named_nested_functions_same_args(False).__code__
-            )
-            + "]"
-        ),
+            "[nested_fn, ('x',), " + code_object_pickler._create_bytecode_hash(
+                get_same_named_nested_functions_same_args(False).__code__) +
+            "]"),
     ),
     (
         function_with_lambda_default_argument(),
@@ -354,11 +346,9 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
   def test_two_lambdas_where_one_has_no_arguments_roundtrips(self):
     zero_arg_lambda, one_arg_lambda = get_zero_arg_and_one_arg_lambdas()
     zero_arg_path = code_object_pickler.get_code_object_identifier(
-        zero_arg_lambda
-    )
+        zero_arg_lambda)
     one_arg_path = code_object_pickler.get_code_object_identifier(
-        one_arg_lambda
-    )
+        one_arg_lambda)
 
     self.assertEqual(
         zero_arg_path,
@@ -408,8 +398,7 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     sys.modules["_fake_pkg.leaf"] = child_mod
     try:
       actual = code_object_pickler.get_code_from_identifier(
-          "_fake_pkg.leaf.leaf.__code__"
-      )
+          "_fake_pkg.leaf.leaf.__code__")
       self.assertEqual(actual, top_level_function.__code__)
     finally:
       sys.modules.pop("_fake_pkg", None)
