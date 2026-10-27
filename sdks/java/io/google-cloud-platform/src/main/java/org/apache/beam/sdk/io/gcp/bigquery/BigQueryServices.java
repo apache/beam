@@ -48,6 +48,7 @@ import com.google.protobuf.DescriptorProtos;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -202,6 +203,16 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+
+    /**
+     * Patch BigQuery {@link Table} labels. Labels in the map are added or overwritten, labels
+     * already on the table that are not in the map are kept.
+     */
+    default Table patchTableLabels(TableReference tableReference, Map<String, String> labels)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException(
+          getClass().getName() + " does not support patching table labels");
+    }
 
     Table patchTableSchema(
         TableReference tableReference, com.google.api.services.bigquery.model.TableSchema newSchema)

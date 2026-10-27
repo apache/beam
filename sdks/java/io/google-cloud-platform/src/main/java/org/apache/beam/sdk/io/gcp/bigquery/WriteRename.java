@@ -236,6 +236,16 @@ class WriteRename
                           .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                       pendingJob.tableDestination.getTableDescription());
                 }
+                // copy jobs have no setting for destination table labels, so they are patched
+                // onto the final table once the copy is done
+                Map<String, String> labels = pendingJob.tableDestination.getLabels();
+                if (labels != null) {
+                  TableReference ref = pendingJob.tableDestination.getTableReference();
+                  datasetService.patchTableLabels(
+                      ref.clone()
+                          .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                      labels);
+                }
                 c.output(
                     KV.of(pendingJob.tableDestination, pendingJob.tempTables),
                     pendingJob.window.maxTimestamp(),

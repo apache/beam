@@ -204,6 +204,11 @@ public class CreateTableHelpers {
           table.setClustering(clustering);
         }
 
+        Map<String, String> labels = tableDestination.getLabels();
+        if (labels != null) {
+          table.setLabels(labels);
+        }
+
         if (kmsKey != null) {
           table.setEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKey));
         }

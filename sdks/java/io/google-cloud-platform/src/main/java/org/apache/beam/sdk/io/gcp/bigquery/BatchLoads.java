@@ -188,6 +188,7 @@ class BatchLoads<DestinationT, ElementT>
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey,
       boolean clusteringEnabled,
+      boolean labelsEnabled,
       boolean useAvroLogicalTypes,
       @Nullable String tempDataset,
       BadRecordRouter badRecordRouter,
@@ -216,8 +217,13 @@ class BatchLoads<DestinationT, ElementT>
     this.rowWriterFactory = rowWriterFactory;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
-    this.tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+    if (labelsEnabled) {
+      this.tableDestinationCoder = TableDestinationCoderV4.of();
+    } else if (clusteringEnabled) {
+      this.tableDestinationCoder = TableDestinationCoderV3.of();
+    } else {
+      this.tableDestinationCoder = TableDestinationCoderV2.of();
+    }
     this.badRecordRouter = badRecordRouter;
     this.badRecordErrorHandler = badRecordErrorHandler;
   }

@@ -1566,6 +1566,28 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
+    public Table patchTableLabels(TableReference tableReference, Map<String, String> labels)
+        throws IOException, InterruptedException {
+      Table table = new Table().setLabels(labels);
+
+      return executeWithRetries(
+          client
+              .tables()
+              .patch(
+                  tableReference.getProjectId(),
+                  tableReference.getDatasetId(),
+                  tableReference.getTableId(),
+                  table)
+              .setPrettyPrint(false),
+          String.format(
+              "Unable to patch table labels: %s, aborting after %d retries.",
+              tableReference, MAX_RPC_RETRIES),
+          Sleeper.DEFAULT,
+          createDefaultBackoff(),
+          ALWAYS_RETRY);
+    }
+
+    @Override
     public Table patchTableSchema(
         TableReference tableReference, com.google.api.services.bigquery.model.TableSchema newSchema)
         throws IOException, InterruptedException {

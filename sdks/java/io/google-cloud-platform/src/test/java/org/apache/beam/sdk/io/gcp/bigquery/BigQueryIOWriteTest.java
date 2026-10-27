@@ -679,6 +679,203 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(clustering, table.getClustering());
   }
 
+  @Test
+  public void testTableLabelsTableFunction() throws Exception {
+    assumeTrue(!useStorageApi);
+    TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
+    TableRow row2 = new TableRow().set("date", "2018-01-02").set("number", "2");
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("date").setType("DATE"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
+
+    WriteResult result =
+        p.apply(Create.of(row1, row2))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(
+                        (ValueInSingleWindow<TableRow> vsw) ->
+                            new TableDestination(
+                                    "project-id:dataset-id.table-" + vsw.getValue().get("number"),
+                                    null,
+                                    null,
+                                    new Clustering().setFields(ImmutableList.of("date")))
+                                .withLabels(
+                                    ImmutableMap.of(
+                                        "number", (String) vsw.getValue().get("number"))))
+                    .withTestServices(fakeBqServices)
+                    .withMethod(useStreaming ? Method.STREAMING_INSERTS : Method.FILE_LOADS)
+                    .withSchema(schema)
+                    .withClustering()
+                    .withTableLabels()
+                    .withoutValidation());
+    if (!useStreaming) {
+      PAssert.that(result.getSuccessfulTableLoads())
+          .containsInAnyOrder(
+              new TableDestination(
+                      "project-id:dataset-id.table-1",
+                      null,
+                      null,
+                      new Clustering().setFields(ImmutableList.of("date")))
+                  .withLabels(ImmutableMap.of("number", "1")),
+              new TableDestination(
+                      "project-id:dataset-id.table-2",
+                      null,
+                      null,
+                      new Clustering().setFields(ImmutableList.of("date")))
+                  .withLabels(ImmutableMap.of("number", "2")));
+    }
+    p.run();
+
+    for (String number : ImmutableList.of("1", "2")) {
+      Table table =
+          fakeDatasetService.getTable(
+              BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-" + number));
+      assertEquals(ImmutableMap.of("number", number), table.getLabels());
+      assertEquals(new Clustering().setFields(ImmutableList.of("date")), table.getClustering());
+    }
+  }
+
+  @Test
+  public void testTableLabelsWithTempTablesKeepsExistingLabels() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"))
+            .setSchema(schema)
+            .setLabels(ImmutableMap.of("team", "data")));
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination("project-id:dataset-id.table-id", null)
+                            .withLabels(ImmutableMap.of("env", "prod")))
+                .withSchema(schema)
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.FILE_LOADS)
+                .withWriteDisposition(Write.WriteDisposition.WRITE_APPEND)
+                .withTableLabels()
+                // one file per partition forces temp tables and a copy job into the final table
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    assertEquals(ImmutableMap.of("team", "data", "env", "prod"), table.getLabels());
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
+  public void testTableLabelsTableFunctionRequiresWithTableLabels() throws Exception {
+    assumeTrue(!useStorageApi);
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+
+    p.apply(Create.of(ImmutableList.of(new TableRow().set("number", "1"))))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) ->
+                        new TableDestination("project-id:dataset-id.table-id", null)
+                            .withLabels(ImmutableMap.of("env", "prod")))
+                .withTestServices(fakeBqServices)
+                .withMethod(useStreaming ? Method.STREAMING_INSERTS : Method.FILE_LOADS)
+                .withSchema(schema)
+                .withoutValidation());
+
+    thrown.expectMessage("withTableLabels()");
+    p.run();
+  }
+
+  @Test
+  public void testTableLabelsDynamicDestinationsRequireCoderV4() throws Exception {
+    assumeTrue(!useStorageApi);
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+    // TableSchema is not Serializable, and the anonymous DynamicDestinations below is serialized
+    // with the pipeline, so it captures the schema as JSON
+    String jsonSchema = BigQueryHelpers.toJsonString(schema);
+
+    p.apply(Create.of(ImmutableList.of(new TableRow().set("number", "1"))))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    new DynamicDestinations<TableRow, TableDestination>() {
+                      @Override
+                      public TableDestination getDestination(
+                          ValueInSingleWindow<TableRow> element) {
+                        return new TableDestination("project-id:dataset-id.table-id", null)
+                            .withLabels(ImmutableMap.of("env", "prod"));
+                      }
+
+                      @Override
+                      public TableDestination getTable(TableDestination destination) {
+                        return destination;
+                      }
+
+                      @Override
+                      public TableSchema getSchema(TableDestination destination) {
+                        return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+                      }
+
+                      @Override
+                      public Coder<TableDestination> getDestinationCoder() {
+                        return TableDestinationCoderV3.of();
+                      }
+                    })
+                .withTestServices(fakeBqServices)
+                .withMethod(useStreaming ? Method.STREAMING_INSERTS : Method.FILE_LOADS)
+                .withoutValidation());
+
+    thrown.expectMessage("TableDestinationCoderV4");
+    p.run();
+  }
+
+  @Test
+  public void testWithTableLabelsRejectsSingleTable() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withTableLabels() only applies to to(SerializableFunction)");
+    p.apply(Create.of(ImmutableList.of(new TableRow().set("number", "1"))))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withTestServices(fakeBqServices)
+                .withTableLabels()
+                .withoutValidation());
+  }
+
+  @Test
+  public void testTableLabelsRejectNullValues() {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("env", null);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("table labels may not contain null keys or values");
+    new TableDestination("project-id:dataset-id.table-id", null).withLabels(labels);
+  }
+
   public void runStreamingFileLoads(String tableRef, boolean useTempTables, boolean useTempDataset)
       throws Exception {
     assumeTrue(!useStorageApi);

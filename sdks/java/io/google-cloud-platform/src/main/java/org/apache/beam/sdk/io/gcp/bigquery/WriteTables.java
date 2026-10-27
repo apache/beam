@@ -364,6 +364,17 @@ class WriteTables<DestinationT extends @NonNull Object>
                                   BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                           pendingJob.tableDestination.getTableDescription());
                     }
+                    // temp tables are deleted after the copy into the final table, which
+                    // WriteRename labels instead
+                    Map<String, String> labels = pendingJob.tableDestination.getLabels();
+                    if (!tempTable && labels != null) {
+                      TableReference ref = pendingJob.tableReference;
+                      datasetService.patchTableLabels(
+                          ref.clone()
+                              .setTableId(
+                                  BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                          labels);
+                    }
                     Result result =
                         new AutoValue_WriteTables_Result(
                             BigQueryHelpers.toJsonString(pendingJob.tableReference),
