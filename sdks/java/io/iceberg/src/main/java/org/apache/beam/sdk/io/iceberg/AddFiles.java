@@ -125,11 +125,26 @@ import org.slf4j.LoggerFactory;
  * path becomes a {@link DataFile} with partition metadata and column stats, batched into manifests
  * and committed as snapshots.
  *
+ * <p>{@link AddFiles} is offered as a Managed transform. Its input is a {@link PCollection} of
+ * {@link Row}s with a single string field, the file's path, and its options are listed in {@link
+ * AddFilesSchemaTransformProvider.Configuration}:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", "db.sales",
+ *         "catalog_properties", Map.of("type", "rest", "uri", catalogUri),
+ *         "error_handling", Map.of("output", "errors"));
+ *
+ * PCollectionRowTuple result =
+ *     paths.apply(Managed.write(Managed.ICEBERG_ADD_FILES).withConfig(config));
+ * }</pre>
+ *
  * <p>Outputs: {@code snapshots} (one row per commit), {@code errors} (one row per file that could
  * not be registered: {@code file}, {@code error}), and {@code dry_run_report} when a dry run is
- * configured.
+ * configured. Through Managed, error rows are only output when {@code error_handling} is set, under
+ * the name it gives.
  *
- * <p><b>Schema evolution.</b> With a {@link SchemaEvolutionConfig} whose options are set, a
+ * <p><b>Schema evolution.</b> With schema evolution options set ({@link SchemaEvolutionConfig}), a
  * pre-pass reads every Parquet footer, classifies the change each distinct file schema needs on the
  * table (add a column, relax a required column, promote a type), commits the allowed changes in one
  * transaction, and only then registers the files. Manifest entries are immutable, so this ordering
@@ -145,12 +160,12 @@ import org.slf4j.LoggerFactory;
  * currently requires bounded input; unbounded input with options set is rejected at construction.
  *
  * <pre>{@code
- * SchemaEvolutionConfig evolution =
- *     SchemaEvolutionConfig.builder()
- *         .setOptions(EnumSet.of(ALLOW_FIELD_ADDITION, ALLOW_TYPE_PROMOTION))
- *         .setRequiredColumns(Collections.singleton("id"))
- *         .build();
- * paths.apply(new AddFiles(catalog, "db.sales", null, null, null, null, null, null, evolution));
+ * Map<String, Object> config = Map.of(
+ *         "table", "db.sales",
+ *         "catalog_properties", catalogProperties,
+ *         "schema_evolution_options", List.of("ALLOW_FIELD_ADDITION", "ALLOW_TYPE_PROMOTION"),
+ *         "required_columns", List.of("id"));
+ * paths.apply(Managed.write(Managed.ICEBERG_ADD_FILES).withConfig(config));
  * }</pre>
  *
  * <p>Without options the table schema is never changed and files register as-is: columns the table
