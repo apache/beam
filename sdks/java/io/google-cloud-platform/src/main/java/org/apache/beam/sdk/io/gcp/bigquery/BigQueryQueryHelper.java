@@ -81,6 +81,38 @@ class BigQueryQueryHelper {
     }
   }
 
+  /**
+   * Returns the location the query runs in: the explicitly configured {@code location} if set,
+   * otherwise the location of the first table referenced by the query (determined via a dry run),
+   * or null if neither is available.
+   */
+  static @Nullable String resolveQueryLocation(
+      BigQueryServices bqServices,
+      DatasetService tableService,
+      BigQueryOptions options,
+      AtomicReference<@Nullable JobStatistics> dryRunJobStats,
+      String query,
+      Boolean flattenResults,
+      Boolean useLegacySql,
+      @Nullable String location)
+      throws InterruptedException, IOException {
+    if (location != null) {
+      return location;
+    }
+    List<TableReference> referencedTables =
+        dryRunQueryIfNeeded(
+                bqServices, options, dryRunJobStats, query, flattenResults, useLegacySql, location)
+            .getQuery()
+            .getReferencedTables();
+    if (referencedTables != null && !referencedTables.isEmpty()) {
+      TableReference referencedTable = referencedTables.get(0);
+      return tableService
+          .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
+          .getLocation();
+    }
+    return null;
+  }
+
   public static TableReference executeQuery(
       BigQueryServices bqServices,
       BigQueryOptions options,
@@ -96,28 +128,17 @@ class BigQueryQueryHelper {
       @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
-    @Nullable String effectiveLocation = location;
     try (DatasetService tableService = bqServices.getDatasetService(options)) {
-      if (effectiveLocation == null) {
-        List<TableReference> referencedTables =
-            dryRunQueryIfNeeded(
-                    bqServices,
-                    options,
-                    dryRunJobStats,
-                    query,
-                    flattenResults,
-                    useLegacySql,
-                    location)
-                .getQuery()
-                .getReferencedTables();
-        if (referencedTables != null && !referencedTables.isEmpty()) {
-          TableReference referencedTable = referencedTables.get(0);
-          effectiveLocation =
-              tableService
-                  .getDataset(referencedTable.getProjectId(), referencedTable.getDatasetId())
-                  .getLocation();
-        }
-      }
+      @Nullable String effectiveLocation =
+          resolveQueryLocation(
+              bqServices,
+              tableService,
+              options,
+              dryRunJobStats,
+              query,
+              flattenResults,
+              useLegacySql,
+              location);
 
       // Step 2: Create a temporary dataset in the query location only if the user has not specified
       // a temp dataset. The temp table name may be deterministic but the query job ID has to be

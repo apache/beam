@@ -79,6 +79,10 @@ jobs:
       uses: ./.github/actions/setup-environment-action
       with:
         java-version: default
+    - name: Remove default github maven configuration
+      # This is a workaround for a decryption issue between Beam's
+      # net.linguica.gradle.maven.settings plugin and GitHub's Maven settings.
+      run: rm ~/.m2/settings.xml || true
     - name: run Solace IO build script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:

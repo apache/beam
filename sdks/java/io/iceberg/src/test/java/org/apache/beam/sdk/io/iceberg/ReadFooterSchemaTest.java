@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.avro.SchemaBuilder;
 import org.apache.beam.sdk.PipelineResult;
@@ -183,6 +184,43 @@ public class ReadFooterSchemaTest {
     pipeline.run();
   }
 
+  @Test
+  public void testRecordsPartitionKeysInPath() throws IOException {
+    String prefix = temporaryFolder.getRoot().getAbsolutePath() + "/";
+    new File(prefix + "dt=2024-01-15/region=EU").mkdirs();
+    String file =
+        writeParquet(
+            "dt=2024-01-15/region=EU/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(runWithPrefix(prefix, file), Arrays.asList("dt", "region"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testHiveNullFolderGivesNoPartitionKey() throws IOException {
+    String prefix = temporaryFolder.getRoot().getAbsolutePath() + "/";
+    new File(prefix + "dt=__HIVE_DEFAULT_PARTITION__").mkdirs();
+    String file =
+        writeParquet(
+            "dt=__HIVE_DEFAULT_PARTITION__/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(runWithPrefix(prefix, file), Collections.emptyList());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testNoPartitionKeysWithoutAPrefix() throws IOException {
+    new File(temporaryFolder.getRoot(), "dt=2024-01-15").mkdirs();
+    String file =
+        writeParquet("dt=2024-01-15/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(run(file), Collections.emptyList());
+
+    pipeline.run();
+  }
+
   /**
    * The schema is emitted exactly as declared; which columns proved null-free travels beside it.
    */
@@ -307,6 +345,26 @@ public class ReadFooterSchemaTest {
         .apply(Create.of(Arrays.asList(paths)))
         .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled())))
         .setCoder(CollectDistinctSchemas.groupCoder());
+  }
+
+  private PCollection<CollectDistinctSchemas.SchemaGroup> runWithPrefix(
+      String prefix, String... paths) {
+    return pipeline
+        .apply(Create.of(Arrays.asList(paths)))
+        .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled(), prefix)))
+        .setCoder(CollectDistinctSchemas.groupCoder());
+  }
+
+  private static void assertPartitionKeysInPath(
+      PCollection<CollectDistinctSchemas.SchemaGroup> out, List<String> expected) {
+    PAssert.that(out)
+        .satisfies(
+            groups -> {
+              for (CollectDistinctSchemas.SchemaGroup group : groups) {
+                assertEquals(expected, group.getPartitionKeysInPath());
+              }
+              return null;
+            });
   }
 
   /** Asserts the emitted declared schemas equal the canonical forms of {@code expected}. */
