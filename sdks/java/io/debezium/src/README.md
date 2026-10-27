@@ -95,7 +95,7 @@ If you want to use this built-in JSON Mapper, you can do it by setting an instan
 
 By default, the JSON `metadata` object holds `connector`, `version`, `name`, `database`, `schema` and `table`. Call `withFullMetadata(true)` on `readAsJson()` to also add the change event's `op` (`c`, `u`, `d`, `r` or `t`) and every other field of the Debezium `source` block to `metadata` (for example `ts_ms`, MySQL `file`, `pos` and `row`, or PostgreSQL `lsn` and `txId`). Fields that `metadata` already carries aren't repeated. For MySQL, `file` is the actual binlog file name, which the default output exposes under `schema`. The option is off by default, so the output is unchanged unless you enable it.
 
-With `provide.transaction.metadata=true`, each change event has a `transaction` object (`id`, `total_order`, `data_collection_order`); otherwise `transaction` is `null`. The transaction `BEGIN` and `END` events are mapped to `status`, `id`, `ts_ms`, `event_count` and `data_collections`, where the last two are only set on `END`.
+With `provide.transaction.metadata=true`, each change event has a `transaction` object (`id`, `total_order`, `data_collection_order`); otherwise the key is absent. The transaction `BEGIN` and `END` events are mapped to `status`, `id`, `ts_ms`, `event_count` and `data_collections`, where the last two are only set on `END`.
 
 ## Quick Example
 
