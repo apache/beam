@@ -710,9 +710,14 @@
     underlying_provider:
       type: beamJar
       transforms:
-        'IcebergAddFiles': 'beam:schematransform:org.apache.beam:iceberg_add_files:v1'
+        'IcebergAddFiles': 'beam:schematransform:iceberg_add_files:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'IcebergAddFiles': '2.78.0'
 
 #Datadog
 - type: renaming
