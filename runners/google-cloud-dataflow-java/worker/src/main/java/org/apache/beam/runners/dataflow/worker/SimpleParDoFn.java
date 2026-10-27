@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -112,7 +111,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
                 // These elements are now processed. Register cleanup timers for all the unblocked
                 // windows.
                 helpers.registerStateCleanup(
-                    (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+                    (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(),
                     (Collection<W>) unblockedElement.getWindows());
               }
             }
@@ -163,7 +162,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     }
     if (hasState) {
       helpers.registerStateCleanup(
-          (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windowsProcessed);
+          (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(), windowsProcessed);
     }
   }
 
@@ -176,11 +175,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     // windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check whether timers
     // exist without actually decoding them.
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>)
-            (helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek())
-                .getWindowingStrategy()
-                .getWindowFn()
-                .windowCoder();
+        (Coder<BoundedWindow>) getDoFnInfo().getWindowingStrategy().getWindowFn().windowCoder();
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.USER,
         helpers.userStepContext,
@@ -209,14 +204,9 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     helpers.abort();
   }
 
-  /**
-   * Returns the {@link DoFnInfo} currently being used by this {@link SimpleParDoFn}.
-   *
-   * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
-   * finished.
-   */
-  @VisibleForTesting
-  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
-    return helpers.fnInfo;
+  /** Returns the {@link DoFnInfo} used by this {@link SimpleParDoFn}. */
+  @Override
+  public DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek();
   }
 }

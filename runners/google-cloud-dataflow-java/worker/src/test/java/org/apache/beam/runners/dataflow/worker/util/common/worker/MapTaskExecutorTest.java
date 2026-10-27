@@ -577,7 +577,7 @@ public class MapTaskExecutorTest {
   }
 
   @Test
-  public void testGetReadReportingParDoOperations() throws Exception {
+  public void testGetParDoOperations() throws Exception {
     TestOutputReceiver receiver =
         new TestOutputReceiver(counterSet, NameContextsForTests.nameContextForTest());
     ReadOperation readOp = new TestReadOperation(receiver, createContext("ReadOperation"));
@@ -601,10 +601,11 @@ public class MapTaskExecutorTest {
         Arrays.asList(readOp, regularParDo, reportingParDo1, reportingParDo2);
     ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
-      List<ParDoOperation> reportingOps = executor.getReadReportingParDoOperations();
-      assertThat(reportingOps, contains(reportingParDo1, reportingParDo2));
-      assertEquals(StringUtf8Coder.of(), reportingOps.get(0).getBytesReadCoder());
-      assertEquals(VarIntCoder.of(), reportingOps.get(1).getBytesReadCoder());
+      List<ParDoOperation> parDoOps = executor.getParDoOperations();
+      assertThat(parDoOps, contains(regularParDo, reportingParDo1, reportingParDo2));
+      Assert.assertNull(parDoOps.get(0).getBytesReadCoder());
+      assertEquals(StringUtf8Coder.of(), parDoOps.get(1).getBytesReadCoder());
+      assertEquals(VarIntCoder.of(), parDoOps.get(2).getBytesReadCoder());
     }
   }
 }

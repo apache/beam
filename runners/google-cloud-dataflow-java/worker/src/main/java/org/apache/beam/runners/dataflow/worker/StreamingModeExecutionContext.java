@@ -821,8 +821,9 @@ public class StreamingModeExecutionContext
               .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
               .orElse(0L);
     }
-    for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
-      if (parDoOp.receivers != null
+    for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+      if (parDoOp.shouldReportBytesRead()
+          && parDoOp.receivers != null
           && parDoOp.receivers.length > 0
           && parDoOp.receivers[0] != null) {
         HashMap<String, ElementCounter> splittableProcessOpCounters =

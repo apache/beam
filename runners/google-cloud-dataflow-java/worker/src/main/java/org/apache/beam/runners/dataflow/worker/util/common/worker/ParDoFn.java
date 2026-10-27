@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -37,4 +38,8 @@ public interface ParDoFn {
   void finishBundle() throws Exception;
 
   void abort() throws Exception;
+
+  default @Nullable DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return null;
+  }
 }

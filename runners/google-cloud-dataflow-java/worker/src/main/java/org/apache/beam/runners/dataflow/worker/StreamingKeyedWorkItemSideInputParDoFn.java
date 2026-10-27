@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
@@ -138,7 +137,7 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
                 // These elements are now processed. Register cleanup timers for all the unblocked
                 // windows.
                 helpers.registerStateCleanup(
-                    (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windows);
+                    (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(), windows);
               }
             });
       }
@@ -174,11 +173,7 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
     // windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check whether timers
     // exist without actually decoding them.
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>)
-            (helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek())
-                .getWindowingStrategy()
-                .getWindowFn()
-                .windowCoder();
+        (Coder<BoundedWindow>) getDoFnInfo().getWindowingStrategy().getWindowFn().windowCoder();
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.FAIL_USER,
         helpers.userStepContext,
@@ -231,18 +226,13 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
     }
     if (hasState) {
       helpers.registerStateCleanup(
-          (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windowsProcessed);
+          (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(), windowsProcessed);
     }
   }
 
-  /**
-   * Returns the {@link DoFnInfo} currently being used by this {@link SimpleParDoFn}.
-   *
-   * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
-   * finished.
-   */
-  @VisibleForTesting
-  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
-    return helpers.fnInfo;
+  /** Returns the {@link DoFnInfo} used by this {@link StreamingKeyedWorkItemSideInputParDoFn}. */
+  @Override
+  public DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek();
   }
 }
