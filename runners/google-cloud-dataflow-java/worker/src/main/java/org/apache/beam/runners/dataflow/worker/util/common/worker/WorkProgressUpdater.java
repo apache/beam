@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import com.google.api.client.util.Clock;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -315,7 +316,11 @@ public abstract class WorkProgressUpdater {
       throw oom;
     } catch (InterruptedException e) {
       LOG.info("Cancelling workitem execution: {}", workString(), e);
-      worker.abort();
+      // the batch worker reports progress while the executor is still being created, before
+      // there is a worker to abort
+      if (Objects.nonNull(worker)) {
+        worker.abort();
+      }
     } catch (Throwable e) {
       LOG.error("Error reporting workitem progress update to Dataflow service: ", e);
     }

@@ -50,6 +50,15 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
+  /**
+   * How long executor creation may run before the first "still creating" warning. Matches the point
+   * where {@code DoFnInstanceManagers} calls a single DoFn.setup slow (3 minutes).
+   */
+  private static final long SLOW_SETUP_FIRST_WARNING_MILLIS = 3 * 60 * 1000;
+
+  /** Gap between repeated "still creating" warnings, so a stuck setup keeps showing in the log. */
+  private static final long SLOW_SETUP_WARNING_INTERVAL_MILLIS = 5 * 60 * 1000;
+
   private final WorkItemStatusClient workItemStatusClient;
 
   /** The WorkItem for which work progress updates are sent. */
@@ -67,6 +76,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
    */
   private final Object abortLock = new Object();
 
+  /** When this updater was created, which for the batch worker is when executor creation starts. */
+  private final long createdAtMillis;
+
+  /** Only read and written by the progress reporting thread. */
+  private long nextSlowSetupWarningAtMillis;
+
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
@@ -77,6 +92,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     this.workItem = workItem;
     this.hotKeyLogger = new HotKeyLogger();
     this.options = options;
+    this.createdAtMillis = clock.currentTimeMillis();
+    this.nextSlowSetupWarningAtMillis = createdAtMillis + SLOW_SETUP_FIRST_WARNING_MILLIS;
   }
 
   /**
@@ -98,6 +115,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     this.workItem = workItem;
     this.hotKeyLogger = hotKeyLogger;
     this.options = options;
+    this.createdAtMillis = clock.currentTimeMillis();
+    this.nextSlowSetupWarningAtMillis = createdAtMillis + SLOW_SETUP_FIRST_WARNING_MILLIS;
   }
 
   @Override
@@ -133,6 +152,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (wasAskedToAbort) {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return;
+    }
+    if (Objects.isNull(worker)) {
+      warnIfSetupIsSlow();
     }
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
@@ -189,6 +211,23 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
+  }
+
+  private void warnIfSetupIsSlow() {
+    long now = clock.currentTimeMillis();
+    if (now < nextSlowSetupWarningAtMillis) {
+      return;
+    }
+
+    // the lease keeps being extended while setup runs, so a stuck setup never fails the work item
+    // on its own. Repeating the warning is what makes it visible in the worker log
+    nextSlowSetupWarningAtMillis = now + SLOW_SETUP_WARNING_INTERVAL_MILLIS;
+    LOG.warn(
+        "Work item {} is still creating its executor after {} seconds. Creating the executor runs"
+            + " DoFn.setup, so a slow or stuck setup keeps this work item leased without"
+            + " processing any elements.",
+        workString(),
+        (now - createdAtMillis) / 1000);
   }
 
   /** Returns the given work unit's lease expiration timestamp. */
