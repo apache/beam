@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -151,7 +150,7 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       for (int i = 0; i < elementSchema.getFieldCount(); i++) {
         Schema.FieldType fieldType = elementSchema.getField(i).getType();
         Object value = null;
-        if (Objects.nonNull(element)) {
+        if (element != null) {
           value = element.getBaseValue(i);
         }
 
