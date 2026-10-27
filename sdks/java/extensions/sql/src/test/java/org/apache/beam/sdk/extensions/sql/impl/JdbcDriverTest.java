@@ -352,6 +352,59 @@ public class JdbcDriverTest {
   }
 
   @Test
+  public void testUnnestArrayOfRowsWithNestedRow() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
+
+    connection
+        .createStatement()
+        .executeUpdate(
+            "CREATE EXTERNAL TABLE person ( \n"
+                + "name VARCHAR, \n"
+                + "items ARRAY<ROW< \n"
+                + "              description VARCHAR, \n"
+                + "              nestedRow ROW<id BIGINT, name VARCHAR>>> \n"
+                + ") \n"
+                + "TYPE 'test'");
+
+    Schema tableSchema =
+        Schema.builder()
+            .addNullableField("name", Schema.FieldType.STRING)
+            .addNullableField("items", Schema.FieldType.array(Schema.FieldType.row(COMPLEX_SCHEMA)))
+            .build();
+    tableProvider.addRows(
+        "person",
+        row(
+            tableSchema,
+            "person1",
+            Arrays.asList(
+                row(COMPLEX_SCHEMA, "description1", row(1L, "aaa")),
+                row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")))));
+
+    ResultSet selectResult =
+        connection
+            .createStatement()
+            .executeQuery(
+                "SELECT item.description, item.nestedRow.name "
+                    + "FROM person CROSS JOIN UNNEST(person.items) AS item");
+
+    Schema resultSchema =
+        Schema.builder()
+            .addNullableField("description", Schema.FieldType.STRING)
+            .addNullableField("name", Schema.FieldType.STRING)
+            .build();
+    List<Row> resultRows =
+        readResultSet(selectResult).stream()
+            .map(values -> values.stream().collect(toRow(resultSchema)))
+            .collect(Collectors.toList());
+
+    assertThat(
+        resultRows,
+        containsInAnyOrder(
+            row(resultSchema, "description1", "aaa"), row(resultSchema, "description2", "bbb")));
+  }
+
+  @Test
   public void testInsertIntoCreatedTable() throws Exception {
     TestTableProvider tableProvider = new TestTableProvider();
     Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
