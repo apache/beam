@@ -487,4 +487,96 @@ public class PartitionMetadataDaoTest {
         captured.getParameters().get("p2").getStringArray());
     assertEquals(1, mutations.getValue().size());
   }
+
+  @Test
+  public void testInTransactionContextUpdateToScheduledPostgresEmptyTokens() {
+    PartitionMetadataDao.InTransactionContext pgTransactionContext =
+        new PartitionMetadataDao.InTransactionContext(
+            METADATA_TABLE_NAME, transaction, Dialect.POSTGRESQL);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any(), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+
+    assertNull(pgTransactionContext.updateToScheduled(Collections.emptyList()));
+
+    verify(transaction).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT * FROM \""
+            + METADATA_TABLE_NAME
+            + "\" WHERE \"State\" = $1 AND \"PartitionToken\" = ANY ($2)",
+        captured.getSql());
+    assertEquals(State.CREATED.toString(), captured.getParameters().get("p1").getString());
+    assertEquals(Collections.emptyList(), captured.getParameters().get("p2").getStringArray());
+    verify(transaction, times(0)).buffer(any(Iterable.class));
+  }
+
+  @Test
+  public void testInTransactionContextUpdateToScheduledPostgresMultipleTokens() {
+    PartitionMetadataDao.InTransactionContext pgTransactionContext =
+        new PartitionMetadataDao.InTransactionContext(
+            METADATA_TABLE_NAME, transaction, Dialect.POSTGRESQL);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any(), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
+    when(resultSet.getString(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN))
+        .thenReturn("token1")
+        .thenReturn("token3");
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    ArgumentCaptor<ImmutableList<Mutation>> mutations =
+        ArgumentCaptor.forClass(ImmutableList.class);
+    doNothing().when(transaction).buffer(mutations.capture());
+
+    List<String> inputTokens = ImmutableList.of("token1", "token2", "token3");
+    assertNull(pgTransactionContext.updateToScheduled(inputTokens));
+
+    verify(transaction).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT * FROM \""
+            + METADATA_TABLE_NAME
+            + "\" WHERE \"State\" = $1 AND \"PartitionToken\" = ANY ($2)",
+        captured.getSql());
+    assertEquals(State.CREATED.toString(), captured.getParameters().get("p1").getString());
+    assertEquals(inputTokens, captured.getParameters().get("p2").getStringArray());
+
+    verify(transaction, times(2)).buffer(any(ImmutableList.class));
+    List<ImmutableList<Mutation>> bufferedBatches = mutations.getAllValues();
+    assertEquals(2, bufferedBatches.size());
+    assertEquals(
+        "token1",
+        bufferedBatches
+            .get(0)
+            .get(0)
+            .asMap()
+            .get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
+            .getString());
+    assertEquals(
+        State.SCHEDULED.toString(),
+        bufferedBatches
+            .get(0)
+            .get(0)
+            .asMap()
+            .get(PartitionMetadataAdminDao.COLUMN_STATE)
+            .getString());
+    assertEquals(
+        "token3",
+        bufferedBatches
+            .get(1)
+            .get(0)
+            .asMap()
+            .get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
+            .getString());
+    assertEquals(
+        State.SCHEDULED.toString(),
+        bufferedBatches
+            .get(1)
+            .get(0)
+            .asMap()
+            .get(PartitionMetadataAdminDao.COLUMN_STATE)
+            .getString());
+  }
 }
