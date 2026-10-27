@@ -167,6 +167,13 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
     }
 
     private boolean isRowColumn(int index) {
+      // past the last output column the element does not fit the planner's layout. returning
+      // false lets the values run long so Row.Builder#build() reports the field count mismatch,
+      // instead of an IndexOutOfBoundsException from getField() that names neither schema
+      if (index >= outputSchema.getFieldCount()) {
+        return false;
+      }
+
       return outputSchema.getField(index).getType().getTypeName().equals(Schema.TypeName.ROW);
     }
 

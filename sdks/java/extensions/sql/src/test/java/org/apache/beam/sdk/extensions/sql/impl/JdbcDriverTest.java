@@ -379,7 +379,8 @@ public class JdbcDriverTest {
             "person1",
             Arrays.asList(
                 row(COMPLEX_SCHEMA, "description1", row(1L, "aaa")),
-                row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")))));
+                row(COMPLEX_SCHEMA, "description2", row(2L, "bbb")),
+                row(COMPLEX_SCHEMA, "description3", null))));
 
     ResultSet selectResult =
         connection
@@ -401,7 +402,9 @@ public class JdbcDriverTest {
     assertThat(
         resultRows,
         containsInAnyOrder(
-            row(resultSchema, "description1", "aaa"), row(resultSchema, "description2", "bbb")));
+            row(resultSchema, "description1", "aaa"),
+            row(resultSchema, "description2", "bbb"),
+            row(resultSchema, "description3", null)));
   }
 
   @Test
