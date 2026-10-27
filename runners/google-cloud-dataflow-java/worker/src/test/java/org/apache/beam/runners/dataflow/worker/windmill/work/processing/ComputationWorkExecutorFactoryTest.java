@@ -80,7 +80,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -284,17 +283,17 @@ public class ComputationWorkExecutorFactoryTest {
         factory.createComputationWorkExecutor(stageInfo, computationState, "workLatencyTrackingId");
 
     DataflowMapTaskExecutor mapTaskExecutor = (DataflowMapTaskExecutor) workExecutor.workExecutor();
-    List<ParDoOperation> readReportingOps = mapTaskExecutor.getReadReportingParDoOperations();
-    assertEquals(2, readReportingOps.size());
+    List<ParDoOperation> allParDoOps = mapTaskExecutor.getParDoOperations();
+    assertEquals(3, allParDoOps.size());
 
     ParDoOperation stringSplittableOp =
-        readReportingOps.stream()
+        allParDoOps.stream()
             .filter(op -> windowedStringCoder.equals(op.getBytesReadCoder()))
             .findFirst()
             .orElseThrow(
                 () -> new AssertionError("Expected ParDoOperation with windowedStringCoder"));
     ParDoOperation intSplittableOp =
-        readReportingOps.stream()
+        allParDoOps.stream()
             .filter(op -> windowedIntCoder.equals(op.getBytesReadCoder()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("Expected ParDoOperation with windowedIntCoder"));
@@ -304,9 +303,6 @@ public class ComputationWorkExecutorFactoryTest {
     assertNotNull(intSplittableOp.receivers[0].getOutputCounters().get(counterName));
 
     // Verify that the non-reporting ParDoOperation does not have the source bytes counter attached.
-    List<ParDoOperation> allParDoOps =
-        ImmutableList.copyOf(Iterables.filter(mapTaskExecutor.operations, ParDoOperation.class));
-    assertEquals(3, allParDoOps.size());
     ParDoOperation regularParDoOp =
         allParDoOps.stream()
             .filter(op -> !op.shouldReportBytesRead())

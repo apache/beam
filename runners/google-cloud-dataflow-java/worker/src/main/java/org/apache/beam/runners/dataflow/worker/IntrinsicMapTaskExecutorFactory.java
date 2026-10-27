@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -64,6 +65,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -284,7 +288,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     // An SDF's SplittableProcessFn behaves like a source, so we need to report its bytes read even
     // though it's not a read operator for autoscaling to work properly.
     Coder<?> bytesReadCoder = null;
-    if ("SplittableProcessFn".equals(cloudUserFn.getClassName())) {
+    if (isSplittable(fn)) {
       Node firstOutput = Iterables.getFirst(network.successors(node), null);
       if (firstOutput instanceof OutputReceiverNode) {
         bytesReadCoder = ((OutputReceiverNode) firstOutput).getCoder();
@@ -293,6 +297,18 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     OutputReceiver[] receivers = getOutputReceivers(network, node);
     return OperationNode.create(
         new ParDoOperation(fn, receivers, operationContext, bytesReadCoder));
+  }
+
+  private static boolean isSplittable(ParDoFn fn) throws Exception {
+    DoFnInfo<?, ?> doFnInfo = fn.getDoFnInfo();
+    if (doFnInfo == null) {
+      return false;
+    }
+    DoFn<?, ?> doFn = doFnInfo.getDoFn();
+    if (doFn instanceof ProcessFn) {
+      doFn = ((ProcessFn<?, ?, ?, ?, ?>) doFn).getFn();
+    }
+    return DoFnSignatures.isSplittable(doFn);
   }
 
   private static <V> TupleTag<V> tupleTag(MultiOutputInfo multiOutputInfo) {

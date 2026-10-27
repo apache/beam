@@ -245,16 +245,18 @@ final class ComputationWorkExecutorFactory {
           mapTaskExecutor,
           computationState.sourceBytesProcessCounterName());
     } else {
-      for (ParDoOperation parDoOp : mapTaskExecutor.getReadReportingParDoOperations()) {
-        Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder();
-        if (bytesReadCoder != null) {
-          trackAutoscalingBytesRead(
-              mapTask,
-              readNode,
-              bytesReadCoder,
-              parDoOp,
-              mapTaskExecutor,
-              computationState.sourceBytesProcessCounterName());
+      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+        if (parDoOp.shouldReportBytesRead()) {
+          Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder();
+          if (bytesReadCoder != null) {
+            trackAutoscalingBytesRead(
+                mapTask,
+                readNode,
+                bytesReadCoder,
+                parDoOp,
+                mapTaskExecutor,
+                computationState.sourceBytesProcessCounterName());
+          }
         }
       }
     }

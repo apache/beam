@@ -145,19 +145,16 @@ public class MapTaskExecutor implements WorkExecutor {
     return (ReadOperation) readOperation;
   }
 
-  public List<ParDoOperation> getReadReportingParDoOperations() {
-    List<ParDoOperation> reportingParDoOperations = Lists.newArrayList();
+  public List<ParDoOperation> getParDoOperations() {
+    List<ParDoOperation> parDoOperations = Lists.newArrayList();
     if (operations != null) {
       for (Operation op : operations) {
         if (op instanceof ParDoOperation) {
-          ParDoOperation parDoOp = (ParDoOperation) op;
-          if (parDoOp.shouldReportBytesRead()) {
-            reportingParDoOperations.add(parDoOp);
-          }
+          parDoOperations.add((ParDoOperation) op);
         }
       }
     }
-    return reportingParDoOperations;
+    return parDoOperations;
   }
 
   public boolean supportsRestart() {
