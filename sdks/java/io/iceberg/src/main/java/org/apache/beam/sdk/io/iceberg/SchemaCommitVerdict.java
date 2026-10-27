@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -31,9 +32,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 abstract class SchemaCommitVerdict {
 
   /** The table's schema id after the commit; null when refused. */
+  @SchemaFieldNumber("0")
   abstract @Nullable Long getSchemaId();
 
   /** Why the table was refused; null when committed. */
+  @SchemaFieldNumber("1")
   abstract @Nullable String getRefusal();
 
   static SchemaCommitVerdict committed(long schemaId) {
