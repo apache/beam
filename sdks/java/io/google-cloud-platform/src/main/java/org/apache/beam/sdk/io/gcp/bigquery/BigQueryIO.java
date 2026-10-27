@@ -4351,10 +4351,11 @@ public class BigQueryIO {
         }
         dynamicDestinations = tableDestinations;
       }
-      if (getJsonCloneSourceTableRef() != null) {
+      ValueProvider<String> jsonCloneSourceTableRef = getJsonCloneSourceTableRef();
+      if (jsonCloneSourceTableRef != null) {
         dynamicDestinations =
             new ConstantCloneSourceDestinations<>(
-                (DynamicDestinations<T, Object>) dynamicDestinations, getJsonCloneSourceTableRef());
+                (DynamicDestinations<T, Object>) dynamicDestinations, jsonCloneSourceTableRef);
       }
       return expandTyped(input, dynamicDestinations);
     }

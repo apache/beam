@@ -68,14 +68,13 @@ public class CreateTableHelpers {
   /**
    * The list of tables created so far, so we don't try the creation each time.
    *
-   * <p>
-   * TODO: We should put a bound on memory usage of this. Use guava cache instead.
+   * <p>TODO: We should put a bound on memory usage of this. Use guava cache instead.
    */
   private static Set<String> createdTables = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   private static final Duration INITIAL_RPC_BACKOFF = Duration.millis(500);
-  private static final FluentBackoff DEFAULT_BACKOFF_FACTORY = FluentBackoff.DEFAULT.withMaxRetries(4)
-      .withInitialBackoff(INITIAL_RPC_BACKOFF);
+  private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(INITIAL_RPC_BACKOFF);
 
   // When CREATE_IF_NEEDED is specified, BQ tables should be created if they do
   // not exist. This
@@ -91,10 +90,12 @@ public class CreateTableHelpers {
         return;
       } catch (Exception e) {
         // The Storage Write library can wrap errors in UncheckedExecutionException
-        Optional<Throwable> handledCause = Throwables.getCausalChain(e).stream()
-            .filter(
-                cause -> (cause instanceof ApiException || cause instanceof StatusRuntimeException))
-            .findAny();
+        Optional<Throwable> handledCause =
+            Throwables.getCausalChain(e).stream()
+                .filter(
+                    cause ->
+                        (cause instanceof ApiException || cause instanceof StatusRuntimeException))
+                .findAny();
         lastException = (Exception) handledCause.orElseThrow(() -> e);
 
         // TODO: Once BigQuery reliably returns a consistent error on table not found,
@@ -127,7 +128,8 @@ public class CreateTableHelpers {
             + "with a non-null table spec, but %s "
             + "has a null table spec",
         tableDestination);
-    boolean destinationCoderSupportsClustering = !(tableDestinationCoder instanceof TableDestinationCoderV2);
+    boolean destinationCoderSupportsClustering =
+        !(tableDestinationCoder instanceof TableDestinationCoderV2);
     checkArgument(
         tableDestination.getClustering() == null || destinationCoderSupportsClustering,
         "DynamicDestinations.getTable() may only return destinations with clustering configured"
@@ -185,16 +187,15 @@ public class CreateTableHelpers {
     tableReference.setTableId(BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
     try (DatasetService datasetService = bqServices.getDatasetService(options)) {
       if (datasetService.getTable(
-          tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC) == null) {
-        @Nullable
-        TableReference cloneSource = cloneSourceSupplier.get();
+              tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
+          == null) {
+        @Nullable TableReference cloneSource = cloneSourceSupplier.get();
         if (cloneSource != null) {
           cloneTable(
               options, datasetService, bqServices, cloneSource, tableReference, kmsKey, tableSpec);
         } else {
           TableSchema tableSchema = schemaSupplier.get();
-          @Nullable
-          TableConstraints tableConstraints = tableConstraintsSupplier.get();
+          @Nullable TableConstraints tableConstraints = tableConstraintsSupplier.get();
           Preconditions.checkArgumentNotNull(
               tableSchema,
               "Unless create disposition is %s, a schema or clone source must be specified, i.e. "
@@ -371,10 +372,11 @@ public class CreateTableHelpers {
   private static String createCloneJobIdPrefix(
       BigQueryOptions options, TableReference source, TableReference destination) {
     String jobName = MoreObjects.firstNonNull(options.getJobName(), "beam_bq_clone");
-    String stepToken = Hashing.murmur3_128()
-        .hashUnencodedChars(
-            BigQueryHelpers.toJsonString(source) + BigQueryHelpers.toJsonString(destination))
-        .toString();
+    String stepToken =
+        Hashing.murmur3_128()
+            .hashUnencodedChars(
+                BigQueryHelpers.toJsonString(source) + BigQueryHelpers.toJsonString(destination))
+            .toString();
     return BigQueryResourceNaming.createJobIdPrefix(jobName, stepToken, JobType.CLONE);
   }
 

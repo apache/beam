@@ -207,8 +207,7 @@ class WriteTables<DestinationT extends @NonNull Object>
               + "but %s returned null for destination %s",
           dynamicDestinations,
           destination);
-      @Nullable
-      TableReference cloneSource =
+      @Nullable TableReference cloneSource =
           tempTable ? null : dynamicDestinations.getCloneSource(destination);
       TableSchema tableSchema;
       if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {

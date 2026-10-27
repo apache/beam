@@ -550,16 +550,13 @@ public class BigQueryIOTranslation {
       if (jsonSchema != null) {
         fieldValues.put("json_schema", jsonSchema.get());
       }
+      ValueProvider<String> jsonCloneSourceTableRef = transform.getJsonCloneSourceTableRef();
+      if (jsonCloneSourceTableRef != null) {
+        fieldValues.put("json_clone_source_table_ref", jsonCloneSourceTableRef.get());
+      }
       ValueProvider<String> jsonTimePartitioning = transform.getJsonTimePartitioning();
       if (jsonTimePartitioning != null) {
         fieldValues.put("json_time_partitioning", toByteArray(jsonTimePartitioning.get()));
-      if (transform.getJsonCloneSourceTableRef() != null) {
-        fieldValues.put(
-            "json_clone_source_table_ref", transform.getJsonCloneSourceTableRef().get());
-      }
-      if (transform.getJsonTimePartitioning() != null) {
-        fieldValues.put(
-            "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
       }
       ValueProvider<String> jsonClustering = transform.getJsonClustering();
       if (jsonClustering != null) {
