@@ -44,7 +44,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
@@ -306,13 +305,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         evolution))
                 .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
     SchemaCoder<SerializableDataFile> sdfCoder;
+    SchemaCoder<ManifestKey> manifestKeyCoder;
     try {
-      sdfCoder = SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class);
+      SchemaRegistry schemas = SchemaRegistry.createDefault();
+      sdfCoder = schemas.getSchemaCoder(SerializableDataFile.class);
+      manifestKeyCoder = schemas.getSchemaCoder(ManifestKey.class);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    PCollection<KV<KV<String, Integer>, SerializableDataFile>> keyedFiles =
+    PCollection<KV<ManifestKey, SerializableDataFile>> keyedFiles =
         dataFiles
             .get(DATA_FILES)
             .setCoder(KvCoder.of(StringUtf8Coder.of(), sdfCoder))
@@ -320,19 +322,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 "AddTableAndSpecIdKey",
                 ParDo.of(
                     new DoFn<
-                        KV<String, SerializableDataFile>,
-                        KV<KV<String, Integer>, SerializableDataFile>>() {
+                        KV<String, SerializableDataFile>, KV<ManifestKey, SerializableDataFile>>() {
                       @ProcessElement
                       public void process(
                           @Element KV<String, SerializableDataFile> element,
-                          OutputReceiver<KV<KV<String, Integer>, SerializableDataFile>> out) {
+                          OutputReceiver<KV<ManifestKey, SerializableDataFile>> out) {
                         SerializableDataFile file = element.getValue();
-                        out.output(KV.of(KV.of(element.getKey(), file.getPartitionSpecId()), file));
+                        out.output(
+                            KV.of(
+                                ManifestKey.of(element.getKey(), file.getPartitionSpecId()), file));
                       }
                     }))
-            .setCoder(KvCoder.of(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), sdfCoder));
+            .setCoder(KvCoder.of(manifestKeyCoder, sdfCoder));
 
-    GroupIntoBatches<KV<String, Integer>, SerializableDataFile> batchDataFiles =
+    GroupIntoBatches<ManifestKey, SerializableDataFile> batchDataFiles =
         GroupIntoBatches.ofSize(manifestFileSize);
     GroupIntoBatches<String, byte[]> batchManifestFiles =
         GroupIntoBatches.ofSize(DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT);
@@ -343,7 +346,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           batchManifestFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
     }
 
-    PCollection<KV<KV<String, Integer>, Iterable<SerializableDataFile>>> groupedFiles =
+    PCollection<KV<ManifestKey, Iterable<SerializableDataFile>>> groupedFiles =
         keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles);
 
     PCollection<KV<String, byte[]>> manifests =
@@ -1285,7 +1288,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * downstream {@link CommitManifestFilesDoFn}.
    */
   static class CreateManifests
-      extends DoFn<KV<KV<String, Integer>, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
+      extends DoFn<KV<ManifestKey, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Map<String, Table> tables;
 
@@ -1295,13 +1298,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @ProcessElement
     public void process(
-        @Element KV<KV<String, Integer>, Iterable<SerializableDataFile>> batch,
+        @Element KV<ManifestKey, Iterable<SerializableDataFile>> batch,
         OutputReceiver<KV<String, byte[]>> output)
         throws IOException {
       if (!batch.getValue().iterator().hasNext()) {
         return;
       }
-      String identifier = batch.getKey().getKey();
+      String identifier = batch.getKey().getTable();
       if (tables == null) {
         tables = new HashMap<>();
       }
@@ -1311,7 +1314,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         tables.put(identifier, table);
       }
 
-      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getValue()));
+      PartitionSpec spec =
+          checkStateNotNull(table.specs().get(batch.getKey().getPartitionSpecId()));
 
       String manifestPath =
           String.format(
