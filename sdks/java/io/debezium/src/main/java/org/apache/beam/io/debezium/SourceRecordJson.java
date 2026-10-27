@@ -62,8 +62,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *         <li>table - Table name
  *       </ul>
  *   <li>transaction - {@link #loadTransaction}: the Debezium {@code transaction} block of the
- *       change event ({@code id}, {@code total_order} and {@code data_collection_order}), or {@code
- *       null} unless the connector has {@code provide.transaction.metadata=true}
+ *       change event ({@code id}, {@code total_order} and {@code data_collection_order}). The key
+ *       is absent unless the connector has {@code provide.transaction.metadata=true}
  * </ul>
  *
  * <h3>Full metadata</h3>
@@ -298,9 +298,9 @@ public class SourceRecordJson {
     }
 
     return new Event.Transaction(
-        transaction.getString("id"),
-        transaction.getInt64("total_order"),
-        transaction.getInt64("data_collection_order"));
+        getStringOrNull(transaction, "id"),
+        getInt64OrNull(transaction, "total_order"),
+        getInt64OrNull(transaction, "data_collection_order"));
   }
 
   /**
@@ -310,22 +310,22 @@ public class SourceRecordJson {
    */
   private TransactionEvent loadTransactionEvent() {
     @Nullable List<TransactionEvent.DataCollection> dataCollections = null;
-    @Nullable List<Struct> dataCollectionStructs = this.value.getArray("data_collections");
+    @Nullable List<Struct> dataCollectionStructs = getArrayOrNull(this.value, "data_collections");
     if (dataCollectionStructs != null) {
       dataCollections = new ArrayList<>();
       for (Struct dataCollection : dataCollectionStructs) {
         dataCollections.add(
             new TransactionEvent.DataCollection(
-                dataCollection.getString("data_collection"),
-                dataCollection.getInt64("event_count")));
+                getStringOrNull(dataCollection, "data_collection"),
+                getInt64OrNull(dataCollection, "event_count")));
       }
     }
 
     return new TransactionEvent(
-        this.value.getString("status"),
-        this.value.getString("id"),
-        this.value.getInt64("ts_ms"),
-        this.value.getInt64("event_count"),
+        getStringOrNull(this.value, "status"),
+        getStringOrNull(this.value, "id"),
+        getInt64OrNull(this.value, "ts_ms"),
+        getInt64OrNull(this.value, "event_count"),
         dataCollections);
   }
 
@@ -404,17 +404,20 @@ public class SourceRecordJson {
 
     /**
      * Transforms the Event to a JSON string, appending the given extra keys to {@code metadata}
-     * after {@code table}.
+     * after {@code table}. The {@code transaction} key is omitted when the record has none.
      *
      * @param extras Additional metadata keys, in iteration order
      * @return JSON String
      */
     String toJson(Map<String, Object> extras) {
+      JsonObject tree = GSON.toJsonTree(this).getAsJsonObject();
+      if (transaction == null) {
+        tree.remove("transaction");
+      }
       if (extras.isEmpty() || metadata == null) {
-        return GSON.toJson(this);
+        return GSON.toJson(tree);
       }
       // Gson can't flatten a map into an object, so append the extras to the metadata tree.
-      JsonObject tree = GSON.toJsonTree(this).getAsJsonObject();
       JsonObject metadataJson = tree.getAsJsonObject("metadata");
       for (Map.Entry<String, Object> extra : extras.entrySet()) {
         metadataJson.add(extra.getKey(), GSON.toJsonTree(extra.getValue()));
@@ -587,5 +590,20 @@ public class SourceRecordJson {
    */
   private static boolean isTransactionMetadataEvent(@Nullable Schema keySchema) {
     return keySchema != null && SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME.equals(keySchema.name());
+  }
+
+  /** Returns the string field's value, or null if the struct's schema has no such field. */
+  private static @Nullable String getStringOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getString(name) : null;
+  }
+
+  /** Returns the int64 field's value, or null if the struct's schema has no such field. */
+  private static @Nullable Long getInt64OrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getInt64(name) : null;
+  }
+
+  /** Returns the array field's value, or null if the struct's schema has no such field. */
+  private static <T> @Nullable List<T> getArrayOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getArray(name) : null;
   }
 }
