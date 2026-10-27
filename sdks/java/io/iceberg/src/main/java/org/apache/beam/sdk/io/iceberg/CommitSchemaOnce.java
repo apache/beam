@@ -30,7 +30,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  * Commits one schema union per window (the combine output is one element per window) and emits the
  * resulting schema id as the signal for the Wait.on gate ahead of file registration.
  */
-class CommitSchemaOnce extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Long> {
+class CommitSchemaOnce extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, SchemaCommitVerdict> {
   static final String COMMITS_COUNTER = "numSchemaCommits";
   private static final Counter numSchemaCommits = counter(CommitSchemaOnce.class, COMMITS_COUNTER);
 
@@ -58,19 +58,19 @@ class CommitSchemaOnce extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Lo
 
   @ProcessElement
   public void process(
-      @Element List<CollectDistinctSchemas.SchemaGroup> schemas, OutputReceiver<Long> out) {
+      @Element List<CollectDistinctSchemas.SchemaGroup> schemas,
+      OutputReceiver<SchemaCommitVerdict> out) {
     if (catalog == null) {
       catalog = catalogConfig.catalog();
     }
     TableIdentifier tableId = IcebergUtils.parseTableIdentifier(identifier);
     // The committer runs only when a transaction is actually committed, so wrapping it counts
     // real commits and skips no-op windows.
-    CommitSchemaUnion.Committer counting =
+    CommitSchemaUnion.Committer countingCommitter =
         txn -> {
           committer.commit(txn);
           numSchemaCommits.inc();
         };
-    long schemaId = CommitSchemaUnion.commit(catalog, tableId, schemas, settings, counting);
-    out.output(schemaId);
+    out.output(CommitSchemaUnion.commit(catalog, tableId, schemas, settings, countingCommitter));
   }
 }

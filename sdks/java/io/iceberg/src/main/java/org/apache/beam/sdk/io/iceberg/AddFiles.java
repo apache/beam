@@ -298,7 +298,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       if (evolution.getDryRun()) {
         return report(schemas, settings);
       }
-      PCollection<Long> committed = commitSchema(schemas, settings);
+      PCollection<SchemaCommitVerdict> committed = commitSchema(schemas, settings);
       paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
     }
 
@@ -400,7 +400,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   /** Commits the plan for the window's schemas once; the signal releases the gated paths. */
-  private PCollection<Long> commitSchema(
+  private PCollection<SchemaCommitVerdict> commitSchema(
       PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
       CommitSchemaUnion.Settings settings) {
     return schemas.apply(
