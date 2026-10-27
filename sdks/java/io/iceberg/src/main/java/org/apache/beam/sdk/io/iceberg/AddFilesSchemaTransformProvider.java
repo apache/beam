@@ -70,8 +70,29 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       return new AutoValue_AddFilesSchemaTransformProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("A fully-qualified table identifier.")
+    @SchemaFieldDescription(
+        "A fully-qualified table identifier. When path_pattern is set this is a template"
+            + " instead, filled from what the pattern captures, for example"
+            + " 'warehouse.{db}.{table}'; every placeholder it uses has to be one the pattern"
+            + " captures.")
     public abstract String getTable();
+
+    @SchemaFieldDescription(
+        "Registers each file in the table that its own path names, instead of registering every"
+            + " file in one table. It is a glob over the whole path with '{name}' placeholders"
+            + " that each capture one folder: 'gs://lake/export/{table}/**' over"
+            + " 'gs://lake/export/orders/part-0.parquet' captures table=orders, and that file is"
+            + " registered in whichever table the 'table' template then renders. A '*' stays"
+            + " inside one folder, '**' crosses folders and may only appear after the last"
+            + " placeholder, and a path the pattern does not match goes to the error output"
+            + " instead of being registered anywhere. Requires schema_evolution_options, because"
+            + " the schema pre-pass is what decides each table, and error_handling, because that"
+            + " is where unroutable files and refused tables are reported. Setting it also adds"
+            + " a 'table' field to the error output, naming the table each reported file was"
+            + " headed for and empty when none could be determined; without it the error output"
+            + " keeps the two fields it has always had. Cannot be combined with dry_run. Batch"
+            + " pipelines only.")
+    public abstract @Nullable String getPathPattern();
 
     @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
     public abstract @Nullable Map<String, String> getCatalogProperties();
@@ -171,7 +192,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " that is not allowed, or it conflicts with the table or with another file."
             + " FAIL_PIPELINE (the default) fails the pipeline before any schema change is"
             + " committed. ROUTE_TO_ERRORS commits the changes for the other files and sends the"
-            + " incompatible files to the error output; it requires error_handling.")
+            + " incompatible files to the error output; it requires error_handling."
+            + " When path_pattern is set neither value fails the pipeline: FAIL_PIPELINE refuses"
+            + " only the table whose files conflict, that table's files go to the error output,"
+            + " and every other table is still registered.")
     public abstract @Nullable String getIncompatibleSchemaHandling();
 
     @SchemaFieldDescription(
@@ -193,6 +217,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
+
+      public abstract Builder setPathPattern(String pathPattern);
 
       public abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
@@ -332,6 +358,38 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       @Nullable Integer frequency = configuration.getTriggeringFrequencySeconds();
 
+      AddFiles addFiles =
+          new AddFiles(
+              configuration.getIcebergCatalog(),
+              configuration.getTable(),
+              configuration.getLocationPrefix(),
+              configuration.getPartitionFields(),
+              configuration.getSortFields(),
+              configuration.getTableProperties(),
+              configuration.getManifestFileSize(),
+              frequency != null ? Duration.standardSeconds(frequency) : null,
+              configuration.getSchemaEvolution());
+
+      String pathPattern = configuration.getPathPattern();
+      if (pathPattern != null) {
+        // AddFiles checks the first two against its own fields; these name the YAML keys
+        List<String> evolutionOptions = configuration.getSchemaEvolutionOptions();
+        Preconditions.checkArgument(
+            evolutionOptions != null && !evolutionOptions.isEmpty(),
+            "path_pattern needs schema_evolution_options: the schema pre-pass is what decides"
+                + " which table each file belongs to");
+        Preconditions.checkArgument(
+            !Boolean.TRUE.equals(configuration.getDryRun()),
+            "path_pattern cannot be combined with dry_run");
+        // with no error output an unmatched path and a refused table's files are dropped
+        // silently, which is the one outcome this transform must not have
+        Preconditions.checkArgument(
+            ErrorHandling.hasOutput(configuration.getErrorHandling()),
+            "path_pattern needs error_handling to receive the files it could not route or"
+                + " register");
+        addFiles = addFiles.withPathPattern(pathPattern);
+      }
+
       PCollectionRowTuple result =
           input
               .getSinglePCollection()
@@ -340,17 +398,7 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
                   "ExtractPaths",
                   MapElements.into(TypeDescriptors.strings())
                       .via(row -> checkStateNotNull(row.getString(0))))
-              .apply(
-                  new AddFiles(
-                      configuration.getIcebergCatalog(),
-                      configuration.getTable(),
-                      configuration.getLocationPrefix(),
-                      configuration.getPartitionFields(),
-                      configuration.getSortFields(),
-                      configuration.getTableProperties(),
-                      configuration.getManifestFileSize(),
-                      frequency != null ? Duration.standardSeconds(frequency) : null,
-                      configuration.getSchemaEvolution()));
+              .apply(addFiles);
 
       PCollectionRowTuple output = PCollectionRowTuple.of("snapshots", result.get(OUTPUT_TAG));
       ErrorHandling errorHandling = configuration.getErrorHandling();

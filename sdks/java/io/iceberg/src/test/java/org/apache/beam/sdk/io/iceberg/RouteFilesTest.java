@@ -87,7 +87,8 @@ public class RouteFilesTest {
             Row.withSchema(RouteFiles.ERROR_SCHEMA)
                 .addValues(
                     "gs://lake/stray.parquet",
-                    "did not match path_pattern 'gs://lake/{db}/{tbl}/**'")
+                    "did not match path_pattern 'gs://lake/{db}/{tbl}/**'",
+                    "")
                 .build());
 
     pipeline.run().waitUntilFinish();

@@ -1869,7 +1869,7 @@ public class AddFilesTest {
             .apply(
                 ParDo.of(
                         new AddFiles.ConvertToDataFile(
-                            catalogConfig, null, null, null, null, config))
+                            catalogConfig, false, null, null, null, null, config))
                     .withOutputTags(
                         AddFiles.ConvertToDataFile.DATA_FILES,
                         TupleTagList.of(AddFiles.ConvertToDataFile.ERRORS)));
