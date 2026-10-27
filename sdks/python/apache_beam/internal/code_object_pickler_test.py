@@ -121,11 +121,11 @@ def outer_decorated_with_shared_wrapper():
 
 def get_same_named_nested_functions_different_args(branch):
   if branch:
-    
+
     def nested_fn(x):
       return x + 1
   else:
-    
+
     def nested_fn(x, y):
       return x + y
 
@@ -134,11 +134,11 @@ def get_same_named_nested_functions_different_args(branch):
 
 def get_same_named_nested_functions_same_args(branch):
   if branch:
-    
+
     def nested_fn(x):
       return x + 1
   else:
-    
+
     def nested_fn(x):
       return x + 2
 
