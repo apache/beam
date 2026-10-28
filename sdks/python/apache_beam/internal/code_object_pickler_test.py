@@ -149,19 +149,17 @@ def get_same_named_nested_functions_with_complex_consts(branch):
   if branch:
 
     def nested_fn(x):
-
       def inner(x):
         return 1
 
-      return (inner(), (1,2), x in {1,2})
+      return (inner(), (1, 2), x in {1, 2})
   else:
 
     def nested_fn(x):
-
       def inner():
         return 2
 
-      return (inner(), (3,4), x in {3,4})
+      return (inner(), (3, 4), x in {3, 4})
 
   return nested_fn
 
@@ -458,11 +456,11 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     )
 
   def test_same_nested_functions_with_complex_consts_roundtrip(self):
-    fn_true = get_same_nested_functions_with_complex_consts(True)
-    fn_false = get_same_nested_functions_with_complex_consts(False)
+    fn_true = get_same_named_nested_functions_with_complex_consts(True)
+    fn_false = get_same_named_nested_functions_with_complex_consts(False)
     path_true = code_object_pickler.get_code_object_identifier(fn_true)
     path_false = code_object_pickler.get_code_object_identifier(fn_false)
-    
+
     self.assertNotEqual(path_true, path_false)
     self.assertEqual(
         code_object_pickler.get_code_from_identifier(path_true),
@@ -477,9 +475,8 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     mod_name = "apache_beam.internal.test_data.module_1"
     saved = sys.modules.pop(mod_name, None)
     try:
-      with self.assertRaisesRegex(
-          AttributeError, "Could not find code object with path"
-      ):
+      with self.assertRaisesRegex(AttributeError,
+                                  "Could not find code object with path"):
         code_object_pickler.get_code_from_identifier(mod_name)
     finally:
       if saved is not None:
@@ -492,21 +489,18 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     mismatched_local.__module__ = prefix
     mismatched_local.__qualname__ = "get_nested_function.<locals>.nested_function"
     self.assertIsNone(
-        code_object_pickler.get_code_object_identifier(mismatched_local)
-    )
+        code_object_pickler.get_code_object_identifier(mismatched_local))
 
     empty_local_qualname = lambda: 2
     empty_local_qualname.__module__ = prefix
     empty_local_qualname.__qualname__ = "get_nested_function.<locals>"
     self.assertIsNone(
-        code_object_pickler.get_code_object_identifier(empty_local_qualname)
-    )
+        code_object_pickler.get_code_object_identifier(empty_local_qualname))
 
     self.assertIsNone(
         code_object_pickler._search_code(
-            mismatched_local, mismatched_local.__code__, ["nested_function", "extra"]
-        )
-    )
+            mismatched_local,
+            mismatched_local.__code__, ["nested_function", "extra"]))
 
 class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
   def test_empty_path_raises_exception(self):
