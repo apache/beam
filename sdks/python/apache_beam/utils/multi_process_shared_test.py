@@ -16,11 +16,14 @@
 #
 # pytype: skip-file
 
+import gc
 import logging
 import multiprocessing
+import multiprocessing.connection
 import os
 import tempfile
 import threading
+import time
 import unittest
 from typing import Any
 from unittest.mock import patch
@@ -104,6 +107,39 @@ class CounterWithBadAttr(object):
     else:
       # Default behaviour
       return object.__getattribute__(self, __name)
+
+
+class PidCounter(object):
+  def __init__(self, start=0):
+    self.running = start
+    self.lock = threading.Lock()
+
+  def get_pid(self):
+    return os.getpid()
+
+  def get(self):
+    return self.running
+
+  def increment(self, value=1):
+    with self.lock:
+      self.running += value
+      return self.running
+
+
+class SlowFinalizingObject(object):
+  def __init__(self, entered_path, finalized_path):
+    self._entered_path = entered_path
+    self._finalized_path = finalized_path
+
+  def block_call(self):
+    with open(self._entered_path, 'w') as f:
+      f.write('entered')
+    time.sleep(30)
+    return 'done'
+
+  def __del__(self):
+    with open(self._finalized_path, 'w') as f:
+      f.write('finalized')
 
 
 class MultiProcessSharedTest(unittest.TestCase):
@@ -491,6 +527,153 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
+
+  def test_spawn_process_runs_in_dedicated_pid(self):
+    parent_pid = os.getpid()
+    proxies = [
+        multi_process_shared.MultiProcessShared(
+            PidCounter,
+            tag=f'dedicated_pid_{i}',
+            always_proxy=True,
+            spawn_process=True).acquire() for i in range(3)
+    ]
+    pids = [proxy.get_pid() for proxy in proxies]
+    self.assertEqual(len(set(pids)), 3)
+    for pid in pids:
+      self.assertNotEqual(pid, parent_pid)
+
+    same_tag_proxy = multi_process_shared.MultiProcessShared(
+        PidCounter,
+        tag='dedicated_pid_0',
+        always_proxy=True,
+        spawn_process=True).acquire()
+    self.assertEqual(same_tag_proxy.get_pid(), pids[0])
+    self.assertEqual(proxies[0].increment(5), 5)
+    self.assertEqual(same_tag_proxy.get(), 5)
+
+  def test_no_cyclic_gc_self_deadlock_issue_40673(self):
+    """Regression test for https://github.com/apache/beam/issues/40673.
+
+    When always_proxy=True and spawn_process=False, cyclic GC collecting an
+    unreachable BaseProxy on the in-process Server.accepter thread deadlocks
+    the server against itself. With spawn_process=True, the server runs in a
+    dedicated child process with no BaseProxy references, preventing deadlock.
+    """
+    orig_accept = multiprocessing.connection.Listener.accept
+
+    def gc_on_accepter_accept(listener_self):
+      if 'accepter' in threading.current_thread().name:
+        gc.collect()
+      return orig_accept(listener_self)
+
+    stop_bg_gc = threading.Event()
+
+    def background_gc():
+      while not stop_bg_gc.is_set():
+        gc.collect()
+        time.sleep(0.005)
+
+    errors = []
+
+    def workload():
+      try:
+        for i in range(15):
+          handle = multi_process_shared.MultiProcessShared(
+              Counter,
+              tag='issue_40673_tag',
+              always_proxy=True,
+              spawn_process=True)
+          proxy = handle.acquire()
+          self.assertEqual(proxy.increment(), i + 1)
+          cycle = []
+          cycle.append(cycle)
+          cycle.append(proxy)
+          cycle.append(handle)
+          del proxy
+          del handle
+          del cycle
+          if i % 3 == 0:
+            gc.collect()
+      except BaseException as e:  # pylint: disable=broad-exception-caught
+        errors.append(e)
+
+    with patch.object(multiprocessing.connection.Listener,
+                      'accept',
+                      gc_on_accepter_accept):
+      gc_thread = threading.Thread(target=background_gc, daemon=True)
+      worker_thread = threading.Thread(target=workload, daemon=True)
+      gc_thread.start()
+      worker_thread.start()
+      worker_thread.join(timeout=30)
+      stop_bg_gc.set()
+      gc_thread.join(timeout=5)
+
+    self.assertFalse(
+        worker_thread.is_alive(),
+        'Deadlock detected while acquiring/collecting cyclic BaseProxy '
+        'instances with spawn_process=True')
+    self.assertEqual(errors, [])
+
+    final_proxy = multi_process_shared.MultiProcessShared(
+        Counter, tag='issue_40673_tag', always_proxy=True,
+        spawn_process=True).acquire()
+    self.assertEqual(final_proxy.get(), 15)
+
+  def test_spawn_process_supports_lambda_and_closure_constructors(self):
+    captured_offset = 42
+
+    def local_factory(extra):
+      return PidCounter(start=captured_offset + extra)
+
+    proxy = multi_process_shared.MultiProcessShared(
+        lambda: local_factory(8),
+        tag='closure_constructor',
+        always_proxy=True,
+        spawn_process=True).acquire()
+    self.assertNotEqual(proxy.get_pid(), os.getpid())
+    self.assertEqual(proxy.get(), 50)
+    self.assertEqual(proxy.increment(5), 55)
+
+  def test_unsafe_hard_delete_missing_tag_is_noop(self):
+    handle = multi_process_shared.MultiProcessShared(
+        Counter, tag='nonexistent_tag', always_proxy=True, spawn_process=True)
+    handle.unsafe_hard_delete()
+    self.assertEqual(multiprocessing.active_children(), [])
+
+  def test_unsafe_hard_delete_runs_del_during_inflight_blocked_call(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      entered_path = os.path.join(tmp_dir, 'entered')
+      finalized_path = os.path.join(tmp_dir, 'finalized')
+      handle = multi_process_shared.MultiProcessShared(
+          lambda: SlowFinalizingObject(entered_path, finalized_path),
+          tag='inflight_hard_delete',
+          always_proxy=True,
+          spawn_process=True)
+      proxy = handle.acquire()
+      server_proc = next(
+          p for p in multiprocessing.active_children() if p.is_alive())
+
+      def call_ignoring_disconnect():
+        try:
+          proxy.block_call()
+        except (EOFError, OSError):
+          pass
+
+      call_thread = threading.Thread(
+          target=call_ignoring_disconnect, daemon=True)
+      call_thread.start()
+
+      deadline = time.time() + 5
+      while not os.path.exists(entered_path) and time.time() < deadline:
+        time.sleep(0.02)
+      self.assertTrue(os.path.exists(entered_path))
+
+      handle.unsafe_hard_delete()
+      server_proc.join(timeout=5)
+      self.assertFalse(server_proc.is_alive())
+      self.assertTrue(os.path.exists(finalized_path))
+      with open(finalized_path) as f:
+        self.assertEqual(f.read(), 'finalized')
 
 
 if __name__ == '__main__':

@@ -26,6 +26,7 @@ import atexit
 import logging
 import multiprocessing.managers
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -38,6 +39,7 @@ from typing import TypeVar
 
 import fasteners
 
+from apache_beam.internal import pickler
 from apache_beam.utils import retry
 
 # In some python versions, there is a bug where AutoProxy doesn't handle
@@ -150,8 +152,22 @@ class _SingletonEntry:
   def unsafe_hard_delete(self):
     with self.lock:
       if self.initialied:
+        obj = self.obj
         del self.obj
         self.initialied = False
+        # When hard-deleting in a spawned server process that exits via
+        # os._exit(0), an in-flight RPC thread (e.g. a timed-out call) may
+        # still hold a stack reference to `obj`, preventing CPython from
+        # invoking `obj.__del__()` before `os._exit(0)`.
+        if (self._hard_delete_callback is not None and
+            sys.getrefcount(obj) > 2 and hasattr(type(obj), '__del__')):
+          try:
+            type(obj).__del__(obj)
+          except Exception:
+            logging.warning(
+                'Exception while finalizing object during unsafe_hard_delete',
+                exc_info=True)
+        del obj
       if self._hard_delete_callback:
         self._hard_delete_callback()
 
@@ -232,7 +248,8 @@ class _AutoProxyWrapper:
     self._proxyObject.unsafe_hard_delete()
 
 
-def _run_server_process(address_file, tag, constructor, authkey, life_line):
+def _run_server_process(
+    address_file, tag, serialized_constructor, authkey, life_line):
   """
     Runs in a separate process.
     Includes a 'Suicide Pact' monitor: If parent dies, I die.
@@ -276,6 +293,7 @@ def _run_server_process(address_file, tag, constructor, authkey, life_line):
     logging.getLogger().setLevel(logging.INFO)
     multiprocessing.current_process().authkey = authkey
 
+    constructor = pickler.loads(serialized_constructor)
     serving_manager = _SingletonRegistrar(
         address=('localhost', 0), authkey=authkey)
     _process_level_singleton_manager.set_hard_delete_callback(
@@ -439,7 +457,19 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
-    self._get_manager().unsafe_hard_delete_singleton(self._tag)
+    address_file = os.path.join(self._path, self._tag) + ".address"
+    if (self._manager is None and
+        not _process_level_singleton_manager.has_singleton(self._tag) and
+        not os.path.exists(address_file)):
+      return
+    try:
+      self._get_manager().unsafe_hard_delete_singleton(self._tag)
+    except (EOFError, OSError, BrokenPipeError):
+      # Expected when a spawned server process exits via os._exit(0) before
+      # sending an RPC reply.
+      pass
+    finally:
+      self._manager = None
 
   def _create_server(self, address_file):
     if self._spawn_process:
@@ -459,7 +489,12 @@ class MultiProcessShared(Generic[T]):
       ctx = multiprocessing.get_context('spawn')
       p = ctx.Process(
           target=_run_server_process,
-          args=(address_file, self._tag, self._constructor, AUTH_KEY, reader),
+          args=(
+              address_file,
+              self._tag,
+              pickler.dumps(self._constructor),
+              AUTH_KEY,
+              reader),
           daemon=False  # Must be False for nested proxies
       )
       p.start()
