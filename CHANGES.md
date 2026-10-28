@@ -55,7 +55,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.78.0] - Unreleased
+# [2.79.0] - Unreleased
 
 ## Highlights
 
@@ -64,8 +64,38 @@
 
 ## I/Os
 
-* Added a SchemaTransform for SplunkIO writes, available in Beam YAML as `WriteToSplunk` (Java/YAML) ([#40470](https://github.com/apache/beam/issues/40470)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.78.0] - 2026-11-??
+
+## I/Os
+
+* Added a SchemaTransform for SplunkIO writes, available in Beam YAML as `WriteToSplunk` (Java/YAML) ([#40470](https://github.com/apache/beam/issues/40470)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
 * Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--bigquery_quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` can now include `op` and the remaining Debezium `source` fields (e.g. MySQL `file`, `pos`, `row`, `ts_ms`; PostgreSQL `lsn`, `txId`, `ts_ms`) in `metadata` via `withFullMetadata(true)` / `full_metadata=True` / `debeziumio.FullMetadata()`. Off by default ([#40701](https://github.com/apache/beam/issues/40701)).
@@ -109,7 +139,6 @@
 
 * Support for Python 3.10 was removed following its end-of-life ([#40250](https://github.com/apache/beam/issues/40250)).
 * (Python) `XGBoostModelHandlerDatatable` is deprecated and will be removed in Beam 2.79.0, along with the `datatable` dependency of the `xgboost` extra. `datatable` has not had a release since 2023 and has no wheels for Python 3.13+. Use `XGBoostModelHandlerPandas` (or the NumPy/SciPy handlers) instead ([#40705](https://github.com/apache/beam/issues/40705)).
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
@@ -151,16 +180,6 @@
 * (Python) DataFrame API: `drop_duplicates`, `duplicated` and `nunique` no longer fail on rows with NaN values or on categorical columns with unused categories, and `nunique(dropna=False)` now counts NaN ([#40570](https://github.com/apache/beam/issues/40570)).
 * (Java) BigQuery Storage Write API `TableRow` conversion now honors `allowMissingRequiredFields` when building protocol-buffer messages, so callers that pass `true` with required descriptors get partial messages instead of a conversion-time `UninitializedMessageException` ([#40189](https://github.com/apache/beam/issues/40189)).
 * (Go) Fixed generic registration (for example `register.Function1x1` or `register.DoFn1x1`) panicking on functions and methods that take or return an anonymous struct. Unnamed struct types are now only registered with the schema registry, since they have no type key for the runtime type registry ([#21789](https://github.com/apache/beam/issues/21789)).
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Security Fixes
-
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.77.0] - 2026-10-07
 
