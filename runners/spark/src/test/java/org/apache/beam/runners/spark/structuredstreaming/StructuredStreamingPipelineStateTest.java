@@ -40,9 +40,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -59,8 +57,6 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   private final transient SparkStructuredStreamingPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-
-  @Rule public transient TestName testName = new TestName();
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
@@ -106,16 +102,6 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setStreaming(false); // explicit because options is reused throughout the test.
     return options;
-  }
-
-  private Pipeline getPipeline(final SparkStructuredStreamingPipelineOptions options) {
-
-    final Pipeline pipeline = Pipeline.create(options);
-    final String name = testName.getMethodName();
-
-    pipeline.apply(Create.of("one", "two")).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
-
-    return pipeline;
   }
 
   private void testFailedPipeline(final SparkStructuredStreamingPipelineOptions options)
