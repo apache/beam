@@ -66,8 +66,9 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) FirestoreIO: added `RpcQosOptions.Builder.withRampupThrottlingDisabled()`, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up ([#27170](https://github.com/apache/beam/issues/27170)).
-* Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
+* Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--bigquery_quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` can now include `op` and the remaining Debezium `source` fields (e.g. MySQL `file`, `pos`, `row`, `ts_ms`; PostgreSQL `lsn`, `txId`, `ts_ms`) in `metadata` via `withFullMetadata(true)` / `full_metadata=True` / `debeziumio.FullMetadata()`. Off by default ([#40701](https://github.com/apache/beam/issues/40701)).
+* [IcebergIO] AddFiles is now available through the Managed API with `Managed.write(Managed.ICEBERG_ADD_FILES)` (Java/Python) ([#40827](https://github.com/apache/beam/issues/40827)).
 
 ## New Features / Improvements
 
@@ -99,6 +100,8 @@
 * (Python) `Regex.all_matches` now returns every group of the regex, instead of failing with a `TypeError` when the regex has no groups and dropping nested or unmatched trailing groups ([#40562](https://github.com/apache/beam/issues/40562)).
 * (Python) `--dataflow_endpoint` now defaults to `''` instead of `https://dataflow.googleapis.com`. When unset, the Google Cloud client library resolves the Dataflow endpoint and honors `GOOGLE_CLOUD_UNIVERSE_DOMAIN`, so Dataflow jobs can be submitted in non-default universes. Code that reads `GoogleCloudOptions.dataflow_endpoint` should handle an empty value ([#40569](https://github.com/apache/beam/issues/40569)).
 * (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
+* (Java) [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) now carries the destination table alongside each file through the registration chain, so that one transform can register files into many tables. The coders of its internal `PCollection`s change, which makes this an update incompatible change for streaming pipelines that use it ([#40817](https://github.com/apache/beam/pull/40817)).
+* (YAML) `IcebergAddFiles` will be automatically replaced with the compatible managed transform. For older Beam versions, streaming update compatibility can be maintained by specifying the pipeline option `update_compatibility_version` ([#40827](https://github.com/apache/beam/issues/40827)).
 
 ## Deprecations
 
@@ -125,6 +128,7 @@
 * (Go) Fixed pubsubio importing a `google.golang.org/genproto` package removed in recent releases, which broke builds of Go modules depending on a current `genproto` version ([#40018](https://github.com/apache/beam/issues/40018)).
 * (Python) `VertexAIFeatureStoreEnrichmentHandler` now logs a warning instead of failing when the caller lacks permission to read the feature store metadata ([#40442](https://github.com/apache/beam/issues/40442)).
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
+* (Java) Fixed BigQuery Storage Write API failure outputs returning the wrong original row after consecutive serialization errors ([#39999](https://github.com/apache/beam/pull/39999)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
 * (Python) Fixed `AsyncWrapper` finalizing bundles before generator processing, which could drop buffered writes, and nesting iterable outputs ([#40000](https://github.com/apache/beam/pull/40000)).

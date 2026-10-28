@@ -3103,9 +3103,9 @@ class ReadFromBigQuery(PTransform):
     quota_project_id (str): The GCP project ID to use for quota and billing
       of BigQuery API requests issued by this transform, if different from
       the project the data resides in. Falls back to the
-      ``--quota_project_id`` pipeline option if not set. The credentials
-      used must have the ``serviceusage.services.use`` permission on that
-      project.
+      ``--bigquery_quota_project_id`` pipeline option if not set. The
+      credentials used must have the ``serviceusage.services.use``
+      permission on that project.
     query_output_schema: Required when output_type is 'BEAM_ROW' and a query
       is specified. A BigQuery schema describing the query result columns,
       since the schema cannot be auto-derived from an existing table when
