@@ -73,6 +73,7 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
             "--runner=Twister2TestRunner",
     ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
+    systemProperty "beam.validatesRunner.parallelThreads", "1"
     classpath = configurations.validatesRunner
     testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     testClassesDirs += files(project.sourceSets.test.output.classesDirs)
