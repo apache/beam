@@ -20,138 +20,95 @@ evaluationDependsOn(":playground:frontend:playground_components")
 
 tasks.register("generate") {
   dependsOn(":playground:frontend:playground_components:generate")
-
   dependsOn("generateCode")
-
   group = "build"
   description = "Generates all generated files."
 }
 
-tasks.register("analyze") {
+tasks.register<org.gradle.api.tasks.Exec>("analyze") {
   dependsOn(":playground:frontend:playground_components:generateCode")
   dependsOn("generateCode")
-
   group = "verification"
   description = "Analyze dart code"
-
-  doLast {
-    exec {
-      executable("dart")
-      args("analyze", "lib", "test")
-    }
-  }
+  commandLine("dart", "analyze", "lib", "test")
 }
 
-tasks.register("pubGet") {
+tasks.register<org.gradle.api.tasks.Exec>("pubGet") {
   group = "build"
   description = "Get packages for the frontend project"
-  doLast {
-    exec {
-      executable("flutter")
-      args("pub", "get")
-    }
-  }
+  commandLine("flutter", "pub", "get")
 }
 
-tasks.register("format") {
+tasks.register<org.gradle.api.tasks.Exec>("format") {
   group = "build"
   description = "Idiomatically format Dart source code"
-  doLast {
-    exec {
-      executable("dart")
-      args("format", "lib", "test")
-    }
-  }
+  commandLine("dart", "format", "lib", "test")
 }
 
-tasks.register("run") {
+tasks.register<org.gradle.api.tasks.Exec>("run") {
   group = "application"
   description = "Run application on Google Chrome"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("run", "-d", "chrome")
-    }
-  }
+  commandLine("flutter", "run", "-d", "chrome")
 }
 
-tasks.register("test") {
+tasks.register<org.gradle.api.tasks.Exec>("test") {
   dependsOn(":playground:frontend:playground_components:generateCode")
   dependsOn("generateCode")
-
   group = "verification"
   description = "flutter test"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("test")
-    }
-  }
+  commandLine("flutter", "test")
 }
 
 tasks.register("precommit") {
   dependsOn(":playground:frontend:playground_components:precommit")
-
   dependsOn("analyze")
   dependsOn("test")
 }
 
-tasks.register("generateCode") {
-  dependsOn(":playground:frontend:playground_components:generateCode")
-
+tasks.register<org.gradle.api.tasks.Exec>("generateCode") {
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
-
   group = "build"
   description = "Generate code"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-    }
-  }
+  commandLine(
+    "flutter", "pub", "run", "build_runner", "build",
+    "--delete-conflicting-outputs"
+  )
 }
 
-tasks.register("cleanFlutter") {
+tasks.register<org.gradle.api.tasks.Exec>("cleanFlutter") {
   group = "build"
   description = "Remove build artifacts"
+  commandLine("flutter", "clean")
+}
 
-  doLast {
-    exec {
-      executable("flutter")
-      args("clean")
+val deleteFilesByRegExp: (String) -> Unit = { re ->
+  val regex = Regex(re)
+  val matchedFiles = listOf("assets", "lib", "test").flatMap { directory ->
+    val base = file(directory)
+    if (base.exists()) {
+      fileTree(base).files.filter {
+        regex.matches(it.relativeTo(base).invariantSeparatorsPath)
+      }
+    } else {
+      emptyList()
     }
-  }
+  }.distinct()
+
+  matchedFiles.forEach { println(it) }
+  delete(matchedFiles)
 }
 
 tasks.register("cleanGenerated") {
   dependsOn(":playground:frontend:playground_components:cleanGenerated")
-
   group = "build"
   description = "Remove build artifacts"
 
   doLast {
     println("Deleting:")
-
-    deleteFilesByRegExp(".*\\.g\\.dart\$")
-    deleteFilesByRegExp(".*\\.gen\\.dart\$")
-    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
-  }
-}
-
-val deleteFilesByRegExp: (String) -> Unit = { re ->
-  // Prints file names.
-  exec {
-    executable("find")
-    args("assets", "lib", "test", "-regex", re)
-  }
-  // Actually deletes them.
-  exec {
-    executable("find")
-    args("assets", "lib", "test", "-regex", re, "-delete")
+    deleteFilesByRegExp(".*\\.g\\.dart$")
+    deleteFilesByRegExp(".*\\.gen\\.dart$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart$")
   }
 }
 
@@ -160,30 +117,24 @@ tasks.register("integrationTest") {
   dependsOn("integrationTest_welcome_page")
 }
 
-tasks.register("integrationTest_tour_page") {
-  doLast {
-    runIntegrationTest("tour_page", "/")
-  }
+val integrationDeviceId = providers.gradleProperty("deviceId").getOrElse("chrome")
+
+tasks.register<org.gradle.api.tasks.Exec>("integrationTest_tour_page") {
+  commandLine(
+    "flutter", "drive",
+    "--driver=test_driver/integration_test.dart",
+    "--target=integration_test/tour_page_test.dart",
+    "--web-launch-url='/'",
+    "--device-id=$integrationDeviceId"
+  )
 }
 
-tasks.register("integrationTest_welcome_page") {
-  doLast {
-    runIntegrationTest("welcome_page", "/")
-  }
-}
-
-fun runIntegrationTest(path: String, url: String) {
-  // Run with -PdeviceId=web-server for headless tests.
-  val deviceId: String = if (project.hasProperty("deviceId")) project.property("deviceId") as String else "chrome"
-
-  exec {
-    executable = "flutter"
-    args(
-      "drive",
-      "--driver=test_driver/integration_test.dart",
-      "--target=integration_test/${path}_test.dart",
-      "--web-launch-url='$url'",
-      "--device-id=$deviceId",
-    )
-  }
+tasks.register<org.gradle.api.tasks.Exec>("integrationTest_welcome_page") {
+  commandLine(
+    "flutter", "drive",
+    "--driver=test_driver/integration_test.dart",
+    "--target=integration_test/welcome_page_test.dart",
+    "--web-launch-url='/'",
+    "--device-id=$integrationDeviceId"
+  )
 }

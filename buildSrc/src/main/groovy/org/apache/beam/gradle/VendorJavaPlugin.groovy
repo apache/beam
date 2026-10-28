@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.BasePluginExtension
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.publish.maven.MavenPublication
@@ -74,7 +75,7 @@ class VendorJavaPlugin implements Plugin<Project> {
       VendorJavaPluginConfig config = it ? it as VendorJavaPluginConfig : new VendorJavaPluginConfig()
 
       project.apply plugin: 'base'
-      project.archivesBaseName = config.artifactId
+      project.extensions.getByType(BasePluginExtension).archivesName.set(config.artifactId)
 
       if (!isRelease(project)) {
         config.version += '-SNAPSHOT'
@@ -303,7 +304,7 @@ artifactId=${project.name}
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
-                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('artifactId', it.getDependencyProject().extensions.getByType(BasePluginExtension).archivesName.get())
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
                       appendClassifier(it)

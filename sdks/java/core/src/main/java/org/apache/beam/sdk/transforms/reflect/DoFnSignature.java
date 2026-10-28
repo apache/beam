@@ -137,8 +137,8 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
   @Pure
-  public abstract @Nullable
-      GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState();
+  public abstract @Nullable GetInitialWatermarkEstimatorStateMethod
+      getInitialWatermarkEstimatorState();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
   @Pure

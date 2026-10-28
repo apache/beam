@@ -137,7 +137,7 @@ task run(type: JavaExec) {
 
         def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                 project(":runners:google-cloud-dataflow-java:worker")
-                        .shadowJar.archivePath
+                        .shadowJar.archiveFile.get().asFile
         // Provide job with a customizable worker jar.
         // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
         // More context and discussions can be found in PR#6694.

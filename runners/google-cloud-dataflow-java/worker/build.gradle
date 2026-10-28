@@ -256,7 +256,7 @@ dependencies {
 }
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
-    ext.outFile = project.file("${project.reportsDir}/${name}.out")
+    ext.outFile = project.layout.buildDirectory.file("reports/${name}.out").get().asFile
     inputs.files(project.configurations.shadow.artifacts.files)
             .withPropertyName("shadowArtifactsFiles")
             .withPathSensitivity(PathSensitivity.RELATIVE)

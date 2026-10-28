@@ -106,7 +106,7 @@ public class ComputationState {
   public boolean activateWork(ExecutableWork executableWork) {
     switch (activeWorkState.activateWorkForKey(executableWork)) {
       case DUPLICATE:
-        // Fall through intentionally. Work was not and will not be activated in these cases.
+      // Fall through intentionally. Work was not and will not be activated in these cases.
       case STALE:
         return false;
       case QUEUED:

@@ -153,7 +153,7 @@ final class MutationUtils {
       case DECIMAL:
         keyBuilder.append(row.getDecimal(columnName));
         break;
-        // TODO: Implement logical date and datetime
+      // TODO: Implement logical date and datetime
       case LOGICAL_TYPE:
         Schema.LogicalType<?, ?> logicalType = checkNotNull(field.getLogicalType());
         String identifier = logicalType.getIdentifier();

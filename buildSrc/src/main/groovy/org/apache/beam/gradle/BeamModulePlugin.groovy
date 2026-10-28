@@ -29,6 +29,8 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.plugins.BasePluginExtension
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileCollection
@@ -522,7 +524,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
-    project.archivesBaseName = defaultArchivesBaseName(project)
+    project.extensions.getByType(BasePluginExtension).archivesName.set(defaultArchivesBaseName(project))
 
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
@@ -615,11 +617,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.20.162"
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.11.4"
-    def checkerframework_version = "3.42.0"
+    def checkerframework_version = "3.49.5"
     def classgraph_version = "4.8.192"
     def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
-    def errorprone_version = "2.31.0"
+    def errorprone_version = "2.36.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.84.0"
     def google_ads_version = "33.0.0"
@@ -1034,9 +1036,9 @@ class BeamModulePlugin implements Plugin<Project> {
         if (ver == '25') {
          // TODO: Upgrade errorprone and checkerFramework when Beam move to Java17+ and enable it in Java 25+
           options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-          project.checkerFramework {
-            skipCheckerFramework = true
-          }
+          project.extensions.getByType(
+              org.checkerframework.plugin.gradle.CheckerFrameworkExtension
+          ).skipCheckerFramework.set(true)
           options.compilerArgs += [
             '-Xlint:-dangling-doc-comments'
           ]
@@ -1053,10 +1055,10 @@ class BeamModulePlugin implements Plugin<Project> {
         url "file://${project.rootProject.projectDir}/testPublication/"
       }
       maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+        url = project.findProperty('distMgmtSnapshotsUrl') ?: (isRelease(project)
             ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
             : 'https://repository.apache.org/content/repositories/snapshots')
-        name(project.properties['distMgmtServerId'] ?: isRelease(project)
+        name = project.findProperty('distMgmtServerId') ?: (isRelease(project)
             ? 'apache.releases.https' : 'apache.snapshots.https')
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
@@ -1135,7 +1137,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       if (configuration.archivesBaseName) {
-        project.archivesBaseName = configuration.archivesBaseName
+        project.extensions.getByType(BasePluginExtension).archivesName.set(configuration.archivesBaseName)
       }
 
       project.apply plugin: "java"
@@ -1200,8 +1202,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.sourceCompatibility = project.javaVersion
-      project.targetCompatibility = project.javaVersion
+      def javaExtension = project.extensions.getByType(JavaPluginExtension)
+      javaExtension.sourceCompatibility = JavaVersion.toVersion(project.javaVersion)
+      javaExtension.targetCompatibility = JavaVersion.toVersion(project.javaVersion)
 
       def defaultLintSuppressions = [
         'options',
@@ -1295,35 +1298,34 @@ class BeamModulePlugin implements Plugin<Project> {
       String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
-      project.checkerFramework {
-        checkers = [
-          'org.checkerframework.checker.nullness.NullnessChecker'
-        ]
+      def checkerFrameworkExtension =
+          project.extensions.getByType(org.checkerframework.plugin.gradle.CheckerFrameworkExtension)
+      checkerFrameworkExtension.version.set(checkerframework_version)
+      checkerFrameworkExtension.checkers.set([
+        'org.checkerframework.checker.nullness.NullnessChecker'
+      ])
 
-        // Only skip checkerframework if explicitly requested
-        skipCheckerFramework = project.hasProperty('enableCheckerFramework') &&
-            !parseBooleanProperty(project, 'enableCheckerFramework')
+      // Only skip checkerframework if explicitly requested
+      checkerFrameworkExtension.skipCheckerFramework.set(
+          project.hasProperty('enableCheckerFramework') &&
+          !parseBooleanProperty(project, 'enableCheckerFramework'))
 
-        // Always exclude checkerframework on tests. It's slow, and it often
-        // raises erroneous error because we don't have checker annotations for
-        // test libraries like junit and hamcrest. See BEAM-11436.
-        // Consider re-enabling if we can get annotations for the test libraries
-        // we use.
-        excludeTests = true
+      // Always exclude checkerframework on tests. It's slow, and it often
+      // raises erroneous error because we don't have checker annotations for
+      // test libraries like junit and hamcrest. See BEAM-11436.
+      // Consider re-enabling if we can get annotations for the test libraries
+      // we use.
+      checkerFrameworkExtension.excludeTests.set(true)
 
-        extraJavacArgs = [
-          "-AskipDefs=${skipDefCombinedRegex}",
-          "-AskipUses=${skipUsesCombinedRegex}",
-          "-AnoWarnMemoryConstraints",
-          "-AsuppressWarnings=annotation.not.completed,keyfor",
-        ]
+      checkerFrameworkExtension.extraJavacArgs.set([
+        "-AskipDefs=${skipDefCombinedRegex}",
+        "-AskipUses=${skipUsesCombinedRegex}",
+        "-AnoWarnMemoryConstraints",
+        "-AsuppressWarnings=annotation.not.completed,keyfor",
+      ])
 
-        project.dependencies {
-          checkerFramework("org.checkerframework:checker:$checkerframework_version")
-        }
-        project.configurations.all {
-          it.exclude(group:"org.checkerframework", module:"jdk8")
-        }
+      project.configurations.all {
+        it.exclude(group:"org.checkerframework", module:"jdk8")
       }
 
       // Ban these dependencies from all configurations
@@ -1533,7 +1535,7 @@ class BeamModulePlugin implements Plugin<Project> {
         enforceCheck !disableSpotlessCheck
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat('1.17.0')
+          googleJavaFormat('1.35.0')
           target project.fileTree(project.projectDir) {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
@@ -1681,6 +1683,23 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+
+        // JDK 25 reports existing dangling Javadoc comments as warnings.
+        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_25)) {
+          options.compilerArgs += ['-Xlint:-dangling-doc-comments']
+
+          if (!forkJavaVersion) {
+            options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+          }
+
+          // Skip Checker Framework when compiling directly with JDK 25.
+          // The forked-JDK path configures this in setJavaVerOptions().
+          if (!forkJavaVersion) {
+            project.extensions.getByType(
+                org.checkerframework.plugin.gradle.CheckerFrameworkExtension
+            ).skipCheckerFramework.set(true)
+          }
+        }
       }
 
       if (forkJavaVersion) {
@@ -1811,7 +1830,7 @@ class BeamModulePlugin implements Plugin<Project> {
         if (configuration.validateShadowJar) {
           def validateShadedJarDoesntLeakNonProjectClasses = project.tasks.register('validateShadedJarDoesntLeakNonProjectClasses') {
             dependsOn 'shadowJar'
-            ext.outFile = project.file("${project.reportsDir}/${name}.out")
+            ext.outFile = project.layout.buildDirectory.file("reports/${name}.out").get().asFile
             inputs.files(project.configurations.shadow.artifacts.files)
                 .withPropertyName("shadowArtifactsFiles")
                 .withPathSensitivity(PathSensitivity.RELATIVE)
@@ -1858,15 +1877,15 @@ class BeamModulePlugin implements Plugin<Project> {
           implementation project.library.java.jmh_core
         }
 
-        project.compileJava {
+        project.tasks.named("compileJava", JavaCompile).configure {
           // Always exclude checkerframework on JMH generated code. It's slow,
           // and it often raises erroneous error because we don't have checker
           // annotations for generated code and test libraries.
           //
           // Consider re-enabling if we can get annotations for the generated
           // code and test libraries we use.
-          checkerFramework {
-            skipCheckerFramework = true
+          options.extensions.configure("checkerFrameworkCompile") {
+            enabled = false
           }
         }
 
@@ -1967,7 +1986,7 @@ class BeamModulePlugin implements Plugin<Project> {
             new File("${pomPropertiesFile}").text =
                 """version=${project.version}
                        groupId=${project.mavenGroupId}
-                       artifactId=${project.archivesBaseName}"""
+                       artifactId=${project.extensions.getByType(BasePluginExtension).archivesName.get()}"""
           }
         }
 
@@ -1987,13 +2006,13 @@ class BeamModulePlugin implements Plugin<Project> {
           }
 
           dependsOn 'generatePomFileForMavenJavaPublication'
-          into("META-INF/maven/${project.mavenGroupId}/${project.archivesBaseName}") {
+          into("META-INF/maven/${project.mavenGroupId}/${project.extensions.getByType(BasePluginExtension).archivesName.get()}") {
             from "${pomFile}"
             rename('.*', 'pom.xml')
           }
 
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
-          into("META-INF/maven/${project.mavenGroupId}/${project.archivesBaseName}") { from "${pomPropertiesFile}" }
+          into("META-INF/maven/${project.mavenGroupId}/${project.extensions.getByType(BasePluginExtension).archivesName.get()}") { from "${pomPropertiesFile}" }
         }
 
         // Only build artifacts for archives if we are publishing
@@ -2050,7 +2069,7 @@ class BeamModulePlugin implements Plugin<Project> {
               }
               artifact project.javadocJar
 
-              artifactId = project.archivesBaseName
+              artifactId = project.extensions.getByType(BasePluginExtension).archivesName.get()
               groupId = project.mavenGroupId
 
               pom {
@@ -2147,7 +2166,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
                     if (it instanceof ProjectDependency) {
                       dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
-                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('artifactId', it.getDependencyProject().extensions.getByType(BasePluginExtension).archivesName.get())
                       dependencyNode.appendNode('version', it.version)
                       dependencyNode.appendNode('scope', param.scope)
                       appendClassifier(it)
@@ -2288,7 +2307,7 @@ class BeamModulePlugin implements Plugin<Project> {
             } else {
               project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+                  project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
               allOptionsList.addAll([
                 // Keep as legacy flag to ensure via test this flag works for
                 // legacy pipeline.
@@ -2554,13 +2573,13 @@ class BeamModulePlugin implements Plugin<Project> {
           sourceDirs += project.file(generatedProtoMainJavaDir)
           generatedSourceDirs += project.file(generatedProtoMainJavaDir)
 
-          testSourceDirs += project.file(generatedProtoTestJavaDir)
+          testSources.from(project.file(generatedProtoTestJavaDir))
           generatedSourceDirs += project.file(generatedProtoTestJavaDir)
 
           sourceDirs += project.file(generatedGrpcMainJavaDir)
           generatedSourceDirs += project.file(generatedGrpcMainJavaDir)
 
-          testSourceDirs += project.file(generatedGrpcTestJavaDir)
+          testSources.from(project.file(generatedGrpcTestJavaDir))
           generatedSourceDirs += project.file(generatedGrpcTestJavaDir)
         }
       }
@@ -2574,7 +2593,7 @@ class BeamModulePlugin implements Plugin<Project> {
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
       if (configuration.archivesBaseName) {
-        project.archivesBaseName = configuration.archivesBaseName
+        project.extensions.getByType(BasePluginExtension).archivesName.set(configuration.archivesBaseName)
       }
 
       project.ext.applyJavaNature(
@@ -2853,7 +2872,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def pythonDir = project.project(":sdks:python").projectDir
       def javaPort = getRandomPort()
       def pythonPort = getRandomPort()
-      def expansionJar = project.project(':sdks:java:testing:expansion-service').buildTestExpansionServiceJar.archivePath
+      def expansionJar = project.project(':sdks:java:testing:expansion-service').tasks.named('buildTestExpansionServiceJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).get().archiveFile.get().asFile
       def javaClassLookupAllowlistFile = project.project(":sdks:java:testing:expansion-service").projectDir.getPath() + "/src/test/resources/test_expansion_service_allowlist.yaml"
       def expansionServiceOpts = [
         "group_id": project.name,
@@ -3047,7 +3066,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
       def externalPort = getRandomPort()
-      def launcherJar = project.project(':sdks:java:transform-service:app').shadowJar.archivePath
+      def launcherJar = project.project(':sdks:java:transform-service:app').shadowJar.archiveFile.get().asFile
       def groupId = project.name + randomUUID().toString()
       def transformServiceOpts = [
         "transform_service_launcher_jar": launcherJar,
@@ -3386,8 +3405,8 @@ class BeamModulePlugin implements Plugin<Project> {
               "--runner=${runner}",
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
-              "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archivePath}",
+              "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archiveFile.get().asFile}",
+              "--spark_job_server_jar=${project.project(':runners:spark:3:job-server').shadowJar.archiveFile.get().asFile}",
             ]
             if (isStreaming)
               options += [

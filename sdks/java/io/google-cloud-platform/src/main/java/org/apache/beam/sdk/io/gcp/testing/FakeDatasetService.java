@@ -943,7 +943,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       @Override
       public com.google.cloud.bigquery.storage.v1.@org.checkerframework.checker.nullness.qual
               .Nullable
-          TableSchema getUpdatedSchema() {
+          TableSchema
+          getUpdatedSchema() {
         return this.updatedSchema;
       }
 

@@ -1512,8 +1512,8 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    abstract @Nullable
-        SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> getDatumReaderFactory();
+    abstract @Nullable SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>
+        getDatumReaderFactory();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -2992,8 +2992,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
 
-    abstract @Nullable
-        SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> getTableFunction();
+    abstract @Nullable SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination>
+        getTableFunction();
 
     abstract @Nullable TableRowFormatFunction<T> getFormatFunction();
 
@@ -3001,8 +3001,8 @@ public class BigQueryIO {
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    abstract @Nullable
-        SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
+    abstract @Nullable SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
+        getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
 
@@ -3094,8 +3094,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getWriteTempDataset();
 
-    abstract @Nullable
-        SerializableFunction<T, RowMutationInformation> getRowMutationInformationFn();
+    abstract @Nullable SerializableFunction<T, RowMutationInformation>
+        getRowMutationInformationFn();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 

@@ -18,28 +18,20 @@
 
 description = "Apache Beam :: Playground"
 
-// generate protobuf client and server stubs
-task("generateProto") {
-  group = "build"
-  doLast {
-    exec {
-      executable("buf")
-      args("generate")
-    }
-  }
-}
-// lint proto files
-task("lintProto") {
-  group = "build"
-  doLast {
-    exec {
-      executable("buf")
-      args("lint", "--path", "api/")
-    }
-  }
+// Generate protobuf client and server stubs
+tasks.register<org.gradle.api.tasks.Exec>("generateProto") {
+    group = "build"
+    workingDir = projectDir
+    commandLine("buf", "generate")
 }
 
-task("dockerComposeLocalUp") {
+tasks.register<org.gradle.api.tasks.Exec>("lintProto") {
+    group = "build"
+    workingDir = projectDir
+    commandLine("buf", "lint", "--path", "api/")
+}
+
+tasks.register<org.gradle.api.tasks.Exec>("dockerComposeLocalUp") {
     dependsOn(":playground:backend:containers:router:docker")
     dependsOn(":playground:backend:containers:go:docker")
     dependsOn(":playground:backend:containers:java:docker")
@@ -49,23 +41,13 @@ task("dockerComposeLocalUp") {
 
     group = "build"
     description = "Start Playground backend and frontend locally"
-
-    doLast {
-        exec {
-            executable("docker-compose")
-            args("-f", "docker-compose.local.yaml", "up", "-d")
-        }
-    }
+    workingDir = projectDir
+    commandLine("docker-compose", "-f", "docker-compose.local.yaml", "up", "-d")
 }
 
-task("dockerComposeLocalDown") {
+tasks.register<org.gradle.api.tasks.Exec>("dockerComposeLocalDown") {
     group = "build"
     description = "Stop Playground backend and frontend locally"
-
-    doLast {
-        exec {
-            executable("docker-compose")
-            args("-f", "docker-compose.local.yaml", "down")
-        }
-    }
+    workingDir = projectDir
+    commandLine("docker-compose", "-f", "docker-compose.local.yaml", "down")
 }

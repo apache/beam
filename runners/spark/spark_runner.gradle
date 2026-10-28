@@ -306,7 +306,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
-  validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
+  validatesRunner files(rootProject.project(":sdks:java:io:hadoop-format").extensions.getByType(org.gradle.api.tasks.SourceSetContainer).getByName("test").output)
   validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
   hadoopVersions.each { kv ->

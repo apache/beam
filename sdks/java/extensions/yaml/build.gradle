@@ -29,7 +29,7 @@ dependencies {
     implementation project(path: ":sdks:java:extensions:python")
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
-    testImplementation project(":sdks:java:core").sourceSets.test.output
+    testImplementation files(rootProject.project(":sdks:java:core").sourceSets.test.output)
     testImplementation project(path: ":runners:portability:java")
     testRuntimeOnly library.java.slf4j_simple
 }

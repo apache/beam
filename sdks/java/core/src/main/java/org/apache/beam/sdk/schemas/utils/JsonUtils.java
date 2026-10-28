@@ -186,7 +186,7 @@ public class JsonUtils {
         propertySchema = jsonSchemaBuilderFromBeamSchema(rowSchema);
         break;
 
-        // add more Beam to JSON types
+      // add more Beam to JSON types
       default:
         throw new IllegalArgumentException("Unsupported Beam to JSON type: " + beamType);
     }
