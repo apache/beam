@@ -23,7 +23,6 @@ import io.delta.kernel.Table;
 import io.delta.kernel.defaults.engine.DefaultEngine;
 import io.delta.kernel.engine.Engine;
 import io.delta.kernel.internal.TableImpl;
-import io.delta.kernel.internal.util.ColumnMapping;
 import io.delta.kernel.types.ArrayType;
 import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
@@ -242,94 +241,6 @@ public class DeltaIO {
     return builder.build();
   }
 
-  /**
-   * Returns whether two Delta schemas (or, recursively, data types) describe the same data.
-   *
-   * <p>{@link ReadChanges} uses this to verify that the table schema did not change across the
-   * range of table versions that is read, so that all emitted change records conform to a single
-   * schema.
-   *
-   * <p>Two schemas describe the same data if their fields have the same names (in the same order),
-   * data types, nullability, and column mapping (see {@code hasSameColumnMapping()}), compared
-   * recursively for nested types. These properties determine both the Beam schema of the emitted
-   * rows (see {@code ReadRows.convertToBeamSchema()}) and how the rows are read from data files.
-   *
-   * <p>All other field metadata is ignored, since changing it does not change the data. For
-   * example, column comments, column default values, or identity column high-water marks (which
-   * writers update whenever they insert rows into the table) may differ between the two schemas.
-   */
-  static boolean hasSameDataSchema(DataType left, DataType right) {
-    if (left instanceof StructType && right instanceof StructType) {
-      List<StructField> leftFields = ((StructType) left).fields();
-      List<StructField> rightFields = ((StructType) right).fields();
-      if (leftFields.size() != rightFields.size()) {
-        return false;
-      }
-      // Fields are compared by position since the field order is part of the schema.
-      for (int i = 0; i < leftFields.size(); i++) {
-        StructField leftField = leftFields.get(i);
-        StructField rightField = rightFields.get(i);
-        if (!leftField.getName().equals(rightField.getName())
-            || leftField.isNullable() != rightField.isNullable()
-            || !hasSameColumnMapping(leftField, rightField)
-            || !hasSameDataSchema(leftField.getDataType(), rightField.getDataType())) {
-          return false;
-        }
-      }
-      return true;
-    } else if (left instanceof ArrayType && right instanceof ArrayType) {
-      // The nullability of array elements is part of the array type, not of the field metadata.
-      ArrayType leftArray = (ArrayType) left;
-      ArrayType rightArray = (ArrayType) right;
-      return leftArray.containsNull() == rightArray.containsNull()
-          && hasSameDataSchema(leftArray.getElementType(), rightArray.getElementType());
-    } else if (left instanceof MapType && right instanceof MapType) {
-      // The nullability of map values is part of the map type, not of the field metadata.
-      MapType leftMap = (MapType) left;
-      MapType rightMap = (MapType) right;
-      return leftMap.isValueContainsNull() == rightMap.isValueContainsNull()
-          && hasSameDataSchema(leftMap.getKeyType(), rightMap.getKeyType())
-          && hasSameDataSchema(leftMap.getValueType(), rightMap.getValueType());
-    } else {
-      // Primitive types don't contain fields, and hence don't carry field metadata, so they can be
-      // compared directly (for example, this compares the precision and scale of decimal types).
-      // This also returns false if the two types are of different kinds (e.g. a struct and an
-      // array).
-      return left.equals(right);
-    }
-  }
-
-  /**
-   * Returns whether two fields are read from the same column of the data files.
-   *
-   * <p>If column mapping is enabled for a table, data files identify columns by the physical names
-   * (and, in the 'id' column mapping mode, by the IDs) stored in the column mapping metadata of the
-   * fields, instead of by their logical names. Although this is field metadata, it has to be
-   * compared since {@link ReadChanges} reads all data files in the requested range of versions
-   * using the schema of the end version. For example, if a column was dropped and then re-added
-   * with the same name and type, the logical schemas would match. However, data files written
-   * before the drop don't contain the re-added column, so change records read from those files
-   * would silently get null values for it.
-   */
-  private static boolean hasSameColumnMapping(StructField left, StructField right) {
-    // getPhysicalName() returns the logical name of a field that doesn't have a physical name,
-    // which is the case if column mapping is not enabled. Hence, enabling column mapping on an
-    // existing table, which sets the physical names of the existing columns to their logical
-    // names, is not considered to be a change.
-    if (!ColumnMapping.getPhysicalName(left).equals(ColumnMapping.getPhysicalName(right))) {
-      return false;
-    }
-    // Column IDs are never reused, so fields with different IDs belong to different columns (for
-    // example, a column that was dropped and re-added) even if their physical names match. IDs are
-    // only compared if both fields have one, since enabling column mapping on an existing table
-    // assigns IDs to the existing columns.
-    String idKey = ColumnMapping.COLUMN_MAPPING_ID_KEY;
-    if (left.getMetadata().contains(idKey) && right.getMetadata().contains(idKey)) {
-      return ColumnMapping.getColumnId(left) == ColumnMapping.getColumnId(right);
-    }
-    return true;
-  }
-
   @AutoValue
   public abstract static class ReadChanges extends PTransform<PBegin, PCollection<Row>> {
     public abstract @Nullable String getTablePath();
@@ -476,16 +387,17 @@ public class DeltaIO {
       if (startDeltaSchema == null || deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
       }
-      // Fail if the data schema of the table changed across the range of versions that is read, so
-      // that all change records conform to a single schema. Metadata-only schema changes (for
-      // example, changes to column comments) are allowed. See hasSameDataSchema() for details.
-      if (!hasSameDataSchema(startDeltaSchema, deltaSchema)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Table schema changed between start version %d and end version %d. "
-                    + "Schema at start version: %s, schema at end version: %s.",
-                resolvedStartVersion, resolvedEndVersion, startDeltaSchema, deltaSchema));
-      }
+      // All changes within the range are read using the table schema at the end version, which is
+      // only supported if the range only spans additive schema changes (see DeltaSchemaUtils). Fail
+      // early here if the schema at the start version can't be read using the schema at the end
+      // version. CreateCDCReadTasksDoFn additionally verifies all schema changes within the range
+      // while reading the commits of the range.
+      DeltaSchemaUtils.checkReadCompatible(
+          startDeltaSchema,
+          resolvedStartVersion,
+          deltaSchema,
+          resolvedStartVersion,
+          resolvedEndVersion);
       Schema baseSchema = ReadRows.convertToBeamSchema(deltaSchema);
       Schema publicBeamSchema = buildPublicBeamSchema(baseSchema, getMetadataColumns());
 

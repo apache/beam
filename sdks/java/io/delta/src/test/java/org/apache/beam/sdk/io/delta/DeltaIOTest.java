@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.delta;
 import io.delta.kernel.Table;
 import io.delta.kernel.defaults.engine.DefaultEngine;
 import io.delta.kernel.engine.Engine;
-import io.delta.kernel.internal.util.ColumnMapping;
 import io.delta.kernel.types.ArrayType;
 import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
@@ -577,110 +576,6 @@ public class DeltaIOTest {
 
     Schema actualSchema = DeltaIO.ReadRows.convertToBeamSchema(deltaSchema);
     org.junit.Assert.assertEquals(expectedSchema, actualSchema);
-  }
-
-  @Test
-  public void testHasSameDataSchemaIgnoresMetadataOnlyChanges() {
-    StructType schema =
-        new StructType()
-            .add("name", StringType.STRING)
-            .add("nested", new StructType().add("value", LongType.LONG));
-
-    // Field metadata that does not affect the data, such as column comments, is ignored. This also
-    // applies to nested fields.
-    FieldMetadata comment = FieldMetadata.builder().putString("comment", "A comment.").build();
-    StructType schemaWithComments =
-        new StructType()
-            .add("name", StringType.STRING, comment)
-            .add("nested", new StructType().add("value", LongType.LONG, comment), comment);
-    Assert.assertTrue(DeltaIO.hasSameDataSchema(schema, schemaWithComments));
-
-    // Enabling column mapping on an existing table assigns column IDs to the existing columns and
-    // sets their physical names to their logical names, so data is still read from the same
-    // columns.
-    StructType schemaWithColumnMapping =
-        new StructType()
-            .add("name", StringType.STRING, columnMappingMetadata(1L, "name"))
-            .add(
-                "nested",
-                new StructType().add("value", LongType.LONG, columnMappingMetadata(3L, "value")),
-                columnMappingMetadata(2L, "nested"));
-    Assert.assertTrue(DeltaIO.hasSameDataSchema(schema, schemaWithColumnMapping));
-  }
-
-  @Test
-  public void testHasSameDataSchemaDetectsDataSchemaChanges() {
-    StructField name =
-        new StructField("name", StringType.STRING, true, columnMappingMetadata(1L, "col-1"));
-    StructField age =
-        new StructField("age", IntegerType.INTEGER, true, columnMappingMetadata(2L, "col-2"));
-    StructType schema = new StructType().add(name).add(age);
-    Assert.assertTrue(DeltaIO.hasSameDataSchema(schema, schema));
-
-    // Added column.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema, schema.add("city", StringType.STRING, columnMappingMetadata(3L, "col-3"))));
-    // Renamed column. Renames preserve the column mapping metadata of the column.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema,
-            new StructType().add("full_name", StringType.STRING, name.getMetadata()).add(age)));
-    // Reordered columns.
-    Assert.assertFalse(DeltaIO.hasSameDataSchema(schema, new StructType().add(age).add(name)));
-    // Changed data type.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema, new StructType().add(name).add("age", LongType.LONG, age.getMetadata())));
-    // Changed nullability.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema,
-            new StructType().add(name).add("age", IntegerType.INTEGER, false, age.getMetadata())));
-    // A column that was dropped and re-added with the same name and type gets a new column ID and
-    // physical name.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema,
-            new StructType()
-                .add(name)
-                .add("age", IntegerType.INTEGER, columnMappingMetadata(3L, "col-3"))));
-    // A re-added column is detected through its new column ID even if it reuses the physical name.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            schema,
-            new StructType()
-                .add(name)
-                .add("age", IntegerType.INTEGER, columnMappingMetadata(3L, "col-2"))));
-    // A column that was dropped and re-added after enabling column mapping is detected through its
-    // physical name, which differs from the logical name that was used to read the column before.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            new StructType().add("age", IntegerType.INTEGER),
-            new StructType().add("age", IntegerType.INTEGER, columnMappingMetadata(2L, "col-2"))));
-
-    // Changes to nested types.
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            new StructType().add("nested", new StructType().add("value", IntegerType.INTEGER)),
-            new StructType().add("nested", new StructType().add("value", LongType.LONG))));
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            new StructType().add("array", new ArrayType(StringType.STRING, true)),
-            new StructType().add("array", new ArrayType(StringType.STRING, false))));
-    Assert.assertFalse(
-        DeltaIO.hasSameDataSchema(
-            new StructType().add("map", new MapType(StringType.STRING, IntegerType.INTEGER, true)),
-            new StructType()
-                .add("map", new MapType(StringType.STRING, IntegerType.INTEGER, false))));
-  }
-
-  /** Returns field metadata containing the given column mapping ID and physical name. */
-  private static FieldMetadata columnMappingMetadata(long columnId, String physicalName) {
-    return FieldMetadata.builder()
-        .putLong(ColumnMapping.COLUMN_MAPPING_ID_KEY, columnId)
-        .putString(ColumnMapping.COLUMN_MAPPING_PHYSICAL_NAME_KEY, physicalName)
-        .build();
   }
 
   @Test
@@ -1901,12 +1796,12 @@ public class DeltaIOTest {
   }
 
   @Test
-  public void testReadChangesSchemaChangeBetweenVersionsThrows() throws Exception {
+  public void testReadChangesNonAdditiveSchemaChangeBetweenVersionsThrows() throws Exception {
     File tableDir = tempFolder.newFolder("delta-table-changes-schema-evolution-versions");
     Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
 
-    // Version 0 creates the table with schema (name) and version 1 adds a new column 'age'.
-    DeltaWriteTestUtils.setupSchemaEvolutionTable(engine, tableDir.getAbsolutePath());
+    // Version 0 creates the table with schema (name, age) and version 1 drops the column 'age'.
+    DeltaWriteTestUtils.setupDroppedColumnTable(engine, tableDir.getAbsolutePath());
 
     org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
     IllegalArgumentException expandEx =
@@ -1921,7 +1816,9 @@ public class DeltaIOTest {
     Assert.assertTrue(
         expandEx
             .getMessage()
-            .contains("Table schema changed between start version 0 and end version 1"));
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
 
     writePipeline
         .apply(Create.of(tableDir.getAbsolutePath()))
@@ -1934,17 +1831,19 @@ public class DeltaIOTest {
         doFnEx
             .getCause()
             .getMessage()
-            .contains("Table schema changed between start version 0 and end version 1"));
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
   }
 
   @Test
-  public void testReadChangesSchemaChangeBetweenTimestampsThrows() throws Exception {
+  public void testReadChangesNonAdditiveSchemaChangeBetweenTimestampsThrows() throws Exception {
     File tableDir = tempFolder.newFolder("delta-table-changes-schema-evolution-timestamps");
     Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
 
-    // Version 0 (committed at timestamp 100000000000L) creates the table with schema (name) and
-    // version 1 (committed at timestamp 200000000000L) adds a new column 'age'.
-    DeltaWriteTestUtils.setupSchemaEvolutionTable(engine, tableDir.getAbsolutePath());
+    // Version 0 (committed at timestamp 100000000000L) creates the table with schema (name, age)
+    // and version 1 (committed at timestamp 200000000000L) drops the column 'age'.
+    DeltaWriteTestUtils.setupDroppedColumnTable(engine, tableDir.getAbsolutePath());
 
     String startTimestamp = java.time.Instant.ofEpochMilli(100000000000L).toString();
     String endTimestamp = java.time.Instant.ofEpochMilli(250000000000L).toString();
@@ -1962,7 +1861,92 @@ public class DeltaIOTest {
     Assert.assertTrue(
         expandEx
             .getMessage()
-            .contains("Table schema changed between start version 0 and end version 1"));
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
+  }
+
+  @Test
+  public void testReadChangesColumnAddedAndDroppedWithinRangeThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-column-added-and-dropped");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name), version 1 adds a column 'age', and version 2
+    // drops the column 'age' again. Hence, the schemas at the start and end versions match.
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 0L, 100000000000L, new StructType().add("name", StringType.STRING));
+    StructType initialSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 1L, 200000000000L, initialSchema.add("age", IntegerType.INTEGER, true));
+    DeltaWriteTestUtils.writeSchemaCommit(engine, tablePath, 2L, 300000000000L, initialSchema);
+
+    // Expanding the transform succeeds since it only verifies the schemas at the start and end
+    // versions. Planning the read tasks fails since it verifies all schema changes within the
+    // range, and data written with the schema at version 1 can't be read using the schema at the
+    // end version, which doesn't contain the column 'age'.
+    readPipeline.apply(
+        DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(2L));
+    org.apache.beam.sdk.Pipeline.PipelineExecutionException doFnEx =
+        Assert.assertThrows(
+            org.apache.beam.sdk.Pipeline.PipelineExecutionException.class,
+            () -> readPipeline.run().waitUntilFinish());
+    Assert.assertTrue(
+        doFnEx
+            .getCause()
+            .getMessage()
+            .contains(
+                "the table schema at version 1 is not compatible with the table schema at the end "
+                    + "version 2"));
+  }
+
+  @Test
+  public void testReadChangesAddedNullableColumnBetweenVersions() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-added-nullable-column");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name) and inserts two rows.
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tablePath,
+        0L,
+        100000000000L,
+        new StructType().add("name", StringType.STRING),
+        java.util.Arrays.asList(
+            Row.withSchema(tableSchema).addValues("row-1").build(),
+            Row.withSchema(tableSchema).addValues("row-2").build()));
+
+    // Version 1 enables column mapping, which the Delta Lake Kernel API requires for schema
+    // evolution. This is a metadata-only schema change.
+    DeltaWriteTestUtils.writeTablePropertiesCommit(
+        engine,
+        tablePath,
+        1L,
+        200000000000L,
+        Collections.singletonMap("delta.columnMapping.mode", "name"));
+
+    // Version 2 adds a nullable column 'age', which is an additive schema change.
+    StructType latestSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 2L, 300000000000L, latestSchema.add("age", IntegerType.INTEGER, true));
+
+    // All changes are read using the schema at the end version, so the rows that were inserted
+    // before the column 'age' was added get null values for it.
+    PCollection<Row> output =
+        readPipeline.apply(
+            DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(2L));
+    Assert.assertEquals(
+        Schema.FieldType.INT32.withNullable(true), output.getSchema().getField("age").getType());
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind, Name, and Age", ParDo.of(new FormatValueKindNameAndAge()));
+    PAssert.that(formattedOutput).containsInAnyOrder("INSERT:row-1:null", "INSERT:row-2:null");
+
+    readPipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -2030,6 +2014,15 @@ public class DeltaIOTest {
     public void process(
         @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
       outputReceiver.output(valueKind.name() + ":" + row.getString("name"));
+    }
+  }
+
+  private static final class FormatValueKindNameAndAge extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(
+          valueKind.name() + ":" + row.getString("name") + ":" + row.getInt32("age"));
     }
   }
 

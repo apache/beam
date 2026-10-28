@@ -463,11 +463,52 @@ public final class DeltaWriteTestUtils {
 
     TransactionCommitResult result = txn.commit(engine, CloseableIterable.emptyIterable());
     org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
+    setCommitFileTimestamp(tablePath, expectedVersion, timestamp);
+  }
+
+  /**
+   * Writes a metadata-only Delta commit (i.e. a commit without any data files) that sets the given
+   * table properties of an existing table.
+   *
+   * <p>For example, this can be used to enable column mapping on an existing table by setting
+   * {@code delta.columnMapping.mode} to {@code name}.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to write to
+   * @param expectedVersion the expected version of the commit to be created
+   * @param timestamp the timestamp of the commit file
+   * @param tableProperties the table properties to set
+   * @throws Exception if any error occurs during commit
+   */
+  public static void writeTablePropertiesCommit(
+      Engine engine,
+      String tablePath,
+      long expectedVersion,
+      long timestamp,
+      Map<String, String> tableProperties)
+      throws Exception {
+
+    Transaction txn =
+        Table.forPath(engine, tablePath)
+            .createTransactionBuilder(engine, "DeltaTestUtils", Operation.MANUAL_UPDATE)
+            .withTableProperties(engine, tableProperties)
+            .build(engine);
+
+    TransactionCommitResult result = txn.commit(engine, CloseableIterable.emptyIterable());
+    org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
+    setCommitFileTimestamp(tablePath, expectedVersion, timestamp);
+  }
+
+  /**
+   * Sets the modification time of the commit file of the given version, which determines the
+   * timestamp of the commit, to the given timestamp. This is only supported for local tables.
+   */
+  private static void setCommitFileTimestamp(String tablePath, long version, long timestamp) {
     if (!tablePath.startsWith("gs://")
         && !tablePath.startsWith("s3://")
         && !tablePath.startsWith("hdfs://")) {
       File commitFile =
-          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
+          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", version));
       commitFile.setLastModified(timestamp);
     }
   }
@@ -502,27 +543,31 @@ public final class DeltaWriteTestUtils {
   }
 
   /**
-   * Sets up a Delta table with two metadata-only commit versions where the table schema changes
-   * between the versions.
+   * Sets up a Delta table with two metadata-only commit versions where a column is dropped, which
+   * is a non-additive schema change.
    *
    * <p>Version 0 is committed at timestamp 100000000000L and creates the table with schema {@code
-   * (name STRING)}. Version 1 is committed at timestamp 200000000000L and adds a nullable {@code
-   * age INTEGER} column, resulting in schema {@code (name STRING, age INTEGER)}.
+   * (name STRING, age INTEGER)}. Version 1 is committed at timestamp 200000000000L and drops the
+   * {@code age} column, resulting in schema {@code (name STRING)}.
    *
    * @param engine the Delta Lake {@link Engine} instance to use
    * @param tablePath the path of the Delta table to create
    * @throws Exception if any error occurs during commit
    */
-  static void setupSchemaEvolutionTable(Engine engine, String tablePath) throws Exception {
+  static void setupDroppedColumnTable(Engine engine, String tablePath) throws Exception {
     // Commit version 0
     writeSchemaCommit(
-        engine, tablePath, 0L, 100000000000L, new StructType().add("name", StringType.STRING));
+        engine,
+        tablePath,
+        0L,
+        100000000000L,
+        new StructType().add("name", StringType.STRING).add("age", IntegerType.INTEGER));
 
-    // Commit version 1. The new schema is derived from the latest schema of the table to preserve
-    // the column mapping metadata of the existing column.
+    // Commit version 1. The new schema keeps the existing 'name' field of the latest schema of the
+    // table to preserve its column mapping metadata.
     StructType latestSchema =
         Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
     writeSchemaCommit(
-        engine, tablePath, 1L, 200000000000L, latestSchema.add("age", IntegerType.INTEGER, true));
+        engine, tablePath, 1L, 200000000000L, new StructType().add(latestSchema.get("name")));
   }
 }
