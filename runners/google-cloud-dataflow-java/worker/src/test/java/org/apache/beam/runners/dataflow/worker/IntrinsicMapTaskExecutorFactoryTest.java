@@ -110,6 +110,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
@@ -573,7 +574,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     assertEquals(0, parDoOperation.receivers[0].getReceiverCount());
     assertEquals(Operation.InitializationState.UNSTARTED, parDoOperation.initializationState);
     assertFalse(parDoOperation.shouldReportBytesRead());
-    assertNull(parDoOperation.getBytesReadCoder());
+    assertTrue(parDoOperation.getBytesReadCoders().isEmpty());
+    assertNull(parDoOperation.getBytesReadCoder(parDoOperation.receivers[0]));
   }
 
   static class TestSplittableDoFn extends DoFn<String, String> {
@@ -658,7 +660,106 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     assertTrue(parDoOperation.shouldReportBytesRead());
     assertEquals(
-        WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()), parDoOperation.getBytesReadCoder());
+        ImmutableMap.of(
+            parDoOperation.receivers[0], WindowedValues.getValueOnlyCoder(StringUtf8Coder.of())),
+        parDoOperation.getBytesReadCoders());
+    assertEquals(
+        WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()),
+        parDoOperation.getBytesReadCoder(parDoOperation.receivers[0]));
+  }
+
+  @Test
+  public void testCreateMultiOutputSplittableProcessFnParDoOperation() throws Exception {
+    int producerIndex = 1;
+    int producerOutputNum = 2;
+
+    BatchModeExecutionContext context =
+        BatchModeExecutionContext.forTesting(options, counterSet, "testStage");
+    TupleTag<String> mainOutput = new TupleTag<>("main");
+    TupleTag<Integer> sideOutput = new TupleTag<>("side");
+    String serializedFn =
+        StringUtils.byteArrayToJsonString(
+            SerializableUtils.serializeToByteArray(
+                DoFnInfo.forFn(
+                    new TestSplittableDoFn(),
+                    WindowingStrategy.globalDefault(),
+                    null /* side input views */,
+                    StringUtf8Coder.of() /* input coder */,
+                    ImmutableMap.of(
+                        mainOutput, StringUtf8Coder.of(), sideOutput, BigEndianIntegerCoder.of()),
+                    mainOutput /* main output id */,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap())));
+
+    CloudObject cloudUserFn = CloudObject.forClassName("SplittableProcessFn");
+    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
+    addObject(
+        cloudUserFn,
+        WorkerPropertyNames.RESTRICTION_CODER,
+        CloudObjects.asCloudObject(
+            KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+
+    MultiOutputInfo mainOutputInfo = new MultiOutputInfo();
+    mainOutputInfo.setTag("main");
+    MultiOutputInfo sideOutputInfo = new MultiOutputInfo();
+    sideOutputInfo.setTag("side");
+
+    InstructionOutput mainCloudOutput = new InstructionOutput();
+    mainCloudOutput.setName("SplittableParDo_main");
+    mainCloudOutput.setCodec(windowedStringCoder);
+    mainCloudOutput.setOriginalName("originalName");
+    mainCloudOutput.setSystemName("systemName");
+
+    Coder<?> windowedIntCoder = WindowedValues.getValueOnlyCoder(BigEndianIntegerCoder.of());
+    InstructionOutput sideCloudOutput = new InstructionOutput();
+    sideCloudOutput.setName("SplittableParDo_side");
+    sideCloudOutput.setCodec(
+        CloudObjects.asCloudObject(windowedIntCoder, /* sdkComponents= */ null));
+    sideCloudOutput.setOriginalName("originalName");
+    sideCloudOutput.setSystemName("systemName");
+
+    ParallelInstruction instruction =
+        createParDoInstruction(
+            producerIndex, producerOutputNum, "SplittableParDo", "", new TestSplittableDoFn());
+    instruction.getParDo().setUserFn(cloudUserFn);
+    instruction.getParDo().setNumOutputs(2);
+    instruction.getParDo().setMultiOutputInfos(ImmutableList.of(mainOutputInfo, sideOutputInfo));
+    instruction.setOutputs(ImmutableList.of(mainCloudOutput, sideCloudOutput));
+
+    ParallelInstructionNode instructionNode =
+        ParallelInstructionNode.create(instruction, ExecutionLocation.UNKNOWN);
+
+    Function<Node, Node> outputReceiversTransform =
+        IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet, false);
+    Node mainOutputReceiverNode =
+        outputReceiversTransform.apply(
+            InstructionOutputNode.create(mainCloudOutput, PCOLLECTION_ID + "_main"));
+    Node sideOutputReceiverNode =
+        outputReceiversTransform.apply(
+            InstructionOutputNode.create(sideCloudOutput, PCOLLECTION_ID + "_side"));
+
+    when(network.successors(instructionNode))
+        .thenReturn(ImmutableSet.of(mainOutputReceiverNode, sideOutputReceiverNode));
+    when(network.outDegree(instructionNode)).thenReturn(2);
+    when(network.edgesConnecting(instructionNode, mainOutputReceiverNode))
+        .thenReturn(ImmutableSet.<Edge>of(MultiOutputInfoEdge.create(mainOutputInfo)));
+    when(network.edgesConnecting(instructionNode, sideOutputReceiverNode))
+        .thenReturn(ImmutableSet.<Edge>of(MultiOutputInfoEdge.create(sideOutputInfo)));
+
+    ArrayList<Operation> createdOperations = new ArrayList<>();
+    Node operationNode =
+        mapTaskExecutorFactory
+            .createOperationTransformForParallelInstructionNodes(
+                STAGE, network, options, readerRegistry, sinkRegistry, context, createdOperations)
+            .apply(instructionNode);
+    ParDoOperation parDoOperation = (ParDoOperation) ((OperationNode) operationNode).getOperation();
+
+    assertEquals(2, parDoOperation.receivers.length);
+    assertTrue(parDoOperation.shouldReportBytesRead());
+    assertEquals(
+        WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()),
+        parDoOperation.getBytesReadCoder(parDoOperation.receivers[0]));
+    assertEquals(windowedIntCoder, parDoOperation.getBytesReadCoder(parDoOperation.receivers[1]));
   }
 
   static ParallelInstruction createPartialGroupByKeyInstruction(

@@ -287,16 +287,19 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
 
     // An SDF's SplittableProcessFn behaves like a source, so we need to report its bytes read even
     // though it's not a read operator for autoscaling to work properly.
-    Coder<?> bytesReadCoder = null;
+    ImmutableMap.Builder<OutputReceiver, Coder<?>> bytesReadCodersBuilder = ImmutableMap.builder();
     if (isSplittable(fn)) {
-      Node firstOutput = Iterables.getFirst(network.successors(node), null);
-      if (firstOutput instanceof OutputReceiverNode) {
-        bytesReadCoder = ((OutputReceiverNode) firstOutput).getCoder();
+      for (Node successor : network.successors(node)) {
+        if (successor instanceof OutputReceiverNode) {
+          OutputReceiverNode outputReceiverNode = (OutputReceiverNode) successor;
+          bytesReadCodersBuilder.put(
+              outputReceiverNode.getOutputReceiver(), outputReceiverNode.getCoder());
+        }
       }
     }
     OutputReceiver[] receivers = getOutputReceivers(network, node);
     return OperationNode.create(
-        new ParDoOperation(fn, receivers, operationContext, bytesReadCoder));
+        new ParDoOperation(fn, receivers, operationContext, bytesReadCodersBuilder.build()));
   }
 
   private static boolean isSplittable(ParDoFn fn) throws Exception {

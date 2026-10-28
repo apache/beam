@@ -32,6 +32,7 @@ import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -68,6 +69,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.DoFnInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
@@ -588,21 +590,23 @@ public class MapTaskExecutorTest {
     TestOutputReceiver receiver =
         new TestOutputReceiver(counterSet, NameContextsForTests.nameContextForTest());
     ReadOperation readOp = new TestReadOperation(receiver, createContext("ReadOperation"));
+    OutputReceiver reportingReceiver1 = new OutputReceiver();
+    OutputReceiver reportingReceiver2 = new OutputReceiver();
     ParDoOperation regularParDo =
         new ParDoOperation(
             new NoopParDoFn(), new OutputReceiver[0], createContext("RegularParDo"), null);
     ParDoOperation reportingParDo1 =
         new ParDoOperation(
             new NoopParDoFn(),
-            new OutputReceiver[0],
+            new OutputReceiver[] {reportingReceiver1},
             createContext("ReportingParDo1"),
-            StringUtf8Coder.of());
+            ImmutableMap.of(reportingReceiver1, StringUtf8Coder.of()));
     ParDoOperation reportingParDo2 =
         new ParDoOperation(
             new NoopParDoFn(),
-            new OutputReceiver[0],
+            new OutputReceiver[] {reportingReceiver2},
             createContext("ReportingParDo2"),
-            VarIntCoder.of());
+            ImmutableMap.of(reportingReceiver2, VarIntCoder.of()));
 
     List<Operation> operations =
         Arrays.asList(readOp, regularParDo, reportingParDo1, reportingParDo2);
@@ -610,9 +614,10 @@ public class MapTaskExecutorTest {
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
       List<ParDoOperation> parDoOps = executor.getParDoOperations();
       assertThat(parDoOps, contains(regularParDo, reportingParDo1, reportingParDo2));
-      Assert.assertNull(parDoOps.get(0).getBytesReadCoder());
-      assertEquals(StringUtf8Coder.of(), parDoOps.get(1).getBytesReadCoder());
-      assertEquals(VarIntCoder.of(), parDoOps.get(2).getBytesReadCoder());
+      assertTrue(parDoOps.get(0).getBytesReadCoders().isEmpty());
+      Assert.assertNull(parDoOps.get(0).getBytesReadCoder(reportingReceiver1));
+      assertEquals(StringUtf8Coder.of(), parDoOps.get(1).getBytesReadCoder(reportingReceiver1));
+      assertEquals(VarIntCoder.of(), parDoOps.get(2).getBytesReadCoder(reportingReceiver2));
     }
   }
 }
