@@ -397,6 +397,8 @@ final class StructUtils {
         return struct.getBigDecimal(column);
       case STRING:
         return struct.getString(column);
+      case UUID:
+        return struct.getUuid(column).toString();
       case ARRAY:
         return getStructArrayValue(
             struct, struct.getColumnType(column).getArrayElementType(), field);
@@ -458,6 +460,10 @@ final class StructUtils {
         return struct.getDoubleList(column);
       case STRING:
         return struct.getStringList(column);
+      case UUID:
+        return struct.getUuidList(column).stream()
+            .<@Nullable String>map(u -> u == null ? null : u.toString())
+            .collect(toList());
       case NUMERIC:
         return struct.getBigDecimalList(column);
       case ARRAY:
