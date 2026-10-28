@@ -67,7 +67,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -221,6 +223,11 @@ public class MapTaskExecutorTest {
 
     @Override
     public void finishKey(Object key) throws Exception {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */

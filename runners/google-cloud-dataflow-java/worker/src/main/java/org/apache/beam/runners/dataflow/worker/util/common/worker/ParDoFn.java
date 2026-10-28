@@ -39,7 +39,9 @@ public interface ParDoFn {
 
   void abort() throws Exception;
 
-  default @Nullable DoFnInfo<?, ?> getDoFnInfo() throws Exception {
-    return null;
-  }
+  /**
+   * For ParDoFn's that wrap an underlying DoFn, returns a potentially cached copy of its DoFnInfo.
+   * Otherwise, returns null.
+   */
+  @Nullable DoFnInfo<?, ?> getDoFnInfo() throws Exception;
 }

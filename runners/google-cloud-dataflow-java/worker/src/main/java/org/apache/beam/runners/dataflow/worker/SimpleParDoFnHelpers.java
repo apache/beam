@@ -97,7 +97,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
 
   // Various DoFn helpers, null between bundles
   @Nullable DoFnRunner<InputT, OutputT> fnRunner;
-  @Nullable DoFnInfo<InputT, OutputT> fnInfo;
+  @Nullable DoFnInfo<InputT, OutputT> activeFnInfo;
   private Receiver @Nullable [] receivers;
 
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
@@ -212,20 +212,20 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
             }
           }
         };
-    fnInfo = (DoFnInfo) doFnInstanceManager.get();
-    fnSignature = DoFnSignatures.getSignature(fnInfo.getDoFn().getClass());
+    activeFnInfo = (DoFnInfo) doFnInstanceManager.get();
+    fnSignature = DoFnSignatures.getSignature(activeFnInfo.getDoFn().getClass());
 
     fnRunner =
         runnerFactory.createRunner(
-            fnInfo.getDoFn(),
+            activeFnInfo.getDoFn(),
             options,
             mainOutputTag,
             sideOutputTags,
-            fnInfo.getSideInputViews(),
+            activeFnInfo.getSideInputViews(),
             sideInputReader,
-            fnInfo.getInputCoder(),
-            fnInfo.getOutputCoders(),
-            fnInfo.getWindowingStrategy(),
+            activeFnInfo.getInputCoder(),
+            activeFnInfo.getOutputCoders(),
+            activeFnInfo.getWindowingStrategy(),
             stepContext,
             userStepContext,
             outputManager,
@@ -240,18 +240,18 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       if (sideInputProcessor != null) {
         sideInputProcessor.handleFinishBundle();
       }
-      doFnInstanceManager.complete(fnInfo);
+      doFnInstanceManager.complete(activeFnInfo);
       fnRunner = null;
-      fnInfo = null;
+      activeFnInfo = null;
       fnSignature = null;
       sideInputProcessor = null;
     }
   }
 
   void abort() throws Exception {
-    doFnInstanceManager.abort(fnInfo);
+    doFnInstanceManager.abort(activeFnInfo);
     fnRunner = null;
-    fnInfo = null;
+    activeFnInfo = null;
   }
 
   @VisibleForTesting static final String CLEANUP_TIMER_ID = "cleanup-timer";
@@ -366,7 +366,8 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       }
 
       BoundedWindow window = ((StateNamespaces.WindowNamespace) timer.getNamespace()).getWindow();
-      Instant targetTime = earliestAllowableCleanupTime(window, fnInfo.getWindowingStrategy());
+      Instant targetTime =
+          earliestAllowableCleanupTime(window, activeFnInfo.getWindowingStrategy());
 
       checkState(
           !targetTime.isAfter(timer.getTimestamp()),
@@ -385,12 +386,12 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
         try {
           tag =
               StateTags.tagForSpec(
-                  stateDecl.id(), (StateSpec) stateDecl.field().get(fnInfo.getDoFn()));
+                  stateDecl.id(), (StateSpec) stateDecl.field().get(activeFnInfo.getDoFn()));
         } catch (IllegalAccessException e) {
           throw new RuntimeException(
               String.format(
                   "Error accessing %s for %s",
-                  StateSpec.class.getName(), fnInfo.getDoFn().getClass().getName()),
+                  StateSpec.class.getName(), activeFnInfo.getDoFn().getClass().getName()),
               e);
         }
 

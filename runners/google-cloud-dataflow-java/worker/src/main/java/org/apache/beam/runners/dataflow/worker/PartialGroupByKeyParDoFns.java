@@ -43,6 +43,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -327,6 +328,11 @@ public class PartialGroupByKeyParDoFns {
 
     @Override
     public void abort() throws Exception {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 
   static class StreamingSideInputPGBKParDoFn<K, InputT, AccumT, W extends BoundedWindow>
@@ -391,5 +397,10 @@ public class PartialGroupByKeyParDoFns {
 
     @Override
     public void abort() throws Exception {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 }

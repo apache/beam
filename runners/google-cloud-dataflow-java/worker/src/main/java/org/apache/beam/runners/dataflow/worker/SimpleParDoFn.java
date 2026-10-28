@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -96,9 +97,9 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
       sideInputProcessor =
           new StreamingSideInputProcessor<>(
               new StreamingSideInputFetcher<InputT, W>(
-                  helpers.fnInfo.getSideInputViews(),
-                  helpers.fnInfo.getInputCoder(),
-                  (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(),
+                  helpers.activeFnInfo.getSideInputViews(),
+                  helpers.activeFnInfo.getInputCoder(),
+                  (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
                   (StreamingModeExecutionContext.StreamingModeStepContext)
                       helpers.userStepContext));
 
@@ -111,7 +112,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
                 // These elements are now processed. Register cleanup timers for all the unblocked
                 // windows.
                 helpers.registerStateCleanup(
-                    (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(),
+                    (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
                     (Collection<W>) unblockedElement.getWindows());
               }
             }
@@ -162,7 +163,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     }
     if (hasState) {
       helpers.registerStateCleanup(
-          (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(), windowsProcessed);
+          (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), windowsProcessed);
     }
   }
 
@@ -170,12 +171,18 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   public void processTimers() throws Exception {
 
     // Note: We need to get windowCoder to decode the timers.  If we haven't already deserialized
-    // the fnInfo, we peek at a new instance to retrieve that. If this extra deserialization becomes
-    // excessively costly, we could either (1) have the DoFnInstanceManager remember the associated
-    // windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check whether timers
-    // exist without actually decoding them.
+    // the activeFnInfo, we peek at a new instance to retrieve that. If this extra deserialization
+    // becomes excessively costly, we could either (1) have the DoFnInstanceManager remember the
+    // associated windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check
+    // whether timers exist without actually decoding them.
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) getDoFnInfo().getWindowingStrategy().getWindowFn().windowCoder();
+        (Coder<BoundedWindow>)
+            (helpers.activeFnInfo != null
+                    ? helpers.activeFnInfo
+                    : helpers.doFnInstanceManager.peek())
+                .getWindowingStrategy()
+                .getWindowFn()
+                .windowCoder();
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.USER,
         helpers.userStepContext,
@@ -207,6 +214,17 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   /** Returns the {@link DoFnInfo} used by this {@link SimpleParDoFn}. */
   @Override
   public DoFnInfo<?, ?> getDoFnInfo() throws Exception {
-    return helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek();
+    return helpers.doFnInstanceManager.peek();
+  }
+
+  /**
+   * Returns the {@link DoFnInfo} currently being used by this {@link SimpleParDoFn}.
+   *
+   * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
+   * finished.
+   */
+  @VisibleForTesting
+  @Nullable DoFnInfo<?, ?> getActiveDoFnInfo() {
+    return helpers.activeFnInfo;
   }
 }
