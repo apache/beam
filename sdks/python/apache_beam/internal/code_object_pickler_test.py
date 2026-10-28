@@ -502,6 +502,7 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
             mismatched_local,
             mismatched_local.__code__, ["nested_function", "extra"]))
 
+
 class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
   def test_empty_path_raises_exception(self):
     with self.assertRaisesRegex(ValueError, "Path must not be empty"):
