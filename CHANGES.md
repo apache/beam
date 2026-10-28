@@ -103,6 +103,7 @@
 * (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
 * (Java) [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) now carries the destination table alongside each file through the registration chain, so that one transform can register files into many tables. The coders of its internal `PCollection`s change, which makes this an update incompatible change for streaming pipelines that use it ([#40817](https://github.com/apache/beam/pull/40817)).
 * (YAML) `IcebergAddFiles` will be automatically replaced with the compatible managed transform. For older Beam versions, streaming update compatibility can be maintained by specifying the pipeline option `update_compatibility_version` ([#40827](https://github.com/apache/beam/issues/40827)).
+* Twister2 runner supported is removed ([#35905](https://github.com/apache/beam/issues/35905))).
 
 ## Deprecations
 
