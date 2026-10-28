@@ -1357,10 +1357,6 @@ public class DatastoreV1Test {
   }
 
   /**
-   * A WriteBatcher for unit tests, which does no timing-based adjustments (so unit tests have
-   * consistent results).
-   */
-  /**
    * Runs {@code fn} over {@code inputs} in a single bundle, in-process. The fns under test hold
    * Mockito mocks, which can't be serialized, so they can't go through a {@code TestPipeline}.
    */
@@ -1395,6 +1391,10 @@ public class DatastoreV1Test {
     return outputs;
   }
 
+  /**
+   * A WriteBatcher for unit tests, which does no timing-based adjustments (so unit tests have
+   * consistent results).
+   */
   static class FakeWriteBatcher implements DatastoreV1.WriteBatcher {
     @Override
     public void start() {}
