@@ -182,7 +182,10 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
+        // the execution context is null until the executor exists, so a report sent while
+        // DoFn.setup still runs logs the detection without the key instead of throwing
+        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
+            && Objects.nonNull(workItemStatusClient.getExecutionContext())) {
           hotKeyLogger.logHotKeyDetection(
               hotKeyDetection.getUserStepName(),
               TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),

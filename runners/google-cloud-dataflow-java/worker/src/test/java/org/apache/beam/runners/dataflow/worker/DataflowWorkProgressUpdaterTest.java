@@ -175,6 +175,21 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   @Test
+  public void workProgressLogsHotKeyDetectionBeforeWorkerIsSet() throws Exception {
+    // the batch worker starts reporting before the execution context holding the key exists
+    progressUpdater.setWorker(null);
+    when(workItemStatusClient.getExecutionContext()).thenReturn(null);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
   public void workProgressAskedToAbortWorker() throws Exception {
     when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
         .thenReturn(generateServiceAbort());
