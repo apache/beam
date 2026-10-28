@@ -3176,12 +3176,9 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           project.exec {
             executable 'sh'
-            // TODO: https://github.com/apache/beam/issues/29022
-            // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
-            // until it is resolved on pip's side, don't use pip's cache.
-            // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
+            // Pin pip after emSign root CA vulnerability fix.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "python -m pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
+                "python -m pip install --pre --retries 10 --upgrade pip==26.2.2 --no-cache-dir && " +
                 "python -m pip install --pre --retries 10 --upgrade tox --no-cache-dir && " +
                 "python -m pip install --pre --retries 10 --upgrade setuptools build --no-cache-dir"
           }

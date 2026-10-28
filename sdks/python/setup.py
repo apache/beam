@@ -98,7 +98,7 @@ PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 
-RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
+RECOMMENDED_MIN_PIP_VERSION = '26.2.2'
 try:
   _PIP_VERSION = distribution('pip').version
   if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
