@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Clustering;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -94,6 +96,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonSchema", "json_schema");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonTimePartitioning", "json_time_partitioning");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonClustering", "clustering");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonRangePartitioning", "json_range_partitioning");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getCreateDisposition", "create_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteDisposition", "write_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSchemaUpdateOptions", "schema_update_options");
@@ -276,6 +279,36 @@ public class BigQueryIOTranslationTest {
     assertEquals(
         BigQueryHelpers.toJsonString(testClustering),
         writeTransformFromRow.getJsonClustering().get());
+  }
+
+  @Test
+  public void testReCreateWriteTransformFromRowRangePartitioning() {
+    RangePartitioning testRangePartitioning =
+        new RangePartitioning()
+            .setField("id")
+            .setRange(new RangePartitioning.Range().setStart(0L).setEnd(100L).setInterval(10L));
+    BigQueryIO.Write<?> writeTransform =
+        BigQueryIO.write()
+            .to("dummyproject:dummydataset.dummytable")
+            .withRangePartitioning(testRangePartitioning);
+
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.78.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
+    assertNotNull(writeTransformFromRow.getJsonRangePartitioning());
+    assertEquals(
+        BigQueryHelpers.toJsonString(testRangePartitioning),
+        writeTransformFromRow.getJsonRangePartitioning().get());
+
+    // Range partitioning is not translated when upgrading from a Beam version that predates it.
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.77.0");
+    writeTransformFromRow = (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
+    assertNull(writeTransformFromRow.getJsonRangePartitioning());
   }
 
   @Test

@@ -27,6 +27,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.services.bigquery.model.BigLakeConfiguration;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
@@ -202,6 +203,11 @@ public class CreateTableHelpers {
         Clustering clustering = tableDestination.getClustering();
         if (clustering != null) {
           table.setClustering(clustering);
+        }
+
+        RangePartitioning rangePartitioning = tableDestination.getRangePartitioning();
+        if (rangePartitioning != null) {
+          table.setRangePartitioning(rangePartitioning);
         }
 
         if (kmsKey != null) {

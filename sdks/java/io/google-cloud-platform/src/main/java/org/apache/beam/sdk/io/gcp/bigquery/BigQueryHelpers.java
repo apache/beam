@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -824,6 +825,13 @@ public class BigQueryHelpers {
   static class TimePartitioningToJson implements SerializableFunction<TimePartitioning, String> {
     @Override
     public String apply(TimePartitioning partitioning) {
+      return toJsonString(partitioning);
+    }
+  }
+
+  static class RangePartitioningToJson implements SerializableFunction<RangePartitioning, String> {
+    @Override
+    public String apply(RangePartitioning partitioning) {
       return toJsonString(partitioning);
     }
   }

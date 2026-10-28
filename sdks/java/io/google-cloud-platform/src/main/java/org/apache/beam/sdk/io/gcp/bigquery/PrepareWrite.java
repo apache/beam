@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -43,16 +44,38 @@ public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
   private DynamicDestinations<InputT, DestinationT> dynamicDestinations;
   private SerializableFunction<InputT, OutputT> formatFunction;
+  private boolean destinationCoderDropsRangePartitioning;
 
   public PrepareWrite(
       DynamicDestinations<InputT, DestinationT> dynamicDestinations,
       SerializableFunction<InputT, OutputT> formatFunction) {
+    this(dynamicDestinations, formatFunction, false);
+  }
+
+  /**
+   * Like {@link #PrepareWrite(DynamicDestinations, SerializableFunction)}, but fails on any {@link
+   * TableDestination} with range partitioning when {@code destinationCoderDropsRangePartitioning}
+   * is set, since the destination coder would drop it.
+   */
+  PrepareWrite(
+      DynamicDestinations<InputT, DestinationT> dynamicDestinations,
+      SerializableFunction<InputT, OutputT> formatFunction,
+      boolean destinationCoderDropsRangePartitioning) {
     this.dynamicDestinations = dynamicDestinations;
     this.formatFunction = formatFunction;
+    this.destinationCoderDropsRangePartitioning = destinationCoderDropsRangePartitioning;
+  }
+
+  /** Returns true if {@code coder} encodes {@link TableDestination} without range partitioning. */
+  static boolean dropsRangePartitioning(Coder<?> coder) {
+    return coder instanceof TableDestinationCoder
+        || coder instanceof TableDestinationCoderV2
+        || coder instanceof TableDestinationCoderV3;
   }
 
   @Override
   public PCollection<KV<DestinationT, OutputT>> expand(PCollection<InputT> input) {
+    final boolean checkRangePartitioning = destinationCoderDropsRangePartitioning;
     return input.apply(
         ParDo.of(
                 new DoFn<InputT, KV<DestinationT, OutputT>>() {
@@ -75,6 +98,18 @@ public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
                             + "but %s returned null on element %s",
                         dynamicDestinations,
                         element);
+                    if (checkRangePartitioning && tableDestination instanceof TableDestination) {
+                      TableDestination destination = (TableDestination) tableDestination;
+                      checkArgument(
+                          destination.getJsonRangePartitioning() == null,
+                          "%s returned a destination with range partitioning for table %s, but"
+                              + " range partitioning is not enabled, so the destination coder"
+                              + " would drop it. Call withRangePartitioning() on"
+                              + " BigQueryIO.write(). If you provided a custom DynamicDestinations,"
+                              + " also return TableDestinationCoderV4 from getDestinationCoder().",
+                          dynamicDestinations,
+                          destination.getTableSpec());
+                    }
                     OutputT outputValue = formatFunction.apply(element);
                     Preconditions.checkArgumentNotNull(
                         outputValue,

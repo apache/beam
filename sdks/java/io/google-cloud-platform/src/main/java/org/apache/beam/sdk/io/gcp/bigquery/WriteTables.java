@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -289,6 +290,7 @@ class WriteTables<DestinationT extends @NonNull Object>
               tableReference,
               tableDestination.getTimePartitioning(),
               tableDestination.getClustering(),
+              tableDestination.getRangePartitioning(),
               tableSchema,
               partitionFiles,
               writeDisposition,
@@ -471,6 +473,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       TableReference ref,
       @Nullable TimePartitioning timePartitioning,
       @Nullable Clustering clustering,
+      @Nullable RangePartitioning rangePartitioning,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
@@ -501,6 +504,9 @@ class WriteTables<DestinationT extends @NonNull Object>
     }
     if (clustering != null) {
       loadConfig.setClustering(clustering);
+    }
+    if (rangePartitioning != null) {
+      loadConfig.setRangePartitioning(rangePartitioning);
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(

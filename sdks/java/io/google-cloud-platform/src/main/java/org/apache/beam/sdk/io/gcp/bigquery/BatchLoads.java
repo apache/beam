@@ -188,6 +188,7 @@ class BatchLoads<DestinationT, ElementT>
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey,
       boolean clusteringEnabled,
+      boolean rangePartitioningEnabled,
       boolean useAvroLogicalTypes,
       @Nullable String tempDataset,
       BadRecordRouter badRecordRouter,
@@ -217,7 +218,8 @@ class BatchLoads<DestinationT, ElementT>
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
     this.tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+        DynamicDestinationsHelpers.tableDestinationCoder(
+            clusteringEnabled, rangePartitioningEnabled);
     this.badRecordRouter = badRecordRouter;
     this.badRecordErrorHandler = badRecordErrorHandler;
   }

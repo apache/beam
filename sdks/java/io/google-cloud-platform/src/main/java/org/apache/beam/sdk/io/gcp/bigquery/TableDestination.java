@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.Clustering;
+import com.google.api.services.bigquery.model.RangePartitioning;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
@@ -32,6 +35,7 @@ public class TableDestination implements Serializable {
   private final @Nullable String tableDescription;
   private final @Nullable String jsonTimePartitioning;
   private final @Nullable String jsonClustering;
+  private final @Nullable String jsonRangePartitioning;
 
   public TableDestination(String tableSpec, @Nullable String tableDescription) {
     this(tableSpec, tableDescription, (String) null, (String) null);
@@ -106,15 +110,66 @@ public class TableDestination implements Serializable {
       @Nullable String tableDescription,
       @Nullable String jsonTimePartitioning,
       @Nullable String jsonClustering) {
+    this(tableSpec, tableDescription, jsonTimePartitioning, jsonClustering, (String) null);
+  }
+
+  /**
+   * Creates a destination with range partitioning. BigQuery doesn't allow both time and range
+   * partitioning on one table, so this throws {@link IllegalArgumentException} if both {@code
+   * timePartitioning} and {@code rangePartitioning} are set.
+   */
+  public TableDestination(
+      String tableSpec,
+      @Nullable String tableDescription,
+      @Nullable TimePartitioning timePartitioning,
+      @Nullable Clustering clustering,
+      @Nullable RangePartitioning rangePartitioning) {
+    this(
+        tableSpec,
+        tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null,
+        clustering != null ? BigQueryHelpers.toJsonString(clustering) : null,
+        rangePartitioning != null ? BigQueryHelpers.toJsonString(rangePartitioning) : null);
+  }
+
+  public TableDestination(
+      TableReference tableReference,
+      @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning,
+      @Nullable String jsonClustering,
+      @Nullable String jsonRangePartitioning) {
+    this(
+        BigQueryHelpers.toTableSpec(tableReference),
+        tableDescription,
+        jsonTimePartitioning,
+        jsonClustering,
+        jsonRangePartitioning);
+  }
+
+  public TableDestination(
+      String tableSpec,
+      @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning,
+      @Nullable String jsonClustering,
+      @Nullable String jsonRangePartitioning) {
+    checkArgument(
+        jsonTimePartitioning == null || jsonRangePartitioning == null,
+        "Table %s has both time and range partitioning, but a BigQuery table can only have one.",
+        tableSpec);
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;
     this.jsonClustering = jsonClustering;
+    this.jsonRangePartitioning = jsonRangePartitioning;
   }
 
   public TableDestination withTableReference(TableReference tableReference) {
     return new TableDestination(
-        tableReference, tableDescription, jsonTimePartitioning, jsonClustering);
+        tableReference,
+        tableDescription,
+        jsonTimePartitioning,
+        jsonClustering,
+        jsonRangePartitioning);
   }
 
   /** Return the tablespec in [project:].dataset.tableid format. */
@@ -170,6 +225,18 @@ public class TableDestination implements Serializable {
     }
   }
 
+  public @Nullable String getJsonRangePartitioning() {
+    return jsonRangePartitioning;
+  }
+
+  public @Nullable RangePartitioning getRangePartitioning() {
+    if (jsonRangePartitioning == null) {
+      return null;
+    } else {
+      return BigQueryHelpers.fromJsonString(jsonRangePartitioning, RangePartitioning.class);
+    }
+  }
+
   public @Nullable String getTableDescription() {
     return tableDescription;
   }
@@ -191,11 +258,12 @@ public class TableDestination implements Serializable {
     TableDestination other = (TableDestination) o;
     return Objects.equals(this.tableSpec, other.tableSpec)
         && Objects.equals(this.tableDescription, other.tableDescription)
-        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning);
+        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning)
+        && Objects.equals(this.jsonRangePartitioning, other.jsonRangePartitioning);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning);
+    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning, jsonRangePartitioning);
   }
 }

@@ -57,36 +57,58 @@ import org.slf4j.LoggerFactory;
 class DynamicDestinationsHelpers {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicDestinationsHelpers.class);
 
+  /**
+   * Returns the oldest {@link TableDestination} coder that can carry the enabled fields. Picking
+   * the oldest one keeps existing pipelines update compatible.
+   */
+  static Coder<TableDestination> tableDestinationCoder(
+      boolean clusteringEnabled, boolean rangePartitioningEnabled) {
+    if (rangePartitioningEnabled) {
+      return TableDestinationCoderV4.of();
+    } else if (clusteringEnabled) {
+      return TableDestinationCoderV3.of();
+    } else {
+      return TableDestinationCoderV2.of();
+    }
+  }
+
   /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
     private final @Nullable String tableDescription;
     private final boolean clusteringEnabled;
+    private final boolean rangePartitioningEnabled;
 
     ConstantTableDestinations(
         ValueProvider<String> tableSpec,
         @Nullable String tableDescription,
-        boolean clusteringEnabled) {
+        boolean clusteringEnabled,
+        boolean rangePartitioningEnabled) {
       this.tableSpec = tableSpec;
       this.tableDescription = tableDescription;
       this.clusteringEnabled = clusteringEnabled;
+      this.rangePartitioningEnabled = rangePartitioningEnabled;
     }
 
     static <T> ConstantTableDestinations<T> fromTableSpec(
         ValueProvider<String> tableSpec,
         @Nullable String tableDescription,
-        boolean clusteringEnabled) {
-      return new ConstantTableDestinations<>(tableSpec, tableDescription, clusteringEnabled);
+        boolean clusteringEnabled,
+        boolean rangePartitioningEnabled) {
+      return new ConstantTableDestinations<>(
+          tableSpec, tableDescription, clusteringEnabled, rangePartitioningEnabled);
     }
 
     static <T> ConstantTableDestinations<T> fromJsonTableRef(
         ValueProvider<String> jsonTableRef,
         @Nullable String tableDescription,
-        boolean clusteringEnabled) {
+        boolean clusteringEnabled,
+        boolean rangePartitioningEnabled) {
       return new ConstantTableDestinations<>(
           NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()),
           tableDescription,
-          clusteringEnabled);
+          clusteringEnabled,
+          rangePartitioningEnabled);
     }
 
     @Override
@@ -108,11 +130,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      if (clusteringEnabled) {
-        return TableDestinationCoderV3.of();
-      } else {
-        return TableDestinationCoderV2.of();
-      }
+      return tableDestinationCoder(clusteringEnabled, rangePartitioningEnabled);
     }
   }
 
@@ -121,12 +139,15 @@ class DynamicDestinationsHelpers {
     private final SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination>
         tableFunction;
     private final boolean clusteringEnabled;
+    private final boolean rangePartitioningEnabled;
 
     TableFunctionDestinations(
         SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction,
-        boolean clusteringEnabled) {
+        boolean clusteringEnabled,
+        boolean rangePartitioningEnabled) {
       this.tableFunction = tableFunction;
       this.clusteringEnabled = clusteringEnabled;
+      this.rangePartitioningEnabled = rangePartitioningEnabled;
     }
 
     @Override
@@ -152,11 +173,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      if (clusteringEnabled) {
-        return TableDestinationCoderV3.of();
-      } else {
-        return TableDestinationCoderV2.of();
-      }
+      return tableDestinationCoder(clusteringEnabled, rangePartitioningEnabled);
     }
   }
 
@@ -295,16 +312,19 @@ class DynamicDestinationsHelpers {
 
     private final @Nullable ValueProvider<String> jsonTimePartitioning;
     private final @Nullable ValueProvider<String> jsonClustering;
+    private final @Nullable ValueProvider<String> jsonRangePartitioning;
 
     // Lazily initialized and cached values.
     private @Nullable String evaluatedPartitioning = null;
     private @Nullable String evaluatedClustering = null;
+    private @Nullable String evaluatedRangePartitioning = null;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     ConstantTimePartitioningClusteringDestinations(
         DynamicDestinations<T, TableDestination> inner,
         @Nullable ValueProvider<String> jsonTimePartitioning,
-        @Nullable ValueProvider<String> jsonClustering) {
+        @Nullable ValueProvider<String> jsonClustering,
+        @Nullable ValueProvider<String> jsonRangePartitioning) {
       super(inner);
 
       checkArgument(
@@ -313,12 +333,16 @@ class DynamicDestinationsHelpers {
                   && jsonTimePartitioning.get() != null)
               || (jsonClustering != null
                   && jsonClustering.isAccessible()
-                  && jsonClustering.get() != null),
-          "at least one of jsonTimePartitioning or jsonClustering must be non-null, accessible "
-              + "and present");
+                  && jsonClustering.get() != null)
+              || (jsonRangePartitioning != null
+                  && jsonRangePartitioning.isAccessible()
+                  && jsonRangePartitioning.get() != null),
+          "at least one of jsonTimePartitioning, jsonClustering or jsonRangePartitioning must be "
+              + "non-null, accessible and present");
 
       this.jsonTimePartitioning = jsonTimePartitioning;
       this.jsonClustering = jsonClustering;
+      this.jsonRangePartitioning = jsonRangePartitioning;
     }
 
     static boolean isJsonConfigPresent(ValueProvider<String> json) {
@@ -340,6 +364,11 @@ class DynamicDestinationsHelpers {
           this.evaluatedClustering = jsonClustering.get();
         }
       }
+      if (jsonRangePartitioning != null) {
+        if (isJsonConfigPresent(jsonRangePartitioning)) {
+          this.evaluatedRangePartitioning = jsonRangePartitioning.get();
+        }
+      }
       initialized.set(true);
     }
 
@@ -356,18 +385,22 @@ class DynamicDestinationsHelpers {
               : destination.getJsonTimePartitioning();
       String clustering =
           evaluatedClustering != null ? evaluatedClustering : destination.getJsonClustering();
+      String rangePartitioning =
+          evaluatedRangePartitioning != null
+              ? evaluatedRangePartitioning
+              : destination.getJsonRangePartitioning();
 
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          partitioning,
+          clustering,
+          rangePartitioning);
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      if (jsonClustering != null) {
-        return TableDestinationCoderV3.of();
-      } else {
-        return TableDestinationCoderV2.of();
-      }
+      return tableDestinationCoder(jsonClustering != null, jsonRangePartitioning != null);
     }
 
     @Override
@@ -378,6 +411,9 @@ class DynamicDestinationsHelpers {
       }
       if (jsonClustering != null) {
         helper.add("jsonClustering", jsonClustering);
+      }
+      if (jsonRangePartitioning != null) {
+        helper.add("jsonRangePartitioning", jsonRangePartitioning);
       }
       return helper.toString();
     }
@@ -503,7 +539,8 @@ class DynamicDestinationsHelpers {
             wrappedDestination.getTableSpec(),
             existingTable.getDescription(),
             existingTable.getTimePartitioning(),
-            existingTable.getClustering());
+            existingTable.getClustering(),
+            existingTable.getRangePartitioning());
       }
     }
 
