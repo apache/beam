@@ -16,26 +16,182 @@
 package integration
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/jars"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/grpc"
 )
 
 type testProcess struct {
 	killed bool
 	jar    string
+	done   chan error
 }
 
 func (p *testProcess) Kill() error {
 	p.killed = true
+	if p.done != nil {
+		select {
+		case <-p.done:
+		default:
+			close(p.done)
+		}
+	}
 	return nil
+}
+
+func (p *testProcess) Wait() error {
+	return <-p.done
+}
+
+type readyExpansionService struct {
+	jobpb.UnimplementedExpansionServiceServer
+}
+
+func (readyExpansionService) DiscoverSchemaTransform(context.Context, *jobpb.DiscoverSchemaTransformRequest) (*jobpb.DiscoverSchemaTransformResponse, error) {
+	return &jobpb.DiscoverSchemaTransformResponse{}, nil
+}
+
+type expandOnlyService struct {
+	jobpb.UnimplementedExpansionServiceServer
+	delay time.Duration
+	calls atomic.Int32
+}
+
+func (s *expandOnlyService) Expand(ctx context.Context, _ *jobpb.ExpansionRequest) (*jobpb.ExpansionResponse, error) {
+	s.calls.Add(1)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(s.delay):
+	}
+	return &jobpb.ExpansionResponse{Error: "missing transform specification"}, nil
+}
+
+func startExpansionListener(t *testing.T, port string, expansion jobpb.ExpansionServiceServer) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "localhost:"+port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	if expansion != nil {
+		jobpb.RegisterExpansionServiceServer(server, expansion)
+	}
+	t.Cleanup(server.Stop)
+	go server.Serve(listener)
+	return listener.Addr().String()
+}
+
+func TestExpansionServices_GetAddr_RejectsWrongService(t *testing.T) {
+	var procs []*testProcess
+	es := &ExpansionServices{
+		addrs: map[string]string{},
+		jars:  map[string]string{"test": "test.jar"},
+		run: func(_ time.Duration, _ string, args ...string) (jars.Process, error) {
+			// Another service claims the selected port before the jar can bind it.
+			startExpansionListener(t, args[0], nil)
+			proc := &testProcess{done: make(chan error)}
+			procs = append(procs, proc)
+			return proc, nil
+		},
+	}
+	t.Cleanup(es.Shutdown)
+	if addr, err := es.GetAddr("test"); err == nil {
+		t.Fatalf("GetAddr() = %q, nil; want an error for a different gRPC service", addr)
+	}
+	if len(es.addrs) != 0 || len(es.procs) != 0 {
+		t.Fatalf("GetAddr() cached an unsuccessful startup: addrs=%v, procs=%v", es.addrs, es.procs)
+	}
+	for _, proc := range procs {
+		if !proc.killed {
+			t.Error("GetAddr() did not kill the unsuccessful jar process")
+		}
+	}
+	if len(procs) != 3 {
+		t.Errorf("GetAddr() started %d jars, want 3 bounded startup attempts", len(procs))
+	}
+}
+
+func TestExpansionServices_GetAddr_RetriesWrongService(t *testing.T) {
+	var procs []*testProcess
+	var ports []string
+	es := &ExpansionServices{
+		addrs: map[string]string{},
+		jars:  map[string]string{"test": "test.jar"},
+		run: func(_ time.Duration, _ string, args ...string) (jars.Process, error) {
+			ports = append(ports, args[0])
+			var service jobpb.ExpansionServiceServer
+			if len(procs) > 0 {
+				service = readyExpansionService{}
+			}
+			startExpansionListener(t, args[0], service)
+			proc := &testProcess{done: make(chan error, 1)}
+			if len(procs) == 0 {
+				// The jar cannot bind the port held by the other gRPC service.
+				proc.done <- nil
+				close(proc.done)
+			}
+			procs = append(procs, proc)
+			return proc, nil
+		},
+	}
+	t.Cleanup(es.Shutdown)
+	addr, err := es.GetAddr("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 2 || ports[0] == ports[1] {
+		t.Fatalf("GetAddr() selected ports %v, want a fresh port after the collision", ports)
+	}
+	if addr != "localhost:"+ports[1] || !procs[0].killed || procs[1].killed {
+		t.Errorf("GetAddr() = %q, killed processes = [%v, %v]", addr, procs[0].killed, procs[1].killed)
+	}
+	if got, err := es.GetAddr("test"); err != nil || got != addr || len(ports) != 2 {
+		t.Errorf("cached GetAddr() = %q, %v; ports = %v", got, err, ports)
+	}
+}
+
+func TestWaitForExpansionService_RejectsExitedJar(t *testing.T) {
+	// A compatible listener still cannot prove that our child is running.
+	addr := startExpansionListener(t, "0", readyExpansionService{})
+	exited := make(chan error, 1)
+	exited <- fmt.Errorf("jar failed to start")
+	if err := waitForExpansionService(addr, exited); err == nil || !strings.Contains(err.Error(), "jar failed to start") {
+		t.Errorf("waitForExpansionService() = %v; want the child startup error", err)
+	}
+}
+
+func TestExpansionServices_GetAddr_ExpandOnlyService(t *testing.T) {
+	// The first expansion can initialize classes after the server binds.
+	service := &expandOnlyService{delay: 1200 * time.Millisecond}
+	es := &ExpansionServices{
+		addrs: map[string]string{},
+		jars:  map[string]string{"test": "test.jar"},
+		run: func(_ time.Duration, _ string, args ...string) (jars.Process, error) {
+			startExpansionListener(t, args[0], service)
+			return &testProcess{done: make(chan error)}, nil
+		},
+	}
+	t.Cleanup(es.Shutdown)
+	if addr, err := es.GetAddr("test"); err != nil || addr == "" {
+		t.Errorf("GetAddr() = %q, %v; want the Expand-only service address", addr, err)
+	}
+	if got := service.calls.Load(); got != 1 {
+		t.Errorf("Expand called %d times, want a single startup probe", got)
+	}
 }
 
 func failRun(_ time.Duration, _ string, _ ...string) (jars.Process, error) {
