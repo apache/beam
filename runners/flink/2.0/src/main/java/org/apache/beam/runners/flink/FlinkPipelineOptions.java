@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Options which can be used to configure the Flink Runner.
@@ -359,22 +360,25 @@ public interface FlinkPipelineOptions
   void setFlinkConfDir(String confDir);
 
   @Description(
-      "Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.")
+      "Set the maximum size in MiB of input splits when data is read from a filesystem. 0 implies "
+          + "no max size. Rarely needed: bounded sources are re-split by default so that uneven "
+          + "file sizes are evenly distributed over the readers. Only use it to force splits "
+          + "smaller than the runner would pick.")
   @Default.Long(0)
   Long getFileInputSplitMaxSizeMB();
 
   void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
 
   @Description(
-      "Static split assignment threshold in MiB per source reader for bounded sources in Flink "
-          + "DataStream mode. The default of 0 always uses lazy assignment. A positive value "
-          + "selects static round-robin assignment for sources with a known, positive estimate "
-          + "below the threshold and lazy assignment otherwise. Any negative value always uses "
-          + "static assignment.")
-  @Default.Long(0)
-  Long getSourceStaticSplitThresholdMb();
+      "Split assignment for bounded sources. When unset, batch pipelines assign splits statically "
+          + "(round-robin, after re-splitting the source so that splits are numerous and evenly "
+          + "sized) and streaming pipelines assign them lazily. 0 always uses lazy assignment. A "
+          + "positive value is a threshold in MiB per source reader: static assignment is used for "
+          + "sources with a known, positive estimate below the threshold and lazy assignment "
+          + "otherwise. Any negative value always uses static assignment.")
+  @Nullable Long getSourceStaticSplitThresholdMb();
 
-  void setSourceStaticSplitThresholdMb(Long thresholdMb);
+  void setSourceStaticSplitThresholdMb(@Nullable Long thresholdMb);
 
   @Description(
       "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"
