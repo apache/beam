@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Test;
@@ -51,8 +50,7 @@ public class KafkaRecordCoderTest {
 
   @Test
   public void testKafkaRecordSerializableWithoutHeaders() throws IOException {
-    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
-    verifySerialization(consumerRecord.headers());
+    verifySerialization(new RecordHeaders());
   }
 
   @Test

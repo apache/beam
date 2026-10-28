@@ -240,7 +240,7 @@ def run_single_query(
       elapsed = time.monotonic() - t0
       end_dt = datetime.datetime.now(datetime.timezone.utc)
       err_str = str(exc)
-      first_line = err_str.splitlines()[0] if err_str else repr(exc)
+      first_line = err_str.splitlines()[0]
       for line in err_str.splitlines():
         if "UnsupportedOperationException" in line or "CannotPlanException" in line:
           first_line = line.strip()
@@ -256,7 +256,7 @@ def run_single_query(
           start_time=start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
           end_time=end_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
           elapsed_sec=round(elapsed, 3),
-          error_message=first_line,
+          error_message=err_str,
       )
 
 
@@ -273,7 +273,14 @@ def format_summary_table(results: Sequence[TpcdsQueryResult]) -> str:
   ]
   rows = []
   for r in results:
-    note = f"Returned {r.row_count} row(s)" if r.is_successful else r.error_message
+    if r.is_successful:
+      note = f"Returned {r.row_count} row(s)"
+    else:
+      note = r.error_message.splitlines()[0] if r.error_message else ""
+      for line in r.error_message.splitlines():
+        if "UnsupportedOperationException" in line or "CannotPlanException" in line:
+          note = line.strip()
+          break
     if len(note) > 85:
       note = note[:82] + "..."
     rows.append([

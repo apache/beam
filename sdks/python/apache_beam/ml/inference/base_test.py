@@ -2665,24 +2665,28 @@ class FakeModelHandlerForBatching(base.ModelHandler[int, int, FakeModel]):
 class ModelHandlerBatchingArgsTest(unittest.TestCase):
   """Tests for ModelHandler.__init__ batching parameters."""
   def test_batch_elements_kwargs_all_args(self):
-    """All batching args passed to __init__ are in batch_elements_kwargs."""
-    def size_fn(x):
-      return 10
-
+    """All non-weight batching args are passed to batch_elements_kwargs."""
     handler = FakeModelHandlerForBatching(
-        min_batch_size=5,
-        max_batch_size=20,
-        max_batch_duration_secs=30,
-        max_batch_weight=100,
-        element_size_fn=size_fn)
+        min_batch_size=5, max_batch_size=20, max_batch_duration_secs=30)
 
     kwargs = handler.batch_elements_kwargs()
 
     self.assertEqual(kwargs['min_batch_size'], 5)
     self.assertEqual(kwargs['max_batch_size'], 20)
     self.assertEqual(kwargs['max_batch_duration_secs'], 30)
+
+  def test_batch_elements_kwargs_weight_args(self):
+    """Weight-based batching args are passed through to kwargs."""
+    def size_fn(x):
+      return 10
+
+    handler = FakeModelHandlerForBatching(
+        max_batch_weight=100, element_size_fn=size_fn)
+
+    kwargs = handler.batch_elements_kwargs()
+
     self.assertEqual(kwargs['max_batch_weight'], 100)
-    self.assertIn('element_size_fn', kwargs)
+    self.assertIs(kwargs['element_size_fn'], size_fn)
     self.assertEqual(kwargs['element_size_fn'](1), 10)
 
   def test_batch_elements_kwargs_partial_args(self):
@@ -2762,16 +2766,28 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertNotIn('bucket_boundaries', kwargs)
 
   def test_batch_bucket_boundaries_without_batch_length_fn(self):
-    """Passing batch_bucket_boundaries without batch_length_fn should fail in
-    BatchElements.
+    with self.assertRaisesRegex(
+        ValueError, 'batch_bucket_boundaries requires batch_length_fn'):
+      FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
 
-    Note: ModelHandler.__init__ doesn't validate this; the error is raised
-    by BatchElements when batch_elements_kwargs are used."""
-    handler = FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
-    kwargs = handler.batch_elements_kwargs()
-    # The kwargs are stored, but BatchElements will reject them
-    self.assertEqual(kwargs['bucket_boundaries'], [10, 20])
-    self.assertNotIn('length_fn', kwargs)
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError,
+                                'max_batch_weight requires element_size_fn'):
+      FakeModelHandlerForBatching(max_batch_weight=10)
+
+  def test_max_batch_weight_rejects_length_based_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10, element_size_fn=len, batch_length_fn=len)
+
+  def test_max_batch_weight_rejects_bucket_boundaries(self):
+    with self.assertRaisesRegex(
+        ValueError, 'max_batch_weight cannot be combined with length-based'):
+      FakeModelHandlerForBatching(
+          max_batch_weight=10,
+          element_size_fn=len,
+          batch_bucket_boundaries=[10, 20])
 
   def test_batching_kwargs_none_values_omitted(self):
     """None values for batch_length_fn and batch_bucket_boundaries are not in
@@ -3120,6 +3136,7 @@ class ModelManagerTest(unittest.TestCase):
       # Second batch on 'model_v1' reuses the 'model_v1' instance (3, 4)
       self.assertEqual(dofn.process([0, 0], None, meta_v1), [3, 4])
       self.assertEqual(dofn._cur_tag, 'model_v1')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
       self.assertEqual(
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v1')
 
@@ -3129,6 +3146,7 @@ class ModelManagerTest(unittest.TestCase):
       # Second batch on 'model_v2' reuses the 'model_v2' instance (3, 4)
       self.assertEqual(dofn.process([0, 0], None, meta_v2), [3, 4])
       self.assertEqual(dofn._cur_tag, 'model_v2')
+      self.assertEqual(dofn._model.metric_tag, 'initial_tag')
       self.assertEqual(
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
