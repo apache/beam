@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -221,6 +222,80 @@ public class GcsUtilV2Test {
     options.setGcsEndpoint("not a url");
 
     assertThrows(IllegalArgumentException.class, () -> new GcsUtilV2(options));
+  }
+
+  /** A test credential in the given universe domain. */
+  private static class UniverseCredential extends TestCredential {
+    private final String universeDomain;
+
+    UniverseCredential(String universeDomain) {
+      this.universeDomain = universeDomain;
+    }
+
+    @Override
+    public String getUniverseDomain() {
+      return universeDomain;
+    }
+  }
+
+  /** A test credential whose universe domain cannot be determined. */
+  private static class FailingUniverseCredential extends TestCredential {
+    @Override
+    public String getUniverseDomain() throws IOException {
+      throw new IOException("no universe domain");
+    }
+  }
+
+  @Test
+  public void testResolveUniverseDomainPrefersEnvVar() {
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain(
+            " apis-tpczero.goog ", new UniverseCredential("other.goog")));
+  }
+
+  @Test
+  public void testResolveUniverseDomainFallsBackToCredentials() {
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain(null, new UniverseCredential("apis-tpczero.goog")));
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain("", new UniverseCredential("apis-tpczero.goog")));
+  }
+
+  @Test
+  public void testResolveUniverseDomainReturnsNullForDefaultUniverse() {
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, null));
+    assertNull(GcsUtilV2.resolveUniverseDomain(Credentials.GOOGLE_DEFAULT_UNIVERSE, null));
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, new TestCredential()));
+  }
+
+  @Test
+  public void testResolveUniverseDomainIgnoresCredentialErrors() {
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, new FailingUniverseCredential()));
+  }
+
+  @Test
+  public void testCredentialsUniverseDomainIsUsedWithoutGcsEndpoint() {
+    // Skip if the environment variable is set, since it takes precedence over the credentials.
+    assumeTrue(System.getenv(GcsUtilV2.UNIVERSE_DOMAIN_ENV_VAR) == null);
+    GcsOptions options = gcsOptions();
+    options.setGcpCredential(new UniverseCredential("example.goog"));
+
+    StorageOptions storageOptions = storageOptionsOf(new GcsUtilV2(options));
+
+    assertEquals("example.goog", storageOptions.getUniverseDomain());
+    assertEquals("https://storage.example.goog/", storageOptions.getResolvedHost("storage"));
+  }
+
+  @Test
+  public void testGcsEndpointTakesPrecedenceOverUniverseDomain() {
+    GcsOptions options = gcsOptions();
+    options.setGcpCredential(new UniverseCredential("example.goog"));
+    options.setGcsEndpoint("https://storage.example.com/storage/v1/");
+
+    assertEquals("https://storage.example.com", storageOptionsOf(new GcsUtilV2(options)).getHost());
   }
 
   // ---------------------------------------------------------------------------------------------

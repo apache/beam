@@ -34,8 +34,8 @@ CANONICAL_13_QUERIES: List[str] = [
     "3", "7", "13", "15", "19", "26", "42", "43", "48", "52", "55", "91", "96"
 ]
 
-# The 55 TPC-DS queries supported by Beam Calcite SQL (returning > 0 rows).
-# Together with KNOWN_FAILING_QUERIES (48 queries), this partitions all 103 TPC-DS queries.
+# TPC-DS queries supported by Beam Calcite SQL (returning > 0 rows).
+# Together with KNOWN_FAILING_QUERIES, this partitions all 103 TPC-DS queries.
 # yapf: disable
 SUPPORTED_QUERIES: List[str] = [
     "1", "3", "4", "7", "9", "10", "11", "12", "15", "17",
@@ -43,13 +43,13 @@ SUPPORTED_QUERIES: List[str] = [
     "40", "42", "43", "45", "46", "49", "50", "52", "53", "55",
     "56", "59", "60", "61", "63", "65", "66", "68", "69", "71",
     "73", "74", "75", "76", "79", "82", "84", "87", "88", "89",
-    "92", "93", "96", "97", "99",
+    "90", "92", "93", "96", "97", "98", "99",
 ]
 # yapf: enable
 
-# The 48 known failing TPC-DS queries on Beam Calcite SQL with their expected error substring.
+# Known failing TPC-DS queries on Beam Calcite SQL with their expected error substring.
 # Used by `--check_regression` and `:sdks:python:apache_beam:testing:benchmarks:tpcds:checkAllQueries`
-# to verify that all 55 SUPPORTED_QUERIES succeed on PrismRunner and that the remaining 48 known
+# to verify that all SUPPORTED_QUERIES succeed on PrismRunner and that the remaining known
 # failing queries fail with their expected diagnostic without regressing.
 # pylint: disable=line-too-long
 KNOWN_FAILING_QUERIES: Dict[str, str] = {
@@ -96,11 +96,9 @@ KNOWN_FAILING_QUERIES: Dict[str, str] = {
     "query83": "Error decoding input stream with coder",
     "query85": "Returned 0 rows",
     "query86": "Error while applying rule BeamBasicAggregationRule",
-    "query90": "CalcFn failed to evaluate",
     "query91": "VolcanoPlanner timeout (7-table join permutation search)",
     "query94": "Error while applying rule JoinPushExpressionsRule",
     "query95": "Error while applying rule JoinPushExpressionsRule",
-    "query98": "IllegalArgumentException: DECIMAL NOT NULL is not nullable",
 }
 # pylint: enable=line-too-long
 

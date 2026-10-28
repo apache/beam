@@ -47,9 +47,6 @@ class TpcdsUnitTest(unittest.TestCase):
         tpcds_queries.PLANNER_TIMEOUT_QUERIES.issubset(failing_queries))
     self.assertEqual(supported_queries & failing_queries, set())
     self.assertEqual(supported_queries | failing_queries, all_queries)
-    # 55 supported + 48 known failing = 103 total queries
-    self.assertEqual(len(supported_queries), 55)
-    self.assertEqual(len(failing_queries), 48)
 
   def test_query_selection_and_normalization(self):
     qnames = tpcds_queries.parse_query_selection("canonical13")

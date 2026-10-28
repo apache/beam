@@ -424,6 +424,58 @@ class TestModelManager(unittest.TestCase):
     self.manager.force_reset()
     self.assertEqual(_get_count_dist_max(tag1), 2)
 
+  def test_model_manager_metrics_with_metric_tag(self):
+    """Test that metrics for the active version report under metric_tag."""
+    stable_id = "stable_model_identifier"
+    v1_tag = "gs://bucket/model_v1"
+    v2_tag = "gs://bucket/model_v2"
+
+    def _get_count_dist(tag):
+      dist = MetricsEnvironment.process_wide_container().get_distribution(
+          MetricName('BeamML_ModelManager', f'num_loaded_models_{tag}'))
+      return dist.get_cumulative()
+
+    def _get_est_dist(tag):
+      dist = MetricsEnvironment.process_wide_container().get_distribution(
+          MetricName('BeamML_ModelManager', f'memory_estimate_mb_{tag}'))
+      return dist.get_cumulative()
+
+    MetricsEnvironment.process_wide_container().reset()
+
+    # Acquire v1 with metric_tag=stable_id: reported under stable_id only.
+    m1 = self.manager.acquire_model(
+        v1_tag, lambda: MockModel(v1_tag, 1000.0, self.mock_monitor),
+        metric_tag=stable_id)
+    self.manager.release_model(v1_tag, m1)
+    self.assertEqual(_get_count_dist(stable_id).max, 1)
+    self.assertEqual(_get_est_dist(stable_id).max, 1000)
+    self.assertEqual(_get_count_dist(v1_tag).count, 0)
+    self.assertEqual(_get_est_dist(v1_tag).count, 0)
+
+    # Switch stable_id to v2 and load 2 copies: stable_id now tracks v2. v2 is
+    # pre-profiled so the switch does not enter isolation mode (which flushes
+    # all loaded models) and v1 keeps lingering in the LRU.
+    self.manager._estimator.set_initial_estimate(v2_tag, 2000.0)
+    MetricsEnvironment.process_wide_container().reset()
+    m2_a = self.manager.acquire_model(
+        v2_tag, lambda: MockModel(v2_tag, 2000.0, self.mock_monitor),
+        metric_tag=stable_id)
+    m2_b = self.manager.acquire_model(
+        v2_tag, lambda: MockModel(v2_tag, 2000.0, self.mock_monitor),
+        metric_tag=stable_id)
+    self.manager.release_model(v2_tag, m2_a)
+    self.manager.release_model(v2_tag, m2_b)
+    self.assertEqual(_get_count_dist(stable_id).max, 2)
+    self.assertEqual(_get_est_dist(stable_id).max, 2000)
+    self.assertEqual(_get_count_dist(v2_tag).count, 0)
+    self.assertEqual(_get_est_dist(v2_tag).count, 0)
+
+    # v1 is still loaded (idle in the LRU) and still known to the estimator
+    # for admission control; while it lingers it reports under its own tag.
+    self.assertFalse(m1.deleted)
+    self.assertFalse(self.manager._estimator.is_unknown(v1_tag))
+    self.assertEqual(_get_count_dist(v1_tag).max, 1)
+
   def test_single_model_convergence_with_fluctuations(self):
     """
     Tests that the estimator converges to the true usage with fluctuations.

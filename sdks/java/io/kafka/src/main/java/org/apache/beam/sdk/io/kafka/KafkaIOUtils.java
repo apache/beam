@@ -27,12 +27,16 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /**
  * Common utility functions and default configurations for {@link KafkaIO.Read} and {@link
@@ -146,6 +150,27 @@ public final class KafkaIOUtils {
           String.join(",", description.getBootStrapServers()));
     }
     return config;
+  }
+
+  /**
+   * Look up the offset for the given partition by timestamp. Throws RuntimeException if there are
+   * no messages later than timestamp or if this partition does not support timestamp based offset.
+   */
+  static long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
+    // 'value' in the map returned by offsetsForTimes() is null if there is no offset for the time.
+    OffsetAndTimestamp offsetAndTimestamp =
+        Iterables.getOnlyElement(
+            consumer.offsetsForTimes(ImmutableMap.of(topicPartition, time.getMillis())).values());
+
+    if (offsetAndTimestamp == null) {
+      throw new RuntimeException(
+          "There are no messages has a timestamp that is greater than or "
+              + "equals to the target time or the message format version in this partition is "
+              + "before 0.10.0, topicPartition is: "
+              + topicPartition);
+    } else {
+      return offsetAndTimestamp.offset();
+    }
   }
 
   /*

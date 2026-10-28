@@ -33,6 +33,7 @@ from PIL.Image import Image
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RemoteModelHandler
+from apache_beam.ml.inference.base import _validate_batching_args
 
 LOGGER = logging.getLogger("GeminiModelHandler")
 
@@ -157,14 +158,22 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
-      max_batch_weight: optional. the maximum total weight of a batch.
+      max_batch_weight: optional. the maximum total weight of a batch. Cannot
+        be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight)
         of an element.
       batch_length_fn: optional. a callable that returns the length of an
-        element for length-aware batching.
+        element for length-aware batching. Cannot be used together with
+        max_batch_weight.
       batch_bucket_boundaries: optional. a sorted list of positive boundary
-        values for length-aware batching buckets.
+        values for length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
     """
+    _validate_batching_args(
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries)
     self._batching_kwargs = {}
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:

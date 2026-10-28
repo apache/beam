@@ -21,6 +21,7 @@ import static java.lang.String.format;
 import static org.apache.beam.sdk.io.FileIO.Write.defaultNaming;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamSchemaToIcebergSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
@@ -43,7 +44,6 @@ import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -96,7 +96,6 @@ import org.apache.iceberg.rest.RESTCatalog;
 import org.apache.iceberg.util.Pair;
 import org.awaitility.Awaitility;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -133,6 +132,7 @@ public class AddFilesIT {
           .addStringField("name")
           .addStringField("kind")
           .build();
+  private static final Schema PATH_SCHEMA = Schema.builder().addStringField("path").build();
   private static final Map<String, String> LAKEHOUSE_PROPS =
       LakehouseTestCatalog.catalogProperties();
   private Storage storage;
@@ -477,17 +477,15 @@ public class AddFilesIT {
     List<String> writtenFilePaths = writeParquetFiles();
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
-        p.apply(Create.of(writtenFilePaths))
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
-                    destTableId.toString(),
-                    null,
-                    PARTITION_FIELDS,
-                    null,
-                    TABLE_PROPS,
-                    null,
-                    null));
+        addFiles(
+            p.apply(Create.of(writtenFilePaths)),
+            ImmutableMap.of(
+                "table",
+                destTableId.toString(),
+                "partition_fields",
+                PARTITION_FIELDS,
+                "table_properties",
+                TABLE_PROPS));
     PAssert.that(tuple.get("errors")).empty();
     p.run().waitUntilFinish();
 
@@ -582,19 +580,14 @@ public class AddFilesIT {
     }
 
     // run batch AddFiles
+    Map<String, Object> config = new HashMap<>();
+    config.put("table", namespace + "." + destTableName);
+    config.put("table_properties", tableProps);
+    if (!isUIT) {
+      config.put("partition_fields", PARTITION_FIELDS);
+    }
     Pipeline p = Pipeline.create();
-    PCollectionRowTuple tuple =
-        p.apply(Create.of(writtenFilePaths))
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
-                    namespace + "." + destTableName,
-                    null,
-                    isUIT ? null : PARTITION_FIELDS,
-                    null,
-                    tableProps,
-                    null,
-                    null));
+    PCollectionRowTuple tuple = addFiles(p.apply(Create.of(writtenFilePaths)), config);
     PAssert.that(tuple.get("errors")).empty();
     p.run().waitUntilFinish();
 
@@ -631,24 +624,17 @@ public class AddFilesIT {
             .collect(Collectors.toList());
     assertEquals(20, writtenFilePaths.size());
 
-    SchemaEvolutionConfig evolution =
-        SchemaEvolutionConfig.builder()
-            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
-            .build();
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
-        p.apply(Create.of(writtenFilePaths))
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
-                    namespace + "." + destTableName,
-                    null,
-                    null,
-                    null,
-                    TABLE_PROPS,
-                    null,
-                    null,
-                    evolution));
+        addFiles(
+            p.apply(Create.of(writtenFilePaths)),
+            ImmutableMap.of(
+                "table",
+                namespace + "." + destTableName,
+                "table_properties",
+                TABLE_PROPS,
+                "schema_evolution_options",
+                Arrays.asList("ALLOW_FIELD_ADDITION")));
     PAssert.that(tuple.get("errors")).empty();
     p.run().waitUntilFinish();
 
@@ -751,17 +737,10 @@ public class AddFilesIT {
 
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
-        p.apply(Create.of(inputs))
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
-                    namespace + "." + destTableName,
-                    null,
-                    null,
-                    null,
-                    TABLE_PROPS,
-                    null,
-                    null));
+        addFiles(
+            p.apply(Create.of(inputs)),
+            ImmutableMap.of(
+                "table", namespace + "." + destTableName, "table_properties", TABLE_PROPS));
     PAssert.that(tuple.get("errors"))
         .satisfies(
             rows -> {
@@ -776,6 +755,99 @@ public class AddFilesIT {
 
     assertTrue(checkTableHasRegisteredParquetFiles(dataFiles));
     checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
+  }
+
+  /**
+   * Files under dt=2024-01-15/ and dt=2024-01-16/ with no dt column, into a table with a required
+   * dt: dt stays required, and Beam and BigQuery read it from the folder names.
+   */
+  @Test
+  public void testBatchImportOfRequiredPartitionColumnFromThePath() throws IOException {
+    org.apache.iceberg.Schema withDt =
+        new org.apache.iceberg.Schema(
+            org.apache.iceberg.types.Types.NestedField.required(
+                1, "id", org.apache.iceberg.types.Types.LongType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                2, "name", org.apache.iceberg.types.Types.StringType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                3, "age", org.apache.iceberg.types.Types.IntegerType.get()),
+            org.apache.iceberg.types.Types.NestedField.required(
+                4, "dt", org.apache.iceberg.types.Types.StringType.get()));
+    catalog.createTable(
+        destTableId, withDt, PartitionSpec.builderFor(withDt).identity("dt").build());
+
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    writeParquet(
+        TEST_ROWS.subList(0, 10), ROW_SCHEMA, parquetDir + "dt=2024-01-15/", tempDir + "a/");
+    writeParquet(
+        TEST_ROWS.subList(10, 20), ROW_SCHEMA, parquetDir + "dt=2024-01-16/", tempDir + "b/");
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> files = new ArrayList<>();
+    for (StorageObject object : gcsUtil.listObjects(DATA_BUCKET, dirName + "/", null).getItems()) {
+      files.add(format("gs://%s/%s", object.getBucket(), object.getName()));
+    }
+    assertEquals(20, files.size());
+
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        addFiles(
+            p.apply(Create.of(files)),
+            ImmutableMap.of(
+                "table",
+                namespace + "." + destTableName,
+                "location_prefix",
+                parquetDir,
+                "table_properties",
+                TABLE_PROPS,
+                "schema_evolution_options",
+                Arrays.asList("ALLOW_FIELD_ADDITION")));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    Table destTable = catalog.loadTable(destTableId);
+    assertTrue("dt stays required", destTable.schema().findField("dt").isRequired());
+
+    List<String> expected = new ArrayList<>();
+    for (Row row : TEST_ROWS) {
+      String dt = checkStateNotNull(row.getInt64("id")) < 10 ? "2024-01-15" : "2024-01-16";
+      expected.add(canonicalRecord(row) + "|" + dt);
+    }
+    Pipeline s = Pipeline.create();
+    PCollection<String> icebergRows =
+        s.apply(
+                Managed.read(Managed.ICEBERG)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
+            .getSinglePCollection()
+            .apply(
+                "canonicalize iceberg rows", MapElements.into(strings()).via(AddFilesIT::withDt));
+    PAssert.that(icebergRows).containsInAnyOrder(expected);
+    PCollection<String> bqRows =
+        s.apply(
+                "read with BigQueryIO",
+                Managed.read(Managed.BIGQUERY)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            format(
+                                "%s.%s.%s.%s",
+                                PROJECT,
+                                LakehouseTestCatalog.CATALOG_ID,
+                                destTableId.namespace(),
+                                destTableId.name()))))
+            .getSinglePCollection()
+            .apply("canonicalize bq rows", MapElements.into(strings()).via(AddFilesIT::withDt));
+    PAssert.that(bqRows).containsInAnyOrder(expected);
+    s.run().waitUntilFinish();
+  }
+
+  private static String withDt(Row row) {
+    return canonicalRecord(row) + "|" + String.valueOf((Object) row.getValue("dt"));
   }
 
   private static void writeParquet(List<Row> rows, Schema schema, String dir, String tempDir) {
@@ -871,7 +943,7 @@ public class AddFilesIT {
     options.setBlockOnRun(false);
     Pipeline p = Pipeline.create(options);
 
-    PCollectionRowTuple tuple =
+    PCollection<String> paths =
         p.apply(PubsubIO.readStrings().fromTopic(notificationsTopic))
             .apply(JsonToRow.withSchema(NOTIFICATION_SCHEMA))
             .apply(Filter.by(row -> objectNameFilter.apply(row.getString("name"))))
@@ -880,17 +952,21 @@ public class AddFilesIT {
                     .via(
                         row ->
                             format("gs://%s/%s", row.getString("bucket"), row.getString("name"))))
-            .apply(Deduplicate.values())
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
-                    namespace + "." + destTableName,
-                    null,
-                    PARTITION_FIELDS,
-                    null,
-                    TABLE_PROPS,
-                    10,
-                    Duration.standardSeconds(10)));
+            .apply(Deduplicate.values());
+    PCollectionRowTuple tuple =
+        addFiles(
+            paths,
+            ImmutableMap.of(
+                "table",
+                namespace + "." + destTableName,
+                "partition_fields",
+                PARTITION_FIELDS,
+                "table_properties",
+                TABLE_PROPS,
+                "manifest_file_size",
+                10,
+                "triggering_frequency_seconds",
+                10));
     PAssert.that(tuple.get("errors")).empty();
     PipelineResult result = p.run();
 
@@ -898,5 +974,20 @@ public class AddFilesIT {
         "Started running the AddFiles listener pipeline. Waiting for 10s to allow it enough time to setup");
     Thread.sleep(10_000);
     return result;
+  }
+
+  /** Registers the paths through the Managed API, with error rows output under "errors". */
+  private static PCollectionRowTuple addFiles(
+      PCollection<String> paths, Map<String, Object> config) {
+    Map<String, Object> managedConfig = new HashMap<>(config);
+    managedConfig.put("catalog_properties", LAKEHOUSE_PROPS);
+    managedConfig.put("error_handling", ImmutableMap.of("output", "errors"));
+    return paths
+        .apply(
+            "ToRows",
+            MapElements.into(rows())
+                .via(path -> Row.withSchema(PATH_SCHEMA).addValue(path).build()))
+        .setRowSchema(PATH_SCHEMA)
+        .apply(Managed.write(Managed.ICEBERG_ADD_FILES).withConfig(managedConfig));
   }
 }

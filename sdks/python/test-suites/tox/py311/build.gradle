@@ -84,55 +84,32 @@ toxTask "testPy311pyarrow-25", "py311-pyarrow-25", "${posargs}"
 test.dependsOn "testPy311pyarrow-25"
 postCommitPyDep.dependsOn "testPy311pyarrow-25"
 
-// Create a test task for each supported minor version of pandas
-toxTask "testPy311pandas-14", "py311-pandas-14", "${posargs}"
-test.dependsOn "testPy311pandas-14"
-postCommitPyDep.dependsOn "testPy311pandas-14"
+// Create a test task for each supported minor version of pandas.
+// Keep in sync with [testenv:py311-pandas-...] in tox.ini.
+toxTask "testPy311pandas-22", "py311-pandas-22", "${posargs}"
+test.dependsOn "testPy311pandas-22"
+postCommitPyDep.dependsOn "testPy311pandas-22"
 
-toxTask "testPy311pandas-15", "py311-pandas-15", "${posargs}"
-test.dependsOn "testPy311pandas-15"
-postCommitPyDep.dependsOn "testPy311pandas-15"
-
-toxTask "testPy311pandas-20", "py311-pandas-20", "${posargs}"
-test.dependsOn "testPy311pandas-20"
-postCommitPyDep.dependsOn "testPy311pandas-20"
-
-// TODO(https://github.com/apache/beam/issues/31192): Add below suites
-// after dependency compat tests suite switches to Python 3.9 or we add
-// Python 2.2 support.
-
-// toxTask "testPy311pandas-21", "py311-pandas-21", "${posargs}"
-// test.dependsOn "testPy311pandas-21"
-// postCommitPyDep.dependsOn "testPy311pandas-21"
-
-// toxTask "testPy311pandas-22", "py311-pandas-22", "${posargs}"
-// test.dependsOn "testPy311pandas-22"
-// postCommitPyDep.dependsOn "testPy311pandas-22"
+toxTask "testPy311pandas-23", "py311-pandas-23", "${posargs}"
+test.dependsOn "testPy311pandas-23"
+postCommitPyDep.dependsOn "testPy311pandas-23"
 
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
-// Create a test task for each minor version of pytorch
+// Create a test task for the lower and upper bounds of supported pytorch.
+// Keep in sync with [testenv:py311-pytorch-...] in tox.ini.
+toxTask "testPy311pytorch-23", "py311-pytorch-23", "${posargs}"
+test.dependsOn "testPy311pytorch-23"
+postCommitPyDep.dependsOn "testPy311pytorch-23"
 
-toxTask "testPy311pytorch-111", "py311-pytorch-111", "${posargs}"
-test.dependsOn "testPy311pytorch-111"
-postCommitPyDep.dependsOn "testPy311pytorch-111"
+toxTask "testPy311pytorch-214", "py311-pytorch-214", "${posargs}"
+test.dependsOn "testPy311pytorch-214"
+postCommitPyDep.dependsOn "testPy311pytorch-214"
 
-toxTask "testPy311pytorch-112", "py311-pytorch-112", "${posargs}"
-test.dependsOn "testPy311pytorch-112"
-postCommitPyDep.dependsOn "testPy311pytorch-112"
-
-toxTask "testPy311pytorch-113", "py311-pytorch-113", "${posargs}"
-test.dependsOn "testPy311pytorch-113"
-postCommitPyDep.dependsOn "testPy311pytorch-113"
-
-// run on precommit
-toxTask "testPy311pytorch-200", "py311-pytorch-200", "${posargs}"
-test.dependsOn "testPy311pytorch-200"
-postCommitPyDep.dependsOn "testPy311pytorch-200"
-
-toxTask "testPy311tft-113", "py311-tft-113", "${posargs}"
-test.dependsOn "testPy311tft-113"
-postCommitPyDep.dependsOn "testPy311tft-113"
+// Keep in sync with [testenv:py311-tft-...] in tox.ini.
+toxTask "testPy311tft-121", "py311-tft-121", "${posargs}"
+test.dependsOn "testPy311tft-121"
+postCommitPyDep.dependsOn "testPy311tft-121"
 
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
@@ -140,17 +117,25 @@ postCommitPyDep.dependsOn "testPy311tft-113"
 // test.dependsOn "testPy311onnx-113"
 // postCommitPyDep.dependsOn "testPy311onnx-113"
 
-// Create a test task for each minor version of tensorflow
-toxTask "testPy311tensorflow-212", "py311-tensorflow-212", "${posargs}"
-test.dependsOn "testPy311tensorflow-212"
-postCommitPyDep.dependsOn "testPy311tensorflow-212"
+// Create a test task for the lower and upper bounds of supported tensorflow.
+// Keep in sync with [testenv:py311-tensorflow-...] in tox.ini.
+toxTask "testPy311tensorflow-216", "py311-tensorflow-216", "${posargs}"
+test.dependsOn "testPy311tensorflow-216"
+postCommitPyDep.dependsOn "testPy311tensorflow-216"
+
+toxTask "testPy311tensorflow-221", "py311-tensorflow-221", "${posargs}"
+test.dependsOn "testPy311tensorflow-221"
+postCommitPyDep.dependsOn "testPy311tensorflow-221"
 
 // Create a test task for each minor version of transformers.
-// Dropped transformers-428: sentence-transformers==2.2.2 + torch<1.14 is
-// ResolutionImpossible on Python 3.11 (see #30799).
-toxTask "testPy311transformers-447", "py311-transformers-447", "${posargs}"
-test.dependsOn "testPy311transformers-447"
-postCommitPyDep.dependsOn "testPy311transformers-447"
+// Keep in sync with [testenv:py311-transformers-...] in tox.ini.
+toxTask "testPy311transformers-441", "py311-transformers-441", "${posargs}"
+test.dependsOn "testPy311transformers-441"
+postCommitPyDep.dependsOn "testPy311transformers-441"
+
+toxTask "testPy311transformers-457", "py311-transformers-457", "${posargs}"
+test.dependsOn "testPy311transformers-457"
+postCommitPyDep.dependsOn "testPy311transformers-457"
 
 toxTask "testPy311transformers-latest", "py311-transformers-latest", "${posargs}"
 test.dependsOn "testPy311transformers-latest"
@@ -171,13 +156,10 @@ postCommitPyDep.dependsOn "testPy311embeddingsMLTransform"
 
 // Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
 // mutliple versions so keeping this suite separate.
-toxTask "testPy311TensorflowHubEmbeddings-014", "py311-TFHubEmbeddings-014", "${posargs}"
-test.dependsOn "testPy311TensorflowHubEmbeddings-014"
-postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-014"
-
-toxTask "testPy311TensorflowHubEmbeddings-015", "py311-TFHubEmbeddings-015", "${posargs}"
-test.dependsOn "testPy311TensorflowHubEmbeddings-015"
-postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-015"
+// Keep in sync with [testenv:py311-TFHubEmbeddings-...] in tox.ini.
+toxTask "testPy311TensorflowHubEmbeddings-016", "py311-TFHubEmbeddings-016", "${posargs}"
+test.dependsOn "testPy311TensorflowHubEmbeddings-016"
+postCommitPyDep.dependsOn "testPy311TensorflowHubEmbeddings-016"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 

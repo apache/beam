@@ -1589,7 +1589,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def nunique(self, **kwargs):
+  def nunique(self, dropna, **kwargs):
+    if dropna:
+      self = self.dropna()  # pylint: disable=self-cls-assignment
     return self.drop_duplicates(keep="any").size
 
   @frame_base.with_docs_from(pd.Series)
@@ -2843,11 +2845,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "keep=\"any\" are supported.",
           reason="order-sensitive")
 
-    by = subset or list(self.columns)
-
-    return self.groupby(by).apply(
-        lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
-                                columns=[None]))[None].droplevel(by)
+    return self._apply_with_duplicates_colocated(
+        'duplicated',
+        # set_axis keeps the index when df is empty (e.g. for the proxy),
+        # pandas returns a default index in that case.
+        lambda df: df.duplicated(keep=keep, subset=subset).set_axis(df.index),
+        subset)
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -2876,10 +2879,42 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "the data.",
           reason="order-sensitive")
 
-    by = subset or list(self.columns)
+    return self._apply_with_duplicates_colocated(
+        'drop_duplicates',
+        lambda df: df.drop_duplicates(keep=keep, subset=subset),
+        subset)
 
-    return self.groupby(by).apply(
-        lambda df: df.drop_duplicates(keep=keep, subset=subset)).droplevel(by)
+  def _apply_with_duplicates_colocated(self, name, func, subset):
+    """Applies ``func`` to partitions in which all duplicate rows (considering
+    only the columns in ``subset``) are colocated.
+
+    Rows are colocated by a hash of their values instead of with groupby,
+    which drops rows with NaN values and fails on unobserved categories."""
+    by = subset or list(self.columns)
+    hash_level = '__apache_beam_duplicates_hash'
+
+    def add_hash_level(df):
+      key = df[by].copy()
+      for col in key.columns:
+        if key[col].dtype.kind in 'fc':
+          # -0.0 and 0.0 hash differently but are duplicates in pandas
+          key[col] = key[col] + 0
+      hashes = pd.util.hash_pandas_object(key, index=False)
+      return df.set_index(
+          pd.Index(hashes.to_numpy(), name=hash_level), append=True)
+
+    with_hash = expressions.ComputedExpression(
+        'add_hash_level',
+        add_hash_level, [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            name,
+            lambda df: func(df.droplevel(hash_level)), [with_hash],
+            requires_partition_by=partitionings.Index([hash_level]),
+            preserves_partition_by=partitionings.Singleton()))
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)

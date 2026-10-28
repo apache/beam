@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,10 +31,10 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Coder} for {@link ProducerRecord}. */
@@ -78,33 +77,23 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
       timestamp = null;
     }
 
-    Headers headers = (Headers) toHeaders(headerCoder.decode(inStream));
+    Headers headers = toHeaders(headerCoder.decode(inStream));
     KV<K, V> kv = kvCoder.decode(inStream);
 
-    @SuppressWarnings("nullness") // kakfa library not annotated
+    @SuppressWarnings("nullness") // kafka library not annotated
     ProducerRecord<K, V> result =
-        ConsumerSpEL.hasHeaders()
-            ? new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue(), headers)
-            : new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue());
+        new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue(), headers);
 
     return result;
   }
 
-  private @Nullable Object toHeaders(Iterable<KV<String, byte[]>> records) {
-    if (!ConsumerSpEL.hasHeaders()) {
-      return null;
-    }
-
-    // ConsumerRecord is used to simply create a list of headers
-    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
-    records.forEach(kv -> consumerRecord.headers().add(kv.getKey(), kv.getValue()));
-    return consumerRecord.headers();
+  private static Headers toHeaders(Iterable<KV<String, byte[]>> records) {
+    RecordHeaders headers = new RecordHeaders();
+    records.forEach(kv -> headers.add(kv.getKey(), kv.getValue()));
+    return headers;
   }
 
-  private Iterable<KV<String, byte[]>> toIterable(ProducerRecord<K, V> record) {
-    if (!ConsumerSpEL.hasHeaders()) {
-      return Collections.emptyList();
-    }
+  private static Iterable<KV<String, byte[]>> toIterable(ProducerRecord<?, ?> record) {
     List<KV<String, byte[]>> vals = new ArrayList<>();
     for (Header header : record.headers()) {
       vals.add(KV.of(header.key(), header.value()));
@@ -127,24 +116,18 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
     return kvCoder.isRegisterByteSizeObserverCheap(KV.of(value.key(), value.value()));
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public Object structuralValue(ProducerRecord<K, V> value) {
     if (consistentWithEquals()) {
       return value;
     } else {
-      if (!ConsumerSpEL.hasHeaders()) {
-        return new ProducerRecord<>(
-            value.topic(), value.partition(), value.timestamp(), value.key(), value.value());
-      } else {
-        return new ProducerRecord<>(
-            value.topic(),
-            value.partition(),
-            value.timestamp(),
-            value.key(),
-            value.value(),
-            value.headers());
-      }
+      return new ProducerRecord<>(
+          value.topic(),
+          value.partition(),
+          value.timestamp(),
+          value.key(),
+          value.value(),
+          value.headers());
     }
   }
 
