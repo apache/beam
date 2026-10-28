@@ -211,7 +211,9 @@ class TFHubImageEmbeddingsTest(unittest.TestCase):
   def test_with_str_data_types(self):
     embedding_config = TensorflowHubImageEmbeddings(
         hub_url=hub_img_url, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    # Portable runners surface the worker's TypeError wrapped in a
+    # RuntimeError, so match on the message like the other embeddings tests.
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

@@ -335,9 +335,10 @@ class TestBigQueryEndpoint(unittest.TestCase):
     self.assertEqual(client.url, 'https://bq.example.com/bigquery/v2/')
 
   @mock.patch.object(bigquery_tools.auth, 'get_service_credentials')
-  @mock.patch.object(bigquery_tools.gcp_bigquery, 'Client')
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
   def test_wrapper_applies_endpoint_to_both_clients(
-      self, mock_gcp_client, unused_mock_credentials):
+      self, mock_gcp_bq, unused_mock_credentials):
+    mock_gcp_client = mock_gcp_bq.Client
     options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
     wrapper = bigquery_tools.BigQueryWrapper(pipeline_options=options)
     self.assertEqual(wrapper.client.url, 'https://bq.example.com/bigquery/v2/')
@@ -347,8 +348,9 @@ class TestBigQueryEndpoint(unittest.TestCase):
         mock_gcp_client.call_args.kwargs['client_options'],
         {'api_endpoint': 'https://bq.example.com'})
 
-  @mock.patch.object(bigquery_tools.gcp_bigquery, 'Client')
-  def test_gcp_client_merges_endpoint_and_quota_project(self, mock_gcp_client):
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery')
+  def test_gcp_client_merges_endpoint_and_quota_project(self, mock_gcp_bq):
+    mock_gcp_client = mock_gcp_bq.Client
     options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
     bigquery_tools.BigQueryWrapper._gcp_bigquery_client(
         quota_project_id='billing', pipeline_options=options)
@@ -1653,13 +1655,14 @@ class TestBigQueryWrapperQuotaProject(unittest.TestCase):
   def test_from_pipeline_options_reads_quota_from_options(
       self, mock_gcp_client, mock_bq_client):
     """Test from_pipeline_options reads quota_project_id from
-    GoogleCloudOptions."""
+    BigQueryOptions."""
     from apache_beam.options.pipeline_options import PipelineOptions
 
     mock_bq_client.return_value = mock.Mock()
     mock_gcp_client.return_value = mock.Mock()
 
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     wrapper = BigQueryWrapper.from_pipeline_options(options)
 
     self.assertEqual(wrapper.quota_project_id, 'my-billing-project')
