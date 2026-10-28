@@ -1173,15 +1173,15 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/direct">Direct Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/flink">Apache Flink Runner&lt;/a> &lt;img src="/images/logos/runners/flink.png" height="50px" alt="Apache Flink logo">&lt;/li>
-&lt;li>&lt;a href="/documentation/runners/nemo">Apache Nemo Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/spark">Apache Spark Runner&lt;/a> &lt;img src="/images/logos/runners/spark.png" height="50px" alt="Apache Spark logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/dataflow">Google Cloud Dataflow Runner&lt;/a> &lt;img src="/images/logos/runners/dataflow.png" height="50px" alt="Google Cloud Dataflow logo">&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/jet">Hazelcast Jet Runner&lt;/a> &lt;img src="/images/logos/runners/jet.png" height="40px" alt="Hazelcast Jet logo">&lt;/li>
-&lt;li>&lt;a href="/documentation/runners/twister2">Twister2 Runner&lt;/a> &lt;img src="/images/logos/runners/twister2.png" height="50px" alt="Twister2 logo">&lt;/li>
 &lt;/ul>
 &lt;p>Runners supported in older Beam versions&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/samza">Apache Samza Runner&lt;/a> &lt;img src="/images/logos/runners/samza.png" height="40px" alt="Apache Samza logo"> until Beam 2.74.0.&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/twister2">Twister2 Runner&lt;/a> &lt;img src="/images/logos/runners/twister2.png" height="50px" alt="Twister2 logo">&lt;/li>
+&lt;li>&lt;a href="/documentation/runners/nemo">Apache Nemo Runner&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note:&lt;/strong> You can always execute your pipeline locally for testing and debugging purposes.&lt;/p>
 &lt;h2 id="get-started">Get Started&lt;/h2>
