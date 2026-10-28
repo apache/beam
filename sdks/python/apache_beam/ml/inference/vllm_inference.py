@@ -497,9 +497,9 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         By default prompts are keyed on their leading ``prefix_char_len``
         characters (or up to the first ``\\n\\n`` delimiter); set ``key_fn``
         for a custom key and ``num_shards`` to bound hot-key fanout (see
-        ``apache_beam.ml.inference.prefix_batching``). Set ``num_shards`` when
-        most prompts share a prefix: with the default of 1 each prefix is
-        served by one worker at a time.
+        ``apache_beam.ml.inference.prefix_batching``). Each prefix is spread
+        over 8 shards by default; raise ``num_shards`` when one prefix carries
+        most of the traffic and the pool scales well past 8 workers.
       enable_autoscaling_metric: if True (default), publish the
         ``num_loaded_models_<tag>`` autoscaling signal: the worker's estimated
         message capacity derived from the vLLM server's request completion
@@ -681,9 +681,10 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         hits. By default conversations are keyed on the role and leading
         ``prefix_char_len`` characters of their first (system) message; set
         ``key_fn`` for a custom key and ``num_shards`` to bound hot-key fanout
-        (see ``apache_beam.ml.inference.prefix_batching``). Set ``num_shards``
-        when most conversations share a system prompt: with the default of 1
-        each prefix is served by one worker at a time.
+        (see ``apache_beam.ml.inference.prefix_batching``). Each prefix is
+        spread over 8 shards by default; raise ``num_shards`` when one system
+        prompt carries most of the traffic and the pool scales well past 8
+        workers.
       enable_autoscaling_metric: if True (default), publish the
         ``num_loaded_models_<tag>`` autoscaling signal: the worker's estimated
         message capacity derived from the vLLM server's request completion

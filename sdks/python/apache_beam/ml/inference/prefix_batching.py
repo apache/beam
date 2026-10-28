@@ -58,6 +58,11 @@ DEFAULT_PREFIX_CHAR_LEN = 128
 # ``max_batch_duration_secs`` is unset, so low-traffic keys still flush in
 # streaming instead of waiting for a full batch.
 DEFAULT_KEYED_BATCH_DURATION_SECS = 1.0
+# Shards per prefix key. A single shard serves a hot prefix (e.g. a common
+# system prompt) on one worker at a time; a few shards keep that prefix's
+# throughput scaling with the pool while every shard still batches a single
+# prefix.
+DEFAULT_NUM_SHARDS = 8
 
 # Accepted forms of ``num_shards``: one count for every key, a per-key table,
 # or a callable computed per key (see ``WithBatchKey`` in transforms/util.py).
@@ -143,28 +148,30 @@ class PrefixBatchingConfig:
     keys on (default 128). Ignored when ``key_fn`` is set.
   * ``num_shards`` -- bounds hot-key fanout: an ``int`` applied to every key,
     a ``Mapping[key, int]`` with per-key shard counts for a known skewed
-    prefix distribution (e.g. ``{'<the common system prompt>': 8}``; unlisted
-    keys get 1), or a ``Callable[[key], int]``. Each key is spread across at
-    most that many workers (default 1).
+    prefix distribution (e.g. ``{'<the common system prompt>': 32}``;
+    unlisted keys get 1), or a ``Callable[[key], int]``. Each key is spread
+    across at most that many workers (default 8).
 
-    **Set this for skewed workloads.** ``GroupIntoBatches`` keeps per-key
-    state, so all batches for one shard of a key are processed by a single
-    worker at a time. With the default of 1, a prefix shared by most traffic
-    (e.g. a common system prompt) is served at the throughput of one worker
-    no matter how many workers the pipeline has, and its requests queue up
-    behind that key. Runners that size the pool from the number of keys with
-    pending work, such as Dataflow's GPU autoscaling, also do not see that
-    queue and will not scale up to drain it. Give hot prefixes roughly as
-    many shards as the workers needed to serve them (via an ``int`` or a
-    per-key mapping). The trade-off is prefix-cache locality: each shard of
-    a prefix warms its own copy of that prefix's KV cache.
+    **Sharding is what lets skewed workloads scale.** ``GroupIntoBatches``
+    keeps per-key state, so all batches for one shard of a key are processed
+    by a single worker at a time. With a single shard, a prefix shared by most
+    traffic (e.g. a common system prompt) is served at the throughput of one
+    worker no matter how many workers the pipeline has, and its requests
+    queue up behind that key. Runners that size the pool from the number of
+    keys with pending work, such as Dataflow's GPU autoscaling, also do not
+    see that queue and will not scale up to drain it. The default of 8 covers
+    moderate skew; raise it, or map the hot prefixes to a larger count, when
+    one prefix carries most of the traffic and the pool scales well past 8
+    workers. The trade-off is prefix-cache locality: each shard of a prefix
+    warms its own copy of that prefix's KV cache, so set ``num_shards=1`` only
+    when prefixes are evenly spread and cache reuse matters most.
 
   The handler calls :meth:`resolve` with its default extractor and then
   :meth:`batching_kwargs` to obtain the ``ModelHandler`` arguments.
   """
   key_fn: Optional[Callable[[Any], Any]] = None
   prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN
-  num_shards: Optional[NumShardsSpec] = None
+  num_shards: Optional[NumShardsSpec] = DEFAULT_NUM_SHARDS
 
   def resolve(
       self, default_key_fn: Callable[[int], Callable[[Any], Any]]

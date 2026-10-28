@@ -260,6 +260,10 @@ class VLLMInferenceTest(unittest.TestCase):
         chat_kwargs['key_fn'], prefix_batching.ChatPrefixKeyFn)
     self.assertEqual(chat_kwargs['key_fn']._prefix_char_len, 64)
     self.assertEqual(chat_kwargs['max_batch_duration_secs'], 2.5)
+    # num_shards unset in the config -> the prefix-batching default reaches
+    # BatchElements.
+    self.assertEqual(
+        chat_kwargs['num_shards'], prefix_batching.DEFAULT_NUM_SHARDS)
 
     # A custom key_fn is used verbatim; unset config leaves batching unkeyed.
     custom_handler = vllm_inference.VLLMCompletionsModelHandler(
@@ -287,7 +291,10 @@ class VLLMInferenceTest(unittest.TestCase):
     ]
     handler = _RecordingVLLMHandler(
         model_name='test-model',
-        prefix_batching_config=PrefixBatchingConfig(prefix_char_len=12),
+        # One shard per prefix so both prompts of a prefix deterministically
+        # land in the same batch (the default spreads a prefix over 8 shards).
+        prefix_batching_config=PrefixBatchingConfig(
+            prefix_char_len=12, num_shards=1),
         min_batch_size=2,
         max_batch_size=2,
         max_batch_duration_secs=1.0).with_preprocess_fn(lambda r: r['prompt'])

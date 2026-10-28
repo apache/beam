@@ -105,7 +105,11 @@ class PrefixBatchingTest(unittest.TestCase):
     kwargs = prefix_batching.resolve_batching_kwargs(
         PrefixBatchingConfig(), ChatPrefixKeyFn)
     self.assertIsInstance(kwargs['batch_key_fn'], ChatPrefixKeyFn)
-    self.assertIsNone(kwargs['batch_key_num_shards'])
+    # Prefix keys are sharded by default so a hot prefix is not served by a
+    # single worker.
+    self.assertEqual(kwargs['batch_key_num_shards'], 8)
+    self.assertEqual(
+        kwargs['batch_key_num_shards'], prefix_batching.DEFAULT_NUM_SHARDS)
     self.assertEqual(kwargs['max_batch_duration_secs'], 1.0)
 
 
