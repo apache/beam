@@ -298,8 +298,10 @@ class QuotaProjectTest(unittest.TestCase):
     mock_create.assert_called_once_with(self._QUOTA)
 
   def test_expand_resolves_quota_project_from_options(self):
-    options = PipelineOptions(
-        ['--quota_project_id=' + self._QUOTA, '--no_pipeline_type_check'])
+    options = PipelineOptions([
+        '--bigquery_quota_project_id=' + self._QUOTA,
+        '--no_pipeline_type_check'
+    ])
     classes = [
         '_PollChangeHistoryFn',
         '_ExecuteQueryFn',

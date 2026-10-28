@@ -1357,7 +1357,8 @@ class TestFileLoadsQuotaProject(_TestCaseWithTempDirCleanUp):
         mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_expand_resolves_quota_project_from_options(self):
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     transform = bqfl.BigQueryBatchFileLoads(
         'project:dataset.table',
         custom_gcs_temp_location=self._new_tempdir(),
