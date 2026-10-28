@@ -151,6 +151,7 @@
 * (Python) DataFrame API: `drop_duplicates`, `duplicated` and `nunique` no longer fail on rows with NaN values or on categorical columns with unused categories, and `nunique(dropna=False)` now counts NaN ([#40570](https://github.com/apache/beam/issues/40570)).
 * (Java) BigQuery Storage Write API `TableRow` conversion now honors `allowMissingRequiredFields` when building protocol-buffer messages, so callers that pass `true` with required descriptors get partial messages instead of a conversion-time `UninitializedMessageException` ([#40189](https://github.com/apache/beam/issues/40189)).
 * (Go) Fixed generic registration (for example `register.Function1x1` or `register.DoFn1x1`) panicking on functions and methods that take or return an anonymous struct. Unnamed struct types are now only registered with the schema registry, since they have no type key for the runtime type registry ([#21789](https://github.com/apache/beam/issues/21789)).
+* (Java) Beam SQL: `CROSS JOIN UNNEST` over an array of rows that contain a nested row no longer fails with a `Row expected N fields ... initialized with M fields` error when the query runs through the JDBC driver or the SQL shell ([#26911](https://github.com/apache/beam/issues/26911)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
