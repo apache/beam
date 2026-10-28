@@ -80,12 +80,16 @@ public class DetectNewPartitionsAction {
    *   <li>Fetches all the partitions with a createdAt timestamp > read timestamp.
    *   <li>Groups the partitions by createdAt timestamp.
    *   <li>Process the groups in ascending order of createdAt timestamp (oldest first)
-   *   <li>For each group, updates the state to {@link State#SCHEDULED}.
-   *   <li>Tries to claim the createdAt timestamp of the group within the restriction.
-   *   <li>If it is possible to claim the timestamp, outputs each partition to the next stage. It
-   *       then proceeds to process the next batch. When there are no more batches to process,
-   *       schedules the function to resume after the configured resume duration.
-   *   <li>If it is not possible to claim the timestamp, stops.
+   *   <li>For each group, tries to claim the createdAt timestamp of the group within the
+   *       restriction.
+   *   <li>If it is possible to claim the timestamp, accumulates the group's partitions into a batch
+   *       (flushing when the batch reaches 200 partitions or all groups have been claimed) to
+   *       update their state to {@link State#SCHEDULED} and output each partition to the next
+   *       stage. When there are no more groups to process, schedules the function to resume after
+   *       the configured resume duration.
+   *   <li>If it is not possible to claim the timestamp, flushes any previously claimed groups in
+   *       the current batch (updating their state to {@link State#SCHEDULED} and outputting them)
+   *       and stops.
    * </ol>
    *
    * @param tracker an instance of {@link DetectNewPartitionsRangeTracker}
@@ -155,14 +159,18 @@ public class DetectNewPartitionsAction {
     for (Map.Entry<Timestamp, List<PartitionMetadata>> batch : batches.entrySet()) {
       numTimestampsHandledSofar++;
       final Timestamp batchCreatedAt = batch.getKey();
+      if (!tracker.tryClaim(batchCreatedAt)) {
+        if (!batchPartitionsDifferentCreatedAt.isEmpty()) {
+          final Timestamp scheduledAt = updateBatchToScheduled(batchPartitionsDifferentCreatedAt);
+          outputBatch(receiver, minWatermark, batchPartitionsDifferentCreatedAt, scheduledAt);
+        }
+        return ProcessContinuation.stop();
+      }
       final List<PartitionMetadata> batchPartitionsSameCreatedAt = batch.getValue();
       batchPartitionsDifferentCreatedAt.addAll(batchPartitionsSameCreatedAt);
       if (batchPartitionsDifferentCreatedAt.size() >= 200
           || numTimestampsHandledSofar == batches.size()) {
         final Timestamp scheduledAt = updateBatchToScheduled(batchPartitionsDifferentCreatedAt);
-        if (!tracker.tryClaim(batchCreatedAt)) {
-          return ProcessContinuation.stop();
-        }
         outputBatch(receiver, minWatermark, batchPartitionsDifferentCreatedAt, scheduledAt);
         batchPartitionsDifferentCreatedAt = new ArrayList<>();
       }
