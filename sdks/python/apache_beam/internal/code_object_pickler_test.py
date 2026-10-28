@@ -153,7 +153,7 @@ def get_same_named_nested_functions_with_complex_consts(branch):
       def inner(x):
         return 1
 
-      return (inner(), (1,2), x in {1,2}
+      return (inner(), (1,2), x in {1,2})
   else:
 
     def nested_fn(x):
@@ -161,7 +161,7 @@ def get_same_named_nested_functions_with_complex_consts(branch):
       def inner():
         return 2
 
-      return (inner(), (3,4), x in {3,4}
+      return (inner(), (3,4), x in {3,4})
 
   return nested_fn
 
