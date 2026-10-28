@@ -26,14 +26,14 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
-import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +41,12 @@ import org.slf4j.LoggerFactory;
 /**
  * DataflowWorkProgressUpdater implements the WorkProgressUpdater interface for the Cloud Dataflow
  * system.
+ *
+ * <p>Two threads use it. The thread running the work item starts and stops reporting and calls
+ * {@link #setWorker} once the executor exists, while the progress reporting thread sends the
+ * updates and receives aborts from the service. An abort can arrive while the executor is still
+ * being created, so handing that abort over to {@link #setWorker} is guarded by a lock.
  */
-@NotThreadSafe
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
@@ -85,7 +86,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
-      WorkExecutor worker,
+      @Nullable WorkExecutor worker,
       DataflowPipelineOptions options) {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
@@ -105,7 +106,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
-      WorkExecutor worker,
+      @Nullable WorkExecutor worker,
       ScheduledExecutorService executor,
       Clock clock,
       HotKeyLogger hotKeyLogger,
@@ -144,7 +145,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   @Override
   protected long getWorkUnitSuggestedReportingInterval() {
-    return fromCloudDuration(workItem.getReportStatusInterval()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudDuration(workItem.getReportStatusInterval()))
+        .getMillis();
   }
 
   @Override
@@ -153,7 +155,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return;
     }
-    if (Objects.isNull(worker)) {
+    if (worker == null) {
       warnIfSetupIsSlow();
     }
     WorkItemServiceState result =
@@ -170,7 +172,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
           currentWorker = worker;
         }
         // the executor may still be under construction, in which case setWorker aborts it
-        if (Objects.nonNull(currentWorker)) {
+        if (currentWorker != null) {
           currentWorker.abort();
         }
         return;
@@ -179,21 +181,25 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       if (result.getHotKeyDetection() != null
           && result.getHotKeyDetection().getUserStepName() != null) {
         HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+        Duration hotKeyAge =
+            Preconditions.checkStateNotNull(
+                TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        // the execution context is null until the executor exists, so a report sent while
-        // DoFn.setup still runs logs the detection without the key instead of throwing
+        // the execution context is null until the executor exists, and the key is null until the
+        // reader reads one, so a report sent while DoFn.setup still runs logs the detection
+        // without the key instead of throwing
+        Object hotKey = null;
+        BatchModeExecutionContext executionContext = workItemStatusClient.getExecutionContext();
         if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
-            && Objects.nonNull(workItemStatusClient.getExecutionContext())) {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
-              workItemStatusClient.getExecutionContext().getKey());
+            && executionContext != null) {
+          hotKey = executionContext.getKey();
+        }
+        if (hotKey != null) {
+          hotKeyLogger.logHotKeyDetection(hotKeyDetection.getUserStepName(), hotKeyAge, hotKey);
         } else {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+          hotKeyLogger.logHotKeyDetection(hotKeyDetection.getUserStepName(), hotKeyAge);
         }
       }
 
@@ -202,15 +208,17 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
       progressReportIntervalMs =
           nextProgressReportInterval(
-              fromCloudDuration(result.getReportStatusInterval()).getMillis(),
+              Preconditions.checkStateNotNull(fromCloudDuration(result.getReportStatusInterval()))
+                  .getMillis(),
               leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
+      WorkExecutor currentWorker = worker;
       // there is nothing to split until the executor exists, the service asks again later
-      if (suggestedStopPoint != null && Objects.nonNull(worker)) {
+      if (suggestedStopPoint != null && currentWorker != null) {
         LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
         dynamicSplitResultToReport =
-            worker.requestDynamicSplit(
+            currentWorker.requestDynamicSplit(
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
@@ -235,11 +243,13 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   /** Returns the given work unit's lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItem workItem) {
-    return fromCloudTime(workItem.getLeaseExpireTime()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudTime(workItem.getLeaseExpireTime()))
+        .getMillis();
   }
 
   /** Returns the given work unit service state lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItemServiceState workItemServiceState) {
-    return fromCloudTime(workItemServiceState.getLeaseExpireTime()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudTime(workItemServiceState.getLeaseExpireTime()))
+        .getMillis();
   }
 }

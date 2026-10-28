@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -63,9 +62,6 @@ import org.slf4j.LoggerFactory;
  */
 // Very likely real potential for bugs - https://github.com/apache/beam/issues/19270
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class WorkItemStatusClient {
   private static final Logger LOG = LoggerFactory.getLogger(WorkItemStatusClient.class);
 
@@ -74,7 +70,7 @@ public class WorkItemStatusClient {
   private @Nullable DataflowWorkExecutor worker;
   private Long nextReportIndex;
 
-  private transient String uniqueWorkId = null;
+  private transient @Nullable String uniqueWorkId = null;
   private boolean finalStateSent = false;
   private boolean wasAskedToAbort = false;
 
@@ -145,7 +141,12 @@ public class WorkItemStatusClient {
           "{}: Uncaught exception occurred during work unit execution. This will be retried.",
           logPrefix,
           t);
-      error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
+      // t is null only for a UserCodeException without a cause, and then the error is sent
+      // without a message
+      String formattedException = DataflowWorkerLoggingHandler.formatException(t);
+      if (formattedException != null) {
+        error.setMessage(formattedException);
+      }
     }
     status.setErrors(ImmutableList.of(error));
 
@@ -200,7 +201,7 @@ public class WorkItemStatusClient {
     return execute(status);
   }
 
-  private static boolean isOutOfMemoryError(Throwable t) {
+  private static boolean isOutOfMemoryError(@Nullable Throwable t) {
     while (t != null) {
       if (t instanceof OutOfMemoryError) {
         return true;
@@ -210,7 +211,7 @@ public class WorkItemStatusClient {
     return false;
   }
 
-  private static boolean isReadLoopAbortedError(Throwable t) {
+  private static boolean isReadLoopAbortedError(@Nullable Throwable t) {
     while (t != null) {
       if (t instanceof ReadOperation.ReadLoopAbortedException) {
         return true;
@@ -247,7 +248,7 @@ public class WorkItemStatusClient {
 
   @VisibleForTesting
   synchronized void populateSplitResult(
-      WorkItemStatus status, DynamicSplitResult dynamicSplitResult) {
+      WorkItemStatus status, @Nullable DynamicSplitResult dynamicSplitResult) {
     if (dynamicSplitResult instanceof NativeReader.DynamicSplitResultWithPosition) {
       NativeReader.DynamicSplitResultWithPosition asPosition =
           (NativeReader.DynamicSplitResultWithPosition) dynamicSplitResult;
@@ -266,7 +267,7 @@ public class WorkItemStatusClient {
   @VisibleForTesting
   synchronized void populateProgress(WorkItemStatus status) throws Exception {
     // updates sent while the executor is still being created only extend the lease
-    if (Objects.isNull(worker)) {
+    if (worker == null) {
       return;
     }
 
@@ -279,8 +280,9 @@ public class WorkItemStatusClient {
   @VisibleForTesting
   synchronized void populateMetricUpdates(WorkItemStatus status) {
     List<MetricUpdate> updates = new ArrayList<>();
-    if (executionContext != null && executionContext.getExecutionStateTracker() != null) {
-      ExecutionStateTracker tracker = executionContext.getExecutionStateTracker();
+    BatchModeExecutionContext currentContext = executionContext;
+    if (currentContext != null && currentContext.getExecutionStateTracker() != null) {
+      ExecutionStateTracker tracker = currentContext.getExecutionStateTracker();
 
       MetricUpdate update = new MetricUpdate();
       update.setKind("internal");
@@ -319,7 +321,8 @@ public class WorkItemStatusClient {
 
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
-    if (worker == null) {
+    DataflowWorkExecutor currentWorker = worker;
+    if (currentWorker == null) {
       return;
     }
 
@@ -337,7 +340,7 @@ public class WorkItemStatusClient {
                 x);
 
     // Output counters
-    extractCounters(worker.getOutputCounters()).forEach(appendCounterUpdate);
+    extractCounters(currentWorker.getOutputCounters()).forEach(appendCounterUpdate);
 
     // User metrics reported in Worker
     extractMetrics(isFinalUpdate).forEach(appendCounterUpdate);
@@ -349,7 +352,7 @@ public class WorkItemStatusClient {
     // This includes all different kinds of metrics coming from SDK.
     // Keep in mind that these metrics might contain different types of counter names:
     // i.e. structuredNameAndMetadata and nameAndKind
-    worker.extractMetricUpdates().forEach(appendCounterUpdate);
+    currentWorker.extractMetricUpdates().forEach(appendCounterUpdate);
 
     status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
   }
@@ -404,7 +407,7 @@ public class WorkItemStatusClient {
     executionContext.commitMetricUpdates();
   }
 
-  public BatchModeExecutionContext getExecutionContext() {
+  public @Nullable BatchModeExecutionContext getExecutionContext() {
     return this.executionContext;
   }
 }

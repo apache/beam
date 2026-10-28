@@ -22,7 +22,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -42,10 +42,10 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +56,6 @@ import org.slf4j.LoggerFactory;
  * <p>DataflowWorker presents one public interface, getAndPerformWork(), which uses the
  * WorkUnitClient to get work, execute it, and update the work.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BatchDataflowWorker implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(BatchDataflowWorker.class);
 
@@ -134,7 +131,7 @@ public class BatchDataflowWorker implements Closeable {
   private final WorkerStatusPages statusPages;
 
   /** Periodic sender of debug information to the debug capture service. */
-  private DebugCapture.Manager debugCaptureManager = null;
+  private DebugCapture.@Nullable Manager debugCaptureManager = null;
 
   protected BatchDataflowWorker(
       WorkUnitClient workUnitClient,
@@ -216,7 +213,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   public boolean getAndPerformWork() throws IOException {
     while (true) {
-      Optional<WorkItem> work = Optional.fromJavaUtil(workUnitClient.getWorkItem());
+      Optional<WorkItem> work = workUnitClient.getWorkItem();
       if (work.isPresent()) {
         WorkItemStatusClient statusProvider = new WorkItemStatusClient(workUnitClient, work.get());
         return doWork(work.get(), statusProvider);
@@ -296,7 +293,7 @@ public class BatchDataflowWorker implements Closeable {
       }
       workItemStatusClient.setWorker(worker, executionContext);
 
-      if (Objects.isNull(progressUpdater)) {
+      if (progressUpdater == null) {
         progressUpdater =
             new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
         executionStarted = true;
@@ -313,7 +310,7 @@ public class BatchDataflowWorker implements Closeable {
     } catch (Throwable e) {
       // executor creation failed while progress was already being reported; stop it first so no
       // lease extension is sent after the error report
-      if (Objects.nonNull(progressUpdater) && !executionStarted) {
+      if (progressUpdater != null && !executionStarted) {
         try {
           progressUpdater.stopReportingProgress();
         } catch (Exception stopExn) {
