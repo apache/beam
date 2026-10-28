@@ -578,11 +578,13 @@ abstract class ReadFromKafkaDoFn<K, V>
                       rawRecord.topic(),
                       rawRecord.partition(),
                       rawRecord.offset(),
-                      ConsumerSpEL.getRecordTimestamp(rawRecord),
-                      ConsumerSpEL.getRecordTimestampType(rawRecord),
-                      ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                      ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                      ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                      rawRecord.timestamp(),
+                      KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal()),
+                      rawRecord.headers(),
+                      keyDeserializerInstance.deserialize(
+                          rawRecord.topic(), rawRecord.headers(), rawRecord.key()),
+                      valueDeserializerInstance.deserialize(
+                          rawRecord.topic(), rawRecord.headers(), rawRecord.value()));
               int recordSize =
                   (rawRecord.key() == null ? 0 : rawRecord.key().length)
                       + (rawRecord.value() == null ? 0 : rawRecord.value().length);

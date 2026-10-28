@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.iceberg.AddFiles.ERROR_TAG;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.OUTPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -30,8 +31,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,7 +60,7 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
   @Override
   public String identifier() {
-    return "beam:schematransform:iceberg_add_files:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_ADD_FILES);
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -300,6 +305,20 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
     public AddFilesSchemaTransform(Configuration configuration) {
       this.configuration = configuration;
+    }
+
+    Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically and convert field names to snake_case
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(Configuration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override

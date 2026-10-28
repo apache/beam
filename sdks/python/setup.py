@@ -444,7 +444,8 @@ if __name__ == '__main__':
           # Use a strict upper bound.
           # Increment the lower bound when the minimum Python version is
           # updated.
-          'numpy>=1.23.2,<2.6.0',  # Update pyproject.toml as well.
+          'numpy>=1.23.2,<2.6.0; python_version >= "3.12"',  # Update pyproject.toml as well.
+          'numpy>=1.23.2,<2.5.0; python_version < "3.12"',
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pillow>=12.1.1,<14',

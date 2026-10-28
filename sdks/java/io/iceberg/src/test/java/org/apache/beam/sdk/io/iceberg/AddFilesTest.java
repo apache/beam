@@ -52,12 +52,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -65,6 +68,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -73,6 +77,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1858,13 +1863,26 @@ public class AddFilesTest {
         pipeline
             .apply("Create Input", Create.of(Arrays.asList(files)))
             .apply(
+                "KeyByTable",
+                WithKeys.<String, String>of(tableId.toString())
+                    .withKeyType(TypeDescriptors.strings()))
+            .apply(
                 ParDo.of(
                         new AddFiles.ConvertToDataFile(
-                            catalogConfig, tableId.toString(), null, null, null, null, config))
+                            catalogConfig, null, null, null, null, config))
                     .withOutputTags(
                         AddFiles.ConvertToDataFile.DATA_FILES,
                         TupleTagList.of(AddFiles.ConvertToDataFile.ERRORS)));
     out.get(AddFiles.ConvertToDataFile.ERRORS).setRowSchema(AddFiles.ERROR_SCHEMA);
+    try {
+      out.get(AddFiles.ConvertToDataFile.DATA_FILES)
+          .setCoder(
+              KvCoder.of(
+                  StringUtf8Coder.of(),
+                  SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class)));
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
     return out;
   }
 
