@@ -73,11 +73,15 @@ import com.google.rpc.Code;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
@@ -99,13 +103,18 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -623,10 +632,7 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
-          DoFnTester.of(datastoreWriter);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(mutations);
+      processBundle(datastoreWriter, mutations);
 
       start = 0;
       List<CommitRequest> requests = new ArrayList<>();
@@ -681,10 +687,7 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
-          DoFnTester.of(datastoreWriter);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(mutations);
+      processBundle(datastoreWriter, mutations);
 
       // This test is over-specific currently; it requires that we split the 12 entity writes into 3
       // requests, but we only need each CommitRequest to be less than 10MB in size.
@@ -731,10 +734,7 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
-          DoFnTester.of(datastoreWriter);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(mutations);
+      processBundle(datastoreWriter, mutations);
 
       // first invocation has key [0, 1]
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
@@ -791,10 +791,7 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
-          DoFnTester.of(datastoreWriter);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(mutations);
+      processBundle(datastoreWriter, mutations);
 
       // Verify that no commit request contains multiple mutations for the same entity key.
       for (CommitRequest req : requestCaptor.getAllValues()) {
@@ -829,10 +826,7 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
-          DoFnTester.of(datastoreWriter);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(mutations);
+      processBundle(datastoreWriter, mutations);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
       verifyMetricWasSet("BatchDatastoreWrite", "unknown", "", 1);
     }
@@ -1000,15 +994,7 @@ public class DatastoreV1Test {
 
       SplitQueryFn splitQueryFn =
           new SplitQueryFn(V_1_OPTIONS, numSplits, readTime, mockDatastoreFactory);
-      DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
-      /**
-       * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected
-       * through mock factory using a when clause for unit testing purposes, it is not serializable
-       * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
-       * doFn from being serialized.
-       */
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      List<Query> queries = doFnTester.processBundle(QUERY);
+      List<Query> queries = processBundle(splitQueryFn, Arrays.asList(QUERY));
 
       assertEquals(queries.size(), numSplits);
 
@@ -1072,9 +1058,7 @@ public class DatastoreV1Test {
 
       SplitQueryFn splitQueryFn =
           new SplitQueryFn(V_1_OPTIONS, numSplits, readTime, mockDatastoreFactory);
-      DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      List<Query> queries = doFnTester.processBundle(QUERY);
+      List<Query> queries = processBundle(splitQueryFn, Arrays.asList(QUERY));
 
       assertEquals(expectedNumSplits, queries.size());
       if (readTime == null) {
@@ -1101,9 +1085,7 @@ public class DatastoreV1Test {
           QUERY.toBuilder().setLimit(Int32Value.newBuilder().setValue(1)).build();
 
       SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, readTime, mockDatastoreFactory);
-      DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      List<Query> queries = doFnTester.processBundle(queryWithLimit);
+      List<Query> queries = processBundle(splitQueryFn, Arrays.asList(queryWithLimit));
 
       assertEquals(1, queries.size());
       verifyNoMoreInteractions(mockDatastore);
@@ -1147,9 +1129,7 @@ public class DatastoreV1Test {
               });
 
       ReadFn readFn = new ReadFn(V_1_OPTIONS, readTime, mockDatastoreFactory);
-      DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
-      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-      doFnTester.processBundle(query);
+      processBundle(readFn, Arrays.asList(query));
       verifyMetricWasSet("BatchDatastoreRead", "ok", NAMESPACE, 1);
       verifyMetricWasSet("BatchDatastoreRead", "unknown", NAMESPACE, 1);
     }
@@ -1286,15 +1266,7 @@ public class DatastoreV1Test {
             });
 
     ReadFn readFn = new ReadFn(V_1_OPTIONS, readTime, mockDatastoreFactory);
-    DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
-    /**
-     * Although Datastore client is marked transient in {@link ReadFn}, when injected through mock
-     * factory using a when clause for unit testing purposes, it is not serializable because it
-     * doesn't have a no-arg constructor. Thus disabling the cloning to prevent the test object from
-     * being serialized.
-     */
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<Entity> entities = doFnTester.processBundle(query);
+    List<Entity> entities = processBundle(readFn, Arrays.asList(query));
 
     ArgumentCaptor<RunQueryRequest> requestCaptor = ArgumentCaptor.forClass(RunQueryRequest.class);
 
@@ -1388,6 +1360,41 @@ public class DatastoreV1Test {
    * A WriteBatcher for unit tests, which does no timing-based adjustments (so unit tests have
    * consistent results).
    */
+  /**
+   * Runs {@code fn} over {@code inputs} in a single bundle, in-process. The fns under test hold
+   * Mockito mocks, which can't be serialized, so they can't go through a {@code TestPipeline}.
+   */
+  static <InputT, OutputT> List<OutputT> processBundle(
+      DoFn<InputT, OutputT> fn, Iterable<InputT> inputs) {
+    List<OutputT> outputs = new ArrayList<>();
+    DoFnRunner<InputT, OutputT> runner =
+        DoFnRunners.simpleRunner(
+            PipelineOptionsFactory.create(),
+            fn,
+            NullSideInputReader.empty(),
+            new WindowedValueMultiReceiver() {
+              @Override
+              @SuppressWarnings("unchecked")
+              public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+                outputs.add((OutputT) output.getValue());
+              }
+            },
+            new TupleTag<>(),
+            Collections.emptyList(),
+            null,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    runner.startBundle();
+    for (InputT input : inputs) {
+      runner.processElement(WindowedValues.valueInGlobalWindow(input));
+    }
+    runner.finishBundle();
+    return outputs;
+  }
+
   static class FakeWriteBatcher implements DatastoreV1.WriteBatcher {
     @Override
     public void start() {}
