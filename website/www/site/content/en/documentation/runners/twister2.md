@@ -20,7 +20,7 @@ limitations under the License.
 
 ## Overview
 
-**Note** Twister2 runner is deprecated and the support is planned to be removed in Beam 3.0 ([Issue](https://github.com/apache/beam/issues/35905)).
+**Note** Twister2 runner support has been removed in Beam 2.78.0 ([Issue](https://github.com/apache/beam/issues/35905)).
 
 Twister2 Runner can be used to execute Apache Beam pipelines on top of a Twister2
 cluster. Twister2 Runner runs Beam pipelines as Twister2 jobs, which can be executed on
@@ -34,9 +34,6 @@ require high performance, and provide.
 * Distributed massively parallel data processing engine with high performance using
  Bulk Synchronous Parallel (BSP) style execution.
 * Native support for Beam side-inputs.
-
-The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
-supported capabilities of the Twister2 Runner.
 
 ## Running WordCount with the Twister2 Runner
 

@@ -233,7 +233,6 @@ function list_runners() {
     echo "  flink            - FlinkRunner (runs on Apache Flink)"
     echo "  spark            - SparkRunner (runs on Apache Spark)"
     echo "  jet              - JetRunner (runs on Hazelcast Jet)"
-    echo "  twister2         - Twister2Runner (runs on Twister2)"
     echo ""
     echo "💡 Usage: ./beam-sql.sh --runner <runner_name>"
     echo "   Default: direct"
@@ -276,10 +275,6 @@ function list_runners() {
       "jet")
         echo "  jet              - JetRunner"
         echo "                     Runs on Hazelcast Jet."
-        ;;
-      "twister2")
-        echo "  twister2         - Twister2Runner"
-        echo "                     Runs on Twister2."
         ;;
       "apex")
         echo "  apex             - ApexRunner"
