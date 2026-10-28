@@ -147,6 +147,18 @@ class PrefixBatchingConfig:
     keys get 1), or a ``Callable[[key], int]``. Each key is spread across at
     most that many workers (default 1).
 
+    **Set this for skewed workloads.** ``GroupIntoBatches`` keeps per-key
+    state, so all batches for one shard of a key are processed by a single
+    worker at a time. With the default of 1, a prefix shared by most traffic
+    (e.g. a common system prompt) is served at the throughput of one worker
+    no matter how many workers the pipeline has, and its requests queue up
+    behind that key. Runners that size the pool from the number of keys with
+    pending work, such as Dataflow's GPU autoscaling, also do not see that
+    queue and will not scale up to drain it. Give hot prefixes roughly as
+    many shards as the workers needed to serve them (via an ``int`` or a
+    per-key mapping). The trade-off is prefix-cache locality: each shard of
+    a prefix warms its own copy of that prefix's KV cache.
+
   The handler calls :meth:`resolve` with its default extractor and then
   :meth:`batching_kwargs` to obtain the ``ModelHandler`` arguments.
   """

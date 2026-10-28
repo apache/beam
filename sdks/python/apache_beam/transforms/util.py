@@ -1385,7 +1385,10 @@ class BatchElements(PTransform):
         ``int`` applied to every key, a ``Mapping[key, int]`` giving per-key
         shard counts for a known skewed distribution (unlisted keys get 1), or
         a ``Callable[[key], int]``. Each key is spread across at most that
-        many random sub-keys / workers. Defaults to 1. See ``WithBatchKey``.
+        many random sub-keys / workers. Defaults to 1, which serves each key
+        on one worker at a time, so a hot key's throughput does not grow with
+        the number of workers; give hot keys more shards when the key
+        distribution is skewed. See ``WithBatchKey``.
   """
   _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
 

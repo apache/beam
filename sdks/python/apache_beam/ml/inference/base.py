@@ -256,7 +256,9 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         count for a known skewed distribution (keys not in the mapping get 1
         shard), or a callable from batch key to shard count. Each key is
         spread across at most that many random sub-keys / workers. Defaults
-        to 1.
+        to 1, which serves each key on one worker at a time; skewed key
+        distributions need more shards for their hot keys (see
+        ``apache_beam.ml.inference.prefix_batching.PrefixBatchingConfig``).
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
