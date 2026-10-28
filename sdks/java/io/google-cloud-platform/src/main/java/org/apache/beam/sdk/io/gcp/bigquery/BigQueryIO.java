@@ -2794,6 +2794,7 @@ public class BigQueryIO {
         .setIgnoreUnknownValues(false)
         .setIgnoreInsertIds(false)
         .setUseAvroLogicalTypes(false)
+        .setTableLabelsEnabled(false)
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
@@ -3016,6 +3017,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonClustering();
 
+    abstract boolean getTableLabelsEnabled();
+
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
@@ -3136,6 +3139,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
       abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
+
+      abstract Builder<T> setTableLabelsEnabled(boolean tableLabelsEnabled);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -3345,7 +3350,8 @@ public class BigQueryIO {
      *
      * <p>If the function produces destinations configured with clustering fields, ensure that
      * {@link #withClustering()} is also set so that the clustering configurations get properly
-     * encoded and decoded.
+     * encoded and decoded. Likewise, if it produces destinations with labels set via {@link
+     * TableDestination#withLabels(Map)}, ensure that {@link #withTableLabels()} is also set.
      */
     public Write<T> to(
         SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction) {
@@ -3358,7 +3364,9 @@ public class BigQueryIO {
      *
      * <p>If any of the returned destinations are configured with clustering fields, ensure that the
      * passed {@link DynamicDestinations} object returns {@link TableDestinationCoderV3} when {@link
-     * DynamicDestinations#getDestinationCoder()} is called.
+     * DynamicDestinations#getDestinationCoder()} is called. If the destination type is {@link
+     * TableDestination} and the returned destinations have labels set via {@link
+     * TableDestination#withLabels(Map)}, return {@link TableDestinationCoderV4} instead.
      */
     public Write<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
       checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
@@ -3548,6 +3556,23 @@ public class BigQueryIO {
      */
     public Write<T> withClustering() {
       return withClustering(new Clustering());
+    }
+
+    /**
+     * Allows writing table labels when {@link #to(SerializableFunction)} is used. The returned
+     * {@link TableDestination} objects should set the labels per table with {@link
+     * TableDestination#withLabels(Map)}.
+     *
+     * <p>Destinations in {@link WriteResult#getSuccessfulTableLoads()} keep their labels, except
+     * for tables that {@link Method#FILE_LOADS} wrote through temporary tables.
+     *
+     * <p>Setting this option enables use of {@link TableDestinationCoderV4} which encodes time
+     * partitioning, clustering and label information. As with {@link #withClustering()}, pipelines
+     * using an older coder must be drained before setting this option, since {@link
+     * TableDestinationCoderV4} will not be able to read state written with a previous version.
+     */
+    public Write<T> withTableLabels() {
+      return toBuilder().setTableLabelsEnabled(true).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -4258,6 +4283,14 @@ public class BigQueryIO {
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
 
+      if (getTableLabelsEnabled()) {
+        checkArgument(
+            getTableFunction() != null,
+            "withTableLabels() only applies to to(SerializableFunction). With"
+                + " to(DynamicDestinations), return TableDestinationCoderV4 from"
+                + " DynamicDestinations.getDestinationCoder() instead.");
+      }
+
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
         ValueProvider<String> jsonTableRef = getJsonTableRef();
@@ -4274,7 +4307,9 @@ public class BigQueryIO {
           // set.
           tableDestinations =
               new TableFunctionDestinations<>(
-                  checkStateNotNull(tableFunction), jsonClustering != null);
+                  checkStateNotNull(tableFunction),
+                  jsonClustering != null,
+                  getTableLabelsEnabled());
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -4305,6 +4340,13 @@ public class BigQueryIO {
         dynamicDestinations = tableDestinations;
       }
       return expandTyped(input, dynamicDestinations);
+    }
+
+    /** Whether {@code coder} is one of the {@link TableDestination} coders without labels. */
+    private static boolean coderDropsTableLabels(Coder<?> coder) {
+      return coder instanceof TableDestinationCoder
+          || coder instanceof TableDestinationCoderV2
+          || coder instanceof TableDestinationCoderV3;
     }
 
     private <DestinationT> WriteResult expandTyped(
@@ -4431,7 +4473,10 @@ public class BigQueryIO {
           input
               .apply(
                   "PrepareWrite",
-                  new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+                  new PrepareWrite<>(
+                      dynamicDestinations,
+                      SerializableFunctions.identity(),
+                      coderDropsTableLabels(destinationCoder)))
               .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
       return continueExpandTyped(
@@ -4558,6 +4603,7 @@ public class BigQueryIO {
                 rowWriterFactory,
                 getKmsKey(),
                 getJsonClustering() != null,
+                getTableLabelsEnabled(),
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),

@@ -743,6 +743,28 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   }
 
   @Override
+  public Table patchTableLabels(TableReference tableReference, Map<String, String> labels)
+      throws IOException, InterruptedException {
+    validateWholeTableReference(tableReference);
+    synchronized (FakeDatasetService.class) {
+      TableContainer tableContainer =
+          getTableContainer(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId());
+      Table table = tableContainer.getTable();
+      // the real tables.patch merges the given labels into the existing ones
+      Map<String, String> merged = new HashMap<>();
+      if (table.getLabels() != null) {
+        merged.putAll(table.getLabels());
+      }
+      merged.putAll(labels);
+      table.setLabels(merged);
+      return table;
+    }
+  }
+
+  @Override
   public Table patchTableSchema(TableReference tableReference, TableSchema newSchema)
       throws IOException, InterruptedException {
     updateTableSchema(tableReference, newSchema);

@@ -21,8 +21,11 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery table destination. */
@@ -32,6 +35,10 @@ public class TableDestination implements Serializable {
   private final @Nullable String tableDescription;
   private final @Nullable String jsonTimePartitioning;
   private final @Nullable String jsonClustering;
+  // sorted so that TableDestinationCoderV4 writes the same bytes for equal label sets. runners
+  // group load jobs by the encoded destination, so a hash-ordered map could split one table
+  // into several groups
+  private final @Nullable ImmutableSortedMap<String, String> labels;
 
   public TableDestination(String tableSpec, @Nullable String tableDescription) {
     this(tableSpec, tableDescription, (String) null, (String) null);
@@ -106,15 +113,67 @@ public class TableDestination implements Serializable {
       @Nullable String tableDescription,
       @Nullable String jsonTimePartitioning,
       @Nullable String jsonClustering) {
+    this(tableSpec, tableDescription, jsonTimePartitioning, jsonClustering, null);
+  }
+
+  private TableDestination(
+      String tableSpec,
+      @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning,
+      @Nullable String jsonClustering,
+      @Nullable Map<String, String> labels) {
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;
     this.jsonClustering = jsonClustering;
+    if (labels == null) {
+      this.labels = null;
+    } else {
+      // ImmutableSortedMap rejects nulls with a bare NullPointerException, so name the bad entry
+      for (Map.Entry<String, String> label : labels.entrySet()) {
+        Preconditions.checkArgument(
+            label.getKey() != null && label.getValue() != null,
+            "table labels may not contain null keys or values, but got %s for table %s",
+            labels,
+            tableSpec);
+      }
+      this.labels = ImmutableSortedMap.copyOf(labels);
+    }
   }
 
   public TableDestination withTableReference(TableReference tableReference) {
     return new TableDestination(
-        tableReference, tableDescription, jsonTimePartitioning, jsonClustering);
+        BigQueryHelpers.toTableSpec(tableReference),
+        tableDescription,
+        jsonTimePartitioning,
+        jsonClustering,
+        labels);
+  }
+
+  /**
+   * Returns a copy of this destination with the given BigQuery table labels.
+   *
+   * <p>With {@link BigQueryIO.Write.Method#STREAMING_INSERTS} and {@link
+   * BigQueryIO.Write.Method#STORAGE_WRITE_API} the labels are set only when BigQueryIO creates the
+   * table. With {@link BigQueryIO.Write.Method#FILE_LOADS} they are patched onto the table after
+   * every load, the same way the table description is, so they are also added to tables that
+   * already exist. Labels already on the table that are not in this map are kept.
+   *
+   * <p>Return the same labels for every element written to one table. Destinations that differ only
+   * in their labels are grouped separately, so the table would get one load job per label set and,
+   * with {@link BigQueryIO.Write.WriteDisposition#WRITE_TRUNCATE}, each job would replace the data
+   * of the others.
+   *
+   * <p>Labels are only encoded by {@link TableDestinationCoderV4}. When using {@link
+   * BigQueryIO.Write#to(org.apache.beam.sdk.transforms.SerializableFunction)}, also set {@link
+   * BigQueryIO.Write#withTableLabels()}. When using {@link
+   * BigQueryIO.Write#to(DynamicDestinations)} with {@link TableDestination} as the destination
+   * type, return {@link TableDestinationCoderV4} from {@link
+   * DynamicDestinations#getDestinationCoder()}.
+   */
+  public TableDestination withLabels(@Nullable Map<String, String> labels) {
+    return new TableDestination(
+        tableSpec, tableDescription, jsonTimePartitioning, jsonClustering, labels);
   }
 
   /** Return the tablespec in [project:].dataset.tableid format. */
@@ -174,11 +233,18 @@ public class TableDestination implements Serializable {
     return tableDescription;
   }
 
+  public @Nullable Map<String, String> getLabels() {
+    return labels;
+  }
+
   @Override
   public String toString() {
     String toString = "tableSpec: " + tableSpec;
     if (tableDescription != null) {
       toString += " tableDescription: " + tableDescription;
+    }
+    if (labels != null) {
+      toString += " labels: " + labels;
     }
     return toString;
   }
@@ -191,11 +257,12 @@ public class TableDestination implements Serializable {
     TableDestination other = (TableDestination) o;
     return Objects.equals(this.tableSpec, other.tableSpec)
         && Objects.equals(this.tableDescription, other.tableDescription)
-        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning);
+        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning)
+        && Objects.equals(this.labels, other.labels);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning);
+    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning, labels);
   }
 }

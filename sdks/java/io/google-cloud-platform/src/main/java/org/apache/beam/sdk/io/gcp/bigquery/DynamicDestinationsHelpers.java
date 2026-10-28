@@ -121,12 +121,15 @@ class DynamicDestinationsHelpers {
     private final SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination>
         tableFunction;
     private final boolean clusteringEnabled;
+    private final boolean labelsEnabled;
 
     TableFunctionDestinations(
         SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction,
-        boolean clusteringEnabled) {
+        boolean clusteringEnabled,
+        boolean labelsEnabled) {
       this.tableFunction = tableFunction;
       this.clusteringEnabled = clusteringEnabled;
+      this.labelsEnabled = labelsEnabled;
     }
 
     @Override
@@ -152,7 +155,9 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      if (clusteringEnabled) {
+      if (labelsEnabled) {
+        return TableDestinationCoderV4.of();
+      } else if (clusteringEnabled) {
         return TableDestinationCoderV3.of();
       } else {
         return TableDestinationCoderV2.of();
@@ -358,11 +363,20 @@ class DynamicDestinationsHelpers {
           evaluatedClustering != null ? evaluatedClustering : destination.getJsonClustering();
 
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
+              destination.getTableSpec(),
+              destination.getTableDescription(),
+              partitioning,
+              clustering)
+          .withLabels(destination.getLabels());
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
+      // keep the inner coder when it already encodes labels, otherwise V3 would drop them
+      @Nullable Coder<TableDestination> innerCoder = super.getDestinationCoder();
+      if (innerCoder instanceof TableDestinationCoderV4) {
+        return TableDestinationCoderV4.of();
+      }
       if (jsonClustering != null) {
         return TableDestinationCoderV3.of();
       } else {
@@ -499,11 +513,15 @@ class DynamicDestinationsHelpers {
       if (existingTable == null) {
         return wrappedDestination;
       } else {
+        // partitioning and clustering must match the existing table so that temp tables can be
+        // copied into it. labels play no part in that, so keep the requested ones so that they
+        // are still patched onto the table after the copy
         return new TableDestination(
-            wrappedDestination.getTableSpec(),
-            existingTable.getDescription(),
-            existingTable.getTimePartitioning(),
-            existingTable.getClustering());
+                wrappedDestination.getTableSpec(),
+                existingTable.getDescription(),
+                existingTable.getTimePartitioning(),
+                existingTable.getClustering())
+            .withLabels(wrappedDestination.getLabels());
       }
     }
 

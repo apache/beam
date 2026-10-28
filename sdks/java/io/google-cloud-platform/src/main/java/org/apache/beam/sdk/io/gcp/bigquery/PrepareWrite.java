@@ -43,12 +43,26 @@ public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
   private DynamicDestinations<InputT, DestinationT> dynamicDestinations;
   private SerializableFunction<InputT, OutputT> formatFunction;
+  private boolean destinationCoderDropsLabels;
 
   public PrepareWrite(
       DynamicDestinations<InputT, DestinationT> dynamicDestinations,
       SerializableFunction<InputT, OutputT> formatFunction) {
+    this(dynamicDestinations, formatFunction, false);
+  }
+
+  /**
+   * @param destinationCoderDropsLabels whether the destination coder has no field for {@link
+   *     TableDestination#getLabels()}. When set, a destination that carries labels fails the
+   *     element instead of losing its labels when the destination is encoded.
+   */
+  public PrepareWrite(
+      DynamicDestinations<InputT, DestinationT> dynamicDestinations,
+      SerializableFunction<InputT, OutputT> formatFunction,
+      boolean destinationCoderDropsLabels) {
     this.dynamicDestinations = dynamicDestinations;
     this.formatFunction = formatFunction;
+    this.destinationCoderDropsLabels = destinationCoderDropsLabels;
   }
 
   @Override
@@ -75,6 +89,21 @@ public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
                             + "but %s returned null on element %s",
                         dynamicDestinations,
                         element);
+                    // this is the last point before the destination is encoded. after that the
+                    // labels are gone and every later step sees a destination without them
+                    if (destinationCoderDropsLabels
+                        && tableDestination instanceof TableDestination) {
+                      checkArgument(
+                          ((TableDestination) tableDestination).getLabels() == null,
+                          "%s returned a TableDestination with labels, but its destination coder"
+                              + " cannot encode labels, so they would be dropped. With"
+                              + " to(SerializableFunction), set withTableLabels() on"
+                              + " BigQueryIO.write(). With to(DynamicDestinations), return"
+                              + " TableDestinationCoderV4 from getDestinationCoder()."
+                              + " Destination: %s",
+                          dynamicDestinations,
+                          tableDestination);
+                    }
                     OutputT outputValue = formatFunction.apply(element);
                     Preconditions.checkArgumentNotNull(
                         outputValue,
