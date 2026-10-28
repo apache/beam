@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
@@ -61,7 +62,14 @@ public class IcebergMetastoreTest {
 
   @Test
   public void testBuildBeamSqlTable() {
-    Table table = Table.builder().name("my_table").schema(Schema.of()).type("iceberg").build();
+    Table table =
+        Table.builder()
+            .name("my_table")
+            .schema(Schema.of())
+            .type("iceberg")
+            .properties(
+                TableUtils.parseProperties("{\"beam.write.triggering_frequency_seconds\": 10}"))
+            .build();
     BeamSqlTable sqlTable = metastore().buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -70,6 +78,11 @@ public class IcebergMetastoreTest {
     IcebergTable icebergTable = (IcebergTable) sqlTable;
     assertEquals(catalog.currentDatabase() + ".my_table", icebergTable.tableIdentifier);
     assertEquals(catalog.catalogConfig, icebergTable.catalogConfig);
+    assertEquals(10, icebergTable.writeConfig().get("triggering_frequency_seconds"));
+    // An INSERT's WITH options override the table's
+    IcebergTable insertTarget =
+        (IcebergTable) icebergTable.forWrite(ImmutableMap.of("triggering_frequency_seconds", 30L));
+    assertEquals(30, insertTarget.writeConfig().get("triggering_frequency_seconds"));
   }
 
   @Test

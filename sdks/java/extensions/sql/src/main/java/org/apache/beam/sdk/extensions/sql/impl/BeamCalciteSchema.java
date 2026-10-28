@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.impl.parser.TableClause;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
@@ -116,17 +118,34 @@ public class BeamCalciteSchema implements Schema {
     return Collections.emptySet();
   }
 
+  /**
+   * Returns the named table. For a name that encodes a {@link TableClause}, returns its base table
+   * as derived by {@link BeamSqlTable#forRead} or {@link BeamSqlTable#forWrite}.
+   */
   @Override
   public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.@Nullable Table getTable(
       String name) {
-    Table table = tableProvider.getTable(name);
+    @Nullable TableClause clause = TableClause.decode(name);
+    Table table = tableProvider.getTable(clause == null ? name : clause.baseName());
     if (table == null) {
       return null;
     }
+    BeamSqlTable beamTable = tableProvider.buildBeamSqlTable(table);
     return new BeamCalciteTable(
-        tableProvider.buildBeamSqlTable(table),
+        clause == null ? beamTable : derive(beamTable, clause),
         connection.getPipelineOptionsMap(),
         connection.getPipelineOptions());
+  }
+
+  private static BeamSqlTable derive(BeamSqlTable table, TableClause clause) {
+    try {
+      return clause.role() == TableClause.Role.READ
+          ? table.forRead(clause.options())
+          : table.forWrite(clause.options());
+    } catch (RuntimeException e) {
+      throw new IllegalArgumentException(
+          String.format("Cannot resolve %s: %s", clause.encode(), e.getMessage()), e);
+    }
   }
 
   public Collection<Table> getTables() {
@@ -156,6 +175,9 @@ public class BeamCalciteSchema implements Schema {
    */
   @Override
   public @Nullable Schema getSubSchema(String name) {
+    if (TableClause.decode(name) != null) {
+      return null;
+    }
     BeamCalciteSchema subSchema = subSchemas.get(name);
 
     if (subSchema != null) {

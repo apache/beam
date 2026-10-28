@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntFunction;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
@@ -32,6 +34,8 @@ import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamSqlUnparseContext;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PBegin;
@@ -63,10 +67,36 @@ final class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting
   static final String TRIGGERING_FREQUENCY_FIELD = "triggering_frequency_seconds";
 
+  private static final Schema WRITE_CONFIG_SCHEMA =
+      new IcebergWriteSchemaTransformProvider().configurationSchema();
+  private static final Map<String, String> WRITE_OWNED_OPTIONS =
+      ImmutableMap.<String, String>builder()
+          .putAll(
+              ManagedOptions.owned(
+                  "the SQL table sets it",
+                  "table",
+                  "catalog_name",
+                  "catalog_properties",
+                  "config_properties"))
+          .putAll(
+              ManagedOptions.owned(
+                  "the INSERT writes all of the table's columns", "keep", "drop", "only"))
+          .putAll(
+              ManagedOptions.owned(
+                  "it applies only when the write creates the table",
+                  "partition_fields",
+                  "sort_fields",
+                  "table_properties"))
+          .putAll(ManagedOptions.owned("an INSERT has no error output", "error_handling"))
+          .build();
+
   @VisibleForTesting final String tableIdentifier;
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   @VisibleForTesting @Nullable Integer triggeringFrequency;
   @VisibleForTesting final @Nullable List<String> partitionFields;
+
+  /** The options of an INSERT's {@code WITH} clause, or empty for the table itself. */
+  private final Map<String, Object> writeOptions;
 
   IcebergTable(String tableIdentifier, Table table, IcebergCatalogConfig catalogConfig) {
     super(table.getSchema());
@@ -90,19 +120,70 @@ final class IcebergTable extends SchemaBaseBeamTable {
     }
 
     this.partitionFields = table.getPartitionFields();
+    this.writeOptions = ImmutableMap.of();
+  }
+
+  private IcebergTable(IcebergTable table, Schema schema, Map<String, Object> writeOptions) {
+    super(schema);
+    this.tableIdentifier = table.tableIdentifier;
+    this.catalogConfig = table.catalogConfig;
+    this.triggeringFrequency = table.triggeringFrequency;
+    this.partitionFields = table.partitionFields;
+    this.writeOptions = writeOptions;
+  }
+
+  /**
+   * Returns this table as the target of an INSERT with {@code WITH} options, which are options of
+   * the Managed Iceberg write. With {@code 'mode' = 'merge-on-read'}, the INSERT also supplies the
+   * change type column, if {@code change_type_column} names one, and the sequence number column.
+   */
+  @Override
+  public BeamSqlTable forWrite(Map<String, Object> options) {
+    Map<String, Object> checked =
+        ManagedOptions.check(options, WRITE_CONFIG_SCHEMA, WRITE_OWNED_OPTIONS, "an Iceberg write");
+    Schema schema = getSchema();
+    if ("merge-on-read".equalsIgnoreCase((String) checked.get("mode"))) {
+      @Nullable String changeTypeColumn = (String) checked.get("change_type_column");
+      if (changeTypeColumn != null) {
+        schema = withControlColumn(schema, changeTypeColumn, Schema.FieldType.STRING);
+      }
+      Object sequenceNumberColumn =
+          checked.getOrDefault(
+              "sequence_number_column", IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER);
+      schema = withControlColumn(schema, (String) sequenceNumberColumn, Schema.FieldType.INT64);
+    }
+    return new IcebergTable(this, schema, checked);
+  }
+
+  private static Schema withControlColumn(Schema schema, String name, Schema.FieldType type) {
+    checkArgument(
+        !schema.hasField(name),
+        "Merge-on-read control column '%s' collides with another column",
+        name);
+    return Schema.builder().addFields(schema.getFields()).addField(name, type).build();
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
+    return input.apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig()));
+  }
+
+  /**
+   * The Managed write configuration: the table's, its stored triggering frequency, the INSERT's
+   * {@code WITH} options, which override it, and its partition fields.
+   */
+  @VisibleForTesting
+  Map<String, Object> writeConfig() {
     ImmutableMap.Builder<String, Object> configBuilder = ImmutableMap.builder();
     configBuilder.putAll(getBaseConfig());
     if (triggeringFrequency != null) {
       configBuilder.put(TRIGGERING_FREQUENCY_FIELD, triggeringFrequency);
     }
+    configBuilder.putAll(writeOptions);
     if (partitionFields != null) {
       configBuilder.put("partition_fields", partitionFields);
     }
-    return input.apply(Managed.write(Managed.ICEBERG).withConfig(configBuilder.build()));
+    return configBuilder.buildKeepingLast();
   }
 
   @Override

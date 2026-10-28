@@ -150,8 +150,24 @@ task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
   into "${project.buildDir}/templates-fmpp/codegen"
 }
+// Calcite's Parser.jj has no extension points for the WITH clause of a table, so each anchor
+// below gets Beam's grammar (parserImpls.ftl) appended on the same line.
+def calciteParserExtensions = [
+  // TableRef3, after FOR SYSTEM_TIME AS OF: WITH of a table in FROM.
+  '[ tableRef = Snapshot(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.READ)',
+  // SqlInsert, before the target column list: WITH of the INSERT target.
+  '[ LOOKAHEAD(5) tableRef = ExtendTable(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.WRITE)',
+  // End of TableRef3: let a user alias replace the implicit alias of a table with WITH.
+  '[ tableRef = Tablesample(tableRef) ]': '{ tableRef = TableClause.collapseImplicitAlias(tableRef); }',
+  // Every WITH query: reject WITH options on its common table expressions.
+  'JAVACODE SqlNode addWith(SqlNodeList withList, SqlNode e) {': 'TableClause.checkCteReferences(withList, e);',
+  // OrderByLimitOpt, which attaches an ORDER BY to a WITH query after addWith: check it too.
+  'if (orderBy != null || offsetFetch[0] != null || offsetFetch[1] != null) {': 'TableClause.checkCteReferencesInOrderBy(e, orderBy);',
+]
+
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
+  inputs.property("calciteParserExtensions", calciteParserExtensions)
   File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
     it.name.startsWith("beam-vendor-calcite")
   }.singleFile
@@ -169,6 +185,18 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
   filter{
     line ->
       line.replace('import com.google.common.', 'import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.')
+  }
+  doLast {
+    def parserJj = file("${project.buildDir}/templates-fmpp/codegen/templates/Parser.jj")
+    def grammar = parserJj.text
+    calciteParserExtensions.each { anchor, extension ->
+      def count = grammar.count(anchor)
+      if (count != 1) {
+        throw new GradleException("Expected '${anchor}' once in Calcite's Parser.jj, found it ${count} times")
+      }
+      grammar = grammar.replace(anchor, "${anchor} ${extension}")
+    }
+    parserJj.text = grammar
   }
 }
 

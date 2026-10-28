@@ -899,4 +899,60 @@ SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
     )
 }
 
+/**
+ * Parses the WITH clause of a table in FROM or of an INSERT target and folds it into the table's
+ * name; see TableClause. (see also build.gradle)
+ */
+SqlNode TableClauseOpt(SqlNode tableRef, TableClause.Role role) :
+{
+    final Map<String, Object> withOptions = new LinkedHashMap<String, Object>();
+}
+{
+    [ AddTableOptions(withOptions) ]
+    {
+        return TableClause.fold(tableRef, role, withOptions);
+    }
+}
+
+/** Parses a name component written by TableClause.encode(). */
+TableClause TableClauseEof() :
+{
+    TableClause.Role role = TableClause.Role.READ;
+    final String name;
+    final Map<String, Object> withOptions = new LinkedHashMap<String, Object>();
+}
+{
+    [ <INTO> { role = TableClause.Role.WRITE; } ]
+    name = Identifier() AddTableOptions(withOptions) <EOF> {
+        return TableClause.create(name, role, withOptions);
+    }
+}
+
+/**
+ * WITH '(' 'key' = value ( ',' 'key' = value )* ')'
+ */
+void AddTableOptions(Map<String, Object> withOptions) :
+{
+}
+{
+    <WITH> <LPAREN>
+    AddTableOption(withOptions)
+    ( <COMMA> AddTableOption(withOptions) )*
+    <RPAREN>
+}
+
+void AddTableOption(Map<String, Object> withOptions) :
+{
+    final String key;
+    final SqlParserPos keyPos;
+    final SqlNode value;
+}
+{
+    key = SimpleStringLiteral() { keyPos = getPos(); }
+    <EQ>
+    value = Expression(ExprContext.ACCEPT_NON_QUERY) {
+        TableClause.addOption(withOptions, key, keyPos, value);
+    }
+}
+
 // End parserImpls.ftl
