@@ -108,17 +108,29 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
               resolvedStartVersion, resolvedEndVersion));
     }
 
-    // 2. Load snapshot at resolvedEndVersion to get the scanStateRow
-    // We use endVersion's schema because it represents the latest schema in the
-    // read range
-    // which handles schema evolution (older files will just lack new columns).
-    Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+    // 2. Load snapshots at resolvedStartVersion and resolvedEndVersion and verify that the data
+    // schema has not changed across the CDC range. Metadata-only schema changes (for example,
+    // changes to column comments) are allowed. See DeltaIO.hasSameDataSchema() for details.
+    Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
+    Snapshot endSnapshot =
+        resolvedStartVersion == resolvedEndVersion
+            ? startSnapshot
+            : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+    io.delta.kernel.types.StructType startSchema = startSnapshot.getSchema();
+    io.delta.kernel.types.StructType endSchema = endSnapshot.getSchema();
+    if (startSchema == null || endSchema == null) {
+      throw new IllegalStateException("Table schema is null.");
+    }
+    if (!DeltaIO.hasSameDataSchema(startSchema, endSchema)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Table schema changed between start version %d and end version %d. "
+                  + "Schema at start version: %s, schema at end version: %s.",
+              resolvedStartVersion, resolvedEndVersion, startSchema, endSchema));
+    }
     Scan scan = endSnapshot.getScanBuilder().build();
     Row scanState = scan.getScanState(engine);
     SerializableRow serializableScanState = new SerializableRow(scanState);
-
-    // 3. Load snapshot at resolvedStartVersion to initialize the CommitRange
-    Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
 
     CommitRangeBuilder rangeBuilder =
         TableManager.loadCommitRange(

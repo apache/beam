@@ -32,6 +32,7 @@ import io.delta.kernel.internal.data.GenericRow;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.DataType;
 import io.delta.kernel.types.DateType;
+import io.delta.kernel.types.IntegerType;
 import io.delta.kernel.types.LongType;
 import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
@@ -418,6 +419,60 @@ public final class DeltaWriteTestUtils {
   }
 
   /**
+   * Writes a metadata-only Delta commit (i.e. a commit without any data files) that sets the schema
+   * of the table.
+   *
+   * <p>If {@code expectedVersion} is 0, a new table is created with the given schema, with Change
+   * Data Feed and column mapping (name mode) enabled. Otherwise, the schema of the existing table
+   * is evolved to the given schema.
+   *
+   * <p>Note on why this is metadata-only: The Delta Lake Kernel API only supports schema evolution
+   * for tables that have column mapping enabled, but it does not yet support writing data into such
+   * tables.
+   *
+   * <p>When evolving the schema, the given schema must preserve the field metadata (column mapping
+   * IDs and physical names) of existing columns, for example, by deriving the new schema from the
+   * schema of the latest snapshot. Fields without such metadata are considered to be new columns.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to write to
+   * @param expectedVersion the expected version of the commit to be created
+   * @param timestamp the timestamp of the commit file
+   * @param deltaSchema the new schema of the Delta table
+   * @throws Exception if any error occurs during commit
+   */
+  public static void writeSchemaCommit(
+      Engine engine, String tablePath, long expectedVersion, long timestamp, StructType deltaSchema)
+      throws Exception {
+
+    Table table = Table.forPath(engine, tablePath);
+    TransactionBuilder txnBuilder;
+    if (expectedVersion == 0) {
+      Map<String, String> tableProperties = new HashMap<>();
+      tableProperties.put("delta.enableChangeDataFeed", "true");
+      tableProperties.put("delta.columnMapping.mode", "name");
+      txnBuilder =
+          table
+              .createTransactionBuilder(engine, "DeltaTestUtils", Operation.CREATE_TABLE)
+              .withTableProperties(engine, tableProperties);
+    } else {
+      txnBuilder =
+          table.createTransactionBuilder(engine, "DeltaTestUtils", Operation.MANUAL_UPDATE);
+    }
+    Transaction txn = txnBuilder.withSchema(engine, deltaSchema).build(engine);
+
+    TransactionCommitResult result = txn.commit(engine, CloseableIterable.emptyIterable());
+    org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
+    if (!tablePath.startsWith("gs://")
+        && !tablePath.startsWith("s3://")
+        && !tablePath.startsWith("hdfs://")) {
+      File commitFile =
+          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
+      commitFile.setLastModified(timestamp);
+    }
+  }
+
+  /**
    * Sets up a Delta table with two commit versions containing test rows.
    *
    * <p>Version 0 is committed at timestamp 100000000000L with rows ["row-1", "row-2"]. Version 1 is
@@ -444,5 +499,30 @@ public final class DeltaWriteTestUtils {
         engine, tablePath, 1L, 200000000000L, deltaSchema, java.util.Arrays.asList(row3));
 
     return java.util.Arrays.asList(row1, row2, row3);
+  }
+
+  /**
+   * Sets up a Delta table with two metadata-only commit versions where the table schema changes
+   * between the versions.
+   *
+   * <p>Version 0 is committed at timestamp 100000000000L and creates the table with schema {@code
+   * (name STRING)}. Version 1 is committed at timestamp 200000000000L and adds a nullable {@code
+   * age INTEGER} column, resulting in schema {@code (name STRING, age INTEGER)}.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to create
+   * @throws Exception if any error occurs during commit
+   */
+  static void setupSchemaEvolutionTable(Engine engine, String tablePath) throws Exception {
+    // Commit version 0
+    writeSchemaCommit(
+        engine, tablePath, 0L, 100000000000L, new StructType().add("name", StringType.STRING));
+
+    // Commit version 1. The new schema is derived from the latest schema of the table to preserve
+    // the column mapping metadata of the existing column.
+    StructType latestSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    writeSchemaCommit(
+        engine, tablePath, 1L, 200000000000L, latestSchema.add("age", IntegerType.INTEGER, true));
   }
 }
