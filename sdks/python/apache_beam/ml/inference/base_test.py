@@ -23,6 +23,7 @@ import multiprocessing
 import os
 import pickle
 import random
+import subprocess
 import sys
 import tempfile
 import threading
@@ -3151,6 +3152,28 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
+
+
+class ResourceImportTest(unittest.TestCase):
+  @unittest.skipIf(
+      sys.platform == 'win32',
+      'The resource module is not available on Windows.')
+  def test_resource_available_when_model_manager_import_fails(self):
+    # Run in a fresh interpreter in which importing model_manager fails, as it
+    # does when its optional dependencies (e.g. torch) are not installed.
+    code = '\n'.join([
+        'import sys',
+        "sys.modules['apache_beam.ml.inference.model_manager'] = None",
+        'from apache_beam.ml.inference import base',
+        'assert base.ModelManager is None',
+        'assert base.resource is not None',
+        'assert base._get_current_process_memory_in_bytes() > 0',
+    ])
+    result = subprocess.run([sys.executable, '-c', code],
+                            capture_output=True,
+                            text=True,
+                            check=False)
+    self.assertEqual(result.returncode, 0, msg=result.stderr)
 
 
 if __name__ == '__main__':
