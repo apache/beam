@@ -27,6 +27,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import jline.TerminalFactory;
+import jline.UnixTerminal;
+import jline.internal.Log;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
@@ -65,6 +68,7 @@ public class BeamSqlLine {
       @Nullable OutputStream errorStream)
       throws IOException {
     String[] modifiedArgs = checkConnectionArgs(args);
+    TerminalFactory.registerFlavor(TerminalFactory.Flavor.UNIX, InterruptRestoringTerminal.class);
     SqlLine sqlLine = new SqlLine();
 
     if (outputStream != null) {
@@ -76,5 +80,55 @@ public class BeamSqlLine {
     }
 
     return sqlLine.begin(modifiedArgs, inputStream, true);
+  }
+
+  /**
+   * A JLine {@link UnixTerminal} that always restores the interrupt character (Ctrl+C) after
+   * reading a line. SqlLine has JLine handle Ctrl+C while it reads a line, so JLine undefines the
+   * character for each read and then restores the value it saved. JLine reads that value from
+   * {@code stty} output that it caches for a second, which can be from a read that had already
+   * undefined it. Ctrl+C then stops sending SIGINT for good, so it can't cancel a running
+   * statement.
+   */
+  public static class InterruptRestoringTerminal extends UnixTerminal {
+    private @Nullable String intr;
+
+    public InterruptRestoringTerminal() throws Exception {}
+
+    @Override
+    public void init() throws Exception {
+      super.init();
+      // No line has been read yet, so the character is still defined.
+      String value = getSettings().getPropertyAsString("intr");
+      intr = "<undef>".equals(value) ? null : value;
+    }
+
+    @Override
+    public void disableInterruptCharacter() {
+      try {
+        getSettings().undef("intr");
+      } catch (Exception e) {
+        handle(e, "Failed to disable interrupt character");
+      }
+    }
+
+    @Override
+    public void enableInterruptCharacter() {
+      String value = intr;
+      try {
+        if (value != null) {
+          getSettings().set("intr", value);
+        }
+      } catch (Exception e) {
+        handle(e, "Failed to enable interrupt character");
+      }
+    }
+
+    private static void handle(Exception e, String message) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      Log.error(message, e);
+    }
   }
 }
