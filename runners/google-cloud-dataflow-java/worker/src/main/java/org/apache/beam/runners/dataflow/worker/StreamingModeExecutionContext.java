@@ -48,6 +48,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
@@ -67,9 +68,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
@@ -808,33 +810,36 @@ public class StreamingModeExecutionContext
     // calls getAndReset on all modified counters to report to Dataflow. We should find a more
     // dedicated counter that is only extracted here.
     DataflowMapTaskExecutor mapTaskExecutor = (DataflowMapTaskExecutor) workExecutor;
-    long totalBytes = 0L;
-    ReadOperation readOperation = mapTaskExecutor.getReadOperation();
-    if (readOperation != null
-        && readOperation.receivers != null
-        && readOperation.receivers.length > 0
-        && readOperation.receivers[0] != null) {
-      HashMap<String, ElementCounter> readOpCounters =
-          readOperation.receivers[0].getOutputCounters();
-      totalBytes +=
-          Optional.ofNullable(readOpCounters.get(sourceBytesCounterName))
-              .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
-              .orElse(0L);
-    }
+    long totalBytes =
+        getAndResetOperationBytesProcessed(
+            mapTaskExecutor.getReadOperation(), sourceBytesCounterName);
     for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
-      if (parDoOp.shouldReportBytesRead()
-          && parDoOp.receivers != null
-          && parDoOp.receivers.length > 0
-          && parDoOp.receivers[0] != null) {
-        HashMap<String, ElementCounter> splittableProcessOpCounters =
-            parDoOp.receivers[0].getOutputCounters();
-        totalBytes +=
-            Optional.ofNullable(splittableProcessOpCounters.get(sourceBytesCounterName))
-                .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
-                .orElse(0L);
+      if (parDoOp.shouldReportBytesRead()) {
+        totalBytes += getAndResetOperationBytesProcessed(parDoOp, sourceBytesCounterName);
       }
     }
     return totalBytes;
+  }
+
+  private static long getAndResetOperationBytesProcessed(
+      @Nullable Operation operation, String sourceBytesCounterName) {
+    if (operation == null || operation.receivers == null) {
+      return 0L;
+    }
+    long bytes = 0L;
+    for (OutputReceiver receiver : operation.receivers) {
+      if (receiver == null) {
+        continue;
+      }
+      ElementCounter counter = receiver.getOutputCounters().get(sourceBytesCounterName);
+      if (counter instanceof OutputObjectAndByteCounter) {
+        Counter<Long, Long> byteCount = ((OutputObjectAndByteCounter) counter).getByteCount();
+        if (byteCount != null) {
+          bytes += byteCount.getAndReset();
+        }
+      }
+    }
+    return bytes;
   }
 
   public boolean advance() throws CoderException {

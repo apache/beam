@@ -53,7 +53,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
@@ -169,30 +168,23 @@ final class ComputationWorkExecutorFactory {
       MapTask mapTask,
       Nodes.ParallelInstructionNode readNode,
       Coder<?> readCoder,
-      Operation operation,
+      OutputReceiver receiver,
       MapTaskExecutor mapTaskExecutor,
       String counterName) {
-    if (operation.receivers != null && operation.receivers.length > 0) {
-      NameContext nameContext =
-          NameContext.create(
-              mapTask.getStageName(),
-              readNode.getParallelInstruction().getOriginalName(),
-              readNode.getParallelInstruction().getSystemName(),
-              readNode.getParallelInstruction().getName());
-      for (OutputReceiver receiver : operation.receivers) {
-        if (receiver != null) {
-          receiver.addOutputCounter(
-              counterName,
-              new OutputObjectAndByteCounter(
-                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                          readCoder),
-                      mapTaskExecutor.getOutputCounters(),
-                      nameContext)
-                  .setSamplingPeriod(100)
-                  .countBytes(counterName));
-        }
-      }
-    }
+    NameContext nameContext =
+        NameContext.create(
+            mapTask.getStageName(),
+            readNode.getParallelInstruction().getOriginalName(),
+            readNode.getParallelInstruction().getSystemName(),
+            readNode.getParallelInstruction().getName());
+    receiver.addOutputCounter(
+        counterName,
+        new OutputObjectAndByteCounter(
+                new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
+                mapTaskExecutor.getOutputCounters(),
+                nameContext)
+            .setSamplingPeriod(100)
+            .countBytes(counterName));
   }
 
   private static ReadOperation getValidatedReadOperation(MapTaskExecutor mapTaskExecutor) {
@@ -237,25 +229,35 @@ final class ComputationWorkExecutorFactory {
 
     // If using a custom source, count bytes read for autoscaling.
     if (isCustomSource(readNode)) {
-      trackAutoscalingBytesRead(
-          mapTask,
-          readNode,
-          readCoder,
-          readOperation,
-          mapTaskExecutor,
-          computationState.sourceBytesProcessCounterName());
-    } else {
-      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
-        if (parDoOp.shouldReportBytesRead()) {
-          Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder();
-          if (bytesReadCoder != null) {
+      if (readOperation.receivers != null) {
+        for (OutputReceiver receiver : readOperation.receivers) {
+          if (receiver != null) {
             trackAutoscalingBytesRead(
                 mapTask,
                 readNode,
-                bytesReadCoder,
-                parDoOp,
+                readCoder,
+                receiver,
                 mapTaskExecutor,
                 computationState.sourceBytesProcessCounterName());
+          }
+        }
+      }
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+        if (parDoOp.shouldReportBytesRead() && parDoOp.receivers != null) {
+          for (OutputReceiver receiver : parDoOp.receivers) {
+            if (receiver != null) {
+              Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder(receiver);
+              if (bytesReadCoder != null) {
+                trackAutoscalingBytesRead(
+                    mapTask,
+                    readNode,
+                    bytesReadCoder,
+                    receiver,
+                    mapTaskExecutor,
+                    computationState.sourceBytesProcessCounterName());
+              }
+            }
           }
         }
       }

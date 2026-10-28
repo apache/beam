@@ -244,10 +244,11 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
   }
 
   /**
-   * Returns the {@link DoFnInfo} currently being used by this {@link SimpleParDoFn}.
+   * Returns the {@link DoFnInfo} currently being used by this {@link
+   * StreamingKeyedWorkItemSideInputParDoFn}.
    *
-   * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
-   * finished.
+   * <p>May be null if no element has been processed yet, or if the {@link
+   * StreamingKeyedWorkItemSideInputParDoFn} has finished.
    */
   @VisibleForTesting
   @Nullable DoFnInfo<?, ?> getActiveDoFnInfo() {

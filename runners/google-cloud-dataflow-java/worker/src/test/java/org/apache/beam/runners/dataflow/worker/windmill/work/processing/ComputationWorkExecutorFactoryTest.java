@@ -22,6 +22,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.InstructionInput;
@@ -80,6 +81,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -288,13 +290,13 @@ public class ComputationWorkExecutorFactoryTest {
 
     ParDoOperation stringSplittableOp =
         allParDoOps.stream()
-            .filter(op -> windowedStringCoder.equals(op.getBytesReadCoder()))
+            .filter(op -> windowedStringCoder.equals(op.getBytesReadCoder(op.receivers[0])))
             .findFirst()
             .orElseThrow(
                 () -> new AssertionError("Expected ParDoOperation with windowedStringCoder"));
     ParDoOperation intSplittableOp =
         allParDoOps.stream()
-            .filter(op -> windowedIntCoder.equals(op.getBytesReadCoder()))
+            .filter(op -> windowedIntCoder.equals(op.getBytesReadCoder(op.receivers[0])))
             .findFirst()
             .orElseThrow(() -> new AssertionError("Expected ParDoOperation with windowedIntCoder"));
 
@@ -308,7 +310,8 @@ public class ComputationWorkExecutorFactoryTest {
             .filter(op -> !op.shouldReportBytesRead())
             .findFirst()
             .orElseThrow(() -> new AssertionError("Expected non-reporting ParDoOperation"));
-    assertNull(regularParDoOp.getBytesReadCoder());
+    assertTrue(regularParDoOp.getBytesReadCoders().isEmpty());
+    assertNull(regularParDoOp.getBytesReadCoder(regularParDoOp.receivers[0]));
     assertNull(regularParDoOp.receivers[0].getOutputCounters().get(counterName));
 
     // Process elements through each operation's receiver and verify each uses its own coder.
@@ -317,6 +320,145 @@ public class ComputationWorkExecutorFactoryTest {
     stringSplittableOp.receivers[0].process(stringElem);
     intSplittableOp.receivers[0].process(intElem);
     regularParDoOp.receivers[0].process(stringElem);
+
+    long expectedStringBytes =
+        CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
+    long expectedIntBytes =
+        CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
+
+    @SuppressWarnings("unchecked")
+    Counter<Long, Long> bytesReadCounter =
+        (Counter<Long, Long>) mapTaskExecutor.getOutputCounters().getExistingCounter(counterName);
+    assertNotNull(bytesReadCounter);
+    assertEquals(
+        Long.valueOf(expectedStringBytes + expectedIntBytes), bytesReadCounter.getAggregate());
+  }
+
+  @Test
+  public void testCreateComputationWorkExecutor_multiOutputSplittableParDoWithDifferentCoders()
+      throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    ComputationWorkExecutorFactory factory =
+        new ComputationWorkExecutorFactory(
+            options,
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mock(ReaderCache.class),
+            computationId -> mock(WindmillStateCache.ForComputation.class),
+            DataflowExecutionStateSampler.instance(),
+            StreamingCounters.create(),
+            mock(FailureTracker.class),
+            IdGenerators.decrementingLongs(),
+            new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build()),
+            mock(HotKeyLogger.class),
+            SideInputStateFetcherFactory.fromOptions(options),
+            MultiKeyBundleOptions.fromOptions(options));
+
+    Coder<WindowedValue<String>> windowedStringCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    Coder<WindowedValue<Integer>> windowedIntCoder =
+        WindowedValues.getFullCoder(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE);
+
+    TupleTag<String> mainOutputTag = new TupleTag<>("main");
+    TupleTag<Integer> sideOutputTag = new TupleTag<>("side");
+    String serializedFn =
+        StringUtils.byteArrayToJsonString(
+            SerializableUtils.serializeToByteArray(
+                DoFnInfo.forFn(
+                    new StringSplittableDoFn(),
+                    WindowingStrategy.globalDefault(),
+                    null /* side input views */,
+                    StringUtf8Coder.of() /* input coder */,
+                    ImmutableMap.of(
+                        mainOutputTag, StringUtf8Coder.of(), sideOutputTag, VarIntCoder.of()),
+                    mainOutputTag,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap())));
+
+    CloudObject cloudUserFn = CloudObject.forClassName("SplittableProcessFn");
+    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
+    addObject(
+        cloudUserFn,
+        WorkerPropertyNames.RESTRICTION_CODER,
+        CloudObjects.asCloudObject(
+            KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+
+    InstructionInput cloudInput = new InstructionInput();
+    cloudInput.setProducerInstructionIndex(0);
+    cloudInput.setOutputNum(0);
+
+    MultiOutputInfo mainOutputInfo = new MultiOutputInfo();
+    mainOutputInfo.setTag("main");
+    MultiOutputInfo sideOutputInfo = new MultiOutputInfo();
+    sideOutputInfo.setTag("side");
+
+    ParDoInstruction parDoInstruction = new ParDoInstruction();
+    parDoInstruction.setInput(cloudInput);
+    parDoInstruction.setNumOutputs(2);
+    parDoInstruction.setMultiOutputInfos(ImmutableList.of(mainOutputInfo, sideOutputInfo));
+    parDoInstruction.setUserFn(cloudUserFn);
+
+    InstructionOutput mainOutput = new InstructionOutput();
+    mainOutput.setName("MultiOutputSplittableParDo_main");
+    mainOutput.setCodec(CloudObjects.asCloudObject(windowedStringCoder, /* sdkComponents= */ null));
+    mainOutput.setOriginalName("MultiOutputSplittableParDoOriginal");
+    mainOutput.setSystemName("MultiOutputSplittableParDo");
+
+    InstructionOutput sideOutput = new InstructionOutput();
+    sideOutput.setName("MultiOutputSplittableParDo_side");
+    sideOutput.setCodec(CloudObjects.asCloudObject(windowedIntCoder, /* sdkComponents= */ null));
+    sideOutput.setOriginalName("MultiOutputSplittableParDoOriginal");
+    sideOutput.setSystemName("MultiOutputSplittableParDo");
+
+    ParallelInstruction multiOutputSdfInstruction = new ParallelInstruction();
+    multiOutputSdfInstruction.setParDo(parDoInstruction);
+    multiOutputSdfInstruction.setOutputs(ImmutableList.of(mainOutput, sideOutput));
+    multiOutputSdfInstruction.setName("MultiOutputSplittableParDo");
+    multiOutputSdfInstruction.setSystemName("MultiOutputSplittableParDo");
+    multiOutputSdfInstruction.setOriginalName("MultiOutputSplittableParDoOriginal");
+
+    MapTask mapTask = new MapTask();
+    mapTask.setStageName("testStage");
+    mapTask.setSystemName("testSystem");
+    mapTask.setInstructions(
+        Arrays.asList(
+            createWindmillReadInstruction("Read", windowedStringCoder), multiOutputSdfInstruction));
+    mapTask.setFactory(Transport.getJsonFactory());
+
+    StageInfo stageInfo = StageInfo.create("testStage", "testSystem");
+    ComputationState computationState =
+        new ComputationState(
+            "computationId",
+            mapTask,
+            mock(BoundedQueueExecutor.class),
+            Collections.emptyMap(),
+            mock(WindmillStateCache.ForComputation.class));
+
+    ComputationWorkExecutor workExecutor =
+        factory.createComputationWorkExecutor(stageInfo, computationState, "workLatencyTrackingId");
+
+    DataflowMapTaskExecutor mapTaskExecutor = (DataflowMapTaskExecutor) workExecutor.workExecutor();
+    List<ParDoOperation> allParDoOps = mapTaskExecutor.getParDoOperations();
+    assertEquals(1, allParDoOps.size());
+
+    ParDoOperation multiOutputSdfOp = allParDoOps.get(0);
+    assertTrue(multiOutputSdfOp.shouldReportBytesRead());
+    assertEquals(2, multiOutputSdfOp.receivers.length);
+    assertEquals(
+        windowedStringCoder, multiOutputSdfOp.getBytesReadCoder(multiOutputSdfOp.receivers[0]));
+    assertEquals(
+        windowedIntCoder, multiOutputSdfOp.getBytesReadCoder(multiOutputSdfOp.receivers[1]));
+
+    String counterName = computationState.sourceBytesProcessCounterName();
+    assertNotNull(multiOutputSdfOp.receivers[0].getOutputCounters().get(counterName));
+    assertNotNull(multiOutputSdfOp.receivers[1].getOutputCounters().get(counterName));
+
+    // Process differently typed elements on main and side output receivers without
+    // ClassCastException.
+    WindowedValue<String> stringElem = WindowedValues.valueInGlobalWindow("hello");
+    WindowedValue<Integer> intElem = WindowedValues.valueInGlobalWindow(12345);
+    multiOutputSdfOp.receivers[0].process(stringElem);
+    multiOutputSdfOp.receivers[1].process(intElem);
 
     long expectedStringBytes =
         CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
