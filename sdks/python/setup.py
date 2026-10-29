@@ -159,9 +159,8 @@ else:
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
     # pandas 2.2.2 is the first version that works with numpy 2.0.0+
-    # Python 3.10 is not supported by pandas 3.0+
-    'pandas>=2.2.2,<2.4; python_version < "3.11"',
-    'pandas>=2.2.2,<3.2; python_version >= "3.11"',
+    # TODO(https://github.com/apache/beam/issues/40709): support pandas 3+
+    'pandas>=2.2.2,<2.4',
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
@@ -492,8 +491,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'markdown',
-              'pandas<2.4; python_version < "3.11"',
-              'pandas<3.2; python_version >= "3.11"',
+              'pandas<2.6.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
@@ -504,8 +502,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.4; python_version < "3.11"',
-              'pandas<3.2; python_version >= "3.11"',
+              'pandas<2.6.0',
               'parameterized>=0.7.1,<0.10.0',
               'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
