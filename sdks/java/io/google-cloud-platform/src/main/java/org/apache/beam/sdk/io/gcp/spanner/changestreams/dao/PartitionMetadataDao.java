@@ -269,8 +269,8 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Fetches all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
-   * given timestamp. The results are ordered by the {@link
+   * Fetches all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} greater than
+   * or equal to the given timestamp. The results are ordered by the {@link
    * PartitionMetadataAdminDao#COLUMN_CREATED_AT} and {@link
    * PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP} columns in ascending order.
    */
@@ -283,7 +283,7 @@ public class PartitionMetadataDao {
                       + metadataTableName
                       + "\" WHERE \""
                       + COLUMN_CREATED_AT
-                      + "\" > $1"
+                      + "\" >= $1"
                       + " ORDER BY \""
                       + COLUMN_CREATED_AT
                       + "\" ASC"
@@ -300,7 +300,7 @@ public class PartitionMetadataDao {
                       + metadataTableName
                       + " WHERE "
                       + COLUMN_CREATED_AT
-                      + " > @timestamp"
+                      + " >= @timestamp"
                       + " ORDER BY "
                       + COLUMN_CREATED_AT
                       + " ASC"
@@ -317,8 +317,8 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Counts all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
-   * given timestamp.
+   * Counts all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} greater than
+   * or equal to the given timestamp.
    */
   public long countPartitionsCreatedAfter(Timestamp timestamp) {
     Statement statement;
@@ -329,7 +329,7 @@ public class PartitionMetadataDao {
                       + metadataTableName
                       + "\" WHERE \""
                       + COLUMN_CREATED_AT
-                      + "\" > $1")
+                      + "\" >= $1")
               .bind("p1")
               .to(timestamp)
               .build();
@@ -340,7 +340,7 @@ public class PartitionMetadataDao {
                       + metadataTableName
                       + " WHERE "
                       + COLUMN_CREATED_AT
-                      + " > @timestamp")
+                      + " >= @timestamp")
               .bind("timestamp")
               .to(timestamp)
               .build();

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -33,6 +34,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ReadContext;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
@@ -578,5 +580,91 @@ public class PartitionMetadataDaoTest {
             .asMap()
             .get(PartitionMetadataAdminDao.COLUMN_STATE)
             .getString());
+  }
+
+  @Test
+  public void testGetAllPartitionsCreatedAfterGoogleSql() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+
+    assertSame(resultSet, partitionMetadataDao.getAllPartitionsCreatedAfter(CREATED_AT));
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT * FROM "
+            + METADATA_TABLE_NAME
+            + " WHERE CreatedAt >= @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC",
+        captured.getSql());
+    assertEquals(CREATED_AT, captured.getParameters().get("timestamp").getTimestamp());
+  }
+
+  @Test
+  public void testGetAllPartitionsCreatedAfterPostgres() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+
+    PartitionMetadataDao pgDao =
+        new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, Dialect.POSTGRESQL);
+    assertSame(resultSet, pgDao.getAllPartitionsCreatedAfter(CREATED_AT));
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT * FROM \""
+            + METADATA_TABLE_NAME
+            + "\" WHERE \"CreatedAt\" >= $1 ORDER BY \"CreatedAt\" ASC, \"StartTimestamp\" ASC",
+        captured.getSql());
+    assertEquals(CREATED_AT, captured.getParameters().get("p1").getTimestamp());
+  }
+
+  @Test
+  public void testCountPartitionsCreatedAfterGoogleSql() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getLong("count")).thenReturn(5L);
+
+    assertEquals(5L, partitionMetadataDao.countPartitionsCreatedAfter(CREATED_AT));
+    assertEquals(0L, partitionMetadataDao.countPartitionsCreatedAfter(CREATED_AT));
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext, times(2)).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT COUNT(*) as count FROM " + METADATA_TABLE_NAME + " WHERE CreatedAt >= @timestamp",
+        captured.getSql());
+    assertEquals(CREATED_AT, captured.getParameters().get("timestamp").getTimestamp());
+  }
+
+  @Test
+  public void testCountPartitionsCreatedAfterPostgres() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true).thenReturn(false);
+    when(resultSet.getLong("count")).thenReturn(3L);
+
+    PartitionMetadataDao pgDao =
+        new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, Dialect.POSTGRESQL);
+    assertEquals(3L, pgDao.countPartitionsCreatedAfter(CREATED_AT));
+    assertEquals(0L, pgDao.countPartitionsCreatedAfter(CREATED_AT));
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext, times(2)).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "SELECT COUNT(*) as count FROM \"" + METADATA_TABLE_NAME + "\" WHERE \"CreatedAt\" >= $1",
+        captured.getSql());
+    assertEquals(CREATED_AT, captured.getParameters().get("p1").getTimestamp());
   }
 }
