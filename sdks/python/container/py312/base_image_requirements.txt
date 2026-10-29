@@ -93,7 +93,7 @@ h11==0.16.0
 h2==4.4.1
 hpack==4.2.0
 httpcore==1.0.9
-httplib2==0.32.0
+httplib2==0.32.1
 httpx==0.28.1
 hyperframe==6.1.0
 hypothesis==6.148.3
