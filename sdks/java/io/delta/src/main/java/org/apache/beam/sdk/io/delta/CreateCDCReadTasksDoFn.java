@@ -31,6 +31,7 @@ import io.delta.kernel.internal.DeltaLogActionUtils.DeltaAction;
 import io.delta.kernel.internal.TableImpl;
 import io.delta.kernel.internal.actions.AddCDCFile;
 import io.delta.kernel.internal.actions.AddFile;
+import io.delta.kernel.internal.actions.Metadata;
 import io.delta.kernel.internal.util.VectorUtils;
 import io.delta.kernel.utils.CloseableIterator;
 import java.time.Instant;
@@ -108,17 +109,27 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
               resolvedStartVersion, resolvedEndVersion));
     }
 
-    // 2. Load snapshot at resolvedEndVersion to get the scanStateRow
-    // We use endVersion's schema because it represents the latest schema in the
-    // read range
-    // which handles schema evolution (older files will just lack new columns).
-    Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+    // 2. Load snapshots at resolvedStartVersion and resolvedEndVersion. All changes within the
+    // range
+    // are read using the schema at resolvedEndVersion, which handles schema evolution (older files
+    // will just lack new columns). This is only supported if the range only spans additive schema
+    // changes (see DeltaSchemaUtils), which is verified for the schema at resolvedStartVersion here
+    // and for all schema changes within the range while reading the commits of the range below.
+    Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
+    Snapshot endSnapshot =
+        resolvedStartVersion == resolvedEndVersion
+            ? startSnapshot
+            : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+    io.delta.kernel.types.StructType startSchema = startSnapshot.getSchema();
+    io.delta.kernel.types.StructType endSchema = endSnapshot.getSchema();
+    if (startSchema == null || endSchema == null) {
+      throw new IllegalStateException("Table schema is null.");
+    }
+    DeltaSchemaUtils.checkReadCompatible(
+        startSchema, resolvedStartVersion, endSchema, resolvedStartVersion, resolvedEndVersion);
     Scan scan = endSnapshot.getScanBuilder().build();
     Row scanState = scan.getScanState(engine);
     SerializableRow serializableScanState = new SerializableRow(scanState);
-
-    // 3. Load snapshot at resolvedStartVersion to initialize the CommitRange
-    Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
 
     CommitRangeBuilder rangeBuilder =
         TableManager.loadCommitRange(
@@ -129,9 +140,11 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
     // We need both CDC and ADD actions.
     // If a commit version has CDC files, we only read CDC files.
     // If a commit version has no CDC files, we read ADD files (inserts).
+    // We also need METADATA actions to verify all schema changes within the range.
     Set<DeltaAction> actionSet = new HashSet<>();
     actionSet.add(DeltaAction.CDC);
     actionSet.add(DeltaAction.ADD);
+    actionSet.add(DeltaAction.METADATA);
 
     // 4. Iterate over commits in the range and group actions by version
     try (CloseableIterator<ColumnarBatch> batchIter =
@@ -144,10 +157,25 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
         int timestampIdx = batch.getSchema().indexOf("timestamp");
         int cdcIdx = batch.getSchema().indexOf("cdc");
         int addIdx = batch.getSchema().indexOf("add");
+        int metadataIdx = batch.getSchema().indexOf(DeltaAction.METADATA.colName);
 
         for (int i = 0; i < batch.getSize(); i++) {
           long version = batch.getColumnVector(versionIdx).getLong(i);
           long timestamp = batch.getColumnVector(timestampIdx).getLong(i);
+
+          // A METADATA action means that the table metadata, which includes the table schema, was
+          // updated in this version. Data written in this or later versions (until the next
+          // update) uses the new schema, so it also has to be readable using the end schema.
+          // Verifying every schema change within the range, and not only the schemas at the start
+          // and end versions, catches non-additive changes that are reverted within the range, for
+          // example, a column that was added and then dropped again. Since tasks are only emitted
+          // after all commits of the range were read, no tasks are emitted if this check fails.
+          if (metadataIdx >= 0 && !batch.getColumnVector(metadataIdx).isNullAt(i)) {
+            io.delta.kernel.types.StructType schemaAtVersion =
+                Metadata.fromColumnVector(batch.getColumnVector(metadataIdx), i).getSchema();
+            DeltaSchemaUtils.checkReadCompatible(
+                schemaAtVersion, version, endSchema, resolvedStartVersion, resolvedEndVersion);
+          }
 
           CommitActionsInfo info =
               commitActionsMap.computeIfAbsent(
