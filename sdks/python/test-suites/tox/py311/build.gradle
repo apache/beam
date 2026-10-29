@@ -94,6 +94,10 @@ toxTask "testPy311pandas-23", "py311-pandas-23", "${posargs}"
 test.dependsOn "testPy311pandas-23"
 postCommitPyDep.dependsOn "testPy311pandas-23"
 
+toxTask "testPy311pandas-23future", "py311-pandas-23future", "${posargs}"
+test.dependsOn "testPy311pandas-23future"
+postCommitPyDep.dependsOn "testPy311pandas-23future"
+
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
 // Create a test task for the lower and upper bounds of supported pytorch.
