@@ -34,6 +34,7 @@ RUN if [ -z "${TARGETARCH}" ]; then echo "fatal: TARGETARCH not set; run as dock
 FROM ${DISTROLESS_BASE}:latest-${TARGETARCH} AS distroless
 
 COPY --from=base /opt /opt
+COPY --from=base /opt/java/openjdk/lib/security/cacerts /etc/ssl/certs/java/cacerts
 
 # Along with the LANG environment variable above, prevents internally discovered failing bugs related to Dataflow Flex
 # template character encodings.
