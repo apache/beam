@@ -69,6 +69,7 @@ class BigQueryResourceNaming {
     LOAD,
     TEMP_TABLE_LOAD,
     COPY,
+    CLONE,
     EXPORT,
     QUERY,
     SCHEMA_UPDATE,

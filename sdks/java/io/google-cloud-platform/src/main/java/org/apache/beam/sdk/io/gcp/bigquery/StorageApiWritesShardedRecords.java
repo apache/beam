@@ -988,6 +988,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 tableDestination,
                 () -> dynamicDestinations.getSchema(destination),
                 () -> dynamicDestinations.getTableConstraints(destination),
+                () -> dynamicDestinations.getCloneSource(destination),
                 createDisposition,
                 destinationCoder,
                 kmsKey,
