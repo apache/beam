@@ -21,6 +21,7 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -34,8 +35,14 @@ import java.util.Set;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.PartitionSpec;
@@ -50,6 +57,9 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -94,6 +104,19 @@ public class AddFilesDynamicDestinationsTest {
         .build();
   }
 
+  private SchemaEvolutionConfig dryRunEvolution() {
+    return SchemaEvolutionConfig.builder()
+        .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+        .setDryRun(true)
+        .build();
+  }
+
+  private AddFiles addFiles(
+      String template, @Nullable String locationPrefix, @Nullable SchemaEvolutionConfig evolution) {
+    return new AddFiles(
+        catalogConfig, template, locationPrefix, null, null, null, null, null, evolution);
+  }
+
   private String write(String relative, Schema schema, Record... records) throws IOException {
     String file = root + relative;
     new File(file).getParentFile().mkdirs();
@@ -121,9 +144,7 @@ public class AddFilesDynamicDestinationsTest {
   }
 
   private PCollectionRowTuple run(String pattern, String template, List<String> files) {
-    AddFiles addFiles =
-        new AddFiles(catalogConfig, template, null, null, null, null, null, null, evolution())
-            .withPathPattern(pattern);
+    AddFiles addFiles = addFiles(template, null, evolution()).withPathPattern(pattern);
     return pipeline.apply("Files", Create.of(files)).apply(addFiles);
   }
 
@@ -257,5 +278,86 @@ public class AddFilesDynamicDestinationsTest {
     assertEquals("orders still loaded", 1, rowCount(TableIdentifier.of("lake", "orders")));
     assertFalse(
         "junk table was not created", catalog.tableExists(TableIdentifier.of("lake", "junk")));
+  }
+
+  /**
+   * A custom-windowed input used to fail at construction: the error output taken off RouteFiles
+   * kept the input's windowing while every other branch had been moved to the global window, and
+   * the Flatten over them refused the mix.
+   */
+  @Test
+  public void aCustomWindowedInputStillRegistersAndReports() throws Exception {
+    catalog.createNamespace(Namespace.of("lake"));
+    String routed = write("export/orders/a.parquet", ORDERS, order(1, "x"));
+    String stray = write("stray.parquet", ORDERS, order(9, "s"));
+
+    AddFiles addFiles =
+        addFiles("lake.{tbl}", null, evolution()).withPathPattern(root + "export/{tbl}/**");
+    PCollectionRowTuple out =
+        pipeline
+            .apply(
+                "Files",
+                Create.timestamped(
+                    TimestampedValue.of(routed, new Instant(0)),
+                    TimestampedValue.of(stray, new Instant(0))))
+            .apply("FixedWindows", Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+            .apply(addFiles);
+
+    PAssert.that(out.get(AddFiles.ERROR_TAG))
+        .satisfies(
+            rows -> {
+              List<Row> all = new ArrayList<>();
+              rows.forEach(all::add);
+              assertEquals("expected exactly the stray: " + all, 1, all.size());
+              assertEquals(stray, all.get(0).getString("file"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(1, rowCount(TableIdentifier.of("lake", "orders")));
+  }
+
+  /**
+   * A triggered input used to fire the pre-pass per pane, and a pane that carried no readable
+   * schema refused the table outright: the gate then held back every file of a table that was fine.
+   */
+  @Test
+  public void aTriggeredInputCommitsTheSchemaOnce() throws Exception {
+    catalog.createNamespace(Namespace.of("lake"));
+    List<String> files =
+        Arrays.asList(
+            write("export/orders/a.parquet", ORDERS, order(1, "x")),
+            write("export/orders/b.parquet", ORDERS, order(2, "y")));
+
+    AddFiles addFiles =
+        addFiles("lake.{tbl}", null, evolution()).withPathPattern(root + "export/{tbl}/**");
+    PCollectionRowTuple out =
+        pipeline
+            .apply("Files", Create.of(files))
+            .apply(
+                "FirePerElement",
+                Window.<String>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                    .discardingFiredPanes())
+            .apply(addFiles);
+    PAssert.that(out.get(AddFiles.ERROR_TAG)).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(2, rowCount(TableIdentifier.of("lake", "orders")));
+  }
+
+  /** What the pattern cannot be combined with fails where it is set, not once per file. */
+  @Test
+  public void optionsThePatternCannotBeCombinedWithFailWhereItIsSet() {
+    String pattern = root + "export/{tbl}/**";
+
+    AddFiles noEvolution = addFiles("lake.{tbl}", null, null);
+    assertThrows(IllegalStateException.class, () -> noEvolution.withPathPattern(pattern));
+
+    AddFiles dryRun = addFiles("lake.{tbl}", null, dryRunEvolution());
+    assertThrows(IllegalStateException.class, () -> dryRun.withPathPattern(pattern));
+
+    AddFiles locationPrefix = addFiles("lake.{tbl}", root, evolution());
+    assertThrows(IllegalStateException.class, () -> locationPrefix.withPathPattern(pattern));
   }
 }

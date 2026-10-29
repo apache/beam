@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -280,17 +281,49 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   /**
-   * Registers each file in the table its own path names. The pattern is a glob with {@code {name}}
-   * placeholders, and {@code table} becomes a template over what it captures.
+   * A rule that routes each file to a destination table, read from the file's own path: a glob with
+   * {@code {name}} placeholders, whose captures fill in the table identifier as a template. So
+   * {@code gs://lake/export/{tbl}/**} with table {@code sales.{tbl}} routes a file under {@code
+   * export/orders/} to {@code sales.orders}.
    *
-   * <p>Both checks run here rather than per file: a mistyped pattern or a template naming something
-   * the pattern never captures is one exception at submit time, not one error row per file.
+   * <p>Everything that can be settled without the input is settled here: a mistyped pattern, a
+   * template naming something the pattern never captures, or an option this cannot be combined with
+   * is one exception at submit time, not one error row per file.
    */
   public AddFiles withPathPattern(String pathPattern) {
+    checkState(
+        evolution.isEnabled(),
+        "A path pattern needs schema evolution: the pre-pass is what decides each table.");
+    checkState(!evolution.getDryRun(), "A dry run of a path pattern is not supported yet.");
+    checkState(
+        Strings.isNullOrEmpty(locationPrefix),
+        "A path pattern cannot be combined with a location prefix: one fixed prefix cannot stop"
+            + " short of each file's own table folder, so the folder ends up inside the partition"
+            + " path ('orders/dt=2024-01-15/' where the table is partitioned only by 'dt').");
     PathPattern compiled = PathPattern.compile(pathPattern);
     compiled.checkRenderable(tableIdentifier);
     this.pathPattern = pathPattern;
     return this;
+  }
+
+  /**
+   * Collapses batch input to one window, for two reasons: the schema pre-pass is one pass over the
+   * whole input, and {@link GroupIntoBatches} sizes per key and window, so upstream windowing only
+   * divides {@code manifestFileSize} into smaller manifests and more snapshots. The default trigger
+   * keeps a triggered input from firing the pre-pass more than once.
+   *
+   * <p>Streaming keeps the caller's windowing: the snapshots output descends from this, and a
+   * global window under the default trigger never closes.
+   *
+   * <p>Applied before the input branches rather than after, so the error output of each branch
+   * shares this windowing. {@code FlattenErrors} rejects a mix.
+   */
+  private static PCollection<String> collapseToOneWindow(PCollection<String> input) {
+    return input.apply(
+        "CollapseToOneWindow",
+        Window.<String>into(new GlobalWindows())
+            .triggering(DefaultTrigger.of())
+            .discardingFiredPanes());
   }
 
   @Override
@@ -325,32 +358,29 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     // every stage that can reject a file appends here; one Flatten publishes them together
     List<PCollection<Row>> errorSources = new ArrayList<>();
 
+    PCollection<String> files =
+        input.isBounded().equals(UNBOUNDED) ? input : collapseToOneWindow(input);
+
     PCollection<KV<String, String>> keyedPaths;
 
     if (pathPattern != null) {
-      checkState(
-          evolution.isEnabled(),
-          "A path pattern needs schema evolution: the pre-pass is what decides each table.");
-      checkState(!evolution.getDryRun(), "A dry run of a path pattern is not supported yet.");
-
       PCollectionTuple routed =
-          input.apply(
+          files.apply(
               "RouteFiles",
               ParDo.of(new RouteFiles(checkStateNotNull(pathPattern), tableIdentifier))
                   .withOutputTags(RouteFiles.ROUTED, TupleTagList.of(RouteFiles.ERRORS)));
       errorSources.add(routed.get(RouteFiles.ERRORS).setRowSchema(DYNAMIC_ERROR_SCHEMA));
 
-      PCollection<KV<String, String>> windowed =
+      PCollection<KV<String, String>> routedPaths =
           routed
               .get(RouteFiles.ROUTED)
-              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-              .apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
       PCollectionView<Map<String, SchemaCommitVerdict>> verdicts =
-          verdictView(distinctSchemasPerTable(windowed), settings);
+          verdictView(distinctSchemasPerTable(routedPaths), settings);
 
       PCollectionTuple gated =
-          windowed.apply(
+          routedPaths.apply(
               "TableGate",
               ParDo.of(new TableGate(verdicts))
                   .withSideInputs(verdicts)
@@ -361,17 +391,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               .get(TableGate.RELEASED)
               .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
     } else {
-      PCollection<String> paths = input;
+      PCollection<String> paths = files;
       if (evolution.isEnabled()) {
-        // one commit per window, and for bounded input the window is the whole input
-        PCollection<String> windowed =
-            input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
-        PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(windowed);
+        PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(files);
         if (evolution.getDryRun()) {
           return report(schemas, settings);
         }
         PCollection<SchemaCommitVerdict> committed = commitSchema(schemas, settings);
-        paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
+        paths = files.apply("WaitForSchemaCommit", Wait.on(committed));
       }
 
       keyedPaths =

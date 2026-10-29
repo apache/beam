@@ -1803,6 +1803,35 @@ public class AddFilesTest {
   }
 
   /**
+   * Manifests and snapshots are sized per key and window, so upstream windowing used to divide
+   * them: two files 45s apart under 30s windows committed two snapshots. Batch input is collapsed
+   * to one window, so one snapshot, and this holds with no pre-pass to need it.
+   */
+  @Test
+  public void testUpstreamWindowedBatchInputWithoutEvolutionCommitsOneSnapshot() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String first = writeOneRecord("first.parquet");
+    String second = writeOneRecord("second.parquet");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply(
+                "Create Input",
+                Create.timestamped(
+                    TimestampedValue.of(first, new Instant(0)),
+                    TimestampedValue.of(second, new Instant(45_000))))
+            .apply("UpstreamWindow", Window.into(FixedWindows.of(Duration.standardSeconds(30))))
+            .apply(addFiles(null));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertEquals(2, Iterables.size(table.newScan().planFiles()));
+    assertEquals(1, Iterables.size(table.snapshots()));
+  }
+
+  /**
    * The schema commit retries a CommitFailedException (another writer got in first). The committer
    * is serialized with the DoFn, so the retry shows in the table and in the time the backoff
    * reports to the runner as throttled.

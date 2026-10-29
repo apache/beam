@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -72,26 +73,24 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
     @SchemaFieldDescription(
         "A fully-qualified table identifier. When path_pattern is set this is a template"
-            + " instead, filled from what the pattern captures, for example"
-            + " 'warehouse.{db}.{table}'; every placeholder it uses has to be one the pattern"
-            + " captures.")
+            + " instead, filled from what the pattern captures: 'sales.{tbl}', or"
+            + " 'sales_{country}.{tbl}' to put a captured value inside a name. Every placeholder"
+            + " it uses has to be one the pattern captures.")
     public abstract String getTable();
 
     @SchemaFieldDescription(
-        "Registers each file in the table that its own path names, instead of registering every"
-            + " file in one table. It is a glob over the whole path with '{name}' placeholders"
-            + " that each capture one folder: 'gs://lake/export/{table}/**' over"
-            + " 'gs://lake/export/orders/part-0.parquet' captures table=orders, and that file is"
-            + " registered in whichever table the 'table' template then renders. A '*' stays"
-            + " inside one folder, '**' crosses folders and may only appear after the last"
-            + " placeholder, and a path the pattern does not match goes to the error output"
-            + " instead of being registered anywhere. Requires schema_evolution_options, because"
-            + " the schema pre-pass is what decides each table, and error_handling, because that"
-            + " is where unroutable files and refused tables are reported. Setting it also adds"
+        "A rule that routes each file to a destination table, read from the file's own path."
+            + " Without it, every file is registered in the single table named by 'table'. The"
+            + " rule is a glob over the whole file path, with '{name}' placeholders that each"
+            + " capture one folder, and those captures fill in the 'table' template. For example"
+            + " path_pattern 'gs://lake/export/{tbl}/**' with table 'sales.{tbl}' routes"
+            + " 'gs://lake/export/orders/part-0.parquet' to table 'sales.orders', and"
+            + " 'gs://lake/export/customers/part-0.parquet' to 'sales.customers'. A '*' stays"
+            + " inside one folder; '**' crosses folders and may only appear after the last"
+            + " placeholder. A file whose path matches nothing is reported instead of registered,"
+            + " so this needs error_handling, and it needs schema_evolution_options. It also adds"
             + " a 'table' field to the error output, naming the table each reported file was"
-            + " headed for and empty when none could be determined; without it the error output"
-            + " keeps the two fields it has always had. Cannot be combined with dry_run. Batch"
-            + " pipelines only.")
+            + " headed for. Batch pipelines only; not with dry_run or location_prefix.")
     public abstract @Nullable String getPathPattern();
 
     @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
@@ -387,6 +386,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             ErrorHandling.hasOutput(configuration.getErrorHandling()),
             "path_pattern needs error_handling to receive the files it could not route or"
                 + " register");
+        Preconditions.checkArgument(
+            Strings.isNullOrEmpty(configuration.getLocationPrefix()),
+            "path_pattern cannot be combined with location_prefix: one fixed prefix cannot stop"
+                + " short of each file's own table folder");
         addFiles = addFiles.withPathPattern(pathPattern);
       }
 
