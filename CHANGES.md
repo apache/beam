@@ -68,6 +68,7 @@
 
 ## New Features / Improvements
 
+* Added an OpenLineage extension (`sdks/java/extensions/openlineage`) that emits OpenLineage events describing the datasets a pipeline reads and writes, via a wrapper runner (`--runner=OpenLineageRunner`) and a pluggable lineage backend (`--lineageType`) (Java) ([#39427](https://github.com/apache/beam/issues/39427)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
