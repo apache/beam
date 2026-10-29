@@ -348,6 +348,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:couchbase:build")
   dependsOn(":sdks:java:io:datadog:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")

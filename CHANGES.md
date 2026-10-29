@@ -64,6 +64,7 @@
 
 ## I/Os
 
+* Added CouchbaseIO for reading with SQL++ queries and writing documents (Java) ([#18381](https://github.com/apache/beam/issues/18381)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
