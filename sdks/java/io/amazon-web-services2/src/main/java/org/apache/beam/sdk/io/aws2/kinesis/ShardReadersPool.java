@@ -210,6 +210,7 @@ class ShardReadersPool {
       return CustomOptional.of(record);
     } catch (InterruptedException e) {
       LOG.warn("Interrupted while waiting for KinesisRecord from the buffer");
+      Thread.currentThread().interrupt();
       return CustomOptional.absent();
     }
   }

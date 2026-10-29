@@ -118,6 +118,9 @@ public class JetPipelineResult implements PipelineResult {
       completionFuture.get(duration.getMillis(), TimeUnit.MILLISECONDS);
       return State.DONE;
     } catch (InterruptedException | TimeoutException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       return getState(); // job should be RUNNING or STOPPED
     } catch (ExecutionException e) {
       throw new CompletionException(e.getCause());
