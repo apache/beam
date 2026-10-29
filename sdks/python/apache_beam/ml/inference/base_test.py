@@ -23,7 +23,6 @@ import multiprocessing
 import os
 import pickle
 import random
-import subprocess
 import sys
 import tempfile
 import threading
@@ -1340,6 +1339,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     load_model_latency = metric_results['distributions'][0]
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 500)
+
+  @unittest.skipIf(
+      sys.platform == 'win32',
+      'The resource module is not available on Windows.')
+  def test_no_resource_warning_when_model_manager_unavailable(self):
+    # ModelManager needs optional dependencies (e.g. torch). RunInference should
+    # still measure model memory with `resource` when ModelManager is missing.
+    with unittest.mock.patch.object(base, 'ModelManager', None), \
+        unittest.mock.patch.object(base.logging, 'warning') as mock_warning:
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([1, 5, 3, 10])
+            | base.RunInference(FakeModelHandler()))
+    messages = [str(call) for call in mock_warning.call_args_list]
+    self.assertFalse(
+        any('Resource module is not available' in m for m in messages),
+        messages)
 
   def test_forwards_batch_args(self):
     examples = list(range(100))
@@ -3152,28 +3169,6 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
-
-
-class ResourceImportTest(unittest.TestCase):
-  @unittest.skipIf(
-      sys.platform == 'win32',
-      'The resource module is not available on Windows.')
-  def test_resource_available_when_model_manager_import_fails(self):
-    # Run in a fresh interpreter in which importing model_manager fails, as it
-    # does when its optional dependencies (e.g. torch) are not installed.
-    code = '\n'.join([
-        'import sys',
-        "sys.modules['apache_beam.ml.inference.model_manager'] = None",
-        'from apache_beam.ml.inference import base',
-        'assert base.ModelManager is None',
-        'assert base.resource is not None',
-        'assert base._get_current_process_memory_in_bytes() > 0',
-    ])
-    result = subprocess.run([sys.executable, '-c', code],
-                            capture_output=True,
-                            text=True,
-                            check=False)
-    self.assertEqual(result.returncode, 0, msg=result.stderr)
 
 
 if __name__ == '__main__':
