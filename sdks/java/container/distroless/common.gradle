@@ -60,7 +60,7 @@ docker {
     files "./build/"
     buildArgs([
             'BEAM_BASE': base,
-            'DISTROLESS_BASE': "gcr.io/distroless/java${imageJavaVersion}-debian12"
+            'DISTROLESS_BASE': "gcr.io/distroless/java${imageJavaVersion}-debian13"
     ])
     buildx project.useBuildx()
     platform(*project.containerPlatforms())

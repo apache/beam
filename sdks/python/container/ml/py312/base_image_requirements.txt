@@ -35,7 +35,7 @@ beautifulsoup4==4.15.0
 bs4==0.0.2
 build==1.5.0
 cachetools==6.2.6
-certifi==2026.10.19
+certifi==2026.10.23
 cffi==2.1.1
 charset-normalizer==3.5.0
 click==8.4.2
@@ -93,8 +93,8 @@ googleapis-common-protos==1.75.1
 greenlet==3.5.5
 grpc-google-iam-v1==0.14.5
 grpc-interceptor==0.15.4
-grpcio==1.83.0
-grpcio-status==1.83.0
+grpcio==1.85.0
+grpcio-status==1.85.0
 guppy3==3.1.7
 h11==0.16.0
 h2==4.4.1
