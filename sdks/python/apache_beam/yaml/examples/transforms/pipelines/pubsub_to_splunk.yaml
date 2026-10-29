@@ -1,0 +1,87 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This is an example of a Beam YAML pipeline that reads messages from a Pub/Sub
+# subscription, transforms them into Splunk HEC events, writes them to Splunk,
+# and routes failed messages to a Pub/Sub deadletter topic. This matches the
+# Dataflow Template located here -
+# https://cloud.google.com/dataflow/docs/guides/templates/provided/pubsub-to-splunk
+
+pipeline:
+  type: composite
+  transforms:
+    # Step 1: Read messages from a Pub/Sub subscription
+    - type: ReadFromPubSub
+      name: ReadMessages
+      config:
+        subscription: "projects/apache-beam-testing/subscriptions/my-subscription"
+        format: JSON
+        schema:
+          type: object
+          properties:
+            label: {type: string}
+            rank: {type: integer}
+
+    # Step 2: Transform input messages and map to Splunk HEC event fields
+    - type: MapToFields
+      name: ConvertToSplunkEvents
+      input: ReadMessages
+      config:
+        language: python
+        fields:
+          time: 1700000000
+          host: "'test-host'"
+          source: "'apache-beam'"
+          sourcetype: "'test-type'"
+          index: "'test-index'"
+          event:
+            callable: |
+              def format_event(row):
+                return "Event for label " + row.label + " with rank " + str(row.rank)
+            output_type: string
+
+    # Step 3: Write events to Splunk's HTTP Event Collector (HEC) endpoint
+    - type: WriteToSplunk
+      name: WriteToSplunk
+      input: ConvertToSplunkEvents
+      config:
+        url: "https://splunk-hec-host:8088"
+        token: "my-splunk-hec-token"
+        batch_count: 10
+        parallelism: 1
+        disable_certificate_validation: false
+        enable_batch_logs: true
+        enable_gzip_http_compression: true
+        error_handling:
+          output: write_errors
+
+    # Step 4: Write failed records from Splunk HEC writes to a Pub/Sub deadletter topic
+    - type: WriteToPubSub
+      name: WriteFailedRecords
+      input: WriteToSplunk.write_errors
+      config:
+        topic: "projects/apache-beam-testing/topics/deadletter-topic"
+        format: JSON
+
+options:
+  streaming: true
+
+# Expected:
+#  Row(time=1700000000, host='test-host', source='apache-beam', sourcetype='test-type', index='test-index', event='Event for label 37a with rank 1')
+#  Row(time=1700000000, host='test-host', source='apache-beam', sourcetype='test-type', index='test-index', event='Event for label 37b with rank 4')
+#  Row(time=1700000000, host='test-host', source='apache-beam', sourcetype='test-type', index='test-index', event='Event for label 37c with rank 3')
+#  Row(time=1700000000, host='test-host', source='apache-beam', sourcetype='test-type', index='test-index', event='Event for label 37d with rank 2')
