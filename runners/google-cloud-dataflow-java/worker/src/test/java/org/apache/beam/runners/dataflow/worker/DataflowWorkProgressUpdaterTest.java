@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.D
 import org.apache.beam.runners.dataflow.worker.util.common.worker.StubbedExecutor;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -73,6 +74,9 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String HOT_KEY = "key";
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public final ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowWorkProgressUpdater.class);
 
   private StubbedExecutor executor;
 
@@ -171,6 +175,21 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   @Test
+  public void workProgressLogsHotKeyDetectionBeforeWorkerIsSet() throws Exception {
+    // the batch worker starts reporting before the execution context holding the key exists
+    progressUpdater.setWorker(null);
+    when(workItemStatusClient.getExecutionContext()).thenReturn(null);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+
+    verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(STEP_ID, HOT_KEY_AGE);
+
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
   public void workProgressAskedToAbortWorker() throws Exception {
     when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
         .thenReturn(generateServiceAbort());
@@ -179,6 +198,39 @@ public class DataflowWorkProgressUpdaterTest {
 
     verify(worker, atLeastOnce()).abort();
 
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressAbortBeforeWorkerIsSetAbortsItOnceSet() throws Exception {
+    // the batch worker starts reporting while the executor is still being created
+    progressUpdater.setWorker(null);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceAbort());
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+    Mockito.verify(worker, Mockito.never()).abort();
+
+    progressUpdater.setWorker(worker);
+
+    Mockito.verify(worker, Mockito.times(1)).abort();
+    progressUpdater.stopReportingProgress();
+  }
+
+  @Test
+  public void workProgressWarnsWhileExecutorCreationIsSlow() throws Exception {
+    // the batch worker starts reporting while the executor is still being created
+    progressUpdater.setWorker(null);
+    when(workItemStatusClient.reportUpdate(isNull(DynamicSplitResult.class), isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    executor.runNextRunnable();
+    expectedLogs.verifyNotLogged("is still creating its executor");
+
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(3).getMillis());
+    executor.runNextRunnable();
+
+    expectedLogs.verifyWarn("is still creating its executor");
     progressUpdater.stopReportingProgress();
   }
 

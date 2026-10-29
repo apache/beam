@@ -27,12 +27,13 @@ import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +41,24 @@ import org.slf4j.LoggerFactory;
 /**
  * DataflowWorkProgressUpdater implements the WorkProgressUpdater interface for the Cloud Dataflow
  * system.
+ *
+ * <p>Two threads use it. The thread running the work item starts and stops reporting and calls
+ * {@link #setWorker} once the executor exists, while the progress reporting thread sends the
+ * updates and receives aborts from the service. An abort can arrive while the executor is still
+ * being created, so handing that abort over to {@link #setWorker} is guarded by a lock.
  */
-@NotThreadSafe
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
+
+  /**
+   * How long executor creation may run before the first "still creating" warning. Matches the point
+   * where {@code DoFnInstanceManagers} calls a single DoFn.setup slow (3 minutes).
+   */
+  private static final long SLOW_SETUP_FIRST_WARNING_MILLIS = 3 * 60 * 1000;
+
+  /** Gap between repeated "still creating" warnings, so a stuck setup keeps showing in the log. */
+  private static final long SLOW_SETUP_WARNING_INTERVAL_MILLIS = 5 * 60 * 1000;
 
   private final WorkItemStatusClient workItemStatusClient;
 
@@ -58,18 +69,32 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private HotKeyLogger hotKeyLogger;
 
-  private boolean wasAskedToAbort = false;
+  private volatile boolean wasAskedToAbort = false;
+
+  /**
+   * Guards the hand-off between an abort that arrives while the executor is still being created and
+   * {@link #setWorker}, so the abort reaches the executor whichever thread runs first.
+   */
+  private final Object abortLock = new Object();
+
+  /** When this updater was created, which for the batch worker is when executor creation starts. */
+  private final long createdAtMillis;
+
+  /** Only read and written by the progress reporting thread. */
+  private long nextSlowSetupWarningAtMillis;
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
-      WorkExecutor worker,
+      @Nullable WorkExecutor worker,
       DataflowPipelineOptions options) {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
     this.hotKeyLogger = new HotKeyLogger();
     this.options = options;
+    this.createdAtMillis = clock.currentTimeMillis();
+    this.nextSlowSetupWarningAtMillis = createdAtMillis + SLOW_SETUP_FIRST_WARNING_MILLIS;
   }
 
   /**
@@ -81,7 +106,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
-      WorkExecutor worker,
+      @Nullable WorkExecutor worker,
       ScheduledExecutorService executor,
       Clock clock,
       HotKeyLogger hotKeyLogger,
@@ -91,6 +116,21 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     this.workItem = workItem;
     this.hotKeyLogger = hotKeyLogger;
     this.options = options;
+    this.createdAtMillis = clock.currentTimeMillis();
+    this.nextSlowSetupWarningAtMillis = createdAtMillis + SLOW_SETUP_FIRST_WARNING_MILLIS;
+  }
+
+  @Override
+  public void setWorker(WorkExecutor worker) {
+    boolean abortRequested;
+    synchronized (abortLock) {
+      super.setWorker(worker);
+      abortRequested = wasAskedToAbort;
+    }
+    // a map task executor remembers the abort, so its read loop stops as soon as execute() starts
+    if (abortRequested) {
+      worker.abort();
+    }
   }
 
   @Override
@@ -105,7 +145,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   @Override
   protected long getWorkUnitSuggestedReportingInterval() {
-    return fromCloudDuration(workItem.getReportStatusInterval()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudDuration(workItem.getReportStatusInterval()))
+        .getMillis();
   }
 
   @Override
@@ -113,6 +154,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (wasAskedToAbort) {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return;
+    }
+    if (worker == null) {
+      warnIfSetupIsSlow();
     }
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
@@ -122,26 +166,40 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       if (result.getCompleteWorkStatus() != null
           && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
         LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
-        wasAskedToAbort = true;
-        worker.abort();
+        WorkExecutor currentWorker;
+        synchronized (abortLock) {
+          wasAskedToAbort = true;
+          currentWorker = worker;
+        }
+        // the executor may still be under construction, in which case setWorker aborts it
+        if (currentWorker != null) {
+          currentWorker.abort();
+        }
         return;
       }
 
       if (result.getHotKeyDetection() != null
           && result.getHotKeyDetection().getUserStepName() != null) {
         HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+        Duration hotKeyAge =
+            Preconditions.checkStateNotNull(
+                TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
-              workItemStatusClient.getExecutionContext().getKey());
+        // the execution context is null until the executor exists, and the key is null until the
+        // reader reads one, so a report sent while DoFn.setup still runs logs the detection
+        // without the key instead of throwing
+        Object hotKey = null;
+        BatchModeExecutionContext executionContext = workItemStatusClient.getExecutionContext();
+        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
+            && executionContext != null) {
+          hotKey = executionContext.getKey();
+        }
+        if (hotKey != null) {
+          hotKeyLogger.logHotKeyDetection(hotKeyDetection.getUserStepName(), hotKeyAge, hotKey);
         } else {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+          hotKeyLogger.logHotKeyDetection(hotKeyDetection.getUserStepName(), hotKeyAge);
         }
       }
 
@@ -150,26 +208,48 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
       progressReportIntervalMs =
           nextProgressReportInterval(
-              fromCloudDuration(result.getReportStatusInterval()).getMillis(),
+              Preconditions.checkStateNotNull(fromCloudDuration(result.getReportStatusInterval()))
+                  .getMillis(),
               leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
-      if (suggestedStopPoint != null) {
+      WorkExecutor currentWorker = worker;
+      // there is nothing to split until the executor exists, the service asks again later
+      if (suggestedStopPoint != null && currentWorker != null) {
         LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
         dynamicSplitResultToReport =
-            worker.requestDynamicSplit(
+            currentWorker.requestDynamicSplit(
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
   }
 
+  private void warnIfSetupIsSlow() {
+    long now = clock.currentTimeMillis();
+    if (now < nextSlowSetupWarningAtMillis) {
+      return;
+    }
+
+    // the lease keeps being extended while setup runs, so a stuck setup never fails the work item
+    // on its own. Repeating the warning is what makes it visible in the worker log
+    nextSlowSetupWarningAtMillis = now + SLOW_SETUP_WARNING_INTERVAL_MILLIS;
+    LOG.warn(
+        "Work item {} is still creating its executor after {} seconds. Creating the executor runs"
+            + " DoFn.setup, so a slow or stuck setup keeps this work item leased without"
+            + " processing any elements.",
+        workString(),
+        (now - createdAtMillis) / 1000);
+  }
+
   /** Returns the given work unit's lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItem workItem) {
-    return fromCloudTime(workItem.getLeaseExpireTime()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudTime(workItem.getLeaseExpireTime()))
+        .getMillis();
   }
 
   /** Returns the given work unit service state lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItemServiceState workItemServiceState) {
-    return fromCloudTime(workItemServiceState.getLeaseExpireTime()).getMillis();
+    return Preconditions.checkStateNotNull(fromCloudTime(workItemServiceState.getLeaseExpireTime()))
+        .getMillis();
   }
 }

@@ -518,11 +518,15 @@ public class WorkItemStatusClientTest {
   }
 
   @Test
-  public void reportUpdateBeforeSetWorker() throws Exception {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("setWorker");
-    thrown.expectMessage("reportUpdate");
-    statusClient.reportUpdate(null, null);
+  public void reportUpdateBeforeSetWorkerOnlyExtendsLease() throws Exception {
+    statusClient.reportUpdate(null, Duration.standardMinutes(3));
+
+    verify(workUnitClient).reportWorkItemStatus(statusCaptor.capture());
+    WorkItemStatus workStatus = statusCaptor.getValue();
+    assertThat(workStatus.getRequestedLeaseDuration(), equalTo("180s"));
+    assertThat(workStatus.getReportedProgress(), nullValue());
+    assertThat(workStatus.getCounterUpdates(), nullValue());
+    assertThat(workStatus.getMetricUpdates(), nullValue());
   }
 
   private static class DummyBoundedSource extends BoundedSource<Integer> {

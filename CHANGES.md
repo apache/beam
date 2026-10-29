@@ -80,6 +80,7 @@
 
 ## Bugfixes
 
+* (Java) Dataflow legacy batch worker: a `DoFn.setup` that takes longer than 3 minutes no longer loses the work item lease and fails the job. While setup is still running, the worker logs a warning every few minutes ([#34206](https://github.com/apache/beam/issues/34206)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
