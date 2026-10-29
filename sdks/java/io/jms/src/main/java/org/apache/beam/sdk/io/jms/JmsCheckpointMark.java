@@ -81,6 +81,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   /** Acknowledge all outstanding message. */
   @Override
+  @SuppressWarnings("ReferenceEquality") // live must be a different instance, not an equal one
   public synchronized void finalizeCheckpoint() {
     if (id != null) {
       // Atomic, so only one copy of this checkpoint ever finalizes the live one.
