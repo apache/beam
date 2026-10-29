@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -371,25 +370,13 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       String pathPattern = configuration.getPathPattern();
       if (pathPattern != null) {
-        // AddFiles checks the first two against its own fields; these name the YAML keys
-        List<String> evolutionOptions = configuration.getSchemaEvolutionOptions();
-        Preconditions.checkArgument(
-            evolutionOptions != null && !evolutionOptions.isEmpty(),
-            "path_pattern needs schema_evolution_options: the schema pre-pass is what decides"
-                + " which table each file belongs to");
-        Preconditions.checkArgument(
-            !Boolean.TRUE.equals(configuration.getDryRun()),
-            "path_pattern cannot be combined with dry_run");
-        // with no error output an unmatched path and a refused table's files are dropped
-        // silently, which is the one outcome this transform must not have
+        // the one check withPathPattern cannot make: AddFiles has no notion of error handling.
+        // With no error output an unmatched path and a refused table's files are dropped
+        // silently, which is the one outcome this transform must not have.
         Preconditions.checkArgument(
             ErrorHandling.hasOutput(configuration.getErrorHandling()),
             "path_pattern needs error_handling to receive the files it could not route or"
                 + " register");
-        Preconditions.checkArgument(
-            Strings.isNullOrEmpty(configuration.getLocationPrefix()),
-            "path_pattern cannot be combined with location_prefix: one fixed prefix cannot stop"
-                + " short of each file's own table folder");
         addFiles = addFiles.withPathPattern(pathPattern);
       }
 

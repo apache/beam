@@ -291,15 +291,22 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * is one exception at submit time, not one error row per file.
    */
   public AddFiles withPathPattern(String pathPattern) {
-    checkState(
+    // these are the only copies; the YAML keys are named because the provider defers to them.
+    // checkArgument, not checkState: PathPattern below throws the same for a bad pattern, and the
+    // provider used to throw it for these.
+    Preconditions.checkArgument(
         evolution.isEnabled(),
-        "A path pattern needs schema evolution: the pre-pass is what decides each table.");
-    checkState(!evolution.getDryRun(), "A dry run of a path pattern is not supported yet.");
-    checkState(
+        "A path pattern needs schema evolution (schema_evolution_options in YAML): the pre-pass is"
+            + " what decides each table.");
+    Preconditions.checkArgument(
+        !evolution.getDryRun(),
+        "A dry run of a path pattern (dry_run in YAML) is not supported yet.");
+    Preconditions.checkArgument(
         Strings.isNullOrEmpty(locationPrefix),
-        "A path pattern cannot be combined with a location prefix: one fixed prefix cannot stop"
-            + " short of each file's own table folder, so the folder ends up inside the partition"
-            + " path ('orders/dt=2024-01-15/' where the table is partitioned only by 'dt').");
+        "A path pattern cannot be combined with a location prefix (location_prefix in YAML): one"
+            + " fixed prefix cannot stop short of each file's own table folder, so the folder ends"
+            + " up inside the partition path ('orders/dt=2024-01-15/' where the table is"
+            + " partitioned only by 'dt').");
     PathPattern compiled = PathPattern.compile(pathPattern);
     compiled.checkRenderable(tableIdentifier);
     this.pathPattern = pathPattern;

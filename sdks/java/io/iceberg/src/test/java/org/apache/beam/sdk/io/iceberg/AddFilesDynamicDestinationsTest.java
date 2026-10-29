@@ -352,12 +352,12 @@ public class AddFilesDynamicDestinationsTest {
     String pattern = root + "export/{tbl}/**";
 
     AddFiles noEvolution = addFiles("lake.{tbl}", null, null);
-    assertThrows(IllegalStateException.class, () -> noEvolution.withPathPattern(pattern));
+    assertThrows(IllegalArgumentException.class, () -> noEvolution.withPathPattern(pattern));
 
     AddFiles dryRun = addFiles("lake.{tbl}", null, dryRunEvolution());
-    assertThrows(IllegalStateException.class, () -> dryRun.withPathPattern(pattern));
+    assertThrows(IllegalArgumentException.class, () -> dryRun.withPathPattern(pattern));
 
     AddFiles locationPrefix = addFiles("lake.{tbl}", root, evolution());
-    assertThrows(IllegalStateException.class, () -> locationPrefix.withPathPattern(pattern));
+    assertThrows(IllegalArgumentException.class, () -> locationPrefix.withPathPattern(pattern));
   }
 }
