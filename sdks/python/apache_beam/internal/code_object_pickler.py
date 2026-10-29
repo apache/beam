@@ -511,7 +511,7 @@ def _normalize_const(const):
   if isinstance(const, tuple):
     return tuple(_normalize_const(x) for x in const)
   if isinstance(const, frozenset):
-    return frozenset(_normalize_const(x) for x in const)
+    return ('__frozenset__', tuple(sorted((_normalize_const(x) for x in const), key=repr)))
   return (type(const).__qualname__, repr(const))
 
 
