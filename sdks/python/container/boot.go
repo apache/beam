@@ -211,10 +211,10 @@ func launchSDKProcess() error {
 		defer cleanupFunc()
 	}
 
-	// Stage under a per-container directory
-	// So that, SDK containers for different environments sharing the same
-	// semi-persistent volume cannot overwrite each other's fixed-name
-	// artifacts (requirements.txt, pickled_main_session, etc.,).
+	// Download and install from a per-container directory, so that SDK
+	// containers for different environments sharing the same semi-persistent
+	// volume cannot overwrite each other's fixed-name artifacts
+	// (requirements.txt, extra_packages.txt, etc.) before installing them.
 	semiPersist := filepath.Join(*semiPersistDir, *id)
 	dir := filepath.Join(semiPersist, "staged")
 	// Remove this worker's directory on exit so that it does not accumulate on
@@ -240,6 +240,8 @@ func launchSDKProcess() error {
 	// would also be possible to install the SDK in the Dockerfile.
 	fileNames := make([]string, len(files))
 	requirementsFiles := []string{requirementsFile}
+	sharedDir := filepath.Join(*semiPersistDir, "staged")
+	os.MkdirAll(sharedDir, 0755)
 	for i, v := range files {
 		name, _ := artifact.MustExtractFilePayload(v)
 		logger.Printf(ctx, "Found artifact: %s", name)
@@ -247,6 +249,13 @@ func launchSDKProcess() error {
 
 		if v.RoleUrn == artifact.URNPipRequirementsFile {
 			requirementsFiles = append(requirementsFiles, name)
+		}
+		// Keep the shared <semi_persist_dir>/staged layout for user code (e.g.
+		// --files_to_stage files); the per-container copy in dir is installed.
+		shared := filepath.Join(sharedDir, name)
+		os.Remove(shared)
+		if err := os.Link(filepath.Join(dir, name), shared); err != nil {
+			logger.Warnf(ctx, "Failed to link %s into %s: %v", name, sharedDir, err)
 		}
 	}
 
@@ -268,9 +277,7 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
 
-	// Point the SDK worker at the per-environment root so that it keeps
-	// resolving <SEMI_PERSISTENT_DIRECTORY>/staged/... (e.g. pickled_main_session).
-	os.Setenv("SEMI_PERSISTENT_DIRECTORY", semiPersist)
+	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
