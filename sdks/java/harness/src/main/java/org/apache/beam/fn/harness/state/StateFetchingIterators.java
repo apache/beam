@@ -436,6 +436,7 @@ public class StateFetchingIterators {
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
         cache.remove(IterableCacheKey.INSTANCE);
+        return;
       }
 
       // Combine all the individual blocks into one block containing all the values since
@@ -550,6 +551,7 @@ public class StateFetchingIterators {
       // returning invalid results as part of a future request.
       if (existing.getBlocks().get(existing.getBlocks().size() - 1).getNextToken() != null) {
         cache.remove(IterableCacheKey.INSTANCE);
+        return;
       }
 
       // Combine all the individual blocks into one block containing all the values since
