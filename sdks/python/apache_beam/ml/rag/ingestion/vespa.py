@@ -25,29 +25,38 @@ Example:
   >>> items | VectorDatabaseWriteTransform(config)
 
 The Vespa application package (schema with the target fields) must already be
-deployed; this module only feeds documents.
+deployed; this module only feeds documents. Documents are written through
+Vespa's ``/document/v1`` HTTP API with ``requests``, so no Vespa client library
+is needed.
 """
 
 import logging
+import os
+import random
+import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Optional
+from urllib.parse import quote
 
-try:
-  from vespa.application import Vespa
-  from vespa.io import VespaResponse
-except ImportError:
-  logging.warning("pyvespa is not installed.")
+import requests
+from requests.adapters import HTTPAdapter
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import EmbeddableItem
 
+_LOGGER = logging.getLogger(__name__)
+
 DEFAULT_WRITE_BATCH_SIZE = 1000
-_SUPPORTED_OPERATIONS = ("feed", "update")
+_SUPPORTED_OPERATIONS = ("put", "update")
 _MAX_REPORTED_FAILURES = 5
+_INITIAL_BACKOFF_S = 0.5
+_MAX_BACKOFF_S = 30.0
+_MAX_ERROR_MESSAGE_CHARS = 500
 
 
 @dataclass
@@ -57,17 +66,20 @@ class VespaConnectionParameters:
   Args:
     url: Endpoint URL, e.g. ``http://localhost`` or a Vespa Cloud endpoint.
     port: Optional port. Leave unset when ``url`` already includes it.
-    cert: Path to the mTLS certificate (Vespa Cloud data plane).
+    cert: Path to the mTLS certificate (Vespa Cloud data plane). The file is
+      opened on the workers, so it must exist there (for example in a custom
+      container), not only on the machine that submits the job.
     key: Path to the mTLS private key. Must be set together with ``cert``.
-    vespa_cloud_secret_token: Data-plane token for Vespa Cloud. Mutually
-      exclusive with ``cert``/``key``.
+    auth_token: Data-plane token for Vespa Cloud, sent as
+      ``Authorization: Bearer <token>``. Mutually exclusive with
+      ``cert``/``key``. The token is serialized with the pipeline.
     additional_headers: Extra HTTP headers sent with every request.
   """
   url: str
   port: Optional[int] = None
   cert: Optional[str] = None
   key: Optional[str] = None
-  vespa_cloud_secret_token: Optional[str] = None
+  auth_token: Optional[str] = None
   additional_headers: dict[str, str] = field(default_factory=dict)
 
   def __post_init__(self):
@@ -75,9 +87,12 @@ class VespaConnectionParameters:
       raise ValueError("url must be provided for Vespa")
     if bool(self.cert) != bool(self.key):
       raise ValueError("cert and key must be provided together")
-    if self.vespa_cloud_secret_token and self.cert:
-      raise ValueError(
-          "Use either mTLS (cert/key) or vespa_cloud_secret_token, not both")
+    if self.auth_token and self.cert:
+      raise ValueError("Use either mTLS (cert/key) or auth_token, not both")
+
+  def base_url(self) -> str:
+    base = self.url.rstrip("/")
+    return f"{base}:{self.port}" if self.port is not None else base
 
 
 @dataclass
@@ -94,10 +109,10 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
     - metadata -> top-level fields, renamed with ``metadata_fields``
 
   Every written field must exist in the deployed schema. Unlike Qdrant
-  payloads, Vespa rejects unknown fields with HTTP 400, which fails the bundle.
-  A 400 is not transient, so the runner's retries fail the same way (in
-  streaming the pipeline keeps retrying). Set ``metadata_fields`` when item
-  metadata may contain keys the schema does not define.
+  payloads, Vespa rejects unknown fields with HTTP 400. A 400 is not retried
+  and fails the bundle; the runner's retries fail the same way (in streaming
+  the pipeline keeps retrying). Set ``metadata_fields`` when item metadata may
+  contain keys the schema does not define.
 
   Args:
     connection_params: VespaConnectionParameters.
@@ -111,13 +126,16 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
       the schema must define a field for every key that can occur.
     fields_fn: Optional function that builds the whole ``fields`` dict from an
       item. Overrides all of the field options above.
-    operation_type: ``"feed"`` (put, replaces the document) or ``"update"``
-      (partial update with ``create=true``).
-    batch_size: Number of documents buffered before a flush. Each flush
-      (including the one at the end of every bundle) opens a new connection
-      pool, so very small bundles pay connection setup more often.
-    max_queue_size, max_workers, max_connections, compress, num_retries_429:
-      Passed to ``Vespa.feed_iterable``.
+    operation_type: ``"put"`` (replaces the document) or ``"update"``
+      (partial update that assigns the written fields, with ``create=true``).
+    batch_size: Number of documents buffered before a flush, as in
+      ``QdrantWriteConfig``.
+    max_concurrent_requests: Number of documents sent in parallel per DoFn
+      instance during a flush.
+    max_retries: Retries per document for 5xx responses and connection
+      errors. HTTP 429 (Vespa backpressure) is retried with backoff and does
+      not count against this limit.
+    timeout_s: Timeout in seconds for each HTTP request.
   """
   connection_params: VespaConnectionParameters
   schema: str
@@ -127,13 +145,11 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
   sparse_embedding_field: Optional[str] = None
   metadata_fields: Optional[dict[str, str]] = None
   fields_fn: Optional[Callable[[EmbeddableItem], dict[str, Any]]] = None
-  operation_type: str = "feed"
+  operation_type: str = "put"
   batch_size: int = DEFAULT_WRITE_BATCH_SIZE
-  max_queue_size: int = 1000
-  max_workers: int = 8
-  max_connections: int = 16
-  compress: Any = "auto"
-  num_retries_429: int = 10
+  max_concurrent_requests: int = 16
+  max_retries: int = 3
+  timeout_s: float = 60.0
 
   def __post_init__(self):
     if not self.schema:
@@ -144,6 +160,12 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
           f"got {self.operation_type!r}")
     if self.batch_size <= 0:
       raise ValueError("batch_size must be a positive integer")
+    if self.max_concurrent_requests <= 0:
+      raise ValueError("max_concurrent_requests must be a positive integer")
+    if self.max_retries < 0:
+      raise ValueError("max_retries must be non-negative")
+    if self.timeout_s <= 0:
+      raise ValueError("timeout_s must be positive")
     for name in ("content_field",
                  "dense_embedding_field",
                  "sparse_embedding_field"):
@@ -168,7 +190,7 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
     return _VespaWriteTransform(self)
 
   def create_converter(self) -> Callable[[EmbeddableItem], dict[str, Any]]:
-    """Returns a function mapping an EmbeddableItem to a feed_iterable doc."""
+    """Returns a function mapping an EmbeddableItem to ``{id, fields}``."""
     def convert(item: EmbeddableItem) -> dict[str, Any]:
       if item.id is None or item.id == "":
         raise ValueError("EmbeddableItem.id is required for Vespa")
@@ -242,22 +264,52 @@ class VespaFeedError(RuntimeError):
   """Raised when one or more documents in a flush were not accepted."""
 
 
+def _backoff_s(attempt: int) -> float:
+  """Exponential backoff with full jitter."""
+  return random.uniform(0, min(_MAX_BACKOFF_S, _INITIAL_BACKOFF_S * 2**attempt))
+
+
+def _error_message(response: requests.Response) -> str:
+  try:
+    message = response.json().get("message", response.text)
+  except ValueError:
+    message = response.text
+  return str(message)[:_MAX_ERROR_MESSAGE_CHARS]
+
+
 class _VespaWriteFn(beam.DoFn):
   def __init__(self, config: VespaWriteConfig):
     self.config = config
-    self._app: "Optional[Vespa]" = None
+    self._session: Optional[requests.Session] = None
+    self._executor: Optional[ThreadPoolExecutor] = None
+    self._doc_url_prefix = ""
     self._batch: list[dict[str, Any]] = []
 
   def setup(self):
     params = self.config.connection_params
-    self._app = Vespa(
-        url=params.url,
-        port=params.port,
-        cert=params.cert,
-        key=params.key,
-        vespa_cloud_secret_token=params.vespa_cloud_secret_token,
-        additional_headers=params.additional_headers or None,
-    )
+    session = requests.Session()
+    adapter = HTTPAdapter(
+        pool_connections=1, pool_maxsize=self.config.max_concurrent_requests)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    if params.cert:
+      for path in (params.cert, params.key):
+        if not os.path.isfile(path):
+          raise FileNotFoundError(
+              f"Vespa mTLS file {path!r} not found on this worker. cert and "
+              "key are opened on the workers, so the files must exist there.")
+      session.cert = (params.cert, params.key)
+    session.headers.update(params.additional_headers)
+    if params.auth_token:
+      session.headers["Authorization"] = f"Bearer {params.auth_token}"
+    self._session = session
+    self._executor = ThreadPoolExecutor(
+        max_workers=self.config.max_concurrent_requests)
+
+    namespace = self.config.namespace or self.config.schema
+    self._doc_url_prefix = (
+        f"{params.base_url()}/document/v1/{quote(namespace, safe='')}/"
+        f"{quote(self.config.schema, safe='')}/docid/")
 
   def start_bundle(self):
     self._batch = []
@@ -271,51 +323,90 @@ class _VespaWriteFn(beam.DoFn):
     self._flush()
 
   def teardown(self):
-    # feed_iterable opens and closes its own HTTP session per call.
-    self._app = None
+    if self._executor is not None:
+      self._executor.shutdown(wait=True)
+      self._executor = None
+    if self._session is not None:
+      self._session.close()
+      self._session = None
 
   def _flush(self):
     if not self._batch:
       return
-    if self._app is None:
+    if self._session is None or self._executor is None:
       raise RuntimeError("Vespa client is not initialized")
 
-    failures: list[tuple[str, int, Any]] = []
-
-    def callback(response: "VespaResponse", doc_id: str):
-      if not response.is_successful():
-        failures.append(
-            (doc_id, response.get_status_code(), response.get_json()))
-
-    extra: dict[str, Any] = {}
-    if self.config.operation_type == "update":
-      extra["create"] = True
-    self._app.feed_iterable(
-        self._batch,
-        schema=self.config.schema,
-        namespace=self.config.namespace,
-        callback=callback,
-        operation_type=self.config.operation_type,
-        max_queue_size=self.config.max_queue_size,
-        max_workers=self.config.max_workers,
-        max_connections=self.config.max_connections,
-        compress=self.config.compress,
-        num_retries_429=self.config.num_retries_429,
-        **extra,
-    )
+    results = list(self._executor.map(self._write_one, self._batch))
+    failures = [r for r in results if r is not None]
     if failures:
       sample = failures[:_MAX_REPORTED_FAILURES]
       # Raising fails the bundle so the runner retries it. Puts and
-      # create-updates are idempotent per document id, so retries are safe.
+      # assign-only updates are idempotent per document id, so replaying
+      # documents that already succeeded leaves the same final state.
       raise VespaFeedError(
           f"{len(failures)} of {len(self._batch)} documents failed to feed "
           f"to schema '{self.config.schema}'. First failures "
-          f"(id, status, body): {sample}")
+          f"(id, status, message): {sample}")
     self._batch = []
+
+  def _write_one(self, doc: dict[str, Any]) -> Optional[tuple[str, Any, str]]:
+    """Writes one document. Returns ``(id, status, message)`` on failure."""
+    assert self._session is not None
+    doc_id = doc["id"]
+    url = self._doc_url_prefix + quote(doc_id, safe="")
+    if self.config.operation_type == "update":
+      method = "PUT"
+      params = {"create": "true"}
+      body = {
+          "fields": {
+              name: {
+                  "assign": value
+              }
+              for name, value in doc["fields"].items()
+          }
+      }
+    else:
+      method = "POST"
+      params = None
+      body = {"fields": doc["fields"]}
+
+    retries = 0
+    throttled = 0
+    while True:
+      try:
+        response = self._session.request(
+            method,
+            url,
+            params=params,
+            json=body,
+            timeout=self.config.timeout_s)
+      except (requests.ConnectionError, requests.Timeout) as e:
+        if retries >= self.config.max_retries:
+          return (doc_id, None, f"{type(e).__name__}: {e}")
+        time.sleep(_backoff_s(retries))
+        retries += 1
+        continue
+
+      status = response.status_code
+      if 200 <= status < 300:
+        return None
+      if status == 429:
+        # Backpressure from Vespa; not counted against max_retries.
+        time.sleep(_backoff_s(throttled))
+        throttled += 1
+        continue
+      if status >= 500 and retries < self.config.max_retries:
+        _LOGGER.debug(
+            "Retrying Vespa document %s after HTTP %d", doc_id, status)
+        time.sleep(_backoff_s(retries))
+        retries += 1
+        continue
+      return (doc_id, status, _error_message(response))
 
   def display_data(self):
     res = super().display_data()
     res["schema"] = self.config.schema
     res["operation_type"] = self.config.operation_type
     res["batch_size"] = self.config.batch_size
+    res["max_concurrent_requests"] = self.config.max_concurrent_requests
     return res

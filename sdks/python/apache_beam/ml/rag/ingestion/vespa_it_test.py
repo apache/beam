@@ -14,37 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import time
 import unittest
+import zipfile
+from urllib.parse import quote
 
 import pytest
 import requests
 
 import apache_beam as beam
+from apache_beam.ml.rag.ingestion.vespa import VespaConnectionParameters
+from apache_beam.ml.rag.ingestion.vespa import VespaWriteConfig
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 
-# pylint: disable=ungrouped-imports
-try:
-  from vespa.application import Vespa
-  from vespa.package import ApplicationPackage
-  from vespa.package import Document
-  from vespa.package import Field
-  from vespa.package import Schema
-
-  from apache_beam.ml.rag.ingestion.vespa import VespaConnectionParameters
-  from apache_beam.ml.rag.ingestion.vespa import VespaWriteConfig
-  VESPA_AVAILABLE = True
-except ImportError:
-  VESPA_AVAILABLE = False
-
 try:
   from testcontainers.core.container import DockerContainer
 except ImportError:
   DockerContainer = None
-# pylint: enable=ungrouped-imports
 
 VESPA_IMAGE = "vespaengine/vespa:8.763.13"
 SCHEMA = "doc"
@@ -52,24 +42,49 @@ _CONTAINER_PORT = 8080
 _CONFIG_SERVER_PORT = 19071
 _STARTUP_TIMEOUT_S = 300
 
+_SERVICES_XML = """<?xml version="1.0" encoding="utf-8" ?>
+<services version="1.0">
+  <container id="default" version="1.0">
+    <document-api/>
+    <search/>
+  </container>
+  <content id="content" version="1.0">
+    <min-redundancy>1</min-redundancy>
+    <documents>
+      <document type="doc" mode="index"/>
+    </documents>
+    <nodes>
+      <node hostalias="node1" distribution-key="0"/>
+    </nodes>
+  </content>
+</services>
+"""
 
-def _application_package() -> "ApplicationPackage":
-  schema = Schema(
-      name=SCHEMA,
-      document=Document(
-          fields=[
-              Field("content", "string", indexing=["index", "summary"]),
-              Field(
-                  "embedding",
-                  "tensor<float>(x[2])",
-                  indexing=["attribute", "summary"]),
-              Field(
-                  "sparse",
-                  "tensor<float>(token{})",
-                  indexing=["attribute", "summary"]),
-              Field("source", "string", indexing=["attribute", "summary"]),
-          ]))
-  return ApplicationPackage(name="beamtest", schema=[schema])
+_SCHEMA_SD = """schema doc {
+  document doc {
+    field content type string {
+      indexing: index | summary
+    }
+    field embedding type tensor<float>(x[2]) {
+      indexing: attribute | summary
+    }
+    field sparse type tensor<float>(token{}) {
+      indexing: attribute | summary
+    }
+    field source type string {
+      indexing: attribute | summary
+    }
+  }
+}
+"""
+
+
+def _application_package() -> bytes:
+  buffer = io.BytesIO()
+  with zipfile.ZipFile(buffer, "w") as zf:
+    zf.writestr("services.xml", _SERVICES_XML)
+    zf.writestr(f"schemas/{SCHEMA}.sd", _SCHEMA_SD)
+  return buffer.getvalue()
 
 
 def _wait_until(predicate, what: str):
@@ -93,7 +108,6 @@ def _item(id, dense=None, sparse=None, metadata=None, text=None):
   )
 
 
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed.")
 @unittest.skipIf(not DockerContainer, "testcontainers not installed.")
 @pytest.mark.require_docker_in_docker
 class TestVespaIngestion(unittest.TestCase):
@@ -117,7 +131,7 @@ class TestVespaIngestion(unittest.TestCase):
       response = requests.post(
           f"{config_url}/application/v2/tenant/default/prepareandactivate",
           headers={"Content-Type": "application/zip"},
-          data=_application_package().to_zip().getvalue(),
+          data=_application_package(),
           timeout=120)
       response.raise_for_status()
       # A 404 for an unknown id means the content cluster is serving.
@@ -129,7 +143,7 @@ class TestVespaIngestion(unittest.TestCase):
 
       cls._connection_params = VespaConnectionParameters(
           url=f"http://{host}", port=port)
-      cls._app = Vespa(url=f"http://{host}", port=port)
+      cls._doc_url = f"{container_url}/document/v1/{SCHEMA}/{SCHEMA}/docid/"
     except Exception:
       cls._container.stop()
       raise
@@ -153,11 +167,11 @@ class TestVespaIngestion(unittest.TestCase):
           | self._config(**kwargs).create_write_transform())
 
   def _get(self, doc_id):
-    response = self._app.get_data(schema=SCHEMA, data_id=doc_id)
-    if response.get_status_code() == 404:
+    response = requests.get(self._doc_url + quote(doc_id, safe=""), timeout=30)
+    if response.status_code == 404:
       return None
-    self.assertTrue(response.is_successful(), response.get_json())
-    return response.get_json()["fields"]
+    self.assertEqual(response.status_code, 200, response.text)
+    return response.json()["fields"]
 
   def test_write_dense_sparse_content_and_metadata(self):
     items = [

@@ -14,28 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import os
+import tempfile
 import unittest
 from unittest import mock
 
-try:
-  from vespa.io import VespaResponse
-  VESPA_AVAILABLE = True
-except ImportError:
-  VESPA_AVAILABLE = False
+import requests
+import requests_mock
 
 import apache_beam as beam
+from apache_beam.ml.rag.ingestion import vespa as vespa_module
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteTransform
+from apache_beam.ml.rag.ingestion.vespa import VespaConnectionParameters
+from apache_beam.ml.rag.ingestion.vespa import VespaFeedError
+from apache_beam.ml.rag.ingestion.vespa import VespaWriteConfig
+from apache_beam.ml.rag.ingestion.vespa import _VespaWriteFn
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 
-if VESPA_AVAILABLE:
-  from apache_beam.ml.rag.ingestion import vespa as vespa_module
-  from apache_beam.ml.rag.ingestion.vespa import VespaConnectionParameters
-  from apache_beam.ml.rag.ingestion.vespa import VespaFeedError
-  from apache_beam.ml.rag.ingestion.vespa import VespaWriteConfig
-  from apache_beam.ml.rag.ingestion.vespa import _VespaWriteFn
+_DOC_URL = "http://localhost:8080/document/v1/doc/doc/docid/"
 
 
 def _item(
@@ -52,16 +52,10 @@ def _item(
   )
 
 
-def _params():
-  return VespaConnectionParameters(url="http://localhost", port=8080)
+def _params(**kwargs):
+  return VespaConnectionParameters(url="http://localhost", port=8080, **kwargs)
 
 
-def _ok(status=200):
-  return VespaResponse(
-      json={}, status_code=status, url="u", operation_type="feed")
-
-
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed")
 class TestVespaConnectionParameters(unittest.TestCase):
   def test_url_required(self):
     with self.assertRaises(ValueError):
@@ -74,29 +68,39 @@ class TestVespaConnectionParameters(unittest.TestCase):
   def test_token_and_cert_raises(self):
     with self.assertRaises(ValueError):
       VespaConnectionParameters(
-          url="https://x",
-          cert="c.pem",
-          key="k.pem",
-          vespa_cloud_secret_token="t")
+          url="https://x", cert="c.pem", key="k.pem", auth_token="t")
 
   def test_mtls_ok(self):
     VespaConnectionParameters(url="https://x", cert="c.pem", key="k.pem")
 
+  def test_base_url(self):
+    self.assertEqual(
+        VespaConnectionParameters(url="http://h/", port=8080).base_url(),
+        "http://h:8080")
+    self.assertEqual(
+        VespaConnectionParameters(url="https://h").base_url(), "https://h")
 
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed")
+
 class TestVespaWriteConfig(unittest.TestCase):
   def test_empty_schema_raises(self):
     with self.assertRaises(ValueError):
       VespaWriteConfig(connection_params=_params(), schema="")
 
   def test_invalid_operation_raises(self):
-    with self.assertRaises(ValueError):
-      VespaWriteConfig(
-          connection_params=_params(), schema="doc", operation_type="delete")
+    for op in ("delete", "feed"):
+      with self.assertRaises(ValueError):
+        VespaWriteConfig(
+            connection_params=_params(), schema="doc", operation_type=op)
 
   def test_batch_size_zero_raises(self):
     with self.assertRaises(ValueError):
       VespaWriteConfig(connection_params=_params(), schema="doc", batch_size=0)
+
+  def test_invalid_client_settings_raise(self):
+    for kwargs in ({"max_concurrent_requests": 0}, {"max_retries": -1},
+                   {"timeout_s": 0}):
+      with self.assertRaises(ValueError):
+        VespaWriteConfig(connection_params=_params(), schema="doc", **kwargs)
 
   def test_no_embedding_field_raises(self):
     with self.assertRaises(ValueError):
@@ -121,7 +125,6 @@ class TestVespaWriteConfig(unittest.TestCase):
           connection_params=_params(), schema="doc", content_field="embedding")
 
 
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed")
 class TestVespaConverter(unittest.TestCase):
   def _convert(self, item, **kwargs):
     config = VespaWriteConfig(
@@ -212,90 +215,171 @@ class TestVespaConverter(unittest.TestCase):
       self._convert(_item(dense=[1.0]), fields_fn=lambda item: ["x"])
 
 
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed")
 class TestVespaWriteFn(unittest.TestCase):
   def setUp(self):
-    patcher = mock.patch.object(vespa_module, "Vespa")
-    self.vespa_cls = patcher.start()
+    patcher = mock.patch.object(vespa_module.time, "sleep")
+    self.sleep = patcher.start()
     self.addCleanup(patcher.stop)
-    self.app = self.vespa_cls.return_value
-    self.fed = []
+    self.http = requests_mock.Mocker()
+    self.http.start()
+    self.addCleanup(self.http.stop)
 
-    def feed_iterable(docs, callback=None, **kwargs):
-      self.fed.append((list(docs), kwargs))
-      for d in docs:
-        callback(_ok(), d["id"])
-
-    self.app.feed_iterable.side_effect = feed_iterable
-
-  def _fn(self, **kwargs):
+  def _fn(self, params=None, **kwargs):
     config = VespaWriteConfig(
-        connection_params=VespaConnectionParameters(
-            url="https://x",
-            vespa_cloud_secret_token="tok",
-            additional_headers={"X-A": "1"}),
-        schema="doc",
-        **kwargs)
+        connection_params=params or _params(), schema="doc", **kwargs)
     fn = _VespaWriteFn(config)
     fn.setup()
+    self.addCleanup(fn.teardown)
     fn.start_bundle()
     return fn
 
-  def test_setup_passes_connection_params(self):
-    self._fn()
-    self.vespa_cls.assert_called_once_with(
-        url="https://x",
-        port=None,
-        cert=None,
-        key=None,
-        vespa_cloud_secret_token="tok",
-        additional_headers={"X-A": "1"})
+  def _write(self, fn, *docs):
+    for doc in docs:
+      fn.process(doc)
+    fn.finish_bundle()
+
+  def test_put_posts_fields(self):
+    self.http.post(requests_mock.ANY, status_code=200)
+    self._write(self._fn(), {"id": "1", "fields": {"a": 1}})
+    request = self.http.request_history[0]
+    self.assertEqual(request.method, "POST")
+    self.assertEqual(request.url, _DOC_URL + "1")
+    self.assertEqual(request.json(), {"fields": {"a": 1}})
+
+  def test_update_assigns_fields_with_create(self):
+    self.http.put(requests_mock.ANY, status_code=200)
+    self._write(
+        self._fn(operation_type="update"), {
+            "id": "1", "fields": {
+                "a": 1, "b": [1.0]
+            }
+        })
+    request = self.http.request_history[0]
+    self.assertEqual(request.method, "PUT")
+    self.assertEqual(request.qs, {"create": ["true"]})
+    self.assertEqual(
+        request.json(),
+        {"fields": {
+            "a": {
+                "assign": 1
+            }, "b": {
+                "assign": [1.0]
+            }
+        }})
+
+  def test_namespace_and_id_are_url_encoded(self):
+    self.http.post(requests_mock.ANY, status_code=200)
+    self._write(self._fn(namespace="ns"), {"id": "a/b c?d", "fields": {}})
+    self.assertEqual(
+        self.http.request_history[0].url,
+        "http://localhost:8080/document/v1/ns/doc/docid/a%2Fb%20c%3Fd")
+
+  def test_headers_and_token(self):
+    self.http.post(requests_mock.ANY, status_code=200)
+    fn = self._fn(
+        params=_params(auth_token="tok", additional_headers={"X-A": "1"}))
+    self._write(fn, {"id": "1", "fields": {}})
+    headers = self.http.request_history[0].headers
+    self.assertEqual(headers["Authorization"], "Bearer tok")
+    self.assertEqual(headers["X-A"], "1")
+
+  def test_missing_cert_file_fails_setup(self):
+    config = VespaWriteConfig(
+        connection_params=_params(cert="/nope/c.pem", key="/nope/k.pem"),
+        schema="doc")
+    with self.assertRaisesRegex(FileNotFoundError, "/nope/c.pem"):
+      _VespaWriteFn(config).setup()
+
+  def test_cert_files_set_on_session(self):
+    with tempfile.TemporaryDirectory() as d:
+      cert, key = os.path.join(d, "c.pem"), os.path.join(d, "k.pem")
+      for path in (cert, key):
+        open(path, "w").close()
+      fn = self._fn(params=_params(cert=cert, key=key))
+      self.assertEqual(fn._session.cert, (cert, key))
 
   def test_flush_on_batch_size_and_finish_bundle(self):
+    self.http.post(requests_mock.ANY, status_code=200)
     fn = self._fn(batch_size=2)
-    for i in range(5):
+    for i in range(3):
       fn.process({"id": str(i), "fields": {}})
+    self.assertEqual(self.http.call_count, 2)
     fn.finish_bundle()
-    self.assertEqual([len(docs) for docs, _ in self.fed], [2, 2, 1])
-
-  def test_feed_kwargs(self):
-    fn = self._fn(namespace="ns", max_workers=3)
-    fn.process({"id": "1", "fields": {}})
-    fn.finish_bundle()
-    _, kwargs = self.fed[0]
-    self.assertEqual(kwargs["schema"], "doc")
-    self.assertEqual(kwargs["namespace"], "ns")
-    self.assertEqual(kwargs["operation_type"], "feed")
-    self.assertEqual(kwargs["max_workers"], 3)
-    self.assertNotIn("create", kwargs)
-
-  def test_update_uses_create(self):
-    fn = self._fn(operation_type="update")
-    fn.process({"id": "1", "fields": {}})
-    fn.finish_bundle()
-    _, kwargs = self.fed[0]
-    self.assertEqual(kwargs["operation_type"], "update")
-    self.assertTrue(kwargs["create"])
+    self.assertEqual(self.http.call_count, 3)
 
   def test_empty_bundle_does_not_call_vespa(self):
-    fn = self._fn()
-    fn.finish_bundle()
-    self.app.feed_iterable.assert_not_called()
+    self._fn().finish_bundle()
+    self.assertEqual(self.http.call_count, 0)
 
-  def test_failed_documents_raise(self):
-    def feed_iterable(docs, callback=None, **kwargs):
-      for d in docs:
-        status = 400 if d["id"] == "bad" else 200
-        callback(_ok(status), d["id"])
+  def test_429_retried_without_counting(self):
+    self.http.post(
+        requests_mock.ANY, [{
+            "status_code": 429
+        }] * 5 + [{
+            "status_code": 200
+        }])
+    self._write(self._fn(max_retries=0), {"id": "1", "fields": {}})
+    self.assertEqual(self.http.call_count, 6)
 
-    self.app.feed_iterable.side_effect = feed_iterable
+  def test_5xx_retried_up_to_max_retries(self):
+    self.http.post(requests_mock.ANY, status_code=503, json={"message": "busy"})
+    fn = self._fn(max_retries=2)
+    with self.assertRaisesRegex(VespaFeedError, "busy"):
+      self._write(fn, {"id": "1", "fields": {}})
+    self.assertEqual(self.http.call_count, 3)
+
+  def test_5xx_then_success(self):
+    self.http.post(
+        requests_mock.ANY, [{
+            "status_code": 500
+        }, {
+            "status_code": 200
+        }])
+    self._write(self._fn(), {"id": "1", "fields": {}})
+    self.assertEqual(self.http.call_count, 2)
+
+  def test_connection_error_retried(self):
+    self.http.post(
+        requests_mock.ANY, [{
+            "exc": requests.ConnectionError("refused")
+        }, {
+            "status_code": 200
+        }])
+    self._write(self._fn(), {"id": "1", "fields": {}})
+    self.assertEqual(self.http.call_count, 2)
+
+  def test_connection_error_exhausts_retries(self):
+    self.http.post(requests_mock.ANY, exc=requests.Timeout("slow"))
+    with self.assertRaisesRegex(VespaFeedError, "Timeout"):
+      self._write(self._fn(max_retries=1), {"id": "1", "fields": {}})
+    self.assertEqual(self.http.call_count, 2)
+
+  def test_400_fails_without_retry(self):
+    self.http.post(_DOC_URL + "good", status_code=200)
+    self.http.post(
+        _DOC_URL + "bad",
+        status_code=400,
+        json={"message": "Field 'page' is not defined"})
     fn = self._fn()
-    fn.process({"id": "good", "fields": {}})
-    fn.process({"id": "bad", "fields": {}})
     with self.assertRaises(VespaFeedError) as ctx:
-      fn.finish_bundle()
-    self.assertIn("1 of 2", str(ctx.exception))
-    self.assertIn("bad", str(ctx.exception))
+      self._write(
+          fn, {
+              "id": "good", "fields": {}
+          }, {
+              "id": "bad", "fields": {
+                  "page": 1
+              }
+          })
+    message = str(ctx.exception)
+    self.assertIn("1 of 2", message)
+    self.assertIn("bad", message)
+    self.assertIn("is not defined", message)
+    self.assertEqual(self.http.call_count, 2)
+
+  def test_non_json_error_body(self):
+    self.http.post(requests_mock.ANY, status_code=403, text="forbidden")
+    with self.assertRaisesRegex(VespaFeedError, "forbidden"):
+      self._write(self._fn(), {"id": "1", "fields": {}})
 
   def test_flush_without_setup_raises(self):
     config = VespaWriteConfig(connection_params=_params(), schema="doc")
@@ -305,28 +389,26 @@ class TestVespaWriteFn(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       fn.finish_bundle()
 
+  def test_teardown_closes_session(self):
+    fn = self._fn()
+    fn.teardown()
+    self.assertIsNone(fn._session)
+    self.assertIsNone(fn._executor)
+
   def test_display_data(self):
     data = self._fn(batch_size=7).display_data()
     self.assertEqual(data["schema"], "doc")
     self.assertEqual(data["batch_size"], 7)
 
 
-@unittest.skipIf(not VESPA_AVAILABLE, "pyvespa not installed")
 class TestVespaWritePipeline(unittest.TestCase):
   def test_pipeline_feeds_converted_docs(self):
-    fed = []
-
-    def feed_iterable(docs, callback=None, **kwargs):
-      for d in docs:
-        fed.append(d)
-        callback(_ok(), d["id"])
-
-    with mock.patch.object(vespa_module, "Vespa") as vespa_cls:
-      vespa_cls.return_value.feed_iterable.side_effect = feed_iterable
-      config = VespaWriteConfig(
-          connection_params=_params(),
-          schema="doc",
-          sparse_embedding_field="sparse")
+    config = VespaWriteConfig(
+        connection_params=_params(),
+        schema="doc",
+        sparse_embedding_field="sparse")
+    with requests_mock.Mocker() as http:
+      http.post(requests_mock.ANY, status_code=200)
       with TestPipeline() as p:
         _ = (
             p
@@ -335,7 +417,10 @@ class TestVespaWritePipeline(unittest.TestCase):
                 _item(id="b", dense=[2.0], metadata={"lang": "en"}),
             ])
             | VectorDatabaseWriteTransform(config))
-    by_id = {d["id"]: d["fields"] for d in fed}
+      by_id = {
+          r.url.rsplit("/", 1)[-1]: json.loads(r.body)["fields"]
+          for r in http.request_history
+      }
     self.assertEqual(set(by_id), {"a", "b"})
     self.assertEqual(by_id["a"]["sparse"], {"2": 0.5})
     self.assertEqual(by_id["b"]["lang"], "en")
