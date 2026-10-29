@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -83,6 +82,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.AuthorizationException;
+import org.apache.kafka.common.errors.OutOfOrderSequenceException;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
@@ -147,14 +149,6 @@ class KafkaExactlyOnceSink<K, V>
   private static final String METRIC_NAMESPACE = "KafkaExactlyOnceSink";
 
   private final WriteRecords<K, V> spec;
-
-  static void ensureEOSSupport() {
-    checkArgument(
-        ProducerSpEL.supportsTransactions(),
-        "%s %s",
-        "This version of Kafka client does not support transactions required to support",
-        "exactly-once semantics. Please use Kafka client version 0.11 or newer.");
-  }
 
   KafkaExactlyOnceSink(WriteRecords<K, V> spec) {
     this.spec = spec;
@@ -301,12 +295,6 @@ class KafkaExactlyOnceSink<K, V>
           StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), TimestampedValueCoder.of(elemCoder)));
     }
 
-    @Setup
-    public void setup() {
-      // This is on the worker. Ensure the runtime version is till compatible.
-      KafkaExactlyOnceSink.ensureEOSSupport();
-    }
-
     // Futures ignored as exceptions will be flushed out in the commitTxn
     @SuppressWarnings("FutureReturnValueIgnored")
     @RequiresStableInput
@@ -428,7 +416,7 @@ class KafkaExactlyOnceSink<K, V>
         writer.commitTxn(nextId - 1, numTransactions);
         nextIdState.write(nextId);
 
-      } catch (ProducerSpEL.UnrecoverableProducerException e) {
+      } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
         // Producer JavaDoc says these are not recoverable errors and producer should be closed.
 
         // Close the producer and a new producer will be initialized in retry.
@@ -501,7 +489,7 @@ class KafkaExactlyOnceSink<K, V>
       }
 
       void beginTxn() {
-        ProducerSpEL.beginTransaction(producer);
+        producer.beginTransaction();
       }
 
       Future<RecordMetadata> sendRecord(
@@ -526,12 +514,15 @@ class KafkaExactlyOnceSink<K, V>
                       record.getValue().value()));
           sendCounter.inc();
           return result;
+        } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+          throw e;
         } catch (KafkaException e) {
-          ProducerSpEL.abortTransaction(producer);
+          producer.abortTransaction();
           throw e;
         }
       }
 
+      @SuppressWarnings("deprecation")
       void commitTxn(long lastRecordId, Counter numTransactions) throws IOException {
         String topic = Preconditions.checkStateNotNull(spec.getTopic());
         try {
@@ -539,15 +530,14 @@ class KafkaExactlyOnceSink<K, V>
           // NOTE: Kafka keeps this metadata for 24 hours since the last update. This limits
           // how long the pipeline could be down before resuming it. It does not look like
           // this TTL can be adjusted (asked about it on Kafka users list).
-          ProducerSpEL.sendOffsetsToTransaction(
-              producer,
+          producer.sendOffsetsToTransaction(
               ImmutableMap.of(
                   new TopicPartition(topic, shard),
                   new OffsetAndMetadata(
                       0L,
                       JSON_MAPPER.writeValueAsString(new ShardMetadata(lastRecordId, writerId)))),
-              spec.getSinkGroupId());
-          ProducerSpEL.commitTransaction(producer);
+              Preconditions.checkStateNotNull(spec.getSinkGroupId()));
+          producer.commitTransaction();
 
           numTransactions.inc();
           if (!reportedLineage) {
@@ -567,8 +557,10 @@ class KafkaExactlyOnceSink<K, V>
           LOG.debug("{} : committed {} records", shard, lastRecordId - committedId);
 
           committedId = lastRecordId;
+        } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+          throw e;
         } catch (KafkaException e) {
-          ProducerSpEL.abortTransaction(producer);
+          producer.abortTransaction();
           throw e;
         }
       }
@@ -767,15 +759,15 @@ class KafkaExactlyOnceSink<K, V>
     if (spec.getValueSerializer() != null) {
       producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer());
     }
-    producerConfig.put(ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true);
-    producerConfig.put(ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName);
+    producerConfig.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+    producerConfig.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, producerName);
 
     Producer<K, V> producer =
         spec.getProducerFactoryFn() != null
             ? spec.getProducerFactoryFn().apply(producerConfig)
             : new KafkaProducer<>(producerConfig);
 
-    ProducerSpEL.initTransactions(producer);
+    producer.initTransactions();
     return producer;
   }
 }

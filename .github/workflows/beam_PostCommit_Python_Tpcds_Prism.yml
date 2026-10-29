@@ -1,0 +1,75 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PostCommit Python Tpcds Prism
+
+on:
+  schedule:
+    - cron: '30 4/6 * * *'
+  pull_request:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_Tpcds_Prism.json']
+  workflow_dispatch:
+
+# Setting explicit permissions for the action
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
+
+jobs:
+  beam_PostCommit_Python_Tpcds_Prism:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 60
+    name: ${{ matrix.job_name }}
+    strategy:
+      matrix:
+        job_name: ["beam_PostCommit_Python_Tpcds_Prism"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+          go-version: default
+      - name: Run full TPC-DS suite on PrismRunner with regression check
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:benchmarks:tpcds:checkAllQueries

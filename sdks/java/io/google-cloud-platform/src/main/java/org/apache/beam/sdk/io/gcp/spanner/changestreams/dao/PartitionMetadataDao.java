@@ -50,7 +50,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -83,13 +82,23 @@ public class PartitionMetadataDao {
    * @return true if the table exists, false if the table does not exist.
    */
   public boolean tableExists() {
-    final String checkTableExistsStmt =
-        "SELECT t.table_name FROM information_schema.tables AS t "
-            + "WHERE t.table_catalog = '' AND "
-            + "t.table_schema = '' AND "
-            + "t.table_name = '"
-            + metadataTableName
-            + "'";
+    final String checkTableExistsStmt;
+    if (this.isPostgres()) {
+      checkTableExistsStmt =
+          "SELECT t.table_name FROM information_schema.tables AS t "
+              + "WHERE t.table_schema = 'public' AND "
+              + "t.table_name = '"
+              + metadataTableName
+              + "'";
+    } else {
+      checkTableExistsStmt =
+          "SELECT t.table_name FROM information_schema.tables AS t "
+              + "WHERE t.table_catalog = '' AND "
+              + "t.table_schema = '' AND "
+              + "t.table_name = '"
+              + metadataTableName
+              + "'";
+    }
     try (ResultSet queryResultSet =
         databaseClient
             .singleUseReadOnlyTransaction()
@@ -681,22 +690,20 @@ public class PartitionMetadataDao {
         List<String> composedPartitionTokens, State state) {
       Statement statement;
       if (this.dialect == Dialect.POSTGRESQL) {
-        StringBuilder sqlStringBuilder =
-            new StringBuilder("SELECT * FROM \"" + metadataTableName + "\"");
-        sqlStringBuilder.append(" WHERE \"");
-        sqlStringBuilder.append(COLUMN_STATE + "\" = " + "'" + state.toString() + "'");
-        if (!composedPartitionTokens.isEmpty()) {
-          sqlStringBuilder.append(" AND \"");
-          sqlStringBuilder.append(COLUMN_PARTITION_TOKEN);
-          sqlStringBuilder.append("\"");
-          sqlStringBuilder.append(" = ANY (Array[");
-          sqlStringBuilder.append(
-              composedPartitionTokens.stream()
-                  .map(s -> "'" + s + "'")
-                  .collect(Collectors.joining(",")));
-          sqlStringBuilder.append("])");
-        }
-        statement = Statement.newBuilder(sqlStringBuilder.toString()).build();
+        statement =
+            Statement.newBuilder(
+                    "SELECT * FROM \""
+                        + metadataTableName
+                        + "\" WHERE \""
+                        + COLUMN_STATE
+                        + "\" = $1 AND \""
+                        + COLUMN_PARTITION_TOKEN
+                        + "\" = ANY ($2)")
+                .bind("p1")
+                .to(state.toString())
+                .bind("p2")
+                .to(Value.stringArray(new ArrayList<>(composedPartitionTokens)))
+                .build();
       } else {
         statement =
             Statement.newBuilder(

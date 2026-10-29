@@ -146,7 +146,6 @@ for (version in flink_versions.split(',')) {
     include(":runners:flink:${version}:job-server-container")
 }
 /* End Flink Runner related settings */
-include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
 include(":runners:google-cloud-dataflow-java:arm")
 include(":runners:google-cloud-dataflow-java:examples")
@@ -311,6 +310,7 @@ include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
+include(":sdks:python:apache_beam:testing:benchmarks:tpcds")
 include(":sdks:python:container")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")

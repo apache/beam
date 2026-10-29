@@ -39,10 +39,10 @@ pipeline:
       name: WriteSpanner
       input: CreateRows
       config:
-        project_id: 'apache-beam-testing'
-        instance_id: 'shipment-test'
-        database_id: 'shipment'
-        table_id: 'shipments'
+        project: 'apache-beam-testing'
+        instance: 'shipment-test'
+        database: 'shipment'
+        table: 'shipments'
         error_handling:
           output: my_error_output
 

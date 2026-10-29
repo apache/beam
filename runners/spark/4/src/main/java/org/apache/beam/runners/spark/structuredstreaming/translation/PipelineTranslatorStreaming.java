@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import java.util.Collection;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorCommon;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.GroupByKeyStreamingTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ReadUnboundedTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StatefulParDoStreamingTranslator;
 import org.apache.beam.sdk.annotations.Internal;
@@ -28,25 +29,26 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.spark.sql.SparkSession;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Pipeline translator for streaming pipelines on Spark 4. It extends the common registry to reuse
- * the stateless single output ParDo, Window.Assign, Flatten and Reshuffle translators, which are
- * safe on a streaming Dataset. Every other primitive fails at translation, the batch translators
- * for them persist or collect the Dataset, which Spark rejects for streaming plans.
+ * the stateless single output ParDo, Window.Assign, Flatten, Reshuffle and Combine.GroupedValues
+ * translators, which are safe on a streaming Dataset. Unsupported primitives fail at translation.
  */
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
@@ -61,7 +63,18 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
         protected void translate(
             ParDo.MultiOutput<KV<Object, Object>, Object> transform, Context cxt) {
           PCollection<?> input = (PCollection<?>) cxt.getInput();
-          checkNotMergingWindows(input.getWindowingStrategy());
+          checkNotMergingWindows(input.getWindowingStrategy(), "Stateful ParDo");
+          super.translate(transform, cxt);
+        }
+      };
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static final TransformTranslator GROUP_BY_KEY =
+      new GroupByKeyStreamingTranslator<Object, Object>() {
+        @Override
+        protected void translate(GroupByKey<Object, Object> transform, Context cxt) {
+          PCollection<?> input = (PCollection<?>) cxt.getInput();
+          checkSupportedGroupByKey(input);
           super.translate(transform, cxt);
         }
       };
@@ -80,23 +93,18 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       return READ_UNBOUNDED;
     }
 
-    if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
-      throw new UnsupportedOperationException(
-          "Bounded Read (Read.from(BoundedSource), Create with two or more elements)"
-              + NOT_SUPPORTED);
-    }
-
-    if (transform instanceof Impulse) {
-      throw new UnsupportedOperationException(
-          "Impulse (Create with fewer than two elements, PAssert)" + NOT_SUPPORTED);
-    }
-
     if (transform instanceof GroupByKey) {
-      throw new UnsupportedOperationException("GroupByKey" + NOT_SUPPORTED);
+      return GROUP_BY_KEY;
     }
 
-    if (transform instanceof Combine.PerKey) {
-      throw new UnsupportedOperationException("Combine.perKey" + NOT_SUPPORTED);
+    if (transform instanceof Combine.Globally
+        && ((Combine.Globally<?, ?>) transform).isInsertDefault()) {
+      throw new UnsupportedOperationException(
+          "Combine.globally() with a default value (use withoutDefaults())" + NOT_SUPPORTED);
+    }
+
+    if (transform instanceof Combine.PerKey || transform instanceof Combine.Globally) {
+      return null;
     }
 
     if (transform instanceof ParDo.MultiOutput) {
@@ -153,10 +161,23 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
     }
   }
 
-  private static void checkNotMergingWindows(WindowingStrategy<?, ?> windowingStrategy) {
-    if (windowingStrategy.needsMerge()) {
+  private static void checkSupportedGroupByKey(PCollection<?> input) {
+    WindowingStrategy<?, ?> strategy = input.getWindowingStrategy();
+    checkNotMergingWindows(strategy, "GroupByKey");
+    if (!(strategy.getTrigger() instanceof DefaultTrigger
+        || strategy.getTrigger() instanceof NeverTrigger)) {
       throw new UnsupportedOperationException(
-          "Stateful ParDo over merging windows" + NOT_SUPPORTED);
+          "Custom triggers (" + strategy.getTrigger() + ")" + NOT_SUPPORTED);
+    }
+    if (strategy.getMode() != AccumulationMode.DISCARDING_FIRED_PANES) {
+      throw new UnsupportedOperationException("Accumulating fired panes" + NOT_SUPPORTED);
+    }
+  }
+
+  private static void checkNotMergingWindows(
+      WindowingStrategy<?, ?> windowingStrategy, String feature) {
+    if (windowingStrategy.needsMerge()) {
+      throw new UnsupportedOperationException(feature + " over merging windows" + NOT_SUPPORTED);
     }
   }
 

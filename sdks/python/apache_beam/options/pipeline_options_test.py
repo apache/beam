@@ -29,6 +29,7 @@ import mock
 from parameterized import parameterized
 
 from apache_beam.options.pipeline_options import AwsOptions
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -930,6 +931,58 @@ class PipelineOptionsTest(unittest.TestCase):
       errors = options._handle_temp_and_staging_locations(validator)
       self.assertEqual(errors, expected)
 
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch.dict(
+      os.environ,
+      {
+          "GOOGLE_CLOUD_UNIVERSE_DOMAIN": "example-tpc.goog",
+          # mTLS auto-detection is incompatible with non-default universes.
+          "GOOGLE_API_USE_CLIENT_CERTIFICATE": "false",
+      })
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO.get_bucket')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_soft_delete_check_with_tpc_universe_domain(
+      self, mock_get_service_credentials, mock_get_bucket):
+    import google.auth.credentials
+
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        mock.Mock(
+            spec=google.auth.credentials.Credentials,
+            universe_domain="example-tpc.goog"))
+    soft_delete_policy = mock_get_bucket.return_value.soft_delete_policy
+    soft_delete_policy.retention_duration_seconds = 0
+
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--impersonate_service_account=sa@myproject.iam.gserviceaccount.com',
+        '--temp_location=gs://beam/tmp'
+    ])
+    # Must not raise a universe domain mismatch ValueError.
+    options._warn_if_soft_delete_policy_enabled('temp_location')
+
+    # The GCS client must be built from the user's pipeline options so that
+    # project and impersonation settings are honored.
+    used_options = mock_get_service_credentials.call_args[0][0].view_as(
+        GoogleCloudOptions)
+    self.assertEqual(used_options.project, 'myproject')
+    self.assertEqual(
+        used_options.impersonate_service_account,
+        'sa@myproject.iam.gserviceaccount.com')
+
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.io.gcp.gcsio.GcsIO.__init__',
+      side_effect=ValueError('universe domain mismatch'))
+  def test_soft_delete_check_does_not_raise(self, unused_mock_init):
+    options = GoogleCloudOptions(
+        ['--project=myproject', '--temp_location=gs://beam/tmp'])
+    # The soft delete check only emits a warning; failures must not block
+    # pipeline submission.
+    with self.assertLogs('apache_beam.options.pipeline_options',
+                         level='WARNING'):
+      options._warn_if_soft_delete_policy_enabled('temp_location')
+
   def test_validation_good_stg_good_temp(self):
     runner = MockRunners.DataflowRunner()
     options = GoogleCloudOptions([
@@ -1215,6 +1268,98 @@ class AwsOptionsTest(unittest.TestCase):
     self.assertEqual(all_options['aws_region_name'], 'us-east-1')
     self.assertIn('s3_region_name', all_options)
     self.assertIn('s3_api_version', all_options)
+
+
+def _java_option_name(python_option_name):
+  """Converts a Python option name the way Java's PipelineOptionsTranslation
+  does (Guava CaseFormat.LOWER_UNDERSCORE to LOWER_CAMEL)."""
+  first, *rest = python_option_name.lower().split('_')
+  return first + ''.join(part.capitalize() for part in rest)
+
+
+class BigQueryOptionsTest(unittest.TestCase):
+  # Python option name (dest) -> property name in Java's
+  # org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions. Options are passed to
+  # Java (e.g. cross-language BigQuery transforms) as
+  # beam:option:<dest>:v1, and Java derives the property name from <dest>.
+  JAVA_OPTION_NAMES = {
+      'big_query_endpoint': 'bigQueryEndpoint',
+      'big_query_quota_project_id': 'bigQueryQuotaProjectId',
+  }
+
+  def test_option_names_map_to_java_option_names(self):
+    parser = _BeamArgumentParser()
+    BigQueryOptions._add_argparse_args(parser)
+    dests = {action.dest for action in parser._actions if action.dest != 'help'}
+    # A new option must be added to JAVA_OPTION_NAMES, so that its name is
+    # checked against Java.
+    self.assertEqual(dests, set(self.JAVA_OPTION_NAMES))
+    for dest, java_name in self.JAVA_OPTION_NAMES.items():
+      self.assertEqual(_java_option_name(dest), java_name)
+
+  def test_options_serialized_with_java_compatible_names(self):
+    options = PipelineOptions([
+        '--bigquery_endpoint=https://bq.example.com',
+        '--bigquery_quota_project_id=billing-project',
+    ])
+    fields = options.to_runner_api().fields
+    self.assertEqual(
+        fields['beam:option:big_query_endpoint:v1'].string_value,
+        'https://bq.example.com')
+    self.assertNotIn('beam:option:bigquery_endpoint:v1', fields)
+    self.assertEqual(
+        fields['beam:option:big_query_quota_project_id:v1'].string_value,
+        'billing-project')
+    self.assertNotIn('beam:option:bigquery_quota_project_id:v1', fields)
+
+  @parameterized.expand([
+      ('--bigquery_endpoint', ),
+      ('--big_query_endpoint', ),
+  ])
+  def test_endpoint_flags(self, flag):
+    options = PipelineOptions([flag, 'https://bq.example.com'])
+    self.assertEqual(
+        options.get_all_options()['big_query_endpoint'],
+        'https://bq.example.com')
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.big_query_endpoint, 'https://bq.example.com')
+    self.assertEqual(bq_options.bigquery_endpoint, 'https://bq.example.com')
+
+  @parameterized.expand([
+      ('--bigquery_quota_project_id', ),
+      ('--big_query_quota_project_id', ),
+  ])
+  def test_quota_project_id_flags(self, flag):
+    options = PipelineOptions([flag, 'billing-project'])
+    self.assertEqual(
+        options.get_all_options()['big_query_quota_project_id'],
+        'billing-project')
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.big_query_quota_project_id, 'billing-project')
+    self.assertEqual(bq_options.bigquery_quota_project_id, 'billing-project')
+
+  def test_quota_project_id_default(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.big_query_quota_project_id)
+    self.assertIsNone(bq_options.bigquery_quota_project_id)
+
+  def test_endpoint_default(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.big_query_endpoint)
+    self.assertIsNone(bq_options.bigquery_endpoint)
+
+  def test_endpoint_attribute_alias_setter(self):
+    options = PipelineOptions([])
+    options.view_as(
+        BigQueryOptions).bigquery_endpoint = 'https://bq.example.com'
+    self.assertEqual(
+        options.view_as(BigQueryOptions).big_query_endpoint,
+        'https://bq.example.com')
+    self.assertNotIn('bigquery_endpoint', options.get_all_options())
+
+  def test_unknown_attribute_still_raises(self):
+    with self.assertRaises(AttributeError):
+      getattr(PipelineOptions([]).view_as(BigQueryOptions), 'not_an_option')
 
 
 if __name__ == '__main__':

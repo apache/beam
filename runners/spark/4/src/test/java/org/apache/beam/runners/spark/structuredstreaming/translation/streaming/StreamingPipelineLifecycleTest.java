@@ -117,8 +117,8 @@ public class StreamingPipelineLifecycleTest implements Serializable {
 
     awaitActiveQueries(count -> count > 0, "no streaming query started");
 
-    PipelineResult.State cancelledState = result.cancel();
-    assertEquals(PipelineResult.State.CANCELLED, cancelledState);
+    result.cancel();
+    assertEquals(PipelineResult.State.CANCELLED, StreamingTestUtils.waitUntilFinish(result));
     assertEquals(PipelineResult.State.CANCELLED, result.getState());
 
     awaitActiveQueries(count -> count == 0, "the streaming query did not stop after cancel");
@@ -148,8 +148,8 @@ public class StreamingPipelineLifecycleTest implements Serializable {
       assertEquals(PipelineResult.State.RUNNING, stateAfterTimeout);
       assertEquals(PipelineResult.State.RUNNING, result.getState());
 
-      PipelineResult.State cancelledState = result.cancel();
-      assertEquals(PipelineResult.State.CANCELLED, cancelledState);
+      result.cancel();
+      assertEquals(PipelineResult.State.CANCELLED, StreamingTestUtils.waitUntilFinish(result));
       assertEquals(PipelineResult.State.CANCELLED, result.getState());
     } finally {
       if (result.getState() == PipelineResult.State.RUNNING) {
