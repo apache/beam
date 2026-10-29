@@ -46,12 +46,14 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -138,7 +140,8 @@ public class SplittableParDoProcessFnTest {
   private static class ProcessFnTester<
           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       implements AutoCloseable {
-    private final DoFnTester<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> tester;
+    private final DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> runner;
+    private final List<ValueInSingleWindow<OutputT>> outputs = new ArrayList<>();
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
@@ -191,27 +194,66 @@ public class SplittableParDoProcessFnTest {
               watermarkEstimatorStateCoder,
               windowingStrategy,
               sideInputMapping);
-      this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
       processFn.setStateInternalsFactory(key -> stateInternals);
       processFn.setTimerInternalsFactory(key -> timerInternals);
       processFn.setSideInputReader(sideInputReader);
+      PipelineOptions options = PipelineOptionsFactory.create();
+      TupleTag<OutputT> mainOutputTag = new TupleTag<>();
+      WindowedValueMultiReceiver outputReceiver =
+          new WindowedValueMultiReceiver() {
+            @Override
+            @SuppressWarnings("unchecked")
+            public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+              for (BoundedWindow window : output.getWindows()) {
+                outputs.add(
+                    (ValueInSingleWindow<OutputT>)
+                        ValueInSingleWindow.of(
+                            output.getValue(),
+                            output.getTimestamp(),
+                            window,
+                            output.getPaneInfo()));
+              }
+            }
+          };
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
-              tester.getPipelineOptions(),
-              new DoFnTesterWindowedValueReceiver(tester),
-              tester.getMainOutputTag(),
+              options,
+              outputReceiver,
+              mainOutputTag,
               sideInputReader,
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
               maxOutputsPerBundle,
               maxBundleDuration,
               () -> bundleFinalizer));
-      // Do not clone since ProcessFn references non-serializable DoFnTester itself
-      // through the state/timer/output callbacks.
-      this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
-      this.tester.startBundle();
+      this.runner =
+          DoFnRunners.simpleRunner(
+              options,
+              processFn,
+              sideInputReader,
+              outputReceiver,
+              mainOutputTag,
+              Collections.emptyList(),
+              new StepContext() {
+                @Override
+                public StateInternals stateInternals() {
+                  return stateInternals;
+                }
+
+                @Override
+                public TimerInternals timerInternals() {
+                  return timerInternals;
+                }
+              },
+              null,
+              Collections.emptyMap(),
+              windowingStrategy,
+              DoFnSchemaInformation.create(),
+              sideInputMapping);
+      processFn.setup(options);
+      runner.startBundle();
       timerInternals.advanceProcessingTime(currentProcessingTime);
 
       this.currentProcessingTime = currentProcessingTime;
@@ -219,7 +261,8 @@ public class SplittableParDoProcessFnTest {
 
     @Override
     public void close() throws Exception {
-      tester.close();
+      runner.finishBundle();
+      processFn.tearDown();
     }
 
     /** Performs a seed {@link DoFn.ProcessElement} call feeding the element and restriction. */
@@ -233,9 +276,11 @@ public class SplittableParDoProcessFnTest {
     }
 
     void startElement(WindowedValue<KV<InputT, RestrictionT>> windowedValue) throws Exception {
-      tester.processElement(
-          KeyedWorkItems.elementsWorkItem(
-              "key".getBytes(StandardCharsets.UTF_8), Collections.singletonList(windowedValue)));
+      runner.processElement(
+          WindowedValues.valueInGlobalWindow(
+              KeyedWorkItems.elementsWorkItem(
+                  "key".getBytes(StandardCharsets.UTF_8),
+                  Collections.singletonList(windowedValue))));
     }
 
     boolean advanceDrain() throws Exception {
@@ -249,8 +294,9 @@ public class SplittableParDoProcessFnTest {
               new Instant(Long.MAX_VALUE),
               TimeDomain.EVENT_TIME,
               CausedByDrain.CAUSED_BY_DRAIN));
-      tester.processElement(
-          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
+      runner.processElement(
+          WindowedValues.valueInGlobalWindow(
+              KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers)));
       return true;
     }
 
@@ -270,40 +316,33 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(
-          KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers));
+      runner.processElement(
+          WindowedValues.valueInGlobalWindow(
+              KeyedWorkItems.timersWorkItem("key".getBytes(StandardCharsets.UTF_8), timers)));
       return true;
     }
 
     List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
-      return tester.peekOutputElementsInWindow(window);
+      List<TimestampedValue<OutputT>> res = new ArrayList<>();
+      for (ValueInSingleWindow<OutputT> value : outputs) {
+        if (value.getWindow().equals(window)) {
+          res.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
+        }
+      }
+      return res;
     }
 
     List<OutputT> takeOutputElements() {
-      return tester.takeOutputElements();
+      List<OutputT> res = new ArrayList<>();
+      for (ValueInSingleWindow<OutputT> value : outputs) {
+        res.add(value.getValue());
+      }
+      outputs.clear();
+      return res;
     }
 
     public Instant getWatermarkHold() {
       return stateInternals.earliestWatermarkHold();
-    }
-  }
-
-  private static class DoFnTesterWindowedValueReceiver implements WindowedValueMultiReceiver {
-    private final DoFnTester<?, ?> tester;
-
-    private DoFnTesterWindowedValueReceiver(DoFnTester<?, ?> tester) {
-      this.tester = tester;
-    }
-
-    @Override
-    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
-      for (BoundedWindow window : output.getWindows()) {
-        tester
-            .getMutableOutput(tag)
-            .add(
-                ValueInSingleWindow.of(
-                    output.getValue(), output.getTimestamp(), window, output.getPaneInfo()));
-      }
     }
   }
 

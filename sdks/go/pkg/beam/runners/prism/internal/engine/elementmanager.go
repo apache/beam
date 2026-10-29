@@ -1515,6 +1515,20 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	return count
 }
 
+// isTriggerFinished returns true if the root trigger for the given window and key
+// has finished, meaning the window is closed and no further panes will be produced.
+// Callers must hold ss.mu.
+func (ss *stageState) isTriggerFinished(window typex.Window, key string) bool {
+	if ss.strat.Trigger == nil {
+		return false
+	}
+	state, ok := ss.state[LinkID{}][window][key]
+	if !ok {
+		return false
+	}
+	return state.getTriggerState(ss.strat.Trigger).finished
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1543,6 +1557,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 	count := 0
 	for _, e := range newPending {
+		if len(e.keyBytes) > 0 && ss.isTriggerFinished(e.window, string(e.keyBytes)) {
+			// The trigger for this window and key has already finished, so the
+			// window is closed. Drop the element, matching the Java ReduceFnRunner
+			// (droppedDueToClosedWindow). Otherwise the element would be emitted
+			// in an extra pane when the watermark passes the end of the window.
+			continue
+		}
 		count++
 		if len(e.keyBytes) == 0 {
 			panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))

@@ -289,7 +289,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:prism:java:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
-  dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
   dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
@@ -983,7 +982,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.15")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.16")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

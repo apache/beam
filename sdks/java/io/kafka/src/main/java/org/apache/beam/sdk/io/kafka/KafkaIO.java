@@ -142,7 +142,6 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.common.utils.AppInfoParser;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -1664,31 +1663,6 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      if (!ConsumerSpEL.hasOffsetsForTimes()) {
-        LOG.warn(
-            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
-                + "may not be supported in next release of Apache Beam. "
-                + "Please upgrade your Kafka client version.",
-            AppInfoParser.getVersion());
-      }
-      if (getStartReadTime() != null) {
-        checkArgument(
-            ConsumerSpEL.hasOffsetsForTimes(),
-            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is "
-                + AppInfoParser.getVersion()
-                + ". If you are building with maven, set \"kafka.clients.version\" "
-                + "maven property to 0.10.1.0 or newer.");
-      }
-      if (getStopReadTime() != null) {
-        checkArgument(
-            ConsumerSpEL.hasOffsetsForTimes(),
-            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is "
-                + AppInfoParser.getVersion()
-                + ". If you are building with maven, set \"kafka.clients.version\" "
-                + "maven property to 0.10.1.0 or newer.");
-      }
       if (isCommitOffsetsInFinalizeEnabled()) {
         checkArgument(
             getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
@@ -3123,14 +3097,6 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      if (!ConsumerSpEL.hasOffsetsForTimes()) {
-        LOG.warn(
-            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
-                + "may not be supported in next release of Apache Beam. "
-                + "Please upgrade your Kafka client version.",
-            AppInfoParser.getVersion());
-      }
-
       if (isCommitOffsetEnabled()) {
         if (configuredKafkaCommit()) {
           LOG.info(
@@ -3529,7 +3495,6 @@ public class KafkaIO {
      *     written by the same job.
      */
     public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
-      KafkaExactlyOnceSink.ensureEOSSupport();
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
       return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
@@ -3581,7 +3546,6 @@ public class KafkaIO {
         checkArgument(
             getBadRecordErrorHandler() instanceof DefaultErrorHandler,
             "BadRecordErrorHandling isn't supported with Kafka Exactly Once writing");
-        KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
         //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
@@ -4132,9 +4096,8 @@ public class KafkaIO {
       Long timestamp =
           row.getSchema().hasField(FIELD_TIMESTAMP) ? row.getInt64(FIELD_TIMESTAMP) : null;
 
-      boolean hasHeaders = ConsumerSpEL.hasHeaders();
       Iterable<Header> headers = Collections.emptyList();
-      if (hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+      if (row.getSchema().hasField(FIELD_HEADERS)) {
         Iterable<Row> headerRows = row.getArray(FIELD_HEADERS);
         if (headerRows != null) {
           List<Header> headerList = new ArrayList<>();
@@ -4146,16 +4109,9 @@ public class KafkaIO {
           }
           headers = headerList;
         }
-      } else if (!hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
-        // Log warning when headers are present but Kafka client doesn't support them
-        LOG.warn(
-            "Dropping headers from Kafka record because the Kafka client version "
-                + "does not support headers (requires Kafka 0.11+).");
       }
 
-      return hasHeaders
-          ? new ProducerRecord<>(topic, partition, timestamp, key, value, headers)
-          : new ProducerRecord<>(topic, partition, timestamp, key, value);
+      return new ProducerRecord<>(topic, partition, timestamp, key, value, headers);
     }
   }
 

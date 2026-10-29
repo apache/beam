@@ -516,22 +516,68 @@ public class SdkHarnessClient implements AutoCloseable {
         } finally {
           beamFnDataOutboundAggregator.discard();
         }
+        // Consume the bundle's output BEFORE waiting for the ProcessBundleResponse. The inbound
+        // queue is bounded, and the SDK does not finish the bundle until its output has been sent.
+        // Waiting for the response first therefore deadlocks once a single bundle produces more
+        // output than the inbound queue and the SDK's own send buffer hold together: the SDK
+        // blocks sending, the response never arrives, and nothing drains the queue. Batch runners
+        // that hand a whole partition to the SDK as one bundle hit this with ~1 GB of output.
+        Exception drainException = null;
+        if (exception == null && beamFnDataInboundObserver.isPresent()) {
+          BeamFnDataInboundObserver inboundObserver = beamFnDataInboundObserver.get();
+          // Async: when the response is already complete, a synchronous callback would run on
+          // this thread and could block putting elements into the queue this thread must drain.
+          response.whenCompleteAsync(
+              (completedResponse, failure) -> {
+                try {
+                  if (failure != null) {
+                    // The SDK will not send the rest of the output; unblock the drain below.
+                    inboundObserver.close();
+                  } else if (completedResponse.hasElements()) {
+                    inboundObserver.accept(completedResponse.getElements());
+                  }
+                } catch (Exception e) {
+                  // Only possible once the drain has failed and cancelled the queue, and that
+                  // failure is reported by close().
+                  LOG.debug("Dropping the response elements of failed bundle {}", bundleId, e);
+                }
+              });
+          try {
+            inboundObserver.awaitCompletion();
+            fnApiDataService.unregisterReceiver(bundleId);
+          } catch (Exception e) {
+            drainException = e;
+          }
+        }
+        if (beamFnDataInboundObserver.isPresent()) {
+          // Idempotent. Also releases the observer when sending the bundle's input failed.
+          try {
+            beamFnDataInboundObserver.get().close();
+          } catch (Exception e) {
+            if (drainException == null) {
+              drainException = e;
+            } else {
+              drainException.addSuppressed(e);
+            }
+          }
+        }
         try {
           // We don't have to worry about the completion stage.
           if (exception == null) {
             BeamFnApi.ProcessBundleResponse completedResponse = MoreFutures.get(response);
-            if (completedResponse.hasElements()) {
-              beamFnDataInboundObserver.get().accept(completedResponse.getElements());
-            }
 
             outstandingRequests.arriveAndAwaitAdvance();
 
-            progressHandler.onCompleted(completedResponse);
-            if (completedResponse.getResidualRootsCount() > 0) {
-              checkpointHandler.onCheckpoint(completedResponse);
-            }
-            if (completedResponse.getRequiresFinalization()) {
-              finalizationHandler.requestsFinalization(bundleId);
+            // A bundle whose output could not be consumed has failed even if the SDK finished
+            // it, so it must not report completion or register residuals or finalization.
+            if (drainException == null) {
+              progressHandler.onCompleted(completedResponse);
+              if (completedResponse.getResidualRootsCount() > 0) {
+                checkpointHandler.onCheckpoint(completedResponse);
+              }
+              if (completedResponse.getRequiresFinalization()) {
+                finalizationHandler.requestsFinalization(bundleId);
+              }
             }
           } else {
             // TODO: [https://github.com/apache/beam/issues/18756] Handle aborting the bundle being
@@ -546,6 +592,15 @@ public class SdkHarnessClient implements AutoCloseable {
             exception.addSuppressed(e);
           }
         }
+        // After the response, so that a failed bundle reports the SDK's error rather than the
+        // cancelled queue it caused.
+        if (drainException != null) {
+          if (exception == null) {
+            exception = drainException;
+          } else {
+            exception.addSuppressed(drainException);
+          }
+        }
         try {
           if (exception == null) {
             stateRegistration.deregister();
@@ -557,22 +612,6 @@ public class SdkHarnessClient implements AutoCloseable {
             exception = e;
           } else {
             exception.addSuppressed(e);
-          }
-        }
-        if (beamFnDataInboundObserver.isPresent()) {
-          try {
-            if (exception == null) {
-              beamFnDataInboundObserver.get().awaitCompletion();
-              fnApiDataService.unregisterReceiver(bundleId);
-            } else {
-              beamFnDataInboundObserver.get().close();
-            }
-          } catch (Exception e) {
-            if (exception == null) {
-              exception = e;
-            } else {
-              exception.addSuppressed(e);
-            }
           }
         }
         if (exception != null) {
