@@ -76,7 +76,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -154,7 +153,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -183,10 +181,12 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -3161,8 +3161,6 @@ public class BigQueryIOWriteTest implements Serializable {
   private void testWritePartition(
       long numTables, long numFilesPerTable, long fileSize, long expectedNumPartitionsPerTable)
       throws Exception {
-    p.enableAbandonedNodeEnforcement(false);
-
     // In the case where a static destination is specified (i.e. not through a dynamic table
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
@@ -3206,7 +3204,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
-        p.apply(Create.of(tempFilePrefix)).apply(View.asSingleton());
+        p.apply("CreateTempFilePrefix", Create.of(tempFilePrefix)).apply(View.asSingleton());
 
     WritePartition<TableDestination> writePartition =
         new WritePartition<>(
@@ -3223,47 +3221,59 @@ public class BigQueryIOWriteTest implements Serializable {
                 BigQueryIO.TableRowFormatFunction.fromSerializableFunction(
                     SerializableFunctions.identity())));
 
-    DoFnTester<
-            Iterable<WriteBundlesToFiles.Result<TableDestination>>,
-            KV<ShardedKey<TableDestination>, WritePartition.Result>>
-        tester = DoFnTester.of(writePartition);
-    tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
-    tester.processElement(files);
+    // All files go in as one element, the same way BatchLoads hands WritePartition the full list.
+    List<Iterable<WriteBundlesToFiles.Result<TableDestination>>> input =
+        Collections.singletonList(files);
+    Coder<KV<ShardedKey<TableDestination>, WritePartition.Result>> partitionCoder =
+        KvCoder.of(
+            ShardedKeyCoder.of(TableDestinationCoder.of()), WritePartition.ResultCoder.INSTANCE);
+    PCollectionTuple outputs =
+        p.apply(
+                "CreateFiles",
+                Create.of(input)
+                    .withCoder(
+                        IterableCoder.of(
+                            WriteBundlesToFiles.ResultCoder.of(TableDestinationCoder.of()))))
+            .apply(
+                "WritePartition",
+                ParDo.of(writePartition)
+                    .withSideInputs(tempFilePrefixView)
+                    .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
+    outputs.get(multiPartitionsTag).setCoder(partitionCoder);
+    outputs.get(singlePartitionTag).setCoder(partitionCoder);
 
-    List<KV<ShardedKey<TableDestination>, WritePartition.Result>> partitions;
-    if (expectedNumPartitionsPerTable > 1) {
-      partitions = tester.takeOutputElements(multiPartitionsTag);
-    } else {
-      partitions = tester.takeOutputElements(singlePartitionTag);
-    }
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> expectedTag =
+        expectedNumPartitionsPerTable > 1 ? multiPartitionsTag : singlePartitionTag;
+    PAssert.that(outputs.get(expectedTag))
+        .satisfies(
+            partitions -> {
+              List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
+              Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
+              for (KV<ShardedKey<TableDestination>, WritePartition.Result> partition : partitions) {
+                String table = partition.getKey().getKey().getTableSpec();
+                partitionsResult.add(partition.getKey());
+                List<String> tableFilesResult =
+                    filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
+                tableFilesResult.addAll(partition.getValue().getFilenames());
+              }
 
-    List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
-    Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<TableDestination>, WritePartition.Result> partition : partitions) {
-      String table = partition.getKey().getKey().getTableSpec();
-      partitionsResult.add(partition.getKey());
-      List<String> tableFilesResult =
-          filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
-      tableFilesResult.addAll(partition.getValue().getFilenames());
-    }
+              assertThat(
+                  partitionsResult,
+                  containsInAnyOrder(Iterables.toArray(expectedPartitions, ShardedKey.class)));
 
-    assertThat(
-        partitionsResult,
-        containsInAnyOrder(Iterables.toArray(expectedPartitions, ShardedKey.class)));
-
-    if (isSingleton) {
-      assertEquals(1, filesPerTableResult.size());
-      List<String> singletonFiles = filesPerTableResult.values().iterator().next();
-      assertTrue(Files.exists(Paths.get(singletonFiles.get(0))));
-      assertThat(Files.readAllBytes(Paths.get(singletonFiles.get(0))).length, equalTo(0));
-    } else {
-      assertEquals(filenamesPerTable, filesPerTableResult);
-    }
-    for (List<String> filenames : filesPerTableResult.values()) {
-      for (String filename : filenames) {
-        Files.deleteIfExists(Paths.get(filename));
-      }
-    }
+              if (isSingleton) {
+                assertEquals(1, filesPerTableResult.size());
+                List<String> singletonFiles = filesPerTableResult.values().iterator().next();
+                File singletonFile = new File(singletonFiles.get(0));
+                assertTrue(singletonFile.exists());
+                assertThat(singletonFile.length(), equalTo(0L));
+                assertTrue(singletonFile.delete());
+              } else {
+                assertEquals(filenamesPerTable, filesPerTableResult);
+              }
+              return null;
+            });
+    p.run();
   }
 
   static class IdentityDynamicTables extends DynamicDestinations<String, String> {
