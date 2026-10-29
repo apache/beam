@@ -433,6 +433,10 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=extensions,
+      entry_points={
+          # Experimental; see apache_beam/cli/main.py.
+          'console_scripts': ['beam = apache_beam.cli.main:main'],
+      },
       install_requires=[
           'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
