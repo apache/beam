@@ -48,9 +48,11 @@ python apache_beam/examples/inference/pytorch_image_classification_with_side_inp
   --file_pattern=<glob_pattern>
 
 file_pattern is path(can contain glob characters), which will be passed to
-WatchContinuously transform for model updates. WatchContinuously watches the
-file_pattern and emits a latest file path, sorted by timestamp. Files that
-are read before and updated with same name will be ignored as an update.
+WatchFilePattern for model updates. WatchFilePattern emits the matching file
+with the newest modification time. If one check finds several models, only
+the newest is emitted. Reusing a filename does not publish an update; upload
+a new file. A file whose modification time is older than the model already
+selected is ignored, so a rollback must be uploaded with a newer timestamp.
 
 The pipeline expects there is at least one file present to match the
 file_pattern before pipeline startup. Presumably, this would be the
