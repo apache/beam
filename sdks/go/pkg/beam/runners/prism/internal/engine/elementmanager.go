@@ -315,6 +315,15 @@ func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func(
 	ss.inprogressKeys = set[string]{}
 }
 
+// StageRequiresTimeSortedInput marks the given stateful stage as requiring its
+// input sorted by event time. Data is held until the watermark passes its
+// timestamp plus the input's allowed lateness, then processed in timestamp order.
+func (em *ElementManager) StageRequiresTimeSortedInput(ID string, allowedLateness time.Duration) {
+	ss := em.stages[ID]
+	ss.requiresTimeSortedInput = true
+	ss.timeSortedAllowedLateness = allowedLateness
+}
+
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
 // processed by key.
 func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTimerID) {
@@ -1289,6 +1298,11 @@ type stageState struct {
 	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
 	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
 
+	// Whether the stage requires its input sorted by event time, and the
+	// allowed lateness of that input. See timeSortedDataReadyLocked.
+	requiresTimeSortedInput   bool
+	timeSortedAllowedLateness time.Duration
+
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
 	// the map and heap when the count goes to zero.
@@ -1937,6 +1951,10 @@ keysPerBundle:
 					(!dataInBundle && !dnt.elements[0].IsTimer())) { // we're about to add data to a bundle that already has a time
 				break
 			}
+			if dnt.elements[0].IsData() && !ss.timeSortedDataReadyLocked(dnt.elements[0].timestamp, watermark) {
+				// Hold data, and anything after it, until it can be time sorted.
+				break
+			}
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsData() {
 				dataInBundle = true
@@ -2003,11 +2021,28 @@ func (ss *stageState) hasBuildableDataLocked(watermark mtime.Time) bool {
 		if dnt.elements.Len() == 0 {
 			continue
 		}
-		if e := dnt.elements[0]; e.IsData() || e.timestamp <= watermark {
+		e := dnt.elements[0]
+		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) {
+			return true
+		}
+		if e.IsTimer() && e.timestamp <= watermark {
 			return true
 		}
 	}
 	return false
+}
+
+// timeSortedDataReadyLocked reports whether a data element with the given
+// timestamp may be processed at the given watermark. Data for stages that
+// require time sorted input is held until the watermark passes its timestamp
+// plus the allowed lateness, so no earlier element that isn't droppably late
+// can still arrive, and held elements are processed in timestamp order.
+// Data for other stages is always ready. Callers hold ss.mu.
+func (ss *stageState) timeSortedDataReadyLocked(ts, watermark mtime.Time) bool {
+	if !ss.requiresTimeSortedInput || watermark == mtime.MaxTimestamp {
+		return true
+	}
+	return ts.Add(ss.timeSortedAllowedLateness) <= watermark
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
