@@ -77,7 +77,7 @@ public class DetectNewPartitionsAction {
    *   <li>If there are no unfinished partitions, this function will stop and not be re-scheduled.
    *   <li>Updates the component's watermark to the min fetched.
    *   <li>Fetches the read timestamp from the restriction.
-   *   <li>Fetches all the partitions with a createdAt timestamp > read timestamp.
+   *   <li>Fetches all the partitions with a createdAt timestamp >= read timestamp.
    *   <li>Groups the partitions by createdAt timestamp.
    *   <li>Process the groups in ascending order of createdAt timestamp (oldest first)
    *   <li>For each group, updates the state to {@link State#SCHEDULED}.

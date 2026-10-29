@@ -490,7 +490,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
     Statement getPartitionsAfterStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+                "SELECT * FROM my-metadata-table WHERE CreatedAt >= @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
             .bind("timestamp")
             .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
             .build();
@@ -501,7 +501,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private void mockGetPartitionSize(Timestamp timestamp, long partitionSize) {
     Statement getPartitionsAfterStatement =
         Statement.newBuilder(
-                "SELECT COUNT(*) as count FROM my-metadata-table WHERE CreatedAt > @timestamp")
+                "SELECT COUNT(*) as count FROM my-metadata-table WHERE CreatedAt >= @timestamp")
             .bind("timestamp")
             .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
             .build();
