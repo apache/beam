@@ -147,7 +147,25 @@ func microsInstantFromStorage(s microsInstantStorage) (MicrosInstant, error) {
 func registerStandardLogicalTypes(r *Registry) {
 	registerLogicalTypeConversion(r, ToLogicalType(URNDate, typeOf[Date](), reflectx.Int64), dateToStorage, dateFromStorage)
 	registerLogicalTypeConversion(r, ToLogicalType(URNMicrosInstant, typeOf[MicrosInstant](), typeOf[microsInstantStorage]()), microsInstantToStorage, microsInstantFromStorage)
+	r.RegisterPassThroughLogicalType(URNFixedChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNVarChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNFixedBytes, reflectx.ByteSlice)
+	r.RegisterPassThroughLogicalType(URNVarBytes, reflectx.ByteSlice)
 }
+
+// URNs of the standard logical types that pass through as their
+// representation type. Their INT32 argument is the fixed or maximum length,
+// which the Go SDK does not enforce.
+const (
+	// URNFixedChar identifies the fixed length string logical type.
+	URNFixedChar = "beam:logical_type:fixed_char:v1"
+	// URNVarChar identifies the variable length string logical type.
+	URNVarChar = "beam:logical_type:var_char:v1"
+	// URNFixedBytes identifies the fixed length bytes logical type.
+	URNFixedBytes = "beam:logical_type:fixed_bytes:v1"
+	// URNVarBytes identifies the variable length bytes logical type.
+	URNVarBytes = "beam:logical_type:var_bytes:v1"
+)
 
 func init() {
 	// Pipeline graphs serialize the standard logical types by name.

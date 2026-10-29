@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -417,5 +418,267 @@ func TestMicrosInstant_StringAndEquals(t *testing.T) {
 	}
 	if later := MicrosInstant(utc.Time().Add(time.Microsecond)); utc.Equals(later) {
 		t.Errorf("%v.Equals(%v) = true, want false", utc, later)
+	}
+}
+
+func TestPassThroughLogicalTypes(t *testing.T) {
+	nullable := func(urn string, representation pipepb.AtomicType, length int32) *pipepb.FieldType {
+		ft := logicalFieldType(urn, atomicType(representation))
+		ft.Nullable = true
+		ft.GetLogicalType().ArgumentType = int32FieldType()
+		ft.GetLogicalType().Argument = int32FieldValue(length)
+		return ft
+	}
+	// The schema of the char, varchar, binary and varbinary case of standard_coders.yaml.
+	s := &pipepb.Schema{
+		Id: "pass-through-logical-types-test",
+		Fields: []*pipepb.Field{
+			{Name: "f_char", Type: nullable(URNFixedChar, pipepb.AtomicType_STRING, 5)},
+			{Name: "f_varchar", Type: nullable(URNVarChar, pipepb.AtomicType_STRING, 10)},
+			{Name: "f_bytes", Type: nullable(URNFixedBytes, pipepb.AtomicType_BYTES, 5)},
+			{Name: "f_varbytes", Type: nullable(URNVarBytes, pipepb.AtomicType_BYTES, 10)},
+		},
+	}
+	rt, err := ToType(s)
+	if err != nil {
+		t.Fatalf("ToType(%v) = %v, want nil error", prototext.Format(s), err)
+	}
+	stringPtr := reflect.PointerTo(typeOf[string]())
+	bytesPtr := reflect.PointerTo(typeOf[[]byte]())
+	for i, want := range []reflect.Type{stringPtr, stringPtr, bytesPtr, bytesPtr} {
+		if got := rt.Field(i).Type; got != want {
+			t.Errorf("ToType field %d type = %v, want %v", i, got, want)
+		}
+	}
+	// Decoding uses the plain string and bytes encodings, and pads nothing.
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	got, err := dec(bytes.NewBufferString("\x04\x01\x06\x05null?\x04null"))
+	if err != nil {
+		t.Fatalf("dec = %v, want nil error", err)
+	}
+	rv := reflect.ValueOf(got)
+	if s := rv.Field(0).Elem().String(); s != "null?" {
+		t.Errorf("f_char = %q, want %q", s, "null?")
+	}
+	if !rv.Field(1).IsNil() || !rv.Field(2).IsNil() {
+		t.Errorf("f_varchar and f_bytes = %v, %v, want nil", rv.Field(1), rv.Field(2))
+	}
+	if b := rv.Field(3).Elem().Bytes(); string(b) != "null" {
+		t.Errorf("f_varbytes = %q, want %q", b, "null")
+	}
+	// Plain string and bytes fields keep their atomic schema types.
+	schm, err := FromType(reflect.TypeOf(struct {
+		S string
+		B []byte
+	}{}))
+	if err != nil {
+		t.Fatalf("FromType = %v, want nil error", err)
+	}
+	for i, want := range []pipepb.AtomicType{pipepb.AtomicType_STRING, pipepb.AtomicType_BYTES} {
+		if got := schm.GetFields()[i].GetType(); got.GetLogicalType() != nil || got.GetAtomicType() != want {
+			t.Errorf("FromType field %d = %v, want atomic %v", i, got, want)
+		}
+	}
+}
+
+func TestRegisterPassThroughLogicalType(t *testing.T) {
+	r := NewRegistry()
+	const urn = "test:pass_through:v1"
+	r.RegisterPassThroughLogicalType(urn, typeOf[string]())
+	r.RegisterPassThroughLogicalType(urn, typeOf[string]())
+	for _, length := range []int32{1, 100} {
+		ft := logicalFieldType(urn, atomicType(pipepb.AtomicType_STRING))
+		ft.GetLogicalType().ArgumentType = int32FieldType()
+		ft.GetLogicalType().Argument = int32FieldValue(length)
+		rt, err := r.ToType(&pipepb.Schema{Fields: []*pipepb.Field{{Name: "value", Type: ft}}})
+		if err != nil {
+			t.Fatalf("ToType(length=%v): %v", length, err)
+		}
+		if got := rt.Field(0).Type; got != typeOf[string]() {
+			t.Errorf("field type = %v, want string", got)
+		}
+	}
+	t.Run("ConflictingRegistration", func(t *testing.T) {
+		defer func() {
+			if recover() == nil {
+				t.Error("conflicting registration succeeded")
+			}
+		}()
+		r.RegisterPassThroughLogicalType(urn, typeOf[[]byte]())
+	})
+	lt, ok := r.lookupLogicalType(urn, reflect.Value{})
+	if !ok || lt.GoType() != typeOf[string]() {
+		t.Errorf("registration after conflict = %v, %v", lt, ok)
+	}
+}
+
+func TestRegisterPassThroughLogicalType_PublicAPI(t *testing.T) {
+	const urn = "test:public_pass_through:v1"
+	t.Cleanup(func() { delete(defaultRegistry.logicalTypes, logicalTypeKey{identifier: urn}) })
+	RegisterPassThroughLogicalType(urn, typeOf[string]())
+	incoming := &pipepb.Schema{Fields: []*pipepb.Field{{
+		Name: "value", Type: logicalFieldType(urn, atomicType(pipepb.AtomicType_STRING)),
+	}}}
+	rt, err := ToType(incoming)
+	if err != nil {
+		t.Fatalf("ToType: %v", err)
+	}
+	if got := rt.Field(0).Type; got != typeOf[string]() {
+		t.Fatalf("field type = %v, want string", got)
+	}
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct: %v", err)
+	}
+	wire := []byte("\x01\x00\x05hello")
+	row, err := dec(bytes.NewReader(wire))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got := reflect.ValueOf(row).Field(0).String(); got != "hello" {
+		t.Errorf("decoded field = %q, want hello", got)
+	}
+	enc, err := coder.RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := enc(row, &buf); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, wire) {
+		t.Errorf("encoded row = %x, want %x", got, wire)
+	}
+	outgoing, err := FromType(rt)
+	if err != nil {
+		t.Fatalf("FromType: %v", err)
+	}
+	if got := outgoing.GetFields()[0].GetType(); got.GetLogicalType() != nil || got.GetAtomicType() != pipepb.AtomicType_STRING {
+		t.Errorf("outgoing field = %v, want atomic STRING", got)
+	}
+}
+
+func TestRegisterPassThroughLogicalType_InvalidRegistration(t *testing.T) {
+	for _, test := range []struct {
+		name, urn string
+		goType    reflect.Type
+		want      string
+	}{
+		{"EmptyURN", "", typeOf[string](), "bad urn"},
+		{"UnsupportedType", "test:unsupported_pass_through:v1", typeOf[chan int](), "unsupported type chan int"},
+		{"PointerString", "test:pointer_string_pass_through:v1", typeOf[*string](), "storage types must not be pointers"},
+		{"PointerBytes", "test:pointer_bytes_pass_through:v1", typeOf[*[]byte](), "storage types must not be pointers"},
+		{"PointerPointer", "test:pointer_pointer_pass_through:v1", typeOf[**string](), "storage types must not be pointers"},
+		{"Interface", "test:interface_pass_through:v1", typeOf[any](), "Go types must be concrete"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(func() { delete(defaultRegistry.logicalTypes, logicalTypeKey{identifier: test.urn}) })
+			func() {
+				defer func() {
+					got, ok := recover().(string)
+					if !ok || !strings.Contains(got, test.want) {
+						t.Errorf("registration panic = %q, want %q", got, test.want)
+					}
+				}()
+				RegisterPassThroughLogicalType(test.urn, test.goType)
+			}()
+			incoming := &pipepb.Schema{Fields: []*pipepb.Field{{
+				Name: "value", Type: logicalFieldType(test.urn, atomicType(pipepb.AtomicType_STRING)),
+			}}}
+			if rt, err := ToType(incoming); err == nil {
+				t.Fatalf("rejected URN resolved to %v", rt)
+			}
+			if test.urn != "" {
+				RegisterPassThroughLogicalType(test.urn, typeOf[string]())
+				rt, err := ToType(incoming)
+				if err != nil {
+					t.Fatalf("ToType after valid registration: %v", err)
+				}
+				if got := rt.Field(0).Type; got != typeOf[string]() {
+					t.Errorf("field type = %v, want string", got)
+				}
+			}
+		})
+	}
+}
+
+func TestRegisterPassThroughLogicalType_Nullability(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		goType reflect.Type
+		atomic pipepb.AtomicType
+		value  any
+	}{
+		{"String", typeOf[string](), pipepb.AtomicType_STRING, "hello"},
+		{"Bytes", typeOf[[]byte](), pipepb.AtomicType_BYTES, []byte("hello")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r := NewRegistry()
+			const urn = "test:nullable_pass_through:v1"
+			r.RegisterPassThroughLogicalType(urn, test.goType)
+			for _, c := range []struct {
+				name           string
+				nullable, null bool
+				wire           []byte
+			}{
+				{"Required", false, false, []byte("\x01\x00\x05hello")},
+				{"NullableValue", true, false, []byte("\x01\x00\x05hello")},
+				{"NullableNull", true, true, []byte("\x01\x01\x01")},
+			} {
+				t.Run(c.name, func(t *testing.T) {
+					ft := logicalFieldType(urn, atomicType(test.atomic))
+					ft.Nullable = c.nullable
+					rt, err := r.ToType(&pipepb.Schema{Fields: []*pipepb.Field{{Name: "value", Type: ft}}})
+					if err != nil {
+						t.Fatalf("ToType: %v", err)
+					}
+					wantType := test.goType
+					if c.nullable {
+						wantType = reflect.PointerTo(wantType)
+					}
+					if got := rt.Field(0).Type; got != wantType {
+						t.Fatalf("field type = %v, want %v", got, wantType)
+					}
+					value := reflect.New(rt).Elem()
+					field := value.Field(0)
+					if !c.null {
+						if c.nullable {
+							field.Set(reflect.New(test.goType))
+							field = field.Elem()
+						}
+						field.Set(reflect.ValueOf(test.value))
+					}
+					enc, err := coder.RowEncoderForStruct(rt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					var buf bytes.Buffer
+					if err := enc(value.Interface(), &buf); err != nil {
+						t.Fatal(err)
+					}
+					if got := buf.Bytes(); !bytes.Equal(got, c.wire) {
+						t.Errorf("encoded row = %x, want %x", got, c.wire)
+					}
+					dec, err := coder.RowDecoderForStruct(rt)
+					if err != nil {
+						t.Fatal(err)
+					}
+					reader := bytes.NewReader(c.wire)
+					got, err := dec(reader)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if d := cmp.Diff(value.Interface(), got); d != "" {
+						t.Errorf("decoded row diff (-want, +got): %s", d)
+					}
+					if reader.Len() != 0 {
+						t.Errorf("decoder left %d bytes unread", reader.Len())
+					}
+				})
+			}
+		})
 	}
 }
