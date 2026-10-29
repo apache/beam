@@ -108,7 +108,7 @@ pipelines:
             language: python
             fields:
               failed_source:
-                expression: "failed_row.source"
+                expression: "failed_row.source if failed_row else ''"
                 output_type: string
               error_message:
                 expression: "statusMessage"

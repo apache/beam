@@ -1225,8 +1225,6 @@ def temp_pubsub_subscriptions(project_id="apache-beam-testing"):
   with PubSubContainer(project=project_id) as pubsub_container:
     emulator_host = pubsub_container.get_pubsub_emulator_host()
     with mock.patch.dict(os.environ, {"PUBSUB_EMULATOR_HOST": emulator_host}):
-      publisher = pubsub_v1.PublisherClient()
-      subscriber = pubsub_v1.SubscriberClient()
       suffix = uuid.uuid4().hex[:8]
 
       input_topic = f"projects/{pubsub_container.project}/topics/input-{suffix}"
@@ -1239,10 +1237,12 @@ def temp_pubsub_subscriptions(project_id="apache-beam-testing"):
           f"projects/{pubsub_container.project}/subscriptions/"
           f"deadletter-sub-{suffix}")
 
-      publisher.create_topic(name=input_topic)
-      subscriber.create_subscription(name=input_sub, topic=input_topic)
-      publisher.create_topic(name=dlq_topic)
-      subscriber.create_subscription(name=dlq_sub, topic=dlq_topic)
+      with pubsub_v1.PublisherClient() as publisher, \
+           pubsub_v1.SubscriberClient() as subscriber:
+        publisher.create_topic(name=input_topic)
+        subscriber.create_subscription(name=input_sub, topic=input_topic)
+        publisher.create_topic(name=dlq_topic)
+        subscriber.create_subscription(name=dlq_sub, topic=dlq_topic)
 
       class _BoundedReadFromPubSub(beam.PTransform):
         def __init__(
@@ -1325,6 +1325,10 @@ def temp_pubsub_subscriptions(project_id="apache-beam-testing"):
                 data = element
                 attrs = {}
               self._pub_client.publish(topic_name, data, **attrs).result()
+
+            def teardown(self):
+              if hasattr(self, "_pub_client") and self._pub_client is not None:
+                self._pub_client.transport.close()
 
           return pcoll | beam.ParDo(_PublishFn())
 
