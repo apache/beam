@@ -27,12 +27,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.jms.JmsIO.AcknowledgeMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -51,15 +53,13 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
    * consumer and session of a checkpoint are transient, so a runner that serializes and restores
    * the mark (or recreates the reader) would otherwise lose them and never acknowledge. A restored
    * mark uses this registry to find the live checkpoint with the same id and finalize that one.
+   * Checkpoints not finalized within an hour are dropped; the broker redelivers their messages.
    */
-  private static final ConcurrentHashMap<String, JmsCheckpointMark> LIVE_CHECKPOINTS =
-      new ConcurrentHashMap<>();
+  private static final Cache<String, JmsCheckpointMark> LIVE_CHECKPOINTS =
+      CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.HOURS).build();
 
-  /** Live checkpoints not finalized after this long are dropped; the broker redelivers them. */
-  private static final long LIVE_CHECKPOINT_MAX_AGE_MILLIS = 60 * 60 * 1000L;
-
-  private final String id = UUID.randomUUID().toString();
-  private final long creationTimeMillis = System.currentTimeMillis();
+  // May be null when restored from a checkpoint written by a version without this field.
+  private final @Nullable String id = UUID.randomUUID().toString();
   private Instant oldestMessageTimestamp;
   private transient @Nullable List<Message> messages;
   private transient @Nullable MessageConsumer consumer;
@@ -81,21 +81,26 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   /** Acknowledge all outstanding message. */
   @Override
-  public void finalizeCheckpoint() {
-    if (messages == null && consumer == null && session == null) {
-      // Possibly a restored copy of a checkpoint whose state lives in another instance.
-      JmsCheckpointMark live = LIVE_CHECKPOINTS.get(id);
-      if (live != null) {
+  public synchronized void finalizeCheckpoint() {
+    if (id != null) {
+      // Atomic, so only one copy of this checkpoint ever finalizes the live one.
+      JmsCheckpointMark live = LIVE_CHECKPOINTS.asMap().remove(id);
+      if (live != null && live != this) {
+        // This is a restored copy whose state lives in another instance.
         live.finalizeCheckpoint();
         return;
       }
     }
-    LIVE_CHECKPOINTS.remove(id);
+    if (messages == null && consumer == null && session == null && activeCheckpoints == null) {
+      // Nothing to acknowledge or release, e.g. a restored copy that was already finalized.
+      return;
+    }
     try {
       if (messages != null) {
         for (Message message : messages) {
           message.acknowledge();
         }
+        messages = null;
       }
     } catch (JMSException e) {
       // The effect of this is message not get acknowledged and thus will be redelivered. It is
@@ -128,19 +133,16 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
     if (activeCheckpoints != null) {
       activeCheckpoints.decrementAndGet();
+      activeCheckpoints = null;
     }
   }
 
   private void registerLive() {
-    long now = System.currentTimeMillis();
-    LIVE_CHECKPOINTS
-        .values()
-        .removeIf(m -> now - m.creationTimeMillis > LIVE_CHECKPOINT_MAX_AGE_MILLIS);
-    LIVE_CHECKPOINTS.put(id, this);
+    LIVE_CHECKPOINTS.put(Objects.requireNonNull(id), this);
   }
 
   @VisibleForTesting
-  static int liveCheckpointCount() {
+  static long liveCheckpointCount() {
     return LIVE_CHECKPOINTS.size();
   }
 
@@ -177,12 +179,13 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       return false;
     }
     JmsCheckpointMark that = (JmsCheckpointMark) o;
-    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+    return Objects.equals(id, that.id)
+        && oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(oldestMessageTimestamp);
+    return Objects.hash(id, oldestMessageTimestamp);
   }
 
   static Preparer newPreparer(AcknowledgeMode acknowledgeMode) {

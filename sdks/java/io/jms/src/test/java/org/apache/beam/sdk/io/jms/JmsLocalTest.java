@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
@@ -180,18 +181,12 @@ public class JmsLocalTest {
     JmsCheckpointMark mark =
         preparer.newCheckpoint(
             null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
-    int live = JmsCheckpointMark.liveCheckpointCount();
+    long live = JmsCheckpointMark.liveCheckpointCount();
 
-    // serialize/deserialize drops the transient state, as when a runner restores the mark
-    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
-    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes)) {
-      out.writeObject(mark);
-    }
-    JmsCheckpointMark restored;
-    try (java.io.ObjectInputStream in =
-        new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
-      restored = (JmsCheckpointMark) in.readObject();
-    }
+    // encode/decode drops the transient state, as when a runner restores the mark
+    Coder<JmsCheckpointMark> coder =
+        new JmsIO.UnboundedJmsSource<JmsRecord>(null).getCheckpointMarkCoder();
+    JmsCheckpointMark restored = CoderUtils.clone(coder, mark);
     assertNull(restored.getMessages());
 
     restored.finalizeCheckpoint();
