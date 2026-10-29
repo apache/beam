@@ -56,20 +56,25 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -194,10 +199,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private static final int DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT = 100;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
+
+  /**
+   * Error rows from the dynamic path, which names the table the file was headed for; empty when
+   * none could be determined. Single-table mode keeps {@link #ERROR_SCHEMA} as it was, so adding
+   * dynamic destinations does not change the shape of an existing pipeline's error output.
+   */
+  static final Schema DYNAMIC_ERROR_SCHEMA =
+      Schema.builder()
+          .addStringField("file")
+          .addStringField("error")
+          .addStringField("table")
+          .build();
+
   private static final long MANIFEST_PREFIX = UUID.randomUUID().getMostSignificantBits();
   private final IcebergCatalogConfig catalogConfig;
   private final String tableIdentifier;
   private @Nullable Duration intervalTrigger;
+  private @Nullable String pathPattern;
   private final int manifestFileSize;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
@@ -261,6 +280,59 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     this.locationPrefix = locationPrefix;
   }
 
+  /**
+   * A rule that routes each file to a destination table, read from the file's own path: a glob with
+   * {@code {name}} placeholders, whose captures fill in the table identifier as a template. So
+   * {@code gs://lake/export/{tbl}/**} with table {@code sales.{tbl}} routes a file under {@code
+   * export/orders/} to {@code sales.orders}.
+   *
+   * <p>Everything that can be settled without the input is settled here: a mistyped pattern, a
+   * template naming something the pattern never captures, or an option this cannot be combined with
+   * is one exception at submit time, not one error row per file.
+   */
+  public AddFiles withPathPattern(String pathPattern) {
+    // these are the only copies; the YAML keys are named because the provider defers to them.
+    // checkArgument, not checkState: PathPattern below throws the same for a bad pattern, and the
+    // provider used to throw it for these.
+    Preconditions.checkArgument(
+        evolution.isEnabled(),
+        "A path pattern needs schema evolution (schema_evolution_options in YAML): the pre-pass is"
+            + " what decides each table.");
+    Preconditions.checkArgument(
+        !evolution.getDryRun(),
+        "A dry run of a path pattern (dry_run in YAML) is not supported yet.");
+    Preconditions.checkArgument(
+        Strings.isNullOrEmpty(locationPrefix),
+        "A path pattern cannot be combined with a location prefix (location_prefix in YAML): one"
+            + " fixed prefix cannot stop short of each file's own table folder, so the folder ends"
+            + " up inside the partition path ('orders/dt=2024-01-15/' where the table is"
+            + " partitioned only by 'dt').");
+    PathPattern compiled = PathPattern.compile(pathPattern);
+    compiled.checkRenderable(tableIdentifier);
+    this.pathPattern = pathPattern;
+    return this;
+  }
+
+  /**
+   * Collapses batch input to one window, for two reasons: the schema pre-pass is one pass over the
+   * whole input, and {@link GroupIntoBatches} sizes per key and window, so upstream windowing only
+   * divides {@code manifestFileSize} into smaller manifests and more snapshots. The default trigger
+   * keeps a triggered input from firing the pre-pass more than once.
+   *
+   * <p>Streaming keeps the caller's windowing: the snapshots output descends from this, and a
+   * global window under the default trigger never closes.
+   *
+   * <p>Applied before the input branches rather than after, so the error output of each branch
+   * shares this windowing. {@code FlattenErrors} rejects a mix.
+   */
+  private static PCollection<String> collapseToOneWindow(PCollection<String> input) {
+    return input.apply(
+        "CollapseToOneWindow",
+        Window.<String>into(new GlobalWindows())
+            .triggering(DefaultTrigger.of())
+            .discardingFiredPanes());
+  }
+
   @Override
   public PCollectionRowTuple expand(PCollection<String> input) {
     if (input.isBounded().equals(UNBOUNDED)) {
@@ -284,28 +356,63 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
     }
 
-    PCollection<String> paths = input;
-    if (evolution.isEnabled()) {
-      // one commit per window, and for bounded input the window is the whole input
-      PCollection<String> windowed =
-          input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
-      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(windowed);
-      CommitSchemaUnion.Settings settings =
-          new CommitSchemaUnion.Settings(
-              evolution,
-              evolution.incompatibleSchemaHandlingFor(input.isBounded()),
-              new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
-      if (evolution.getDryRun()) {
-        return report(schemas, settings);
-      }
-      PCollection<Long> committed = commitSchema(schemas, settings);
-      paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
-    }
+    CommitSchemaUnion.Settings settings =
+        new CommitSchemaUnion.Settings(
+            evolution,
+            evolution.incompatibleSchemaHandlingFor(input.isBounded()),
+            new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
 
-    PCollection<KV<String, String>> keyedPaths =
-        paths.apply(
-            "KeyByTable",
-            WithKeys.<String, String>of(tableIdentifier).withKeyType(TypeDescriptors.strings()));
+    // every stage that can reject a file appends here; one Flatten publishes them together
+    List<PCollection<Row>> errorSources = new ArrayList<>();
+
+    PCollection<String> files =
+        input.isBounded().equals(UNBOUNDED) ? input : collapseToOneWindow(input);
+
+    PCollection<KV<String, String>> keyedPaths;
+
+    if (pathPattern != null) {
+      PCollectionTuple routed =
+          files.apply(
+              "RouteFiles",
+              ParDo.of(new RouteFiles(checkStateNotNull(pathPattern), tableIdentifier))
+                  .withOutputTags(RouteFiles.ROUTED, TupleTagList.of(RouteFiles.ERRORS)));
+      errorSources.add(routed.get(RouteFiles.ERRORS).setRowSchema(DYNAMIC_ERROR_SCHEMA));
+
+      PCollection<KV<String, String>> routedPaths =
+          routed
+              .get(RouteFiles.ROUTED)
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+
+      PCollectionView<Map<String, SchemaCommitVerdict>> verdicts =
+          verdictView(distinctSchemasPerTable(routedPaths), settings);
+
+      PCollectionTuple gated =
+          routedPaths.apply(
+              "TableGate",
+              ParDo.of(new TableGate(verdicts))
+                  .withSideInputs(verdicts)
+                  .withOutputTags(TableGate.RELEASED, TupleTagList.of(TableGate.ERRORS)));
+      errorSources.add(gated.get(TableGate.ERRORS).setRowSchema(DYNAMIC_ERROR_SCHEMA));
+      keyedPaths =
+          gated
+              .get(TableGate.RELEASED)
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    } else {
+      PCollection<String> paths = files;
+      if (evolution.isEnabled()) {
+        PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(files);
+        if (evolution.getDryRun()) {
+          return report(schemas, settings);
+        }
+        PCollection<SchemaCommitVerdict> committed = commitSchema(schemas, settings);
+        paths = files.apply("WaitForSchemaCommit", Wait.on(committed));
+      }
+
+      keyedPaths =
+          paths.apply(
+              "KeyByTable",
+              WithKeys.<String, String>of(tableIdentifier).withKeyType(TypeDescriptors.strings()));
+    }
 
     PCollectionTuple dataFiles =
         keyedPaths.apply(
@@ -313,6 +420,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             ParDo.of(
                     new ConvertToDataFile(
                         catalogConfig,
+                        pathPattern != null,
                         locationPrefix,
                         partitionFields,
                         sortFields,
@@ -373,8 +481,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             .apply("CommitManifests", ParDo.of(new CommitManifestFilesDoFn(catalogConfig)))
             .setRowSchema(SnapshotInfo.getSchema());
 
-    return PCollectionRowTuple.of(
-        OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
+    errorSources.add(
+        dataFiles
+            .get(ERRORS)
+            .setRowSchema(pathPattern == null ? ERROR_SCHEMA : DYNAMIC_ERROR_SCHEMA));
+
+    PCollection<Row> errors =
+        PCollectionList.of(errorSources).apply("FlattenErrors", Flatten.pCollections());
+
+    return PCollectionRowTuple.of(OUTPUT_TAG, snapshots, ERROR_TAG, errors);
   }
 
   /** The footer read is keyed, so the single-table path supplies its one table as the key. */
@@ -399,8 +514,33 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             Combine.globally(new CollectDistinctSchemas()).withoutDefaults());
   }
 
+  /** One schema union per table: the same CombineFn, lifted to a per-key combine. */
+  private PCollection<KV<String, List<CollectDistinctSchemas.SchemaGroup>>> distinctSchemasPerTable(
+      PCollection<KV<String, String>> routed) {
+    return fileSchemas(routed)
+        .apply("CollectDistinctSchemasPerTable", Combine.perKey(new CollectDistinctSchemas()));
+  }
+
+  /** The verdicts, as a map the gate can look a table up in. */
+  private PCollectionView<Map<String, SchemaCommitVerdict>> verdictView(
+      PCollection<KV<String, List<CollectDistinctSchemas.SchemaGroup>>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    SchemaCoder<SchemaCommitVerdict> verdictCoder;
+    try {
+      verdictCoder = SchemaRegistry.createDefault().getSchemaCoder(SchemaCommitVerdict.class);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    return schemas
+        .apply(
+            "CommitSchemaPerTable",
+            ParDo.of(new CommitSchemaPerTable(catalogConfig, settings, committer)))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), verdictCoder))
+        .apply("VerdictsByTable", View.asMap());
+  }
+
   /** Commits the plan for the window's schemas once; the signal releases the gated paths. */
-  private PCollection<Long> commitSchema(
+  private PCollection<SchemaCommitVerdict> commitSchema(
       PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
       CommitSchemaUnion.Settings settings) {
     return schemas.apply(
@@ -464,6 +604,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   static class ConvertToDataFile
       extends DoFn<KV<String, String>, KV<String, SerializableDataFile>> {
     private final IcebergCatalogConfig catalogConfig;
+    private final boolean dynamic;
     public static final TupleTag<Row> ERRORS = new TupleTag<>();
     public static final TupleTag<KV<String, SerializableDataFile>> DATA_FILES = new TupleTag<>();
     private final @Nullable String prefix;
@@ -499,12 +640,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
+        boolean dynamic,
         @Nullable String prefix,
         @Nullable List<String> partitionFields,
         @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps) {
       this(
           catalogConfig,
+          dynamic,
           prefix,
           partitionFields,
           sortFields,
@@ -514,12 +657,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
+        boolean dynamic,
         @Nullable String prefix,
         @Nullable List<String> partitionFields,
         @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps,
         SchemaEvolutionConfig evolution) {
       this.catalogConfig = catalogConfig;
+      this.dynamic = dynamic;
       this.prefix = prefix;
       this.partitionFields = partitionFields;
       this.sortFields = sortFields;
@@ -1035,21 +1180,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return checkStateNotNull(warned).add(tableName + ":" + key);
     }
 
-    private static ProcessResult errorResult(
+    private ProcessResult errorResult(
         String tableName,
         String filePath,
         String message,
         Instant timestamp,
         BoundedWindow window,
         PaneInfo pane) {
-      return new ProcessResult(
-          tableName,
-          null,
-          Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build(),
-          null,
-          timestamp,
-          window,
-          pane);
+      Row errorRow;
+      if (dynamic) {
+        errorRow =
+            Row.withSchema(DYNAMIC_ERROR_SCHEMA).addValues(filePath, message, tableName).build();
+      } else {
+        errorRow = Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build();
+      }
+      return new ProcessResult(tableName, null, errorRow, null, timestamp, window, pane);
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
