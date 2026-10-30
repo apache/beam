@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import com.google.protobuf.Message;
+import java.io.ByteArrayInputStream;
 import java.io.ObjectStreamClass;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -179,5 +184,29 @@ public class ProtoCoderTest {
   public void testSerialVersionID() {
     long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
     assertEquals(-5043999806040629525L, serialVersionID);
+  }
+
+  /** Decoding with a coder for the raw {@code Message} interface must fail with guidance. */
+  @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public void testDecodeWithRawMessageClass() {
+    ProtoCoder coder = ProtoCoder.of((Class) Message.class);
+    byte[] bytes = MessageA.newBuilder().setField1("hello").build().toByteArray();
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class, () -> coder.decode(new ByteArrayInputStream(bytes)));
+    assertTrue(e.getMessage(), e.getMessage().contains("DynamicProtoCoder"));
+  }
+
+  /** Encoding never consults the parser, so a raw-{@code Message} coder can still encode. */
+  @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public void testEncodeWithRawMessageClass() throws Exception {
+    MessageA value = MessageA.newBuilder().setField1("hello").build();
+    ProtoCoder coder = ProtoCoder.of((Class) Message.class);
+    assertArrayEquals(
+        CoderUtils.encodeToByteArray(ProtoCoder.of(MessageA.class), value),
+        CoderUtils.encodeToByteArray(coder, value));
   }
 }
