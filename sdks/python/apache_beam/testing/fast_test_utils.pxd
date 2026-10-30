@@ -25,6 +25,7 @@ cdef class LCGenerator(object):
   cdef libc.stdint.uint64_t _mask
   cdef libc.stdint.uint64_t _seed
 
+  cdef inline libc.stdint.uint32_t _next_uint(self) noexcept nogil
   cpdef void seed(self, libc.stdint.uint64_t seed)
   cpdef void seed_jdk(self, libc.stdint.uint64_t seed)
   cpdef libc.stdint.int32_t next_int(self)
