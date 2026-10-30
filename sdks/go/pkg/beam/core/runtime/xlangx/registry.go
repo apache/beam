@@ -16,9 +16,11 @@
 package xlangx
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 
@@ -126,6 +128,13 @@ func makePCol(node *graph.Node, index int, local, namespace string) PCol {
 	}
 }
 
+func comparePCol(a, b PCol) int {
+	if c := cmp.Compare(a.Index, b.Index); c != 0 {
+		return c
+	}
+	return cmp.Compare(a.Local, b.Local)
+}
+
 // Outputs returns the provided output PCollections, if any, for expected outputs
 // for this expansion service request.
 //
@@ -136,6 +145,7 @@ func (p *HandlerParams) Outputs() []PCol {
 	for local, i := range p.ext.OutputsMap {
 		out = append(out, makePCol(p.edge.Output[i].To, i, local, p.Req.Namespace))
 	}
+	slices.SortFunc(out, comparePCol)
 	return out
 }
 
@@ -146,6 +156,7 @@ func (p *HandlerParams) Inputs() []PCol {
 	for local, i := range p.ext.InputsMap {
 		out = append(out, makePCol(p.edge.Input[i].From, i, local, p.Req.Namespace))
 	}
+	slices.SortFunc(out, comparePCol)
 	return out
 }
 
