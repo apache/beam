@@ -47,7 +47,8 @@ def input_spec(
     value_size,
     bundle_size_distribution_type='const',
     bundle_size_distribution_param=0,
-    force_initial_num_bundles=0):
+    force_initial_num_bundles=0,
+    algorithm=None):
   return {
       'numRecords': num_records,
       'keySizeBytes': key_size,
@@ -57,6 +58,7 @@ def input_spec(
           'param': bundle_size_distribution_param
       },
       'forceNumInitialBundles': force_initial_num_bundles,
+      'algorithm': algorithm,
   }
 
 
@@ -180,6 +182,21 @@ class SyntheticPipelineTest(unittest.TestCase):
           pcoll
           | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size, 15))
       assert_that(pcoll | beam.combiners.Count.Globally(), equal_to([300]))
+
+  def test_synthetic_source_gen_kv_separately(self):
+    source1 = synthetic_pipeline.SyntheticSource(
+        input_spec(10, 8, 12, algorithm='lcg'))
+    source2 = synthetic_pipeline.SyntheticSource(
+        input_spec(10, 10, 10, algorithm='lcg'))
+    self.assertTrue(source1._gen_kv_separately)
+    self.assertFalse(source2._gen_kv_separately)
+    bytes1 = [
+        k + v for k, v in source1.read(source1.get_range_tracker(None, None))
+    ]
+    bytes2 = [
+        k + v for k, v in source2.read(source2.get_range_tracker(None, None))
+    ]
+    self.assertEqual(bytes1, bytes2)
 
   def test_synthetic_source_split_even(self):
     source = synthetic_pipeline.SyntheticSource(
