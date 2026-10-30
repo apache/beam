@@ -1071,4 +1071,35 @@ public class JavaFieldSchemaTest {
     assertEquals("v1", pojos[0].t);
     assertEquals("v2", pojos[1].t);
   }
+
+  @Test
+  public void testRowWithGettersEqualsAndHashCodeContract() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimplePOJO pojo1 = createSimple("string");
+    SimplePOJO pojo2 = createSimple("string");
+    Row rowWithGetters1 = registry.getToRowFunction(SimplePOJO.class).apply(pojo1);
+    Row rowWithGetters2 = registry.getToRowFunction(SimplePOJO.class).apply(pojo2);
+    Row rowWithStorage =
+        Row.withSchema(rowWithGetters1.getSchema())
+            .addValues(
+                "string",
+                (byte) 1,
+                (short) 2,
+                3,
+                4L,
+                true,
+                DATE,
+                INSTANT,
+                BYTE_ARRAY,
+                BYTE_BUFFER.array(),
+                BigDecimal.ONE,
+                "stringbuilder")
+            .build();
+
+    assertEquals(rowWithGetters1, rowWithGetters2);
+    assertEquals(rowWithGetters1.hashCode(), rowWithGetters2.hashCode());
+    assertEquals(rowWithStorage, rowWithGetters1);
+    assertEquals(rowWithGetters1, rowWithStorage);
+    assertEquals(rowWithStorage.hashCode(), rowWithGetters1.hashCode());
+  }
 }
