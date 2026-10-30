@@ -47,4 +47,9 @@ public class IcebergAlterTableOps implements AlterTableOps {
       List<String> partitionsToAdd, Collection<String> partitionsToDrop) {
     table.updatePartitionSpec(partitionsToAdd, partitionsToDrop);
   }
+
+  @Override
+  public void updatePrimaryKey(List<String> primaryKey) {
+    table.updateIdentifierFields(primaryKey);
+  }
 }

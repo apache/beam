@@ -38,6 +38,9 @@ public abstract class Table implements Serializable {
 
   public abstract @Nullable List<String> getPartitionFields();
 
+  /** The columns of the table's primary key, or null if it has none. */
+  public abstract @Nullable List<String> getPrimaryKey();
+
   public abstract @Nullable String getComment();
 
   public abstract @Pure @Nullable String getLocation();
@@ -60,6 +63,8 @@ public abstract class Table implements Serializable {
     public abstract Builder schema(Schema getSchema);
 
     public abstract Builder partitionFields(List<String> fields);
+
+    public abstract Builder primaryKey(@Nullable List<String> columns);
 
     public abstract Builder comment(String name);
 
