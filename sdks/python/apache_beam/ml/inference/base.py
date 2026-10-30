@@ -213,6 +213,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
       batch_bucket_boundaries: Optional[list[int]] = None,
+      batch_key_fn: Optional[Callable[[Any], Any]] = None,
+      batch_key_num_shards: Optional[Union[int,
+                                           Mapping[Any, int],
+                                           Callable[[Any], int]]] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       **kwargs):
@@ -243,6 +247,21 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
         Requires batch_length_fn. Defaults to [16, 32, 64, 128, 256, 512] when
         batch_length_fn is set.
+      batch_key_fn: a callable mapping an element to a grouping key. It
+        receives the element as it enters batching, i.e. *after* any
+        ``with_preprocess_fn`` functions have been applied. When set,
+        BatchElements keys elements via WithBatchKey (without a per-worker UUID)
+        and groups them across workers using GroupIntoBatches so that elements
+        sharing the same key (e.g., prompt prefix or category) are routed to
+        the same worker and batched together.
+      batch_key_num_shards: bounds hot-key fanout when batch_key_fn is set.
+        Either an int applied to every key, a mapping from batch key to shard
+        count for a known skewed distribution (keys not in the mapping get 1
+        shard), or a callable from batch key to shard count. Each key is
+        spread across at most that many random sub-keys / workers. Defaults
+        to 1, which serves each key on one worker at a time; skewed key
+        distributions need more shards for their hot keys (see
+        ``apache_beam.ml.inference.prefix_batching.PrefixBatchingConfig``).
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
@@ -273,6 +292,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self._batching_kwargs['length_fn'] = batch_length_fn
     if batch_bucket_boundaries is not None:
       self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
+    if batch_key_fn is not None:
+      self._batching_kwargs['key_fn'] = batch_key_fn
+    if batch_key_num_shards is not None:
+      self._batching_kwargs['num_shards'] = batch_key_num_shards
     self._large_model = large_model
     self._model_copies = model_copies
     self._share_across_processes = large_model or (model_copies is not None)

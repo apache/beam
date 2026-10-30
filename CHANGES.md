@@ -70,6 +70,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
+* (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 
 ## Breaking Changes
 

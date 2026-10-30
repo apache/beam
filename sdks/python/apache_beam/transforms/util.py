@@ -33,6 +33,7 @@ import time
 import uuid
 from collections.abc import Callable
 from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
@@ -1206,6 +1207,96 @@ class WithLengthBucketKey(DoFn):
     yield ((self.key, bucket), element)
 
 
+def _validate_num_shards(num_shards: Any) -> Any:
+  """Validates a ``num_shards`` spec for ``WithBatchKey`` / ``BatchElements``.
+
+  Accepts an int (uniform shard count), a mapping from batch key to shard count
+  (keys absent from the mapping get 1 shard), or a callable from batch key to
+  shard count. Returns the normalized spec (``None`` becomes ``1``).
+  """
+  if num_shards is None:
+    return 1
+  if isinstance(num_shards, bool):
+    raise ValueError('num_shards must be an int, mapping, or callable.')
+  if isinstance(num_shards, int):
+    if num_shards < 1:
+      raise ValueError(f'num_shards ({num_shards}) must be >= 1.')
+    return num_shards
+  if isinstance(num_shards, Mapping):
+    bad = {
+        k: v
+        for k, v in num_shards.items()
+        if not (isinstance(v, int) and not isinstance(v, bool) and v >= 1)
+    }
+    if bad:
+      raise ValueError(
+          f'num_shards mapping values must be ints >= 1; got {bad}.')
+    return dict(num_shards)
+  if callable(num_shards):
+    return num_shards
+  raise ValueError(
+      'num_shards must be an int, a mapping from key to int, or a callable '
+      f'from key to int; got {type(num_shards).__name__}.')
+
+
+class WithBatchKey(DoFn):
+  """Keys elements with a deterministic string key for cross-worker
+  GroupIntoBatches batching.
+
+  Unlike ``WithSharedKey`` and ``WithLengthBucketKey`` (which include a
+  per-worker UUID so elements remain worker-local), ``WithBatchKey`` omits any
+  worker UUID so that elements sharing the same key across all upstream workers
+  shuffle to the same downstream worker and are grouped into homogeneous
+  batches (e.g., for LLM prefix caching).
+
+  ``num_shards`` bounds hot-key fanout: when a key resolves to ``n > 1``
+  shards, a random suffix ``:<shard>`` in ``[0, n)`` is appended so that key is
+  spread across at most ``n`` workers. It may be
+
+    * an ``int`` -- the same shard count for every key;
+    * a ``Mapping[key, int]`` -- per-key shard counts for a known skewed
+      distribution (e.g. ``{'default_system_prompt': 8}``); keys not in the
+      mapping get 1 shard;
+    * a ``Callable[[key], int]`` -- computed per key (e.g. from a frequency
+      table loaded at ``setup``).
+
+  The mapping / callable is looked up with the raw ``key_fn`` result first and
+  its ``str()`` form second, so either may be used as the mapping key.
+  """
+  def __init__(self, key_fn: Callable[[Any], Any], num_shards: Any = 1):
+    self._key_fn = key_fn
+    self._num_shards = _validate_num_shards(num_shards)
+
+  def _shards_for(self, raw_key: Any, key: str) -> int:
+    spec = self._num_shards
+    if isinstance(spec, int):
+      return spec
+    if isinstance(spec, Mapping):
+      n = spec.get(raw_key)
+      if n is None:
+        n = spec.get(key, 1)
+      return n
+    n = spec(raw_key)
+    if not isinstance(n, int) or n < 1:
+      raise ValueError(
+          f'num_shards callable returned {n!r} for key {key!r}; expected an '
+          'int >= 1.')
+    return n
+
+  def process(self, element):
+    raw_key = self._key_fn(element)
+    key = str(raw_key) if raw_key is not None else ''
+    num_shards = self._shards_for(raw_key, key)
+    if num_shards > 1:
+      key = f'{key}:{random.randrange(num_shards)}'
+    yield (key, element)
+
+
+# Buffering applied by BatchElements(key_fn=...) when max_batch_duration_secs is
+# unset, so incomplete per-key batches still flush in streaming pipelines.
+_DEFAULT_KEYED_MAX_BUFFERING_SECS = 1.0
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -1283,6 +1374,21 @@ class BatchElements(PTransform):
         semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
         [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
         length_fn is set. Requires length_fn.
+    key_fn: (optional) a callable mapping an element to a grouping key. When
+        set, elements are keyed via ``WithBatchKey`` (without a per-worker UUID)
+        and grouped across workers using ``GroupIntoBatches`` up to
+        ``max_batch_size``, producing homogeneous batches per key (e.g., for LLM
+        prefix caching). Incomplete batches are flushed after
+        ``max_batch_duration_secs``, or after 1 second when it is unset, so
+        low-traffic keys still make progress in streaming pipelines.
+    num_shards: (optional) bounds hot-key fanout when ``key_fn`` is set: an
+        ``int`` applied to every key, a ``Mapping[key, int]`` giving per-key
+        shard counts for a known skewed distribution (unlisted keys get 1), or
+        a ``Callable[[key], int]``. Each key is spread across at most that
+        many random sub-keys / workers. Defaults to 1, which serves each key
+        on one worker at a time, so a hot key's throughput does not grow with
+        the number of workers; give hot keys more shards when the key
+        distribution is skewed. See ``WithBatchKey``.
   """
   _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
 
@@ -1301,7 +1407,9 @@ class BatchElements(PTransform):
       clock=time.time,
       record_metrics=True,
       length_fn=None,
-      bucket_boundaries=None):
+      bucket_boundaries=None,
+      key_fn=None,
+      num_shards=1):
     if max_batch_weight is not None:
       if element_size_fn is None:
         raise ValueError('max_batch_weight requires element_size_fn to be set.')
@@ -1320,6 +1428,11 @@ class BatchElements(PTransform):
       _LOGGER.warning(
           'BatchElements ignores length_fn and bucket_boundaries unless '
           'max_batch_duration_secs is set.')
+    if key_fn is not None and not callable(key_fn):
+      raise ValueError('key_fn must be callable.')
+    num_shards = _validate_num_shards(num_shards)
+    if num_shards != 1 and key_fn is None:
+      raise ValueError('num_shards requires key_fn to be set.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1339,9 +1452,29 @@ class BatchElements(PTransform):
       self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
     else:
       self._bucket_boundaries = bucket_boundaries
+    self._key_fn = key_fn
+    self._num_shards = num_shards
 
   def expand(self, pcoll):
-    if getattr(pcoll.pipeline.runner, 'is_streaming', False):
+    if self._key_fn is not None:
+      element_type = pcoll.element_type
+      # GroupIntoBatches treats a buffering duration of 0 as "no limit", which
+      # in a streaming global window would hold an incomplete batch forever.
+      buffering_secs = (
+          self._max_batch_dur if self._max_batch_dur is not None else
+          _DEFAULT_KEYED_MAX_BUFFERING_SECS)
+      return (
+          pcoll
+          | 'WithBatchKey' >> ParDo(
+              WithBatchKey(self._key_fn, self._num_shards)).with_output_types(
+                  tuple[str, element_type])
+          | 'GroupIntoBatchesByKey' >> GroupIntoBatches(
+              self._batch_size_estimator._max_batch_size,
+              max_buffering_duration_secs=buffering_secs,
+              clock=self._clock)
+          | 'DropBatchKey' >> Map(lambda kv: list(kv[1])).with_output_types(
+              list[element_type]))
+    elif getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
