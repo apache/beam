@@ -492,9 +492,6 @@ public class GroupIntoBatches<K, InputT>
       storedBatchSize.readLater();
       minBufferedTs.readLater();
 
-      // Make sure we always include the current timestamp in the minBufferedTs.
-      minBufferedTs.add(elementTs.getMillis());
-
       LOG.debug("*** BATCH *** Add element for window {} ", window);
       if (shouldCareAboutWeight) {
         final long elementWeight = weigher.apply(element.getValue());
@@ -527,20 +524,22 @@ public class GroupIntoBatches<K, InputT>
         }
         storedBatchSizeBytes.add(elementWeight);
       }
-      batch.add(element.getValue());
-      // Blind add is supported with combiningState
-      storedBatchSize.add(1L);
-      // Add the timestamp back into minBufferedTs as it might be cleared by flushBatch above.
-      minBufferedTs.add(elementTs.getMillis());
 
-      final long num = storedBatchSize.read();
-
-      // If this is the first element in the batch or if the timer's output timestamp needs
-      // modifying, then set a timer.
       long oldOutputTs =
           MoreObjects.firstNonNull(
               minBufferedTs.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
-      boolean needsNewTimer = num == 1 || minBufferedTs.read() != oldOutputTs;
+
+      batch.add(element.getValue());
+      // Blind add is supported with combiningState
+      storedBatchSize.add(1L);
+      minBufferedTs.add(elementTs.getMillis());
+
+      final long num = storedBatchSize.read();
+      long currentMinBufferedTs = minBufferedTs.read();
+
+      // If this is the first element in the batch or if the timer's output timestamp needs
+      // modifying, then set a timer.
+      boolean needsNewTimer = num == 1 || currentMinBufferedTs < oldOutputTs;
       if (needsNewTimer) {
         if (shouldCareAboutMaxBufferingDuration) {
           long targetTs =
@@ -549,14 +548,14 @@ public class GroupIntoBatches<K, InputT>
                   bufferingTimer.getCurrentRelativeTime().getMillis()
                       + maxBufferingDuration.getMillis());
           bufferingTimer
-              .withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read()))
+              .withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs))
               .set(Instant.ofEpochMilli(targetTs));
         } else {
           // The only way to hold the watermark is to set a timer. Since there is no buffering
           // timer, we set a dummy
           // timer at the end of the window to manage the hold.
           Instant windowEnd = window.maxTimestamp().plus(allowedLateness);
-          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(minBufferedTs.read())).set(windowEnd);
+          holdTimer.withOutputTimestamp(Instant.ofEpochMilli(currentMinBufferedTs)).set(windowEnd);
         }
       }
 
