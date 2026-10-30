@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -61,5 +62,10 @@ public abstract class ForwardingParDoFn implements ParDoFn {
   @Override
   public void abort() throws Exception {
     delegate.abort();
+  }
+
+  @Override
+  public @Nullable DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return delegate.getDoFnInfo();
   }
 }

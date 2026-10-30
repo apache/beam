@@ -109,9 +109,9 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
       sideInputProcessor =
           new StreamingSideInputProcessor<>(
               new StreamingSideInputFetcher<InputT, W>(
-                  helpers.fnInfo.getSideInputViews(),
+                  helpers.activeFnInfo.getSideInputViews(),
                   inputCoder,
-                  (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(),
+                  (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
                   (StreamingModeExecutionContext.StreamingModeStepContext)
                       helpers.userStepContext));
     }
@@ -138,7 +138,7 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
                 // These elements are now processed. Register cleanup timers for all the unblocked
                 // windows.
                 helpers.registerStateCleanup(
-                    (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windows);
+                    (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), windows);
               }
             });
       }
@@ -169,13 +169,15 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
   public void processTimers() throws Exception {
 
     // Note: We need to get windowCoder to decode the timers.  If we haven't already deserialized
-    // the fnInfo, we peek at a new instance to retrieve that. If this extra deserialization becomes
-    // excessively costly, we could either (1) have the DoFnInstanceManager remember the associated
-    // windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check whether timers
-    // exist without actually decoding them.
+    // the activeFnInfo, we peek at a new instance to retrieve that. If this extra deserialization
+    // becomes excessively costly, we could either (1) have the DoFnInstanceManager remember the
+    // associated windowCoder (allowing us to get it without a DoFnInfo instance) or (2) check
+    // whether timers exist without actually decoding them.
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>)
-            (helpers.fnInfo != null ? helpers.fnInfo : helpers.doFnInstanceManager.peek())
+            (helpers.activeFnInfo != null
+                    ? helpers.activeFnInfo
+                    : helpers.doFnInstanceManager.peek())
                 .getWindowingStrategy()
                 .getWindowFn()
                 .windowCoder();
@@ -231,18 +233,25 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
     }
     if (hasState) {
       helpers.registerStateCleanup(
-          (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windowsProcessed);
+          (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), windowsProcessed);
     }
   }
 
+  /** Returns the {@link DoFnInfo} used by this {@link StreamingKeyedWorkItemSideInputParDoFn}. */
+  @Override
+  public DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return helpers.doFnInstanceManager.peek();
+  }
+
   /**
-   * Returns the {@link DoFnInfo} currently being used by this {@link SimpleParDoFn}.
+   * Returns the {@link DoFnInfo} currently being used by this {@link
+   * StreamingKeyedWorkItemSideInputParDoFn}.
    *
-   * <p>May be null if no element has been processed yet, or if the {@link SimpleParDoFn} has
-   * finished.
+   * <p>May be null if no element has been processed yet, or if the {@link
+   * StreamingKeyedWorkItemSideInputParDoFn} has finished.
    */
   @VisibleForTesting
-  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
-    return helpers.fnInfo;
+  @Nullable DoFnInfo<?, ?> getActiveDoFnInfo() {
+    return helpers.activeFnInfo;
   }
 }
