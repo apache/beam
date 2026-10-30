@@ -21,7 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.iceberg.BundleLifter.BundleLiftDoFn;
 import org.apache.beam.sdk.testing.TestOutputReceiver;
@@ -62,9 +64,9 @@ public class BundleLifterTest {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> java.util.List<T> getOutput(TupleTag<T> tag) {
+    public <T> List<T> getOutput(TupleTag<T> tag) {
       TestOutputReceiver<T> receiver = (TestOutputReceiver<T>) receivers.get(tag);
-      return receiver == null ? java.util.Collections.emptyList() : receiver.getOutputs();
+      return receiver == null ? Collections.emptyList() : receiver.getOutputs();
     }
   }
 

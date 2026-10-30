@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
@@ -255,21 +254,8 @@ public class LocalResolveDoFnTest {
     fn.setup();
     List<ValueInSingleWindow<Row>> outputs = new ArrayList<>();
     OutputReceiver<Row> receiver =
-        new OutputReceiver<Row>() {
-          @Override
-          public void output(Row output) {
-            outputWithTimestamp(output, timestamp);
-          }
-
-          @Override
-          public void outputWithTimestamp(Row output, Instant ts) {
-            outputs.add(
-                ValueInSingleWindow.of(output, ts, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-          }
-
-          @Override
-          public OutputBuilder<Row> builder(Row output) {
-            return WindowedValues.<Row>builder()
+        output ->
+            WindowedValues.<Row>builder()
                 .setValue(output)
                 .setWindow(GlobalWindow.INSTANCE)
                 .setPaneInfo(PaneInfo.NO_FIRING)
@@ -281,9 +267,12 @@ public class LocalResolveDoFnTest {
                                 wv.getValue(),
                                 wv.getTimestamp(),
                                 wv.getWindows().iterator().next(),
-                                wv.getPaneInfo())));
-          }
-        };
+                                wv.getPaneInfo(),
+                                wv.getRecordId(),
+                                wv.getRecordOffset(),
+                                wv.causedByDrain(),
+                                wv.getOpenTelemetryContext(),
+                                wv.getValueKind())));
 
     fn.process(KV.of(descriptor, tasks), receiver);
     return outputs;
