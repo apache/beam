@@ -40,6 +40,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import combiners
 from apache_beam.transforms import userstate
+from apache_beam.transforms.core import CallableWrapperDoFn
 from apache_beam.typehints import decorators
 from apache_beam.typehints import typecheck
 from apache_beam.typehints import with_input_types
@@ -369,6 +370,25 @@ class RuntimeTypeCheckWrapperDoFnTest(unittest.TestCase):
         dofn, dofn.get_type_hints(), 'MyStep')
 
     self.assertEqual(list(wrapper.process(1)), [2])
+
+  def test_wrapper_preserves_bound_method_owner_with_varargs(self):
+    class MethodOwner:
+      pass
+
+    class BoundMethod(MethodOwner):
+      @with_input_types(MethodOwner, int)
+      @with_output_types(Iterable[int])
+      def process(*args):
+        return [args[-1]]
+
+    owner = BoundMethod()
+    dofn = CallableWrapperDoFn(owner.process)
+
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    self.assertIs(wrapper._process_fn_owner, owner)
+    self.assertEqual(list(wrapper.process(1)), [1])
 
 
 def _make_stateful_dofn():

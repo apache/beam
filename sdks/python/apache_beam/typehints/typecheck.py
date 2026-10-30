@@ -93,10 +93,10 @@ class RuntimeTypeCheckWrapperDoFn(AbstractDoFnWrapper):
     process_fn = self.dofn._process_argspec_fn()
     if hasattr(process_fn, '__func__'):
       self._process_fn = process_fn.__func__
-      self._process_fn_needs_self = True
+      self._process_fn_owner = process_fn.__self__
     else:
       self._process_fn = process_fn
-      self._process_fn_needs_self = False
+      self._process_fn_owner = None
 
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
@@ -119,11 +119,12 @@ class RuntimeTypeCheckWrapperDoFn(AbstractDoFnWrapper):
   def process(self, *args, **kwargs):
     try:
       if self._input_hints:
-        if self._process_fn_needs_self:
-          actual_inputs = inspect.getcallargs(
-              self._process_fn, self.dofn, *args, **kwargs)  # pylint: disable=deprecated-method
+        if self._process_fn_owner is not None:
+          actual_inputs = inspect.getcallargs(  # pylint: disable=deprecated-method
+              self._process_fn, self._process_fn_owner, *args, **kwargs)
         else:
-          actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)  # pylint: disable=deprecated-method
+          actual_inputs = inspect.getcallargs(  # pylint: disable=deprecated-method
+              self._process_fn, *args, **kwargs)
 
         for var, hint in self._input_hints.items():
           if hint is actual_inputs[var]:
