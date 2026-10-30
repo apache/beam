@@ -360,6 +360,19 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """
     pass
 
+  def set_model_identifier(self, model_identifier: str):
+    """Receives the identifier RunInference annotates this model with.
+
+    Called by RunInference in the worker before the first ``load_model`` with
+    the ``model_identifier`` passed to ``RunInference`` (or the random id it
+    generated when none was passed). This is the value Dataflow's autoscaler
+    uses to find the ``num_loaded_models_<identifier>`` metric for this step,
+    and it is stable across side-input model updates, so handlers that publish
+    that metric themselves should tag it with this identifier. The default is
+    a no-op.
+    """
+    pass
+
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     """Gets all preprocessing functions to be run before batching/inference.
     Functions are in order that they should be applied."""
@@ -1125,6 +1138,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'KeyedModelHandlers with multiple different per-key ' +
           'ModelHandlers.')
 
+  def set_model_identifier(self, model_identifier: str):
+    if self._single_model:
+      return self._unkeyed.set_model_identifier(model_identifier)
+    for mh in self._id_to_mh_map.values():
+      mh.set_model_identifier(model_identifier)
+
   def share_model_across_processes(self) -> bool:
     if self._single_model:
       return self._unkeyed.share_model_across_processes()
@@ -1251,6 +1270,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def update_model_path(self, model_path: Optional[str] = None):
     return self._unkeyed.update_model_path(model_path=model_path)
 
+  def set_model_identifier(self, model_identifier: str):
+    return self._unkeyed.set_model_identifier(model_identifier)
+
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._unkeyed.get_preprocess_fns()
 
@@ -1321,6 +1343,9 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
 
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
+
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_preprocess_fns()
@@ -1400,6 +1425,9 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
 
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
+
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return [self._preprocess_fn] + self._base.get_preprocess_fns()
 
@@ -1476,6 +1504,9 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
+
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_preprocess_fns()
@@ -2299,6 +2330,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
     self._model_handler.set_environment_vars()
+    self._model_handler.set_model_identifier(self._model_tag)
     self._model_metadata = load_model_status(
         self._model_tag, self._model_handler.share_model_across_processes())
     if not self._load_model_at_runtime:
