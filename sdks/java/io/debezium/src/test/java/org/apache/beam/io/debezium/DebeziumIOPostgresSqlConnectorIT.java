@@ -18,10 +18,15 @@
 package org.apache.beam.io.debezium;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 
 import io.debezium.connector.postgresql.PostgresConnector;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -189,6 +194,85 @@ public class DebeziumIOPostgresSqlConnectorIT {
         .satisfies(
             (Iterable<String> res) -> {
               assertThat(res, hasItem(expected));
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+    POSTGRES_SQL_CONTAINER.stop();
+  }
+
+  /**
+   * Debezium - PostgresSql connector Test with transaction metadata.
+   *
+   * <p>Tests that the transaction BEGIN/END events emitted with {@code
+   * provide.transaction.metadata=true}, which have no {@code source} block, are mapped to JSON
+   * alongside the data change events of the transaction, and that with full metadata each change
+   * event carries its {@code transaction} block.
+   */
+  @Test
+  public void testShouldProcessTransactionMetadata() throws SQLException {
+    POSTGRES_SQL_CONTAINER.start();
+
+    try (Connection connection = getPostgresDatasource().getConnection();
+        Statement statement = connection.createStatement()) {
+      // Create the slot first so it captures the commit below (no_data skips the snapshot).
+      statement.execute(
+          "SELECT pg_create_logical_replication_slot('beam_transaction_metadata', 'decoderbufs')");
+      connection.setAutoCommit(false);
+      statement.executeUpdate(
+          "INSERT INTO inventory.customers (id, first_name, last_name, email) "
+              + "VALUES (5001, 'Ann', 'One', 'ann.one@example.com')");
+      statement.executeUpdate(
+          "INSERT INTO inventory.customers (id, first_name, last_name, email) "
+              + "VALUES (5002, 'Bob', 'Two', 'bob.two@example.com')");
+      statement.executeUpdate("UPDATE inventory.customers SET last_name = 'Uno' WHERE id = 5001");
+      connection.commit();
+    }
+
+    String host = POSTGRES_SQL_CONTAINER.getHost();
+    String port = POSTGRES_SQL_CONTAINER.getMappedPort(5432).toString();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> results =
+        p.apply(
+            DebeziumIO.readAsJson()
+                .withConnectorConfiguration(
+                    DebeziumIO.ConnectorConfiguration.create()
+                        .withUsername("debezium")
+                        .withPassword("dbz")
+                        .withConnectorClass(PostgresConnector.class)
+                        .withHostName(host)
+                        .withPort(port)
+                        .withConnectionProperty("database.dbname", "inventory")
+                        .withConnectionProperty("table.include.list", "inventory.customers")
+                        .withConnectionProperty("snapshot.mode", "no_data")
+                        .withConnectionProperty("provide.transaction.metadata", "true")
+                        .withConnectionProperty("slot.name", "beam_transaction_metadata"))
+                .withFullMetadata(true)
+                .withMaxNumberOfRecords(5)
+                .withMaxTimeToRun(120_000L));
+
+    PAssert.that(results)
+        .satisfies(
+            (Iterable<String> res) -> {
+              assertThat(Lists.newArrayList(res).size(), equalTo(5));
+              assertThat(res, hasItem(containsString("{\"status\":\"BEGIN\",")));
+              assertThat(res, hasItem(containsString("\"email\":\"ann.one@example.com\"")));
+              assertThat(res, hasItem(containsString("\"email\":\"bob.two@example.com\"")));
+              assertThat(
+                  res,
+                  hasItem(
+                      allOf(
+                          containsString("\"last_name\":\"Uno\""),
+                          containsString("\"transaction\":{\"id\":\""),
+                          containsString("\"total_order\":3,\"data_collection_order\":3}"))));
+              assertThat(
+                  res,
+                  hasItem(
+                      containsString(
+                          "\"event_count\":3,\"data_collections\":"
+                              + "[{\"data_collection\":\"inventory.customers\",\"event_count\":3}]")));
               return null;
             });
 

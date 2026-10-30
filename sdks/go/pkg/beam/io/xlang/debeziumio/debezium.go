@@ -146,6 +146,8 @@ func MaxTimeToRun(r int64) readOption {
 
 // ConnectionProperties specifies properties of the debezium connection passed as
 // a string with format [propertyName=property;]*
+// Set provide.transaction.metadata=true to add a transaction key to records and
+// emit transaction BEGIN/END records.
 func ConnectionProperties(cp []string) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.ConnectionProperties = cp
