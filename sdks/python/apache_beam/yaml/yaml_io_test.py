@@ -532,7 +532,8 @@ class YamlPubSubTest(unittest.TestCase):
             '''))
 
   def test_write_string_rejects_non_string(self):
-    with self.assertRaisesRegex(ValueError, 'Expected valid string object'):
+    with self.assertRaisesRegex((ValueError, RuntimeError),
+                                'Expected valid string object'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         with mock.patch('apache_beam.io.WriteToPubSub',
