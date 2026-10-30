@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 
 ## Breaking Changes
 
