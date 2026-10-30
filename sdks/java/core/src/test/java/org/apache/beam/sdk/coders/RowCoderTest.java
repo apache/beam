@@ -645,4 +645,47 @@ public class RowCoderTest {
 
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
+
+  private static class MillisDateTimeLogicalType
+      implements LogicalType<Long, org.joda.time.ReadableInstant> {
+    @Override
+    public String getIdentifier() {
+      return "millis_datetime";
+    }
+
+    @Override
+    public FieldType getArgumentType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public String getArgument() {
+      return "";
+    }
+
+    @Override
+    public FieldType getBaseType() {
+      return FieldType.DATETIME;
+    }
+
+    @Override
+    public org.joda.time.ReadableInstant toBaseType(Long input) {
+      return new DateTime(input, DateTimeZone.UTC);
+    }
+
+    @Override
+    public Long toInputType(org.joda.time.ReadableInstant base) {
+      return base.getMillis();
+    }
+  }
+
+  @Test
+  public void testDateTimeLogicalTypeCoderMethods() throws Exception {
+    Coder<Long> coder =
+        org.apache.beam.sdk.schemas.SchemaCoder.coderForFieldType(
+            FieldType.logicalType(new MillisDateTimeLogicalType()));
+    CoderProperties.coderDecodeEncodeEqual(coder, 123456789L);
+    CoderProperties.coderConsistentWithEquals(coder, 123456789L, 123456789L);
+    CoderProperties.structuralValueConsistentWithEquals(coder, 123456789L, 123456789L);
+  }
 }
