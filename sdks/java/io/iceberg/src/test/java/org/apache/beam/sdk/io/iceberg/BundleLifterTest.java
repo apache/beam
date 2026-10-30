@@ -21,9 +21,19 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.io.iceberg.BundleLifter.BundleLiftDoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,64 +46,89 @@ public class BundleLifterTest {
   private static final TupleTag<String> STRING_SMALL = new TupleTag<String>() {};
   private static final TupleTag<String> STRING_LARGE = new TupleTag<String>() {};
 
+  private static class SimpleMultiOutputReceiver implements MultiOutputReceiver {
+    private final Map<TupleTag<?>, TestOutputReceiver<?>> receivers = new HashMap<>();
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized <T> OutputReceiver<T> get(
+        @UnknownKeyFor @NonNull @Initialized TupleTag<T> tag) {
+      return (OutputReceiver<T>) receivers.computeIfAbsent(tag, k -> new TestOutputReceiver<T>());
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized <T>
+        OutputReceiver<@UnknownKeyFor @NonNull @Initialized Row> getRowReceiver(
+            @UnknownKeyFor @NonNull @Initialized TupleTag<T> tag) {
+      throw new UnsupportedOperationException("getRowReceiver not supported in test");
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getOutput(TupleTag<T> tag) {
+      TestOutputReceiver<T> receiver = (TestOutputReceiver<T>) receivers.get(tag);
+      return receiver == null ? Collections.emptyList() : receiver.getOutputs();
+    }
+  }
+
   @Test
   public void testSmallBundle() throws Exception {
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    BundleLiftDoFn<Integer> fn = new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1);
+    SimpleMultiOutputReceiver receiver = new SimpleMultiOutputReceiver();
 
-    tester.startBundle();
-    tester.processElement(1);
-    tester.processElement(2);
-    tester.finishBundle();
+    fn.startBundle();
+    fn.processElement(1, receiver);
+    fn.processElement(2, receiver);
+    fn.finishBundle();
 
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(1, 2));
-    assertThat(tester.peekOutputElements(INTEGER_LARGE), empty());
+    assertThat(receiver.getOutput(INTEGER_SMALL), containsInAnyOrder(1, 2));
+    assertThat(receiver.getOutput(INTEGER_LARGE), empty());
   }
 
   @Test
   public void testLargeBundle() throws Exception {
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    BundleLiftDoFn<Integer> fn = new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1);
+    SimpleMultiOutputReceiver receiver = new SimpleMultiOutputReceiver();
 
-    tester.startBundle();
-    tester.processElement(1);
-    tester.processElement(2);
-    tester.processElement(3);
-    tester.finishBundle();
+    fn.startBundle();
+    fn.processElement(1, receiver);
+    fn.processElement(2, receiver);
+    fn.processElement(3, receiver);
+    fn.finishBundle();
 
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), empty());
-    assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 2, 3));
+    assertThat(receiver.getOutput(INTEGER_SMALL), empty());
+    assertThat(receiver.getOutput(INTEGER_LARGE), containsInAnyOrder(1, 2, 3));
   }
 
   @Test
   public void testSmallBundleWithSizer() throws Exception {
-    DoFnTester<String, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+    BundleLiftDoFn<String> fn =
+        new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length());
+    SimpleMultiOutputReceiver receiver = new SimpleMultiOutputReceiver();
 
-    tester.startBundle();
-    tester.processElement("123");
-    tester.processElement("456");
-    tester.processElement("789");
-    tester.finishBundle();
+    fn.startBundle();
+    fn.processElement("123", receiver);
+    fn.processElement("456", receiver);
+    fn.processElement("789", receiver);
+    fn.finishBundle();
 
-    assertThat(tester.peekOutputElements(STRING_SMALL), containsInAnyOrder("123", "456", "789"));
-    assertThat(tester.peekOutputElements(STRING_LARGE), empty());
+    assertThat(receiver.getOutput(STRING_SMALL), containsInAnyOrder("123", "456", "789"));
+    assertThat(receiver.getOutput(STRING_LARGE), empty());
   }
 
   @Test
   public void testLargeBundleWithSizer() throws Exception {
-    DoFnTester<String, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+    BundleLiftDoFn<String> fn =
+        new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length());
+    SimpleMultiOutputReceiver receiver = new SimpleMultiOutputReceiver();
 
-    tester.startBundle();
-    tester.processElement("123");
-    tester.processElement("456");
-    tester.processElement("789");
-    tester.processElement("0");
-    tester.finishBundle();
+    fn.startBundle();
+    fn.processElement("123", receiver);
+    fn.processElement("456", receiver);
+    fn.processElement("789", receiver);
+    fn.processElement("0", receiver);
+    fn.finishBundle();
 
-    assertThat(tester.peekOutputElements(STRING_SMALL), empty());
-    assertThat(
-        tester.peekOutputElements(STRING_LARGE), containsInAnyOrder("123", "456", "789", "0"));
+    assertThat(receiver.getOutput(STRING_SMALL), empty());
+    assertThat(receiver.getOutput(STRING_LARGE), containsInAnyOrder("123", "456", "789", "0"));
   }
 }

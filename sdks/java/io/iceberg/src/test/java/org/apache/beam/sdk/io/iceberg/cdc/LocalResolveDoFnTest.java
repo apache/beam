@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,12 +31,14 @@ import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.TestDataWarehouse;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -247,11 +250,32 @@ public class LocalResolveDoFnTest {
       List<SerializableChangelogTask> tasks,
       Instant timestamp)
       throws Exception {
-    try (DoFnTester<KV<ChangelogDescriptor, List<SerializableChangelogTask>>, Row> tester =
-        DoFnTester.of(new LocalResolveDoFn(scanConfig))) {
-      tester.processTimestampedElement(TimestampedValue.of(KV.of(descriptor, tasks), timestamp));
-      return tester.getMutableOutput(tester.getMainOutputTag());
-    }
+    LocalResolveDoFn fn = new LocalResolveDoFn(scanConfig);
+    fn.setup();
+    List<ValueInSingleWindow<Row>> outputs = new ArrayList<>();
+    OutputReceiver<Row> receiver =
+        output ->
+            WindowedValues.<Row>builder()
+                .setValue(output)
+                .setWindow(GlobalWindow.INSTANCE)
+                .setPaneInfo(PaneInfo.NO_FIRING)
+                .setTimestamp(timestamp)
+                .setReceiver(
+                    wv ->
+                        outputs.add(
+                            ValueInSingleWindow.of(
+                                wv.getValue(),
+                                wv.getTimestamp(),
+                                wv.getWindows().iterator().next(),
+                                wv.getPaneInfo(),
+                                wv.getRecordId(),
+                                wv.getRecordOffset(),
+                                wv.causedByDrain(),
+                                wv.getOpenTelemetryContext(),
+                                wv.getValueKind())));
+
+    fn.process(KV.of(descriptor, tasks), receiver);
+    return outputs;
   }
 
   private TableIdentifier tableId() {
