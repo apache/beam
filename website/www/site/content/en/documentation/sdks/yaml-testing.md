@@ -108,7 +108,7 @@ Neither the actual Read transform nor Write transform from the original
 pipelines are executed when running the test, but all intermediate transforms
 are.
 
-This test can then be executed with the `--tests` (or `--test`) flag by running
+This test can then be executed with the `--tests` flag by running
 
 ```
 python -m apache_beam.yaml.main \
