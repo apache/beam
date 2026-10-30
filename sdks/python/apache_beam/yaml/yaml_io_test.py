@@ -494,6 +494,59 @@ class YamlPubSubTest(unittest.TestCase):
               format: RAW
             '''))
 
+  def test_simple_write_string(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.WriteToPubSub',
+                      FakeWriteToPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage('äter'.encode('utf-8'), {}),
+                                    PubsubMessage('köttbullar'.encode('utf-8'),
+                                                  {})])):
+        _ = (
+            p
+            | beam.Create([beam.Row(a='äter'), beam.Row(a='köttbullar')])
+            | YamlTransform(
+                '''
+            type: WriteToPubSub
+            config:
+              topic: my_topic
+              format: STRING
+            '''))
+
+  def test_write_string_rejects_schema(self):
+    with self.assertRaisesRegex(ValueError,
+                                'STRING format does not take a schema'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p | beam.Create([beam.Row(a='hello')])
+            | YamlTransform(
+                '''
+            type: WriteToPubSub
+            config:
+              topic: my_topic
+              format: STRING
+              schema:
+                type: object
+            '''))
+
+  def test_write_string_rejects_non_string(self):
+    with self.assertRaisesRegex(ValueError, 'Expected valid string object'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        with mock.patch('apache_beam.io.WriteToPubSub',
+                        FakeWriteToPubSub(topic='my_topic', messages=[])):
+          _ = (
+              p | beam.Create([beam.Row(a=b'bytes_not_str')])
+              | YamlTransform(
+                  '''
+              type: WriteToPubSub
+              config:
+                topic: my_topic
+                format: STRING
+              '''))
+
   def test_write_with_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
