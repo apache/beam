@@ -403,6 +403,9 @@ class SyntheticSource(iobase.BoundedSource):
           'Unknown algorithm for input_spec: %s. Supported '
           'algorithms are "builtin" and "lcg".',
           self.gen_algo)
+    # optimization to reduce overhead of copying bytes
+    self._gen_kv_separately = (
+        self.gen_algo == 'lcg' and self._key_size % 4 == 0)
 
   @property
   def element_size(self):
@@ -469,6 +472,10 @@ class SyntheticSource(iobase.BoundedSource):
           seed=index % self._num_hot_keys, algorithm=self.gen_algo)
       bytes_ = generator_hot.randbytes(self._key_size), generator.randbytes(
         self._value_size)
+    elif self._gen_kv_separately:
+      bytes_ = (
+          generator.randbytes(self._key_size),
+          generator.randbytes(self._value_size))
     else:
       bytes_ = generator.randbytes(self.element_size)
       bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
