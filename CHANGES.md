@@ -145,6 +145,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed `WriteToFiles` failing to write files when `file_naming` places them in a subdirectory of `path`, since only `path` itself was created before the move ([#21313](https://github.com/apache/beam/issues/21313)).
 * (Python) Fixed BigQuery `FILE_LOADS` silently omitting files when dynamic destinations use different spellings of the same table ([#40001](https://github.com/apache/beam/pull/40001)).
 * (Python) DaskRunner now preserves outputs emitted by `DoFn.finish_bundle()` instead of silently dropping them ([#40519](https://github.com/apache/beam/issues/40519)).
 * (Python) BigQuery streaming inserts now reset the retry budget and backoff for each batch instead of sharing them across a bundle ([#39995](https://github.com/apache/beam/pull/39995)).
