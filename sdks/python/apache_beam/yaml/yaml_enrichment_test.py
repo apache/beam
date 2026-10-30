@@ -22,23 +22,32 @@ import mock
 
 import apache_beam as beam
 from apache_beam import Row
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_enrichment
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
-class FakeEnrichmentTransform:
-  def __init__(self, enrichment_handler, handler_config, timeout=30):
-    self._enrichment_handler = enrichment_handler
-    self._handler_config = handler_config
-    self._timeout = timeout
+class _FakeHandler:
+  def __init__(self, **kwargs):
+    self.kwargs = kwargs
 
-  def __call__(self, enrichment_handler, *, handler_config, timeout=30):
-    assert enrichment_handler == self._enrichment_handler
-    assert handler_config == self._handler_config
-    assert timeout == self._timeout
-    return beam.Map(lambda x: beam.Row(**x._asdict()))
+
+class _FakeEnrichment(beam.PTransform):
+  def __init__(self, source_handler, timeout=30):
+    self.source_handler = source_handler
+    self.timeout = timeout
+
+  def expand(self, pcoll):
+    timeout = self.timeout
+    return pcoll | beam.Map(
+        lambda x: beam.Row(**x._asdict(), enriched_timeout=int(timeout)))
+
+
+def _enrichment_options():
+  return PipelineOptions(
+      pickle_library='cloudpickle', yaml_experimental_features=['Enrichment'])
 
 
 class EnrichmentTransformTest(unittest.TestCase):
@@ -47,30 +56,108 @@ class EnrichmentTransformTest(unittest.TestCase):
         Row(label="item1", rank=0),
         Row(label="item2", rank=1),
     ]
-
-    handler = 'BigQuery'
     config = {
         "project": "apache-beam-testing",
         "table_name": "project.database.table",
         "row_restriction_template": "label='item1' or label='item2'",
-        "fields": ["label"]
+        "fields": ["label"],
     }
 
-    with beam.Pipeline() as p:
-      with mock.patch('apache_beam.yaml.yaml_enrichment.enrichment_transform',
-                      FakeEnrichmentTransform(enrichment_handler=handler,
-                                              handler_config=config)):
-        # Force a reload to respect our mock.
-        yaml_provider.standard_providers.cache_clear()
-        input_pcoll = p | 'CreateInput' >> beam.Create(input_data)
-        result = input_pcoll | YamlTransform(
-            f'''
-                    type: Enrichment
-                    config:
-                        enrichment_handler: {handler}
-                        handler_config: {config}
-                    ''')
-        assert_that(result, equal_to(input_data))
+    captured = {}
+
+    def make_handler(**kwargs):
+      captured['kwargs'] = kwargs
+      return _FakeHandler(**kwargs)
+
+    with (mock.patch.object(yaml_enrichment, 'Enrichment', _FakeEnrichment),
+          mock.patch.object(yaml_enrichment,
+                            'BigQueryEnrichmentHandler',
+                            side_effect=make_handler)):
+      with beam.Pipeline(options=_enrichment_options()) as p:
+        result = (
+            p
+            | 'CreateInput' >> beam.Create(input_data)
+            | YamlTransform(
+                f'''
+                type: Enrichment
+                config:
+                  enrichment_handler: BigQuery
+                  handler_config: {config}
+                '''))
+        assert_that(
+            result,
+            equal_to([
+                Row(label="item1", rank=0, enriched_timeout=30),
+                Row(label="item2", rank=1, enriched_timeout=30),
+            ]))
+    self.assertEqual(captured['kwargs'], config)
+
+  def test_enrichment_other_handlers_and_timeout(self):
+    for handler_name, attr_name in [
+        ('BigTable', 'BigTableEnrichmentHandler'),
+        ('VertexAIFeatureStore', 'VertexAIFeatureStoreEnrichmentHandler'),
+        ('FeastFeatureStore', 'FeastFeatureStoreEnrichmentHandler'),
+    ]:
+      with self.subTest(handler=handler_name):
+        with (mock.patch.object(yaml_enrichment, 'Enrichment', _FakeEnrichment),
+              mock.patch.object(yaml_enrichment, attr_name, _FakeHandler) as
+              mock_cls):
+          with beam.Pipeline(options=_enrichment_options()) as p:
+            result = (
+                p
+                | beam.Create([Row(id='k1')])
+                | yaml_enrichment.enrichment_transform(
+                    enrichment_handler=handler_name,
+                    handler_config={'row_key': 'id'},
+                    timeout=45))
+            assert_that(result, equal_to([Row(id='k1', enriched_timeout=45)]))
+          self.assertIs(yaml_enrichment.__dict__[attr_name], mock_cls)
+
+  def test_enrichment_requires_experimental_flag(self):
+    with self.assertRaisesRegex(ValueError, 'Enrichment.*experimental'):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create([Row(id='k1')]) | YamlTransform(
+            '''
+            type: Enrichment
+            config:
+              enrichment_handler: BigTable
+              handler_config:
+                row_key: id
+            ''')
+
+  def test_enrichment_missing_gcp_dependencies(self):
+    with mock.patch.object(yaml_enrichment, 'Enrichment', None):
+      with self.assertRaisesRegex(ValueError, 'gcp dependencies not installed'):
+        with beam.Pipeline(options=_enrichment_options()) as p:
+          _ = (
+              p
+              | beam.Create([Row(id='k1')])
+              | yaml_enrichment.enrichment_transform(
+                  enrichment_handler='BigQuery', handler_config={}))
+
+  def test_enrichment_missing_feast_dependency(self):
+    with (mock.patch.object(yaml_enrichment, 'Enrichment', _FakeEnrichment),
+          mock.patch.object(yaml_enrichment,
+                            'FeastFeatureStoreEnrichmentHandler',
+                            None)):
+      with self.assertRaisesRegex(ValueError, "requires 'feast' package"):
+        with beam.Pipeline(options=_enrichment_options()) as p:
+          _ = (
+              p
+              | beam.Create([Row(id='k1')])
+              | yaml_enrichment.enrichment_transform(
+                  enrichment_handler='FeastFeatureStore', handler_config={}))
+
+  def test_enrichment_unknown_handler(self):
+    with mock.patch.object(yaml_enrichment, 'Enrichment', _FakeEnrichment):
+      with self.assertRaisesRegex(
+          ValueError, 'Unknown enrichment source: UnsupportedSource'):
+        with beam.Pipeline(options=_enrichment_options()) as p:
+          _ = (
+              p
+              | beam.Create([Row(id='k1')])
+              | yaml_enrichment.enrichment_transform(
+                  enrichment_handler='UnsupportedSource', handler_config={}))
 
 
 if __name__ == '__main__':
