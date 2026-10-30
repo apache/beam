@@ -25,7 +25,7 @@ try:
   from apache_beam.io.gcp.internal.clients import bigquery
   from apache_beam.yaml import integration_tests
 except ImportError as exc:
-  raise unittest.SkipTest(f"BigQuery dependencies not installed: {exc}")
+  raise unittest.SkipTest(f"Integration test dependencies not installed: {exc}")
 
 
 class BigQueryFixtureCleanupTest(unittest.TestCase):
