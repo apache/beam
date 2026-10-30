@@ -306,10 +306,14 @@ class GlobalWindow(BoundedWindow):
   def __new__(cls):
     if cls._instance is None:
       cls._instance = super(GlobalWindow, cls).__new__(cls)
+      super(GlobalWindow,
+            cls._instance).__init__(GlobalWindow._getTimestampFromProto())
     return cls._instance
 
   def __init__(self) -> None:
-    super().__init__(GlobalWindow._getTimestampFromProto())
+    # Intentionally a no-op: super().__init__ is called once in __new__
+    # so repeated GlobalWindow() calls do not re-initialize the singleton.
+    pass
 
   def __repr__(self):
     return 'GlobalWindow'
