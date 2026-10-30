@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -49,6 +50,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -317,46 +319,86 @@ public class BigqueryClient {
             .setTableId(temporaryTableId);
 
     createNewDataset(projectId, temporaryDatasetId, null, location);
-    createNewTable(
-        projectId,
-        temporaryDatasetId,
-        new Table().setTableReference(tempTableReference).setLocation(location));
+    try {
+      createNewTable(
+          projectId,
+          temporaryDatasetId,
+          new Table().setTableReference(tempTableReference).setLocation(location));
 
-    JobConfigurationQuery jcQuery =
-        new JobConfigurationQuery()
-            .setFlattenResults(false)
-            .setAllowLargeResults(true)
-            .setDestinationTable(tempTableReference)
-            .setUseLegacySql(!useStandardSql)
-            .setQuery(query);
-    JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
+      JobConfigurationQuery jcQuery =
+          new JobConfigurationQuery()
+              .setFlattenResults(false)
+              .setAllowLargeResults(true)
+              .setDestinationTable(tempTableReference)
+              .setWriteDisposition("WRITE_TRUNCATE")
+              .setUseLegacySql(!useStandardSql)
+              .setQuery(query);
+      GetQueryResultsResponse qResponse = runQueryJobWithRetries(projectId, jcQuery, location);
 
-    Job job = new Job().setConfiguration(jc);
-
-    Job insertedJob = bqClient.jobs().insert(projectId, job).execute();
-
-    GetQueryResultsResponse qResponse;
-    do {
-      qResponse =
-          bqClient
-              .jobs()
-              .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
-              .setLocation(location)
-              .execute();
-
-    } while (!qResponse.getJobComplete());
-
-    final TableSchema schema = qResponse.getSchema();
-    final List<TableRow> rows = qResponse.getRows();
-    if (rows == null) {
-      return Collections.EMPTY_LIST;
+      final TableSchema schema = qResponse.getSchema();
+      final List<TableRow> rows = qResponse.getRows();
+      if (rows == null) {
+        return Collections.EMPTY_LIST;
+      }
+      return !typed
+          ? rows
+          : rows.stream()
+              .map(r -> getTypedTableRow(schema.getFields(), r))
+              .collect(Collectors.toList());
+    } finally {
+      deleteDataset(projectId, temporaryDatasetId);
     }
-    deleteDataset(projectId, temporaryDatasetId);
-    return !typed
-        ? rows
-        : rows.stream()
-            .map(r -> getTypedTableRow(schema.getFields(), r))
-            .collect(Collectors.toList());
+  }
+
+  /**
+   * Starts a query job and waits for its results. Polling again can't revive a job that failed with
+   * a transient error such as a 503 backendError, so each retry starts a new job.
+   */
+  private GetQueryResultsResponse runQueryJobWithRetries(
+      String projectId, JobConfigurationQuery jcQuery, @Nullable String location)
+      throws IOException, InterruptedException {
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying query ({}) after exception", jcQuery.getQuery(), lastException);
+      }
+      try {
+        Job job = new Job().setConfiguration(new JobConfiguration().setQuery(jcQuery));
+        String jobId =
+            bqClient.jobs().insert(projectId, job).execute().getJobReference().getJobId();
+        GetQueryResultsResponse qResponse;
+        do {
+          qResponse =
+              bqClient.jobs().getQueryResults(projectId, jobId).setLocation(location).execute();
+        } while (!qResponse.getJobComplete());
+        return qResponse;
+      } catch (IOException e) {
+        if (!isTransient(e)) {
+          throw e;
+        }
+        lastException = e;
+      }
+    } while (BackOffUtils.next(sleeper, backoff));
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery query results after retrying %d times using query (%s)",
+            MAX_QUERY_RETRIES, jcQuery.getQuery()),
+        lastException);
+  }
+
+  /**
+   * Returns true for errors that may succeed on retry: 5xx responses, rate limiting (429, or 403
+   * rateLimitExceeded) and failures without an HTTP response, such as timeouts.
+   */
+  private boolean isTransient(IOException e) {
+    if (!(e instanceof HttpResponseException)) {
+      return true;
+    }
+    int statusCode = ((HttpResponseException) e).getStatusCode();
+    return statusCode >= 500 || statusCode == 429 || ApiErrorExtractor.INSTANCE.rateLimited(e);
   }
 
   @Nonnull
