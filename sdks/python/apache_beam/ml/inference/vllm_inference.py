@@ -38,8 +38,12 @@ from openai import AsyncOpenAI
 from openai import OpenAI
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import autoscaling_metrics
+from apache_beam.ml.inference import prefix_batching
+from apache_beam.ml.inference.autoscaling_metrics import AutoscalingMetricConfig
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.prefix_batching import PrefixBatchingConfig
 from apache_beam.utils import subprocess_server
 
 try:
@@ -58,6 +62,24 @@ __all__ = [
     'VLLMCompletionsModelHandler',
     'VLLMChatModelHandler',
 ]
+
+# The vLLM-specific inputs to the generic capacity-based autoscaling signal
+# (see apache_beam.ml.inference.autoscaling_metrics): vLLM's Prometheus counter
+# of completed requests and gauge of in-flight requests.
+_VLLM_COMPLETED_REQUESTS_METRIC = 'vllm:request_success_total'
+_VLLM_RUNNING_REQUESTS_METRIC = 'vllm:num_requests_running'
+
+
+def _resolve_autoscaling(
+    enabled: bool,
+    config: Optional[AutoscalingMetricConfig],
+    model_identifier: Optional[str],
+    model_name: str) -> Optional[AutoscalingMetricConfig]:
+  """Returns the autoscaling config with its metric tag resolved, or None."""
+  if not enabled:
+    return None
+  return (config or
+          AutoscalingMetricConfig()).resolve_tag(model_identifier, model_name)
 
 
 @dataclass(frozen=True)
@@ -148,7 +170,8 @@ class _VLLMModelServer():
       model_name: str,
       vllm_server_kwargs: dict[str, Optional[str]],
       dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
-      use_dynamo: bool = False):
+      use_dynamo: bool = False,
+      autoscaling: Optional[AutoscalingMetricConfig] = None):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
     self._dynamo_frontend_kwargs = dynamo_frontend_kwargs or {}
@@ -161,8 +184,38 @@ class _VLLMModelServer():
     self._server_port: int = -1
     self._server_process_lock = threading.RLock()
     self._use_dynamo = use_dynamo
+    # Autoscaling: a capacity signal polled by a publisher thread that is
+    # started once the server is confirmed up (see start_server) and stopped
+    # in __del__. ``autoscaling=None`` disables the metric entirely.
+    self._autoscaling = autoscaling
+    self._capacity_sampler = autoscaling_metrics.PrometheusCounterGaugeSampler(
+        _VLLM_COMPLETED_REQUESTS_METRIC, _VLLM_RUNNING_REQUESTS_METRIC)
+    self._capacity_estimator = (
+        autoscaling.make_capacity_estimator() if autoscaling else None)
+    self._num_loaded_models_publisher: Optional[
+        autoscaling_metrics.NumLoadedModelsPublisher] = (
+            autoscaling.make_publisher(self._get_load_signal)
+            if autoscaling else None)
 
     self.start_server()
+
+  def _get_load_signal(self) -> Optional[float]:
+    """Returns the current per-worker capacity estimate, or None.
+
+    Returns None while the server is down/restarting so the publisher skips the
+    tick instead of reporting a misleading 0.
+    """
+    if not self._server_started or self._server_port < 0:
+      return None
+    if self._autoscaling is not None and (self._autoscaling.load_signal_fn
+                                          is not None):
+      return self._autoscaling.load_signal_fn(self._server_port)
+    if self._capacity_estimator is None:
+      return None
+    sample = self._capacity_sampler(self._server_port)
+    if sample is None:
+      return None
+    return self._capacity_estimator.update(*sample)
 
   @staticmethod
   def _stop_process(process: Optional[subprocess.Popen]) -> None:
@@ -214,6 +267,11 @@ class _VLLMModelServer():
     # __del__ may run during interpreter shutdown when module globals can
     # already be torn down; swallow any cleanup failures so we don't print
     # a noisy traceback.
+    try:
+      if self._num_loaded_models_publisher is not None:
+        self._num_loaded_models_publisher.stop()
+    except Exception:  # pylint: disable=broad-except
+      pass
     try:
       self._stop_processes()
     except Exception:  # pylint: disable=broad-except
@@ -322,6 +380,8 @@ class _VLLMModelServer():
           self._dynamo_process, _ = start_process(server_cmd)
 
       self.check_connectivity(retries)
+      if self._num_loaded_models_publisher is not None:
+        self._num_loaded_models_publisher.start()
 
   def get_server_port(self) -> int:
     if not self._server_started:
@@ -374,7 +434,10 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
-      batch_bucket_boundaries: Optional[list[int]] = None):
+      batch_bucket_boundaries: Optional[list[int]] = None,
+      prefix_batching_config: Optional[PrefixBatchingConfig] = None,
+      enable_autoscaling_metric: bool = True,
+      autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -425,15 +488,39 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets. Cannot be used together with
         max_batch_weight.
+      prefix_batching_config: optional ``PrefixBatchingConfig``. When set,
+        prompts sharing a prefix are shuffled via ``GroupIntoBatches`` to the
+        same worker and batched together to maximize vLLM prefix cache hits.
+        By default prompts are keyed on their leading ``prefix_char_len``
+        characters (or up to the first ``\\n\\n`` delimiter); set ``key_fn``
+        for a custom key and ``num_shards`` to bound hot-key fanout (see
+        ``apache_beam.ml.inference.prefix_batching``). Each prefix is spread
+        over 8 shards by default; raise ``num_shards`` when one prefix carries
+        most of the traffic and the pool scales well past 8 workers.
+      enable_autoscaling_metric: if True (default), publish the
+        ``num_loaded_models_<tag>`` autoscaling signal: the worker's estimated
+        message capacity derived from the vLLM server's request completion
+        rate and in-flight concurrency (see
+        ``apache_beam.ml.inference.autoscaling_metrics``).
+      autoscaling_config: optional ``AutoscalingMetricConfig`` overriding the
+        signal's defaults (poll interval, multiplier, windows, aggregation
+        policy, or a custom ``load_signal_fn``). The metric tag is taken from
+        the identifier RunInference reports for this step
+        (``model_identifier``, or its generated id), so it matches what the
+        autoscaler looks up and survives model updates; set ``tag`` only to
+        override that.
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
-        max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
-        batch_bucket_boundaries=batch_bucket_boundaries)
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        **prefix_batching.resolve_batching_kwargs(
+            prefix_batching_config,
+            prefix_batching.PromptPrefixKeyFn,
+            max_batch_duration_secs))
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, Optional[str]] = ({
         **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
@@ -442,13 +529,24 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
     }
     self._use_dynamo = use_dynamo
+    self._enable_autoscaling_metric = enable_autoscaling_metric
+    self._autoscaling_config = autoscaling_config
+    self._model_identifier: Optional[str] = None
+
+  def set_model_identifier(self, model_identifier: str):
+    self._model_identifier = model_identifier
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(
         self._model_name,
         self._vllm_server_kwargs,
         self._dynamo_frontend_kwargs,
-        self._use_dynamo)
+        self._use_dynamo,
+        autoscaling=_resolve_autoscaling(
+            self._enable_autoscaling_metric,
+            self._autoscaling_config,
+            self._model_identifier,
+            self._model_name))
 
   async def _async_run_inference(
       self,
@@ -517,7 +615,10 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
-      batch_bucket_boundaries: Optional[list[int]] = None):
+      batch_bucket_boundaries: Optional[list[int]] = None,
+      prefix_batching_config: Optional[PrefixBatchingConfig] = None,
+      enable_autoscaling_metric: bool = True,
+      autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -571,15 +672,40 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets. Cannot be used together with
         max_batch_weight.
+      prefix_batching_config: optional ``PrefixBatchingConfig``. When set,
+        conversations sharing a prefix are shuffled via ``GroupIntoBatches``
+        to the same worker and batched together to maximize vLLM prefix cache
+        hits. By default conversations are keyed on the role and leading
+        ``prefix_char_len`` characters of their first (system) message; set
+        ``key_fn`` for a custom key and ``num_shards`` to bound hot-key fanout
+        (see ``apache_beam.ml.inference.prefix_batching``). Each prefix is
+        spread over 8 shards by default; raise ``num_shards`` when one system
+        prompt carries most of the traffic and the pool scales well past 8
+        workers.
+      enable_autoscaling_metric: if True (default), publish the
+        ``num_loaded_models_<tag>`` autoscaling signal: the worker's estimated
+        message capacity derived from the vLLM server's request completion
+        rate and in-flight concurrency (see
+        ``apache_beam.ml.inference.autoscaling_metrics``).
+      autoscaling_config: optional ``AutoscalingMetricConfig`` overriding the
+        signal's defaults (poll interval, multiplier, windows, aggregation
+        policy, or a custom ``load_signal_fn``). The metric tag is taken from
+        the identifier RunInference reports for this step
+        (``model_identifier``, or its generated id), so it matches what the
+        autoscaler looks up and survives model updates; set ``tag`` only to
+        override that.
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
-        max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
-        batch_bucket_boundaries=batch_bucket_boundaries)
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        **prefix_batching.resolve_batching_kwargs(
+            prefix_batching_config,
+            prefix_batching.ChatPrefixKeyFn,
+            max_batch_duration_secs))
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, Optional[str]] = ({
         **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
@@ -590,6 +716,12 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
     self._use_dynamo = use_dynamo
+    self._enable_autoscaling_metric = enable_autoscaling_metric
+    self._autoscaling_config = autoscaling_config
+    self._model_identifier: Optional[str] = None
+
+  def set_model_identifier(self, model_identifier: str):
+    self._model_identifier = model_identifier
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''
@@ -606,7 +738,12 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         self._model_name,
         self._vllm_server_kwargs,
         self._dynamo_frontend_kwargs,
-        self._use_dynamo)
+        self._use_dynamo,
+        autoscaling=_resolve_autoscaling(
+            self._enable_autoscaling_metric,
+            self._autoscaling_config,
+            self._model_identifier,
+            self._model_name))
 
   async def _async_run_inference(
       self,

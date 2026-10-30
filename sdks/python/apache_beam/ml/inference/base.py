@@ -213,6 +213,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
       batch_bucket_boundaries: Optional[list[int]] = None,
+      batch_key_fn: Optional[Callable[[Any], Any]] = None,
+      batch_key_num_shards: Optional[Union[int,
+                                           Mapping[Any, int],
+                                           Callable[[Any], int]]] = None,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       **kwargs):
@@ -243,6 +247,21 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         semantics): bucket i covers lengths in [boundaries[i-1], boundaries[i]).
         Requires batch_length_fn. Defaults to [16, 32, 64, 128, 256, 512] when
         batch_length_fn is set.
+      batch_key_fn: a callable mapping an element to a grouping key. It
+        receives the element as it enters batching, i.e. *after* any
+        ``with_preprocess_fn`` functions have been applied. When set,
+        BatchElements keys elements via WithBatchKey (without a per-worker UUID)
+        and groups them across workers using GroupIntoBatches so that elements
+        sharing the same key (e.g., prompt prefix or category) are routed to
+        the same worker and batched together.
+      batch_key_num_shards: bounds hot-key fanout when batch_key_fn is set.
+        Either an int applied to every key, a mapping from batch key to shard
+        count for a known skewed distribution (keys not in the mapping get 1
+        shard), or a callable from batch key to shard count. Each key is
+        spread across at most that many random sub-keys / workers. Defaults
+        to 1, which serves each key on one worker at a time; skewed key
+        distributions need more shards for their hot keys (see
+        ``apache_beam.ml.inference.prefix_batching.PrefixBatchingConfig``).
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies.
       model_copies: The exact number of models that you would like loaded
@@ -273,6 +292,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
       self._batching_kwargs['length_fn'] = batch_length_fn
     if batch_bucket_boundaries is not None:
       self._batching_kwargs['bucket_boundaries'] = batch_bucket_boundaries
+    if batch_key_fn is not None:
+      self._batching_kwargs['key_fn'] = batch_key_fn
+    if batch_key_num_shards is not None:
+      self._batching_kwargs['num_shards'] = batch_key_num_shards
     self._large_model = large_model
     self._model_copies = model_copies
     self._share_across_processes = large_model or (model_copies is not None)
@@ -357,6 +380,19 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
     documentation and the website section on model updates
     https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
+    """
+    pass
+
+  def set_model_identifier(self, model_identifier: str):
+    """Receives the identifier RunInference annotates this model with.
+
+    Called by RunInference in the worker before the first ``load_model`` with
+    the ``model_identifier`` passed to ``RunInference`` (or the random id it
+    generated when none was passed). This is the value Dataflow's autoscaler
+    uses to find the ``num_loaded_models_<identifier>`` metric for this step,
+    and it is stable across side-input model updates, so handlers that publish
+    that metric themselves should tag it with this identifier. The default is
+    a no-op.
     """
     pass
 
@@ -1125,6 +1161,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'KeyedModelHandlers with multiple different per-key ' +
           'ModelHandlers.')
 
+  def set_model_identifier(self, model_identifier: str):
+    if self._single_model:
+      return self._unkeyed.set_model_identifier(model_identifier)
+    for mh in self._id_to_mh_map.values():
+      mh.set_model_identifier(model_identifier)
+
   def share_model_across_processes(self) -> bool:
     if self._single_model:
       return self._unkeyed.share_model_across_processes()
@@ -1251,6 +1293,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def update_model_path(self, model_path: Optional[str] = None):
     return self._unkeyed.update_model_path(model_path=model_path)
 
+  def set_model_identifier(self, model_identifier: str):
+    return self._unkeyed.set_model_identifier(model_identifier)
+
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._unkeyed.get_preprocess_fns()
 
@@ -1321,6 +1366,9 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
 
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
+
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_preprocess_fns()
@@ -1400,6 +1448,9 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
 
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
+
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return [self._preprocess_fn] + self._base.get_preprocess_fns()
 
@@ -1476,6 +1527,9 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 
   def update_model_path(self, model_path: Optional[str] = None):
     return self._base.update_model_path(model_path=model_path)
+
+  def set_model_identifier(self, model_identifier: str):
+    return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_preprocess_fns()
@@ -2299,6 +2353,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
     self._model_handler.set_environment_vars()
+    self._model_handler.set_model_identifier(self._model_tag)
     self._model_metadata = load_model_status(
         self._model_tag, self._model_handler.share_model_across_processes())
     if not self._load_model_at_runtime:
