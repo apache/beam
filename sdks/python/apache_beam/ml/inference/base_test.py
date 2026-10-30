@@ -2843,6 +2843,67 @@ class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
     return [f'{s}:{max_len}' for s in batch]
 
 
+class IdentifierReportingModelHandler(base.ModelHandler[int, str, FakeModel]):
+  """Emits the identifier RunInference reported, as seen at load_model time.
+
+  The DoFn works on a pickled copy of the handler, so the only way to observe
+  the hook is through the pipeline output.
+  """
+  def __init__(self):
+    super().__init__()
+    self._identifier = None
+    self._identifier_at_load = None
+
+  def set_model_identifier(self, model_identifier):
+    self._identifier = model_identifier
+
+  def load_model(self):
+    # Captures whether set_model_identifier ran before load_model.
+    self._identifier_at_load = self._identifier
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [f'{x}:{self._identifier_at_load}' for x in batch]
+
+
+class RunInferenceModelIdentifierTest(unittest.TestCase):
+  """RunInference hands handlers the identifier the autoscaler looks up."""
+  def test_explicit_model_identifier_is_reported_before_load(self):
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1, 2], reshuffle=False)
+          | base.RunInference(
+              IdentifierReportingModelHandler(),
+              model_identifier='my-step-model'))
+      assert_that(out, equal_to(['1:my-step-model', '2:my-step-model']))
+
+  def test_generated_uuid_identifier_matches_annotation(self):
+    # No model_identifier given: RunInference generates a uuid hex, annotates
+    # the inference step with it, and reports that same value to the handler.
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1], reshuffle=False)
+          | base.RunInference(IdentifierReportingModelHandler()))
+      annotated = [
+          t.annotations['model_identifier'].decode()
+          for t in p.to_runner_api().components.transforms.values()
+          if t.unique_name == 'RunInference/BeamML_RunInference'
+      ]
+      self.assertEqual(len(annotated), 1)
+      self.assertRegex(annotated[0], r'^[0-9a-f]{32}$')
+      assert_that(out, equal_to([f'1:{annotated[0]}']))
+
+  def test_identifier_forwarded_through_wrappers(self):
+    handler = base.KeyedModelHandler(
+        IdentifierReportingModelHandler()).with_preprocess_fn(
+            lambda kv: kv).with_postprocess_fn(lambda kv: kv)
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([('k', 1)], reshuffle=False)
+          | base.RunInference(handler, model_identifier='wrapped-id'))
+      assert_that(out, equal_to([('k', '1:wrapped-id')]))
+
+
 class PrefixPeerReportingStringModelHandler(base.ModelHandler[str,
                                                               str,
                                                               FakeModel]):
