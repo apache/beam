@@ -81,6 +81,7 @@
 ## Bugfixes
 
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
+* (Java) Fixed the Spark Structured Streaming runner leaking cached intermediate `Dataset`s for multi-output `ParDo`s, which were persisted but never unpersisted in `ParDoTranslatorBatch` ([#40243](https://github.com/apache/beam/issues/40243)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
