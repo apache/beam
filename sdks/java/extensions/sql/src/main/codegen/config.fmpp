@@ -38,6 +38,7 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterTable"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCallProcedure"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
       ]
@@ -414,6 +415,7 @@ data: {
       # List of non-reserved keywords to add;
       # items in this list become non-reserved
       nonReservedKeywordsToAdd: [
+        "SYSTEM"
       ]
 
       # List of non-reserved keywords to remove;
@@ -439,6 +441,7 @@ data: {
         "SqlSetOptionBeam(Span.of(), null)"
         "SqlAlterCatalog(Span.of(), null)"
         "SqlAlterTable(Span.of(), null)"
+        "SqlCallProcedure(Span.of())"
       ]
 
       # List of methods for parsing custom literals.
