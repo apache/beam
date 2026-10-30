@@ -57,4 +57,14 @@ RUN if [ "${pull_licenses}" = "false" ] ; then \
 # Add Google Cloud Profiler agent.
 COPY target/profiler/* /opt/google_cloud_profiler/
 
+# Remove distrusted eMudhra / emSign root CA certificates from the JDK truststore.
+RUN CACERTS="${JAVA_HOME}/lib/security/cacerts"; \
+    if [ ! -f "${CACERTS}" ]; then CACERTS="${JAVA_HOME}/jre/lib/security/cacerts"; fi; \
+    keytool -list -keystore "${CACERTS}" -storepass changeit \
+      | grep -iE "emsign|emudhra" \
+      | awk -F', ' '{print $1}' \
+      | while IFS= read -r alias; do \
+          keytool -delete -noprompt -alias "${alias}" -keystore "${CACERTS}" -storepass changeit; \
+        done
+
 ENTRYPOINT ["/opt/apache/beam/boot"]
