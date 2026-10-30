@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -725,7 +726,7 @@ public class TableMetadataDriverTest implements Serializable {
               for (Object value : snapshots) {
                 Map<?, ?> snapshot = (Map<?, ?>) value;
                 assertNotNull(snapshot);
-                assertTrue(!snapshot.containsKey("default.mixed_missing_table"));
+                assertFalse(snapshot.containsKey("default.mixed_missing_table"));
                 if (snapshot.containsKey("default.mixed_valid_table")) {
                   SerializableTableSpec spec =
                       (SerializableTableSpec) snapshot.get("default.mixed_valid_table");
@@ -753,7 +754,7 @@ public class TableMetadataDriverTest implements Serializable {
                         }
                         Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
                         assertNotNull(viewMap);
-                        assertTrue(!viewMap.containsKey("default.mixed_missing_table"));
+                        assertFalse(viewMap.containsKey("default.mixed_missing_table"));
                         out.output(data);
                       }
                     })
