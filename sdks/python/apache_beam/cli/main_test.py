@@ -673,5 +673,29 @@ class HelpersTest(unittest.TestCase):
     self.assertEqual(cli._summarize(RuntimeError('')), "RuntimeError('')")
 
 
+class SqlCliTest(unittest.TestCase):
+  def test_forwards_flags_and_strips_double_dash_for_sqlline(self):
+    with mock.patch('apache_beam.cli.sql.run', return_value=0) as mock_run:
+      code, _, _ = _run_cli(
+          ['sql', '--io', 'csv', '--io', 'parquet', '--', '--help'])
+    self.assertEqual(code, cli.EXIT_OK)
+    mock_run.assert_called_once_with(
+        version=None,
+        runner='direct',
+        ios=['csv', 'parquet'],
+        list_versions=False,
+        list_ios=False,
+        list_runners=False,
+        debug=False,
+        sqlline_args=['--help'])
+
+  def test_maps_sql_error_to_cli_exit_code_without_traceback(self):
+    with mock.patch('apache_beam.cli.sql.run',
+                    side_effect=cli.sql.SqlError('Java 11+ required', 4)):
+      code, _, err = _run_cli(['sql'])
+    self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+    self.assertEqual(err.strip(), 'error: Java 11+ required')
+
+
 if __name__ == '__main__':
   unittest.main()
