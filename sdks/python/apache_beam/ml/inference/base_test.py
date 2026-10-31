@@ -2256,6 +2256,31 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(
         transforms_with_model_id, ['RunInference/BeamML_RunInference'])
 
+  def test_run_inference_with_exception_handling_only_annotates_inference_step(
+      self):
+    pipeline = beam.Pipeline()
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(),
+        model_identifier='my_custom_model_id').with_exception_handling(
+            threshold=0.5)
+    proto = pipeline.to_runner_api()
+    transforms_with_model_id = [
+        t.unique_name for t in proto.components.transforms.values()
+        if t.annotations.get('model_identifier') == b'my_custom_model_id'
+    ]
+    self.assertEqual(
+        transforms_with_model_id,
+        [
+            'RunInference/BeamML_RunInference/'
+            'ParDo(_RunInferenceDoFn)/ParDo(_RunInferenceDoFn)'
+        ])
+    # The threshold-checking transforms exist but are not annotated.
+    self.assertTrue(
+        any(
+            'CountBad' in t.unique_name
+            for t in proto.components.transforms.values()))
+
   def test_model_status_provides_valid_tags(self):
     ms = base._ModelStatus(False)
 

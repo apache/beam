@@ -430,6 +430,24 @@ class ExceptionHandlingTest(unittest.TestCase):
       assert_that(good, equal_to([0, 1, 2]), 'good')
       assert_that(bad_elements, equal_to([(1, 5), (1, 10)]), 'bad')
 
+  def test_pardo_annotations_only_on_inner_pardo_with_threshold(self):
+    pardo = beam.ParDo(TestDoFn9())
+    default_annotations = pardo.annotations
+    pardo.annotations = lambda: {**default_annotations(), 'my_key': 'my_value'}
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create([1, 2, 3])
+        | 'Handled' >> pardo.with_exception_handling(threshold=0.5))
+    transforms = pipeline.to_runner_api().components.transforms.values()
+    annotated = [
+        t.unique_name for t in transforms
+        if t.annotations.get('my_key') == b'my_value'
+    ]
+    self.assertEqual(len(annotated), 1, annotated)
+    self.assertTrue(annotated[0].startswith('Handled/'), annotated)
+    self.assertTrue(any('CountBad' in t.unique_name for t in transforms))
+
   def test_tags_with_exception_handling_then_resource_hint(self):
     class TagHint(ResourceHint):
       urn = 'beam:resources:tags:v1'

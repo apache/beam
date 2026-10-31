@@ -1688,7 +1688,8 @@ class ParDo(PTransformWithSideInputs):
         on_failure_callback,
         allow_unsafe_userstate_in_process,
         self.get_resource_hints(),
-        self.get_type_hints())
+        self.get_type_hints(),
+        self.annotations())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2351,7 +2352,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       on_failure_callback,
       allow_unsafe_userstate_in_process,
       resource_hints,
-      pardo_type_hints=None):
+      pardo_type_hints=None,
+      pardo_annotations=None):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2370,6 +2372,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
     self._resource_hints = resource_hints
     self._pardo_type_hints = pardo_type_hints
+    self._pardo_annotations = pardo_annotations
     self._extra_tags = None
 
   def with_outputs(self, *tags, main=None):
@@ -2407,6 +2410,13 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         **self._kwargs,
     )
     pardo.get_resource_hints().update(self._resource_hints)
+    if self._pardo_annotations:
+      # Attach to the inner ParDo only, not to the threshold-checking
+      # transforms added in _post_process_result.
+      default_annotations = pardo.annotations
+      pardo.annotations = lambda: {
+          **default_annotations(), **self._pardo_annotations
+      }
     return pardo
 
   def _post_process_result(self, pcoll, result):
