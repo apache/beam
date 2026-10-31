@@ -41,8 +41,9 @@ import org.joda.time.Instant;
 
 /**
  * In memory unbounded source for tests. Splits into one sub source per shard. Elements are strings
- * formatted as tag, shard, index. Watermark freezes after exhaustion. Marks record finalized
- * positions under tag and shard.
+ * formatted as tag, shard, index. Watermark advances to TIMESTAMP_MAX_VALUE after exhaustion, while
+ * an {@link #extend} below the declared count holds the watermark. Marks record finalized positions
+ * under tag and shard.
  */
 public final class TestUnboundedSource extends UnboundedSource<String, TestUnboundedSource.Mark> {
   private static final long serialVersionUID = 1L;
@@ -56,27 +57,49 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
 
   private static final ConcurrentMap<String, List<Integer>> FINALIZED = new ConcurrentHashMap<>();
   private static final ConcurrentMap<String, AtomicInteger> CREATED = new ConcurrentHashMap<>();
+  private static final ConcurrentMap<String, Integer> EXTENDED = new ConcurrentHashMap<>();
 
   private final String tag;
   private final int shard;
   private final int shards;
   private final int perShard;
+  private final int @Nullable [] shardCounts;
 
   public TestUnboundedSource(String tag, int shards, int count) {
-    this(tag, -1, shards, count / shards);
+    this(tag, -1, shards, count / shards, null);
   }
 
-  private TestUnboundedSource(String tag, int shard, int shards, int perShard) {
+  public TestUnboundedSource(String tag, int[] shardCounts) {
+    this(tag, -1, shardCounts.length, 0, shardCounts.clone());
+  }
+
+  public static void extend(String tag, int count) {
+    EXTENDED.put(tag, count);
+  }
+
+  private TestUnboundedSource(
+      String tag, int shard, int shards, int perShard, int @Nullable [] shardCounts) {
     this.tag = tag;
     this.shard = shard;
     this.shards = shards;
     this.perShard = perShard;
+    this.shardCounts = shardCounts;
   }
 
   public static Set<String> elements(String tag, int shards, int count) {
     Set<String> elements = new HashSet<>();
     for (int shard = 0; shard < shards; shard++) {
       for (int index = 0; index < count / shards; index++) {
+        elements.add(element(tag, shard, index));
+      }
+    }
+    return elements;
+  }
+
+  public static Set<String> elements(String tag, int[] shardCounts) {
+    Set<String> elements = new HashSet<>();
+    for (int shard = 0; shard < shardCounts.length; shard++) {
+      for (int index = 0; index < shardCounts[shard]; index++) {
         elements.add(element(tag, shard, index));
       }
     }
@@ -114,6 +137,7 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
   public static void forget(String tag) {
     FINALIZED.keySet().removeIf(key -> key.startsWith(tag + "/"));
     CREATED.remove(tag);
+    EXTENDED.remove(tag);
   }
 
   private static String key(String tag, int shard) {
@@ -127,7 +151,8 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
     }
     List<TestUnboundedSource> splits = new ArrayList<>();
     for (int i = 0; i < shards; i++) {
-      splits.add(new TestUnboundedSource(tag, i, shards, perShard));
+      int count = shardCounts != null ? shardCounts[i] : perShard;
+      splits.add(new TestUnboundedSource(tag, i, shards, count, null));
     }
     return splits;
   }
@@ -194,6 +219,7 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
     private final TestUnboundedSource source;
     private int next;
     private int current = -1;
+    private boolean exhausted;
 
     Reader(TestUnboundedSource source, int next) {
       this.source = source;
@@ -205,12 +231,18 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
       return advance();
     }
 
+    private int limit() {
+      Integer extended = EXTENDED.get(source.tag);
+      return extended != null ? extended / source.shards : source.perShard;
+    }
+
     @Override
     public boolean advance() {
-      if (next < source.perShard) {
+      if (next < limit()) {
         current = next++;
         return true;
       }
+      exhausted = next >= source.perShard;
       return false;
     }
 
@@ -233,6 +265,9 @@ public final class TestUnboundedSource extends UnboundedSource<String, TestUnbou
 
     @Override
     public Instant getWatermark() {
+      if (exhausted) {
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
       return current < 0 ? BoundedWindow.TIMESTAMP_MIN_VALUE : getCurrentTimestamp();
     }
 

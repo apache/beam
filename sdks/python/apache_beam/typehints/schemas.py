@@ -20,28 +20,31 @@
 Imposes a mapping between common Python types and Beam portable schemas
 (https://s.apache.org/beam-schemas)::
 
-  Python              Schema
-  np.int8     <-----> BYTE
-  np.int16    <-----> INT16
-  np.int32    <-----> INT32
-  np.int64    <-----> INT64
-  int         ------> INT64
-  np.float32  <-----> FLOAT
-  np.float64  <-----> DOUBLE
-  float       ------> DOUBLE
-  bool        <-----> BOOLEAN
-  str         <-----> STRING
-  bytes       <-----> BYTES
-  ByteString  ------> BYTES
-  Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
-  datetime.date <---> LogicalType(urn="beam:logical_type:date:v1")
-  Decimal     <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
-  Mapping     <-----> MapType
-  Sequence    <-----> ArrayType
-  NamedTuple  <-----> RowType
-  beam.Row    ------> RowType
+  Python                Schema
+  np.int8       <-----> BYTE
+  np.int16      <-----> INT16
+  np.int32      <-----> INT32
+  np.int64      <-----> INT64
+  int           ------> INT64
+  np.float32    <-----> FLOAT
+  np.float64    <-----> DOUBLE
+  float         ------> DOUBLE
+  bool          <-----> BOOLEAN
+  str           <-----> STRING
+  bytes         <-----> BYTES
+  Buffer        ------> BYTES
+  Timestamp     <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  datetime.date <-----> LogicalType(urn="beam:logical_type:date:v1")
+  datetime.time <-----> LogicalType(urn="beam:logical_type:time:v1")
+  Decimal       <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
+  tuple[T, ...] <-----> LogicalType(urn="beam:logical_type:var_tuple:v1")
+  tuple[T1, T2] <-----> LogicalType(urn="beam:logical_type:fixed_tuple:v1")
+  Mapping       <-----> MapType
+  Sequence      <-----> ArrayType
+  NamedTuple    <-----> RowType
+  beam.Row      ------> RowType
 
-One direction mapping of Python types from Beam portable schemas:
+One direction mapping of Python types from Beam portable schemas::
 
   bytes
     <------ LogicalType(urn="beam:logical_type:fixed_bytes:v1")
@@ -68,20 +71,17 @@ any backwards-compatibility guarantee.
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import dataclasses
 import datetime
 import decimal
 import logging
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import ByteString
-from typing import Dict
 from typing import Generic
-from typing import Iterable
-from typing import List
-from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -106,10 +106,18 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
+# Simplify to collections.abc implementation once Python 3.11 is deprecated.
+try:
+  from collections.abc import Buffer
+except ImportError:
+  from typing_extensions import Buffer
+
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
 _PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
 _PYTHON_ANY_FIELD_PAYLOAD = "payload"
 _SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding"
+FIXED_TUPLE_URN = "beam:logical_type:fixed_tuple:v1"
+VAR_TUPLE_URN = "beam:logical_type:var_tuple:v1"
 
 # Bi-directional mappings
 _PRIMITIVES = (
@@ -129,7 +137,7 @@ ATOMIC_TYPE_TO_PRIMITIVE = dict((atomic, typ) for typ, atomic in _PRIMITIVES)
 
 # One-way mappings
 PRIMITIVE_TO_ATOMIC_TYPE.update({
-    ByteString: schema_pb2.BYTES,
+    Buffer: schema_pb2.BYTES,
     # Allow users to specify a native int, and use INT64 as the cross-language
     # representation. Technically ints have unlimited precision, but RowCoder
     # should throw an error if it sees one with a bit width > 64 when encoding.
@@ -144,12 +152,12 @@ _SCHEMA_ID_CACHE = {}
 
 
 def named_fields_to_schema(
-    names_and_types: Union[Dict[str, type], Sequence[Tuple[str, type]]],
+    names_and_types: Union[dict[str, type], Sequence[tuple[str, type]]],
     schema_id: Optional[str] = None,
-    schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
-    field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
+    schema_options: Optional[Sequence[tuple[str, Any]]] = None,
+    field_options: Optional[dict[str, Sequence[tuple[str, Any]]]] = None,
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
-    field_descriptions: Optional[Dict[str, str]] = None,
+    field_descriptions: Optional[dict[str, str]] = None,
 ):
   schema_options = schema_options or []
   field_options = field_options or {}
@@ -195,7 +203,7 @@ def named_fields_to_schema(
 
 
 def named_fields_from_schema(
-    schema):  # (schema_pb2.Schema) -> typing.List[typing.Tuple[str, type]]
+    schema):  # (schema_pb2.Schema) -> list[typing.tuple[str, type]]
   return [(field.name, typing_from_runner_api(field.type))
           for field in schema.fields]
 
@@ -235,7 +243,7 @@ def value_from_runner_api(
 
 
 def option_to_runner_api(
-    option: Tuple[str, Any],
+    option: tuple[str, Any],
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> schema_pb2.Option:
   return SchemaTranslation(
       schema_registry=schema_registry).option_to_runner_api(option)
@@ -243,7 +251,7 @@ def option_to_runner_api(
 
 def option_from_runner_api(
     option_proto: schema_pb2.Option,
-    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> Tuple[str, Any]:
+    schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY) -> tuple[str, Any]:
   return SchemaTranslation(
       schema_registry=schema_registry).option_from_runner_api(option_proto)
 
@@ -257,6 +265,14 @@ def schema_field(
       type=field_type if isinstance(field_type, schema_pb2.FieldType) else
       typing_to_runner_api(field_type),
       description=description)
+
+
+def _static_encoding_option_pb2() -> schema_pb2.Option:
+  return schema_pb2.Option(
+      name=_SCHEMA_OPTION_STATIC_ENCODING,
+      type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+      value=schema_pb2.FieldValue(
+          atomic_value=schema_pb2.AtomicTypeValue(boolean=True)))
 
 
 def _python_any_schema_pb2(has_repr):
@@ -276,15 +292,7 @@ def _python_any_schema_pb2(has_repr):
                         type=schema_pb2.FieldType(
                             atomic_type=schema_pb2.BYTES, nullable=False))
                 ],
-                options=[
-                    schema_pb2.Option(
-                        name=_SCHEMA_OPTION_STATIC_ENCODING,
-                        type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.BOOLEAN),
-                        value=schema_pb2.FieldValue(
-                            atomic_value=schema_pb2.AtomicTypeValue(
-                                boolean=True)))
-                ]))) if has_repr else None
+                options=[_static_encoding_option_pb2()]))) if has_repr else None
   else:
     representation = None
 
@@ -374,7 +382,17 @@ class SchemaTranslation(object):
               element_type=schema_pb2.FieldType(
                   atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[int])))
 
-    elif _safe_issubclass(type_, Sequence) and not _safe_issubclass(type_, str):
+    elif _safe_issubclass(type_, tuple) and not match_is_named_tuple(type_):
+      arg_types = _get_args(type_)
+      if len(arg_types) == 2 and arg_types[1] is Ellipsis:  # Tuple[typ, ...]
+        return self.typing_to_runner_api(VarTupleLogicalType(arg_types[0]))
+      elif len(arg_types) > 0:  # Tuple[typ1, typ2, ...]
+        return self.typing_to_runner_api(FixedTupleLogicalType(arg_types))
+      else:  # tuple of unknown type, just fallback to Any
+        return _python_any_schema_pb2(has_repr=True)
+
+    elif _safe_issubclass(
+        type_, Sequence) and not _safe_issubclass(type_, (str, tuple)):
       arg_types = _get_args(type_)
       if len(arg_types) > 0:
         element_type = self.typing_to_runner_api(arg_types[0])
@@ -386,7 +404,8 @@ class SchemaTranslation(object):
       return schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
-    elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
+    elif _safe_issubclass(
+        type_, Iterable) and not _safe_issubclass(type_, (str, tuple)):
       arg_types = _get_args(type_)
       if len(arg_types) > 0:
         element_type = self.typing_to_runner_api(arg_types[0])
@@ -397,7 +416,9 @@ class SchemaTranslation(object):
       return _python_any_schema_pb2(has_repr=False)
 
     try:
-      if LogicalType.is_known_logical_type(type_):
+      if isinstance(type_, LogicalType):
+        logical_type = type_
+      elif LogicalType.is_known_logical_type(type_):
         logical_type = type_
       else:
         logical_type = LogicalType.from_typing(type_)
@@ -522,14 +543,14 @@ class SchemaTranslation(object):
           f"{typing_proto!r}.")
 
   def option_from_runner_api(
-      self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
+      self, option_proto: schema_pb2.Option) -> tuple[str, Any]:
     if not option_proto.HasField('type'):
       return option_proto.name, None
 
     value = self.value_from_runner_api(option_proto.type, option_proto.value)
     return option_proto.name, value
 
-  def option_to_runner_api(self, option: Tuple[str, Any]) -> schema_pb2.Option:
+  def option_to_runner_api(self, option: tuple[str, Any]) -> schema_pb2.Option:
     name, value = option
 
     if value is None:
@@ -648,7 +669,16 @@ class SchemaTranslation(object):
     if schema.id in self.schema_registry.by_id:
       user_type = self.schema_registry.by_id[schema.id][0]
     else:
-      user_type = NamedTuple(type_name, subfields)
+      if any(name.startswith('_') for name, _ in subfields):
+        # NamedTuple rejects field names with a leading underscore, like the
+        # CDC metadata column _change_type.
+        user_type = dataclasses.make_dataclass(
+            type_name,
+            subfields,
+            namespace={'_asdict': _dataclass_asdict},
+            frozen=True)
+      else:
+        user_type = NamedTuple(type_name, subfields)
 
       # Define a reduce function, otherwise these types can't be pickled
       # (See BEAM-9574)
@@ -665,9 +695,18 @@ class SchemaTranslation(object):
     return user_type
 
 
+def _dataclass_asdict(self):
+  # Matches NamedTuple._asdict, so code written for NamedTuple rows still works.
+  return {f.name: getattr(self, f.name) for f in dataclasses.fields(self)}
+
+
 def _named_tuple_reduce_method(serialized_schema):
   def __reduce__(self):
-    return _hydrate_namedtuple_instance, (serialized_schema, tuple(self))
+    if dataclasses.is_dataclass(self):
+      values = tuple(getattr(self, f.name) for f in dataclasses.fields(self))
+    else:
+      values = tuple(self)
+    return _hydrate_namedtuple_instance, (serialized_schema, values)
 
   return __reduce__
 
@@ -714,7 +753,7 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
 
 
 def named_fields_from_element_type(
-    element_type: type) -> List[Tuple[str, type]]:
+    element_type: type) -> list[tuple[str, type]]:
   return named_fields_from_schema(schema_from_element_type(element_type))
 
 
@@ -910,6 +949,31 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     raise NotImplementedError()
 
   @classmethod
+  def _from_runner_api(cls, logical_type_proto):
+    # type: (schema_pb2.LogicalType) -> LogicalType
+
+    """Construct an instance of this LogicalType implementation given a proto.
+    """
+    if not logical_type_proto.HasField(
+        "argument_type") or not logical_type_proto.HasField("argument"):
+      # logical type_proto without argument
+      return cls()
+    else:
+      try:
+        argument = value_from_runner_api(
+            logical_type_proto.argument_type, logical_type_proto.argument)
+      except ValueError:
+        # TODO(https://github.com/apache/beam/issues/23373): Complete support
+        # for logical types that require arguments beyond atomic type.
+        # For now, skip arguments.
+        _LOGGER.warning(
+            'Logical type %s with argument is currently unsupported. '
+            'Argument values are omitted',
+            logical_type_proto.urn)
+        return cls()
+      return cls(argument)
+
+  @classmethod
   def from_runner_api(cls, logical_type_proto):
     # type: (schema_pb2.LogicalType) -> LogicalType
 
@@ -923,24 +987,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     if logical_type is None:
       raise ValueError(
           "No logical type registered for URN '%s'" % logical_type_proto.urn)
-    if not logical_type_proto.HasField(
-        "argument_type") or not logical_type_proto.HasField("argument"):
-      # logical type_proto without argument
-      return logical_type()
-    else:
-      try:
-        argument = value_from_runner_api(
-            logical_type_proto.argument_type, logical_type_proto.argument)
-      except ValueError:
-        # TODO(https://github.com/apache/beam/issues/23373): Complete support
-        # for logical types that require arguments beyond atomic type.
-        # For now, skip arguments.
-        _LOGGER.warning(
-            'Logical type %s with argument is currently unsupported. '
-            'Argument values are omitted',
-            logical_type_proto.urn)
-        return logical_type()
-      return logical_type(argument)
+    return logical_type._from_runner_api(logical_type_proto)
 
   @classmethod
   def is_known_logical_type(cls, logical_type):
@@ -1510,4 +1557,93 @@ class JdbcTimeType(LogicalType[datetime.time, MillisInstant, str]):
 
   @classmethod
   def _from_typing(cls, typ):
+    return cls()
+
+
+_TUPLE_NAMEDTUPLE_CACHE: dict[int, type] = {}
+
+
+def _get_tuple_namedtuple(n: int) -> type:
+  cls = _TUPLE_NAMEDTUPLE_CACHE.get(n)
+  if cls is None:
+    cls = NamedTuple(f"_FixedTuple{n}", [(f"f{i}", object) for i in range(n)])
+    _TUPLE_NAMEDTUPLE_CACHE[n] = cls
+  return cls
+
+
+@LogicalType._register_internal
+class FixedTupleLogicalType(NoArgumentLogicalType[tuple, Any]):
+  """Logical type representing fixed-length Python tuples backed by a Row."""
+  def __init__(self, tuple_types: Sequence[type] = ()):
+    self._tuple_types = tuple(tuple_types)
+    self._namedtuple_cls = _get_tuple_namedtuple(len(self._tuple_types))
+
+  @classmethod
+  def urn(cls):
+    return FIXED_TUPLE_URN
+
+  def language_type(self=None):
+    if self is None or not self._tuple_types:
+      return tuple
+    return tuple[self._tuple_types]
+
+  def representation_type(self):
+    if not self._tuple_types:
+      from apache_beam.pvalue import Row
+      return Row
+    fields = [(f"f{i}", t) for i, t in enumerate(self._tuple_types)]
+    options = []
+    st = SchemaTranslation(schema_registry=SCHEMA_REGISTRY)
+    if not any(st.typing_to_runner_api(t).nullable for t in self._tuple_types):
+      options.append((_SCHEMA_OPTION_STATIC_ENCODING, True))
+    return row_type.RowTypeConstraint.from_fields(
+        fields, schema_options=options)
+
+  def to_representation_type(self, value):
+    if len(value) != len(self._tuple_types):
+      raise ValueError(
+          f"Tuple length mismatch: expected {len(self._tuple_types)}, "
+          f"got {len(value)}")
+    return self._namedtuple_cls(*value)
+
+  def to_language_type(self, value):
+    return tuple(value)
+
+  @classmethod
+  def _from_runner_api(cls, logical_type_proto):
+    if logical_type_proto.HasField("representation"):
+      row_schema = logical_type_proto.representation.row_type.schema
+      return cls([typing_from_runner_api(f.type) for f in row_schema.fields])
+    return cls()
+
+
+@LogicalType._register_internal
+class VarTupleLogicalType(NoArgumentLogicalType[tuple, Sequence]):
+  """Logical type representing variable-length Python tuples backed by an Array."""
+  def __init__(self, elem_type: type = object):
+    self._elem_type = elem_type
+
+  @classmethod
+  def urn(cls):
+    return VAR_TUPLE_URN
+
+  def language_type(self=None):
+    if self is None or self._elem_type is object:
+      return tuple
+    return tuple[self._elem_type, ...]
+
+  def representation_type(self):
+    return Sequence[self._elem_type]
+
+  def to_representation_type(self, value):
+    return value
+
+  def to_language_type(self, value):
+    return tuple(value)
+
+  @classmethod
+  def _from_runner_api(cls, logical_type_proto):
+    if logical_type_proto.HasField("representation"):
+      elem_type = logical_type_proto.representation.array_type.element_type
+      return cls(typing_from_runner_api(elem_type))
     return cls()

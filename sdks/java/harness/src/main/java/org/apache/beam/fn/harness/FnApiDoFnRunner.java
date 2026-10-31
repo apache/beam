@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,6 +139,12 @@ import org.joda.time.format.PeriodFormat;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 @Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Object, BoundedWindow> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
@@ -1235,6 +1242,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTimer = null;
       currentTimeDomain = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
@@ -1300,7 +1308,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
+  private final class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
     private final String timerIdOrFamily;
     private final K userKey;
     private final String dynamicTimerTag;
@@ -2295,10 +2303,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * DoFn.OnWindowExpiration @OnWindowExpiration}.
    */
   private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
-    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext
+    private class WindowExpirationContext extends DoFn<InputT, OutputT>.OnWindowExpirationContext
         implements OutputReceiver<OutputT> {
 
-      private Context() {
+      private WindowExpirationContext() {
         doFn.super();
       }
 
@@ -2369,7 +2377,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 null,
                 currentTimer.causedByDrain(),
                 null,
-                currentElement.getValueKind()));
+                ValueKind.INSERT));
       }
 
       @Override
@@ -2395,6 +2403,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         checkOnWindowExpirationTimestamp(timestamp);
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
         outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
 
@@ -2405,7 +2416,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, windowedValue);
       }
 
       @SuppressWarnings(
@@ -2435,8 +2451,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final OnWindowExpirationContext.Context context =
-        new OnWindowExpirationContext.Context();
+    private final WindowExpirationContext context = new WindowExpirationContext();
 
     @Override
     public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
@@ -2457,11 +2472,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return currentTimer.getHoldTimestamp();
-    }
-
-    @Override
-    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      return currentTimeDomain;
     }
 
     @Override
@@ -2622,9 +2632,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
   private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
 
-    private class Context extends DoFn<InputT, OutputT>.OnTimerContext
+    private class TimerContext extends DoFn<InputT, OutputT>.OnTimerContext
         implements OutputReceiver<OutputT> {
-      private Context() {
+      private TimerContext() {
         doFn.super();
       }
 
@@ -2719,7 +2729,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, windowedValue);
       }
 
       @Override
@@ -2728,7 +2743,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           T output,
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo) {}
+          PaneInfo paneInfo) {
+        checkTimerTimestamp(timestamp);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      }
 
       @Override
       public TimeDomain timeDomain() {
@@ -2772,7 +2795,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final OnTimerContext.Context context = new OnTimerContext.Context();
+    private final TimerContext context = new TimerContext();
 
     @Override
     public BoundedWindow window() {
@@ -2822,8 +2845,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.<Row>builder()
+                    .setValue(value)
+                    .setTimestamp(currentTimer.getHoldTimestamp())
+                    .setWindow(currentWindow)
+                    .setPaneInfo(currentTimer.getPaneInfo())
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
@@ -2860,7 +2887,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setWindow(currentWindow)
                     .setCausedByDrain(currentTimer.causedByDrain())
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setReceiver(windowedValue -> context.outputWindowedValue(windowedValue));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2887,7 +2914,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               @Override
               public OutputBuilder<Row> builder(Row value) {
                 return WindowedValues.<Row>builder()
-                    .withValue(value)
+                    .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setPaneInfo(currentTimer.getPaneInfo())
@@ -2895,6 +2922,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
+                                tag,
                                 windowedValue.withValue(
                                     fromRowFunction.apply(windowedValue.getValue()))));
               }

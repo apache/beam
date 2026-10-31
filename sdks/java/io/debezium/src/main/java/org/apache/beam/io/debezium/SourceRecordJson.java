@@ -17,11 +17,17 @@
  */
 package org.apache.beam.io.debezium;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.GsonBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
@@ -44,11 +50,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>after - {@link #loadAfter}
  *   <li>metadata - {@link #loadMetadata}
  *       <ul>
- *         <li>schema - Database Schema
  *         <li>connector - Connector used
  *         <li>version - Connector version
+ *         <li>name - Connector name
+ *         <li>database - Database name
+ *         <li>schema - Database Schema (for MySQL, the binlog file name)
+ *         <li>table - Table name
  *       </ul>
  * </ul>
+ *
+ * <h3>Full metadata</h3>
+ *
+ * <p>When constructed with {@code fullMetadata = true} (see {@link
+ * SourceRecordJsonMapper#SourceRecordJsonMapper(boolean)} and {@link
+ * DebeziumIO.Read#withFullMetadata(boolean)}), extra keys are appended to {@code metadata} after
+ * {@code table}:
+ *
+ * <ul>
+ *   <li>op - The Debezium operation ({@code c}, {@code u}, {@code d}, {@code r}, {@code t}), if the
+ *       record envelope has an {@code op} field
+ *   <li>Every other field of the Debezium {@code source} block, in schema order, that is not
+ *       already represented above (for example {@code ts_ms}, {@code snapshot}, MySQL {@code file},
+ *       {@code pos}, {@code row}, or PostgreSQL {@code lsn}, {@code txId})
+ * </ul>
+ *
+ * <p>By default ({@code fullMetadata = false}) the output only contains the six keys above.
  *
  * <h3>Usage Example</h3>
  *
@@ -60,9 +86,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </pre>
  */
 @SuppressWarnings({"nullness"})
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SourceRecordJson {
+  /**
+   * Source fields that are already represented in {@link Event.Metadata} (or would collide with an
+   * existing metadata key), so they are never added as full metadata extras.
+   */
+  private static final Set<String> RESERVED_METADATA_KEYS =
+      ImmutableSet.of("connector", "version", "name", "db", "database", "schema", "table", "op");
+
   private final @Nullable Struct value;
   private final @Nullable Event event;
+  private final Map<String, Object> metadataExtras;
 
   /**
    * Initializer.
@@ -70,6 +110,17 @@ public class SourceRecordJson {
    * @param sourceRecord retrieved SourceRecord using a supported SourceConnector
    */
   public SourceRecordJson(@Nullable SourceRecord sourceRecord) {
+    this(sourceRecord, false);
+  }
+
+  /**
+   * Initializer.
+   *
+   * @param sourceRecord retrieved SourceRecord using a supported SourceConnector
+   * @param fullMetadata whether to add {@code op} and the remaining Debezium {@code source} fields
+   *     to {@code metadata}
+   */
+  public SourceRecordJson(@Nullable SourceRecord sourceRecord, boolean fullMetadata) {
     if (sourceRecord == null) {
       throw new IllegalArgumentException();
     }
@@ -78,12 +129,15 @@ public class SourceRecordJson {
 
     if (this.value == null) {
       this.event = new Event(null, null, null);
+      this.metadataExtras = Collections.emptyMap();
     } else {
       Event.Metadata metadata = this.loadMetadata();
       Event.Before before = this.loadBefore();
       Event.After after = this.loadAfter();
 
       this.event = new Event(metadata, before, after);
+      this.metadataExtras =
+          fullMetadata && metadata != null ? this.loadMetadataExtras() : Collections.emptyMap();
     }
   }
 
@@ -120,6 +174,33 @@ public class SourceRecordJson {
         source.getString("db"),
         schema,
         source.getString("table"));
+  }
+
+  /**
+   * Extracts the full metadata extras: the envelope's {@code op} (if the value schema has one),
+   * then every field of the Debezium {@code source} block, in schema order, that isn't already
+   * represented in {@link Event.Metadata}.
+   *
+   * @return extra metadata keys, in insertion order
+   */
+  private Map<String, Object> loadMetadataExtras() {
+    Struct source = (Struct) this.value.get("source");
+    Map<String, Object> extras = new LinkedHashMap<>();
+    if (this.value.schema().field("op") != null) {
+      extras.put("op", toJsonFriendly(this.value.get("op")));
+    }
+    for (Field field : source.schema().fields()) {
+      String fieldName = field.name();
+      if (!RESERVED_METADATA_KEYS.contains(fieldName)) {
+        extras.put(fieldName, toJsonFriendly(source.get(field)));
+      }
+    }
+    return extras;
+  }
+
+  private static @Nullable Object toJsonFriendly(@Nullable Object value) {
+    // Source fields are flat primitives today; stringify a nested Struct to keep metadata flat.
+    return value instanceof Struct ? String.valueOf(value) : value;
   }
 
   /**
@@ -176,14 +257,31 @@ public class SourceRecordJson {
    * @return JSON String
    */
   public String toJson() {
-    return this.event.toJson();
+    return this.event.toJson(this.metadataExtras);
   }
 
   /** {@link SourceRecordJson} implementation. */
   public static class SourceRecordJsonMapper implements SourceRecordMapper<String> {
+    private final boolean fullMetadata;
+
+    /** Creates a mapper that emits the default metadata. */
+    public SourceRecordJsonMapper() {
+      this(false);
+    }
+
+    /**
+     * Creates a mapper.
+     *
+     * @param fullMetadata whether to add {@code op} and the remaining Debezium {@code source}
+     *     fields to {@code metadata}
+     */
+    public SourceRecordJsonMapper(boolean fullMetadata) {
+      this.fullMetadata = fullMetadata;
+    }
+
     @Override
     public String mapSourceRecord(SourceRecord sourceRecord) throws Exception {
-      return new SourceRecordJson(sourceRecord).toJson();
+      return new SourceRecordJson(sourceRecord, fullMetadata).toJson();
     }
   }
 
@@ -216,8 +314,28 @@ public class SourceRecordJson {
      * @return JSON String
      */
     public String toJson() {
+      return toJson(Collections.emptyMap());
+    }
+
+    /**
+     * Transforms the Event to a JSON string, appending the given extra keys to {@code metadata}
+     * after {@code table}.
+     *
+     * @param extras Additional metadata keys, in iteration order
+     * @return JSON String
+     */
+    String toJson(Map<String, Object> extras) {
       Gson gson = new GsonBuilder().serializeNulls().create();
-      return gson.toJson(this);
+      if (extras.isEmpty() || metadata == null) {
+        return gson.toJson(this);
+      }
+      // Gson can't flatten a map into an object, so append the extras to the metadata tree.
+      JsonObject tree = gson.toJsonTree(this).getAsJsonObject();
+      JsonObject metadataJson = tree.getAsJsonObject("metadata");
+      for (Map.Entry<String, Object> extra : extras.entrySet()) {
+        metadataJson.add(extra.getKey(), gson.toJsonTree(extra.getValue()));
+      }
+      return gson.toJson(tree);
     }
 
     /** Depicts the metadata within a SourceRecord. It has valuable fields. */

@@ -34,7 +34,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -42,6 +41,15 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -78,7 +86,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
-import org.apache.beam.sdk.io.kafka.KafkaMocks.EndOffsetErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Lineage;
@@ -89,7 +96,9 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -143,6 +152,7 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -165,8 +175,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 /**
  * Tests of {@link KafkaIO}. Run with 'mvn test -Dkafka.clients.version=0.10.1.1', to test with a
@@ -175,8 +185,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnnecessaryLongToIntConversion") // for assert
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
-
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
 
   /*
    * The tests below borrow code and structure from CountingSourceTest. In addition verifies
@@ -632,14 +640,12 @@ public class KafkaIOTest {
 
     @Override
     public Integer deserialize(String topic, byte[] data) {
-      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
-      return super.deserialize(topic, data);
+      throw new UnsupportedOperationException(
+          "Expected deserialize(String, Headers, byte[]) to be called");
     }
 
     @Override
     public Integer deserialize(String topic, Headers headers, byte[] data) {
-      // Overriding the default should trigger header evaluation and this to be called.
-      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -649,14 +655,12 @@ public class KafkaIOTest {
 
     @Override
     public Long deserialize(String topic, byte[] data) {
-      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
-      return super.deserialize(topic, data);
+      throw new UnsupportedOperationException(
+          "Expected deserialize(String, Headers, byte[]) to be called");
     }
 
     @Override
     public Long deserialize(String topic, Headers headers, byte[] data) {
-      // Overriding the default should trigger header evaluation and this to be called.
-      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -1660,32 +1664,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testUnboundedReaderLogsCommitFailure() throws Exception {
-
-    List<String> topics = ImmutableList.of("topic_a");
-
-    EndOffsetErrorConsumerFactory endOffsetErrorConsumerFactory =
-        new EndOffsetErrorConsumerFactory();
-
-    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
-        KafkaIO.<Integer, Long>read()
-            .withBootstrapServers("myServer1:9092,myServer2:9092")
-            .withTopics(topics)
-            .withConsumerFactoryFn(endOffsetErrorConsumerFactory)
-            .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(LongDeserializer.class)
-            .makeSource();
-
-    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
-
-    reader.start();
-
-    unboundedReaderExpectedLogs.verifyWarn("exception while fetching latest offset for partitions");
-
-    reader.close();
-  }
-
-  @Test
   public void testSink() {
     // Simply read from kafka source and write to kafka sink. Then verify the records
     // are correctly published to mock kafka producer.
@@ -2095,12 +2073,6 @@ public class KafkaIOTest {
     // It is not feasible to test such retries with direct runner. When DoFnTester supports
     // state, we can test ExactlyOnceWriter DoFn directly to ensure it handles retries correctly.
 
-    if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn(
-          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
-      return;
-    }
-
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -2138,13 +2110,6 @@ public class KafkaIOTest {
 
   @Test
   public void testExactlyOnceSinkWithSendException() throws Throwable {
-
-    if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn(
-          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
-      return;
-    }
-
     thrown.expect(KafkaException.class);
     thrown.expectMessage("fakeException");
 
@@ -2214,9 +2179,6 @@ public class KafkaIOTest {
 
   @Test
   public void testUnboundedSourceStartReadTime() {
-
-    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
-
     int numElements = 1000;
     // In this MockConsumer, we let the elements of the time and offset equal and there are 20
     // partitions. So set this startTime can read half elements.
@@ -2291,9 +2253,6 @@ public class KafkaIOTest {
 
   @Test
   public void testUnboundedSourceStartReadTimeException() {
-
-    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
-
     noMessagesException.expect(RuntimeException.class);
 
     int numElements = 1000;
@@ -2569,6 +2528,117 @@ public class KafkaIOTest {
     assertEquals(2, schema.getFieldCount());
     assertEquals(Schema.Field.of("key", Schema.FieldType.STRING), schema.getField(0));
     assertEquals(Schema.Field.nullable("value", Schema.FieldType.BYTES), schema.getField(1));
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderConsumer() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String parentSpanId = "b7ad6b7169203331";
+    String childSpanId = "1111111111111111";
+    String traceparent = "00-" + traceId + "-" + parentSpanId + "-01";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext childSpanContext =
+        SpanContext.create(traceId, childSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(childSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("KafkaIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("KafkaIO.Read")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    KafkaIO.OpenTelemetryHeaderConsumer<String, String> consumer =
+        new KafkaIO.OpenTelemetryHeaderConsumer<>();
+    consumer.setup(options);
+
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("traceparent", traceparent.getBytes(StandardCharsets.UTF_8));
+    KafkaRecord<String, String> record =
+        new KafkaRecord<>(
+            "topic", 0, 0L, 0L, KafkaTimestampType.CREATE_TIME, headers, "key", "value");
+
+    List<KafkaRecord<String, String>> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<KafkaRecord<String, String>> receiver =
+        Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(childSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    consumer.processElement(record, receiver);
+
+    assertEquals(1, outputs.size());
+    Mockito.verify(mockTracer).spanBuilder("KafkaIO.Read");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.CONSUMER);
+    ArgumentCaptor<Context> parentContextCaptor = ArgumentCaptor.forClass(Context.class);
+    Mockito.verify(mockSpanBuilder).setParent(parentContextCaptor.capture());
+    assertEquals(
+        parentSpanId,
+        Span.fromContext(parentContextCaptor.getValue()).getSpanContext().getSpanId());
+    Mockito.verify(mockSpan).end();
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderPropagator() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String producerSpanId = "2222222222222222";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext producerSpanContext =
+        SpanContext.create(
+            traceId, producerSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(producerSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("KafkaIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("KafkaIO.Write")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    KafkaIO.OpenTelemetryHeaderPropagator<String, String> propagator =
+        new KafkaIO.OpenTelemetryHeaderPropagator<>();
+    propagator.setup(options);
+
+    ProducerRecord<String, String> record = new ProducerRecord<>("topic", "key", "value");
+    List<ProducerRecord<String, String>> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<ProducerRecord<String, String>> receiver =
+        Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(producerSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    propagator.processElement(record, receiver);
+
+    assertEquals(1, outputs.size());
+    ProducerRecord<String, String> propagated = outputs.get(0);
+    Header traceparentHeader = propagated.headers().lastHeader("traceparent");
+    assertNotNull(traceparentHeader);
+    assertEquals(
+        "00-" + traceId + "-" + producerSpanId + "-01",
+        new String(traceparentHeader.value(), StandardCharsets.UTF_8));
+    Mockito.verify(mockTracer).spanBuilder("KafkaIO.Write");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.PRODUCER);
+    Mockito.verify(mockSpan).end();
   }
 
   private static void verifyProducerRecords(

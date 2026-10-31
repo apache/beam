@@ -60,7 +60,30 @@ final class SchemaDelta {
    * (dotted, empty, case-colliding) come back as conflicts without attempting the union.
    */
   static SchemaDelta classify(Table table, Schema fileSchema) {
-    Schema before = table.schema();
+    return classify(table, table.schema(), fileSchema, Collections.emptySet());
+  }
+
+  /** As {@link #classify(Table, Schema, Schema, Set)}, against the table's current schema. */
+  static SchemaDelta classify(Table table, Schema fileSchema, Set<Integer> filledOutsideFile) {
+    return classify(table, table.schema(), fileSchema, filledOutsideFile);
+  }
+
+  /**
+   * Classifies against {@code before}, the caller's snapshot of the table schema. The union itself
+   * is applied to the table's current metadata, which the caller keeps equal to the snapshot.
+   */
+  static SchemaDelta classify(Table table, Schema before, Schema fileSchema) {
+    return classify(table, before, fileSchema, Collections.emptySet());
+  }
+
+  /**
+   * {@code filledOutsideFile}: ids of required table columns whose values come from somewhere other
+   * than the file and are never null, so the file may lack them without the column becoming
+   * optional. For example {@code dt} for a file under {@code dt=2024-01-15/} in a table partitioned
+   * by {@code dt}.
+   */
+  static SchemaDelta classify(
+      Table table, Schema before, Schema fileSchema, Set<Integer> filledOutsideFile) {
     if (before.sameSchema(fileSchema)) {
       return new SchemaDelta(Collections.emptyList());
     }
@@ -74,7 +97,7 @@ final class SchemaDelta {
     }
 
     List<SchemaChange> absent = new ArrayList<>();
-    findAbsentRequired(before.asStruct(), fileSchema.asStruct(), "", absent);
+    findAbsentRequired(before.asStruct(), fileSchema.asStruct(), "", filledOutsideFile, absent);
     Schema merged;
     try {
       // The absent-path relaxations are applied here too, so anything Iceberg refuses (an
@@ -107,12 +130,13 @@ final class SchemaDelta {
       Types.StructType tableStruct,
       Types.StructType fileStruct,
       String prefix,
+      Set<Integer> filledOutsideFile,
       List<SchemaChange> changes) {
     for (Types.NestedField field : tableStruct.fields()) {
       String rawPath = prefix + field.name();
       Types.NestedField fileField = fileStruct.field(field.name());
       if (fileField == null) {
-        if (field.isRequired()) {
+        if (field.isRequired() && !filledOutsideFile.contains(field.fieldId())) {
           changes.add(
               new SchemaChange(
                   SchemaChange.Kind.FIELD_RELAXATION,
@@ -125,25 +149,36 @@ final class SchemaDelta {
         }
         continue;
       }
-      findAbsentRequiredInType(field.type(), fileField.type(), rawPath, changes);
+      findAbsentRequiredInType(field.type(), fileField.type(), rawPath, filledOutsideFile, changes);
     }
   }
 
   private static void findAbsentRequiredInType(
-      Type tableType, Type fileType, String rawPath, List<SchemaChange> changes) {
+      Type tableType,
+      Type fileType,
+      String rawPath,
+      Set<Integer> filledOutsideFile,
+      List<SchemaChange> changes) {
     if (tableType.isStructType() && fileType.isStructType()) {
-      findAbsentRequired(tableType.asStructType(), fileType.asStructType(), rawPath + ".", changes);
+      findAbsentRequired(
+          tableType.asStructType(),
+          fileType.asStructType(),
+          rawPath + ".",
+          filledOutsideFile,
+          changes);
     } else if (tableType.isListType() && fileType.isListType()) {
       findAbsentRequiredInType(
           tableType.asListType().elementType(),
           fileType.asListType().elementType(),
           rawPath + ".element",
+          filledOutsideFile,
           changes);
     } else if (tableType.isMapType() && fileType.isMapType()) {
       findAbsentRequiredInType(
           tableType.asMapType().valueType(),
           fileType.asMapType().valueType(),
           rawPath + ".value",
+          filledOutsideFile,
           changes);
     }
   }

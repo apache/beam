@@ -1055,7 +1055,6 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions options, MultiKeyBundleOptions multiKeyBundleOptions) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
-    boolean useKeyGroupWorkQueue = multiKeyBundleOptions.multiKeyBundleEnabled();
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1064,7 +1063,7 @@ public final class StreamingDataflowWorker {
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
         useFairMonitor,
-        useKeyGroupWorkQueue);
+        multiKeyBundleOptions.multiKeyBundleEnabled());
   }
 
   public static void main(String[] args) throws Exception {
@@ -1082,23 +1081,7 @@ public final class StreamingDataflowWorker {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
     }
 
-    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
-    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
-      openTelemetryProperties.forEach(
-          (k, v) -> {
-            if (k != null && v != null) {
-              System.setProperty(k, v);
-            }
-          });
-      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
-    } else {
-      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
-      // JvmInitializer.
-      if (System.getProperty("google.otel.auth.target.signals") == null) {
-        System.setProperty("google.otel.auth.target.signals", "none");
-      }
-    }
+    SdkHarnessOptions.configureOpenTelemetry(options);
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
@@ -1150,8 +1133,8 @@ public final class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.executorQueueIsEmpty();
+  public boolean workExecutorIsEmptyForTesting() {
+    return workUnitExecutor.executorQueueIsEmptyForTesting();
   }
 
   @VisibleForTesting

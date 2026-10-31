@@ -42,6 +42,7 @@ import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -77,10 +78,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for Pipeline. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
@@ -273,6 +273,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameOff() {
     pipeline.enableAbandonedNodeEnforcement(false);
 
@@ -285,6 +286,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameWarning() {
     pipeline.enableAbandonedNodeEnforcement(false);
 
@@ -297,6 +299,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameError() {
     pipeline.getOptions().setStableUniqueNames(CheckEnabled.ERROR);
 

@@ -42,13 +42,6 @@ func TestUnimplemented(t *testing.T) {
 		pipeline func(s beam.Scope)
 	}{
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
-
-		// Implemented but the Go SDK doesn't fully handle panes and
-		// their associated valid behaviors for these triggers, leading
-		// to variable results.
-		// See https://github.com/apache/beam/issues/31153.
-		{pipeline: primitives.TriggerElementCount},
-		{pipeline: primitives.TriggerOrFinally},
 	}
 
 	for _, test := range tests {
@@ -91,6 +84,10 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.TriggerAfterProcessingTime},
 		{pipeline: primitives.TriggerAfterProcessingTimeNotTriggered},
 		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
+		// These rely on elements being dropped once the window's trigger has
+		// finished (closed window), rather than emitted in an extra pane.
+		{pipeline: primitives.TriggerElementCount},
+		{pipeline: primitives.TriggerOrFinally},
 	}
 
 	for _, test := range tests {

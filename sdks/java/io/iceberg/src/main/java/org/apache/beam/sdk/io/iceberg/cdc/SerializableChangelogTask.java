@@ -44,6 +44,7 @@ import org.apache.iceberg.DeletedRowsScanTask;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
+import org.apache.iceberg.expressions.Binder;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ExpressionParser;
 
@@ -162,7 +163,10 @@ public abstract class SerializableChangelogTask {
             .setSpecId(spec.specId())
             .setStart(contentScanTask.start())
             .setLength(contentScanTask.length())
-            .setJsonExpression(ExpressionParser.toJson(contentScanTask.residual()));
+            // bound literals serialize by column type (e.g. ISO dates), which fromJson expects
+            .setJsonExpression(
+                ExpressionParser.toJson(
+                    Binder.bind(spec.schema().asStruct(), contentScanTask.residual(), false)));
 
     if (task instanceof AddedRowsScanTask) {
       AddedRowsScanTask addedRowsTask = (AddedRowsScanTask) task;

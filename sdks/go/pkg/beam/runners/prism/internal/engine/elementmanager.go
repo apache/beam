@@ -1515,6 +1515,20 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	return count
 }
 
+// isTriggerFinished returns true if the root trigger for the given window and key
+// has finished, meaning the window is closed and no further panes will be produced.
+// Callers must hold ss.mu.
+func (ss *stageState) isTriggerFinished(window typex.Window, key string) bool {
+	if ss.strat.Trigger == nil {
+		return false
+	}
+	state, ok := ss.state[LinkID{}][window][key]
+	if !ok {
+		return false
+	}
+	return state.getTriggerState(ss.strat.Trigger).finished
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1543,6 +1557,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 	count := 0
 	for _, e := range newPending {
+		if len(e.keyBytes) > 0 && ss.isTriggerFinished(e.window, string(e.keyBytes)) {
+			// The trigger for this window and key has already finished, so the
+			// window is closed. Drop the element, matching the Java ReduceFnRunner
+			// (droppedDueToClosedWindow). Otherwise the element would be emitted
+			// in an extra pane when the watermark passes the end of the window.
+			continue
+		}
 		count++
 		if len(e.keyBytes) == 0 {
 			panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
@@ -2318,9 +2339,20 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	// A key stays assigned to this bundle while any primary element still
+	// carries it. Releasing it would let a residual of the same key run in a
+	// second bundle while the primary is still processing it, so both bundles
+	// would start from the same state and the last commit would drop the
+	// other's state changes.
+	primKeys := set[string]{}
+	for _, e := range prim {
+		primKeys.insert(string(e.keyBytes))
+	}
 	for _, e := range res {
-		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
-		delete(ss.inprogressKeys, string(e.keyBytes))
+		if k := string(e.keyBytes); !primKeys.present(k) {
+			delete(ss.inprogressKeysByBundle[rb.BundleID], k)
+			delete(ss.inprogressKeys, k)
+		}
 
 		if e.IsTimer() {
 			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")

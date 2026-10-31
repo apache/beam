@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.sql.Dataset;
@@ -56,10 +57,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   private final SparkStructuredStreamingPipelineOptions options;
 
-  // Guards queries and stopped.
+  // Guards queries and the stopped flag.
   private final Object lock = new Object();
   private final List<StreamingQuery> queries = new ArrayList<>();
-  private boolean stopped = false;
 
   StreamingEvaluationContext(
       Collection<? extends NamedDataset<?>> leaves,
@@ -92,7 +92,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
           continue;
         }
         synchronized (lock) {
-          if (stopped) {
+          if (isStopped()) {
             break;
           }
         }
@@ -105,7 +105,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
         boolean alreadyStopped;
         synchronized (lock) {
           queries.add(query);
-          alreadyStopped = stopped;
+          alreadyStopped = isStopped();
         }
         if (alreadyStopped) {
           stopQuery(query);
@@ -134,10 +134,10 @@ public class StreamingEvaluationContext extends EvaluationContext {
   public void stop() {
     List<StreamingQuery> toStop;
     synchronized (lock) {
-      if (stopped) {
+      if (isStopped()) {
         return;
       }
-      stopped = true;
+      super.stop();
       toStop = new ArrayList<>(queries);
     }
     for (StreamingQuery query : toStop) {
@@ -180,7 +180,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
         } catch (StreamingQueryException e) {
           LOG.error("Streaming query {} terminated with an exception.", query.id(), e);
           stop();
-          throw new RuntimeException(e);
+          throw new Pipeline.PipelineExecutionException(e.getCause() != null ? e.getCause() : e);
         }
       }
     }

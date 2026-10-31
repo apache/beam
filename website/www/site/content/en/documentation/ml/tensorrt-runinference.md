@@ -66,7 +66,7 @@ trtexec --onnx=<path to onnx model> --saveEngine=<path to save TensorRT engine> 
 To use `trtexec`, follow the steps in the blog post [Simplifying and Accelerating Machine Learning Predictions in Apache Beam with NVIDIA TensorRT](https://developer.nvidia.com/blog/simplifying-and-accelerating-machine-learning-predictions-in-apache-beam-with-nvidia-tensorrt/). The post explains how to build a docker image from a DockerFile that can be used for conversion. We use the following Docker file, which is similar to the file used in the blog post:
 
 ```
-ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:22.05-py3
+ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:26.06-py3
 
 FROM ${BUILD_IMAGE}
 
@@ -75,11 +75,11 @@ ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 WORKDIR /workspace
 
 RUN apt-get update -y && apt-get install -y python3-venv
-RUN pip install --no-cache-dir apache-beam[gcp]==2.44.0
-COPY --from=apache/beam_python3.8_sdk:2.44.0 /opt/apache/beam /opt/apache/beam
+RUN pip install --no-cache-dir apache-beam[gcp]==2.76.0
+COPY --from=apache/beam_python3.12_sdk:2.76.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
-    && pip install torch==1.13.1 \
+    && pip install torch==2.13.0 \
     && pip install torchvision>=0.8.2 \
     && pip install pillow>=8.0.0 \
     && pip install transformers>=4.18.0 \

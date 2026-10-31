@@ -32,9 +32,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncodin
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class ConstantAvroDestination<UserT, OutputT>
     extends DynamicAvroDestinations<UserT, Void, OutputT> {
   private static class SchemaFunction implements Serializable, Function<String, Schema> {
@@ -51,7 +48,7 @@ class ConstantAvroDestination<UserT, OutputT>
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
   private final SerializableFunction<UserT, OutputT> formatFunction;
-  private final AvroSink.DatumWriterFactory<OutputT> datumWriterFactory;
+  private final AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory;
 
   private class Metadata implements HasDisplayData {
     @Override

@@ -72,7 +72,7 @@ import org.yaml.snakeyaml.Yaml;
  * @param <OutputT> output {@link POutput} type of the transform
  */
 @SuppressFBWarnings("UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD")
-class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
+final class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
 
   public static final String ALLOW_LIST_VERSION = "v1";
