@@ -153,7 +153,7 @@ else:
     # Generally try to cover versions released in the last two years.
     # Update python/sdks/tox.ini to cover the same pyarrow versions
     # when updating the bounds here.
-    'pyarrow>=14.0.1,<26.0.0',
+    'pyarrow>=14.0.1,<27.0.0',
   ]
 
 # must update the below "docs" and "test" for extras_require
