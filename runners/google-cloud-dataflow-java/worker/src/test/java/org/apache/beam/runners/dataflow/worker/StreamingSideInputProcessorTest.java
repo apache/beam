@@ -127,7 +127,7 @@ public class StreamingSideInputProcessorTest {
     doNothing().when(mockFetcher).persist();
 
     // When
-    processor.handleFinishBundle();
+    processor.handleFinishKeyOrBundle();
 
     // Then
     verify(mockFetcher).persist();

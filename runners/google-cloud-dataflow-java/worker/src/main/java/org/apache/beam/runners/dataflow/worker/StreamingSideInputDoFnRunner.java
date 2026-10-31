@@ -18,10 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Iterator;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,28 +39,40 @@ import org.joda.time.Instant;
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> simpleDoFnRunner;
-  private final StreamingSideInputProcessor<InputT, W> sideInputProcessor;
+  private @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor = null;
+  private Supplier<StreamingSideInputFetcher<InputT, W>> sideInputFetcherSupplier;
+  boolean activeKey = false;
 
   public StreamingSideInputDoFnRunner(
       DoFnRunner<InputT, OutputT> simpleDoFnRunner,
-      StreamingSideInputFetcher<InputT, W> sideInputFetcher) {
+      Supplier<StreamingSideInputFetcher<InputT, W>> sideInputFetcherSupplier) {
     this.simpleDoFnRunner = simpleDoFnRunner;
-    this.sideInputProcessor = new StreamingSideInputProcessor<>(sideInputFetcher);
+    this.sideInputFetcherSupplier = sideInputFetcherSupplier;
   }
 
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
+    this.activeKey = false;
+  }
+
+  private void onNewKey() {
+    this.sideInputProcessor = new StreamingSideInputProcessor<>(sideInputFetcherSupplier.get());
     sideInputProcessor.tryUnblockElements(
         unblocked -> {
           for (WindowedValue<InputT> elem : unblocked) {
             simpleDoFnRunner.processElement(elem);
           }
         });
+    this.activeKey = true;
   }
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
+    if (!activeKey) {
+      onNewKey();
+    }
+    Preconditions.checkStateNotNull(sideInputProcessor);
     for (Iterator<? extends WindowedValue<InputT>> it =
             sideInputProcessor.handleProcessElement(compressedElem);
         it.hasNext(); ) {
@@ -83,13 +97,20 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
 
   @Override
   public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    if (!activeKey) {
+      // This means that there were no elements for this key. Try to unblock any queued elements.
+      onNewKey();
+    }
+    Preconditions.checkStateNotNull(sideInputProcessor).handleFinishKeyOrBundle();
     simpleDoFnRunner.finishKey(key);
+    this.activeKey = false;
+    this.sideInputProcessor = null;
   }
 
   @Override
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
-    sideInputProcessor.handleFinishBundle();
+    this.activeKey = false;
   }
 
   @Override
