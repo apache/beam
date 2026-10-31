@@ -82,6 +82,7 @@
 ## Bugfixes
 
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
+* (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
