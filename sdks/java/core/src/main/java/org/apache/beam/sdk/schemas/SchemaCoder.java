@@ -110,7 +110,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   private Coder<Row> getDelegateCoder() {
     if (delegateCoder == null) {
       // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
-      // deserialized, we don't need to run ByteBuddy again to construct the class.
+      // deserialized, we don't need to construct the delegate again.
       delegateCoder = RowCoderGenerator.generate(schema);
     }
     return delegateCoder;
