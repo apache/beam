@@ -474,6 +474,8 @@ class SlidingWindows(NonMergingWindowFn):
   ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
+    if period <= 0:
+      raise ValueError('The period parameter must be strictly positive.')
     self.size = Duration.of(size)
     self.period = Duration.of(period)
     self.offset = Timestamp.of(offset) % period
