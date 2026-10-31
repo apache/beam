@@ -16,6 +16,7 @@
 
 import contextlib
 import importlib.util
+import json
 import os
 import shutil
 import sys
@@ -23,10 +24,12 @@ import tempfile
 import types
 import unittest
 import uuid
+from unittest import mock
 
 import jsonpickle
 import numpy as np
 import pytest
+import requests
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -474,6 +477,57 @@ class SentenceTransformerJobSubmissionTest(unittest.TestCase):
       model = model_handler.load_model()
     self.assertIsInstance(model, _FakeSentenceTransformer)
     self.assertEqual(model.model_name, DEFAULT_MODEL_NAME)
+
+
+class InferenceAPIHandlerTest(unittest.TestCase):
+  _API_URL = 'https://example.test/embeddings'
+
+  def _handler(self, token):
+    return huggingface.InferenceAPIEmbeddings(
+        hf_token=token, columns=['text'],
+        api_url=self._API_URL).get_model_handler()
+
+  def _response(self, status_code, body):
+    response = requests.Response()
+    response.status_code = status_code
+    response.url = self._API_URL
+    response._content = json.dumps(body).encode('utf-8')
+    return response
+
+  @parameterized.expand([
+      ('explicit-token', 'explicit-token'),
+      (None, 'environment-token'),
+  ])
+  def test_run_inference_uses_session_token(self, token, expected_token):
+    embeddings = [[0.1, 0.2]]
+    with mock.patch.dict(os.environ, {'HF_TOKEN': 'environment-token'}):
+      handler = self._handler(token)
+      with handler.load_model() as session:
+        with mock.patch.object(session,
+                               'send',
+                               return_value=self._response(200,
+                                                           embeddings)) as send:
+          result = handler.run_inference(
+              ['some text'], session, inference_args={'wait_for_model': True})
+    self.assertEqual(result, embeddings)
+    request = send.call_args.args[0]
+    self.assertEqual(request.url, self._API_URL)
+    self.assertEqual(
+        request.headers['Authorization'], f'Bearer {expected_token}')
+    self.assertEqual(json.loads(request.body), {'inputs': ['some text']})
+
+  @parameterized.expand([401, 429, 503])
+  def test_run_inference_raises_http_errors(self, status_code):
+    handler = self._handler('test-token')
+    response = self._response(
+        status_code, {'error': 'inference request failed'})
+    with handler.load_model() as session:
+      with mock.patch.object(session, 'send', return_value=response):
+        with self.assertRaises(requests.HTTPError) as error:
+          handler.run_inference(['some text'], session)
+    self.assertIs(error.exception.response, response)
+    self.assertIn(str(status_code), str(error.exception))
+    self.assertIn(self._API_URL, str(error.exception))
 
 
 @unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
