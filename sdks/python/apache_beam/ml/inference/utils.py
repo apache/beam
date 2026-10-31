@@ -21,6 +21,7 @@ Util/helper functions used in apache_beam.ml.inference.
 """
 import os
 from collections.abc import Iterable
+from collections.abc import Sized
 from functools import partial
 from typing import Any
 from typing import Optional
@@ -45,6 +46,17 @@ def _convert_to_result(
     predictions: Union[Iterable, dict[Any, Iterable]],
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
+  """Pairs each input in the batch with its prediction.
+
+  Predictions beyond the number of inputs are ignored.
+
+  Raises:
+    ValueError: if there are fewer predictions than inputs. Pairing stops at
+      the shorter of the two, so without this check the remaining inputs
+      would silently get no result.
+  """
+  if not isinstance(batch, Sized):
+    batch = list(batch)
   if isinstance(predictions, dict):
     # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
     # key_type2: Iterable<val_type2>, ...} where each Iterable is of
@@ -53,11 +65,57 @@ def _convert_to_result(
     predictions_per_tensor = [
         dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
-    return [
+    results = [
         PredictionResult(x, y, model_id)
         for x, y in zip(batch, predictions_per_tensor)
     ]
-  return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
+  else:
+    results = [
+        PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)
+    ]
+  if len(results) < len(batch):
+    raise ValueError(
+        _missing_predictions_message(
+            len(batch), len(results), predictions, model_id))
+  return results
+
+
+def _count(number: int, singular: str, plural: str) -> str:
+  return f'{number} {singular if number == 1 else plural}'
+
+
+def _missing_predictions_message(
+    num_inputs: int,
+    num_predictions: int,
+    predictions: Union[Iterable, dict[Any, Iterable]],
+    model_id: Optional[str]) -> str:
+  expected = 'Expected one prediction per input'
+  if model_id:
+    expected += f' from model {model_id}'
+  inputs = _count(num_inputs, 'input', 'inputs')
+  if isinstance(predictions, dict):
+    short_outputs = []
+    for key, value in predictions.items():
+      try:
+        length = len(value)
+      except TypeError:
+        continue
+      if length < num_inputs:
+        short_outputs.append(
+            f'{key!r} has {_count(length, "entry", "entries")}')
+    if short_outputs:
+      outputs = 'output' if len(short_outputs) == 1 else 'outputs'
+      return (
+          f'{expected}, but {outputs} {", ".join(short_outputs)} for a batch '
+          f'of {inputs}. Every output must have one entry per input, so remove '
+          'any that do not (for example, pass inference_args={"use_cache": '
+          'False} so that Hugging Face models do not return past_key_values), '
+          'or use an inference function that returns one prediction per input.')
+  predictions_count = _count(num_predictions, 'prediction', 'predictions')
+  return (
+      f'{expected}, but got {predictions_count} for a batch of {inputs}. If '
+      'the model returns several outputs, such as a tuple, use an inference '
+      'function that returns one prediction per input.')
 
 
 class _ConvertIterToSingleton(beam.DoFn):

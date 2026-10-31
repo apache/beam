@@ -382,6 +382,9 @@ class TFRunInferenceTestWithMocks(unittest.TestCase):
   def setUp(self):
     self._load_model = tensorflow_inference._load_model
     tensorflow_inference._load_model = unittest.mock.MagicMock()
+    # The mocked model returns one prediction per input.
+    tensorflow_inference._load_model.return_value.predict.side_effect = (
+        lambda batch, **kwargs: batch)
 
   def tearDown(self):
     tensorflow_inference._load_model = self._load_model
@@ -433,7 +436,6 @@ class TFRunInferenceTestWithMocks(unittest.TestCase):
     os.environ.pop('FOO', None)
     self.assertFalse('FOO' in os.environ)
     batched_examples = [numpy.array([1]), numpy.array([10]), numpy.array([100])]
-    tensorflow_inference._load_model = unittest.mock.MagicMock()
     with TestPipeline() as pipeline:
       _ = (
           pipeline
