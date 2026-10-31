@@ -15,21 +15,27 @@
 # limitations under the License.
 #
 
+import asyncio
+import copy
 import logging
 import math
 import multiprocessing
+import os
 import random
+import tempfile
 import time
 import unittest
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from threading import Lock
 
 from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
-from apache_beam.transforms.window import GlobalWindows, IntervalWindow
+from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import IntervalWindow
 
 
 class BasicDofn(beam.DoFn):
@@ -102,6 +108,229 @@ class FakeEncodedBagState(FakeBagState):
 
   def read(self):
     return [self.coder.decode(item) for item in super().read()]
+
+
+class FileWritingDoFn(beam.DoFn):
+  def __init__(self, directory):
+    self.directory = directory
+
+  def setup(self):
+    self.file = open(os.path.join(self.directory, 'output.txt'), 'w')
+
+  def process(self, element):
+    deadline = time.monotonic() + 0.2
+    closed_marker = os.path.join(self.directory, 'closed')
+    while not os.path.exists(closed_marker) and time.monotonic() < deadline:
+      time.sleep(0.01)
+    self.file.write(element[1])
+
+  def teardown(self):
+    self.file.close()
+    with open(os.path.join(self.directory, 'closed'), 'w'):
+      pass
+
+
+@parameterized_class([{'use_asyncio': True}, {'use_asyncio': False}])
+class AsyncTeardownTest(unittest.TestCase):
+  def setUp(self):
+    async_lib.AsyncWrapper.reset_state()
+
+  def tearDown(self):
+    async_lib.AsyncWrapper.reset_state()
+
+  def test_runner_teardown_preserves_active_resource(self):
+    with tempfile.TemporaryDirectory() as directory:
+      wrapper = async_lib.AsyncWrapper(
+          FileWritingDoFn(directory), use_asyncio=self.use_asyncio)
+      pipeline = beam.Pipeline(runner='DirectRunner')
+      pipeline | beam.Create([('orders', 'order-123')]) | beam.ParDo(wrapper)
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      for _, future in async_lib.AsyncWrapper._processing_elements[
+          wrapper._uuid].values():
+        future.result(timeout=5)
+      with open(os.path.join(directory, 'output.txt')) as output:
+        self.assertEqual(output.read(), 'order-123')
+
+  def test_teardown_does_not_wait_for_other_instance(self):
+    class BlockingDoFn(beam.DoFn):
+      def setup(self):
+        self.started = Event()
+        self.release = Event()
+
+      def process(self, element):
+        self.started.set()
+        if not self.release.wait(timeout=5):
+          raise TimeoutError('background work was not released')
+        return element
+
+    class AsyncBlockingDoFn(BlockingDoFn):
+      async def process(self, element):
+        self.started.set()
+        if not await asyncio.to_thread(self.release.wait, 5):
+          raise TimeoutError('background work was not released')
+        return element
+
+    dofn_type = AsyncBlockingDoFn if self.use_asyncio else BlockingDoFn
+    wrapper = async_lib.AsyncWrapper(
+        dofn_type(), parallelism=2, use_asyncio=self.use_asyncio)
+    other = copy.copy(wrapper)
+    other._sync_fn = dofn_type()
+    wrapper.setup()
+    other.setup()
+    wrapper.schedule_item(('first', 1))
+    other.schedule_item(('other', 2))
+    self.assertTrue(wrapper._sync_fn.started.wait(timeout=5))
+    self.assertTrue(other._sync_fn.started.wait(timeout=5))
+    try:
+      with ThreadPoolExecutor(max_workers=1) as executor:
+        teardown = executor.submit(wrapper.teardown)
+        with self.assertRaises(TimeoutError):
+          teardown.result(timeout=0.05)
+        wrapper._sync_fn.release.set()
+        teardown.result(timeout=3)
+        self.assertFalse(other._sync_fn.release.is_set())
+    finally:
+      wrapper._sync_fn.release.set()
+      other._sync_fn.release.set()
+      for _, future in async_lib.AsyncWrapper._processing_elements[
+          wrapper._uuid].values():
+        future.result(timeout=5)
+
+  def test_asyncio_teardown_waits_for_cancelled_coroutine_cleanup(self):
+    if not self.use_asyncio:
+      self.skipTest('coroutine cancellation only applies to asyncio')
+
+    class CancelledDoFn(beam.DoFn):
+      def setup(self):
+        self.started = Event()
+        self.cleaning_up = Event()
+        self.cleanup_finished = Event()
+        self.release = Event()
+        self.closed = False
+        self.closed_during_cleanup = False
+
+      async def process(self, element):
+        if element[1] == 'keep':
+          return element
+        self.started.set()
+        try:
+          await asyncio.sleep(60)
+        finally:
+          self.cleaning_up.set()
+          await asyncio.to_thread(self.release.wait, 5)
+          self.closed_during_cleanup = self.closed
+          self.cleanup_finished.set()
+
+      def teardown(self):
+        self.closed = True
+
+    dofn = CancelledDoFn()
+    wrapper = async_lib.AsyncWrapper(dofn, use_asyncio=True)
+    wrapper.setup()
+    wrapper.schedule_item(('orders', 'cancel'))
+    self.assertTrue(dofn.started.wait(timeout=5))
+    wrapper.commit_finished_items(
+        FakeBagState([('orders', 'keep')]), FakeTimer(0))
+    self.assertTrue(dofn.cleaning_up.wait(timeout=5))
+    try:
+      with ThreadPoolExecutor(max_workers=1) as executor:
+        teardown = executor.submit(wrapper.teardown)
+        with self.assertRaises(TimeoutError):
+          teardown.result(timeout=0.05)
+        dofn.release.set()
+        teardown.result(timeout=3)
+      self.assertFalse(dofn.closed_during_cleanup)
+      self.assertTrue(dofn.closed)
+    finally:
+      dofn.release.set()
+      self.assertTrue(dofn.cleanup_finished.wait(timeout=5))
+
+  def test_asyncio_teardown_with_cancelled_queued_work(self):
+    if not self.use_asyncio:
+      self.skipTest('coroutine cancellation only applies to asyncio')
+
+    class QueuedDoFn(beam.DoFn):
+      def setup(self):
+        self.closed = False
+        self.closed_during_process = False
+
+      async def process(self, element):
+        self.closed_during_process = self.closed
+        await asyncio.sleep(0)
+        return element
+
+      def teardown(self):
+        self.closed = True
+
+    dofn = QueuedDoFn()
+    wrapper = async_lib.AsyncWrapper(dofn, use_asyncio=True)
+    wrapper.setup()
+    loop_blocked = Event()
+    release_loop = Event()
+
+    def block_loop():
+      loop_blocked.set()
+      release_loop.wait(timeout=5)
+
+    async_lib.AsyncWrapper._event_loop.call_soon_threadsafe(block_loop)
+    self.assertTrue(loop_blocked.wait(timeout=5))
+    try:
+      wrapper.schedule_item(('orders', 'queued'))
+      future = next(
+          iter(
+              async_lib.AsyncWrapper._processing_elements[
+                  wrapper._uuid].values()))[1]
+      self.assertTrue(future.cancel())
+      with ThreadPoolExecutor(max_workers=1) as executor:
+        teardown = executor.submit(wrapper.teardown)
+        with self.assertRaises(TimeoutError):
+          teardown.result(timeout=0.05)
+        release_loop.set()
+        teardown.result(timeout=3)
+      self.assertFalse(dofn.closed_during_process)
+      self.assertTrue(dofn.closed)
+    finally:
+      release_loop.set()
+      asyncio.run_coroutine_threadsafe(
+          asyncio.sleep(0),
+          async_lib.AsyncWrapper._event_loop).result(timeout=5)
+
+  def test_teardown_does_not_wait_to_dequeue_cancelled_work(self):
+    if self.use_asyncio:
+      self.skipTest('queued threadpool cancellation only applies to threads')
+
+    class BlockingDoFn(beam.DoFn):
+      def setup(self):
+        self.started = Event()
+        self.release = Event()
+
+      def process(self, element):
+        self.started.set()
+        self.release.wait(timeout=5)
+        return element
+
+    wrapper = async_lib.AsyncWrapper(BasicDofn())
+    other = copy.copy(wrapper)
+    other._sync_fn = BlockingDoFn()
+    wrapper.setup()
+    other.setup()
+    other.schedule_item(('orders', 'busy'))
+    self.assertTrue(other._sync_fn.started.wait(timeout=5))
+    wrapper.schedule_item(('orders', 'queued'))
+    try:
+      with ThreadPoolExecutor(max_workers=1) as executor:
+        teardown = executor.submit(wrapper.teardown)
+        with self.assertRaises(TimeoutError):
+          teardown.result(timeout=0.05)
+        other.commit_finished_items(
+            FakeBagState([('orders', 'busy')]), FakeTimer(0))
+        teardown.result(timeout=3)
+        self.assertFalse(other._sync_fn.release.is_set())
+    finally:
+      other._sync_fn.release.set()
+      other.teardown()
 
 
 @parameterized_class([
