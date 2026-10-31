@@ -86,6 +86,7 @@
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
