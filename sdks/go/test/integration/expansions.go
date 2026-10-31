@@ -16,13 +16,18 @@
 package integration
 
 import (
+	"context"
 	"fmt"
-	"net"
 	"strconv"
 	"time"
 
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/jars"
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/ports"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 // ExpansionServices is a struct used for getting addresses and starting expansion services, based
@@ -91,47 +96,78 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 		return "", fmt.Errorf("expansion service labeled \"%s\" not found: %w", label, err)
 	}
 
-	// Start jar on open port.
-	port, err := ports.GetOpenTCP()
-	if err != nil {
-		return "", fmt.Errorf("cannot get open port for expansion service labeled \"%s\": %w", label, err)
-	}
-	portStr := strconv.Itoa(port)
-
-	// Run jar and cache its info.
-	proc, err := es.run(*ExpansionTimeout, jar, portStr)
-	if err != nil {
-		return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
-	}
-	
-	addr := "localhost:" + portStr
-
-	// Use different wait strategies for test mode vs production
-	if es.testMode {
-		// In test mode, use simple wait time for compatibility with mock processes
-		time.Sleep(es.waitTime)
-	} else {
-		// In production, wait for the jar to start with improved retry logic
-		maxRetries := 30
-		retryDelay := time.Second
-		
-		for i := 0; i < maxRetries; i++ {
-			time.Sleep(retryDelay)
-			// Try to connect to the expansion service to verify it's ready
-			conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-			if err == nil {
-				conn.Close()
-				break
-			}
-			if i == maxRetries-1 {
-				return "", fmt.Errorf("expansion service labeled \"%s\" failed to start after %d retries: %w", label, maxRetries, err)
+	// A different service may claim the port between selection and jar startup.
+	const startupAttempts = 3
+	for attempt := 0; ; attempt++ {
+		port, err := ports.GetOpenTCP()
+		if err != nil {
+			return "", fmt.Errorf("cannot get open port for expansion service labeled \"%s\": %w", label, err)
+		}
+		portStr := strconv.Itoa(port)
+		proc, err := es.run(*ExpansionTimeout, jar, portStr)
+		if err != nil {
+			return "", fmt.Errorf("cannot run jar for expansion service labeled \"%s\": %w", label, err)
+		}
+		addr := "localhost:" + portStr
+		if es.testMode {
+			time.Sleep(es.waitTime)
+		} else {
+			exited := make(chan error, 1)
+			go func() { exited <- proc.Wait() }()
+			if err := waitForExpansionService(addr, exited); err != nil {
+				proc.Kill()
+				// Retry only startup collisions, never expansion or pipeline RPCs.
+				if status.Code(err) == codes.Unimplemented && attempt+1 < startupAttempts {
+					continue
+				}
+				return "", fmt.Errorf("expansion service labeled \"%s\" failed to start at %s: %w", label, addr, err)
 			}
 		}
+		es.procs = append(es.procs, proc)
+		es.addrs[label] = addr
+		return addr, nil
 	}
-	
-	es.procs = append(es.procs, proc)
-	es.addrs[label] = addr
-	return addr, nil
+}
+
+func waitForExpansionService(addr string, exited <-chan error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	conn, err := grpc.NewClient("passthrough:///"+addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := jobpb.NewExpansionServiceClient(conn)
+	for {
+		probeCtx, probeCancel := context.WithTimeout(ctx, time.Second)
+		_, err := client.DiscoverSchemaTransform(probeCtx, &jobpb.DiscoverSchemaTransformRequest{}, grpc.WaitForReady(true))
+		probeCancel()
+		if status.Code(err) == codes.Unimplemented {
+			// Older services only implement Expand. An empty request cannot expand
+			// a transform, but an ExpansionResponse (including its error field)
+			// proves that the service implements the expected RPC. Allow the
+			// remaining startup deadline for first-request initialization.
+			_, err = client.Expand(ctx, &jobpb.ExpansionRequest{}, grpc.WaitForReady(true))
+		}
+		if err == nil {
+			select {
+			case err := <-exited:
+				return fmt.Errorf("jar exited before becoming ready: %v", err)
+			default:
+				return nil
+			}
+		}
+		if status.Code(err) != codes.Unavailable && status.Code(err) != codes.DeadlineExceeded {
+			return err
+		}
+		select {
+		case err := <-exited:
+			return fmt.Errorf("jar exited before becoming ready: %v", err)
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for expansion API: %w", ctx.Err())
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 // Shutdown shuts down any jars started by the ExpansionServices struct and should get called if it
