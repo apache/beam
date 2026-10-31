@@ -32,11 +32,12 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Before;
 import org.junit.Rule;
@@ -148,25 +149,35 @@ public class ReadSpannerSchemaTest {
             .withServiceFactory(serviceFactory);
 
     PCollectionView<Dialect> dialectView =
-        pipeline.apply(Create.of(Dialect.GOOGLE_STANDARD_SQL)).apply(View.asSingleton());
+        pipeline
+            .apply("CreateDialect", Create.of(Dialect.GOOGLE_STANDARD_SQL))
+            .apply(View.asSingleton());
+    PCollection<SpannerSchema> schemas =
+        pipeline
+            .apply("CreateVoid", Create.of((Void) null))
+            .apply(
+                ParDo.of(new ReadSpannerSchema(config, dialectView)).withSideInputs(dialectView));
+
+    PAssert.that(schemas)
+        .satisfies(
+            iterable -> {
+              List<SpannerSchema> schemaList =
+                  org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists
+                      .newArrayList(iterable);
+              assertEquals(1, schemaList.size());
+
+              SpannerSchema schema = schemaList.get(0);
+              assertEquals(1, schema.getTables().size());
+
+              SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
+              SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
+
+              assertThat(schema.getColumns("test"), contains(column));
+              assertThat(schema.getKeyParts("test"), contains(keyPart));
+              return null;
+            });
+
     pipeline.run();
-    DoFnTester<Void, SpannerSchema> tester =
-        DoFnTester.of(new ReadSpannerSchema(config, dialectView));
-    tester.setSideInput(dialectView, GlobalWindow.INSTANCE, Dialect.GOOGLE_STANDARD_SQL);
-
-    List<SpannerSchema> schemas = tester.processBundle(Arrays.asList((Void) null));
-
-    assertEquals(1, schemas.size());
-
-    SpannerSchema schema = schemas.get(0);
-
-    assertEquals(1, schema.getTables().size());
-
-    SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
-    SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
-
-    assertThat(schema.getColumns("test"), contains(column));
-    assertThat(schema.getKeyParts("test"), contains(keyPart));
   }
 
   @Test
@@ -186,24 +197,32 @@ public class ReadSpannerSchemaTest {
             .withServiceFactory(serviceFactory);
 
     PCollectionView<Dialect> dialectView =
-        pipeline.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        pipeline.apply("CreateDialect", Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+    PCollection<SpannerSchema> schemas =
+        pipeline
+            .apply("CreateVoid", Create.of((Void) null))
+            .apply(
+                ParDo.of(new ReadSpannerSchema(config, dialectView)).withSideInputs(dialectView));
+
+    PAssert.that(schemas)
+        .satisfies(
+            iterable -> {
+              List<SpannerSchema> schemaList =
+                  org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists
+                      .newArrayList(iterable);
+              assertEquals(1, schemaList.size());
+
+              SpannerSchema schema = schemaList.get(0);
+              assertEquals(1, schema.getTables().size());
+
+              SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
+              SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
+
+              assertThat(schema.getColumns("test"), contains(column));
+              assertThat(schema.getKeyParts("test"), contains(keyPart));
+              return null;
+            });
+
     pipeline.run();
-    DoFnTester<Void, SpannerSchema> tester =
-        DoFnTester.of(new ReadSpannerSchema(config, dialectView));
-    tester.setSideInput(dialectView, GlobalWindow.INSTANCE, Dialect.POSTGRESQL);
-
-    List<SpannerSchema> schemas = tester.processBundle(Arrays.asList((Void) null));
-
-    assertEquals(1, schemas.size());
-
-    SpannerSchema schema = schemas.get(0);
-
-    assertEquals(1, schema.getTables().size());
-
-    SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
-    SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
-
-    assertThat(schema.getColumns("test"), contains(column));
-    assertThat(schema.getKeyParts("test"), contains(keyPart));
   }
 }
