@@ -246,17 +246,12 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
       if (rowMutationFn != null) {
         rowMutationInformation = Preconditions.checkStateNotNull(rowMutationFn).apply(element);
       }
+      StorageApiWritePayload payload;
       try {
-        StorageApiWritePayload payload =
+        payload =
             messageConverter
                 .toMessage(element, rowMutationInformation, errorCollector)
                 .withTimestamp(timestamp);
-        if (errorCollector.isEmpty()) {
-          o.get(successfulWritesTag).outputWithTimestamp(KV.of(destination, payload), timestamp);
-        } else {
-          // This should only happen if the user sets schemaUpdateOptions.
-          unprocessedElements.add(value);
-        }
       } catch (TableRowToStorageApiProto.SchemaConversionException conversionException) {
         // If the user did not set schemaUpdateOptions or if we encounter an error we cannot address
         // via schema update,
@@ -283,6 +278,7 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
                 new BigQueryStorageApiInsertError(
                     failsafeTableRow, conversionException.toString(), tableReference),
                 timestamp);
+        continue;
       } catch (Exception e) {
         badRecordRouter.route(
             o,
@@ -290,6 +286,13 @@ public class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
             elementCoder,
             e,
             "Unable to convert value to StorageWriteApiPayload");
+        continue;
+      }
+      if (errorCollector.isEmpty()) {
+        o.get(successfulWritesTag).outputWithTimestamp(KV.of(destination, payload), timestamp);
+      } else {
+        // This should only happen if the user sets schemaUpdateOptions.
+        unprocessedElements.add(value);
       }
     }
     return unprocessedElements;
