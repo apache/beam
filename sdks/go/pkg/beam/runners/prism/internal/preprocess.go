@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -471,6 +472,7 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 			t := comps.GetTransforms()[link.Transform]
 
 			var sis map[string]*pipepb.SideInput
+			timeSorted := false
 			switch t.GetSpec().GetUrn() {
 			case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
 				pardo := &pipepb.ParDoPayload{}
@@ -483,12 +485,20 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
 					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}
+				timeSorted = pardo.GetRequiresTimeSortedInput()
 				sis = pardo.GetSideInputs()
 			}
 			if _, ok := sis[link.Local]; ok {
 				sideInputs = append(sideInputs, engine.LinkID{Transform: link.Transform, Global: link.Global, Local: link.Local})
 			} else {
 				mainInputs[link.Global] = link.Global
+				if timeSorted {
+					// Elements are sorted once they can no longer be preceded by
+					// non-late data, which depends on the main input's allowed lateness.
+					stg.timeSortedInput = true
+					ws := comps.GetWindowingStrategies()[comps.GetPcollections()[link.Global].GetWindowingStrategyId()]
+					stg.timeSortedAllowedLateness = time.Duration(ws.GetAllowedLateness()) * time.Millisecond
+				}
 			}
 		}
 	}

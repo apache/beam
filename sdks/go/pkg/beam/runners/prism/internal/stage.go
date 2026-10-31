@@ -69,6 +69,11 @@ type stage struct {
 	stateful           bool
 	onWindowExpiration engine.StaticTimerID
 
+	// timeSortedInput is whether a ParDo in this stage requires time sorted
+	// input, and timeSortedAllowedLateness is its main input's allowed lateness.
+	timeSortedInput           bool
+	timeSortedAllowedLateness time.Duration
+
 	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
 	// the stage to be considered complete.
 	hasTimers            []engine.StaticTimerID
