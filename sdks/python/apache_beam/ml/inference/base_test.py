@@ -2817,6 +2817,20 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertNotIn('bucket_boundaries', kwargs)
     self.assertEqual(kwargs['min_batch_size'], 5)
 
+  def test_batch_key_fn_and_num_shards_passed_to_kwargs(self):
+    key_fn = lambda s: s[:4]
+    handler = FakeModelHandlerForBatching(
+        batch_key_fn=key_fn, batch_key_num_shards=4)
+    kwargs = handler.batch_elements_kwargs()
+    self.assertIs(kwargs['key_fn'], key_fn)
+    self.assertEqual(kwargs['num_shards'], 4)
+
+  def test_batch_key_num_shards_mapping_passed_to_kwargs(self):
+    shard_map = {'hot_prefix': 8}
+    handler = FakeModelHandlerForBatching(
+        batch_key_fn=lambda s: s, batch_key_num_shards=shard_map)
+    self.assertEqual(handler.batch_elements_kwargs()['num_shards'], shard_map)
+
 
 class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
                                                            FakeModel]):
@@ -2827,6 +2841,18 @@ class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
   def run_inference(self, batch, model, inference_args=None):
     max_len = max(len(s) for s in batch)
     return [f'{s}:{max_len}' for s in batch]
+
+
+class PrefixPeerReportingStringModelHandler(base.ModelHandler[str,
+                                                              str,
+                                                              FakeModel]):
+  """Reports each element with the sorted prefix set of the batch it ran in."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    prefixes = ','.join(sorted({s.split(':', 1)[0] for s in batch}))
+    return [f'{s}|batch_prefixes={prefixes}|size={len(batch)}' for s in batch]
 
 
 class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
@@ -2846,6 +2872,44 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
           | beam.Create(examples, reshuffle=False)
           | base.RunInference(handler))
       assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
+
+  def test_run_inference_with_batch_key_fn_and_preprocess_fn(self):
+    # batch_key_fn receives the element *after* preprocessing (the prompt
+    # string here), not the raw input record.
+    handler = PrefixPeerReportingStringModelHandler(
+        min_batch_size=2,
+        max_batch_size=2,
+        max_batch_duration_secs=1.0,
+        batch_key_fn=lambda prompt: prompt.split(':', 1)[0]).with_preprocess_fn(
+            lambda rec: f"{rec['sector']}:{rec['id']}")
+
+    records = [
+        {
+            'sector': 'fin', 'id': '1'
+        },
+        {
+            'sector': 'med', 'id': '1'
+        },
+        {
+            'sector': 'fin', 'id': '2'
+        },
+        {
+            'sector': 'med', 'id': '2'
+        },
+    ]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(records, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([
+              'fin:1|batch_prefixes=fin|size=2',
+              'fin:2|batch_prefixes=fin|size=2',
+              'med:1|batch_prefixes=med|size=2',
+              'med:2|batch_prefixes=med|size=2',
+          ]))
 
 
 class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):
