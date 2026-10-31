@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -216,6 +217,111 @@ public class BeamFnDataInboundObserverTest {
         IllegalStateException.class,
         () -> observer.awaitCompletion());
     future.get();
+  }
+
+  @Test
+  public void testAcceptWithCallbackInvokedOnProcessing() throws Exception {
+    Collection<WindowedValue<String>> values = new ArrayList<>();
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(DataEndpoint.create(TRANSFORM_ID, CODER, values::add)),
+            Collections.emptyList());
+
+    AtomicBoolean callback1Ran = new AtomicBoolean();
+    AtomicBoolean callback2Ran = new AtomicBoolean();
+    AtomicBoolean callbackLastRan = new AtomicBoolean();
+
+    Future<?> future =
+        executor.submit(
+            () -> {
+              observer.acceptWithCallback(dataWith("ABC"), () -> callback1Ran.set(true));
+              assertTrue(
+                  observer.tryAcceptWithCallback(dataWith("DEF"), () -> callback2Ran.set(true)));
+              observer.acceptWithCallback(lastData(), () -> callbackLastRan.set(true));
+              return null;
+            });
+
+    observer.awaitCompletion();
+    future.get();
+
+    assertTrue(callback1Ran.get());
+    assertTrue(callback2Ran.get());
+    assertTrue(callbackLastRan.get());
+    assertThat(
+        values,
+        contains(
+            WindowedValues.valueInGlobalWindow("ABC"), WindowedValues.valueInGlobalWindow("DEF")));
+  }
+
+  @Test
+  public void testCallbacksInvokedOnClose() throws Exception {
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(DataEndpoint.create(TRANSFORM_ID, CODER, val -> {})),
+            Collections.emptyList());
+
+    AtomicBoolean callback1 = new AtomicBoolean();
+    AtomicBoolean callback2 = new AtomicBoolean();
+
+    observer.acceptWithCallback(dataWith("ABC"), () -> callback1.set(true));
+    observer.tryAcceptWithCallback(dataWith("DEF"), () -> callback2.set(true));
+
+    observer.close();
+
+    assertTrue(callback1.get());
+    assertTrue(callback2.get());
+  }
+
+  @Test
+  public void testCallbacksInvokedOnConsumerException() throws Exception {
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(
+                DataEndpoint.create(
+                    TRANSFORM_ID,
+                    CODER,
+                    val -> {
+                      throw new RuntimeException("consumer error");
+                    })),
+            Collections.emptyList());
+
+    AtomicBoolean callback1 = new AtomicBoolean();
+    AtomicBoolean callback2 = new AtomicBoolean();
+
+    observer.acceptWithCallback(dataWith("ABC"), () -> callback1.set(true));
+    observer.acceptWithCallback(dataWith("DEF"), () -> callback2.set(true));
+
+    assertThrows(RuntimeException.class, observer::awaitCompletion);
+
+    // callback1 belongs to the element that was being processed when the consumer threw.
+    assertTrue(callback1.get());
+    assertTrue(callback2.get());
+  }
+
+  @Test
+  public void testCallbacksInvokedOnConsumerError() throws Exception {
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
+            Collections.singletonList(
+                DataEndpoint.create(
+                    TRANSFORM_ID,
+                    CODER,
+                    val -> {
+                      throw new AssertionError("consumer error");
+                    })),
+            Collections.emptyList());
+
+    AtomicBoolean callback1 = new AtomicBoolean();
+    AtomicBoolean callback2 = new AtomicBoolean();
+
+    observer.acceptWithCallback(dataWith("ABC"), () -> callback1.set(true));
+    observer.acceptWithCallback(dataWith("DEF"), () -> callback2.set(true));
+
+    assertThrows(AssertionError.class, observer::awaitCompletion);
+
+    // An Error is not an Exception, and both callbacks must still run.
+    assertTrue(callback1.get());
+    assertTrue(callback2.get());
   }
 
   private BeamFnApi.Elements dataWith(String... values) throws Exception {
