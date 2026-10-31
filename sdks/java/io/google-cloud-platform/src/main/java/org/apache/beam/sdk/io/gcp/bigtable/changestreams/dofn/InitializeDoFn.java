@@ -40,12 +40,17 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
   private final DaoFactory daoFactory;
   private Instant startTime;
   private final ExistingPipelineOptions existingPipelineOptions;
+  private final String pipelineRunId;
 
   public InitializeDoFn(
-      DaoFactory daoFactory, Instant startTime, ExistingPipelineOptions existingPipelineOptions) {
+      DaoFactory daoFactory,
+      Instant startTime,
+      ExistingPipelineOptions existingPipelineOptions,
+      String pipelineRunId) {
     this.daoFactory = daoFactory;
     this.startTime = startTime;
     this.existingPipelineOptions = existingPipelineOptions;
+    this.pipelineRunId = pipelineRunId;
   }
 
   @ProcessElement
@@ -53,6 +58,14 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
     LOG.info("{}", daoFactory.getStreamTableDebugString());
     LOG.info("{}", daoFactory.getMetadataTableDebugString());
     LOG.info("ChangeStreamName: {}", daoFactory.getChangeStreamName());
+
+    String storedPipelineRunId = daoFactory.getMetadataTableDao().readPipelineRunId();
+    if (storedPipelineRunId != null && storedPipelineRunId.equals(pipelineRunId)) {
+      LOG.info(
+          "Initialize already completed for pipeline run {}, skipping duplicate initialization",
+          pipelineRunId);
+      return;
+    }
 
     boolean resume = false;
     DetectNewPartitionsState detectNewPartitionsState =
@@ -101,6 +114,7 @@ public class InitializeDoFn extends DoFn<byte[], InitialPipelineState> implement
         // terminate pipeline
         return;
     }
+    daoFactory.getMetadataTableDao().writePipelineRunId(pipelineRunId);
     daoFactory.getMetadataTableDao().writeDetectNewPartitionVersion();
     receiver.output(new InitialPipelineState(startTime, resume));
   }

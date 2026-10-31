@@ -82,6 +82,7 @@
 ## Bugfixes
 
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
+* (Java) BigtableIO.readChangeStream() with RESUME_OR_NEW no longer starts duplicate consumers when InitializeDoFn is re-executed within the same pipeline run ([#39970](https://github.com/apache/beam/issues/39970)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
