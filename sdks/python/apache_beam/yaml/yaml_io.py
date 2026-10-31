@@ -299,6 +299,24 @@ def _create_formatter(
             f"got {repr(output)} of type {type(output)}.")
 
     return convert_to_bytes
+  elif format == 'STRING':
+    if schema:
+      raise ValueError('STRING format does not take a schema')
+    field_names = [field.name for field in beam_schema.fields]
+    if len(field_names) != 1:
+      raise ValueError(f'Expecting exactly one field, found {field_names}')
+
+    def encode_string(row):
+      output = getattr(row, field_names[0])
+      if isinstance(output, str):
+        return output.encode('utf-8')
+      else:
+        raise ValueError(
+            f"Cannot encode payload for WriteToPubSub with STRING format. "
+            f"Expected valid string object, "
+            f"got {repr(output)} of type {type(output)}.")
+
+    return encode_string
   elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
   elif format == 'AVRO':
@@ -459,6 +477,8 @@ def write_to_pubsub(
         - RAW: Expects a message with a single field (excluding
             attribute-related fields) whose contents are used as the raw bytes
             of the pubsub message.
+        - STRING: Like RAW, but expects a single string field and encodes it as
+            UTF-8 bytes.
         - AVRO: Encodes records with a given Avro schema, which may be inferred
             from the input PCollection schema.
         - JSON: Formats records with a given JSON schema, which may be inferred
