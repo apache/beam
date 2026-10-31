@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -161,9 +162,7 @@ public class ReadSpannerSchemaTest {
     PAssert.that(schemas)
         .satisfies(
             iterable -> {
-              List<SpannerSchema> schemaList =
-                  org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists
-                      .newArrayList(iterable);
+              List<SpannerSchema> schemaList = Lists.newArrayList(iterable);
               assertEquals(1, schemaList.size());
 
               SpannerSchema schema = schemaList.get(0);
@@ -207,9 +206,7 @@ public class ReadSpannerSchemaTest {
     PAssert.that(schemas)
         .satisfies(
             iterable -> {
-              List<SpannerSchema> schemaList =
-                  org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists
-                      .newArrayList(iterable);
+              List<SpannerSchema> schemaList = Lists.newArrayList(iterable);
               assertEquals(1, schemaList.size());
 
               SpannerSchema schema = schemaList.get(0);
