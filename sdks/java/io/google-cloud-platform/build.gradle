@@ -212,7 +212,6 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOIcebergManagedTableIT.class'
-  exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
@@ -227,6 +226,9 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
     filter {
+      // Larger reads run in the Dataflow integration and performance suites.
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1G'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
       // https://github.com/apache/beam/issues/32071
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
     }
@@ -342,7 +344,6 @@ task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
   outputs.upToDateWhen { false }
   include '**/bigquery/**/*IT.class'
   exclude '**/BigQueryIOIcebergManagedTableIT.class'
-  exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
@@ -354,6 +355,11 @@ task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
   testClassesDirs = sourceSets.test.output.classesDirs
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // Larger reads run in the Dataflow integration and performance suites.
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1G'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
+    }
   }
 }
 
