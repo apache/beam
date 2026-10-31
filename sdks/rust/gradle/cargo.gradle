@@ -1,0 +1,456 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Lifecycle tasks: build, check (rustfmt + clippy), test, fmt and clean.
+//
+// Each workspace crate has a cacheable `test_<pkg>` task whose inputs are its own sources
+// and tests plus the library sources (`src/`, `proto/`, `Cargo.toml`, `build.rs`) of its
+// transitive workspace dependencies. Untouched crates stay UP-TO-DATE / FROM-CACHE across
+// Gradle runs, and editing a test in an upstream crate does not invalidate downstream crates.
+
+ext.rustDir = file("${rootDir}/sdks/rust")
+
+ext.benchmarkPackages = []
+def workspaceScope = ['--workspace']
+
+// -Ppkg=<crate> narrows `build` and `test` to one crate; the default is the workspace but the
+// benchmarks. With -Ppkg, -PonlyFeatures=<list> enables only these cargo features of the crate.
+def selectedPkg = (project.findProperty('pkg') ?: project.findProperty('package'))?.toString()
+def onlyFeatures = project.findProperty('onlyFeatures')?.toString()
+def featureScope = selectedPkg && onlyFeatures != null ?
+    ['--no-default-features', '--features', onlyFeatures] : []
+ext.cargoScope = (selectedPkg ? ['-p', selectedPkg] : workspaceScope) + featureScope
+// -PtestArgs="<args>" passes test-binary arguments after `--`, e.g. -PtestArgs=--ignored.
+// tokenize() splits on any whitespace and yields [] for an empty or blank value.
+def testArgs = project.findProperty('testArgs')?.toString()?.tokenize() ?: []
+// With `--continue`, `test` runs every test binary and reports all failures at the end.
+def noFailFast = gradle.startParameter.continueOnFailure ? ['--no-fail-fast'] : []
+
+// Parses a Cargo.toml into a list of [section, normalizedSingleLine] pairs, stripping comments
+// and joining multiline [...] or {...} expressions.
+def parseTomlLines = { File tomlFile ->
+  def entries = []
+  String section = ''
+  StringBuilder pending = new StringBuilder()
+  int depth = 0
+  tomlFile.eachLine('UTF-8') { String raw ->
+    def clean = raw.replaceAll(/#.*$/, '').trim()
+    if (clean.isEmpty()) return
+    if (depth == 0 && clean.startsWith('[') && clean.endsWith(']')) {
+      section = clean.replaceAll(/^\[+|\]+$/, '').trim()
+      return
+    }
+    if (pending.length() > 0) pending.append(' ')
+    pending.append(clean)
+    for (int i = 0; i < clean.length(); i++) {
+      char c = clean.charAt(i)
+      if (c == ('[' as char) || c == ('{' as char)) depth++
+      else if (c == (']' as char) || c == ('}' as char)) depth = Math.max(0, depth - 1)
+    }
+    if (depth == 0) {
+      entries.add([section, pending.toString()])
+      pending.setLength(0)
+    }
+  }
+  return entries
+}
+
+def parseStringList = { String text ->
+  def list = []
+  def m = (text =~ /"([^"]+)"/)
+  while (m.find()) {
+    list.add(m.group(1))
+  }
+  return list
+}
+
+def parseFeatureArray = { String rhs ->
+  def m = (rhs =~ /features\s*=\s*\[([^\]]*)\]/)
+  return m.find() ? parseStringList(m.group(1)) : []
+}
+
+// 1. Discover internal crates from root Cargo.toml [workspace.dependencies] and member Cargo.toml files.
+def wsInternalDeps = [:]
+parseTomlLines(file("${rustDir}/Cargo.toml")).each { pair ->
+  String sec = pair[0]
+  String line = pair[1]
+  if (sec == 'workspace.dependencies' && line.contains('path =')) {
+    def kv = line.split('=', 2)
+    def alias = kv[0].trim()
+    def rhs = kv[1].trim()
+    def pkgMatch = (rhs =~ /package\s*=\s*"([^"]+)"/)
+    def pathMatch = (rhs =~ /path\s*=\s*"([^"]+)"/)
+    if (pathMatch.find()) {
+      wsInternalDeps[alias] = [
+          pkg            : pkgMatch.find() ? pkgMatch.group(1) : alias,
+          path           : pathMatch.group(1),
+          defaultFeatures: !rhs.contains('default-features = false'),
+          features       : parseFeatureArray(rhs),
+      ]
+    }
+  }
+}
+
+def crateDir = [:]
+def dirToPkg = [:]
+def memberTomls = project.fileTree(rustDir) {
+  include '**/Cargo.toml'
+  exclude 'Cargo.toml'
+  exclude 'target/**'
+  exclude 'container/**'
+  exclude 'build/**'
+  exclude 'examples/build/**'
+}.files.sort { it.absolutePath }
+
+memberTomls.each { File toml ->
+  def lines = parseTomlLines(toml)
+  def pkgLine = lines.find { it[0] == 'package' && it[1].startsWith('name') }
+  if (pkgLine) {
+    def m = (pkgLine[1] =~ /name\s*=\s*"([^"]+)"/)
+    if (m.find()) {
+      def pkgName = m.group(1)
+      crateDir[pkgName] = toml.parentFile
+      dirToPkg[toml.parentFile.canonicalPath] = pkgName
+    }
+  }
+}
+
+def crateFeatures = [:].withDefault { [:] }
+def crateDeps = [:].withDefault { [] }
+def crateDevDeps = [:].withDefault { [] }
+def crateTestRequiredFeatures = [:].withDefault { [] }
+
+def parseDepEntry = { File memberDir, String line ->
+  if (!line.contains('=')) return null
+  def kv = line.split('=', 2)
+  def alias = kv[0].trim()
+  def rhs = kv[1].trim()
+  String targetPkg = null
+  def pkgMatch = (rhs =~ /package\s*=\s*"([^"]+)"/)
+  if (pkgMatch.find() && crateDir.containsKey(pkgMatch.group(1))) {
+    targetPkg = pkgMatch.group(1)
+  } else {
+    def pathMatch = (rhs =~ /path\s*=\s*"([^"]+)"/)
+    if (pathMatch.find()) {
+      targetPkg = dirToPkg[new File(memberDir, pathMatch.group(1)).canonicalPath]
+    } else if (rhs.contains('workspace = true') && wsInternalDeps.containsKey(alias)) {
+      targetPkg = wsInternalDeps[alias].pkg
+    }
+  }
+  if (!targetPkg) return null
+  def wsEntry = rhs.contains('workspace = true') ? wsInternalDeps[alias] : null
+  return [
+      alias          : alias,
+      targetPkg      : targetPkg,
+      optional       : rhs.contains('optional = true'),
+      defaultFeatures: !rhs.contains('default-features = false') && (wsEntry == null || wsEntry.defaultFeatures),
+      features       : (parseFeatureArray(rhs) + (wsEntry ? wsEntry.features : [])).unique(),
+  ]
+}
+
+crateDir.each { String pkgName, File dir ->
+  parseTomlLines(new File(dir, 'Cargo.toml')).each { pair ->
+    String sec = pair[0]
+    String line = pair[1]
+    if (sec == 'features' && line.contains('=')) {
+      def kv = line.split('=', 2)
+      crateFeatures[pkgName][kv[0].trim()] = parseStringList(kv[1])
+    } else if (sec == 'dependencies' || sec == 'build-dependencies') {
+      def dep = parseDepEntry(dir, line)
+      if (dep) crateDeps[pkgName].add(dep)
+    } else if (sec == 'dev-dependencies') {
+      def dep = parseDepEntry(dir, line)
+      if (dep) crateDevDeps[pkgName].add(dep)
+    } else if ((sec == 'test' || sec == 'bench') && line.startsWith('required-features')) {
+      crateTestRequiredFeatures[pkgName].addAll(parseStringList(line))
+    }
+  }
+}
+
+// 2. Compute feature-aware transitive workspace dependency closure for each crate.
+def resolveCrateClosure = { String rootPkg, String onlyFeaturesArg = null ->
+  Set<String> activeCrates = new LinkedHashSet<>()
+  Set<String> enabledFeatures = new LinkedHashSet<>()
+  Set<String> activatedEdges = new LinkedHashSet<>()
+
+  Closure activateCrate
+  Closure activateEdge
+  Closure enableFeature
+
+  enableFeature = { String pkg, String feat ->
+    activateCrate(pkg)
+    if (!enabledFeatures.add("${pkg}:${feat}".toString())) return
+    crateDeps[pkg].findAll { it.optional && it.alias == feat }.each { activateEdge(pkg, it) }
+    (crateFeatures[pkg][feat] ?: []).each { String token ->
+      if (token.startsWith('dep:')) {
+        def depAlias = token.substring(4)
+        crateDeps[pkg].findAll { it.alias == depAlias }.each { activateEdge(pkg, it) }
+      } else if (token.contains('/')) {
+        def parts = token.split('/', 2)
+        def depAlias = parts[0].replace('?', '')
+        def subFeat = parts[1]
+        crateDeps[pkg].findAll { it.alias == depAlias }.each { d ->
+          if (!parts[0].endsWith('?')) activateEdge(pkg, d)
+          enableFeature(d.targetPkg, subFeat)
+        }
+      } else {
+        enableFeature(pkg, token)
+      }
+    }
+  }
+
+  activateEdge = { String fromPkg, Map d ->
+    String edgeKey = "${fromPkg}->${d.alias}:${d.targetPkg}:${d.defaultFeatures}:${d.features.join(',')}"
+    if (activatedEdges.add(edgeKey)) {
+      activateCrate(d.targetPkg)
+      if (d.defaultFeatures) enableFeature(d.targetPkg, 'default')
+      d.features.each { String f -> enableFeature(d.targetPkg, f) }
+    }
+  }
+
+  activateCrate = { String pkg ->
+    if (activeCrates.add(pkg)) {
+      crateDeps[pkg].findAll { !it.optional }.each { activateEdge(pkg, it) }
+      if (pkg == rootPkg) {
+        crateDevDeps[pkg].findAll { !it.optional }.each { activateEdge(pkg, it) }
+        if (onlyFeaturesArg != null) {
+          onlyFeaturesArg.split(',').collect { it.trim() }.findAll { !it.isEmpty() }.each {
+            enableFeature(pkg, it)
+          }
+        } else {
+          enableFeature(pkg, 'default')
+          crateTestRequiredFeatures[pkg].each { enableFeature(pkg, it) }
+        }
+      }
+    }
+  }
+
+  activateCrate(rootPkg)
+  return activeCrates
+}
+
+def crateClosure = [:]
+crateDir.keySet().each { String pkg ->
+  def featOverride = (selectedPkg == pkg && onlyFeatures != null) ? onlyFeatures : null
+  crateClosure[pkg] = resolveCrateClosure(pkg, featOverride)
+}
+ext.crateClosure = crateClosure
+
+// Library inputs of crate `pkg` (excludes tests/, benches/, examples/ so test edits in an
+// upstream crate do not invalidate downstream crates).
+def crateLibInputFiles = { String pkg ->
+  File dir = crateDir[pkg]
+  def list = [new File(dir, 'Cargo.toml'), new File(dir, 'build.rs')].findAll { it.exists() }
+  ['src', 'proto'].each { String sub ->
+    File subDir = new File(dir, sub)
+    if (subDir.exists()) list.add(subDir)
+  }
+  return list
+}
+
+// Own test/bench/example inputs of crate `pkg` (excluding embedded python test suites).
+def crateTestInputFiles = { String pkg ->
+  File dir = crateDir[pkg]
+  def trees = []
+  ['tests', 'benches', 'examples'].each { String sub ->
+    File subDir = new File(dir, sub)
+    if (subDir.exists()) {
+      trees.add(project.fileTree(subDir) {
+        exclude 'python/**'
+        exclude '**/__pycache__/**'
+        exclude '**/.pytest_cache/**'
+      })
+    }
+  }
+  return trees
+}
+
+def modelProtoDirs = [
+    file("${rootDir}/model/pipeline/src/main/proto"),
+    file("${rootDir}/model/fn-execution/src/main/proto"),
+    file("${rootDir}/model/job-management/src/main/proto"),
+]
+def workspaceRootFiles = [
+    file("${rustDir}/Cargo.toml"),
+    file("${rustDir}/Cargo.lock"),
+    file("${rootDir}/gradle.properties"),
+]
+
+// Topological ordering of crates so multiple cargo tasks never contend on target/.cargo-lock
+// and foundational crates test before downstream crates.
+def topoOrder = []
+def visitedTopo = new HashSet<String>()
+Closure visitTopo
+visitTopo = { String pkg ->
+  if (!visitedTopo.add(pkg)) return
+  crateClosure[pkg].each { String dep ->
+    if (dep != pkg && crateDir.containsKey(dep)) visitTopo(dep)
+  }
+  topoOrder.add(pkg)
+}
+crateDir.keySet().sort().each { visitTopo(it) }
+
+// Registers an Exec task that runs `cargo <args>` in the workspace root.
+ext.cargoTask = { String name, String taskGroup, String text, List<String> args ->
+  tasks.register(name, Exec) {
+    group = taskGroup
+    description = text
+    workingDir rustDir
+    commandLine(['cargo'] + args)
+  }
+}
+
+def defaultWorkspacePackages = topoOrder.findAll { !(it in benchmarkPackages) }
+def allWorkspaceLibAndTestFiles = topoOrder.collectMany { String pkg ->
+  crateLibInputFiles(pkg) + crateTestInputFiles(pkg)
+}
+def defaultWorkspaceLibAndTestFiles = defaultWorkspacePackages.collectMany { String pkg ->
+  crateLibInputFiles(pkg) + crateTestInputFiles(pkg)
+}
+
+cargoTask('buildWorkspace', 'Build',
+    'Compile all crates in the Rust workspace but the benchmarks (or one crate with -Ppkg=<crate>)',
+    ['build'] + cargoScope).configure {
+  inputs.property('beamSdkVersion', beamSdkVersion)
+  inputs.property('cargoScope', cargoScope)
+  inputs.files(workspaceRootFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(modelProtoDirs).withPathSensitivity(PathSensitivity.RELATIVE)
+  def buildInputs = (selectedPkg && crateClosure.containsKey(selectedPkg))
+      ? crateClosure[selectedPkg].collectMany { crateLibInputFiles(it) } + crateTestInputFiles(selectedPkg)
+      : defaultWorkspaceLibAndTestFiles
+  inputs.files(buildInputs).withPathSensitivity(PathSensitivity.RELATIVE)
+  def buildKey = selectedPkg
+      ? "${selectedPkg}-${onlyFeatures ?: 'default'}".replaceAll('[^a-zA-Z0-9_-]', '_')
+      : 'workspace'
+  def stampFile = file("${buildDir}/test-results/cargo/build-${buildKey}.txt")
+  outputs.file(stampFile)
+  outputs.upToDateWhen { file("${rustDir}/target").exists() }
+  doLast {
+    stampFile.parentFile.mkdirs()
+    stampFile.text = "ok\n"
+  }
+}
+
+cargoTask('fmtCheck', 'Verification', 'Verify formatting (cargo fmt --check)',
+    ['fmt', '--check']).configure {
+  inputs.files(file("${rustDir}/rustfmt.toml"), file("${rustDir}/Cargo.toml"))
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(allWorkspaceLibAndTestFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+  def stampFile = file("${buildDir}/test-results/cargo/fmtCheck.txt")
+  outputs.file(stampFile)
+  outputs.cacheIf { true }
+  doLast {
+    stampFile.parentFile.mkdirs()
+    stampFile.text = "ok\n"
+  }
+}
+
+cargoTask('fmt', 'Verification', 'Format all Rust code (cargo fmt)',
+    ['fmt'])
+
+cargoTask('clippy', 'Verification', 'Run clippy on all targets but the benchmarks (-D warnings)',
+    ['clippy'] + workspaceScope + ['--all-targets', '--', '-D', 'warnings']).configure {
+  mustRunAfter 'fmtCheck'
+  inputs.property('beamSdkVersion', beamSdkVersion)
+  inputs.files(workspaceRootFiles + [file("${rustDir}/clippy.toml")])
+      .withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(modelProtoDirs).withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.files(defaultWorkspaceLibAndTestFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+  def stampFile = file("${buildDir}/test-results/cargo/clippy.txt")
+  outputs.file(stampFile)
+  outputs.cacheIf { true }
+  doLast {
+    stampFile.parentFile.mkdirs()
+    stampFile.text = "ok\n"
+  }
+}
+
+
+// Per-crate cacheable test tasks (`test_<pkg>`).
+def cargoTestTasks = [:]
+String prevTestTaskName = 'clippy'
+topoOrder.each { String pkg ->
+  String taskName = "test_${pkg}"
+  def pkgFeatureScope = (selectedPkg == pkg) ? featureScope : []
+  def featureSuffix = (selectedPkg == pkg && onlyFeatures != null)
+      ? "-features-${onlyFeatures.replaceAll('[^a-zA-Z0-9_-]', '_')}"
+      : ''
+  def stampFile = file("${buildDir}/test-results/cargo/${pkg}/test${featureSuffix}.txt")
+  def closure = crateClosure[pkg]
+  // `register` configures the task later, so read the previous name now.
+  String runAfter = prevTestTaskName
+
+  def tp = tasks.register(taskName, Exec) {
+    group = 'Verification'
+    description = "Run cargo test for ${pkg}"
+    workingDir rustDir
+    commandLine(['cargo', 'test', '-p', pkg] + pkgFeatureScope + noFailFast +
+        (testArgs ? ['--'] + testArgs : []))
+
+    mustRunAfter runAfter, 'buildWorkspace'
+
+    inputs.property('pkg', pkg)
+    inputs.property('beamSdkVersion', beamSdkVersion)
+    inputs.property('beamReleaseVersion', beamReleaseVersion)
+    inputs.property('featureScope', pkgFeatureScope)
+    inputs.property('testArgs', testArgs)
+    inputs.files(workspaceRootFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+    if ('apache-beam-model' in closure) {
+      inputs.files(modelProtoDirs).withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    closure.each { String depPkg ->
+      inputs.files(crateLibInputFiles(depPkg)).withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    inputs.files(crateTestInputFiles(pkg)).withPathSensitivity(PathSensitivity.RELATIVE)
+
+    outputs.file(stampFile)
+    outputs.upToDateWhen { testArgs.isEmpty() }
+    outputs.cacheIf { testArgs.isEmpty() }
+
+    doLast {
+      stampFile.parentFile.mkdirs()
+      stampFile.text = "ok\n"
+    }
+  }
+  cargoTestTasks[pkg] = tp
+  prevTestTaskName = taskName
+}
+ext.cargoTestTasks = cargoTestTasks
+
+tasks.register('test') {
+  group = 'Verification'
+  description = 'Run tests (the workspace, or one crate with -Ppkg=<crate>; -PtestArgs=<args> after --; ' +
+      '--continue runs every test binary)'
+  if (selectedPkg) {
+    if (!cargoTestTasks.containsKey(selectedPkg)) {
+      throw new GradleException(
+          "Unknown Rust workspace package '${selectedPkg}'. Available packages: ${topoOrder.join(', ')}")
+    }
+    dependsOn cargoTestTasks[selectedPkg]
+  } else {
+    dependsOn defaultWorkspacePackages.collect { cargoTestTasks[it] }
+  }
+}
+
+cargoTask('cleanSdk', 'Build', 'Remove the cargo target directory',
+    ['clean'])
+
+build.dependsOn 'buildWorkspace'
+check.dependsOn 'fmtCheck', 'clippy'
+clean.dependsOn 'cleanSdk'
+

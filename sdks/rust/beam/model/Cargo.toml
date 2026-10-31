@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[package]
+name = "apache-beam-model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Portability model definitions and gRPC bindings for Apache Beam in Rust"
+
+[lib]
+name = "model"
+doctest = false
+
+[dependencies]
+prost = { workspace = true }
+prost-types = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+# No [lints] workspace opt-in: this crate is entirely tonic/prost generated code.
+
+# These are used by the generated code `tonic::include_proto!` pulls in from OUT_DIR,
+# which cargo-machete does not scan.
+[package.metadata.cargo-machete]
+ignored = ["prost", "prost-types", "tonic-prost"]
+
