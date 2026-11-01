@@ -23,14 +23,18 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
@@ -124,6 +128,15 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
           PartitionUtils.constantsMap(fileTask.spec(), fileTask.file(), null);
+      GenericDeleteFilter deleteFilter =
+          new GenericDeleteFilter(
+              checkStateNotNull(io),
+              fileTask,
+              fileTask.schema(),
+              ReadUtils.withEqualityFields(
+                  fileTask.schema(), requiredSchema, equalityFieldIds(fileTask)));
+      // also reads the columns that the deletes need: equality fields and the row position
+      org.apache.iceberg.Schema readSchema = deleteFilter.requiredSchema();
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
@@ -132,10 +145,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           ORC.ReadBuilder orcReader =
               ORC.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(requiredSchema)
+                  .project(readSchema)
                   .createReaderFunc(
                       fileSchema ->
-                          GenericOrcReader.buildReader(requiredSchema, fileSchema, idToConstants))
+                          GenericOrcReader.buildReader(readSchema, fileSchema, idToConstants))
                   .filter(fileTask.residual());
 
           if (nameMapping != null) {
@@ -149,11 +162,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           Parquet.ReadBuilder parquetReader =
               Parquet.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(requiredSchema)
+                  .project(readSchema)
                   .createReaderFunc(
                       fileSchema ->
-                          GenericParquetReaders.buildReader(
-                              requiredSchema, fileSchema, idToConstants))
+                          GenericParquetReaders.buildReader(readSchema, fileSchema, idToConstants))
                   .filter(fileTask.residual());
 
           if (nameMapping != null) {
@@ -167,9 +179,9 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           Avro.ReadBuilder avroReader =
               Avro.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(requiredSchema)
+                  .project(readSchema)
                   .createReaderFunc(
-                      fileSchema -> DataReader.create(requiredSchema, fileSchema, idToConstants));
+                      fileSchema -> DataReader.create(readSchema, fileSchema, idToConstants));
 
           if (nameMapping != null) {
             avroReader.withNameMapping(NameMappingParser.fromJson(nameMapping));
@@ -180,16 +192,23 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
         default:
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
-      GenericDeleteFilter deleteFilter =
-          new GenericDeleteFilter(
-              checkStateNotNull(io), fileTask, fileTask.schema(), requiredSchema);
       iterable = deleteFilter.filter(iterable);
 
-      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig());
+      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig(), readSchema);
       currentIterator = iterable.iterator();
     } while (true);
 
     return false;
+  }
+
+  private static Set<Integer> equalityFieldIds(FileScanTask task) {
+    Set<Integer> ids = new HashSet<>();
+    for (DeleteFile delete : task.deletes()) {
+      if (delete.content() == FileContent.EQUALITY_DELETES) {
+        ids.addAll(delete.equalityFieldIds());
+      }
+    }
+    return ids;
   }
 
   @Override

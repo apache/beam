@@ -1340,6 +1340,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 500)
 
+  @unittest.skipIf(
+      sys.platform == 'win32',
+      'The resource module is not available on Windows.')
+  def test_no_resource_warning_when_model_manager_unavailable(self):
+    # ModelManager needs optional dependencies (e.g. torch). RunInference should
+    # still measure model memory with `resource` when ModelManager is missing.
+    with unittest.mock.patch.object(base, 'ModelManager', None), \
+        unittest.mock.patch.object(base.logging, 'warning') as mock_warning:
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([1, 5, 3, 10])
+            | base.RunInference(FakeModelHandler()))
+    messages = [str(call) for call in mock_warning.call_args_list]
+    self.assertFalse(
+        any('Resource module is not available' in m for m in messages),
+        messages)
+
   def test_forwards_batch_args(self):
     examples = list(range(100))
     with TestPipeline('FnApiRunner') as pipeline:

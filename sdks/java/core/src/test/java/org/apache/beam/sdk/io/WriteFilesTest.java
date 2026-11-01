@@ -686,6 +686,8 @@ public class WriteFilesTest {
     assertTrue(write.withEvictWritersWhenFull().getEvictWritersWhenFull());
     assertTrue(write.withEvictWritersWhenFull(true).getEvictWritersWhenFull());
     assertFalse(write.withEvictWritersWhenFull(false).getEvictWritersWhenFull());
+    assertEquals(50, write.withMaxNumWritersPerBundle(50).getMaxNumWritersPerBundle());
+    assertThrows(IllegalArgumentException.class, () -> write.withMaxNumWritersPerBundle(0));
   }
 
   @Test

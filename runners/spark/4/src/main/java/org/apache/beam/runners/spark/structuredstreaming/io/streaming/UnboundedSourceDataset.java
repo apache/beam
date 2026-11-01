@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -86,7 +87,9 @@ import scala.reflect.ClassTag;
  * TIMESTAMP} holding the event timestamp of that element.
  *
  * <p>The event time watermark is declared here and only here. Spark 4 rejects a second {@code
- * withWatermark} further down the plan, so downstream translators must never call it again.
+ * withWatermark} further down the plan, so downstream translators must never call it again. Once
+ * every split of the source is done, each reader emits one empty payload row at {@link
+ * BoundedWindow#TIMESTAMP_MAX_VALUE} to advance the watermark, which is dropped at decode.
  */
 public final class UnboundedSourceDataset {
 
@@ -305,6 +308,7 @@ public final class UnboundedSourceDataset {
     private final AtomicLong purgeRequested = new AtomicLong();
 
     private long epoch;
+    private boolean emitSentinel;
     private @Nullable List<UnboundedSource<T, ?>> splits;
 
     BeamMicroBatchStream(BeamTable<T> table, String checkpointLocation) {
@@ -343,6 +347,13 @@ public final class UnboundedSourceDataset {
         LOG.warn(
             "Failed to prepare mark directory of epoch {} at {}.", endEpoch, checkpointLocation, e);
       }
+      if (!emitSentinel) {
+        try {
+          emitSentinel = checkpoint.allSplitsDone(pinned.size());
+        } catch (IOException e) {
+          LOG.warn("Failed to list done splits at {}.", checkpointLocation, e);
+        }
+      }
       long[] quotas = splitQuotas(table.maxRecordsPerBatch, pinned.size(), endEpoch);
       InputPartition[] partitions = new InputPartition[pinned.size()];
       for (int i = 0; i < pinned.size(); i++) {
@@ -358,7 +369,8 @@ public final class UnboundedSourceDataset {
                 endEpoch,
                 quotas[i],
                 table.maxBatchDurationMillis,
-                table.readerIdleTimeoutMillis);
+                table.readerIdleTimeoutMillis,
+                emitSentinel);
       }
       return partitions;
     }
@@ -495,6 +507,7 @@ public final class UnboundedSourceDataset {
 
     final long maxBatchDurationMillis;
     final long readerIdleTimeoutMillis;
+    final boolean emitSentinel;
 
     BeamInputPartition(
         UnboundedSource<T, ?> split,
@@ -507,7 +520,8 @@ public final class UnboundedSourceDataset {
         long endEpoch,
         long maxRecords,
         long maxBatchDurationMillis,
-        long readerIdleTimeoutMillis) {
+        long readerIdleTimeoutMillis,
+        boolean emitSentinel) {
       this.split = split;
       this.coder = coder;
       this.options = options;
@@ -519,6 +533,7 @@ public final class UnboundedSourceDataset {
       this.maxRecords = maxRecords;
       this.maxBatchDurationMillis = maxBatchDurationMillis;
       this.readerIdleTimeoutMillis = readerIdleTimeoutMillis;
+      this.emitSentinel = emitSentinel;
     }
 
     @Override
@@ -573,6 +588,7 @@ public final class UnboundedSourceDataset {
     private final long endEpoch;
     private final long maxRecords;
     private final long maxBatchDurationMillis;
+    private final boolean emitSentinel;
 
     private long recordsRead;
     private long deadlineMillis = -1L;
@@ -586,6 +602,7 @@ public final class UnboundedSourceDataset {
       this.endEpoch = partition.endEpoch;
       this.maxRecords = partition.maxRecords;
       this.maxBatchDurationMillis = partition.maxBatchDurationMillis;
+      this.emitSentinel = partition.emitSentinel;
       PipelineOptions options = partition.options.value().get();
       Configuration conf = partition.hadoopConf.value().value();
       BeamSourceCheckpoint checkpoint =
@@ -622,6 +639,10 @@ public final class UnboundedSourceDataset {
         if (cached.startOrAdvance()) {
           recordsRead++;
           current = toRow();
+          return true;
+        }
+        if (cached.claimSentinel(emitSentinel)) {
+          current = sentinelRow();
           return true;
         }
         if (backOff == null) {
@@ -684,6 +705,9 @@ public final class UnboundedSourceDataset {
       CheckpointMark mark = cached.reader().getCheckpointMark();
       byte[] codedMark = encodeMark(split, mark);
       checkpoint.writeMark(splitId, endEpoch, codedMark);
+      if (cached.shouldWriteDone()) {
+        checkpoint.writeDone(splitId);
+      }
       cached.endBatch(endEpoch, mark, codedMark);
       LOG.debug("Beam reader {} read {} record(s) up to epoch {}.", key, recordsRead, endEpoch);
     }
@@ -716,6 +740,11 @@ public final class UnboundedSourceDataset {
       byte[] payload = CoderHelpers.toByteArray(value, coder);
       // Spark stores TimestampType as microseconds.
       return new GenericInternalRow(new Object[] {payload, timestamp.getMillis() * 1000L});
+    }
+
+    private static InternalRow sentinelRow() {
+      return new GenericInternalRow(
+          new Object[] {new byte[0], BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() * 1000L});
     }
   }
 }

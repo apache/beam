@@ -717,8 +717,11 @@ def _get_arg_placeholders(
       self.placeholder = placeholder
 
   if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
-    # TODO(https://github.com/apache/beam/issues/19631): Handle cases in which
-    #   len(arg_names) == len(default_arg_values).
+    if (default_arg_values and len(arg_names) == len(default_arg_values) and
+        not isinstance(default_arg_values[0], core._DoFnParam) and
+        default_arg_values[0] is not core.DoFn.BundleFinalizerParam):
+      # The implicit element occupies the first slot even if it has a default.
+      default_arg_values = default_arg_values[1:]
     args_to_pick = len(arg_names) - len(default_arg_values) - 1
     # Positional argument values for process(), with placeholders for special
     # values such as the element, timestamp, etc.
@@ -730,42 +733,43 @@ def _get_arg_placeholders(
 
   # Fill the OtherPlaceholders for context, key, window or timestamp
   remaining_args_iter = iter(input_args[args_to_pick:])
-  for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
-    if core.DoFn.ElementParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.KeyParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.WindowParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.WindowedValueParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.TimestampParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.PaneInfoParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif core.DoFn.SideInputParam == d:
-      # If no more args are present then the value must be passed via kwarg
-      try:
-        args_with_placeholders.append(next(remaining_args_iter))
-      except StopIteration:
-        if a not in input_kwargs:
-          raise ValueError("Value for sideinput %s not provided" % a)
-    elif isinstance(d, core.DoFn.StateParam):
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif isinstance(d, core.DoFn.TimerParam):
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif isinstance(d, core.DoFn.BundleContextParam):
-      args_with_placeholders.append(ArgPlaceholder(d))
-    elif isinstance(d, core.DoFn.SetupContextParam):
-      args_with_placeholders.append(ArgPlaceholder(d))
-    else:
-      # If no more args are present then the value must be passed via kwarg
-      try:
-        args_with_placeholders.append(next(remaining_args_iter))
-      except StopIteration:
-        pass
+  if default_arg_values:
+    for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
+      if core.DoFn.ElementParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.KeyParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.WindowParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.WindowedValueParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.TimestampParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.PaneInfoParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif core.DoFn.SideInputParam == d:
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          args_with_placeholders.append(next(remaining_args_iter))
+        except StopIteration:
+          if a not in input_kwargs:
+            raise ValueError("Value for sideinput %s not provided" % a)
+      elif isinstance(d, core.DoFn.StateParam):
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif isinstance(d, core.DoFn.TimerParam):
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif isinstance(d, core.DoFn.BundleContextParam):
+        args_with_placeholders.append(ArgPlaceholder(d))
+      elif isinstance(d, core.DoFn.SetupContextParam):
+        args_with_placeholders.append(ArgPlaceholder(d))
+      else:
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          args_with_placeholders.append(next(remaining_args_iter))
+        except StopIteration:
+          pass
   args_with_placeholders.extend(list(remaining_args_iter))
 
   # Stash the list of placeholder positions for performance

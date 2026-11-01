@@ -66,6 +66,7 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamin
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -892,16 +893,17 @@ class TestReadFromBigQuery(unittest.TestCase):
 class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   """Tests for quota_project_id in ReadFromBigQuery sources."""
   def test_quota_project_id_from_pipeline_options(self):
-    """Test that quota_project_id is read from GoogleCloudOptions."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
-    gcp_options = options.view_as(GoogleCloudOptions)
-    self.assertEqual(gcp_options.quota_project_id, 'my-billing-project')
+    """Test that quota_project_id is read from BigQueryOptions."""
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.bigquery_quota_project_id, 'my-billing-project')
 
   def test_quota_project_id_none_by_default_in_options(self):
     """Test that quota_project_id is None by default in options."""
     options = PipelineOptions([])
-    gcp_options = options.view_as(GoogleCloudOptions)
-    self.assertIsNone(gcp_options.quota_project_id)
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.bigquery_quota_project_id)
 
   def test_export_source_explicit_quota_project(self):
     """Test that explicit quota_project_id is stored in
@@ -916,7 +918,8 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   def test_export_source_gets_quota_from_options(self):
     """Test that _CustomBigQuerySource falls back to options for
     quota_project_id."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
         table='project:dataset.table',
@@ -925,7 +928,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
 
   def test_export_source_explicit_overrides_options(self):
     """Test that explicit quota_project_id overrides options."""
-    options = PipelineOptions(['--quota_project_id=options-project'])
+    options = PipelineOptions(['--bigquery_quota_project_id=options-project'])
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
         table='project:dataset.table',
@@ -945,7 +948,8 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
 
   def test_storage_source_gets_quota_from_options(self):
     """Test that _CustomBigQueryStorageSource falls back to options."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     source = beam_bq._CustomBigQueryStorageSource(
         method=ReadFromBigQuery.Method.DIRECT_READ,
         table='project:dataset.table',
@@ -955,7 +959,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
   def test_export_source_split_passes_quota_to_client(self, mock_bq_client):
     """split() must pass the transform-level quota_project_id to the BigQuery
-    client, not only the --quota_project_id pipeline option."""
+    client, not only the --bigquery_quota_project_id pipeline option."""
     mock_bq_client.side_effect = RuntimeError('stop')
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
@@ -972,7 +976,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
   def test_storage_source_split_passes_quota_to_client(self, mock_bq_client):
     """split() must pass the transform-level quota_project_id to the BigQuery
-    client, not only the --quota_project_id pipeline option."""
+    client, not only the --bigquery_quota_project_id pipeline option."""
     mock_bq_client.side_effect = RuntimeError('stop')
     source = beam_bq._CustomBigQueryStorageSource(
         method=ReadFromBigQuery.Method.DIRECT_READ,
@@ -1204,7 +1208,8 @@ class TestWriteToBigQueryQuotaProject(unittest.TestCase):
         mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_stream_to_bigquery_resolves_quota_project_from_options(self):
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     p = TestPipeline(options=options)
     with mock.patch.object(
         beam_bq.BigQueryWriteFn,

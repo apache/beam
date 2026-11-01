@@ -34,7 +34,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -85,22 +84,6 @@ public class PipelineTranslatorStreamingTest implements Serializable {
       }
     }
     throw new AssertionError("missing " + expected);
-  }
-
-  @Test
-  public void rejectsImpulseFromCreate() throws Exception {
-    SparkStructuredStreamingPipelineOptions o = StreamingTestUtils.streamingOptions(temp);
-    Pipeline p = Pipeline.create(o);
-    p.apply(Create.of("rejected"));
-    assertUnsupported(p, "Impulse");
-  }
-
-  @Test
-  public void rejectsBoundedReadFromCreate() throws Exception {
-    SparkStructuredStreamingPipelineOptions o = StreamingTestUtils.streamingOptions(temp);
-    Pipeline p = Pipeline.create(o);
-    p.apply(Create.of("rejected", "too"));
-    assertUnsupported(p, "Bounded Read");
   }
 
   @Test

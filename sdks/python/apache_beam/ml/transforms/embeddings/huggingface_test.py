@@ -66,6 +66,10 @@ _HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+# all-mpnet-base-v2 is only served as sentence-similarity on hf-inference;
+# InferenceAPIEmbeddings calls /pipeline/feature-extraction.
+INFERENCE_API_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+INFERENCE_API_EMBEDDING_DIM = 384
 IMAGE_MODEL_NAME = "clip-ViT-B-32"
 _parameterized_inputs = [
     ([{
@@ -492,10 +496,9 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
   def test_embeddings_with_inference_api(self):
     embedding_config = InferenceAPIEmbeddings(
         hf_token=_HF_TOKEN,
-        model_name=DEFAULT_MODEL_NAME,
+        model_name=INFERENCE_API_MODEL_NAME,
         columns=[test_query_column],
     )
-    expected_output = [0.13]
     with beam.Pipeline() as p:
       result_pcoll = (
           p
@@ -503,11 +506,14 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   embedding_config))
-      max_ele_pcoll = (
-          result_pcoll
-          | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
 
-      assert_that(max_ele_pcoll, equal_to(expected_output))
+      def _embedding_shape(element):
+        emb = element[test_query_column]
+        return (len(emb), all(isinstance(x, (float, np.floating)) for x in emb))
+
+      assert_that(
+          result_pcoll | beam.Map(_embedding_shape),
+          equal_to([(INFERENCE_API_EMBEDDING_DIM, True)]))
 
 
 @unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')

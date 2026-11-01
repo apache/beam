@@ -20,6 +20,8 @@
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import functools
+import types
 import typing
 import unittest
 from typing import Tuple
@@ -404,6 +406,28 @@ class MainInputTest(unittest.TestCase):
 
     result = [1, 2] | beam.ParDo(do_fn)
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
+  def test_typed_map_partial_with_future_annotations(self):
+    # Keywords bound by functools.partial are typed from their (string)
+    # annotations, which must resolve to the same types as the expected hints,
+    # including names referenced through an aliased module import.
+    class Config(object):
+      def __init__(self, scale):
+        self.scale = scale
+
+    config_lib = types.ModuleType('config_lib')
+    config_lib.Config = Config
+    namespace = {'config_lib': config_lib}
+    exec(
+        'from __future__ import annotations\n'
+        'def scale(\n'
+        '    element: int, config: config_lib.Config, offset: int) -> int:\n'
+        '  return element * config.scale + offset\n',
+        namespace)
+
+    fn = functools.partial(namespace['scale'], config=Config(2), offset=1)
+    result = [1, 2, 3] | beam.Map(fn)
+    self.assertEqual([3, 5, 7], sorted(result))
 
   def test_typed_ptransform_fn(self):
     # Test that type hints are propagated to the created PTransform.

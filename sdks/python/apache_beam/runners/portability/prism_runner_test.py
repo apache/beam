@@ -288,15 +288,17 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
           )
           | beam.GroupByKey()
           | beam.MapTuple(PrismRunnerTest.format_result))
+      # AfterCount(3) is not repeated, so it finishes after its first firing
+      # and closes the window. Later elements for that window and key
+      # (A4, A5 and B9) are dropped. Windows whose trigger never fires
+      # (A in [10, 20)) still emit a final pane when they expire.
       assert_that(
           result,
           equal_to(
               list([
                   ('A-3', {1, 2, 3}),
-                  ('A-2', {4, 5}),
                   ('A-2', {10, 11}),
                   ('B-3', {6, 7, 8}),
-                  ('B-1', {9}),
                   ('B-3', {10, 15, 16}),
               ])))
 
