@@ -745,6 +745,11 @@
   - role: roles/cloudfunctions.invoker
   - role: roles/datastore.user
   - role: roles/storage.objectViewer
+- username: radoslaws
+  email: radoslaws@google.com
+  member_type: user
+  permissions:
+    - role: roles/editor
 - username: rajkumargupta
   email: rajkumargupta@google.com
   member_type: user

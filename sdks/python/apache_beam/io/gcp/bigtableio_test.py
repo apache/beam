@@ -122,11 +122,18 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
   @staticmethod
   def _get_mutation_pbs(direct_row):
     # In google-cloud-bigtable >= 2.44.0, _get_mutations() returns Python
-    # dataclass objects instead of protobuf messages; use _get_mutation_pbs()
-    # to retrieve Mutation protobuf messages.
-    if hasattr(direct_row, '_get_mutation_pbs'):
-      return direct_row._get_mutation_pbs()
-    return direct_row._get_mutations()
+    # dataclass objects instead of protobuf messages; convert each item via
+    # _to_pb() when needed.
+    mutations = (
+        direct_row._get_mutation_pbs() if hasattr(
+            direct_row, '_get_mutation_pbs') else direct_row._get_mutations())
+    return [
+        m._to_pb()
+        if not hasattr(m, '__contains__') and hasattr(m, '_to_pb') else (
+            m.to_pb()
+            if not hasattr(m, '__contains__') and hasattr(m, 'to_pb') else m)
+        for m in mutations
+    ]
 
   def test_set_cell(self):
     # create some set cell mutations

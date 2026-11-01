@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM gcr.io/distroless/base-nossl-debian12:latest AS base_image
+FROM gcr.io/distroless/base-nossl-debian13:latest AS base_image
 
 # Distroless base image has many layers. Squash into single layer
 FROM scratch

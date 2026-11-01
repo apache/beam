@@ -119,7 +119,6 @@ categories:
     - "PreCommit Java Kudu IO Direct"
     - "PostCommit Java InfluxDbIO Integration Test"
     - "PostCommit Java Jpms Direct Java21"
-    - "PostCommit Java ValidatesRunner Twister2"
     - "PreCommit Java Neo4j IO Direct"
     - "PostCommit Java Jpms Direct Java11"
     - "PostCommit Javadoc"

@@ -26,7 +26,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
 import com.google.auto.service.AutoService;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,13 +77,7 @@ import scala.Tuple2;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class SparkBatchPortablePipelineTranslator
+public final class SparkBatchPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkTranslationContext> {
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;

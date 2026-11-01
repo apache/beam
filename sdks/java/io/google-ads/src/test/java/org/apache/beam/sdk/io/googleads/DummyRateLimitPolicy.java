@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.googleads;
 
-import com.google.ads.googleads.v23.errors.GoogleAdsError;
+import com.google.ads.googleads.v25.errors.GoogleAdsError;
 import com.google.protobuf.Message;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

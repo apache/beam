@@ -126,6 +126,43 @@ class BlockImportsTest(unittest.TestCase):
     self.assertEqual(attempted_imports, [])
 
 
+class RequireLinuxDockerTest(unittest.TestCase):
+  def _fake_docker(self, os_type=None, error=None):
+    fake_docker = mock.MagicMock()
+    client = fake_docker.from_env.return_value
+    if error:
+      client.info.side_effect = error
+    else:
+      client.info.return_value = {'OSType': os_type}
+    return fake_docker, client
+
+  def test_linux_docker_does_not_skip(self):
+    fake_docker, client = self._fake_docker(os_type='linux')
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_windows_docker_skips(self):
+    fake_docker, client = self._fake_docker(os_type='windows')
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      with self.assertRaisesRegex(unittest.SkipTest, 'windows containers'):
+        utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_unreachable_docker_skips(self):
+    fake_docker, client = self._fake_docker(
+        error=ConnectionError('no such file'))
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      with self.assertRaisesRegex(unittest.SkipTest, 'Docker is not available'):
+        utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_missing_docker_sdk_skips(self):
+    with utils.block_imports('docker'):
+      with self.assertRaisesRegex(unittest.SkipTest, 'Docker is not available'):
+        utils.require_linux_docker()
+
+
 class LCGeneratorTest(unittest.TestCase):
   Generator = utils.LCGenerator
 

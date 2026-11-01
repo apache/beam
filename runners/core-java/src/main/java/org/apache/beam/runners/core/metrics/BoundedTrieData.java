@@ -57,13 +57,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @SuppressFBWarnings(
-    value = {"IS2_INCONSISTENT_SYNC", "CT_CONSTRUCTOR_THROW"},
-    justification =
-        "Some access on purpose are left unsynchronized."
-            + " Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class BoundedTrieData implements Serializable {
+    value = "IS2_INCONSISTENT_SYNC",
+    justification = "Some access on purpose are left unsynchronized")
+public final class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie
 
@@ -286,7 +282,7 @@ public class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final boolean equals(@Nullable Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }
@@ -298,12 +294,12 @@ public class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final int hashCode() {
+  public int hashCode() {
     return this.asTrie().hashCode();
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     return "BoundedTrieData(" + this.asTrie() + ")";
   }
 

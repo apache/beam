@@ -48,10 +48,15 @@ from apache_beam.typehints.schemas import PRIMITIVE_TO_ATOMIC_TYPE
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
+try:
+  from collections.abc import Buffer
+except ImportError:
+  from typing_extensions import Buffer
+
 SCHEMA_TYPES_TO_STRATEGY = {
     str: st.text(),
     bytes: st.binary(),
-    typing.ByteString: st.binary(),
+    Buffer: st.binary(),
     # Maximum datetime on year 3000 to conform to Windows OS limits.
     Timestamp: st.datetimes(
         min_value=datetime(1970, 1, 1, 1, 1),

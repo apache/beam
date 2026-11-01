@@ -67,8 +67,13 @@ else:
 
 if sys.version_info >= (3, 14):
   _NB_SUBSCR_OPCODE = [op[0] for op in opcode._nb_ops].index('NB_SUBSCR')
+  # Table of values indexed by the arg of LOAD_COMMON_CONSTANT. In 3.15 this
+  # was expanded to include common literals such as None, '', True, False,
+  # and -1, which are no longer loaded via LOAD_CONST.
+  _COMMON_CONSTANTS = tuple(getattr(opcode, '_common_constants', ()))
 else:
   _NB_SUBSCR_OPCODE = -1
+  _COMMON_CONSTANTS = ()
 
 
 def pop_one(state, unused_arg):
@@ -107,7 +112,11 @@ def end_for(state, unused_arg):
 
 
 def end_send(state, unused_arg):
-  del state.stack[-2]
+  if sys.version_info >= (3, 15):
+    # The receiver is a two-slot (iter, index_or_null) pair in 3.15.
+    del state.stack[-3:-1]
+  else:
+    del state.stack[-2]
 
 
 def copy(state, arg):
@@ -151,6 +160,14 @@ def unary_convert(state, unused_arg):
 
 def get_iter(state, unused_arg):
   state.stack.append(Iterable[element_type(state.stack.pop())])
+  if sys.version_info >= (3, 15):
+    # In 3.15 the iteration state occupies two stack slots: the iterator (or
+    # the iterable itself for "virtual" iteration over sequences) and either
+    # NULL or a tagged integer index. FOR_ITER, POP_ITER, END_SEND, etc. all
+    # operate on this pair. The second slot is irrelevant for type inference
+    # but must be tracked so stack-relative args (e.g. LIST_APPEND, SWAP)
+    # stay correct.
+    state.stack.append(Any)
 
 
 _NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
@@ -205,6 +222,22 @@ binary_add = inplace_add = symmetric_binary_op
 binary_subtract = inplace_subtract = symmetric_binary_op
 
 
+def _slice_type(base, index):
+  """Returns the type of base[index] for an indexable base and a slice index.
+
+  The index is a Const if the bounds of the slice are known.
+  """
+  if isinstance(base, typehints.TupleHint.TupleConstraint):
+    # Slicing changes the length of a fixed-size tuple.
+    if isinstance(index, Const):
+      try:
+        return Tuple[base.tuple_types[index.value]]
+      except (TypeError, ValueError):
+        pass
+    return Tuple[element_type(base), ...]
+  return base
+
+
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
@@ -220,7 +253,7 @@ def binary_subscr(state, unused_arg):
       base, typehints.IndexableTypeConstraint):
     # The slice is treated as a const in 3.14, using this instead of
     # BINARY_SLICE
-    out = base
+    out = _slice_type(base, index)
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -242,13 +275,16 @@ def store_subscr(unused_state, unused_args):
 
 
 def binary_slice(state, args):
-  _ = state.stack.pop()
-  _ = state.stack.pop()
+  stop = state.stack.pop()
+  start = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
   if base is str:
     out = base
   elif isinstance(base, typehints.IndexableTypeConstraint):
-    out = base
+    if isinstance(start, Const) and isinstance(stop, Const):
+      out = _slice_type(base, Const(slice(start.value, stop.value)))
+    else:
+      out = _slice_type(base, slice)
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -506,6 +542,13 @@ def load_small_int(state, arg):
   state.stack.append(Const(arg))
 
 
+def load_common_constant(state, arg):
+  if arg < len(_COMMON_CONSTANTS):
+    state.stack.append(Const(_COMMON_CONSTANTS[arg]))
+  else:
+    state.stack.append(Any)
+
+
 store_map = pop_two
 
 
@@ -643,7 +686,11 @@ def make_closure(state, arg):
 
 
 def build_slice(state, arg):
-  state.stack[-arg:] = [slice]  # a slice object
+  bounds = state.stack[-arg:]
+  if all(isinstance(b, Const) for b in bounds):
+    state.stack[-arg:] = [Const(slice(*(b.value for b in bounds)))]
+  else:
+    state.stack[-arg:] = [slice]  # a slice object
 
 
 def to_bool(state, arg):

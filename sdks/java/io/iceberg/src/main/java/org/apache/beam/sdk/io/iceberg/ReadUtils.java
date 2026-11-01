@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -49,6 +50,8 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -217,5 +220,38 @@ public class ReadUtils {
       return CloseableIterable.filter(iterable, record -> evaluator.eval(wrapper.wrap(record)));
     }
     return iterable;
+  }
+
+  /**
+   * Adds the equality delete fields that {@code projection} lacks, under their parent structs.
+   * Fields already in {@code projection} are kept as they are, even if the table has since renamed
+   * or promoted them.
+   */
+  public static Schema withEqualityFields(
+      Schema tableSchema, Schema projection, Set<Integer> equalityFieldIds) {
+    Set<Integer> missingIds =
+        Sets.difference(equalityFieldIds, TypeUtil.getProjectedIds(projection));
+    if (missingIds.isEmpty()) {
+      return projection;
+    }
+    Types.StructType missing = TypeUtil.select(tableSchema, missingIds).asStruct();
+    return new Schema(withFields(projection.asStruct(), missing).fields());
+  }
+
+  /** Adds the fields of {@code extra} that {@code struct} lacks, recursing into shared structs. */
+  private static Types.StructType withFields(Types.StructType struct, Types.StructType extra) {
+    List<Types.NestedField> fields = Lists.newArrayList(struct.fields());
+    for (Types.NestedField field : extra.fields()) {
+      Types.@Nullable NestedField existing = struct.field(field.fieldId());
+      if (existing == null) {
+        fields.add(field);
+      } else if (existing.type().isStructType()) {
+        Types.StructType merged =
+            withFields(existing.type().asStructType(), field.type().asStructType());
+        fields.set(
+            fields.indexOf(existing), Types.NestedField.from(existing).ofType(merged).build());
+      }
+    }
+    return Types.StructType.of(fields);
   }
 }

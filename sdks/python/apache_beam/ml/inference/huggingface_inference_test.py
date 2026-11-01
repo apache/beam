@@ -47,7 +47,6 @@ try:
   import tensorflow as tf
   import torch
   from transformers import AutoModel
-  from transformers import TFAutoModel
 
   from apache_beam.ml.inference.tensorflow_inference_test import FakeTFTensorModel
   from apache_beam.ml.inference.tensorflow_inference_test import _compare_tensor_prediction_result
@@ -60,7 +59,7 @@ _ML_FRAMEWORKS = ('tensorflow', 'torch', 'transformers')
 
 def fake_inference_fn_tensor(
     batch: Sequence[Union['tf.Tensor', 'torch.Tensor']],
-    model: Union['AutoModel', 'TFAutoModel'],
+    model: Any,
     device,
     inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
@@ -86,7 +85,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     fake_model = FakeTFTensorModel()
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
-        model_class=TFAutoModel,
+        model_class=AutoModel,
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
     expected_predictions = [
@@ -103,7 +102,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     fake_model = FakeTFTensorModel()
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
-        model_class=TFAutoModel,
+        model_class=AutoModel,
         inference_fn=fake_inference_fn_tensor,
         inference_args={"add": True})
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
@@ -125,7 +124,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     fake_model = FakeTorchModel()
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
-        model_class=TFAutoModel,
+        model_class=AutoModel,
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [torch.tensor(1), torch.tensor(10), torch.tensor(100)]
     inference_runner.run_inference(batched_examples, fake_model)
@@ -135,7 +134,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     fake_model = FakeTFTensorModel()
     inference_runner = HuggingFaceModelHandlerTensor(
         model_uri='unused',
-        model_class=TFAutoModel,
+        model_class=AutoModel,
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [tf.constant(1), tf.constant(10), tf.constant(100)]
     inference_runner.run_inference(batched_examples, fake_model)

@@ -379,6 +379,32 @@ class EmbeddingFromStringTest(unittest.TestCase):
 
 
 class OpenAIModelHandlerTest(unittest.TestCase):
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError,
+                                "max_batch_weight requires element_size_fn"):
+      OpenAIModelHandler(
+          model_name=_TEST_MODEL,
+          request_fn=chat_completion_from_string,
+          max_batch_weight=100)
+
+  def test_max_batch_weight_cannot_combine_with_length_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, "cannot be combined with length-based batching"):
+      OpenAIModelHandler(
+          model_name=_TEST_MODEL,
+          request_fn=chat_completion_from_string,
+          max_batch_weight=100,
+          element_size_fn=len,
+          batch_length_fn=len)
+
+  def test_batch_bucket_boundaries_require_batch_length_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "batch_bucket_boundaries requires batch_length_fn"):
+      OpenAIModelHandler(
+          model_name=_TEST_MODEL,
+          request_fn=chat_completion_from_string,
+          batch_bucket_boundaries=[16, 32])
+
   @mock.patch('apache_beam.ml.inference.openai_inference.OpenAI')
   def test_create_client_with_api_key(self, mock_openai):
     handler = OpenAIModelHandler(
@@ -445,7 +471,8 @@ class OpenAIModelHandlerTest(unittest.TestCase):
         min_batch_size=2,
         max_batch_size=10,
         max_batch_duration_secs=5,
-        max_batch_weight=100)
+        max_batch_weight=100,
+        element_size_fn=len)
     kwargs = handler.batch_elements_kwargs()
     self.assertEqual(kwargs['min_batch_size'], 2)
     self.assertEqual(kwargs['max_batch_size'], 10)

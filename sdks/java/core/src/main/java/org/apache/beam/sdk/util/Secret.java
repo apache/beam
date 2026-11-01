@@ -198,6 +198,9 @@ public abstract class Secret implements Serializable {
    * <p>The secret string should be formatted like:
    * 'type:&lt;secret_type&gt;;&lt;secret_param&gt;:&lt;value&gt;'
    *
+   * <p>Only the first ':' of each parameter separates the name from the value, so values may
+   * contain ':' (e.g. ARNs or URLs), but not ';'.
+   *
    * <p>For example, 'type:GcpSecret;version_name:my_secret/versions/latest' would return a
    * GcpSecret initialized with 'my_secret/versions/latest'.
    */
@@ -207,10 +210,16 @@ public abstract class Secret implements Serializable {
     }
     Map<String, String> paramMap = new HashMap<>();
     for (String param : secretOption.split(";", -1)) {
-      String[] parts = param.split(":", 2);
-      if (parts.length == 2) {
-        paramMap.put(parts[0], parts[1]);
+      if (param.isEmpty()) {
+        continue;
       }
+      String[] parts = param.split(":", 2);
+      if (parts.length != 2) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid secret parameter '%s', expected '<secret_param>:<value>'", param));
+      }
+      paramMap.put(parts[0], parts[1]);
     }
 
     if (!paramMap.containsKey("type")) {

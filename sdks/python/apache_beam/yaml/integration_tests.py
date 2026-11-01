@@ -29,7 +29,6 @@ import secrets
 import shutil
 import sqlite3
 import string
-import struct
 import tempfile
 import time
 import unittest
@@ -38,42 +37,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import requests
-
-from apache_beam.coders import Coder
-from apache_beam.coders.coder_impl import CoderImpl
-
-
-class BigEndianIntegerCoderImpl(CoderImpl):
-  """Coder implementation for big-endian integers used in cross-language tests.
-
-  This is needed because Java's BigEndianIntegerCoder falls back to the generic
-  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
-  Python's FnApiRunner needs to know how to decode it.
-  """
-  def encode_to_stream(self, value, stream, nested):
-    stream.write(struct.pack('>i', value))
-
-  def decode_from_stream(self, stream, nested):
-    return struct.unpack('>i', stream.read(4))[0]
-
-
-class BigEndianIntegerCoder(Coder):
-  def get_impl(self):
-    return BigEndianIntegerCoderImpl()
-
-
-# Register the coder with the fallback URN used by the Java SDK for this coder.
-# This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder in integration tests.
-Coder.register_urn(
-    'beam:coders:javasdk:0.1',
-    None, lambda payload, components, context: BigEndianIntegerCoder())
-
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytds
+import requests
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
@@ -107,6 +75,7 @@ from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.utils import retry
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
@@ -299,41 +268,43 @@ def temp_bigquery_table(
   table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  if table_schema:
-    schema = get_table_schema_from_string(table_schema)
-    additional_create_parameters = None
-    if primary_key:
-      pk_columns = set(primary_key)
-      for field in schema.fields:
-        if field.name in pk_columns:
-          field.mode = 'REQUIRED'
-      additional_create_parameters = {
-          'tableConstraints': bigquery.TableConstraints(
-              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
-                  columns=list(primary_key)))
-      }
-    bigquery_client.get_or_create_table(
-        project_id=project,
-        dataset_id=dataset_id,
-        table_id=table_id,
-        schema=schema,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_APPEND',
-        additional_create_parameters=additional_create_parameters)
-    logging.info(
-        "Created table %s.%s.%s (primary_key=%s)",
-        project,
-        dataset_id,
-        table_id,
-        primary_key)
-  if use_colon_table_spec:
-    yield f'{project}:{dataset_id}.{table_id}'
-  else:
-    yield f'{project}.{dataset_id}.{table_id}'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):
@@ -410,6 +381,15 @@ def temp_mongodb_table():
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
+
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    @retry.with_exponential_backoff(num_retries=5, initial_delay_secs=1)
+    def _wait_for_mongo():
+      mongo_client = mongo_container.get_connection_client()
+      mongo_client.admin.command('ping')
+
+    _wait_for_mongo()
 
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
@@ -1275,6 +1255,40 @@ def temp_delta_cdc_table():
     # Version 1 commit
     table_data_1 = pa.table({"name": ["c"]})
     write_deltalake(temp_dir, table_data_1, mode="append")
+
+    yield temp_dir
+
+
+@contextlib.contextmanager
+def temp_delta_cdc_table_with_updates():
+  try:
+    from deltalake import DeltaTable
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  # The CDC sink needs a non-null key.
+  schema = pa.schema([
+      pa.field("id", pa.int64(), nullable=False),
+      pa.field("item", pa.string()),
+      pa.field("qty", pa.int64()),
+  ])
+
+  def orders(*rows):
+    return pa.Table.from_pylist([dict(zip(schema.names, row)) for row in rows],
+                                schema=schema)
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0: three new orders.
+    write_deltalake(
+        temp_dir,
+        orders((1, "apple", 3), (2, "pear", 5), (3, "plum", 2)),
+        configuration={"delta.enableChangeDataFeed": "true"})
+    # Versions 1 to 3: update order 1, delete order 2, add order 4.
+    table = DeltaTable(temp_dir)
+    table.update(updates={"qty": "4"}, predicate="id = 1")
+    table.delete("id = 2")
+    write_deltalake(temp_dir, orders((4, "kiwi", 1)), mode="append")
 
     yield temp_dir
 

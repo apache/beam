@@ -299,7 +299,10 @@ class PeriodicImpulse(PTransform):
       data: Optional[Sequence[Any]] = None,
       rebase: RebaseMode = RebaseMode.REBASE_NONE):
     '''
-    :param start_timestamp: Timestamp for first element.
+    :param start_timestamp: Timestamp for first element. Defaults to the time
+      this module was first imported, not the time the transform is created
+      or the pipeline starts. Pass an explicit timestamp, or use `rebase`, to
+      start relative to pipeline execution.
     :param stop_timestamp: Timestamp at or after which no elements will be
       output.
     :param fire_interval: Interval in seconds at which to output elements.
