@@ -51,10 +51,24 @@ public final class FirestoreV1BatchWriteRampUpStartTest {
   }
 
   @Test
-  public void batchWrite_olderUpdateCompatibilityVersion_keepsPreviousPipelineShape() {
+  public void batchWrite_updateCompatibilityVersion_2_78_0_keepsPreviousPipelineShape() {
+    assertEquals(0, batchWriteSideInputs(withUpdateCompatibilityVersion("2.78.0"), false).size());
+  }
+
+  @Test
+  public void batchWriteWithDeadLetterQueue_updateCompatibilityVersion_2_78_0_keepsPreviousShape() {
+    assertEquals(0, batchWriteSideInputs(withUpdateCompatibilityVersion("2.78.0"), true).size());
+  }
+
+  @Test
+  public void batchWrite_updateCompatibilityVersion_2_79_0_usesPipelineWideRampUpStart() {
+    assertEquals(1, batchWriteSideInputs(withUpdateCompatibilityVersion("2.79.0"), false).size());
+  }
+
+  private static PipelineOptions withUpdateCompatibilityVersion(String version) {
     StreamingOptions options = PipelineOptionsFactory.as(StreamingOptions.class);
-    options.setUpdateCompatibilityVersion("2.77.0");
-    assertEquals(0, batchWriteSideInputs(options, false).size());
+    options.setUpdateCompatibilityVersion(version);
+    return options;
   }
 
   private static List<PCollectionView<?>> batchWriteSideInputs(
