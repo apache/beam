@@ -171,7 +171,7 @@ class GcsUtilV1 {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
-          hasExperiment(options, "use_grpc_for_gcs"),
+          hasExperiment(options, GcsUtil.USE_GRPC_FOR_GCS_EXPERIMENT),
           gcsOptions.getGcpCredential(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
           gcsOptions.getGcsRewriteDataOpBatchLimit(),

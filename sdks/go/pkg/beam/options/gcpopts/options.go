@@ -25,6 +25,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"golang.org/x/oauth2/google"
 )
 
@@ -34,7 +36,34 @@ var (
 
 	// Region is the GCP region where the job should be run.
 	Region = flag.String("region", "", "GCP Region (required)")
+
+	// GcsEndpoint overrides the Google Cloud Storage API endpoint.
+	GcsEndpoint = flag.String("gcs_endpoint", "", "The URL for the GCS API, "+
+		"e.g. https://storage.googleapis.com/storage/v1/ (optional). If not set, the "+
+		"endpoint is derived from the universe domain, which is read from "+
+		"GOOGLE_CLOUD_UNIVERSE_DOMAIN or the default credentials.")
 )
+
+// GetGcsEndpoint returns the GCS endpoint override from the --gcs_endpoint
+// flag. If the flag is unset, it falls back to the "gcs_endpoint" pipeline
+// option, which is how the value reaches remote workers, where flags are not
+// parsed. Returns an empty string if no override is configured.
+func GetGcsEndpoint() string {
+	return gcsx.GetGcsEndpoint()
+}
+
+// GetUniverseDomain returns the Google Cloud universe domain, first from the
+// GOOGLE_CLOUD_UNIVERSE_DOMAIN environment variable, then falling back to the
+// universe domain of the default credentials. Returns an empty string if it
+// cannot be determined.
+//
+// Google API clients don't infer the universe domain from the credentials,
+// and requests fail if the two differ, so clients should pass this value via
+// option.WithUniverseDomain to support non-default universes such as Trusted
+// Partner Cloud (TPC).
+func GetUniverseDomain(ctx context.Context) string {
+	return gcpx.GetUniverseDomain(ctx)
+}
 
 // GetProject returns the project, if non empty and exits otherwise.
 // Convenience function.

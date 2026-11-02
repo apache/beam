@@ -31,7 +31,9 @@ import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.ReadUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Cast;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -167,7 +169,21 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
                       watermarkColumn, scanConfig.getWatermarkColumnTimeUnit())));
     }
 
-    return merged.setRowSchema(outputRowSchema);
+    Schema requestedRowSchema =
+        CdcOutputUtils.outputSchema(
+            scanConfig,
+            IcebergUtils.icebergSchemaToBeamSchema(
+                scanConfig.getRequestedSchema(), scanConfig.getUpdateCompatibilityVersion()));
+    if (requestedRowSchema.equals(outputRowSchema)) {
+      return merged.setRowSchema(outputRowSchema);
+    }
+    // the primary key or watermark column was read only for internal use
+    return merged
+        .setRowSchema(outputRowSchema)
+        .apply(
+            "Drop Internal Columns",
+            ParDo.of(new DropInternalColumns(outputRowSchema, requestedRowSchema)))
+        .setRowSchema(requestedRowSchema);
   }
 
   /**
@@ -207,5 +223,21 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
                         s.getSnapshotId(), Instant.ofEpochMilli(s.getTimestampMillis())))
             .collect(Collectors.toList());
     return input.apply("Create Snapshot Range", Create.timestamped(timestamped));
+  }
+
+  /** Drops columns read only for internal use. Rows keep their ValueKind and timestamp. */
+  private static class DropInternalColumns extends DoFn<Row, Row> {
+    private final Schema inputSchema;
+    private final Schema outputSchema;
+
+    DropInternalColumns(Schema inputSchema, Schema outputSchema) {
+      this.inputSchema = inputSchema;
+      this.outputSchema = outputSchema;
+    }
+
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<Row> out) {
+      out.output(Cast.castRow(row, inputSchema, outputSchema));
+    }
   }
 }

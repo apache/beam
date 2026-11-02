@@ -289,7 +289,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:prism:java:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
-  dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
   dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
@@ -393,7 +392,6 @@ tasks.register("flinkPreCommit") {
 tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:preCommit")
   dependsOn(":sdks:java:extensions:sql:buildDependents")
-  dependsOn(":sdks:java:extensions:sql:datacatalog:build")
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
@@ -442,7 +440,6 @@ tasks.register("javaAvroVersionsTest") {
 tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
-  dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
   dependsOn(":sdks:java:extensions:sql:iceberg:integrationTest")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
@@ -985,7 +982,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.15")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.16")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

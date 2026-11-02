@@ -378,9 +378,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
-          fieldRet = -1 * (nullsFirst.get(i) ? -1 : 1);
+          // Return early as NULLS FIRST/LAST is independent of ASC/DESC orientation.
+          fieldRet = nullsFirst.get(i) ? -1 : 1;
+          return fieldRet;
         } else if (!isValue1Null && isValue2Null) {
-          fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
+          fieldRet = nullsFirst.get(i) ? 1 : -1;
+          return fieldRet;
         } else {
           switch (sqlTypeName) {
             case TINYINT:
@@ -389,8 +392,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case BIGINT:
             case FLOAT:
             case DOUBLE:
+            case DECIMAL:
+            case BOOLEAN:
             case VARCHAR:
+            case CHAR:
             case DATE:
+            case TIME:
             case TIMESTAMP:
               Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
               Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);

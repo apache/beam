@@ -101,6 +101,7 @@ public class Managed {
   public static final String POSTGRES = "postgres";
   public static final String MYSQL = "mysql";
   public static final String SQL_SERVER = "sqlserver";
+  public static final String ICEBERG_ADD_FILES = "iceberg_add_files";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
@@ -124,6 +125,9 @@ public class Managed {
           .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_WRITE))
           .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_WRITE))
           .put(SQL_SERVER, getUrn(ExternalTransforms.ManagedTransforms.Urns.SQL_SERVER_WRITE))
+          .put(
+              ICEBERG_ADD_FILES,
+              getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_ADD_FILES))
           .build();
 
   /**
@@ -168,6 +172,9 @@ public class Managed {
    *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
    *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables <a
    *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO</a>
+   *   <li>{@link Managed#ICEBERG_ADD_FILES} : Register existing data files in Apache Iceberg tables
+   *       using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/AddFiles.html">AddFiles</a>
    * </ul>
    */
   public static ManagedTransform write(String sink) {

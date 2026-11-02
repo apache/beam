@@ -105,6 +105,7 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
@@ -142,8 +143,20 @@ public class GcsUtilV1Test {
     MetricsEnvironment.setCurrentContainer(null);
   }
 
-  private static GcsOptions gcsOptionsWithTestCredential() {
+  /**
+   * These tests exercise {@link GcsUtilV1}, which is no longer the default, so every {@link
+   * GcsUtil} they build must opt into it with the {@code disable_gcsutil_v2} experiment.
+   */
+  private static GcsOptions gcsOptionsUsingV1() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions
+        .as(ExperimentalOptions.class)
+        .setExperiments(Collections.singletonList(GcsUtil.DISABLE_GCSUTIL_V2_EXPERIMENT));
+    return pipelineOptions;
+  }
+
+  private static GcsOptions gcsOptionsWithTestCredential() {
+    GcsOptions pipelineOptions = gcsOptionsUsingV1();
     pipelineOptions.setGcpCredential(new TestCredential());
     return pipelineOptions;
   }
@@ -181,7 +194,7 @@ public class GcsUtilV1Test {
             .setFastFailOnNotFoundEnabled(false)
             .build();
 
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    GcsOptions pipelineOptions = gcsOptionsUsingV1();
     pipelineOptions.setGoogleCloudStorageReadOptions(readOptions);
 
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
@@ -1746,7 +1759,7 @@ public class GcsUtilV1Test {
 
   private void testWriteMetrics(boolean enabled) throws IOException {
     // arrange
-    GcsOptions gcsOptions = PipelineOptionsFactory.create().as(GcsOptions.class);
+    GcsOptions gcsOptions = gcsOptionsUsingV1();
     gcsOptions.setEnableBucketWriteMetricCounter(enabled);
     gcsOptions.setGcsWriteCounterPrefix("test_counter");
     GcsUtilMock gcsUtil = GcsUtilMock.createMockWithMockStorage(gcsOptions, null);
@@ -1774,7 +1787,7 @@ public class GcsUtilV1Test {
   private void testReadMetrics(boolean enabled, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     // arrange
-    GcsOptions gcsOptions = PipelineOptionsFactory.create().as(GcsOptions.class);
+    GcsOptions gcsOptions = gcsOptionsUsingV1();
     gcsOptions.setEnableBucketReadMetricCounter(enabled);
     gcsOptions.setGcsReadCounterPrefix("test_counter");
     if (readOptions != null) {
@@ -1833,7 +1846,7 @@ public class GcsUtilV1Test {
 
   @Test
   public void testGcsEndpoint() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    GcsOptions pipelineOptions = gcsOptionsUsingV1();
     pipelineOptions.setGcsEndpoint("http://localhost:4443/storage/v1/");
 
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();

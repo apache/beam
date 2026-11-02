@@ -2405,10 +2405,10 @@ public class StreamingDataflowWorkerTest {
 
     // Wait until the worker has given up.
     int maxTries = 100;
-    while (maxTries-- > 0 && !worker.workExecutorIsEmpty()) {
+    while (maxTries-- > 0 && !worker.workExecutorIsEmptyForTesting()) {
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
-    assertTrue(worker.workExecutorIsEmpty());
+    assertTrue(worker.workExecutorIsEmptyForTesting());
 
     // Spam worker updates a few times.
     maxTries = 10;
@@ -4005,7 +4005,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4067,7 +4067,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4138,7 +4138,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4213,7 +4213,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(

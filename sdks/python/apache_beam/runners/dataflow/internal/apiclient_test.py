@@ -520,6 +520,81 @@ class UtilTest(unittest.TestCase):
 
     self._verify_pipeline_sdk_not_overridden(pipeline_options)
 
+  def test_default_container_base_repository(self):
+    pipeline_options = PipelineOptions(['--temp_location', 'gs://any/temp'])
+    self.assertEqual(
+        apiclient.get_container_base_repository_from_options(pipeline_options),
+        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY)
+    self.assertEqual(
+        apiclient.get_container_base_repository_from_options(None),
+        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY)
+    self.assertTrue(
+        apiclient.get_container_image_from_options(pipeline_options).startswith(
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/beam_python'))
+
+  def test_custom_container_base_repository(self):
+    base = 'docker.example.com/my-prefix/cloud-dataflow/v1beta3'
+    for value in [base, base + '/']:
+      pipeline_options = PipelineOptions([
+          '--temp_location',
+          'gs://any/temp',
+          '--dataflow_container_base_repository=' + value
+      ])
+      self.assertEqual(
+          apiclient.get_container_base_repository_from_options(
+              pipeline_options),
+          base)
+      self.assertEqual(
+          apiclient.get_container_image_from_options(pipeline_options),
+          '%s/beam_python%d.%d_sdk:%s' % (
+              base,
+              sys.version_info[0],
+              sys.version_info[1],
+              apiclient._get_required_container_version()))
+
+  def test_sdk_container_image_takes_precedence_over_base_repository(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any/temp',
+        '--dataflow_container_base_repository=docker.example.com/prefix',
+        '--sdk_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+    self.assertEqual(
+        apiclient.get_container_image_from_options(pipeline_options),
+        'dummy_prefix/dummy_name:dummy_tag')
+
+  def test_custom_container_base_repository_for_xlang_environments(self):
+    base = 'docker.example.com/my-prefix/cloud-dataflow/v1beta3'
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--dataflow_container_base_repository=' + base
+    ])
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    dummy_env = DockerEnvironment(
+        container_image='apache/beam_java11_sdk:2.00.0rc1')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=dummy_env)
+
+    # Accessing non-public method for testing.
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, {}, pipeline_options)
+
+    from apache_beam.utils import proto_utils
+    images = [
+        proto_utils.parse_Bytes(
+            env.payload, beam_runner_api_pb2.DockerPayload).container_image
+        for env in proto_pipeline.components.environments.values()
+    ]
+    self.assertIn(base + '/beam_java11_sdk:2.00.0', images)
+    self.assertFalse(
+        any(
+            image.startswith(names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY)
+            for image in images))
+
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'

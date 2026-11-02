@@ -32,7 +32,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.ReadUtils;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.Accessor;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.Schema;
@@ -53,6 +55,7 @@ import org.apache.iceberg.io.SeekableInputStream;
 import org.apache.iceberg.parquet.ParquetMetricsRowGroupFilter;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.NaNUtil;
 import org.apache.iceberg.util.StructLikeSet;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
@@ -214,10 +217,11 @@ public final class CdcReadUtils {
       IcebergScanConfig scanConfig,
       boolean useProjectedSchema) {
     String dataFilePath = task.getDataFile().getPath();
+    Schema dataSchema = useProjectedSchema ? scanConfig.getRequiredSchema() : table.schema();
     Schema outputSchema =
         CdcOutputUtils.readSchemaWithRowMetadata(
             scanConfig.getMetadataColumns(),
-            useProjectedSchema ? scanConfig.getRequiredSchema() : table.schema());
+            ReadUtils.withEqualityFields(table.schema(), dataSchema, equalityFieldIds(task)));
     switch (task.getType()) {
       case ADDED_ROWS:
         DeleteFilter<Record> addedDeletesFilter =
@@ -234,6 +238,18 @@ public final class CdcReadUtils {
       default:
         throw new IllegalStateException("Unknown ChangelogScanTask type: " + task.getType());
     }
+  }
+
+  private static Set<Integer> equalityFieldIds(SerializableChangelogTask task) {
+    Set<Integer> ids = new HashSet<>();
+    for (SerializableDeleteFile delete :
+        Iterables.concat(task.getAddedDeletes(), task.getExistingDeletes())) {
+      @Nullable List<Integer> deleteIds = delete.getEqualityFieldIds();
+      if (deleteIds != null) {
+        ids.addAll(deleteIds);
+      }
+    }
+    return ids;
   }
 
   /**
@@ -303,7 +319,7 @@ public final class CdcReadUtils {
     // byte-range path above already incorporates the eq filter
     Expression eqResidual = Expressions.alwaysTrue();
     if (posFiles.isEmpty() && !eqFiles.isEmpty()) {
-      EqualityPushdownResult eqPushdown = buildEqualityDeletePushdown(table, eqFiles);
+      EqualityPushdownResult eqPushdown = buildEqualityDeletePushdown(table, outputSchema, eqFiles);
       eqResidual = eqPushdown.applicable ? eqPushdown.residual : Expressions.alwaysTrue();
       preloadedDeletes = eqPushdown.preloadedDeletes(null);
     }
@@ -360,14 +376,14 @@ public final class CdcReadUtils {
     @Nullable ParquetMetricsRowGroupFilter eqFilter = null;
     EqualityPushdownResult eqPushdown = EqualityPushdownResult.notApplicable();
     if (!eqFiles.isEmpty()) {
-      eqPushdown = buildEqualityDeletePushdown(table, eqFiles);
+      eqPushdown = buildEqualityDeletePushdown(table, outputSchema, eqFiles);
       if (!eqPushdown.applicable) {
         // eq deletes are present but we can't safely identify which row groups they target.
         // A narrowed position-only range could drop eq-deleted rows, so fall back to the
         // default full-range reader. DeleteReader will still apply residual per record.
         return PositionPushdownResult.fallback(eqPushdown.preloadedDeletes(posIndex));
       }
-      eqFilter = new ParquetMetricsRowGroupFilter(table.schema(), eqPushdown.residual);
+      eqFilter = new ParquetMetricsRowGroupFilter(outputSchema, eqPushdown.residual);
     }
     DeleteReader.PreloadedDeletes preloadedDeletes = eqPushdown.preloadedDeletes(posIndex);
 
@@ -479,10 +495,12 @@ public final class CdcReadUtils {
   /**
    * Returns an {@code IN} expression suitable as a Parquet residual for the given equality-delete
    * files, or {@link Expressions#alwaysTrue()} if pushdown is not applicable. See {@link
-   * #deletedRowsForTask} for the applicability rules.
+   * #deletedRowsForTask} for the applicability rules. The expression names the column as {@code
+   * readSchema} does, since the reader binds it against that schema.
    */
-  private static EqualityPushdownResult buildEqualityDeletePushdown(
-      Table table, List<DeleteFile> eqFiles) {
+  @VisibleForTesting
+  static EqualityPushdownResult buildEqualityDeletePushdown(
+      Table table, Schema readSchema, List<DeleteFile> eqFiles) {
     // All eq delete files in this task must share a single equality field id.
     Set<Integer> sharedIds = null;
     for (DeleteFile df : eqFiles) {
@@ -498,11 +516,14 @@ public final class CdcReadUtils {
     }
 
     int fieldId = Iterables.getOnlyElement(sharedIds);
-    Types.NestedField field = table.schema().findField(fieldId);
-    if (field == null) {
+    Types.NestedField field = readSchema.findField(fieldId);
+    Schema deleteSchema = TypeUtil.select(table.schema(), sharedIds);
+    // the delete schema keeps parent structs, so an accessor reaches nested fields
+    @Nullable Accessor<StructLike> accessor = deleteSchema.accessorForField(fieldId);
+    // row-group filters read a column missing from the file as nulls, ignoring its initial default
+    if (field == null || field.initialDefault() != null || accessor == null) {
       return EqualityPushdownResult.notApplicable();
     }
-    Schema deleteSchema = TypeUtil.select(table.schema(), sharedIds);
 
     DeleteLoader loader = new BaseDeleteLoader(df -> table.io().newInputFile(df.location()));
     StructLikeSet set;
@@ -520,12 +541,11 @@ public final class CdcReadUtils {
     if (set.size() > IN_PREDICATE_LIMIT) {
       return EqualityPushdownResult.notApplicable(preloadedSets);
     }
-    Class<?> javaClass = field.type().typeId().javaClass();
     List<Object> values = new ArrayList<>(set.size());
     for (StructLike s : set) {
-      @Nullable Object v = s.get(0, javaClass);
-      if (v == null) {
-        // Nulls don't match an IN-expression. pushing down would drop those deletions.
+      @Nullable Object v = accessor.get(s);
+      if (v == null || NaNUtil.isNaN(v)) {
+        // IN-expressions can't match nulls or NaNs. pushing down would drop those deletions.
         return EqualityPushdownResult.notApplicable(preloadedSets);
       }
       values.add(v);
@@ -533,7 +553,8 @@ public final class CdcReadUtils {
     if (values.isEmpty()) {
       return EqualityPushdownResult.notApplicable(preloadedSets);
     }
-    return EqualityPushdownResult.applicable(Expressions.in(field.name(), values), preloadedSets);
+    return EqualityPushdownResult.applicable(
+        Expressions.in(readSchema.findColumnName(fieldId), values), preloadedSets);
   }
 
   private static final class PositionPushdownResult {
@@ -557,11 +578,11 @@ public final class CdcReadUtils {
     }
   }
 
-  private static final class EqualityPushdownResult {
+  static final class EqualityPushdownResult {
     private static final EqualityPushdownResult NOT_APPLICABLE =
         new EqualityPushdownResult(Expressions.alwaysTrue(), Collections.emptyMap(), false);
 
-    private final Expression residual;
+    final Expression residual;
     private final Map<Set<Integer>, StructLikeSet> preloadedSets;
     private final boolean applicable;
 
