@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import com.google.cloud.Timestamp;
+import java.util.Objects;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -27,9 +28,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * ignores claims for the same timestamp multiple times, and refuses non-checkpoint dynamic splits
  * so only a single active restriction polls and schedules new partitions.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DetectNewPartitionsRangeTracker extends TimestampRangeTracker {
 
   public DetectNewPartitionsRangeTracker(TimestampRange range) {
@@ -47,7 +45,7 @@ public class DetectNewPartitionsRangeTracker extends TimestampRangeTracker {
    */
   @Override
   public boolean tryClaim(Timestamp position) {
-    if (position.equals(lastAttemptedPosition)) {
+    if (Objects.equals(position, lastAttemptedPosition)) {
       return true;
     }
 
