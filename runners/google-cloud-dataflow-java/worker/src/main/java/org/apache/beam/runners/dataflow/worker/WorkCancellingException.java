@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -36,8 +39,9 @@ public class WorkCancellingException extends RuntimeException {
 
   /** Returns whether an exception was caused by a {@link WorkCancellingException}. */
   public static boolean isWorkCancellingException(Throwable t) {
+    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
     @Nullable Throwable throwable = t;
-    while (throwable != null) {
+    while (throwable != null && seen.add(throwable)) {
       if (throwable instanceof WorkCancellingException) {
         return true;
       }

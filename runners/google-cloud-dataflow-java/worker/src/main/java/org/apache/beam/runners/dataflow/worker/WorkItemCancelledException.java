@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Indicates that the work item was canceled. When this is thrown, the work is already marked as
  * failed. This is different from WorkItemCancellingException which is thrown before marking work as
@@ -26,5 +31,18 @@ public class WorkItemCancelledException extends RuntimeException {
 
   public WorkItemCancelledException(long sharding_key) {
     super("Work item cancelled for key " + sharding_key);
+  }
+
+  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
+  public static boolean isWorkItemCancelledException(Throwable t) {
+    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    @Nullable Throwable throwable = t;
+    while (throwable != null && seen.add(throwable)) {
+      if (throwable instanceof WorkItemCancelledException) {
+        return true;
+      }
+      throwable = throwable.getCause();
+    }
+    return false;
   }
 }
