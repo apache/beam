@@ -48,27 +48,63 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertIsNone(
         autoscaling_metrics.parse_prometheus_metric(prom_text, 'vllm:missing'))
 
+  def test_parse_prometheus_metric_exposition_details(self):
+    prom_text = (
+        # Series of one counter that differ only by label are summed.
+        'vllm:request_success_total{finished_reason="stop"} 10.0\n'
+        'vllm:request_success_total{finished_reason="length"} 5.0\n'
+        # A metric whose name merely starts with the requested one is ignored.
+        'vllm:request_success_total_created 1.7e9\n'
+        # Optional trailing timestamps are ignored.
+        'nv_inference_request_success{model="a"} 3 1700000000000\n'
+        # Quoted label values may contain commas, braces and escapes.
+        'labeled{path="a,b}c",quote="say \\"hi\\"",n="x\\ny"} 7\n'
+        '  \n'
+        'not a sample line\n')
+    parse = autoscaling_metrics.parse_prometheus_metric
+    self.assertEqual(parse(prom_text, 'vllm:request_success_total'), 15.0)
+    self.assertEqual(parse(prom_text, 'nv_inference_request_success'), 3.0)
+    self.assertEqual(
+        parse(prom_text, 'labeled', label_filter={'path': 'a,b}c'}), 7.0)
+    self.assertEqual(
+        parse(prom_text, 'labeled', label_filter={'quote': 'say "hi"'}), 7.0)
+    self.assertEqual(
+        parse(prom_text, 'labeled', label_filter={'n': 'x\ny'}), 7.0)
+    self.assertIsNone(
+        parse(prom_text, 'labeled', label_filter={'path': 'other'}))
+
   def test_num_loaded_models_publisher_aggregation(self):
-    samples = [(100.0 + i * 10, float(i + 1)) for i in range(10)]
-    pub = autoscaling_metrics.NumLoadedModelsPublisher(
-        tag='test',
-        signal_fn=lambda: 1.0,
-        aggregation='p90',
-        aggregation_window_secs=1800.0)
-    pub._samples = list(samples)
-    self.assertEqual(pub._aggregate(now=200.0), 9.0)
+    def published(aggregation, samples, window_secs=60.0):
+      """Feeds (timestamp, value) samples; returns the value after each."""
+      pub = autoscaling_metrics.NumLoadedModelsPublisher(
+          tag='test',
+          signal_fn=lambda: None,
+          aggregation=aggregation,
+          aggregation_window_secs=window_secs)
+      return [pub._record(value, now) for (now, value) in samples]
 
-    pub._samples = [(100.0, 2.0), (1900.0, 8.0), (1950.0, 10.0)]
-    self.assertEqual(pub._aggregate(now=2000.0), 10.0)
+    samples = [(100.0, 2.0), (102.0, 5.0), (104.0, 3.0)]
+    self.assertEqual(published('last', samples), [2.0, 5.0, 3.0])
+    self.assertEqual(published('max', samples), [2.0, 5.0, 5.0])
+    self.assertEqual(published('mean', samples), [2.0, 3.5, 10.0 / 3])
+    self.assertEqual(published('lifetime_max', samples), [2.0, 5.0, 5.0])
+    # Windowed policies forget samples older than the window.
+    self.assertEqual(
+        published('max', [(100.0, 9.0), (130.0, 4.0), (170.0, 3.0)]),
+        [9.0, 9.0, 4.0])
+    # lifetime_max never decays.
+    self.assertEqual(
+        published('lifetime_max', [(100.0, 9.0), (1000.0, 1.0)]), [9.0, 9.0])
+    # p90 over 1..10 is 9 (nearest rank).
+    ten = [(100.0 + i, float(i + 1)) for i in range(10)]
+    self.assertEqual(published('p90', ten, window_secs=1800.0)[-1], 9.0)
+    self.assertEqual(published('P50', ten, window_secs=1800.0)[-1], 5.0)
 
-    pub._samples = [(100.0, 2.0), (102.0, 5.0), (104.0, 3.0)]
-    pub._aggregation_window_secs = 60.0
-    pub._aggregation = 'max'
-    self.assertEqual(pub._aggregate(now=105.0), 5.0)
-    pub._aggregation = 'last'
-    self.assertEqual(pub._aggregate(now=105.0), 3.0)
-    pub._aggregation = 'mean'
-    self.assertAlmostEqual(pub._aggregate(now=105.0), 3.3333333333333335)
+  def test_num_loaded_models_publisher_rejects_unknown_aggregation(self):
+    for aggregation in ('median', 'p', 'p101', 'p9.5'):
+      with self.assertRaisesRegex(ValueError, 'Unknown aggregation'):
+        autoscaling_metrics.NumLoadedModelsPublisher(
+            tag='test', signal_fn=lambda: None, aggregation=aggregation)
 
   def test_publish_resets_process_wide_distribution_cell(self):
     pub = autoscaling_metrics.NumLoadedModelsPublisher(
