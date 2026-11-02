@@ -1340,6 +1340,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 500)
 
+  @unittest.skipIf(
+      sys.platform == 'win32',
+      'The resource module is not available on Windows.')
+  def test_no_resource_warning_when_model_manager_unavailable(self):
+    # ModelManager needs optional dependencies (e.g. torch). RunInference should
+    # still measure model memory with `resource` when ModelManager is missing.
+    with unittest.mock.patch.object(base, 'ModelManager', None), \
+        unittest.mock.patch.object(base.logging, 'warning') as mock_warning:
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([1, 5, 3, 10])
+            | base.RunInference(FakeModelHandler()))
+    messages = [str(call) for call in mock_warning.call_args_list]
+    self.assertFalse(
+        any('Resource module is not available' in m for m in messages),
+        messages)
+
   def test_forwards_batch_args(self):
     examples = list(range(100))
     with TestPipeline('FnApiRunner') as pipeline:
@@ -2415,7 +2433,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
-    raise Exception
+    raise RuntimeError('fake remote inference request failed')
 
   def batch_elements_kwargs(self):
     return {
@@ -2475,22 +2493,29 @@ class RunInferenceRemoteTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_repeated_requests_fail(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_repeated_requests_fail(self, sleep, unused_throttle):
     test_pipeline = TestPipeline()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(RuntimeError,
+                                'fake remote inference request failed'):
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
           | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
       test_pipeline.run()
+    self.assertEqual(sleep.call_count, 2)
 
-  def test_works_on_retry(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_works_on_retry(self, sleep, unused_throttle):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+    sleep.assert_called()
 
   def test_exception_on_load_model_override(self):
     with self.assertRaises(Exception):

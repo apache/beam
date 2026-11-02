@@ -1361,20 +1361,47 @@ message TimeDomain {
 // from a GroupByKey or CombinePerKey
 //
 // A trigger is described in terms of when it is _ready_ to permit output.
+//
+// Triggers are evaluated per key and window. Each time the root trigger is
+// ready, it fires and the current pane is output.
+//
+// Some triggers "finish" after firing, meaning they will never be ready
+// again. Finishing only matters when composing triggers: it is how AfterEach
+// advances to its next subtrigger, how Repeat knows to reset its subtrigger,
+// and how OrFinally stops its main subtrigger.
+//
+// The root trigger should never finish before the window expires. A finished
+// root trigger would stop all output for the window, and data arriving
+// afterwards would be silently lost. SDKs should reject such triggers at
+// pipeline construction, for example suggesting wrapping them in Repeat.
+// To stop output early or discard data, use state and timers or a filter
+// instead.
 message Trigger {
 
-  // Ready when all subtriggers are ready.
+  // Ready once every subtrigger has become ready, not necessarily at the
+  // same time: a subtrigger that became ready earlier stays satisfied.
+  // Subtriggers do not produce output on their own.
+  //
+  // Fires once, producing a single pane, and then finishes.
   message AfterAll {
     repeated Trigger subtriggers = 1;
   }
 
   // Ready when any subtrigger is ready.
+  //
+  // Fires once, producing a single pane, and then finishes, regardless of
+  // the other subtriggers.
   message AfterAny {
     repeated Trigger subtriggers = 1;
   }
 
   // Starting with the first subtrigger, ready when the _current_ subtrigger
-  // is ready. After output, advances the current trigger by one.
+  // is ready.
+  //
+  // Fires a pane each time the current subtrigger fires. Once the current
+  // subtrigger finishes, advances to the next one.
+  //
+  // Finishes when the last subtrigger finishes.
   message AfterEach {
     repeated Trigger subtriggers = 1;
   }
@@ -1384,6 +1411,14 @@ message Trigger {
   // May have implicitly-repeated subtriggers for early and late firings.
   // When the end of the window is reached, the trigger transitions between
   // the subtriggers.
+  //
+  // Fires an early pane each time early_firings is ready before the end of
+  // the window, an on-time pane when the input watermark passes the end of
+  // the window, and a late pane each time late_firings is ready after that.
+  //
+  // Without late_firings, finishes after the on-time firing, so it is only
+  // suitable as the root trigger when the allowed lateness is zero. With
+  // late_firings, never finishes before the window expires.
   message AfterEndOfWindow {
 
     // (Optional) A trigger governing output prior to the end of the window.
@@ -1393,7 +1428,11 @@ message Trigger {
     Trigger late_firings = 2;
   }
 
-  // After input arrives, ready when the specified delay has passed.
+  // After input arrives, ready when the specified delay has passed. The
+  // delay is measured in processing time from the arrival of the first
+  // element of the pane.
+  //
+  // Fires once, producing a single pane, and then finishes.
   message AfterProcessingTime {
 
     // (Required) The transforms to apply to an arriving element's timestamp,
@@ -1403,15 +1442,24 @@ message Trigger {
 
   // Ready whenever upstream processing time has all caught up with
   // the arrival time of an input element
+  //
+  // Fires once, producing a single pane, and then finishes.
   message AfterSynchronizedProcessingTime {
   }
 
   // The default trigger. Equivalent to AfterEndOfWindow { Late: Always }} but
   // specially denoted to indicate the user did not alter the triggering.
+  //
+  // Fires an on-time pane when the input watermark passes the end of the
+  // window, and a late pane for each late element after that.
+  //
+  // Never finishes.
   message Default {
   }
 
   // Ready whenever the requisite number of input elements have arrived.
+  //
+  // Fires once, producing a single pane, and then finishes.
   message ElementCount {
     // (Required) The number of elements that must arrive before this trigger fires.
     int32 element_count = 1;
@@ -1419,16 +1467,28 @@ message Trigger {
 
   // Never ready. There will only be an ON_TIME final output at window
   // expiration.
+  //
+  // Never fires itself. The final output comes from the window expiring.
+  //
+  // Never finishes before the window expires.
   message Never {
   }
 
   // Always ready. This can also be expressed as Repeat{ ElementCount(1) } but
   // is more explicit.
+  //
+  // Fires a pane for every arriving element.
+  //
+  // Never finishes.
   message Always {
   }
 
-  // Ready whenever either of its subtriggers are ready, but finishes output
-  // when the finally subtrigger fires.
+  // Ready whenever either of its subtriggers is ready.
+  //
+  // Fires a pane each time main fires, and a final pane when finally fires.
+  //
+  // Finishes when finally fires, or when main finishes, whichever happens
+  // first.
   message OrFinally {
 
     // (Required) Trigger governing main output; may fire repeatedly.
@@ -1438,8 +1498,12 @@ message Trigger {
     Trigger finally = 2;
   }
 
-  // Ready whenever the subtrigger is ready; resets state when the subtrigger
-  // completes.
+  // Ready whenever the subtrigger is ready.
+  //
+  // Fires a pane each time the subtrigger fires. When the subtrigger
+  // finishes, its state is reset so it can become ready again.
+  //
+  // Never finishes.
   message Repeat {
     // (Require) Trigger that is run repeatedly.
     Trigger subtrigger = 1;

@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,6 +232,11 @@ public final class BeamReaderCache {
     private final long idleTimeoutMillis;
     private final LongSupplier committedEpoch;
     private boolean started;
+    private boolean exhausted;
+    private boolean positionExhausted;
+    private boolean doneEligible;
+    private boolean doneWritten;
+    private boolean sentinelEmitted;
     private boolean inBatch;
     private boolean moved;
     private long positionEpoch;
@@ -258,11 +264,31 @@ public final class BeamReaderCache {
 
     public synchronized boolean startOrAdvance() throws IOException {
       moved = true;
-      if (!started) {
-        started = true;
-        return reader.start();
+      boolean hasElement = started ? reader.advance() : reader.start();
+      started = true;
+      if (!hasElement && !reader.getWatermark().isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+        exhausted = true;
       }
-      return reader.advance();
+      return hasElement;
+    }
+
+    /**
+     * Claims the one time end of stream sentinel for this reader once the driver has seen every
+     * split done.
+     */
+    public synchronized boolean claimSentinel(boolean emitSentinel) {
+      if (!emitSentinel || sentinelEmitted) {
+        return false;
+      }
+      sentinelEmitted = true;
+      return true;
+    }
+
+    /**
+     * Whether a committed batch exhausted this reader and its done marker has not been written yet.
+     */
+    synchronized boolean shouldWriteDone() {
+      return doneEligible && !doneWritten;
     }
 
     /**
@@ -288,6 +314,7 @@ public final class BeamReaderCache {
       if (positionEpoch != epoch || moved) {
         return false;
       }
+      doneEligible |= positionExhausted;
       inBatch = true;
       lastUsedMillis = System.currentTimeMillis();
       return true;
@@ -298,6 +325,8 @@ public final class BeamReaderCache {
       positionEpoch = endEpoch;
       positionMark = codedMark;
       pendingMark = mark;
+      positionExhausted = exhausted;
+      doneWritten |= doneEligible;
       moved = false;
       inBatch = false;
       lastUsedMillis = System.currentTimeMillis();
