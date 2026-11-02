@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -50,7 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements ParDoFn {
-  private final SimpleParDoFnHelpers<InputT, OutputT, W> helpers;
+  private final SimpleParDoFnHelpers<Object, InputT, OutputT, W> helpers;
   private @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
@@ -76,7 +75,8 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
             operationContext,
             doFnSchemaInformation,
             sideInputMapping,
-            runnerFactory);
+            runnerFactory,
+            this::onStartKey);
   }
 
   @Override
@@ -86,17 +86,14 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
       // There is non-trivial setup that needs to be performed for watermark propagation
       // even on empty bundles.
       helpers.reallyStartBundle();
-      onStartKey();
     }
   }
 
-  protected void onStartKey() {
-    // TODO(relax): This assumes single-key bundles, which will change! Refactor this to not make
-    // this assumption.
+  protected void onStartKey(Object key) {
     if (helpers.hasStreamingSideInput) {
       sideInputProcessor =
           new StreamingSideInputProcessor<>(
-              new StreamingSideInputFetcher<InputT, W>(
+              new StreamingSideInputFetcher<>(
                   helpers.fnInfo.getSideInputViews(),
                   helpers.fnInfo.getInputCoder(),
                   (WindowingStrategy<?, W>) helpers.fnInfo.getWindowingStrategy(),
@@ -123,20 +120,10 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   @Override
   @SuppressWarnings("unchecked")
   public void processElement(Object untypedElem) throws Exception {
-    if (helpers.fnRunner == null) {
-      // If we need to run reallyStartBundle in here, we need to make sure to switch the state
-      // sampler into the start state.
-      try (Closeable start = helpers.operationContext.enterStart()) {
-        helpers.reallyStartBundle();
-        onStartKey();
-      }
-    }
-    helpers.outputsPerElementTracker.onProcessElement();
-
-    WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
-    onProcessWindowedValue(elem);
-
-    helpers.outputsPerElementTracker.onProcessElementSuccess();
+    helpers.processElement(
+        helpers.stepContext.getKey(),
+        (WindowedValue<InputT>) untypedElem,
+        this::onProcessWindowedValue);
   }
 
   protected void onProcessWindowedValue(WindowedValue<InputT> elem) {
@@ -169,7 +156,6 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
 
   @Override
   public void processTimers() throws Exception {
-
     // Note: We need to get windowCoder to decode the timers.  If we haven't already deserialized
     // the fnInfo, we peek at a new instance to retrieve that. If this extra deserialization becomes
     // excessively costly, we could either (1) have the DoFnInstanceManager remember the associated
@@ -185,23 +171,23 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
         SimpleParDoFnHelpers.TimerType.USER,
         helpers.userStepContext,
         windowCoder,
-        this::onStartKey,
         () -> sideInputProcessor);
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.SYSTEM,
         helpers.stepContext,
         windowCoder,
-        this::onStartKey,
         () -> sideInputProcessor);
   }
 
   @Override
-  public void finishKey(Object key) throws Exception {}
+  public void finishKey(Object key) throws Exception {
+    helpers.finishKey(key, sideInputProcessor);
+    this.sideInputProcessor = null;
+  }
 
   @Override
   public void finishBundle() throws Exception {
     helpers.finishBundle(sideInputProcessor);
-    this.sideInputProcessor = null;
   }
 
   @Override
