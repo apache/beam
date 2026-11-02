@@ -195,49 +195,5 @@ func GetElementProcessingTimeout() time.Duration {
 // GetPipelineResourceHints parses known standard hints and returns the flag set hints for the pipeline.
 // In case of duplicate hint URNs, the last value specified will be used.
 func GetPipelineResourceHints() resource.Hints {
-	hints := make([]resource.Hint, 0, len(ResourceHints))
-	for _, hint := range ResourceHints {
-		name, val, ok := strings.Cut(hint, "=")
-		if !ok {
-			panic(fmt.Sprintf("unparsable resource hint: %q", hint))
-		}
-		var h resource.Hint
-		switch name {
-		case "min_ram", "beam:resources:min_ram_bytes:v1":
-			h = resource.ParseMinRAM(val)
-		case "accelerator", "beam:resources:accelerator:v1":
-			h = resource.Accelerator(val)
-		case "cpu_count", "beam:resources:cpu_count:v1":
-			h = resource.ParseCPUCount(val)
-		case "max_active_bundles_per_worker", "beam:resources:max_active_bundles_per_worker:v1":
-			h = resource.ParseMaxActiveBundlesPerWorker(val)
-		default:
-			if strings.HasPrefix(name, "beam:resources:") {
-				h = stringHint{urn: name, value: val}
-			} else {
-				panic(fmt.Sprintf("unknown resource hint: %v", hint))
-			}
-		}
-		hints = append(hints, h)
-	}
-	return resource.NewHints(hints...)
-}
-
-// stringHint is a backup implementation of hint for new standard hints.
-type stringHint struct {
-	urn, value string
-}
-
-func (h stringHint) URN() string {
-	return h.urn
-}
-
-func (h stringHint) Payload() []byte {
-	// Go strings are utf8, and if the string is ascii,
-	// byte conversion handles that directly.
-	return []byte(h.value)
-}
-
-func (h stringHint) MergeWithOuter(outer resource.Hint) resource.Hint {
-	return h
+	return resource.ParseHints(ResourceHints)
 }
