@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * href="https://developers.google.com/google-ads/api/docs/start">Google Ads API</a> over supported
  * versions of the Google Ads client libraries.
  *
- * @see GoogleAdsV25
+ * @see GoogleAdsV26
  */
 public abstract class GoogleAdsIO<GoogleAdsRowT, SearchGoogleAdsStreamRequestT> {
 
@@ -45,8 +45,8 @@ public abstract class GoogleAdsIO<GoogleAdsRowT, SearchGoogleAdsStreamRequestT> 
               PTransform<PCollection<SearchGoogleAdsStreamRequestT>, PCollection<GoogleAdsRowT>>>
       T readAll();
 
-  public static GoogleAdsV25 current() {
-    return GoogleAdsV25.INSTANCE;
+  public static GoogleAdsV26 current() {
+    return GoogleAdsV26.INSTANCE;
   }
 
   /**

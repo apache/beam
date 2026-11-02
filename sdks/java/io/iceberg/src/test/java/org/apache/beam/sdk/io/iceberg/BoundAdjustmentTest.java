@@ -100,6 +100,87 @@ public class BoundAdjustmentTest {
     return bytes == null ? null : Conversions.fromByteBuffer(field.type(), bytes);
   }
 
+  private static Schema tableSchemaOf(String name, org.apache.iceberg.types.Type type) {
+    return new Schema(Types.NestedField.optional(1, name, type));
+  }
+
+  private static int boundWidth(Metrics metrics, int fieldId) {
+    Map<Integer, ByteBuffer> bounds = metrics.lowerBounds();
+    ByteBuffer bytes = bounds == null ? null : bounds.get(fieldId);
+    return bytes == null ? -1 : bytes.remaining();
+  }
+
+  /**
+   * A promoted column is the one case where the file's width and the table's disagree with no
+   * annotation to signal it. Readers size the bound by the table's type, so a 4-byte bound under a
+   * long column cannot be decoded by an implementation that checks the width.
+   */
+  @Test
+  public void testIntBoundsUnderALongColumnAreWidened() throws IOException {
+    String file =
+        files.write(
+            "int32.parquet",
+            true,
+            Arrays.asList(column("id", PrimitiveTypeName.INT32, null)),
+            row(5),
+            row(1_000_000));
+    Schema table = tableSchemaOf("id", Types.LongType.get());
+
+    Metrics metrics = metricsOf(file, table);
+
+    assertEquals(8, boundWidth(metrics, 1));
+    assertEquals(5L, lower(metrics, table));
+    assertEquals(1_000_000L, upper(metrics, table));
+  }
+
+  @Test
+  public void testNegativeIntBoundsUnderALongColumnKeepTheirSign() throws IOException {
+    PrimitiveType id = column("id", PrimitiveTypeName.INT32, null);
+    String file = files.write("negative.parquet", true, Arrays.asList(id), row(-7), row(-1));
+    Schema table = tableSchemaOf("id", Types.LongType.get());
+
+    Metrics metrics = metricsOf(file, table);
+
+    assertEquals(8, boundWidth(metrics, 1));
+    assertEquals(-7L, lower(metrics, table));
+    assertEquals(-1L, upper(metrics, table));
+  }
+
+  @Test
+  public void testFloatBoundsUnderADoubleColumnAreWidened() throws IOException {
+    PrimitiveType score = column("score", PrimitiveTypeName.FLOAT, null);
+    String file = files.write("float.parquet", true, Arrays.asList(score), row(1.5f), row(1000.5f));
+    Schema table = tableSchemaOf("score", Types.DoubleType.get());
+
+    Metrics metrics = metricsOf(file, table);
+
+    assertEquals(8, boundWidth(metrics, 1));
+    assertEquals(1.5d, lower(metrics, table));
+    assertEquals(1000.5d, upper(metrics, table));
+  }
+
+  /**
+   * The invariant behind every case in this class, asserted directly: a stored bound must have the
+   * width the table column's type decodes, whatever the file's own type was. Tested per promotion
+   * Iceberg allows, so a promotion added later is covered without a new test.
+   */
+  @Test
+  public void testEveryAllowedPromotionStoresABoundOfTheTableTypeWidth() throws IOException {
+    PrimitiveType id = column("id", PrimitiveTypeName.INT32, null);
+    String intFile = files.write("promo-int.parquet", true, Arrays.asList(id), row(5), row(9));
+    PrimitiveType score = column("score", PrimitiveTypeName.FLOAT, null);
+    String floatFile =
+        files.write("promo-float.parquet", true, Arrays.asList(score), row(1.5f), row(2.5f));
+
+    assertEquals(
+        4, boundWidth(metricsOf(intFile, tableSchemaOf("id", Types.IntegerType.get())), 1));
+    assertEquals(8, boundWidth(metricsOf(intFile, tableSchemaOf("id", Types.LongType.get())), 1));
+    assertEquals(
+        4, boundWidth(metricsOf(floatFile, tableSchemaOf("score", Types.FloatType.get())), 1));
+    assertEquals(
+        8, boundWidth(metricsOf(floatFile, tableSchemaOf("score", Types.DoubleType.get())), 1));
+  }
+
   @Test
   public void testMillisTimestampBoundsAreMicros() throws IOException {
     String file =

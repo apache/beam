@@ -71,7 +71,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -547,7 +546,13 @@ public class BeamMicroBatchSourceTest implements Serializable {
                 (batch, batchId) -> {
                   List<List<Row>> target = BATCHES.get(queryName);
                   if (target != null) {
-                    target.add(batch.collectAsList());
+                    List<Row> rows = new ArrayList<>();
+                    for (Row row : batch.collectAsList()) {
+                      if (((byte[]) row.getAs(COL_PAYLOAD)).length > 0) {
+                        rows.add(row);
+                      }
+                    }
+                    target.add(rows);
                   }
                 })
         .queryName(queryName)
@@ -766,7 +771,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
         end,
         3L,
         30_000L,
-        600_000L);
+        600_000L,
+        false);
   }
 
   private static List<String> readBatch(BeamInputPartition<String> partition) throws IOException {
@@ -778,8 +784,10 @@ public class BeamMicroBatchSourceTest implements Serializable {
   private static void drainInto(BeamPartitionReader<String> reader, List<String> values)
       throws IOException {
     while (reader.next()) {
-      InternalRow row = reader.get();
-      values.add(decode(row.getBinary(0)));
+      byte[] payload = reader.get().getBinary(0);
+      if (payload.length > 0) {
+        values.add(decode(payload));
+      }
     }
     reader.close();
   }

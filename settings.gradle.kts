@@ -146,7 +146,6 @@ for (version in flink_versions.split(',')) {
     include(":runners:flink:${version}:job-server-container")
 }
 /* End Flink Runner related settings */
-include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
 include(":runners:google-cloud-dataflow-java:arm")
 include(":runners:google-cloud-dataflow-java:examples")
