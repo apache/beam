@@ -539,7 +539,7 @@ public class GroupIntoBatches<K, InputT>
 
       // If this is the first element in the batch or if the timer's output timestamp needs
       // modifying, then set a timer.
-      boolean needsNewTimer = num == 1 || currentMinBufferedTs < oldOutputTs;
+      boolean needsNewTimer = num == 1 || currentMinBufferedTs != oldOutputTs;
       if (needsNewTimer) {
         if (shouldCareAboutMaxBufferingDuration) {
           long targetTs =
