@@ -24,6 +24,7 @@ from typing import Union
 
 import grpc
 import httpx
+import pydantic
 from qdrant_client import QdrantClient
 from qdrant_client import models
 from qdrant_client.common.client_exceptions import ResourceExhaustedResponse
@@ -33,7 +34,9 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 from apache_beam.io.requestresponse import UserCodeQuotaException
 from apache_beam.io.requestresponse import UserCodeTimeoutException
 from apache_beam.ml.rag.ingestion.qdrant import QdrantConnectionParameters
+from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import EmbeddableItem
+from apache_beam.ml.rag.types import Embedding
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 __all__ = [
@@ -178,6 +181,10 @@ class QdrantSearchParameters:
       `models.ReadConsistencyType.MAJORITY`.
     timeout: Optional search timeout in seconds. If not specified, the client's
       default timeout is used.
+
+  The search strategy is validated at construction time by building a Qdrant
+  query request from it, so invalid fields or `kwargs` keys raise a
+  `ValueError` before the pipeline runs.
   """
   collection_name: str
   search_strategy: QdrantSearchStrategyType
@@ -191,6 +198,23 @@ class QdrantSearchParameters:
 
     if not self.search_strategy:
       raise ValueError("Search strategy must be provided")
+
+    if not isinstance(self.search_strategy,
+                      (QdrantDenseSearchParameters,
+                       QdrantSparseSearchParameters,
+                       QdrantHybridSearchParameters)):
+      raise ValueError(
+          "Search strategy must be QdrantDenseSearchParameters, "
+          "QdrantSparseSearchParameters or QdrantHybridSearchParameters, got "
+          f"{type(self.search_strategy).__name__}")
+
+    # Build and discard a request with placeholder embeddings, so that the
+    # Qdrant models validate every field and `kwargs` key before the pipeline
+    # is submitted rather than on the workers.
+    try:
+      _build_query_request(self, _VALIDATION_ITEM)
+    except pydantic.ValidationError as e:
+      raise ValueError(f"Invalid Qdrant search parameters: {e}") from e
 
 
 @dataclass
@@ -229,11 +253,11 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   * Sparse search - For keyword-style retrieval with sparse embeddings
   * Hybrid search - For fusing dense and sparse search results server side
 
-  This handler queries Qdrant per element by default. To enable batching for
-  improved performance, set the `min_batch_size` and `max_batch_size`
-  parameters. These control the batching behavior in the
-  :class:`apache_beam.transforms.utils.BatchElements` transform. Each batch is
-  sent to Qdrant as a single batch query request.
+  By default, elements are batched adaptively into batches of 1 to 1000
+  elements by the :class:`apache_beam.transforms.util.BatchElements`
+  transform, and each batch is sent to Qdrant as a single batch query request.
+  Tune this with the `min_batch_size` and `max_batch_size` parameters; set
+  `max_batch_size=1` to query Qdrant once per element.
 
   REST and gRPC quota and timeout errors are translated to Beam exceptions
   so that `Enrichment` can retry them using its configured repeater. Other
@@ -245,8 +269,7 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       search_parameters: QdrantSearchParameters,
       *,
       min_batch_size: int = 1,
-      max_batch_size: int = 1000,
-      **kwargs):
+      max_batch_size: int = 1000):
     """
     Example Usage:
       connection_parameters = QdrantConnectionParameters(
@@ -267,18 +290,16 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       search_parameters (QdrantSearchParameters): Configuration for search
         operations, including collection name and search strategy.
       min_batch_size (int): Minimum number of elements to batch together when
-        querying Qdrant. Default is 1 (no batching when max_batch_size is 1).
+        querying Qdrant. Default is 1.
       max_batch_size (int): Maximum number of elements to batch together.
         Default is 1000. Higher values may improve throughput but increase
-        memory usage.
-      **kwargs: Additional keyword arguments for Qdrant Enrichment Handler.
+        memory usage. Set to 1 to query Qdrant once per element.
     """
     self._connection_parameters = connection_parameters
     self._search_parameters = search_parameters
     self._batching_kwargs = {
         'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size
     }
-    self.kwargs = kwargs
     self._client = None
     self.join_fn = join_fn
     self.use_custom_types = True
@@ -317,7 +338,9 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     # Early return for empty requests to avoid unnecessary round trips.
     if not reqs:
       return []
-    requests = [self._get_query_request(item) for item in reqs]
+    requests = [
+        _build_query_request(self._search_parameters, item) for item in reqs
+    ]
     try:
       responses = self._client.query_batch_points(
           collection_name=self.collection_name,
@@ -343,82 +366,6 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
         raise UserCodeTimeoutException(str(exc)) from exc
       raise
     return self._get_call_response(reqs, responses)
-
-  def _get_query_request(
-      self, embeddable_item: EmbeddableItem) -> models.QueryRequest:
-    strategy = self.search_strategy
-    with_payload = self._search_parameters.with_payload
-    if isinstance(strategy, QdrantHybridSearchParameters):
-      return models.QueryRequest(
-          **_merge_query_kwargs(
-              strategy.kwargs,
-              prefetch=[
-                  self._get_prefetch(
-                      strategy.dense, self._get_dense_query(embeddable_item)),
-                  self._get_prefetch(
-                      strategy.sparse, self._get_sparse_query(embeddable_item)),
-              ],
-              query=models.FusionQuery(fusion=strategy.fusion),
-              limit=strategy.limit,
-              with_payload=with_payload,
-              filter=strategy.filter,
-              score_threshold=strategy.score_threshold))
-    elif isinstance(strategy, QdrantDenseSearchParameters):
-      return self._get_single_query_request(
-          strategy, self._get_dense_query(embeddable_item), with_payload)
-    elif isinstance(strategy, QdrantSparseSearchParameters):
-      return self._get_single_query_request(
-          strategy, self._get_sparse_query(embeddable_item), with_payload)
-    else:
-      raise ValueError(f"Not supported search strategy yet: {strategy}")
-
-  def _get_single_query_request(
-      self,
-      strategy: Union[QdrantDenseSearchParameters,
-                      QdrantSparseSearchParameters],
-      query: Union[list[float], models.SparseVector],
-      with_payload: Union[bool, list[str]]) -> models.QueryRequest:
-    return models.QueryRequest(
-        **_merge_query_kwargs(
-            strategy.kwargs,
-            query=query,
-            using=strategy.vector_name,
-            filter=strategy.filter,
-            score_threshold=strategy.score_threshold,
-            params=strategy.search_params,
-            limit=strategy.limit,
-            with_payload=with_payload))
-
-  def _get_prefetch(
-      self,
-      strategy: Union[QdrantDenseSearchParameters,
-                      QdrantSparseSearchParameters],
-      query: Union[list[float], models.SparseVector]) -> models.Prefetch:
-    return models.Prefetch(
-        **_merge_query_kwargs(
-            strategy.kwargs,
-            query=query,
-            using=strategy.vector_name,
-            filter=strategy.filter,
-            score_threshold=strategy.score_threshold,
-            params=strategy.search_params,
-            limit=strategy.limit))
-
-  def _get_dense_query(self, embeddable_item: EmbeddableItem) -> list[float]:
-    if not embeddable_item.dense_embedding:
-      raise ValueError(
-          f"Item {embeddable_item.id} missing dense embedding required for"
-          " dense search")
-    return embeddable_item.dense_embedding
-
-  def _get_sparse_query(
-      self, embeddable_item: EmbeddableItem) -> models.SparseVector:
-    if not embeddable_item.sparse_embedding:
-      raise ValueError(
-          f"Item {embeddable_item.id} missing sparse embedding required for"
-          " sparse search")
-    indices, values = embeddable_item.sparse_embedding
-    return models.SparseVector(indices=indices, values=values)
 
   def _get_call_response(
       self,
@@ -454,6 +401,95 @@ class QdrantSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   def batch_elements_kwargs(self) -> dict[str, int]:
     """Returns kwargs for beam.BatchElements."""
     return self._batching_kwargs
+
+
+def _build_query_request(
+    search_parameters: QdrantSearchParameters,
+    embeddable_item: EmbeddableItem) -> models.QueryRequest:
+  """Builds the Qdrant query request for one item.
+
+  Used both by the handler at runtime and by `QdrantSearchParameters` to
+  validate its configuration at construction time.
+  """
+  strategy = search_parameters.search_strategy
+  with_payload = search_parameters.with_payload
+  if isinstance(strategy, QdrantHybridSearchParameters):
+    return models.QueryRequest(
+        **_merge_query_kwargs(
+            strategy.kwargs,
+            prefetch=[
+                _build_prefetch(
+                    strategy.dense, _get_dense_query(embeddable_item)),
+                _build_prefetch(
+                    strategy.sparse, _get_sparse_query(embeddable_item)),
+            ],
+            query=models.FusionQuery(fusion=strategy.fusion),
+            limit=strategy.limit,
+            with_payload=with_payload,
+            filter=strategy.filter,
+            score_threshold=strategy.score_threshold))
+  elif isinstance(strategy, QdrantDenseSearchParameters):
+    return _build_single_query_request(
+        strategy, _get_dense_query(embeddable_item), with_payload)
+  elif isinstance(strategy, QdrantSparseSearchParameters):
+    return _build_single_query_request(
+        strategy, _get_sparse_query(embeddable_item), with_payload)
+  else:
+    raise ValueError(f"Not supported search strategy yet: {strategy}")
+
+
+def _build_single_query_request(
+    strategy: Union[QdrantDenseSearchParameters, QdrantSparseSearchParameters],
+    query: Union[list[float], models.SparseVector],
+    with_payload: Union[bool, list[str]]) -> models.QueryRequest:
+  return models.QueryRequest(
+      **_merge_query_kwargs(
+          strategy.kwargs,
+          query=query,
+          using=strategy.vector_name,
+          filter=strategy.filter,
+          score_threshold=strategy.score_threshold,
+          params=strategy.search_params,
+          limit=strategy.limit,
+          with_payload=with_payload))
+
+
+def _build_prefetch(
+    strategy: Union[QdrantDenseSearchParameters, QdrantSparseSearchParameters],
+    query: Union[list[float], models.SparseVector]) -> models.Prefetch:
+  return models.Prefetch(
+      **_merge_query_kwargs(
+          strategy.kwargs,
+          query=query,
+          using=strategy.vector_name,
+          filter=strategy.filter,
+          score_threshold=strategy.score_threshold,
+          params=strategy.search_params,
+          limit=strategy.limit))
+
+
+def _get_dense_query(embeddable_item: EmbeddableItem) -> list[float]:
+  if not embeddable_item.dense_embedding:
+    raise ValueError(
+        f"Item {embeddable_item.id} missing dense embedding required for"
+        " dense search")
+  return embeddable_item.dense_embedding
+
+
+def _get_sparse_query(embeddable_item: EmbeddableItem) -> models.SparseVector:
+  if not embeddable_item.sparse_embedding:
+    raise ValueError(
+        f"Item {embeddable_item.id} missing sparse embedding required for"
+        " sparse search")
+  indices, values = embeddable_item.sparse_embedding
+  return models.SparseVector(indices=indices, values=values)
+
+
+# Placeholder item used to validate search parameters at construction time.
+_VALIDATION_ITEM = EmbeddableItem(
+    content=Content(),
+    id="validation",
+    embedding=Embedding(dense_embedding=[0.0], sparse_embedding=([0], [0.0])))
 
 
 def _merge_query_kwargs(kwargs: dict[str, Any], **explicit) -> dict[str, Any]:

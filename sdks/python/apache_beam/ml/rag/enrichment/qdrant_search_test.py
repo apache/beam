@@ -133,6 +133,78 @@ class TestQdrantSearchParameters(unittest.TestCase):
       create()
     self.assertIn(expected_message, str(context.exception))
 
+  def test_unsupported_search_strategy(self):
+    with self.assertRaises(ValueError) as context:
+      QdrantSearchParameters(
+          collection_name=_COLLECTION, search_strategy={"vector_name": "dense"})
+    self.assertIn("got dict", str(context.exception))
+
+  @parameterized.expand([
+      ("unknown_kwargs_key", QdrantDenseSearchParameters(kwargs={"offst": 1})),
+      (
+          "invalid_kwargs_value",
+          QdrantSparseSearchParameters(kwargs={"offset": "abc"})),
+      ("invalid_filter", QdrantDenseSearchParameters(filter="source")),
+      (
+          "invalid_search_params",
+          QdrantDenseSearchParameters(search_params={"hnsw_ef": "high"})),
+      (
+          "invalid_fusion",
+          QdrantHybridSearchParameters(
+              dense=QdrantDenseSearchParameters(),
+              sparse=QdrantSparseSearchParameters(),
+              fusion="nope")),
+      (
+          "invalid_hybrid_kwargs_key",
+          QdrantHybridSearchParameters(
+              dense=QdrantDenseSearchParameters(),
+              sparse=QdrantSparseSearchParameters(),
+              kwargs={"offst": 1})),
+      (
+          # Component kwargs go to a Prefetch, which has no with_payload.
+          "query_only_field_in_prefetch",
+          QdrantHybridSearchParameters(
+              dense=QdrantDenseSearchParameters(kwargs={"with_payload": True}),
+              sparse=QdrantSparseSearchParameters())),
+  ])
+  def test_invalid_search_strategy_fails_at_construction(self, _, strategy):
+    with self.assertRaises(ValueError) as context:
+      QdrantSearchParameters(
+          collection_name=_COLLECTION, search_strategy=strategy)
+    self.assertIn("Invalid Qdrant search parameters", str(context.exception))
+
+  def test_invalid_with_payload_fails_at_construction(self):
+    with self.assertRaises(ValueError) as context:
+      QdrantSearchParameters(
+          collection_name=_COLLECTION,
+          search_strategy=QdrantDenseSearchParameters(),
+          with_payload=123)
+    self.assertIn("Invalid Qdrant search parameters", str(context.exception))
+
+  @parameterized.expand([
+      (QdrantDenseSearchParameters(kwargs={"offset": 1}), ),
+      (
+          QdrantHybridSearchParameters(
+              dense=QdrantDenseSearchParameters(
+                  kwargs={
+                      "lookup_from": models.LookupLocation(collection="other")
+                  }),
+              sparse=QdrantSparseSearchParameters(),
+              kwargs={"offset": 2}), ),
+  ])
+  def test_valid_kwargs_pass_construction(self, strategy):
+    QdrantSearchParameters(
+        collection_name=_COLLECTION, search_strategy=strategy)
+
+  def test_handler_rejects_unknown_kwargs(self):
+    with self.assertRaises(TypeError):
+      QdrantSearchEnrichmentHandler(  # pylint: disable=unexpected-keyword-arg
+          QdrantConnectionParameters.in_memory(),
+          QdrantSearchParameters(
+              collection_name=_COLLECTION,
+              search_strategy=QdrantDenseSearchParameters()),
+          unknown=True)
+
   def test_batch_elements_kwargs(self):
     handler = QdrantSearchEnrichmentHandler(
         QdrantConnectionParameters.in_memory(),
@@ -397,12 +469,6 @@ class TestQdrantSearchEnrichmentHandler(unittest.TestCase):
       handler(item)
     self.assertIn(
         f"Item q missing {embedding_type} embedding", str(context.exception))
-
-  def test_unsupported_search_strategy(self):
-    handler = self._create_handler({"vector_name": "dense"})
-    with self.assertRaises(ValueError) as context:
-      handler(_item("q", dense=[1.0, 0.0]))
-    self.assertIn("Not supported search strategy", str(context.exception))
 
   def test_join_fn(self):
     item = _item("q", dense=[1.0, 0.0])
