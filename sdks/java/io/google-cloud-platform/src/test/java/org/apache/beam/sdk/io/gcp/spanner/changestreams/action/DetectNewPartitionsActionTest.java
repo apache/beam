@@ -32,7 +32,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
@@ -114,32 +113,7 @@ public class DetectNewPartitionsActionTest {
   }
 
   @Test
-  public void testStopsWithoutSchedulingWhenFirstCreatedAtGroupCannotBeClaimed() {
-    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
-    final Timestamp minWatermark = Timestamp.ofTimeMicroseconds(20L);
-    final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
-    final ResultSet resultSet = mock(ResultSet.class);
-    final Timestamp partitionCreatedAt = Timestamp.ofTimeMicroseconds(15L);
-    final PartitionMetadata partition1 = mock(PartitionMetadata.class, RETURNS_DEEP_STUBS);
-    when(partition1.getPartitionToken()).thenReturn("token1");
-    when(partition1.getCreatedAt()).thenReturn(partitionCreatedAt);
-    when(restriction.getFrom()).thenReturn(from);
-    when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
-    when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
-    when(resultSet.next()).thenReturn(true, false);
-    when(mapper.from(any())).thenReturn(partition1);
-    when(tracker.tryClaim(partitionCreatedAt)).thenReturn(false);
-
-    final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
-
-    assertEquals(ProcessContinuation.stop(), continuation);
-    verify(watermarkEstimator).setWatermark(minWatermarkInstant);
-    verify(dao, never()).updateToScheduled(any());
-    verify(receiver, never()).outputWithTimestamp(any(), any());
-  }
-
-  @Test
-  public void testSchedulesOnlyClaimedCreatedAtGroupsWhenSplitPreventsClaimingLaterGroup() {
+  public void testBatchesMultipleCreatedAtGroupsAndClaimsLatestTimestampBeforeScheduling() {
     final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
     final Timestamp minWatermark = Timestamp.ofTimeMicroseconds(20L);
     final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
@@ -156,28 +130,55 @@ public class DetectNewPartitionsActionTest {
     when(restriction.getFrom()).thenReturn(from);
     when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
     when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
-    when(dao.updateToScheduled(Collections.singletonList("token1")))
-        .thenReturn(partitionScheduledAt);
+    when(dao.updateToScheduled(Arrays.asList("token1", "token2"))).thenReturn(partitionScheduledAt);
     when(resultSet.next()).thenReturn(true, true, false);
     when(mapper.from(any())).thenReturn(partition1, partition2);
-    when(tracker.tryClaim(createdAt1)).thenReturn(true);
+    when(tracker.tryClaim(createdAt2)).thenReturn(true);
+
+    final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
+
+    assertEquals(ProcessContinuation.resume().withResumeDelay(resumeDuration), continuation);
+    verify(watermarkEstimator).setWatermark(minWatermarkInstant);
+    InOrder order = inOrder(tracker, dao, receiver);
+    order.verify(tracker).tryClaim(createdAt2);
+    order.verify(dao).updateToScheduled(Arrays.asList("token1", "token2"));
+    order.verify(receiver).outputWithTimestamp(eq(partition1), eq(minWatermarkInstant));
+    order.verify(receiver).outputWithTimestamp(eq(partition2), eq(minWatermarkInstant));
+    verify(tracker, never()).tryClaim(createdAt1);
+  }
+
+  @Test
+  public void testStopsWithoutSchedulingOrOutputtingWhenBatchCannotBeClaimed() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp minWatermark = Timestamp.ofTimeMicroseconds(20L);
+    final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
+    final ResultSet resultSet = mock(ResultSet.class);
+    final Timestamp createdAt1 = Timestamp.ofTimeMicroseconds(15L);
+    final Timestamp createdAt2 = Timestamp.ofTimeMicroseconds(25L);
+    final PartitionMetadata partition1 = mock(PartitionMetadata.class, RETURNS_DEEP_STUBS);
+    final PartitionMetadata partition2 = mock(PartitionMetadata.class, RETURNS_DEEP_STUBS);
+    when(partition1.getPartitionToken()).thenReturn("token1");
+    when(partition1.getCreatedAt()).thenReturn(createdAt1);
+    when(partition2.getPartitionToken()).thenReturn("token2");
+    when(partition2.getCreatedAt()).thenReturn(createdAt2);
+    when(restriction.getFrom()).thenReturn(from);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
+    when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true, true, false);
+    when(mapper.from(any())).thenReturn(partition1, partition2);
     when(tracker.tryClaim(createdAt2)).thenReturn(false);
 
     final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), continuation);
     verify(watermarkEstimator).setWatermark(minWatermarkInstant);
-    InOrder order = inOrder(tracker, dao, receiver);
-    order.verify(tracker).tryClaim(createdAt1);
-    order.verify(tracker).tryClaim(createdAt2);
-    order.verify(dao).updateToScheduled(Collections.singletonList("token1"));
-    order.verify(receiver).outputWithTimestamp(eq(partition1), eq(minWatermarkInstant));
-    verify(dao, times(1)).updateToScheduled(any());
-    verify(receiver, never()).outputWithTimestamp(eq(partition2), any());
+    verify(tracker).tryClaim(createdAt2);
+    verify(dao, never()).updateToScheduled(any());
+    verify(receiver, never()).outputWithTimestamp(any(), any());
   }
 
   @Test
-  public void testFlushesFullBatchAndPartialClaimedBatchBeforeStoppingOnUnclaimedGroup() {
+  public void testSchedulesFirstFullBatchAndStopsWithoutSchedulingSecondBatchOnCheckpoint() {
     final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
     final Timestamp minWatermark = Timestamp.ofTimeMicroseconds(20L);
     final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
@@ -186,7 +187,6 @@ public class DetectNewPartitionsActionTest {
     final Timestamp createdAt2 = Timestamp.ofTimeMicroseconds(25L);
     final Timestamp createdAt3 = Timestamp.ofTimeMicroseconds(35L);
     final Timestamp scheduledAt1 = Timestamp.ofTimeMicroseconds(40L);
-    final Timestamp scheduledAt2 = Timestamp.ofTimeMicroseconds(45L);
 
     final List<PartitionMetadata> allPartitions = new ArrayList<>();
     final List<String> firstBatchTokens = new ArrayList<>();
@@ -221,9 +221,7 @@ public class DetectNewPartitionsActionTest {
     when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
     when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
     when(dao.updateToScheduled(firstBatchTokens)).thenReturn(scheduledAt1);
-    when(dao.updateToScheduled(Collections.singletonList("token2"))).thenReturn(scheduledAt2);
     when(tracker.tryClaim(createdAt1)).thenReturn(true);
-    when(tracker.tryClaim(createdAt2)).thenReturn(true);
     when(tracker.tryClaim(createdAt3)).thenReturn(false);
 
     final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
@@ -233,11 +231,9 @@ public class DetectNewPartitionsActionTest {
     order.verify(tracker).tryClaim(createdAt1);
     order.verify(dao).updateToScheduled(firstBatchTokens);
     order.verify(receiver, times(200)).outputWithTimestamp(any(), eq(minWatermarkInstant));
-    order.verify(tracker).tryClaim(createdAt2);
     order.verify(tracker).tryClaim(createdAt3);
-    order.verify(dao).updateToScheduled(Collections.singletonList("token2"));
-    order.verify(receiver).outputWithTimestamp(eq(partition2), eq(minWatermarkInstant));
-    verify(dao, times(2)).updateToScheduled(any());
+    verify(dao, times(1)).updateToScheduled(any());
+    verify(receiver, never()).outputWithTimestamp(eq(partition2), any());
     verify(receiver, never()).outputWithTimestamp(eq(partition3), any());
   }
 
