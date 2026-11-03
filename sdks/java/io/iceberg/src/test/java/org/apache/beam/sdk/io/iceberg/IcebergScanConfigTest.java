@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 
 import java.util.List;
@@ -76,31 +77,77 @@ public class IcebergScanConfigTest {
   }
 
   @Test
-  public void cdcValidationRejectsProjectionDroppingIdentifierFields() {
+  public void cdcProjectionReadsKeyAndWatermarkLeftOutOfKeepOrDrop() {
     TableIdentifier tableId = uniqueTableId();
     Table table = warehouse.createTable(tableId, CDC_SCHEMA);
 
-    IcebergScanConfig keepWithoutPk =
+    IcebergScanConfig keep =
         scanConfigBuilder(tableId, CDC_SCHEMA)
             .setUseCdc(true)
             .setKeepFields(ImmutableList.of("data"))
+            .setWatermarkColumn("event_time")
+            .setFilterString("\"category\" = 'x'")
             .build();
-    IllegalArgumentException keepException =
-        assertThrows(IllegalArgumentException.class, () -> keepWithoutPk.validate(table));
-    assertThat(
-        keepException.getMessage(),
-        containsString("projected schema must not drop primary key fields"));
+    keep.validate(table);
+    assertEquals(ImmutableList.of("data"), fieldNames(keep.getRequestedSchema()));
+    assertEquals(
+        ImmutableList.of("id", "data", "event_time"), fieldNames(keep.getProjectedSchema()));
+    assertEquals(
+        ImmutableList.of("id", "data", "category", "event_time"),
+        fieldNames(keep.getRequiredSchema()));
 
-    IcebergScanConfig dropPk =
+    IcebergScanConfig drop =
         scanConfigBuilder(tableId, CDC_SCHEMA)
             .setUseCdc(true)
-            .setDropFields(ImmutableList.of("id"))
+            .setDropFields(ImmutableList.of("id", "event_time"))
+            .setWatermarkColumn("event_time")
             .build();
-    IllegalArgumentException dropException =
-        assertThrows(IllegalArgumentException.class, () -> dropPk.validate(table));
-    assertThat(
-        dropException.getMessage(),
-        containsString("projected schema must not drop primary key fields"));
+    drop.validate(table);
+    assertEquals(
+        ImmutableList.of(
+            "data", "category", "event_micros", "optional_time", "required_text", "nested"),
+        fieldNames(drop.getRequestedSchema()));
+    assertEquals(fieldNames(CDC_SCHEMA), fieldNames(drop.getProjectedSchema()));
+
+    // a projection that already has both is unchanged
+    IcebergScanConfig unchanged =
+        scanConfigBuilder(tableId, CDC_SCHEMA)
+            .setUseCdc(true)
+            .setKeepFields(ImmutableList.of("id", "event_time"))
+            .setWatermarkColumn("event_time")
+            .build();
+    assertSame(unchanged.getRequestedSchema(), unchanged.getProjectedSchema());
+
+    // batch reads only project the requested columns
+    IcebergScanConfig batch =
+        scanConfigBuilder(tableId, CDC_SCHEMA).setKeepFields(ImmutableList.of("data")).build();
+    assertEquals(ImmutableList.of("data"), fieldNames(batch.getProjectedSchema()));
+  }
+
+  @Test
+  public void cdcProjectionReadsWholeColumnHoldingNestedKey() {
+    TableIdentifier tableId = uniqueTableId();
+    Table table =
+        warehouse.createTable(
+            tableId,
+            new org.apache.iceberg.Schema(
+                ImmutableList.of(
+                    Types.NestedField.required(
+                        1,
+                        "key",
+                        Types.StructType.of(
+                            Types.NestedField.required(2, "id", Types.LongType.get()),
+                            Types.NestedField.optional(3, "region", Types.StringType.get()))),
+                    Types.NestedField.optional(4, "data", Types.StringType.get())),
+                ImmutableSet.of(2)));
+    IcebergScanConfig scanConfig =
+        scanConfigBuilder(tableId, table.schema())
+            .setUseCdc(true)
+            .setKeepFields(ImmutableList.of("data"))
+            .build();
+
+    // whole columns, as ResolveChanges emits them
+    assertEquals(table.schema().asStruct(), scanConfig.getProjectedSchema().asStruct());
   }
 
   @Test
@@ -219,8 +266,6 @@ public class IcebergScanConfigTest {
         true,
         ImmutableList.of("id", "required_text"),
         "must be a timestamp-typed column");
-    assertInvalidWatermark(
-        tableId, table, "event_time", true, ImmutableList.of("id"), "should not be dropped");
   }
 
   private void assertInvalidWatermark(

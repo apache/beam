@@ -113,7 +113,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     // this(connectorClass, fn, maxRecords, null);
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.spec = spec;
-    this.fn = spec.getFormatFunction();
+    this.fn = spec.resolveFormatFunction();
     this.pollingTimeOut =
         MoreObjects.firstNonNull(spec.getPollingTimeout(), DEFAULT_POLLING_TIMEOUT);
   }

@@ -19,7 +19,7 @@ limitations under the License.
 
 # Overview
 
-[FlareDB](https://github.com/flare-db/flare-db) is an Apache Beam native streaming database for running Beam pipelines. It's built in Rust, a modern systems programming language, and it uses a streams-tables architecture inspired by the ideas described in the *Streaming Systems* book (Chp 6).
+[FlareDB](https://github.com/flare-db/flare-db) is an Apache Beam native streaming database for running Beam pipelines. It's built in Rust, a modern systems programming language, and it uses a streams-tables architecture inspired by the ideas described in the [*Streaming Systems*](http://www.streamingbook.net/) book (Chp 6).
 
 <br/>
 
@@ -42,7 +42,7 @@ Install FlareDB CLI to spawn up and manage FlareDB instance and run Beam pipelin
 If you are on **Linux or macOS**, please run the following command to install the CLI:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/flare-db/flare-db/releases/download/flare-cli-v0.3.2/flare-cli-installer.sh | sh
+curl -sSL https://install.flare-db.com | bash
 ```
 
 If you are on **Windows** use WSL.
@@ -158,8 +158,20 @@ python3 wordcount.py
 Check out the full Python [wordcount example](https://github.com/flare-db/flare-db/blob/main/example/python/wordcount.py) pipeline.
 {{< /paragraph >}}
 
+## 5. Check pipeline Logs
 
-## 5. Stop FlareDB instance
+Each submitted job is assigned a unique `JOB_ID`, which is printed when you submit the job through the runner SDK. Use it to stream logs for a specific job.
+
+If you omit the ID, the CLI streams logs for the running job, or for the most recently executed job if nothing is running.
+
+```bash
+flare logs            # Stream logs for the running (or most recent) job
+flare logs <JOB_ID>   # Stream logs for a specific job
+```
+
+> **Note:** Always use the `logging` module in Python and a logger like SLF4J in Java instead of `print` or `System.out.println`, so your messages carry log levels and show up cleanly in `flare logs`.
+
+## 6. Stop FlareDB instance
 
 After executing pipelines, run this command to stop FlareDB instance
 

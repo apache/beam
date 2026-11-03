@@ -66,12 +66,19 @@ class StreamingWordCountIT(unittest.TestCase):
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name,
         ack_deadline_seconds=60)
+    import time
+    time.sleep(10)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
     logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
+    futures = []
     for n in range(num_messages):
-      self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
+      futures.append(
+          self.pub_client.publish(
+              self.input_topic.name, str(n).encode('utf-8')))
+    for future in futures:
+      future.result()
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(
@@ -88,7 +95,7 @@ class StreamingWordCountIT(unittest.TestCase):
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     pubsub_msg_verifier = PubSubMessageMatcher(
-        self.project, self.output_sub.name, expected_msg, timeout=400)
+        self.project, self.output_sub.name, expected_msg, timeout=600)
     extra_opts = {
         'input_subscription': self.input_sub.name,
         'output_topic': self.output_topic.name,

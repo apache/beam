@@ -38,8 +38,7 @@ import (
 func init() {
 	register.DoFn2x0[[]byte, func(TestRow)](&CreateTestRowsFn{})
 	register.Emitter1[TestRow]()
-	// TODO(https://github.com/apache/beam/issues/21789): Uncomment once this register no longer panics.
-	//register.Function1x1(castFn)
+	register.Function1x1(castFn)
 }
 
 var expansionAddr string // Populate with expansion address labelled "gcpio".

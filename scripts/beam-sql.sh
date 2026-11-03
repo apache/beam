@@ -22,7 +22,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- Configuration ---
-DEFAULT_BEAM_VERSION="2.78.0"
+DEFAULT_BEAM_VERSION="2.79.0"
 MAIN_CLASS="org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
 # Directory to store cached executable JAR files
 CACHE_DIR="${HOME}/.beam/cache"
@@ -233,7 +233,6 @@ function list_runners() {
     echo "  flink            - FlinkRunner (runs on Apache Flink)"
     echo "  spark            - SparkRunner (runs on Apache Spark)"
     echo "  jet              - JetRunner (runs on Hazelcast Jet)"
-    echo "  twister2         - Twister2Runner (runs on Twister2)"
     echo ""
     echo "💡 Usage: ./beam-sql.sh --runner <runner_name>"
     echo "   Default: direct"
@@ -276,10 +275,6 @@ function list_runners() {
       "jet")
         echo "  jet              - JetRunner"
         echo "                     Runs on Hazelcast Jet."
-        ;;
-      "twister2")
-        echo "  twister2         - Twister2Runner"
-        echo "                     Runs on Twister2."
         ;;
       "apex")
         echo "  apex             - ApexRunner"

@@ -55,10 +55,6 @@ jobs:
         container_task:
           - "go:container:docker"
           - "java:container:pushAll"
-          - "python:container:py311:docker"
-          - "python:container:py312:docker"
-          - "python:container:py313:docker"
-          - "python:container:py314:docker"
           - "python:container:distroless:py311:docker"
           - "python:container:distroless:py312:docker"
           - "python:container:distroless:py313:docker"

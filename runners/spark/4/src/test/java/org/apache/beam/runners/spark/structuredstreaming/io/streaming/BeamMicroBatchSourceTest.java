@@ -46,6 +46,7 @@ import java.util.function.BooleanSupplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamInputPartition;
@@ -60,7 +61,6 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.hadoop.conf.Configuration;
@@ -71,7 +71,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -209,7 +208,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     List<String> values = new ArrayList<>();
     for (List<Row> batch : batches(tag)) {
       for (Row row : batch) {
-        WindowedValue<String> value = CoderUtils.decodeFromByteArray(CODER, row.getAs(COL_PAYLOAD));
+        WindowedValue<String> value = CoderHelpers.fromByteArray(row.getAs(COL_PAYLOAD), CODER);
         values.add(value.getValue());
         assertEquals(
             value.getTimestamp().getMillis(), row.<Timestamp>getAs(COL_EVENT_TS).getTime());
@@ -547,7 +546,13 @@ public class BeamMicroBatchSourceTest implements Serializable {
                 (batch, batchId) -> {
                   List<List<Row>> target = BATCHES.get(queryName);
                   if (target != null) {
-                    target.add(batch.collectAsList());
+                    List<Row> rows = new ArrayList<>();
+                    for (Row row : batch.collectAsList()) {
+                      if (((byte[]) row.getAs(COL_PAYLOAD)).length > 0) {
+                        rows.add(row);
+                      }
+                    }
+                    target.add(rows);
                   }
                 })
         .queryName(queryName)
@@ -593,11 +598,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
   }
 
   private static String decode(byte[] payload) {
-    try {
-      return CoderUtils.decodeFromByteArray(CODER, payload).getValue();
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    return CoderHelpers.fromByteArray(payload, CODER).getValue();
   }
 
   private static List<Integer> nonEmptySizes(List<List<Row>> batches) {
@@ -748,7 +749,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
         new BeamSourceCheckpoint(sourceDir(checkpointDir).getAbsolutePath(), new Configuration());
     byte[] coded = checkpoint.readMark(shard, epoch);
     assertNotNull("no mark at committed epoch " + epoch + " for shard " + shard, coded);
-    return CoderUtils.decodeFromByteArray(TestUnboundedSource.MARK_CODER, coded).next;
+    return CoderHelpers.fromByteArray(coded, TestUnboundedSource.MARK_CODER).next;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -770,7 +771,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
         end,
         3L,
         30_000L,
-        600_000L);
+        600_000L,
+        false);
   }
 
   private static List<String> readBatch(BeamInputPartition<String> partition) throws IOException {
@@ -782,8 +784,10 @@ public class BeamMicroBatchSourceTest implements Serializable {
   private static void drainInto(BeamPartitionReader<String> reader, List<String> values)
       throws IOException {
     while (reader.next()) {
-      InternalRow row = reader.get();
-      values.add(decode(row.getBinary(0)));
+      byte[] payload = reader.get().getBinary(0);
+      if (payload.length > 0) {
+        values.add(decode(payload));
+      }
     }
     reader.close();
   }

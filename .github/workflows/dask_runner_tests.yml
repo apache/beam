@@ -91,6 +91,21 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win-dask
+      - name: Collect Dask unit-test coverage
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ./sdks/python
+        run: |
+          python -m pip install pytest-cov==3.0.0
+          python -m pytest -q apache_beam/runners/dask/dask_runner_test.py \
+            -k 'DaskBagWindowedIteratorTest or DaskOptionsTest' \
+            --cov=apache_beam/runners/dask --cov-report=xml:coverage.xml
+      - name: Upload Dask Python coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v7
+        with:
+          flags: python
+          files: ./sdks/python/coverage.xml
+          disable_search: true
       - name: Upload test logs
         uses: actions/upload-artifact@v7
         if: always()

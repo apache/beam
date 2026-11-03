@@ -31,7 +31,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -136,6 +144,37 @@ public class PAssertTest implements Serializable {
     } catch (Exception e) {
       throw new RuntimeException("Wrapped error", e);
     }
+  }
+
+  @Test
+  public void testAssertionNamesAreUniqueAcrossThreads() throws Exception {
+    // ValidatesRunner suites build pipelines from many threads at once; a lost update on the
+    // assertion counter would hand two PAsserts the same name (possibly within one pipeline).
+    final int threads = 16;
+    final int namesPerThread = 2000;
+    final Set<String> names = ConcurrentHashMap.newKeySet();
+    final CyclicBarrier start = new CyclicBarrier(threads);
+    ExecutorService executor = Executors.newFixedThreadPool(threads);
+    try {
+      List<Future<?>> futures = new ArrayList<>();
+      for (int t = 0; t < threads; t++) {
+        futures.add(
+            executor.submit(
+                () -> {
+                  start.await();
+                  for (int i = 0; i < namesPerThread; i++) {
+                    assertTrue("duplicate assertion name", names.add(PAssert.nextAssertionName()));
+                  }
+                  return null;
+                }));
+      }
+      for (Future<?> future : futures) {
+        future.get();
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+    assertEquals(threads * namesPerThread, names.size());
   }
 
   @Test

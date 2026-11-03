@@ -38,11 +38,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
@@ -55,22 +56,29 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
@@ -122,11 +130,26 @@ import org.slf4j.LoggerFactory;
  * path becomes a {@link DataFile} with partition metadata and column stats, batched into manifests
  * and committed as snapshots.
  *
+ * <p>{@link AddFiles} is offered as a Managed transform. Its input is a {@link PCollection} of
+ * {@link Row}s with a single string field, the file's path, and its options are listed in {@link
+ * AddFilesSchemaTransformProvider.Configuration}:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", "db.sales",
+ *         "catalog_properties", Map.of("type", "rest", "uri", catalogUri),
+ *         "error_handling", Map.of("output", "errors"));
+ *
+ * PCollectionRowTuple result =
+ *     paths.apply(Managed.write(Managed.ICEBERG_ADD_FILES).withConfig(config));
+ * }</pre>
+ *
  * <p>Outputs: {@code snapshots} (one row per commit), {@code errors} (one row per file that could
  * not be registered: {@code file}, {@code error}), and {@code dry_run_report} when a dry run is
- * configured.
+ * configured. Through Managed, error rows are only output when {@code error_handling} is set, under
+ * the name it gives.
  *
- * <p><b>Schema evolution.</b> With a {@link SchemaEvolutionConfig} whose options are set, a
+ * <p><b>Schema evolution.</b> With schema evolution options set ({@link SchemaEvolutionConfig}), a
  * pre-pass reads every Parquet footer, classifies the change each distinct file schema needs on the
  * table (add a column, relax a required column, promote a type), commits the allowed changes in one
  * transaction, and only then registers the files. Manifest entries are immutable, so this ordering
@@ -142,12 +165,12 @@ import org.slf4j.LoggerFactory;
  * currently requires bounded input; unbounded input with options set is rejected at construction.
  *
  * <pre>{@code
- * SchemaEvolutionConfig evolution =
- *     SchemaEvolutionConfig.builder()
- *         .setOptions(EnumSet.of(ALLOW_FIELD_ADDITION, ALLOW_TYPE_PROMOTION))
- *         .setRequiredColumns(Collections.singleton("id"))
- *         .build();
- * paths.apply(new AddFiles(catalog, "db.sales", null, null, null, null, null, null, evolution));
+ * Map<String, Object> config = Map.of(
+ *         "table", "db.sales",
+ *         "catalog_properties", catalogProperties,
+ *         "schema_evolution_options", List.of("ALLOW_FIELD_ADDITION", "ALLOW_TYPE_PROMOTION"),
+ *         "required_columns", List.of("id"));
+ * paths.apply(Managed.write(Managed.ICEBERG_ADD_FILES).withConfig(config));
  * }</pre>
  *
  * <p>Without options the table schema is never changed and files register as-is: columns the table
@@ -176,10 +199,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private static final int DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT = 100;
   static final Schema ERROR_SCHEMA =
       Schema.builder().addStringField("file").addStringField("error").build();
+
+  /**
+   * Error rows from the dynamic path, which names the table the file was headed for; empty when
+   * none could be determined. Single-table mode keeps {@link #ERROR_SCHEMA} as it was, so adding
+   * dynamic destinations does not change the shape of an existing pipeline's error output.
+   */
+  static final Schema DYNAMIC_ERROR_SCHEMA =
+      Schema.builder()
+          .addStringField("file")
+          .addStringField("error")
+          .addStringField("table")
+          .build();
+
   private static final long MANIFEST_PREFIX = UUID.randomUUID().getMostSignificantBits();
   private final IcebergCatalogConfig catalogConfig;
   private final String tableIdentifier;
   private @Nullable Duration intervalTrigger;
+  private @Nullable String pathPattern;
   private final int manifestFileSize;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
@@ -211,7 +248,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
   /**
    * @param locationPrefix when set on a partitioned table, the partition is read from the path
-   *     after this prefix instead of from the file's column stats
+   *     after this prefix instead of from the file's column stats. A table partitioned by {@code
+   *     dt} then accepts files under {@code dt=2024-01-15/} that have no {@code dt} column
    * @param partitionFields partition spec applied when the table is created by this transform
    * @param sortFields sort order applied when the table is created by this transform
    * @param tableProps table properties applied when the table is created by this transform
@@ -242,6 +280,59 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     this.locationPrefix = locationPrefix;
   }
 
+  /**
+   * A rule that routes each file to a destination table, read from the file's own path: a glob with
+   * {@code {name}} placeholders, whose captures fill in the table identifier as a template. So
+   * {@code gs://lake/export/{tbl}/**} with table {@code sales.{tbl}} routes a file under {@code
+   * export/orders/} to {@code sales.orders}.
+   *
+   * <p>Everything that can be settled without the input is settled here: a mistyped pattern, a
+   * template naming something the pattern never captures, or an option this cannot be combined with
+   * is one exception at submit time, not one error row per file.
+   */
+  public AddFiles withPathPattern(String pathPattern) {
+    // these are the only copies; the YAML keys are named because the provider defers to them.
+    // checkArgument, not checkState: PathPattern below throws the same for a bad pattern, and the
+    // provider used to throw it for these.
+    Preconditions.checkArgument(
+        evolution.isEnabled(),
+        "A path pattern needs schema evolution (schema_evolution_options in YAML): the pre-pass is"
+            + " what decides each table.");
+    Preconditions.checkArgument(
+        !evolution.getDryRun(),
+        "A dry run of a path pattern (dry_run in YAML) is not supported yet.");
+    Preconditions.checkArgument(
+        Strings.isNullOrEmpty(locationPrefix),
+        "A path pattern cannot be combined with a location prefix (location_prefix in YAML): one"
+            + " fixed prefix cannot stop short of each file's own table folder, so the folder ends"
+            + " up inside the partition path ('orders/dt=2024-01-15/' where the table is"
+            + " partitioned only by 'dt').");
+    PathPattern compiled = PathPattern.compile(pathPattern);
+    compiled.checkRenderable(tableIdentifier);
+    this.pathPattern = pathPattern;
+    return this;
+  }
+
+  /**
+   * Collapses batch input to one window, for two reasons: the schema pre-pass is one pass over the
+   * whole input, and {@link GroupIntoBatches} sizes per key and window, so upstream windowing only
+   * divides {@code manifestFileSize} into smaller manifests and more snapshots. The default trigger
+   * keeps a triggered input from firing the pre-pass more than once.
+   *
+   * <p>Streaming keeps the caller's windowing: the snapshots output descends from this, and a
+   * global window under the default trigger never closes.
+   *
+   * <p>Applied before the input branches rather than after, so the error output of each branch
+   * shares this windowing. {@code FlattenErrors} rejects a mix.
+   */
+  private static PCollection<String> collapseToOneWindow(PCollection<String> input) {
+    return input.apply(
+        "CollapseToOneWindow",
+        Window.<String>into(new GlobalWindows())
+            .triggering(DefaultTrigger.of())
+            .discardingFiredPanes());
+  }
+
   @Override
   public PCollectionRowTuple expand(PCollection<String> input) {
     if (input.isBounded().equals(UNBOUNDED)) {
@@ -265,31 +356,71 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
     }
 
-    PCollection<String> paths = input;
-    if (evolution.isEnabled()) {
-      // one commit per window, and for bounded input the window is the whole input
-      PCollection<String> windowed =
-          input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
-      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(windowed);
-      CommitSchemaUnion.Settings settings =
-          new CommitSchemaUnion.Settings(
-              evolution,
-              evolution.incompatibleSchemaHandlingFor(input.isBounded()),
-              new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
-      if (evolution.getDryRun()) {
-        return report(schemas, settings);
+    CommitSchemaUnion.Settings settings =
+        new CommitSchemaUnion.Settings(
+            evolution,
+            evolution.incompatibleSchemaHandlingFor(input.isBounded()),
+            new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
+
+    // every stage that can reject a file appends here; one Flatten publishes them together
+    List<PCollection<Row>> errorSources = new ArrayList<>();
+
+    PCollection<String> files =
+        input.isBounded().equals(UNBOUNDED) ? input : collapseToOneWindow(input);
+
+    PCollection<KV<String, String>> keyedPaths;
+
+    if (pathPattern != null) {
+      PCollectionTuple routed =
+          files.apply(
+              "RouteFiles",
+              ParDo.of(new RouteFiles(checkStateNotNull(pathPattern), tableIdentifier))
+                  .withOutputTags(RouteFiles.ROUTED, TupleTagList.of(RouteFiles.ERRORS)));
+      errorSources.add(routed.get(RouteFiles.ERRORS).setRowSchema(DYNAMIC_ERROR_SCHEMA));
+
+      PCollection<KV<String, String>> routedPaths =
+          routed
+              .get(RouteFiles.ROUTED)
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+
+      PCollectionView<Map<String, SchemaCommitVerdict>> verdicts =
+          verdictView(distinctSchemasPerTable(routedPaths), settings);
+
+      PCollectionTuple gated =
+          routedPaths.apply(
+              "TableGate",
+              ParDo.of(new TableGate(verdicts))
+                  .withSideInputs(verdicts)
+                  .withOutputTags(TableGate.RELEASED, TupleTagList.of(TableGate.ERRORS)));
+      errorSources.add(gated.get(TableGate.ERRORS).setRowSchema(DYNAMIC_ERROR_SCHEMA));
+      keyedPaths =
+          gated
+              .get(TableGate.RELEASED)
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    } else {
+      PCollection<String> paths = files;
+      if (evolution.isEnabled()) {
+        PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(files);
+        if (evolution.getDryRun()) {
+          return report(schemas, settings);
+        }
+        PCollection<SchemaCommitVerdict> committed = commitSchema(schemas, settings);
+        paths = files.apply("WaitForSchemaCommit", Wait.on(committed));
       }
-      PCollection<Long> committed = commitSchema(schemas, settings);
-      paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
+
+      keyedPaths =
+          paths.apply(
+              "KeyByTable",
+              WithKeys.<String, String>of(tableIdentifier).withKeyType(TypeDescriptors.strings()));
     }
 
     PCollectionTuple dataFiles =
-        paths.apply(
+        keyedPaths.apply(
             "ConvertToDataFiles",
             ParDo.of(
                     new ConvertToDataFile(
                         catalogConfig,
-                        tableIdentifier,
+                        pathPattern != null,
                         locationPrefix,
                         partitionFields,
                         sortFields,
@@ -297,20 +428,37 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         evolution))
                 .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
     SchemaCoder<SerializableDataFile> sdfCoder;
+    SchemaCoder<ManifestKey> manifestKeyCoder;
     try {
-      sdfCoder = SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class);
+      SchemaRegistry schemas = SchemaRegistry.createDefault();
+      sdfCoder = schemas.getSchemaCoder(SerializableDataFile.class);
+      manifestKeyCoder = schemas.getSchemaCoder(ManifestKey.class);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    PCollection<KV<Integer, SerializableDataFile>> keyedFiles =
+    PCollection<KV<ManifestKey, SerializableDataFile>> keyedFiles =
         dataFiles
             .get(DATA_FILES)
-            .setCoder(sdfCoder)
-            .apply("AddSpecIdKey", WithKeys.of(SerializableDataFile::getPartitionSpecId))
-            .setCoder(KvCoder.of(VarIntCoder.of(), sdfCoder));
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), sdfCoder))
+            .apply(
+                "AddTableAndSpecIdKey",
+                ParDo.of(
+                    new DoFn<
+                        KV<String, SerializableDataFile>, KV<ManifestKey, SerializableDataFile>>() {
+                      @ProcessElement
+                      public void process(
+                          @Element KV<String, SerializableDataFile> element,
+                          OutputReceiver<KV<ManifestKey, SerializableDataFile>> out) {
+                        SerializableDataFile file = element.getValue();
+                        out.output(
+                            KV.of(
+                                ManifestKey.of(element.getKey(), file.getPartitionSpecId()), file));
+                      }
+                    }))
+            .setCoder(KvCoder.of(manifestKeyCoder, sdfCoder));
 
-    GroupIntoBatches<Integer, SerializableDataFile> batchDataFiles =
+    GroupIntoBatches<ManifestKey, SerializableDataFile> batchDataFiles =
         GroupIntoBatches.ofSize(manifestFileSize);
     GroupIntoBatches<String, byte[]> batchManifestFiles =
         GroupIntoBatches.ofSize(DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT);
@@ -321,37 +469,78 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           batchManifestFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
     }
 
-    PCollection<KV<Integer, Iterable<SerializableDataFile>>> groupedFiles =
+    PCollection<KV<ManifestKey, Iterable<SerializableDataFile>>> groupedFiles =
         keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles);
 
     PCollection<KV<String, byte[]>> manifests =
-        groupedFiles.apply(
-            "CreateManifests", ParDo.of(new CreateManifests(catalogConfig, tableIdentifier)));
+        groupedFiles.apply("CreateManifests", ParDo.of(new CreateManifests(catalogConfig)));
 
     PCollection<Row> snapshots =
         manifests
             .apply("GatherManifests", batchManifestFiles)
-            .apply(
-                "CommitManifests",
-                ParDo.of(new CommitManifestFilesDoFn(catalogConfig, tableIdentifier)))
+            .apply("CommitManifests", ParDo.of(new CommitManifestFilesDoFn(catalogConfig)))
             .setRowSchema(SnapshotInfo.getSchema());
 
-    return PCollectionRowTuple.of(
-        OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
+    errorSources.add(
+        dataFiles
+            .get(ERRORS)
+            .setRowSchema(pathPattern == null ? ERROR_SCHEMA : DYNAMIC_ERROR_SCHEMA));
+
+    PCollection<Row> errors =
+        PCollectionList.of(errorSources).apply("FlattenErrors", Flatten.pCollections());
+
+    return PCollectionRowTuple.of(OUTPUT_TAG, snapshots, ERROR_TAG, errors);
+  }
+
+  /** The footer read is keyed, so the single-table path supplies its one table as the key. */
+  private PCollection<KV<String, CollectDistinctSchemas.SchemaGroup>> fileSchemas(
+      PCollection<KV<String, String>> keyed) {
+    return keyed
+        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution, locationPrefix)))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), CollectDistinctSchemas.groupCoder()));
   }
 
   private PCollection<List<CollectDistinctSchemas.SchemaGroup>> distinctSchemas(
       PCollection<String> windowed) {
-    return windowed
-        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution)))
+    PCollection<KV<String, String>> keyed =
+        windowed.apply(
+            "KeyBySingleTable",
+            WithKeys.<String, String>of(tableIdentifier).withKeyType(TypeDescriptors.strings()));
+    return fileSchemas(keyed)
+        .apply("DropTableKey", Values.create())
         .setCoder(CollectDistinctSchemas.groupCoder())
         .apply(
             "CollectDistinctSchemas",
             Combine.globally(new CollectDistinctSchemas()).withoutDefaults());
   }
 
+  /** One schema union per table: the same CombineFn, lifted to a per-key combine. */
+  private PCollection<KV<String, List<CollectDistinctSchemas.SchemaGroup>>> distinctSchemasPerTable(
+      PCollection<KV<String, String>> routed) {
+    return fileSchemas(routed)
+        .apply("CollectDistinctSchemasPerTable", Combine.perKey(new CollectDistinctSchemas()));
+  }
+
+  /** The verdicts, as a map the gate can look a table up in. */
+  private PCollectionView<Map<String, SchemaCommitVerdict>> verdictView(
+      PCollection<KV<String, List<CollectDistinctSchemas.SchemaGroup>>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    SchemaCoder<SchemaCommitVerdict> verdictCoder;
+    try {
+      verdictCoder = SchemaRegistry.createDefault().getSchemaCoder(SchemaCommitVerdict.class);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    return schemas
+        .apply(
+            "CommitSchemaPerTable",
+            ParDo.of(new CommitSchemaPerTable(catalogConfig, settings, committer)))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), verdictCoder))
+        .apply("VerdictsByTable", View.asMap());
+  }
+
   /** Commits the plan for the window's schemas once; the signal releases the gated paths. */
-  private PCollection<Long> commitSchema(
+  private PCollection<SchemaCommitVerdict> commitSchema(
       PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
       CommitSchemaUnion.Settings settings) {
     return schemas.apply(
@@ -412,21 +601,38 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    *       back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
    * </ul>
    */
-  static class ConvertToDataFile extends DoFn<String, SerializableDataFile> {
+  static class ConvertToDataFile
+      extends DoFn<KV<String, String>, KV<String, SerializableDataFile>> {
     private final IcebergCatalogConfig catalogConfig;
-    private final String identifier;
+    private final boolean dynamic;
     public static final TupleTag<Row> ERRORS = new TupleTag<>();
-    public static final TupleTag<SerializableDataFile> DATA_FILES = new TupleTag<>();
+    public static final TupleTag<KV<String, SerializableDataFile>> DATA_FILES = new TupleTag<>();
     private final @Nullable String prefix;
     private final @Nullable List<String> partitionFields;
     private final @Nullable List<String> sortFields;
     private final @Nullable Map<String, String> tableProps;
     private final SchemaEvolutionConfig evolution;
     private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
-    private transient volatile @MonotonicNonNull Table table;
-    private transient volatile boolean tableMissing;
     private transient @MonotonicNonNull Set<String> warned;
-    private final AtomicBoolean refreshedThisBundle = new AtomicBoolean();
+    private transient @MonotonicNonNull ConcurrentMap<String, TableState> states;
+
+    /** One table's cached handle and flags; the single-table fields became a map of these. */
+    private static final class TableState {
+      volatile @Nullable Table table;
+      volatile boolean missing;
+      final AtomicBoolean refreshedThisBundle = new AtomicBoolean();
+    }
+
+    private TableState stateFor(String tableName) {
+      ConcurrentMap<String, TableState> map = checkStateNotNull(states);
+      TableState existing = map.get(tableName);
+      if (existing != null) {
+        return existing;
+      }
+      TableState created = new TableState();
+      TableState raced = map.putIfAbsent(tableName, created);
+      return raced != null ? raced : created;
+    }
 
     // Number of parallel threads processing incoming files
     private static final int THREAD_POOL_SIZE = 10;
@@ -434,14 +640,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
-        String identifier,
+        boolean dynamic,
         @Nullable String prefix,
         @Nullable List<String> partitionFields,
         @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps) {
       this(
           catalogConfig,
-          identifier,
+          dynamic,
           prefix,
           partitionFields,
           sortFields,
@@ -451,14 +657,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     public ConvertToDataFile(
         IcebergCatalogConfig catalogConfig,
-        String identifier,
+        boolean dynamic,
         @Nullable String prefix,
         @Nullable List<String> partitionFields,
         @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps,
         SchemaEvolutionConfig evolution) {
       this.catalogConfig = catalogConfig;
-      this.identifier = identifier;
+      this.dynamic = dynamic;
       this.prefix = prefix;
       this.partitionFields = partitionFields;
       this.sortFields = sortFields;
@@ -468,6 +674,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     static final String PREFIX_ERROR = "File path did not start with the specified prefix";
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
+    static final String NOT_PARQUET_ERROR =
+        UNKNOWN_FORMAT_ERROR + ": the file name has no extension and the file is not Parquet: ";
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
     static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
     static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
@@ -513,6 +721,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private static class ProcessResult {
+      final String table;
       final @Nullable SerializableDataFile dataFile;
       final @Nullable Row errorRow;
 
@@ -524,6 +733,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       final PaneInfo paneInfo;
 
       ProcessResult(
+          String table,
           @Nullable SerializableDataFile dataFile,
           @Nullable Row errorRow,
           @Nullable Unverified unverified,
@@ -535,6 +745,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             "Expected only one of dataFile or errorRow, but got both:%n\tfile: %s%n\terror: %s",
             dataFile != null ? dataFile.getPath() : null,
             errorRow);
+        this.table = table;
         this.dataFile = dataFile;
         this.errorRow = errorRow;
         this.unverified = unverified;
@@ -548,13 +759,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     public void setup() {
       tasks = new BoundedAsyncTasks<>(THREAD_POOL_SIZE, MAX_IN_FLIGHT_TASKS);
       warned = ConcurrentHashMap.newKeySet();
+      states = new ConcurrentHashMap<>();
     }
 
     /** Clears anything left behind if the runner reuses this instance after a failed bundle. */
     @StartBundle
     public void startBundle() {
       checkStateNotNull(tasks).cancelAll();
-      refreshedThisBundle.set(false);
+      for (TableState state : checkStateNotNull(states).values()) {
+        state.refreshedThisBundle.set(false);
+      }
     }
 
     @Teardown
@@ -566,13 +780,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @ProcessElement
     public void process(
-        @Element String filePath,
+        @Element KV<String, String> element,
         @Timestamp Instant timestamp,
         BoundedWindow window,
         PaneInfo paneInfo,
         MultiOutputReceiver output)
         throws Exception {
-      Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window, paneInfo);
+      Callable<ProcessResult> task =
+          createProcessTask(element.getKey(), element.getValue(), timestamp, window, paneInfo);
       checkStateNotNull(tasks).submit(task, result -> outputResult(result, output));
     }
 
@@ -590,7 +805,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         output
             .get(DATA_FILES)
             .outputWindowedValue(
-                result.dataFile,
+                KV.of(result.table, result.dataFile),
                 result.timestamp,
                 Collections.singleton(result.window),
                 result.paneInfo);
@@ -608,7 +823,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         context.output(ERRORS, result.errorRow, result.timestamp, result.window);
         numErrorFiles.inc();
       } else if (result.dataFile != null) {
-        context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
+        context.output(
+            DATA_FILES, KV.of(result.table, result.dataFile), result.timestamp, result.window);
         countUnverified(result);
       }
     }
@@ -622,68 +838,96 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private Callable<ProcessResult> createProcessTask(
-        String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+        String tableName,
+        String filePath,
+        Instant timestamp,
+        BoundedWindow window,
+        PaneInfo paneInfo) {
 
       return () -> {
+        TableState state = stateFor(tableName);
         FileFormat format;
-        try {
-          format = inferFormat(filePath);
-        } catch (UnknownFormatException e) {
-          return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+        @Nullable ParquetMetadata parquetFooter = null;
+        if (hasNoExtension(filePath)) {
+          try {
+            parquetFooter = ParquetFooters.read(filePath);
+          } catch (Exception e) {
+            return errorResult(
+                tableName,
+                filePath,
+                NOT_PARQUET_ERROR + errorMessage(e),
+                timestamp,
+                window,
+                paneInfo);
+          }
+          format = FileFormat.PARQUET;
+        } else {
+          try {
+            format = inferFormat(filePath);
+          } catch (UnknownFormatException e) {
+            return errorResult(
+                tableName, filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
+          }
         }
 
         // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
         // per-file error rows here would silently drop in-flight files on a transient blip.
         // Only conditions that are properties of the file go to the error output.
-        if (tableMissing) {
+        if (state.missing) {
           return errorResult(
-              filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
+              tableName, filePath, MISSING_TABLE_ERROR + tableName, timestamp, window, paneInfo);
         }
-        if (table == null) {
-          synchronized (this) {
-            if (table == null) {
+        if (state.table == null) {
+          synchronized (state) {
+            if (state.table == null) {
               try {
-                table = getOrCreateTable(filePath, format);
+                state.table = getOrCreateTable(tableName, filePath, format);
               } catch (FileNotFoundException e) {
-                return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
-              } catch (NoSuchTableException e) {
-                tableMissing = true;
                 return errorResult(
-                    filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
+                    tableName, filePath, errorMessage(e), timestamp, window, paneInfo);
+              } catch (NoSuchTableException e) {
+                state.missing = true;
+                return errorResult(
+                    tableName,
+                    filePath,
+                    MISSING_TABLE_ERROR + tableName,
+                    timestamp,
+                    window,
+                    paneInfo);
               }
             }
           }
         }
+        Table table = checkStateNotNull(state.table);
 
         // Check if the file path contains the provided prefix
         if (table.spec().isPartitioned()
             && !Strings.isNullOrEmpty(prefix)
             && !filePath.startsWith(checkStateNotNull(prefix))) {
-          return errorResult(filePath, PREFIX_ERROR, timestamp, window, paneInfo);
+          return errorResult(tableName, filePath, PREFIX_ERROR, timestamp, window, paneInfo);
         }
 
-        if (table.schema().columns().isEmpty() && firstTime("empty schema")) {
+        if (table.schema().columns().isEmpty() && firstTime(tableName, "empty schema")) {
           LOG.warn(
               "Table {} has no columns: files register with no readable columns and no stats."
                   + " Enable schema evolution to infer the schema from the files.",
-              identifier);
+              tableName);
         }
 
         // ---- Per-file phase: every failure below is one error row, never a failed bundle.
-        @Nullable ParquetMetadata parquetFooter = null;
-        if (format.equals(FileFormat.PARQUET)) {
+        if (format.equals(FileFormat.PARQUET) && parquetFooter == null) {
           try {
             parquetFooter = ParquetFooters.read(filePath);
           } catch (Exception e) {
-            return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+            return errorResult(tableName, filePath, errorMessage(e), timestamp, window, paneInfo);
           }
         }
         Verdict verdict = Verdict.OK;
         if (evolution.isEnabled()) {
-          verdict = verify(filePath, format, parquetFooter);
+          verdict = verify(table, tableName, state, filePath, format, parquetFooter);
         }
         if (verdict.error != null) {
-          return errorResult(filePath, verdict.error, timestamp, window, paneInfo);
+          return errorResult(tableName, filePath, verdict.error, timestamp, window, paneInfo);
         }
 
         // What readers resolve a file without field ids with, so its metrics and partition agree
@@ -699,7 +943,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             resolvedFooter = ParquetFieldIds.resolve(parquetFooter, table, mapping);
           } catch (ParquetFieldIds.ConflictException e) {
             return errorResult(
-                filePath, FIELD_ID_ERROR + e.getMessage(), timestamp, window, paneInfo);
+                tableName, filePath, FIELD_ID_ERROR + e.getMessage(), timestamp, window, paneInfo);
           }
         }
 
@@ -716,7 +960,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   table.schema(),
                   resolvedFooter);
         } catch (Exception e) {
-          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+          return errorResult(tableName, filePath, errorMessage(e), timestamp, window, paneInfo);
         }
 
         // Figure out which partition this DataFile should go to
@@ -726,7 +970,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (partitioned && !Strings.isNullOrEmpty(prefix)) {
           // option 1: use directory structure to determine partition
           // Note: we don't validate the DataFile content here
-          partitionPath = getPartitionFromFilePath(filePath);
+          partitionPath = getPartitionFromFilePath(table, filePath);
         } else if (partitioned) {
           try {
             // option 2: examine DataFile min/max statistics to determine partition
@@ -734,12 +978,22 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 getPartitionFromMetrics(metrics, inputFile, table, mapping, resolvedFooter);
           } catch (UnknownPartitionException e) {
             return errorResult(
-                filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
+                tableName,
+                filePath,
+                UNKNOWN_PARTITION_ERROR + e.getMessage(),
+                timestamp,
+                window,
+                paneInfo);
           } catch (RuntimeException e) {
             // e.g. a bound that does not decode as the table's type: one error row, not a failed
             // bundle
             return errorResult(
-                filePath, UNKNOWN_PARTITION_ERROR + errorMessage(e), timestamp, window, paneInfo);
+                tableName,
+                filePath,
+                UNKNOWN_PARTITION_ERROR + errorMessage(e),
+                timestamp,
+                window,
+                paneInfo);
           }
         }
 
@@ -758,6 +1012,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           }
           DataFile df = builder.build();
           return new ProcessResult(
+              tableName,
               SerializableDataFile.from(df, table.spec()),
               null,
               verdict.unverified,
@@ -766,7 +1021,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               paneInfo);
         } catch (Exception e) {
           // getLength is a per-file read (e.g. the file was deleted mid-flight).
-          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+          return errorResult(tableName, filePath, errorMessage(e), timestamp, window, paneInfo);
         }
       };
     }
@@ -775,19 +1030,25 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * The checks the options promise, in order: a format the checks can read, a convertible schema,
      * coverage by the table, pins. The first failure is the verdict.
      */
-    private Verdict verify(String filePath, FileFormat format, @Nullable ParquetMetadata footer) {
+    private Verdict verify(
+        Table table,
+        String tableName,
+        TableState state,
+        String filePath,
+        FileFormat format,
+        @Nullable ParquetMetadata footer) {
       if (!format.equals(FileFormat.PARQUET)) {
         if (evolution.getUnverifiableFileHandling() == UnverifiableFileHandling.REJECT) {
           return Verdict.error(UNCHECKED_FORMAT_ERROR + format.name());
         }
-        if (firstTime("unchecked format")) {
+        if (firstTime(tableName, "unchecked format")) {
           LOG.warn(
               "Registering {} files in table {} unchecked (UnverifiableFileHandling.ACCEPT):"
                   + " coverage and pin checks read only Parquet, so a required column such a file"
                   + " lacks or holds nulls in fails reads of the table, not registration. First"
                   + " file: {}",
               format,
-              identifier,
+              tableName,
               filePath);
         }
         return Verdict.unverified(Unverified.FORMAT);
@@ -799,11 +1060,28 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       } catch (Exception e) {
         return Verdict.error(UNREADABLE_SCHEMA_ERROR + errorMessage(e));
       }
-      @Nullable String uncovered = uncoveredReason(fileSchema);
+      Set<Integer> identityPartitionColumnsFromPath =
+          identityPartitionColumnsFromPath(table, filePath);
+      @Nullable String uncovered =
+          uncoveredReason(table, state, fileSchema, identityPartitionColumnsFromPath);
       if (uncovered != null) {
         return Verdict.error(uncovered);
       }
-      return checkPins(filePath, fileSchema, parquetFooter);
+      return checkPins(
+          table, tableName, filePath, fileSchema, parquetFooter, identityPartitionColumnsFromPath);
+    }
+
+    /**
+     * Identity partition columns this file may lack because its path gives them a value: {@code dt}
+     * for a file under {@code dt=2024-01-15/} when the table is partitioned by {@code dt}. Empty
+     * without a prefix.
+     */
+    private Set<Integer> identityPartitionColumnsFromPath(Table table, String filePath) {
+      if (Strings.isNullOrEmpty(prefix) || table.spec().isUnpartitioned()) {
+        return Collections.emptySet();
+      }
+      return PartitionPaths.identityColumnsFilledByKeys(
+          table.spec(), PartitionPaths.partitionKeysInPath(filePath, prefix));
     }
 
     /**
@@ -811,20 +1089,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * covers every file. If not, refresh once per bundle (a commit may have landed since the table
      * was cached) and report the remaining delta. Never changes the schema.
      */
-    private @Nullable String uncoveredReason(org.apache.iceberg.Schema fileSchema) {
-      Table table = checkStateNotNull(this.table);
-      SchemaDelta delta = SchemaDelta.classify(table, fileSchema);
+    private @Nullable String uncoveredReason(
+        Table table,
+        TableState state,
+        org.apache.iceberg.Schema fileSchema,
+        Set<Integer> identityPartitionColumnsFromPath) {
+      SchemaDelta delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
       // a commit can land after the table was cached; one refresh per bundle is enough to see it,
       // and a bundle full of routed files must not load the table once per file
-      if (refreshedThisBundle.compareAndSet(false, true)) {
-        synchronized (this) {
+      if (state.refreshedThisBundle.compareAndSet(false, true)) {
+        synchronized (state) {
           table.refresh();
         }
       }
-      delta = SchemaDelta.classify(table, fileSchema);
+      delta = SchemaDelta.classify(table, fileSchema, identityPartitionColumnsFromPath);
       if (delta.isEmpty()) {
         return null;
       }
@@ -845,14 +1126,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * goes on, so a pin the footer does count nulls for still fails the file.
      */
     private Verdict checkPins(
-        String filePath, org.apache.iceberg.Schema fileSchema, ParquetMetadata footer) {
-      Table table = checkStateNotNull(this.table);
+        Table table,
+        String tableName,
+        String filePath,
+        org.apache.iceberg.Schema fileSchema,
+        ParquetMetadata footer,
+        Set<Integer> identityPartitionColumnsFromPath) {
       List<String> unproven = new ArrayList<>();
       for (String pinned : evolution.getRequiredColumns()) {
-        if (table.schema().findField(pinned) == null) {
+        org.apache.iceberg.types.Types.@Nullable NestedField tableField =
+            table.schema().findField(pinned);
+        if (tableField == null) {
           continue;
         }
         if (fileSchema.findField(pinned) == null) {
+          if (identityPartitionColumnsFromPath.contains(tableField.fieldId())) {
+            // the path gives it a value, e.g. dt=2024-01-15, so it is never null
+            continue;
+          }
           return Verdict.error(PINNED_COLUMN_ERROR + pinned + " is absent from the file");
         }
         @Nullable Long nulls = FileSchemas.nullCount(footer, fileSchema, pinned);
@@ -872,12 +1163,12 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       if (unproven.isEmpty()) {
         return Verdict.OK;
       }
-      if (firstTime("unproven pins")) {
+      if (firstTime(tableName, "unproven pins")) {
         LOG.warn(
             "Registering files in table {} whose footer has no null count statistics for pinned"
                 + " column(s) {} on trust (UnverifiableFileHandling.ACCEPT): nulls there fail"
                 + " reads of the table, not registration. First file: {}",
-            identifier,
+            tableName,
             unproven,
             filePath);
       }
@@ -885,27 +1176,34 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     /** Once per instance per key: at volume a line per file would drown the log. */
-    private boolean firstTime(String key) {
-      return checkStateNotNull(warned).add(key);
+    private boolean firstTime(String tableName, String key) {
+      return checkStateNotNull(warned).add(tableName + ":" + key);
     }
 
-    private static ProcessResult errorResult(
-        String filePath, String message, Instant timestamp, BoundedWindow window, PaneInfo pane) {
-      return new ProcessResult(
-          null,
-          Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build(),
-          null,
-          timestamp,
-          window,
-          pane);
+    private ProcessResult errorResult(
+        String tableName,
+        String filePath,
+        String message,
+        Instant timestamp,
+        BoundedWindow window,
+        PaneInfo pane) {
+      Row errorRow;
+      if (dynamic) {
+        errorRow =
+            Row.withSchema(DYNAMIC_ERROR_SCHEMA).addValues(filePath, message, tableName).build();
+      } else {
+        errorRow = Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build();
+      }
+      return new ProcessResult(tableName, null, errorRow, null, timestamp, window, pane);
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
       return transform.bind(type).apply(Conversions.fromByteBuffer(type, bytes));
     }
 
-    private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
-      TableIdentifier tableId = IcebergUtils.parseTableIdentifier(identifier);
+    private Table getOrCreateTable(String tableName, String filePath, FileFormat format)
+        throws IOException {
+      TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableName);
       try {
         return catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
@@ -935,7 +1233,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               .create();
 
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          return catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
+          return catalogConfig.catalog().loadTable(tableId);
         }
       }
     }
@@ -953,14 +1251,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return ParquetSchemaUtil.convert(messageType);
     }
 
-    private String getPartitionFromFilePath(String filePath) {
-      if (checkStateNotNull(table).spec().isUnpartitioned()) {
+    private String getPartitionFromFilePath(Table table, String filePath) {
+      if (table.spec().isUnpartitioned()) {
         return "";
       }
-      String partitionPath = filePath.substring(checkStateNotNull(prefix).length());
-      int lastSlashIndex = partitionPath.lastIndexOf('/');
-
-      return lastSlashIndex > 0 ? partitionPath.substring(0, lastSlashIndex) : "";
+      return PartitionPaths.relative(filePath, checkStateNotNull(prefix));
     }
 
     /**
@@ -1153,29 +1448,34 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * downstream {@link CommitManifestFilesDoFn}.
    */
   static class CreateManifests
-      extends DoFn<KV<Integer, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
+      extends DoFn<KV<ManifestKey, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
     private final IcebergCatalogConfig catalogConfig;
-    private final String identifier;
-    private transient @MonotonicNonNull Table table;
+    private transient @MonotonicNonNull Map<String, Table> tables;
 
-    public CreateManifests(IcebergCatalogConfig catalogConfig, String identifier) {
+    public CreateManifests(IcebergCatalogConfig catalogConfig) {
       this.catalogConfig = catalogConfig;
-      this.identifier = identifier;
     }
 
     @ProcessElement
     public void process(
-        @Element KV<Integer, Iterable<SerializableDataFile>> batch,
+        @Element KV<ManifestKey, Iterable<SerializableDataFile>> batch,
         OutputReceiver<KV<String, byte[]>> output)
         throws IOException {
       if (!batch.getValue().iterator().hasNext()) {
         return;
       }
+      String identifier = batch.getKey().getTable();
+      if (tables == null) {
+        tables = new HashMap<>();
+      }
+      Table table = tables.get(identifier);
       if (table == null) {
         table = catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
+        tables.put(identifier, table);
       }
 
-      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey()));
+      PartitionSpec spec =
+          checkStateNotNull(table.specs().get(batch.getKey().getPartitionSpecId()));
 
       String manifestPath =
           String.format(
@@ -1223,17 +1523,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    */
   static class CommitManifestFilesDoFn extends DoFn<KV<String, Iterable<byte[]>>, Row> {
     private final IcebergCatalogConfig catalogConfig;
-    private final String identifier;
-    private transient @MonotonicNonNull Table table = null;
+    private transient @MonotonicNonNull Map<String, Table> tables = null;
     private static final String COMMIT_ID_KEY = "beam.add-files-commit-id";
 
     @StateId("lastCommitTimestamp")
     private final StateSpec<ValueState<Long>> lastCommitTimestamp =
         StateSpecs.value(VarLongCoder.of());
 
-    public CommitManifestFilesDoFn(IcebergCatalogConfig catalogConfig, String identifier) {
+    public CommitManifestFilesDoFn(IcebergCatalogConfig catalogConfig) {
       this.catalogConfig = catalogConfig;
-      this.identifier = identifier;
     }
 
     private static void ensureNameMappingPresent(Table table) {
@@ -1268,13 +1566,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         manifests.add(ManifestFiles.decode(bytes));
       }
       String commitId = commitHash(manifests);
+      String identifier = batch.getKey();
+      if (tables == null) {
+        tables = new HashMap<>();
+      }
+      Table table = tables.get(identifier);
       if (table == null) {
         table = catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
+        tables.put(identifier, table);
       }
       table.refresh();
       ensureNameMappingPresent(table);
 
-      if (shouldSkip(commitId, lastCommitTimestamp.read())) {
+      if (shouldSkip(table, commitId, lastCommitTimestamp.read())) {
         return;
       }
 
@@ -1314,11 +1618,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * Performs a look-back through Iceberg table history to determine if this specific batch of
      * files has already been successfully committed.
      */
-    private boolean shouldSkip(String commitUID, @Nullable Long lastCommitTimestamp) {
+    private boolean shouldSkip(Table table, String commitUID, @Nullable Long lastCommitTimestamp) {
       if (lastCommitTimestamp == null) {
         return false;
       }
-      Table table = checkStateNotNull(this.table);
 
       // check past snapshots to see if they contain the commit ID
       @Nullable Snapshot current = table.currentSnapshot();
@@ -1369,7 +1672,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
-  /** Tries to infer other file formats. Defaults to Parquet. */
+  /** Attempt to infer file format from extension. */
   public static FileFormat inferFormat(String path) {
     String lowerPath = path.toLowerCase();
 
@@ -1382,6 +1685,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     } else {
       throw new UnknownFormatException();
     }
+  }
+
+  /**
+   * A name with no extension, as Hive and other engines write by default, says nothing about the
+   * format, so the file is read to see whether it is Parquet. A name with a dot names some format.
+   */
+  static boolean hasNoExtension(String path) {
+    String name = path.substring(path.lastIndexOf('/') + 1);
+    return !name.isEmpty() && name.indexOf('.') < 0;
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

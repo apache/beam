@@ -56,9 +56,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
@@ -106,6 +108,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
             + " into a static factory method may fix it.")
 class GcsUtilV2 {
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
+
+  /** Environment variable that selects the Google Cloud universe domain. */
+  @VisibleForTesting static final String UNIVERSE_DOMAIN_ENV_VAR = "GOOGLE_CLOUD_UNIVERSE_DOMAIN";
 
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
     @Override
@@ -159,14 +164,30 @@ class GcsUtilV2 {
   /**
    * Default maximum number of files rewritten concurrently by {@link #copy} and {@link #move}, used
    * when {@link GcsOptions#getGcsMaxConcurrentRewrites} is unset.
+   *
+   * <p>A copy or move never uses more threads than it has files, so this only caps large ones, such
+   * as the temp-to-final renames that finish a write of thousands of shards. There 128 brought the
+   * rename time close to {@code GcsUtilV1}'s batched rewrites without any request being throttled.
    */
-  private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 32;
+  private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 128;
 
   /**
    * How long {@link #copy} and {@link #move} wait for in-flight rewrites to finish after a failure
    * before interrupting them.
    */
   private static final long REWRITE_TERMINATION_TIMEOUT_MINUTES = 5;
+
+  /**
+   * Starts the resumable upload sessions of {@link #create} in the background. Unbounded, so that a
+   * burst of creates is never queued behind one another, and daemon, so that an abandoned upload
+   * cannot keep the JVM alive.
+   */
+  private static final ExecutorService UPLOAD_SESSION_EXECUTOR =
+      Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+              .setDaemon(true)
+              .setNameFormat("gcsutil-v2-upload-session-%d")
+              .build());
 
   /** Maximum number of files rewritten concurrently by {@link #copy} and {@link #move}. */
   private final int maxConcurrentRewrites;
@@ -190,7 +211,24 @@ class GcsUtilV2 {
     String endpoint = gcsOptions.getGcsEndpoint();
     if (endpoint != null) {
       storageOptionsBuilder.setHost(rootUrlOf(endpoint));
+    } else {
+      // java-storage only takes the universe domain from StorageOptions; unlike the Google API
+      // client used by GcsUtilV1, it ignores GOOGLE_CLOUD_UNIVERSE_DOMAIN and the credentials'
+      // universe domain. Set it explicitly so that non-default universes (e.g. Trusted Partner
+      // Cloud) resolve to their own storage endpoint instead of storage.googleapis.com.
+      @Nullable String universeDomain =
+          resolveUniverseDomain(System.getenv(UNIVERSE_DOMAIN_ENV_VAR), credentials);
+      if (universeDomain != null) {
+        storageOptionsBuilder.setUniverseDomain(universeDomain);
+      }
     }
+
+    // Use the process-wide shared HTTP transport rather than letting each client create its own, so
+    // a new client reuses established connections instead of opening new ones on its first request.
+    storageOptionsBuilder.setTransportOptions(
+        StorageOptions.getDefaultHttpTransportOptions().toBuilder()
+            .setHttpTransportFactory(Transport::getTransport)
+            .build());
 
     storage = storageOptionsBuilder.build().getService();
     uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
@@ -380,6 +418,35 @@ class GcsUtilV2 {
     } catch (MalformedURLException e) {
       throw new IllegalArgumentException("Invalid gcsEndpoint URL: " + endpoint, e);
     }
+  }
+
+  /**
+   * Returns the non-default universe domain to use for the storage client, or null for the default
+   * universe ({@code googleapis.com}).
+   *
+   * <p>{@code envUniverseDomain} (the value of {@code GOOGLE_CLOUD_UNIVERSE_DOMAIN}) takes
+   * precedence; otherwise the credentials' universe domain is used. This matches how the Google API
+   * client libraries, and Beam's Python SDK, resolve the universe domain.
+   */
+  @VisibleForTesting
+  static @Nullable String resolveUniverseDomain(
+      @Nullable String envUniverseDomain, @Nullable Credentials credentials) {
+    String universeDomain = envUniverseDomain == null ? "" : envUniverseDomain.trim();
+    if (universeDomain.isEmpty() && credentials != null) {
+      try {
+        universeDomain = credentials.getUniverseDomain();
+      } catch (IOException e) {
+        LOG.warn(
+            "Unable to determine the universe domain of the credentials; using the default.", e);
+        return null;
+      }
+    }
+    if (universeDomain == null
+        || universeDomain.isEmpty()
+        || Credentials.GOOGLE_DEFAULT_UNIVERSE.equals(universeDomain)) {
+      return null;
+    }
+    return universeDomain;
   }
 
   // AccessDeniedException/FileAlreadyExistsException permit a null "other" argument, and these
@@ -994,20 +1061,67 @@ class GcsUtilV2 {
     }
   }
 
-  /** A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel. */
+  /**
+   * A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel.
+   *
+   * <p>The WriteChannel is opened in the background, because java-storage starts the resumable
+   * upload session with a blocking request when it opens one. Waiting for it on the first write, or
+   * on close, rather than in {@link #create} lets that request overlap with the caller's own work,
+   * as gcsio does for {@code GcsUtilV1}. A failure to start the session surfaces there instead.
+   */
   private static class GcsWritableByteChannel implements WritableByteChannel {
-    private final WriteChannel writer;
+    private final Future<WriteChannel> pendingWriter;
     private final GcsPath gcsPath;
+    private boolean closed = false;
+    // Set when the upload session could not be started (it failed, or waiting for it was
+    // interrupted). There is then nothing to finalize, and the failure has already been reported.
+    private boolean sessionFailed = false;
 
-    GcsWritableByteChannel(WriteChannel writer, GcsPath gcsPath) {
-      this.writer = writer;
+    GcsWritableByteChannel(Future<WriteChannel> pendingWriter, GcsPath gcsPath) {
+      this.pendingWriter = pendingWriter;
       this.gcsPath = gcsPath;
+    }
+
+    /** Waits for the upload session to start and returns its channel. */
+    private WriteChannel writer() throws IOException {
+      try {
+        return pendingWriter.get();
+      } catch (InterruptedException e) {
+        sessionFailed = true;
+        Thread.currentThread().interrupt();
+        pendingWriter.cancel(true);
+        throw new InterruptedIOException("Interrupted while starting the upload to " + gcsPath);
+      } catch (CancellationException e) {
+        // Only cancelled above, by an earlier interrupted wait, which abandoned the upload.
+        sessionFailed = true;
+        throw new InterruptedIOException(
+            "The upload to " + gcsPath + " was abandoned after an earlier interrupt");
+      } catch (ExecutionException e) {
+        sessionFailed = true;
+        Throwable cause = e.getCause();
+        if (cause instanceof StorageException) {
+          throw translateStorageException(gcsPath, (StorageException) cause);
+        }
+        if (cause instanceof IOException) {
+          throw (IOException) cause;
+        }
+        if (cause instanceof RuntimeException) {
+          throw (RuntimeException) cause;
+        }
+        if (cause instanceof Error) {
+          throw (Error) cause;
+        }
+        throw new IOException("Failed to start the upload to " + gcsPath, cause);
+      }
     }
 
     @Override
     public int write(ByteBuffer src) throws IOException {
+      if (closed) {
+        throw new ClosedChannelException();
+      }
       try {
-        return writer.write(src);
+        return writer().write(src);
       } catch (StorageException e) {
         throw translateStorageException(gcsPath, e);
       }
@@ -1015,14 +1129,23 @@ class GcsUtilV2 {
 
     @Override
     public boolean isOpen() {
-      return writer.isOpen();
+      return !closed;
     }
 
     @Override
     public void close() throws IOException {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      if (sessionFailed) {
+        // An earlier write already reported that the session could not be started, and there is
+        // nothing to finalize.
+        return;
+      }
       // The upload is finalized here, so this is where a failed precondition surfaces.
       try {
-        writer.close();
+        writer().close();
       } catch (StorageException e) {
         throw translateStorageException(gcsPath, e);
       }
@@ -1058,19 +1181,33 @@ class GcsUtilV2 {
           writeOptionList.add(BlobWriteOption.generationMatch(blob.getGeneration()));
         }
       }
-      // Open a WriteChannel from the storage service
-      WriteChannel writer =
-          client.writer(blobInfo, writeOptionList.toArray(new BlobWriteOption[0]));
+      // Open a WriteChannel from the storage service. Opening one starts the resumable upload
+      // session with a blocking request, so it is done in the background and the returned channel
+      // waits for it on its first write or on close (see GcsWritableByteChannel).
+      BlobWriteOption[] writeOptionArray = writeOptionList.toArray(new BlobWriteOption[0]);
       Integer uploadBufferSizeBytes =
           options.getUploadBufferSizeBytes() != null
               ? options.getUploadBufferSizeBytes()
               : this.uploadBufferSizeBytes;
-      writer.setChunkSize(
-          uploadBufferSizeBytes != null ? uploadBufferSizeBytes : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
+      int chunkSize =
+          uploadBufferSizeBytes != null ? uploadBufferSizeBytes : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES;
+      Future<WriteChannel> pendingWriter =
+          UPLOAD_SESSION_EXECUTOR.submit(
+              () -> {
+                try {
+                  WriteChannel writer = client.writer(blobInfo, writeOptionArray);
+                  writer.setChunkSize(chunkSize);
+                  serviceCallMetric.call("ok");
+                  return writer;
+                } catch (StorageException e) {
+                  serviceCallMetric.call(e.getCode());
+                  throw e;
+                }
+              });
 
-      serviceCallMetric.call("ok");
       // Return the bridge wrapper
-      return wrapInCounting(new GcsWritableByteChannel(writer, path), path.getBucket(), container);
+      return wrapInCounting(
+          new GcsWritableByteChannel(pendingWriter, path), path.getBucket(), container);
 
     } catch (StorageException e) {
       serviceCallMetric.call(e.getCode());
