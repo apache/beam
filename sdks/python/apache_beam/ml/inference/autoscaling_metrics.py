@@ -63,6 +63,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from typing import Optional
 
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
 
@@ -315,7 +316,7 @@ class CompletionRateCapacityEstimator:
     Args:
       completed_total: Current value of the completed-requests counter.
       running: Current number of in-flight requests.
-      now: Sample timestamp in seconds; defaults to ``time.time()``.
+      now: Sample timestamp in seconds; defaults to ``time.monotonic()``.
 
     Returns:
       The capacity estimate, or ``None`` when there is not enough data (first
@@ -323,7 +324,7 @@ class CompletionRateCapacityEstimator:
       keep its previous value.
     """
     if now is None:
-      now = time.time()
+      now = time.monotonic()
     prev_count, prev_ts = self._last_count, self._last_ts
     self._last_count, self._last_ts = completed_total, now
     if prev_count is None or prev_ts is None:
@@ -554,12 +555,14 @@ class NumLoadedModelsPublisher:
   def _publish(self, value: float) -> None:
     published = int(round(value))
     # The SDK harness reports process-wide distributions without resetting
-    # them, and Dataflow reads their cumulative mean (sum / count). Resetting
-    # before each update keeps the cell at (sum=published, count=1), so the
-    # runner sees the latest value rather than an average since worker start.
+    # them, and Dataflow reads their cumulative mean (sum / count). Keeping the
+    # cell at (sum=published, count=1) makes the runner see the latest value
+    # rather than an average since worker start. The harness reads the cell
+    # from another thread, so swap the data in one step: reset() then
+    # update() would briefly expose an empty cell (count=0).
     cell = MetricsEnvironment.process_wide_container().get_distribution(
         MetricName(MODEL_MANAGER_METRICS_NAMESPACE, self._metric_name))
     current = cell.get_cumulative()
     if current.count != 1 or current.sum != published:
-      cell.reset()
-      cell.update(published)
+      with cell._lock:  # pylint: disable=protected-access
+        cell.data = DistributionData(published, 1, published, published)

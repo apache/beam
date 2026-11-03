@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import io
+import threading
 import unittest
 from unittest import mock
 
@@ -172,11 +173,11 @@ class AutoscalingMetricsTest(unittest.TestCase):
     # running=0): total_completed=30, total_slot_secs=25 -> mu=1.2, p90=5 -> 6.
     self.assertAlmostEqual(estimator.update(30.0, 0.0, now=125.0), 6.0)
 
-  def test_capacity_estimator_defaults_to_wall_clock(self):
+  def test_capacity_estimator_defaults_to_monotonic_clock(self):
     estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
         min_requests=0)
     with mock.patch.object(autoscaling_metrics.time,
-                           'time',
+                           'monotonic',
                            side_effect=[100.0, 105.0]):
       self.assertIsNone(estimator.update(0.0, 1.0))
       self.assertAlmostEqual(estimator.update(10.0, 1.0), 2.0)
@@ -285,13 +286,42 @@ class AutoscalingMetricsTest(unittest.TestCase):
                 'num_loaded_models_reset_test')))
     cell.reset()
     self.addCleanup(cell.reset)
+    cell.update(7)  # A stale value, e.g. from before a model reload.
     for _ in range(10):
       pub._publish(2.0)
-    self.assertEqual(cell.get_cumulative().count, 1)
-    self.assertEqual(cell.get_cumulative().sum, 2)
+    self.assertEqual(
+        cell.get_cumulative(), autoscaling_metrics.DistributionData(2, 1, 2, 2))
     pub._publish(5.0)
-    self.assertEqual(cell.get_cumulative().count, 1)
-    self.assertEqual(cell.get_cumulative().sum, 5)
+    self.assertEqual(
+        cell.get_cumulative(), autoscaling_metrics.DistributionData(5, 1, 5, 5))
+
+  def test_publish_never_exposes_an_empty_cell(self):
+    """A concurrent reader must never see count=0 between updates."""
+    pub = _publisher('atomic_test')
+    cell = (
+        autoscaling_metrics.MetricsEnvironment.process_wide_container().
+        get_distribution(
+            autoscaling_metrics.MetricName(
+                autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
+                'num_loaded_models_atomic_test')))
+    self.addCleanup(cell.reset)
+    pub._publish(1.0)
+    stop = threading.Event()
+    counts = set()
+
+    def read():
+      while not stop.is_set():
+        counts.add(cell.get_cumulative().count)
+
+    reader = threading.Thread(target=read)
+    reader.start()
+    try:
+      for i in range(20000):
+        pub._publish(float(i % 7 + 1))
+    finally:
+      stop.set()
+      reader.join()
+    self.assertEqual(counts, {1})
 
   def test_publisher_for_same_tag_supersedes_previous(self):
     """A reloaded model's publisher takes over its tag from the stale one."""
@@ -393,7 +423,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
     with mock.patch('urllib.request.urlopen', side_effect=fake_urlopen):
       with mock.patch.object(autoscaling_metrics.time,
-                             'time',
+                             'monotonic',
                              side_effect=[100.0, 105.0]):
         self.assertIsNone(signal())  # Baseline sample.
         # delta=20 over 5s with running=4 -> mu=1, p90=4, multiplier 2 -> 8.
@@ -418,7 +448,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
                            'scrape_prometheus_metrics',
                            side_effect=lambda port: scrapes.pop(0)):
       with mock.patch.object(autoscaling_metrics.time,
-                             'time',
+                             'monotonic',
                              side_effect=[100.0, 110.0]):
         self.assertIsNone(signal())
         self.assertIsNone(signal())
