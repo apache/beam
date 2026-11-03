@@ -26,7 +26,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -504,5 +506,123 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             .collect(Collectors.toList());
     assertThat(writeTransformProto.size(), greaterThan(0));
     p.enableAbandonedNodeEnforcement(false);
+  }
+
+  @Test
+  public void testDynamicDestinationsWithDynamicSchemas() throws Exception {
+    Schema unionRecordSchema =
+        Schema.builder()
+            .addNullableStringField("name")
+            .addNullableInt64Field("number")
+            .addNullableDoubleField("score")
+            .build();
+
+    Schema wrapperSchema =
+        Schema.builder()
+            .addStringField(DESTINATION)
+            .addStringField(PortableBigQueryDestinations.SCHEMA)
+            .addRowField(RECORD, unionRecordSchema)
+            .build();
+
+    String schemaJson1 =
+        BigQueryHelpers.toJsonString(
+            new TableSchema()
+                .setFields(
+                    Arrays.asList(
+                        new TableFieldSchema()
+                            .setName("name")
+                            .setType("STRING")
+                            .setMode("NULLABLE"),
+                        new TableFieldSchema()
+                            .setName("number")
+                            .setType("INTEGER")
+                            .setMode("NULLABLE"))));
+
+    String schemaJson2 =
+        BigQueryHelpers.toJsonString(
+            new TableSchema()
+                .setFields(
+                    Arrays.asList(
+                        new TableFieldSchema()
+                            .setName("name")
+                            .setType("STRING")
+                            .setMode("NULLABLE"),
+                        new TableFieldSchema()
+                            .setName("score")
+                            .setType("FLOAT")
+                            .setMode("NULLABLE"))));
+
+    Row row1 =
+        Row.withSchema(wrapperSchema)
+            .withFieldValue(DESTINATION, "project:dataset.dyn_schema_table_1")
+            .withFieldValue(PortableBigQueryDestinations.SCHEMA, schemaJson1)
+            .withFieldValue(
+                RECORD,
+                Row.withSchema(unionRecordSchema)
+                    .withFieldValue("name", "alice")
+                    .withFieldValue("number", 10L)
+                    .withFieldValue("score", null)
+                    .build())
+            .build();
+
+    Row row2 =
+        Row.withSchema(wrapperSchema)
+            .withFieldValue(DESTINATION, "project:dataset.dyn_schema_table_2")
+            .withFieldValue(PortableBigQueryDestinations.SCHEMA, schemaJson2)
+            .withFieldValue(
+                RECORD,
+                Row.withSchema(unionRecordSchema)
+                    .withFieldValue("name", "bob")
+                    .withFieldValue("number", null)
+                    .withFieldValue("score", 95.5)
+                    .build())
+            .build();
+
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable(BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS)
+            .build();
+
+    BigQueryStorageWriteApiSchemaTransformProvider provider =
+        new BigQueryStorageWriteApiSchemaTransformProvider();
+    BigQueryStorageWriteApiSchemaTransform writeTransform =
+        (BigQueryStorageWriteApiSchemaTransform) provider.from(config);
+    writeTransform.setBigQueryServices(fakeBigQueryServices);
+
+    PCollection<Row> inputRows =
+        p.apply(Create.of(Arrays.asList(row1, row2)).withRowSchema(wrapperSchema));
+    PCollectionRowTuple.of("input", inputRows).apply(writeTransform);
+
+    p.run().waitUntilFinish();
+
+    // Verify table 1 was created with ONLY ['name', 'number'] schema and has the expected row
+    com.google.api.services.bigquery.model.Table table1 =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project:dataset.dyn_schema_table_1"));
+    assertNotNull(table1);
+    assertEquals(2, table1.getSchema().getFields().size());
+    assertEquals("name", table1.getSchema().getFields().get(0).getName());
+    assertEquals("number", table1.getSchema().getFields().get(1).getName());
+
+    List<TableRow> table1Rows =
+        fakeDatasetService.getAllRows("project", "dataset", "dyn_schema_table_1");
+    assertEquals(1, table1Rows.size());
+    assertEquals("alice", table1Rows.get(0).get("name"));
+    assertEquals("10", table1Rows.get(0).get("number").toString());
+
+    // Verify table 2 was created with ONLY ['name', 'score'] schema and has the expected row
+    com.google.api.services.bigquery.model.Table table2 =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project:dataset.dyn_schema_table_2"));
+    assertNotNull(table2);
+    assertEquals(2, table2.getSchema().getFields().size());
+    assertEquals("name", table2.getSchema().getFields().get(0).getName());
+    assertEquals("score", table2.getSchema().getFields().get(1).getName());
+
+    List<TableRow> table2Rows =
+        fakeDatasetService.getAllRows("project", "dataset", "dyn_schema_table_2");
+    assertEquals(1, table2Rows.size());
+    assertEquals("bob", table2Rows.get(0).get("name"));
+    assertEquals(95.5, Double.parseDouble(table2Rows.get(0).get("score").toString()), 0.001);
   }
 }
