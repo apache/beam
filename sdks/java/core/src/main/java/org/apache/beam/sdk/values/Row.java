@@ -486,7 +486,10 @@ public abstract class Row implements Serializable {
       if (a == null) {
         return 0;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        return deepHashCode(a, fieldType.getLogicalType().getBaseType());
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+        return deepHashCode(
+            SchemaUtils.toLogicalBaseType(logicalType, a), logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.hashCode((byte[]) a);
       } else if (fieldType.getTypeName().isCollectionType()) {
