@@ -810,6 +810,15 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
       self._fh.write(json.dumps(record).encode('utf8'))
       self._fh.write('\n'.encode('utf8'))
 
+  class CompressedTextSink(fileio.TextSink):
+    def __init__(self, compression_type):
+      self._compression_type = compression_type
+
+    def create_metadata(self, destination, full_file_name):
+      return fileio.FileMetadata(
+          mime_type='application/octet-stream',
+          compression_type=self._compression_type)
+
   def test_write_to_single_file_batch(self):
 
     dir = self._new_tempdir()
@@ -830,6 +839,32 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           | beam.Map(json.loads))
 
       assert_that(result, equal_to([row for row in self.SIMPLE_COLLECTION]))
+
+  def test_write_compressed_files(self):
+    # The sink asks for compression in create_metadata. WriteToFiles flushes
+    # the sink and then closes the file.
+    sink_class = WriteFilesTest.CompressedTextSink
+    for compression_type, suffix in [(CompressionTypes.BZIP2, '.bz2'),
+                                     (CompressionTypes.GZIP, '.gz')]:
+      dir = self._new_tempdir()
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create(WriteFilesTest.LARGER_COLLECTION)
+            | fileio.WriteToFiles(
+                path=dir,
+                sink=lambda _, c=compression_type: sink_class(c),
+                file_naming=fileio.default_file_naming('output', suffix)))
+
+      with TestPipeline() as p:
+        result = (
+            p
+            | fileio.MatchFiles(FileSystems.join(dir, '*' + suffix))
+            | fileio.ReadMatches()
+            | beam.FlatMap(lambda f: f.read_utf8().strip().split('\n')))
+
+        assert_that(result, equal_to(WriteFilesTest.LARGER_COLLECTION))
 
   def test_write_to_dynamic_destination(self):
 
