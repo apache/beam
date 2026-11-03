@@ -288,6 +288,57 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
     self.assertEqual(publisher._poll_interval_secs, 7.0)
 
+  def test_make_model_server_publisher(self):
+    """The handler supplies metric names and a port; the rest is packaged."""
+    config = autoscaling_metrics.AutoscalingMetricConfig(
+        multiplier=2.0, poll_interval_secs=7.0).resolve_tag('step-id')
+    port = [None]
+    publisher = config.make_model_server_publisher(
+        metrics_port_fn=lambda: port[0],
+        completed_metric='done_total',
+        running_metric='running')
+    self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
+    self.assertEqual(publisher._poll_interval_secs, 7.0)
+    signal = publisher._signal_fn  # What the publisher's thread polls.
+
+    # Server not up yet -> skip the tick without scraping.
+    with mock.patch('urllib.request.urlopen') as urlopen:
+      self.assertIsNone(signal())
+      urlopen.assert_not_called()
+
+    port[0] = 8000
+    responses = [
+        'done_total 10\nrunning 4\n',
+        'done_total 30\nrunning 4\n',
+    ]
+
+    def fake_urlopen(url, timeout=5.0):
+      self.assertEqual(url, 'http://localhost:8000/metrics')
+      del timeout
+      return io.BytesIO(responses.pop(0).encode('utf-8'))
+
+    with mock.patch('urllib.request.urlopen', side_effect=fake_urlopen):
+      with mock.patch.object(autoscaling_metrics.time,
+                             'time',
+                             side_effect=[100.0, 105.0]):
+        self.assertIsNone(signal())  # Baseline sample.
+        # delta=20 over 5s with running=4 -> mu=1, p90=4, multiplier 2 -> 8.
+        self.assertAlmostEqual(signal(), 8.0)
+
+  def test_make_model_server_publisher_load_signal_fn_override(self):
+    config = autoscaling_metrics.AutoscalingMetricConfig(
+        load_signal_fn=lambda port: port / 1000.0).resolve_tag('step-id')
+    publisher = config.make_model_server_publisher(
+        metrics_port_fn=lambda: 8000,
+        completed_metric='done_total',
+        running_metric='running')
+    with mock.patch('urllib.request.urlopen') as urlopen:
+      self.assertEqual(publisher._signal_fn(), 8.0)
+      urlopen.assert_not_called()
+    with self.assertRaises(ValueError):
+      autoscaling_metrics.AutoscalingMetricConfig().make_model_server_publisher(
+          lambda: 8000, 'done_total', 'running')
+
 
 if __name__ == '__main__':
   unittest.main()

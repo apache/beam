@@ -37,18 +37,19 @@ The pieces, none of which depend on a particular model server:
 * :class:`AutoscalingMetricConfig` *configures*: it holds the user-facing
   knobs, resolves the metric tag, and builds the estimator and publisher.
 
-A handler typically wires them as::
+A handler for a model server that exposes a completed-requests counter and an
+in-flight gauge only supplies the server-specific parts, the two metric names
+and how to find the server's port, and gets a ready publisher::
 
   config = config.resolve_tag(model_identifier, model_name)
-  sampler = PrometheusCounterGaugeSampler(completed_metric, running_metric)
-  estimator = config.make_capacity_estimator()
-
-  def signal():
-    sample = sampler(metrics_port)
-    return None if sample is None else estimator.update(*sample)
-
-  publisher = config.make_publisher(signal)
+  publisher = config.make_model_server_publisher(
+      metrics_port_fn=lambda: server.port if server.is_up else None,
+      completed_metric='vllm:request_success_total',
+      running_metric='vllm:num_requests_running')
   publisher.start()  # Once the server is reachable; publisher.stop() at exit.
+
+Handlers whose server needs a different capacity signal build it themselves
+and pass it to :meth:`AutoscalingMetricConfig.make_publisher`.
 """
 
 # pytype: skip-file
@@ -476,15 +477,41 @@ class CompletionRateCapacityEstimator:
     return max(float(self._min_value), mu * running_ref * self._multiplier)
 
 
+class _ModelServerCapacitySignal:
+  """Capacity signal of a model server: scrapes it, then estimates capacity."""
+  def __init__(
+      self,
+      metrics_port_fn: Callable[[], Optional[int]],
+      sampler: PrometheusCounterGaugeSampler,
+      estimator: CompletionRateCapacityEstimator,
+      load_signal_fn: Optional[Callable[[int], Optional[float]]] = None,
+  ):
+    self._metrics_port_fn = metrics_port_fn
+    self._sampler = sampler
+    self._estimator = estimator
+    self._load_signal_fn = load_signal_fn
+
+  def __call__(self) -> Optional[float]:
+    port = self._metrics_port_fn()
+    if port is None:
+      return None  # The server is not up; skip the tick.
+    if self._load_signal_fn is not None:
+      return self._load_signal_fn(port)
+    sample = self._sampler(port)
+    if sample is None:
+      return None
+    return self._estimator.update(*sample)
+
+
 @dataclass(frozen=True)
 class AutoscalingMetricConfig:
   """User-facing knobs for the capacity-based autoscaling signal.
 
   Model handlers that publish the signal take an instance, typically as an
   ``autoscaling_config`` argument; leave it unset for the defaults. A handler
-  calls :meth:`resolve_tag`, builds its signal from a server-specific sampler
-  and :meth:`make_capacity_estimator` (or from ``load_signal_fn``), and passes
-  the signal to :meth:`make_publisher`.
+  calls :meth:`resolve_tag` and then :meth:`make_model_server_publisher` with
+  its server's metric names, or builds its own signal and passes it to
+  :meth:`make_publisher`.
 
   Attributes:
     tag: Metric tag to publish under. Leave unset so the handler uses the
@@ -499,8 +526,8 @@ class AutoscalingMetricConfig:
       publishes, unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time a new worker waits for ``min_requests``.
     load_signal_fn: Optional replacement for the estimator: given the server's
-      metrics port, returns the capacity directly. Handlers that support it
-      call it instead of the estimator.
+      metrics port, returns the capacity directly. Used by
+      :meth:`make_model_server_publisher`.
   """
   tag: Optional[str] = None
   poll_interval_secs: float = DEFAULT_POLL_INTERVAL_SECS
@@ -540,6 +567,41 @@ class AutoscalingMetricConfig:
         window_secs=self.signal_window_secs,
         min_requests=self.min_requests,
         warmup_timeout_secs=self.warmup_timeout_secs)
+
+  def make_model_server_publisher(
+      self,
+      metrics_port_fn: Callable[[], Optional[int]],
+      completed_metric: str,
+      running_metric: str,
+      label_filter: Optional[Mapping[str, str]] = None,
+  ) -> NumLoadedModelsPublisher:
+    """Builds a publisher of a model server's capacity.
+
+    The publisher scrapes the server's Prometheus ``/metrics`` endpoint with a
+    :class:`PrometheusCounterGaugeSampler`, feeds the samples to a
+    :class:`CompletionRateCapacityEstimator` built from these knobs, and
+    publishes the estimate. If ``load_signal_fn`` is set, it replaces the
+    scrape and the estimate.
+
+    Args:
+      metrics_port_fn: Returns the port serving ``/metrics`` while the server
+        is up, or ``None`` while it is not (the publisher then skips the tick).
+      completed_metric: Name of the server's counter of completed requests,
+        e.g. ``vllm:request_success_total``.
+      running_metric: Name of the server's gauge of in-flight requests, e.g.
+        ``vllm:num_requests_running``.
+      label_filter: Optional labels a sample must have to be counted.
+
+    Raises:
+      ValueError: if ``tag`` is unset; call :meth:`resolve_tag` first.
+    """
+    return self.make_publisher(
+        _ModelServerCapacitySignal(
+            metrics_port_fn,
+            PrometheusCounterGaugeSampler(
+                completed_metric, running_metric, label_filter=label_filter),
+            self.make_capacity_estimator(),
+            self.load_signal_fn))
 
   def make_publisher(
       self, signal_fn: Callable[[],
