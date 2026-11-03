@@ -54,13 +54,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDelete;
@@ -481,11 +480,14 @@ public class IncrementalChangelogSourceTest {
                         "id", 2L, "data", "b", "metadata", ImmutableMap.of("source", "x")))));
     org.apache.iceberg.Schema sourceSchema = table.schema().select("metadata.source");
     EqualityDeleteWriter<Record> writer =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {4}, sourceSchema, null)
-            .newEqDeleteWriter(
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {4})
+            .equalityDeleteRowSchema(sourceSchema)
+            .build()
+            .newEqualityDeleteWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table.io().newOutputFile(file.location() + ".deletes.parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 null);
     try (writer) {
       writer.write(
@@ -729,11 +731,12 @@ public class IncrementalChangelogSourceTest {
 
   private void commitPositionDelete(Table table, DataFile file, long position) throws IOException {
     PositionDeleteWriter<Record> writer =
-        new GenericAppenderFactory(table.schema(), table.spec())
-            .newPosDeleteWriter(
+        new GenericFileWriterFactory.Builder(table)
+            .build()
+            .newPositionDeleteWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table.io().newOutputFile(file.location() + ".deletes.parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 file.partition());
     try (writer) {
       writer.write(PositionDelete.<Record>create().set(file.location(), position));
