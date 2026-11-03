@@ -18,8 +18,8 @@
 """Capacity-based autoscaling signal for model handlers that run a model server.
 
 Dataflow's GPU autoscaling reads the process-wide distribution
-``num_loaded_models_<tag>`` in the ``BeamML_ModelManager`` namespace as the
-number of messages each worker can hold, and sizes the pool roughly as
+``num_loaded_models_<tag>`` in the ``BeamML_ModelManager`` namespace as how
+many requests each worker can handle, and sizes the pool roughly as
 ``ceil(backlog / value)``. ``ModelManager`` publishes the number of loaded
 model copies there. A handler that serves inference through an out-of-process
 model server (vLLM, Triton, ...) always has exactly one copy per worker, so it
@@ -204,10 +204,11 @@ class _Interval(NamedTuple):
 
 
 class CompletionRateCapacityEstimator:
-  """Estimates how many messages a worker can absorb.
+  """Estimates how many requests a worker can handle.
 
   Feed it periodic samples of a model server's completed-requests counter and
-  in-flight gauge through :meth:`update`. Over a trailing ``window_secs`` window it computes::
+  in-flight gauge through :meth:`update`. Over a trailing ``window_secs``
+  window it computes::
 
       mu          = sum(completed) / sum(running * secs)
       running_ref = percentile(running, running_percentile)
@@ -219,6 +220,12 @@ class CompletionRateCapacityEstimator:
   p90 rather than the max avoids latching onto rare backlog spikes. Their
   product is the worker's sustained throughput.
 
+  Units: ``mu`` is completions per slot-second, so ``capacity`` is in requests
+  per second. The runner reads the published value as how many requests one
+  worker can handle, so each worker is sized for about one second of its
+  sustained throughput; ``multiplier`` scales that, e.g. 2.0 sizes each worker
+  for two seconds' worth of requests.
+
   Normalizing by concurrency keeps the estimate steady when load changes: right
   after a scaling event, when the runner rebalances work and a worker is
   briefly starved, its raw completion rate collapses, but ``mu`` and
@@ -228,7 +235,8 @@ class CompletionRateCapacityEstimator:
   The estimator suits servers whose requests take long enough to be seen in
   flight by periodic sampling, such as LLM servers with latencies of a second
   or more. For servers with millisecond latencies the in-flight gauge reads
-  almost always 0; pass the publisher a different signal instead.
+  almost always 0; supply a different signal through
+  ``AutoscalingMetricConfig.load_signal_fn`` instead.
 
   The estimate is already smoothed; publish it as is. This class does no I/O.
 
