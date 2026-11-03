@@ -20,10 +20,13 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -48,6 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DetectNewPartitionsAction {
   private static final Logger LOG = LoggerFactory.getLogger(DetectNewPartitionsAction.class);
+  private static final int MAX_LOGGED_UNFINISHED_PARTITIONS = 10;
 
   private final PartitionMetadataDao dao;
   private final PartitionMetadataMapper mapper;
@@ -109,7 +113,7 @@ public class DetectNewPartitionsAction {
     if (minWatermark != null) {
       return processPartitions(tracker, receiver, watermarkEstimator, minWatermark, readTimestamp);
     } else {
-      return terminate(tracker);
+      return terminate(tracker, watermarkEstimator);
     }
   }
 
@@ -212,10 +216,62 @@ public class DetectNewPartitionsAction {
     }
   }
 
-  private ProcessContinuation terminate(RestrictionTracker<TimestampRange, Timestamp> tracker) {
+  private ProcessContinuation terminate(
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
+      ManualWatermarkEstimator<Instant> watermarkEstimator) {
     // We need to try claim something here, otherwise restriction tracker check done fails
-    tracker.tryClaim(tracker.currentRestriction().getTo());
-    LOG.info("All partitions have been processed, stopping");
+    final TimestampRange restriction = tracker.currentRestriction();
+    tracker.tryClaim(restriction.getTo());
+    logTermination(restriction, watermarkEstimator.currentWatermark());
     return ProcessContinuation.stop();
+  }
+
+  private void logTermination(TimestampRange restriction, @Nullable Instant currentWatermark) {
+    final List<PartitionMetadata> unfinishedPartitions = new ArrayList<>();
+    try (ResultSet resultSet = dao.getUnfinishedPartitions()) {
+      if (resultSet != null) {
+        while (resultSet.next()) {
+          unfinishedPartitions.add(mapper.from(resultSet.getCurrentRowAsStruct()));
+        }
+      }
+    } catch (Exception e) {
+      LOG.warn(
+          "All partitions have been processed, stopping (restriction = {}, watermark = {}); "
+              + "failed to query unfinished partitions",
+          restriction,
+          currentWatermark,
+          e);
+      return;
+    }
+
+    if (unfinishedPartitions.isEmpty()) {
+      LOG.info(
+          "All partitions have been processed, stopping (restriction = {}, watermark = {})",
+          restriction,
+          currentWatermark);
+      return;
+    }
+
+    unfinishedPartitions.sort(Comparator.comparing(PartitionMetadata::getWatermark));
+    final Map<State, Long> countsByState =
+        unfinishedPartitions.stream()
+            .collect(
+                Collectors.groupingBy(
+                    PartitionMetadata::getState,
+                    () -> new EnumMap<>(State.class),
+                    Collectors.counting()));
+    LOG.warn(
+        "All partitions have been processed, stopping, but found {} unfinished partitions in "
+            + "metadata table (restriction = {}, watermark = {}, countsByState = {}, "
+            + "minUnfinishedWatermark = {}, maxUnfinishedWatermark = {}, "
+            + "sampleUnfinishedPartitions = {})",
+        unfinishedPartitions.size(),
+        restriction,
+        currentWatermark,
+        countsByState,
+        unfinishedPartitions.get(0).getWatermark(),
+        unfinishedPartitions.get(unfinishedPartitions.size() - 1).getWatermark(),
+        unfinishedPartitions.subList(
+            0, Math.min(unfinishedPartitions.size(), MAX_LOGGED_UNFINISHED_PARTITIONS)));
   }
 }
