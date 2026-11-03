@@ -67,8 +67,9 @@ final class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting
   static final String TRIGGERING_FREQUENCY_FIELD = "triggering_frequency_seconds";
 
-  private static final Schema WRITE_CONFIG_SCHEMA =
-      new IcebergWriteSchemaTransformProvider().configurationSchema();
+  private static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
+      new IcebergWriteSchemaTransformProvider();
+  private static final Schema WRITE_CONFIG_SCHEMA = WRITE_PROVIDER.configurationSchema();
   private static final Map<String, String> WRITE_OWNED_OPTIONS =
       ImmutableMap.<String, String>builder()
           .putAll(
@@ -152,7 +153,11 @@ final class IcebergTable extends SchemaBaseBeamTable {
               "sequence_number_column", IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER);
       schema = withControlColumn(schema, (String) sequenceNumberColumn, Schema.FieldType.INT64);
     }
-    return new IcebergTable(this, schema, checked);
+    IcebergTable target = new IcebergTable(this, schema, checked);
+    // Building the Managed write's transform to validate options
+    WRITE_PROVIDER.from(
+        Row.withSchema(WRITE_CONFIG_SCHEMA).withFieldValues(target.writeConfig()).build());
+    return target;
   }
 
   private static Schema withControlColumn(Schema schema, String name, Schema.FieldType type) {

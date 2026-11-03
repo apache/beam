@@ -58,14 +58,25 @@ public interface BeamSqlTable {
   BeamTableStatistics getTableStatistics(PipelineOptions options);
 
   /**
-   * Returns a new table for one reference in FROM with a {@code WITH} clause. The new table may
-   * differ in schema, boundedness and push-down support.
+   * Returns the table to read for one reference in FROM that has a {@code WITH} clause, such as
+   * {@code SELECT * FROM t WITH ('key' = 'value')}.
    *
-   * <p>Must not mutate this table or its {@link Table}, and must be cheap with no catalog calls,
-   * because planning calls it several times per reference.
+   * <p>By default, tables reject {@code WITH}. Override this method to support it in queries reading from your connector.
+   * Override the {@link #forWrite} method to support it for INSERT targets. Return a new table that has the given options applied to it.
+   * It may have a different schema, boundedness or push-down support than this
+   * one.
    *
-   * @throws IllegalArgumentException for an unknown option key, naming it and the accepted keys
-   * @throws UnsupportedOperationException if this table does not support options
+   * <p>{@code options} has the clause's keys in the order they were written. A string literal
+   * arrives as a String, an integer as a Long, any other number as a Double, TRUE or FALSE as a
+   * Boolean, and ARRAY[...] and MAP[...] as a List and a Map.
+   *
+   * <p>Planning calls this method several times per reference, so keep it cheap and don't call the
+   * catalog. Don't change this table or its {@link Table} either.
+   *
+   * <p>For an example, see {@code IcebergTable#forWrite} in sdks/java/extensions/sql/iceberg.
+   *
+   * @throws IllegalArgumentException for an unknown option key or a value of the wrong type
+   * @throws UnsupportedOperationException if this table does not support {@code WITH} for reads
    */
   default BeamSqlTable forRead(Map<String, Object> options) {
     throw new UnsupportedOperationException(
@@ -73,8 +84,9 @@ public interface BeamSqlTable {
   }
 
   /**
-   * Returns a new table for an INSERT target with a {@code WITH} clause. The contract of {@link
-   * #forRead} applies.
+   * Returns the table to write for an INSERT target that has a {@code WITH} clause, such as {@code
+   * INSERT INTO t WITH ('key' = 'value') SELECT ...}. Everything in {@link #forRead} applies here
+   * too.
    */
   default BeamSqlTable forWrite(Map<String, Object> options) {
     throw new UnsupportedOperationException(

@@ -283,6 +283,10 @@ public class BeamSqlCliIcebergTest {
         "Option 'num_shards' must be of type INTEGER"
       },
       {
+        "INSERT INTO orders WITH ('num_shards' = 2) SELECT * FROM orders",
+        "The following options are not supported in 'append' mode yet: [num_shards]"
+      },
+      {
         "INSERT INTO orders WITH ('mode' = 'merge-on-read', 'sequence_number_column' = 'name')"
             + " SELECT * FROM orders",
         "Merge-on-read control column 'name' collides with another column"

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,17 +77,37 @@ final class ManagedOptions {
     return checked.build();
   }
 
-  /** Returns {@code value} as the Java type of {@code type}, or null if it is not of that type. */
+  /**
+   * Returns {@code value} as the Java type of {@code type}, or null if it is not of that type.
+   * {@code WITH} gives integers as Long and other numbers as Double.
+   */
   private static @Nullable Object convert(@Nullable Object value, FieldType type) {
     switch (type.getTypeName()) {
       case STRING:
         return value instanceof String ? value : null;
       case BOOLEAN:
         return value instanceof Boolean ? value : null;
+      case BYTE:
+      case INT16:
       case INT32:
-        return value instanceof Long && (Long) value == ((Long) value).intValue()
-            ? ((Long) value).intValue()
+      case INT64:
+        return value instanceof Long ? tryInteger((Long) value, type) : null;
+      case FLOAT:
+        if (!(value instanceof Long || value instanceof Double)) {
+          return null;
+        }
+        double number = ((Number) value).doubleValue();
+        float narrowed = (float) number;
+        return Float.isInfinite(narrowed) || (narrowed == 0 && number != 0) ? null : narrowed;
+      case DOUBLE:
+        return value instanceof Long || value instanceof Double
+            ? ((Number) value).doubleValue()
             : null;
+      case DECIMAL:
+        if (value instanceof Long) {
+          return BigDecimal.valueOf((Long) value);
+        }
+        return value instanceof Double ? BigDecimal.valueOf((Double) value) : null;
       case ARRAY:
         if (!(value instanceof List)) {
           return null;
@@ -122,12 +143,32 @@ final class ManagedOptions {
     }
   }
 
+  /** Returns {@code value} as the integer type of {@code type}, or null if it is out of range. */
+  private static @Nullable Object tryInteger(long value, FieldType type) {
+    switch (type.getTypeName()) {
+      case BYTE:
+        return value == (byte) value ? (byte) value : null;
+      case INT16:
+        return value == (short) value ? (short) value : null;
+      case INT32:
+        return value == (int) value ? (int) value : null;
+      default:
+        return value;
+    }
+  }
+
   private static String sqlType(FieldType type) {
     switch (type.getTypeName()) {
       case STRING:
         return "VARCHAR";
+      case BYTE:
+        return "TINYINT";
+      case INT16:
+        return "SMALLINT";
       case INT32:
         return "INTEGER";
+      case INT64:
+        return "BIGINT";
       case ARRAY:
         return "ARRAY<" + sqlType(checkStateNotNull(type.getCollectionElementType())) + ">";
       case MAP:
