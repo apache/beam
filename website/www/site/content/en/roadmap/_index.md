@@ -70,7 +70,7 @@ The Go SDK is not actively being developed beyond bugfixes due to lack of contri
 
 ## Python 3 support
 
-As of Apache Beam 2.75.0, we support python version from 3.10 uptil Python 3.14. Supporting new Python 3 minor version is in our roadmap.
+As of Apache Beam 2.78.0, we support python version from 3.11 uptil Python 3.14. Supporting new Python 3 minor version is in our roadmap.
 
 See details on
 the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
