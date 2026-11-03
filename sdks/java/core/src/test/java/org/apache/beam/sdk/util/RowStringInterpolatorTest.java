@@ -102,7 +102,7 @@ public class RowStringInterpolatorTest {
     Schema nestedSchema =
         Schema.builder().addNullableRowField("nested_row", doublyNestedSchema).build();
     Row invalidRow =
-        Row.withSchema(Schema.builder().addNullableRowField("row", doublyNestedSchema).build())
+        Row.withSchema(Schema.builder().addNullableRowField("row", nestedSchema).build())
             .addValue(
                 Row.withSchema(nestedSchema).addValue(Row.nullRow(doublyNestedSchema)).build())
             .build();

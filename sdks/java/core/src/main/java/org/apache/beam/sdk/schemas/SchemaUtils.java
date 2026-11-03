@@ -382,32 +382,31 @@ public class SchemaUtils {
   }
 
   static String toPrettyRowString(Row row, String prefix) {
-    long nonNullFieldCount = row.getValues().stream().filter(Objects::nonNull).count();
-    if (nonNullFieldCount == 0) {
-      return "{}";
-    }
-
-    String nextPrefix = prefix + INDENT;
-    StringBuilder sb = new StringBuilder();
-    sb.append("{\n");
-    long nonNullFieldIndex = 0;
-    for (Schema.Field field : row.getSchema().getFields()) {
-      String fieldName = field.getName();
-      Object fieldValue = row.getValue(fieldName);
+    Schema schema = row.getSchema();
+    int fieldCount = schema.getFieldCount();
+    String nextPrefix = null;
+    StringBuilder sb = null;
+    for (int i = 0; i < fieldCount; i++) {
+      Object fieldValue = row.getValue(i);
       if (fieldValue == null) {
         continue;
       }
+      Schema.Field field = schema.getField(i);
+      if (sb == null) {
+        nextPrefix = prefix + INDENT;
+        sb = new StringBuilder("{\n");
+      } else {
+        sb.append(",\n");
+      }
       sb.append(nextPrefix)
-          .append(fieldName)
+          .append(field.getName())
           .append(": ")
           .append(toPrettyFieldValueString(field.getType(), fieldValue, nextPrefix));
-      if (nonNullFieldIndex++ < nonNullFieldCount - 1) {
-        sb.append(",\n");
-      } else {
-        sb.append("\n");
-      }
     }
-    sb.append(prefix).append("}");
+    if (sb == null) {
+      return "{}";
+    }
+    sb.append("\n").append(prefix).append("}");
     return sb.toString();
   }
 }
