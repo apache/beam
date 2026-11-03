@@ -61,7 +61,9 @@ Pipeline p = TestPipeline.create();
 {{< /highlight >}}
 
 {{< highlight py >}}
-with TestPipeline as p:
+from apache_beam.testing.test_pipeline import TestPipeline
+
+with TestPipeline() as p:
     ...
 {{< /highlight >}}
 
@@ -127,7 +129,7 @@ import "github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 output := ... // beam.PCollection
 
 // Check whether a PCollection contains some elements in any order.
-passert.EqualsList(s, output, ["elem1", "elem3", "elem2"])
+passert.EqualsList(s, output, []string{"elem1", "elem3", "elem2"})
 {{< /highlight >}}
 
 
@@ -227,6 +229,7 @@ class CountTest(unittest.TestCase):
 
 {{< highlight go >}}
 import (
+	"fmt"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -253,17 +256,17 @@ func TestCountWords(t *testing.T) {
 		words := []string{"hi", "there", "hi", "hi", "sue", "bob",
 			"hi", "sue", "", "", "ZOW", "bob", ""}
 
-		wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
+		wantCounts := []string{"hi: 4", "there: 1", "sue: 2", "bob: 2", ": 3", "ZOW: 1"}
 
 		// Create a PCollection from the words static input data.
 		input := beam.CreateList(s, words)
 
 		// Apply the Count transform under test.
-		output := stats.Count(s, col)
+		output := stats.Count(s, input)
 		formatted := beam.ParDo(s, formatFn, output)
 
 		// Assert that the output PCollection matches the wantCounts data.
-		passert.Equals(s, formatted, wantCounts...)
+		passert.EqualsList(s, formatted, wantCounts)
 	})
 }
 {{< /highlight >}}
@@ -325,16 +328,16 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-class CountWords(beam.PTransform):
-    # CountWords transform omitted for conciseness.
-    # Full transform can be found here - https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py
+# The CountWords composite transform from the debugging WordCount example:
+# https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py
+from apache_beam.examples.wordcount_debugging import CountWords
 
 class WordCountTest(unittest.TestCase):
 
   # Our input data, which will make up the initial PCollection.
   WORDS = [
-      "hi", "there", "hi", "hi", "sue", "bob",
-      "hi", "sue", "", "", "ZOW", "bob", ""
+      "hi there", "hi", "hi sue bob",
+      "hi sue", "", "bob hi"
   ]
 
   # Our output data, which is the expected data that the final PCollection must match.
@@ -346,13 +349,17 @@ class WordCountTest(unittest.TestCase):
     with TestPipeline() as p:
 
       # Create a PCollection from the WORDS static input data.
-      input = p | beam.Create(WORDS)
+      input = p | beam.Create(self.WORDS)
 
-      # Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
-      output = input | CountWords()
+      # Run ALL the pipeline's transforms (in this case, the CountWords
+      # composite transform and the formatting step).
+      output = (
+          input
+          | CountWords()
+          | beam.MapTuple(lambda word, count: '%s: %s' % (word, count)))
 
       # Assert that the output PCollection matches the EXPECTED_COUNTS data.
-      assert_that(output, equal_to(EXPECTED_COUNTS), label='CheckOutput')
+      assert_that(output, equal_to(self.EXPECTED_COUNTS), label='CheckOutput')
 
     # The pipeline will run and verify the results.
 {{< /highlight >}}
@@ -379,8 +386,8 @@ func formatFn(w string, c int) string { ... }
 func TestCountWords(t *testing.T) {
 	// The pipeline will run and verify the results.
 	ptest.BuildAndRun(t, func(s beam.Scope) {
-		words := []string{"hi", "there", "hi", "hi", "sue", "bob",
-			"hi", "sue", "", "", "ZOW", "bob", ""}
+		words := []string{"hi there", "hi", "hi sue bob",
+			"hi sue", "", "bob hi"}
 
 		wantCounts := []string{"hi: 5", "there: 1", "sue: 2", "bob: 2"}
 
@@ -394,7 +401,7 @@ func TestCountWords(t *testing.T) {
 
 		// Assert that the output PCollection matches
 		// the wantCounts data.
-		passert.Equals(s, formatted, wantCounts...)
+		passert.EqualsList(s, formatted, wantCounts)
 	})
 }
 {{< /highlight >}}
