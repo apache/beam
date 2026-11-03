@@ -73,42 +73,40 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertIsNone(
         parse(prom_text, 'labeled', label_filter={'path': 'other'}))
 
-  def test_num_loaded_models_publisher_aggregation(self):
-    def published(aggregation, samples, window_secs=60.0):
-      """Feeds (timestamp, value) samples; returns the value after each."""
-      pub = autoscaling_metrics.NumLoadedModelsPublisher(
-          tag='test',
-          signal_fn=lambda: None,
-          aggregation=aggregation,
-          aggregation_window_secs=window_secs)
-      return [pub._record(value, now) for (now, value) in samples]
+  def test_publisher_publishes_signal_values_as_is(self):
+    """Each signal value is published rounded; None skips the tick."""
+    cell = (
+        autoscaling_metrics.MetricsEnvironment.process_wide_container().
+        get_distribution(
+            autoscaling_metrics.MetricName(
+                autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
+                'num_loaded_models_sink_test')))
+    cell.reset()
+    self.addCleanup(cell.reset)
+    published = []
+    signal_values = [3.4, None, 7.6]
 
-    samples = [(100.0, 2.0), (102.0, 5.0), (104.0, 3.0)]
-    self.assertEqual(published('last', samples), [2.0, 5.0, 3.0])
-    self.assertEqual(published('max', samples), [2.0, 5.0, 5.0])
-    self.assertEqual(published('mean', samples), [2.0, 3.5, 10.0 / 3])
-    self.assertEqual(published('lifetime_max', samples), [2.0, 5.0, 5.0])
-    # Windowed policies forget samples older than the window.
-    self.assertEqual(
-        published('max', [(100.0, 9.0), (130.0, 4.0), (170.0, 3.0)]),
-        [9.0, 9.0, 4.0])
-    # lifetime_max never decays.
-    self.assertEqual(
-        published('lifetime_max', [(100.0, 9.0), (1000.0, 1.0)]), [9.0, 9.0])
-    # p90 over 1..10 is 9 (nearest rank).
-    ten = [(100.0 + i, float(i + 1)) for i in range(10)]
-    self.assertEqual(published('p90', ten, window_secs=1800.0)[-1], 9.0)
-    self.assertEqual(published('P50', ten, window_secs=1800.0)[-1], 5.0)
+    def signal_fn():
+      if published:
+        # Record what the previous tick left in the cell.
+        published[-1] = cell.get_cumulative().sum
+      if not signal_values:
+        pub._stop_event.set()  # pylint: disable=protected-access
+        return None
+      published.append(None)
+      return signal_values.pop(0)
 
-  def test_num_loaded_models_publisher_rejects_unknown_aggregation(self):
-    for aggregation in ('median', 'p', 'p101', 'p9.5'):
-      with self.assertRaisesRegex(ValueError, 'Unknown aggregation'):
-        autoscaling_metrics.NumLoadedModelsPublisher(
-            tag='test', signal_fn=lambda: None, aggregation=aggregation)
+    pub = autoscaling_metrics.NumLoadedModelsPublisher(
+        tag='sink_test', signal_fn=signal_fn, poll_interval_secs=0)
+    # Run the polling loop on this thread so the test is deterministic.
+    pub._run()  # pylint: disable=protected-access
+    # 3.4 -> 3; None leaves 3 in place; 7.6 -> 8.
+    self.assertEqual(published, [3, 3, 8])
+    self.assertEqual(cell.get_cumulative().count, 1)
 
   def test_publish_resets_process_wide_distribution_cell(self):
     pub = autoscaling_metrics.NumLoadedModelsPublisher(
-        tag='reset_test', signal_fn=lambda: 1.0, multiplier=1.0)
+        tag='reset_test', signal_fn=lambda: 1.0)
     cell = (
         autoscaling_metrics.MetricsEnvironment.process_wide_container().
         get_distribution(
@@ -264,9 +262,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
         multiplier=2.0,
         signal_window_secs=30.0,
         min_requests=5,
-        warmup_timeout_secs=15.0,
-        aggregation='lifetime_max',
-        aggregation_window_secs=40.0)
+        warmup_timeout_secs=15.0)
     # The RunInference identifier is used verbatim (it has to match the step
     # annotation), even if it contains characters sanitize would change.
     self.assertEqual(
@@ -290,10 +286,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertEqual(estimator._warmup_timeout_secs, 15.0)
     publisher = cfg.resolve_tag('step-id').make_publisher(lambda: None)
     self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
-    self.assertEqual(publisher._aggregation, 'lifetime_max')
     self.assertEqual(publisher._poll_interval_secs, 7.0)
-    # The multiplier is applied by the estimator, never a second time here.
-    self.assertEqual(publisher._multiplier, 1.0)
 
 
 if __name__ == '__main__':

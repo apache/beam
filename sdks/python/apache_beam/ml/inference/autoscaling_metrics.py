@@ -27,14 +27,15 @@ publishes an estimate of the worker's capacity under that metric instead.
 
 The pieces, none of which depend on a particular model server:
 
-* :class:`PrometheusCounterGaugeSampler` reads a server's completed-requests
-  counter and in-flight gauge from its Prometheus ``/metrics`` endpoint.
-* :class:`CompletionRateCapacityEstimator` turns those samples into a
-  per-worker capacity estimate. It does no I/O.
-* :class:`NumLoadedModelsPublisher` publishes a capacity signal under
-  ``num_loaded_models_<tag>`` from a background thread.
-* :class:`AutoscalingMetricConfig` holds the user-facing knobs, resolves the
-  metric tag, and builds the estimator and publisher.
+* :class:`PrometheusCounterGaugeSampler` *reads*: it scrapes a server's
+  completed-requests counter and in-flight gauge from its Prometheus
+  ``/metrics`` endpoint.
+* :class:`CompletionRateCapacityEstimator` *computes*: it turns those samples
+  into a smoothed per-worker capacity estimate. It does no I/O.
+* :class:`NumLoadedModelsPublisher` *publishes*: a background thread polls a
+  capacity signal and writes each value to ``num_loaded_models_<tag>`` as is.
+* :class:`AutoscalingMetricConfig` *configures*: it holds the user-facing
+  knobs, resolves the metric tag, and builds the estimator and publisher.
 
 A handler typically wires them as::
 
@@ -81,11 +82,7 @@ __all__ = [
 MODEL_MANAGER_METRICS_NAMESPACE = 'BeamML_ModelManager'
 NUM_LOADED_MODELS_METRIC_PREFIX = 'num_loaded_models_'
 
-# Publisher defaults. The capacity estimate is already smoothed, so by default
-# the publisher forwards the latest value without a second smoothing layer.
 DEFAULT_POLL_INTERVAL_SECS = 5.0
-DEFAULT_AGGREGATION = 'last'
-DEFAULT_AGGREGATION_WINDOW_SECS = 1800.0  # 30 minutes.
 
 # Estimator defaults.
 # A larger multiplier lets each worker hold more backlog (fewer workers); a
@@ -106,9 +103,6 @@ _PROMETHEUS_SAMPLE_RE = re.compile(
 _PROMETHEUS_LABEL_RE = re.compile(
     r'(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"(?P<value>(?:[^"\\]|\\.)*)"')
 _PROMETHEUS_ESCAPE_RE = re.compile(r'\\(.)')
-
-_WINDOWED_AGGREGATIONS = ('max', 'mean')
-_PERCENTILE_AGGREGATION_RE = re.compile(r'p(\d+)')
 
 
 def sanitize_metric_tag(name: str) -> str:
@@ -207,58 +201,30 @@ def _nearest_rank_percentile(values: list[float], q: float) -> float:
   return ordered[min(max(rank - 1, 0), len(ordered) - 1)]
 
 
-def _parse_aggregation(aggregation: str) -> tuple[str, Optional[float]]:
-  """Validates an aggregation policy; returns ``(mode, percentile)``."""
-  mode = (aggregation or DEFAULT_AGGREGATION).lower()
-  if mode in ('last', 'lifetime_max') + _WINDOWED_AGGREGATIONS:
-    return mode, None
-  percentile = _PERCENTILE_AGGREGATION_RE.fullmatch(mode)
-  if percentile and 0 <= int(percentile.group(1)) <= 100:
-    return mode, float(percentile.group(1))
-  raise ValueError(
-      f'Unknown aggregation {aggregation!r}: expected one of last, max, mean, '
-      'lifetime_max, or pNN with NN in [0, 100].')
-
-
 class NumLoadedModelsPublisher:
   """Publishes a capacity signal as the ``num_loaded_models_<tag>`` metric.
 
-  A daemon thread calls ``signal_fn`` every ``poll_interval_secs``, applies the
-  ``aggregation`` policy, scales the result by ``multiplier`` and publishes it
-  to the process-wide distribution the runner reads. A ``signal_fn`` result of
-  ``None`` (e.g. the server is restarting) skips the tick and leaves the last
-  published value in place.
+  A daemon thread calls ``signal_fn`` every ``poll_interval_secs`` and writes
+  each value, rounded to an int, to the process-wide distribution the runner
+  reads. The publisher does not transform values: any smoothing belongs in
+  ``signal_fn`` (e.g. :class:`CompletionRateCapacityEstimator`, which already
+  smooths and never returns less than its ``min_value``).
 
-  Aggregation policies:
-
-  * ``'last'`` (default): the latest sample. Use it when ``signal_fn`` already
-    smooths its output, as :class:`CompletionRateCapacityEstimator` does.
-  * ``'max'``: the peak over the trailing ``aggregation_window_secs``.
-  * ``'pNN'`` (e.g. ``'p90'``): a percentile over that window. Smoother than
-    ``'max'``: it ignores brief spikes.
-  * ``'mean'``: the average over that window.
-  * ``'lifetime_max'``: the peak since the publisher started. It never decays,
-    so the pool stays sized for the worst load seen.
-
-  The publisher never reports 0, whether on start, on stop or on a skipped
-  tick: a 0 tells the runner the worker has no capacity and can trigger a
-  spurious downscale. Only one publisher per metric name is active in a
-  process; starting a new one (e.g. after a model reload) stops the previous
-  one.
+  A ``signal_fn`` result of ``None`` (e.g. the server is restarting) skips the
+  tick and leaves the last published value in place. The publisher never
+  injects a 0 of its own, on start, on stop or on a skipped tick: a 0 tells the
+  runner the worker has no capacity and can trigger a spurious downscale. Only
+  one publisher per metric name is active in a process; starting a new one
+  (e.g. after a model reload) stops the previous one.
 
   Args:
     tag: Metric tag. It must equal the RunInference model identifier the runner
       looks up (see :meth:`AutoscalingMetricConfig.resolve_tag`).
-    signal_fn: Returns the current capacity sample, or ``None`` to skip.
-    poll_interval_secs: Seconds between samples.
-    aggregation: One of the policies above.
-    aggregation_window_secs: Trailing window for ``'max'``, ``'pNN'`` and
-      ``'mean'``; 0 keeps every sample.
-    multiplier: Factor applied to every published value. Leave it at 1.0 when
-      ``signal_fn`` already applies one, as the estimator does.
+    signal_fn: Returns the current capacity, or ``None`` to skip the tick.
+    poll_interval_secs: Seconds between polls.
 
   Raises:
-    ValueError: if ``tag`` is empty or ``aggregation`` is not a known policy.
+    ValueError: if ``tag`` is empty.
   """
   # The publisher owning each metric name in this process, so a reloaded
   # model's publisher can supersede the stale one.
@@ -270,21 +236,12 @@ class NumLoadedModelsPublisher:
       tag: str,
       signal_fn: Callable[[], Optional[float]],
       poll_interval_secs: float = DEFAULT_POLL_INTERVAL_SECS,
-      aggregation: str = DEFAULT_AGGREGATION,
-      aggregation_window_secs: float = DEFAULT_AGGREGATION_WINDOW_SECS,
-      multiplier: float = DEFAULT_MULTIPLIER,
   ):
     if not tag:
       raise ValueError('num_loaded_models tag must be a non-empty string.')
     self._metric_name = NUM_LOADED_MODELS_METRIC_PREFIX + tag
     self._signal_fn = signal_fn
     self._poll_interval_secs = poll_interval_secs
-    self._aggregation, self._percentile = _parse_aggregation(aggregation)
-    self._aggregation_window_secs = max(float(aggregation_window_secs), 0.0)
-    self._multiplier = float(multiplier)
-    # (timestamp, value) samples kept for the windowed policies.
-    self._samples: list[tuple[float, float]] = []
-    self._lifetime_max: Optional[float] = None
     self._stop_event = threading.Event()
     self._thread: Optional[threading.Thread] = None
 
@@ -312,7 +269,7 @@ class NumLoadedModelsPublisher:
     """Stops polling.
 
     Publishes no final 0: when a worker is drained during a downscale, a 0
-    would shrink the aggregate capacity and could drive a feedback loop of
+    would shrink the pool's total capacity and could drive a feedback loop of
     further downscales. The drained worker's value ages out instead.
     """
     self._stop_event.set()
@@ -327,36 +284,17 @@ class NumLoadedModelsPublisher:
   def _run(self) -> None:
     while not self._stop_event.is_set():
       try:
-        sample = self._signal_fn()
-        if sample is not None:
-          self._publish(self._record(float(sample), time.time()))
+        value = self._signal_fn()
+        if value is not None:
+          self._publish(value)
       except Exception:  # pylint: disable=broad-except
         logging.exception(
             'Failed to publish autoscaling metric %s; will retry.',
             self._metric_name)
       self._stop_event.wait(self._poll_interval_secs)
 
-  def _record(self, sample: float, now: float) -> float:
-    """Adds a sample and returns the value to publish under the policy."""
-    if self._aggregation == 'last':
-      return sample
-    if self._aggregation == 'lifetime_max':
-      if self._lifetime_max is None or sample > self._lifetime_max:
-        self._lifetime_max = sample
-      return self._lifetime_max
-    self._samples.append((now, sample))
-    if self._aggregation_window_secs > 0:
-      cutoff = now - self._aggregation_window_secs
-      self._samples = [(t, v) for (t, v) in self._samples if t >= cutoff]
-    values = [v for (_, v) in self._samples]
-    if self._aggregation == 'max':
-      return max(values)
-    if self._aggregation == 'mean':
-      return sum(values) / len(values)
-    return _nearest_rank_percentile(values, self._percentile)
-
   def _publish(self, value: float) -> None:
-    published = int(round(value * self._multiplier))
+    published = int(round(value))
     # The SDK harness reports process-wide distributions without resetting
     # them, and Dataflow reads their cumulative mean (sum / count). Resetting
     # before each update keeps the cell at (sum=published, count=1), so the
@@ -448,8 +386,7 @@ class CompletionRateCapacityEstimator:
   or more. For servers with millisecond latencies the in-flight gauge reads
   almost always 0; pass the publisher a different signal instead.
 
-  The estimate is already smoothed, so publish it with ``aggregation='last'``.
-  This class does no I/O.
+  The estimate is already smoothed; publish it as is. This class does no I/O.
 
   Args:
     multiplier: Dimensionless factor on the estimate; larger means fewer
@@ -556,16 +493,11 @@ class AutoscalingMetricConfig:
       set it if you pass the same value as ``RunInference(model_identifier=)``.
     poll_interval_secs: How often to sample and publish.
     multiplier: Factor on the capacity estimate; larger means fewer workers,
-      smaller scales out more aggressively.
+      smaller scales out more aggressively. Applied once, by the estimator.
     signal_window_secs: Trailing window of the capacity estimator.
     min_requests: Completions a newly started worker needs before it
       publishes, unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time a new worker waits for ``min_requests``.
-    aggregation: Publisher policy on top of the already-smoothed estimate (see
-      :class:`NumLoadedModelsPublisher`). Keep ``'last'`` unless you want a
-      second smoothing layer, e.g. ``'lifetime_max'`` to never scale down.
-    aggregation_window_secs: Window of the ``'max'``, ``'pNN'`` and ``'mean'``
-      policies.
     load_signal_fn: Optional replacement for the estimator: given the server's
       metrics port, returns the capacity directly. Handlers that support it
       call it instead of the estimator.
@@ -576,8 +508,6 @@ class AutoscalingMetricConfig:
   signal_window_secs: float = DEFAULT_SIGNAL_WINDOW_SECS
   min_requests: int = DEFAULT_MIN_REQUESTS
   warmup_timeout_secs: float = DEFAULT_WARMUP_TIMEOUT_SECS
-  aggregation: str = DEFAULT_AGGREGATION
-  aggregation_window_secs: float = DEFAULT_AGGREGATION_WINDOW_SECS
   load_signal_fn: Optional[Callable[[int], Optional[float]]] = None
 
   def resolve_tag(
@@ -616,8 +546,6 @@ class AutoscalingMetricConfig:
                                 Optional[float]]) -> NumLoadedModelsPublisher:
     """Builds a :class:`NumLoadedModelsPublisher` for ``signal_fn``.
 
-    The multiplier is not applied again here; the estimator already applies it.
-
     Raises:
       ValueError: if ``tag`` is unset; call :meth:`resolve_tag` first.
     """
@@ -628,6 +556,4 @@ class AutoscalingMetricConfig:
         tag=self.tag,
         signal_fn=signal_fn,
         poll_interval_secs=self.poll_interval_secs,
-        aggregation=self.aggregation,
-        aggregation_window_secs=self.aggregation_window_secs,
     )
