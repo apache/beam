@@ -1621,13 +1621,19 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 				timers: map[timerKey]timerTimes{},
 			}
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
-			if ss.keysToExpireByWindow != nil {
-				w, ok := ss.keysToExpireByWindow[e.window]
-				if !ok {
-					w = make(set[string])
-					ss.keysToExpireByWindow[e.window] = w
-				}
+		}
+		// The key owes an OnWindowExpiration callback for each window it uses. The callback counts
+		// as pending until its bundle persists, so the job can't end before the callback runs.
+		// A cleared timer, with a sequence of -1, doesn't use its window.
+		if ss.keysToExpireByWindow != nil && e.sequence >= 0 {
+			w, ok := ss.keysToExpireByWindow[e.window]
+			if !ok {
+				w = make(set[string])
+				ss.keysToExpireByWindow[e.window] = w
+			}
+			if !w.present(string(e.keyBytes)) {
 				w.insert(string(e.keyBytes))
+				count++
 			}
 		}
 		heap.Push(&dnt.elements, e)
@@ -2484,6 +2490,9 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// consumer that received data still needs scheduling, since an unadvancing
 	// watermark is otherwise the only thing that would surface it.
 	if newOut <= ss.output {
+		// Late data may have used a window that has already expired, which still
+		// owes its OnWindowExpiration callbacks.
+		ss.createOnWindowExpirationBundles(ss.output, em)
 		refreshes := ss.consumersWithNewData
 		ss.consumersWithNewData = nil
 		return refreshes
@@ -2500,8 +2509,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		for win := range wins {
 			// Clear out anything we've already used.
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2511,8 +2520,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	for _, wins := range ss.state {
 		for win := range wins {
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip collecting this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip collecting this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2545,8 +2554,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 
 // createOnWindowExpirationBundles injects bundles when windows
 // expire for all keys that were used in that window. Returns true if any
-// bundles are created, which means that the window must not yet be garbage
-// collected.
+// window has expired, which means that the output watermark must wait for
+// its bundles.
 //
 // Must be called within the stageState.mu's and the ElementManager.refreshCond
 // critical sections.
@@ -2559,20 +2568,18 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		}
 		// We can't advance the output watermark if there's garbage to collect.
 		preventDownstreamUpdate = true
-		// Hold off on garbage collecting data for these windows while these
-		// are in progress.
-		ss.inProgressExpiredWindows[win] += 1
 
 		// Produce bundle(s) for these keys and window, and inject them.
 		wm := win.MaxTimestamp()
-		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
 
 		// Now we need to actually build the bundle.
 		var toProcess []element
 		busyKeys := set[string]{}
 		usedKeys := set[string]{}
 		for k := range keys {
-			if ss.inprogressKeys.present(k) {
+			// A key in a bundle, or with late data still to process in this window,
+			// expires once that's done.
+			if ss.inprogressKeys.present(k) || ss.hasPendingDataLocked(k, win) {
 				busyKeys.insert(k)
 				continue
 			}
@@ -2589,7 +2596,21 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 				elmBytes:      nil,
 			})
 		}
-		em.addPending(len(toProcess))
+		// Remove the key accounting, or continue tracking which keys still need clearing.
+		if len(busyKeys) == 0 {
+			delete(ss.keysToExpireByWindow, win)
+		} else {
+			ss.keysToExpireByWindow[win] = busyKeys
+		}
+		if len(toProcess) == 0 {
+			// Every key is busy, so the window expires once one is done.
+			continue
+		}
+		// Hold off on garbage collecting data for these windows while these
+		// are in progress.
+		ss.inProgressExpiredWindows[win] += 1
+		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
+		// The callbacks are already pending, since their keys first used the window.
 		ss.watermarkHolds.Add(wm, 1)
 		ss.makeInProgressBundle(
 			func() string { return rb.BundleID },
@@ -2606,15 +2627,23 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		// Insert that this is in progress here to avoid a race condition.
 		em.inprogressBundles.insert(rb.BundleID)
 		em.injectedBundles = append(em.injectedBundles, rb)
-
-		// Remove the key accounting, or continue tracking which keys still need clearing.
-		if len(busyKeys) == 0 {
-			delete(ss.keysToExpireByWindow, win)
-		} else {
-			ss.keysToExpireByWindow[win] = busyKeys
-		}
 	}
 	return preventDownstreamUpdate
+}
+
+// hasPendingDataLocked reports whether the key has data to process in the window.
+// Callers hold ss.mu.
+func (ss *stageState) hasPendingDataLocked(key string, win typex.Window) bool {
+	dnt, ok := ss.pendingByKeys[key]
+	if !ok {
+		return false
+	}
+	for _, e := range dnt.elements {
+		if e.IsData() && e.window == win {
+			return true
+		}
+	}
+	return false
 }
 
 // bundleReady returns the maximum allowed watermark for this stage, and whether
