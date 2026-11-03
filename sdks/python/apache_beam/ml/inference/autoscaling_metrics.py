@@ -25,17 +25,19 @@ model copies there. A handler that serves inference through an out-of-process
 model server (vLLM, Triton, ...) always has exactly one copy per worker, so it
 publishes an estimate of the worker's capacity under that metric instead.
 
-The pieces, none of which depend on a particular model server:
+Nothing here depends on a particular model server. There are three classes,
+each with one job:
 
-* :class:`PrometheusCounterGaugeSampler` *reads*: it scrapes a server's
-  completed-requests counter and in-flight gauge from its Prometheus
-  ``/metrics`` endpoint.
-* :class:`CompletionRateCapacityEstimator` *computes*: it turns those samples
-  into a smoothed per-worker capacity estimate. It does no I/O.
+* :class:`CompletionRateCapacityEstimator` *computes* a smoothed per-worker
+  capacity from a server's completed-requests counter and in-flight gauge. It
+  does no I/O.
 * :class:`NumLoadedModelsPublisher` *publishes*: a background thread polls a
   capacity signal and writes each value to ``num_loaded_models_<tag>`` as is.
 * :class:`AutoscalingMetricConfig` *configures*: it holds the user-facing
-  knobs, resolves the metric tag, and builds the estimator and publisher.
+  knobs, resolves the metric tag, and builds the publisher.
+
+plus :func:`scrape_prometheus_metrics` and :func:`parse_prometheus_metric` to
+read a server's Prometheus ``/metrics`` endpoint.
 
 A handler for a model server that exposes a completed-requests counter and an
 in-flight gauge only supplies the server-specific parts, the two metric names
@@ -73,7 +75,6 @@ __all__ = [
     'AutoscalingMetricConfig',
     'CompletionRateCapacityEstimator',
     'NumLoadedModelsPublisher',
-    'PrometheusCounterGaugeSampler',
     'parse_prometheus_metric',
     'sanitize_metric_tag',
     'scrape_prometheus_metrics',
@@ -144,16 +145,13 @@ def scrape_prometheus_metrics(
     return None
 
 
-def _unescape_label_value(value: str) -> str:
-  """Undoes the backslash escapes in a Prometheus label value."""
-  return _PROMETHEUS_ESCAPE_RE.sub(
-      lambda m: '\n' if m.group(1) == 'n' else m.group(1), value)
-
-
 def _parse_prometheus_labels(label_str: str) -> dict[str, str]:
-  """Parses the inside of the ``{k="v",...}`` section of a sample line."""
+  """Parses the inside of ``{k="v",...}``, undoing backslash escapes."""
+  def unescape(match: re.Match) -> str:
+    return '\n' if match.group(1) == 'n' else match.group(1)
+
   return {
-      match['name']: _unescape_label_value(match['value'])
+      match['name']: _PROMETHEUS_ESCAPE_RE.sub(unescape, match['value'])
       for match in _PROMETHEUS_LABEL_RE.finditer(label_str)
   }
 
@@ -308,49 +306,6 @@ class NumLoadedModelsPublisher:
       cell.update(published)
 
 
-class PrometheusCounterGaugeSampler:
-  """Reads a completed-requests counter and an in-flight gauge from a server.
-
-  Calling the sampler with the server's metrics port scrapes
-  ``http://localhost:<port>/metrics`` and returns ``(completed_total,
-  running)``, each summed over the samples that match ``label_filter``. The two
-  metric names are the only server-specific inputs, e.g.
-  ``vllm:request_success_total`` and ``vllm:num_requests_running`` for vLLM.
-
-  Args:
-    completed_metric: Name of the monotonically increasing counter of completed
-      requests.
-    running_metric: Name of the gauge of requests currently in flight.
-    label_filter: Optional labels a sample must have to be counted, e.g. to
-      select one model on a multi-model server.
-    timeout_secs: Scrape timeout.
-  """
-  def __init__(
-      self,
-      completed_metric: str,
-      running_metric: str,
-      label_filter: Optional[Mapping[str, str]] = None,
-      timeout_secs: float = 5.0,
-  ):
-    self._completed_metric = completed_metric
-    self._running_metric = running_metric
-    self._label_filter = dict(label_filter) if label_filter else None
-    self._timeout_secs = timeout_secs
-
-  def __call__(self, port: int) -> Optional[tuple[float, float]]:
-    """Returns ``(completed_total, running)``, or ``None`` if unavailable."""
-    text = scrape_prometheus_metrics(port, timeout_secs=self._timeout_secs)
-    if text is None:
-      return None
-    completed = parse_prometheus_metric(
-        text, self._completed_metric, label_filter=self._label_filter)
-    running = parse_prometheus_metric(
-        text, self._running_metric, label_filter=self._label_filter)
-    if completed is None or running is None:
-      return None
-    return completed, running
-
-
 class _Interval(NamedTuple):
   """One sampling interval in the estimator's trailing window."""
   end_ts: float
@@ -363,8 +318,7 @@ class CompletionRateCapacityEstimator:
   """Estimates how many messages a worker can absorb.
 
   Feed it periodic samples of a model server's completed-requests counter and
-  in-flight gauge (e.g. from :class:`PrometheusCounterGaugeSampler`) through
-  :meth:`update`. Over a trailing ``window_secs`` window it computes::
+  in-flight gauge through :meth:`update`. Over a trailing ``window_secs`` window it computes::
 
       mu          = sum(completed) / sum(running * secs)
       running_ref = percentile(running, running_percentile)
@@ -477,32 +431,6 @@ class CompletionRateCapacityEstimator:
     return max(float(self._min_value), mu * running_ref * self._multiplier)
 
 
-class _ModelServerCapacitySignal:
-  """Capacity signal of a model server: scrapes it, then estimates capacity."""
-  def __init__(
-      self,
-      metrics_port_fn: Callable[[], Optional[int]],
-      sampler: PrometheusCounterGaugeSampler,
-      estimator: CompletionRateCapacityEstimator,
-      load_signal_fn: Optional[Callable[[int], Optional[float]]] = None,
-  ):
-    self._metrics_port_fn = metrics_port_fn
-    self._sampler = sampler
-    self._estimator = estimator
-    self._load_signal_fn = load_signal_fn
-
-  def __call__(self) -> Optional[float]:
-    port = self._metrics_port_fn()
-    if port is None:
-      return None  # The server is not up; skip the tick.
-    if self._load_signal_fn is not None:
-      return self._load_signal_fn(port)
-    sample = self._sampler(port)
-    if sample is None:
-      return None
-    return self._estimator.update(*sample)
-
-
 @dataclass(frozen=True)
 class AutoscalingMetricConfig:
   """User-facing knobs for the capacity-based autoscaling signal.
@@ -560,14 +488,6 @@ class AutoscalingMetricConfig:
           'fallback_name, or set AutoscalingMetricConfig.tag.')
     return dataclasses.replace(self, tag=tag)
 
-  def make_capacity_estimator(self) -> CompletionRateCapacityEstimator:
-    """Builds a :class:`CompletionRateCapacityEstimator` from these knobs."""
-    return CompletionRateCapacityEstimator(
-        multiplier=self.multiplier,
-        window_secs=self.signal_window_secs,
-        min_requests=self.min_requests,
-        warmup_timeout_secs=self.warmup_timeout_secs)
-
   def make_model_server_publisher(
       self,
       metrics_port_fn: Callable[[], Optional[int]],
@@ -577,11 +497,10 @@ class AutoscalingMetricConfig:
   ) -> NumLoadedModelsPublisher:
     """Builds a publisher of a model server's capacity.
 
-    The publisher scrapes the server's Prometheus ``/metrics`` endpoint with a
-    :class:`PrometheusCounterGaugeSampler`, feeds the samples to a
-    :class:`CompletionRateCapacityEstimator` built from these knobs, and
-    publishes the estimate. If ``load_signal_fn`` is set, it replaces the
-    scrape and the estimate.
+    Every poll scrapes the server's Prometheus ``/metrics`` endpoint, reads the
+    two metrics, feeds them to a :class:`CompletionRateCapacityEstimator` built
+    from these knobs, and publishes the estimate. If ``load_signal_fn`` is set,
+    it replaces the scrape and the estimate.
 
     Args:
       metrics_port_fn: Returns the port serving ``/metrics`` while the server
@@ -590,18 +509,35 @@ class AutoscalingMetricConfig:
         e.g. ``vllm:request_success_total``.
       running_metric: Name of the server's gauge of in-flight requests, e.g.
         ``vllm:num_requests_running``.
-      label_filter: Optional labels a sample must have to be counted.
+      label_filter: Optional labels a sample must have to be counted, e.g. to
+        select one model on a multi-model server.
 
     Raises:
       ValueError: if ``tag`` is unset; call :meth:`resolve_tag` first.
     """
-    return self.make_publisher(
-        _ModelServerCapacitySignal(
-            metrics_port_fn,
-            PrometheusCounterGaugeSampler(
-                completed_metric, running_metric, label_filter=label_filter),
-            self.make_capacity_estimator(),
-            self.load_signal_fn))
+    estimator = CompletionRateCapacityEstimator(
+        multiplier=self.multiplier,
+        window_secs=self.signal_window_secs,
+        min_requests=self.min_requests,
+        warmup_timeout_secs=self.warmup_timeout_secs)
+
+    def capacity() -> Optional[float]:
+      """One poll: returns the current capacity, or None to skip the tick."""
+      port = metrics_port_fn()
+      if port is None:
+        return None  # The server is not up.
+      if self.load_signal_fn is not None:
+        return self.load_signal_fn(port)
+      text = scrape_prometheus_metrics(port)
+      if text is None:
+        return None
+      completed = parse_prometheus_metric(text, completed_metric, label_filter)
+      running = parse_prometheus_metric(text, running_metric, label_filter)
+      if completed is None or running is None:
+        return None
+      return estimator.update(completed, running)
+
+    return self.make_publisher(capacity)
 
   def make_publisher(
       self, signal_fn: Callable[[],

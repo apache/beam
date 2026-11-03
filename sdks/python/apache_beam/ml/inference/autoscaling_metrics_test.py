@@ -153,43 +153,6 @@ class AutoscalingMetricsTest(unittest.TestCase):
       other.stop()
     self.assertNotIn('num_loaded_models_reload', active)
 
-  def test_prometheus_counter_gauge_sampler(self):
-    sampler = autoscaling_metrics.PrometheusCounterGaugeSampler(
-        completed_metric='vllm:request_success_total',
-        running_metric='vllm:num_requests_running')
-    responses = [
-        'vllm:request_success_total 10.0\nvllm:num_requests_running 4.0\n',
-        # Missing the gauge -> None.
-        'vllm:request_success_total 11.0\n',
-    ]
-
-    def fake_urlopen(url, timeout=5.0):
-      self.assertEqual(url, 'http://localhost:8000/metrics')
-      del timeout
-      return io.BytesIO(responses.pop(0).encode('utf-8'))
-
-    with mock.patch('urllib.request.urlopen', side_effect=fake_urlopen):
-      self.assertEqual(sampler(8000), (10.0, 4.0))
-      self.assertIsNone(sampler(8000))
-    # Unreachable endpoint -> None.
-    with mock.patch('urllib.request.urlopen', side_effect=OSError('refused')):
-      self.assertIsNone(sampler(8000))
-
-  def test_prometheus_counter_gauge_sampler_label_filter(self):
-    sampler = autoscaling_metrics.PrometheusCounterGaugeSampler(
-        completed_metric='nv_inference_request_success',
-        running_metric='nv_inference_pending_request_count',
-        label_filter={'model': 'a'})
-    body = (
-        'nv_inference_request_success{model="a"} 10\n'
-        'nv_inference_request_success{model="b"} 99\n'
-        'nv_inference_pending_request_count{model="a"} 2\n'
-        'nv_inference_pending_request_count{model="b"} 50\n')
-    with mock.patch('urllib.request.urlopen',
-                    return_value=io.BytesIO(body.encode('utf-8'))):
-      # Only model "a" counts.
-      self.assertEqual(sampler(8002), (10.0, 2.0))
-
   def test_capacity_estimator(self):
     estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
         multiplier=2.0, min_value=1, window_secs=60.0, running_percentile=90.0)
@@ -279,11 +242,6 @@ class AutoscalingMetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       autoscaling_metrics.AutoscalingMetricConfig().make_publisher(lambda: None)
 
-    estimator = cfg.make_capacity_estimator()
-    self.assertEqual(estimator._multiplier, 2.0)
-    self.assertEqual(estimator._window_secs, 30.0)
-    self.assertEqual(estimator._min_requests, 5)
-    self.assertEqual(estimator._warmup_timeout_secs, 15.0)
     publisher = cfg.resolve_tag('step-id').make_publisher(lambda: None)
     self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
     self.assertEqual(publisher._poll_interval_secs, 7.0)
@@ -324,6 +282,36 @@ class AutoscalingMetricsTest(unittest.TestCase):
         self.assertIsNone(signal())  # Baseline sample.
         # delta=20 over 5s with running=4 -> mu=1, p90=4, multiplier 2 -> 8.
         self.assertAlmostEqual(signal(), 8.0)
+
+  def test_make_model_server_publisher_skips_unreadable_scrapes(self):
+    config = autoscaling_metrics.AutoscalingMetricConfig(
+        min_requests=0).resolve_tag('step-id')
+    publisher = config.make_model_server_publisher(
+        metrics_port_fn=lambda: 8000,
+        completed_metric='done_total',
+        running_metric='running',
+        label_filter={'model': 'a'})
+    signal = publisher._signal_fn
+    scrapes = [
+        None,  # Endpoint unreachable.
+        'done_total{model="a"} 1\n',  # Gauge missing.
+        # Only model "a" counts.
+        'done_total{model="a"} 10\ndone_total{model="b"} 99\n'
+        'running{model="a"} 2\nrunning{model="b"} 50\n',
+        'done_total{model="a"} 20\ndone_total{model="b"} 999\n'
+        'running{model="a"} 2\nrunning{model="b"} 50\n',
+    ]
+    with mock.patch.object(autoscaling_metrics,
+                           'scrape_prometheus_metrics',
+                           side_effect=lambda port: scrapes.pop(0)):
+      with mock.patch.object(autoscaling_metrics.time,
+                             'time',
+                             side_effect=[100.0, 110.0]):
+        self.assertIsNone(signal())
+        self.assertIsNone(signal())
+        self.assertIsNone(signal())  # Baseline sample.
+        # delta=10 over 10s with running=2 -> mu=0.5, p90=2 -> 1.0.
+        self.assertAlmostEqual(signal(), 1.0)
 
   def test_make_model_server_publisher_load_signal_fn_override(self):
     config = autoscaling_metrics.AutoscalingMetricConfig(
