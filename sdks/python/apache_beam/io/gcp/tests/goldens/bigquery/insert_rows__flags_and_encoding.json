@@ -1,0 +1,31 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_rows__flags_and_encoding",
+  "description": "insert_rows with skip_invalid_rows/ignore_unknown_values and Decimal/datetime/date/time/bytes values (orjson + default_encoder)",
+  "requests": [
+    {
+      "body": {
+        "ignoreUnknownValues": true,
+        "rows": [
+          {
+            "insertId": "id1",
+            "json": {
+              "b": "Ynl0ZXM=",
+              "d": "2020-01-02",
+              "dec": "1.23",
+              "dt": "2020-01-02T03:04:05.600000",
+              "nested": {
+                "n": "10"
+              },
+              "t": "03:04:05"
+            }
+          }
+        ],
+        "skipInvalidRows": true
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/insertAll",
+      "query": {}
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "create_table__additional_params",
+  "description": "_create_table with additional_parameters passthrough (additional_bq_parameters): partitioning, clustering, encryption, friendlyName, description",
+  "requests": [
+    {
+      "body": {
+        "clustering": {
+          "fields": [
+            "a"
+          ]
+        },
+        "description": "desc",
+        "encryptionConfiguration": {
+          "kmsKeyName": "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+        },
+        "friendlyName": "friendly",
+        "rangePartitioning": {
+          "field": "n",
+          "range": {
+            "end": "100",
+            "interval": "10",
+            "start": "0"
+          }
+        },
+        "schema": {
+          "fields": [
+            {
+              "mode": "REQUIRED",
+              "name": "a",
+              "type": "STRING"
+            },
+            {
+              "fields": [
+                {
+                  "mode": "NULLABLE",
+                  "name": "x",
+                  "type": "INTEGER"
+                },
+                {
+                  "description": "nested ts",
+                  "mode": "NULLABLE",
+                  "name": "y",
+                  "type": "TIMESTAMP"
+                }
+              ],
+              "mode": "REPEATED",
+              "name": "r",
+              "type": "RECORD"
+            }
+          ]
+        },
+        "tableReference": {
+          "datasetId": "d",
+          "projectId": "p",
+          "tableId": "t"
+        },
+        "timePartitioning": {
+          "expirationMs": "3600000",
+          "field": "ts",
+          "type": "DAY"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables",
+      "query": {}
+    }
+  ]
+}

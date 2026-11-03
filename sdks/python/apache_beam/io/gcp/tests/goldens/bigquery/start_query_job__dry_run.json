@@ -1,0 +1,30 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "start_query_job__dry_run",
+  "description": "_start_query_job(dry_run=True): no destination table",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "dryRun": true,
+          "labels": {},
+          "query": {
+            "allowLargeResults": false,
+            "destinationEncryptionConfiguration": {},
+            "flattenResults": true,
+            "priority": "INTERACTIVE",
+            "query": "SELECT 1",
+            "useLegacySql": true
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

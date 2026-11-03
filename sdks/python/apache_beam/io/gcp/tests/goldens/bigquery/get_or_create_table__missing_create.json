@@ -1,0 +1,52 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_or_create_table__missing_create",
+  "description": "get_or_create_table on a missing table: GET 404 then tables.insert",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    },
+    {
+      "body": {
+        "schema": {
+          "fields": [
+            {
+              "mode": "REQUIRED",
+              "name": "a",
+              "type": "STRING"
+            },
+            {
+              "fields": [
+                {
+                  "mode": "NULLABLE",
+                  "name": "x",
+                  "type": "INTEGER"
+                },
+                {
+                  "description": "nested ts",
+                  "mode": "NULLABLE",
+                  "name": "y",
+                  "type": "TIMESTAMP"
+                }
+              ],
+              "mode": "REPEATED",
+              "name": "r",
+              "type": "RECORD"
+            }
+          ]
+        },
+        "tableReference": {
+          "datasetId": "d",
+          "projectId": "p",
+          "tableId": "t"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables",
+      "query": {}
+    }
+  ]
+}
