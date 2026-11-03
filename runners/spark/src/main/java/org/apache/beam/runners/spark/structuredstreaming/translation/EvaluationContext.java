@@ -51,11 +51,16 @@ public class EvaluationContext {
   }
 
   private final Collection<? extends NamedDataset<?>> leaves;
+  private final Collection<Dataset<?>> cachedDatasets;
   private final SparkSession session;
   private volatile boolean stopped = false;
 
-  protected EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
+  protected EvaluationContext(
+      Collection<? extends NamedDataset<?>> leaves,
+      Collection<Dataset<?>> cachedDatasets,
+      SparkSession session) {
     this.leaves = leaves;
+    this.cachedDatasets = cachedDatasets;
     this.session = session;
   }
 
@@ -64,24 +69,44 @@ public class EvaluationContext {
     return leaves;
   }
 
-  /** Trigger evaluation of all leaf datasets. Returns early once {@link #stop()} was called. */
+  /**
+   * Trigger evaluation of all leaf datasets. Returns early once {@link #stop()} was called.
+   *
+   * <p>Once all leaves have been evaluated (or evaluation was stopped), any dataset that was {@link
+   * PipelineTranslator.TranslationState#cacheDataset cached} during translation is unpersisted, so
+   * it doesn't keep occupying storage memory for the lifetime of the Spark session.
+   */
   public void evaluate() {
-    for (NamedDataset<?> ds : leaves) {
-      if (stopped) {
-        LOG.info("Evaluation stopped, skipping remaining datasets");
-        return;
+    try {
+      for (NamedDataset<?> ds : leaves) {
+        if (stopped) {
+          LOG.info("Evaluation stopped, skipping remaining datasets");
+          return;
+        }
+        final Dataset<?> dataset = ds.dataset();
+        if (dataset == null) {
+          continue;
+        }
+        if (LOG.isDebugEnabled()) {
+          ExplainMode explainMode = ExplainMode.fromString("simple");
+          String execPlan = dataset.queryExecution().explainString(explainMode);
+          LOG.debug("Evaluating dataset {}:\n{}", ds.name(), execPlan);
+        }
+        // force evaluation using a dummy foreach action
+        evaluate(ds.name(), dataset);
       }
-      final Dataset<?> dataset = ds.dataset();
-      if (dataset == null) {
-        continue;
-      }
-      if (LOG.isDebugEnabled()) {
-        ExplainMode explainMode = ExplainMode.fromString("simple");
-        String execPlan = dataset.queryExecution().explainString(explainMode);
-        LOG.debug("Evaluating dataset {}:\n{}", ds.name(), execPlan);
-      }
-      // force evaluation using a dummy foreach action
-      evaluate(ds.name(), dataset);
+    } finally {
+      unpersistCachedDatasets();
+    }
+  }
+
+  /**
+   * Unpersists all datasets that were cached during translation. Called once leaf evaluation has
+   * completed (successfully, with an error, or stopped early), as none of them are needed anymore.
+   */
+  protected final void unpersistCachedDatasets() {
+    for (Dataset<?> dataset : cachedDatasets) {
+      dataset.unpersist();
     }
   }
 

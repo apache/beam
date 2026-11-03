@@ -65,15 +65,20 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testPardoWithOutputTagsCachedRDD() {
+  public void testPardoWithOutputTagsUnpersistsRDDAfterRun() {
+    // Multiple consumed output tags force ParDoTranslatorBatch to persist an intermediate
+    // Dataset (regression test for https://github.com/apache/beam/issues/40243: it must not
+    // remain cached once the pipeline run has completed).
     pardoWithOutputTags("MEMORY_ONLY", true);
-    assertTrue("Expected cached data", SESSION.hasCachedData());
+    assertTrue("Expected cached data to be unpersisted after run", !SESSION.hasCachedData());
   }
 
   @Test
-  public void testPardoWithOutputTagsCachedDataset() {
+  public void testPardoWithOutputTagsUnpersistsDatasetAfterRun() {
+    // Same as above with a storage level that goes through the Dataset (rather than RDD) cache
+    // manager, see SparkSessionRule#hasCachedData.
     pardoWithOutputTags("MEMORY_AND_DISK", true);
-    assertTrue("Expected cached data", SESSION.hasCachedData());
+    assertTrue("Expected cached data to be unpersisted after run", !SESSION.hasCachedData());
   }
 
   @Test
