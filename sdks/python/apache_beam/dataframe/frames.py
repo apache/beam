@@ -333,7 +333,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
         expressions.ComputedExpression(
-            'fillna', _do_fillna, [self._expr, value_expr],
+            'fillna',
+            _do_fillna, [self._expr, value_expr],
             preserves_partition_by=partitionings.Arbitrary(),
             requires_partition_by=requires))
 
@@ -347,11 +348,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     pad = _fillna_alias('pad')
 
   if hasattr(pd.DataFrame, 'first'):
+
     @frame_base.with_docs_from(pd.DataFrame)
     def first(self, offset):
       per_partition = expressions.ComputedExpression(
-          'first-per-partition', lambda df: df.sort_index().first(offset=offset),
-          [self._expr],
+          'first-per-partition',
+          lambda df: df.sort_index().first(offset=offset), [self._expr],
           preserves_partition_by=partitionings.Arbitrary(),
           requires_partition_by=partitionings.Arbitrary())
       with expressions.allow_non_parallel_operations(True):
@@ -363,6 +365,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
                 requires_partition_by=partitionings.Singleton()))
 
   if hasattr(pd.DataFrame, 'last'):
+
     @frame_base.with_docs_from(pd.DataFrame)
     def last(self, offset):
       per_partition = expressions.ComputedExpression(
@@ -383,7 +386,14 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       pd.DataFrame, removed_args=['axis'] if PD_VERSION >= (3, 0) else None)
   @frame_base.populate_defaults(
       pd.DataFrame, removed_args=['axis'] if PD_VERSION >= (3, 0) else None)
-  def groupby(self, by=None, level=None, axis=0, as_index=True, group_keys=True, **kwargs):
+  def groupby(
+      self,
+      by=None,
+      level=None,
+      axis=0,
+      as_index=True,
+      group_keys=True,
+      **kwargs):
     """``as_index`` must be ``True``.
 
     Aggregations grouping by a categorical column with ``observed=False`` set
@@ -395,8 +405,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
     if axis in (1, 'columns'):
       if PD_VERSION >= (3, 0):
-        raise NotImplementedError(
-            "groupby(axis=1) is removed in Pandas 3.0+")
+        raise NotImplementedError("groupby(axis=1) is removed in Pandas 3.0+")
       return _DeferredGroupByCols(
           expressions.ComputedExpression(
               'groupbycols', lambda df: df.groupby(

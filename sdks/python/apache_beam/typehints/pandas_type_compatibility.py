@@ -133,14 +133,13 @@ def dtype_to_fieldtype(dtype):
     return fieldtype
   elif getattr(dtype, 'kind', None) == 'O' or dtype is object:
     return Any
-  elif (str(dtype) in ('str', 'string') or
-        isinstance(dtype, pd.StringDtype) or
-        pd.api.types.is_string_dtype(dtype)):
-    return Optional[str]
-  elif getattr(dtype, 'kind', None) == 'S':
+  elif getattr(dtype, 'kind', None) == 'S' or dtype is bytes:
     return bytes
   elif getattr(dtype, 'kind', None) == 'M':
     return Optional[datetime.datetime]
+  elif (str(dtype) in ('str', 'string') or isinstance(dtype, pd.StringDtype) or
+        pd.api.types.is_string_dtype(dtype)):
+    return Optional[str]
   else:
     return Any
 
