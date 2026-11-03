@@ -90,6 +90,13 @@ DEFAULT_RUNNING_PERCENTILE = 90.0
 DEFAULT_MIN_REQUESTS = 3
 DEFAULT_WARMUP_TIMEOUT_SECS = 10.0
 
+# How CompletionRateCapacityEstimator turns its samples into an estimate.
+CONCURRENCY = 'concurrency'
+WINDOW_MEAN = 'window_mean'
+WINDOW_MAX = 'window_max'
+LIFETIME_MAX = 'lifetime_max'
+_AGGREGATIONS = (CONCURRENCY, WINDOW_MEAN, WINDOW_MAX, LIFETIME_MAX)
+
 # One sample line of the Prometheus text format:
 #   metric_name{label="value",...} value [timestamp]
 _PROMETHEUS_SAMPLE_RE = re.compile(
@@ -207,21 +214,34 @@ class CompletionRateCapacityEstimator:
   """Estimates how many requests a worker can handle.
 
   Feed it periodic samples of a model server's completed-requests counter and
-  in-flight gauge through :meth:`update`. Over a trailing ``window_secs``
-  window it computes::
+  in-flight gauge through :meth:`update`. Each sample closes an interval;
+  ``aggregation`` picks how the intervals become an estimate. Every mode
+  returns ``max(min_value, value * multiplier)``.
+
+  ``'concurrency'`` (the default) computes, over a trailing ``window_secs``
+  window::
 
       mu          = sum(completed) / sum(running * secs)
-      running_ref = percentile(running, running_percentile)
-      capacity    = max(min_value, mu * running_ref * multiplier)
+      value       = mu * percentile(running, running_percentile)
 
   ``mu`` is the throughput of one in-flight slot (roughly ``1 / latency``),
   computed as a ratio of windowed sums so discrete completions don't make it
-  jumpy. ``running_ref`` is the concurrency the worker typically sustains; the
-  p90 rather than the max avoids latching onto rare backlog spikes. Their
-  product is the worker's sustained throughput.
+  jumpy. The percentile (``running_ref``) is the concurrency the worker
+  typically sustains; the p90 rather than the max avoids latching onto rare
+  backlog spikes. Their product is the worker's sustained throughput.
 
-  Units: ``mu`` is completions per slot-second, so ``capacity`` is in requests
-  per second. The runner reads the published value as how many requests one
+  The other modes use the raw completion rate and ignore concurrency:
+
+  * ``'window_mean'``: completions per second over the trailing window.
+  * ``'window_max'``: the highest single-interval completion rate in the
+    trailing window.
+  * ``'lifetime_max'``: the highest single-interval completion rate seen since
+    the estimator was created. Never decays.
+
+  Single-interval rates are noisy when requests take seconds, since a few
+  completions can land in one interval; the max modes latch onto such bursts.
+
+  Units: every mode is in requests per second. The runner reads the published value as how many requests one
   worker can handle, so each worker is sized for about one second of its
   sustained throughput; ``multiplier`` scales that, e.g. 2.0 sizes each worker
   for two seconds' worth of requests.
@@ -230,13 +250,17 @@ class CompletionRateCapacityEstimator:
   after a scaling event, when the runner rebalances work and a worker is
   briefly starved, its raw completion rate collapses, but ``mu`` and
   ``running_ref`` hold, so the estimate does not crater and trigger a downscale
-  spiral.
+  spiral. ``'window_mean'`` has no such protection; the max modes avoid it by
+  holding the peak.
 
-  The estimator suits servers whose requests take long enough to be seen in
-  flight by periodic sampling, such as LLM servers with latencies of a second
-  or more. For servers with millisecond latencies the in-flight gauge reads
-  almost always 0; supply a different signal through
-  ``AutoscalingMetricConfig.load_signal_fn`` instead.
+  ``'concurrency'`` suits servers whose requests take long enough to be seen
+  in flight by periodic sampling, such as LLM servers with latencies of a
+  second or more. For servers with millisecond latencies the in-flight gauge
+  reads almost always 0; use a completion-rate mode, or supply a different
+  signal through ``AutoscalingMetricConfig.load_signal_fn``.
+
+  In every mode, intervals with no completions and nothing in flight are
+  skipped, so idle periods don't drag the estimate down.
 
   The estimate is already smoothed; publish it as is. This class does no I/O.
 
@@ -244,13 +268,19 @@ class CompletionRateCapacityEstimator:
     multiplier: Dimensionless factor on the estimate; larger means fewer
       workers.
     min_value: Floor of the estimate.
-    window_secs: Trailing window; 0 keeps every interval.
+    window_secs: Trailing window; 0 keeps every interval. ``'lifetime_max'``
+      uses it only to count completions for ``min_requests``.
     running_percentile: Percentile of in-flight concurrency used as
-      ``running_ref``.
+      ``running_ref``; ``'concurrency'`` mode only.
     min_requests: Completions a newly started worker needs before it reports,
       unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time after a worker first sees work that it
       waits for ``min_requests``.
+    aggregation: ``'concurrency'``, ``'window_mean'``, ``'window_max'`` or
+      ``'lifetime_max'``.
+
+  Raises:
+    ValueError: if ``aggregation`` is not one of the above.
   """
   def __init__(
       self,
@@ -260,7 +290,13 @@ class CompletionRateCapacityEstimator:
       running_percentile: float = DEFAULT_RUNNING_PERCENTILE,
       min_requests: int = DEFAULT_MIN_REQUESTS,
       warmup_timeout_secs: float = DEFAULT_WARMUP_TIMEOUT_SECS,
+      aggregation: str = CONCURRENCY,
   ):
+    if aggregation not in _AGGREGATIONS:
+      raise ValueError(
+          f'Unknown aggregation {aggregation!r}; expected one of '
+          f'{", ".join(_AGGREGATIONS)}.')
+    self._aggregation = aggregation
     self._multiplier = max(float(multiplier), 0.0)
     self._min_value = int(min_value)
     self._window_secs = max(float(window_secs), 0.0)
@@ -271,6 +307,7 @@ class CompletionRateCapacityEstimator:
     self._last_ts: Optional[float] = None
     self._first_active_ts: Optional[float] = None
     self._samples: list[_Interval] = []
+    self._peak_rate = 0.0  # Highest single-interval rate, for lifetime_max.
 
   def update(
       self,
@@ -308,10 +345,11 @@ class CompletionRateCapacityEstimator:
       return None
     self._samples.append(
         _Interval(now, float(completed), float(running), float(secs)))
+    self._peak_rate = max(self._peak_rate, completed / secs)
 
     total_completed = sum(s.completed for s in self._samples)
     slot_secs = sum(s.running * s.secs for s in self._samples)
-    if slot_secs <= 0:
+    if self._aggregation == CONCURRENCY and slot_secs <= 0:
       return None  # Nothing was in flight during the window.
     if self._first_active_ts is None:
       self._first_active_ts = prev_ts
@@ -321,11 +359,19 @@ class CompletionRateCapacityEstimator:
       # the floor value for the whole job.
       return None
 
-    mu = total_completed / slot_secs
-    running_ref = _nearest_rank_percentile(
-        [s.running for s in self._samples if s.running > 0],
-        self._running_percentile)
-    return max(float(self._min_value), mu * running_ref * self._multiplier)
+    if self._aggregation == WINDOW_MEAN:
+      value = total_completed / sum(s.secs for s in self._samples)
+    elif self._aggregation == WINDOW_MAX:
+      value = max(s.completed / s.secs for s in self._samples)
+    elif self._aggregation == LIFETIME_MAX:
+      value = self._peak_rate
+    else:
+      mu = total_completed / slot_secs
+      running_ref = _nearest_rank_percentile(
+          [s.running for s in self._samples if s.running > 0],
+          self._running_percentile)
+      value = mu * running_ref
+    return max(float(self._min_value), value * self._multiplier)
 
 
 @dataclass(frozen=True)
@@ -343,6 +389,9 @@ class AutoscalingMetricConfig:
     min_requests: Completions a newly started worker needs before it
       publishes, unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time a new worker waits for ``min_requests``.
+    aggregation: How the estimate is computed: ``'concurrency'`` (default),
+      ``'window_mean'``, ``'window_max'`` or ``'lifetime_max'``. See
+      :class:`CompletionRateCapacityEstimator`.
     load_signal_fn: Optional replacement for the built-in estimate: given the
       server's metrics port, returns the capacity directly.
     tag: Optional metric tag override. Leave unset so the RunInference model
@@ -355,6 +404,7 @@ class AutoscalingMetricConfig:
   signal_window_secs: float = DEFAULT_SIGNAL_WINDOW_SECS
   min_requests: int = DEFAULT_MIN_REQUESTS
   warmup_timeout_secs: float = DEFAULT_WARMUP_TIMEOUT_SECS
+  aggregation: str = CONCURRENCY
   load_signal_fn: Optional[Callable[[int], Optional[float]]] = None
   tag: Optional[str] = None
 
@@ -432,7 +482,8 @@ class NumLoadedModelsPublisher:
         multiplier=config.multiplier,
         window_secs=config.signal_window_secs,
         min_requests=config.min_requests,
-        warmup_timeout_secs=config.warmup_timeout_secs)
+        warmup_timeout_secs=config.warmup_timeout_secs,
+        aggregation=config.aggregation)
     self._stop_event = threading.Event()
     self._thread: Optional[threading.Thread] = None
 

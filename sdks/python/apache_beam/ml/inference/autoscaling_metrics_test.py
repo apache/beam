@@ -149,6 +149,58 @@ class AutoscalingMetricsTest(unittest.TestCase):
       self.assertIsNone(estimator.update(0.0, 1.0))
       self.assertAlmostEqual(estimator.update(10.0, 1.0), 2.0)
 
+  def test_capacity_estimator_completion_rate_aggregations(self):
+    """The completion-rate modes ignore concurrency."""
+    def run(aggregation, **kwargs):
+      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+          min_value=0,
+          min_requests=0,
+          window_secs=60.0,
+          aggregation=aggregation,
+          **kwargs)
+      # (completed_total, running, now): rates of 2, 6, idle, 1 req/s.
+      samples = [(0, 3, 0.0), (10, 3, 5.0), (40, 8, 10.0), (40, 0, 15.0),
+                 (45, 1, 20.0)]
+      return [estimator.update(c, r, now=t) for c, r, t in samples]
+
+    # 10 + 30 + 5 completions over the three non-idle 5s intervals.
+    self.assertEqual(run('window_mean'), [None, 2.0, 4.0, None, 3.0])
+    self.assertEqual(run('window_max'), [None, 2.0, 6.0, None, 6.0])
+    self.assertEqual(run('lifetime_max'), [None, 2.0, 6.0, None, 6.0])
+    self.assertEqual(
+        run('lifetime_max', multiplier=0.5), [None, 1.0, 3.0, None, 3.0])
+
+  def test_capacity_estimator_max_modes_differ_once_peak_leaves_window(self):
+    def run(aggregation):
+      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+          min_value=0,
+          min_requests=0,
+          window_secs=10.0,
+          aggregation=aggregation)
+      # Rates: 6 req/s, then 1 req/s for three intervals.
+      samples = [(0, 1, 0.0), (30, 1, 5.0), (35, 1, 10.0), (40, 1, 15.0),
+                 (45, 1, 20.0)]
+      return [estimator.update(c, r, now=t) for c, r, t in samples][-1]
+
+    # The 6 req/s interval ended at t=5, outside the 10s window at t=20.
+    self.assertEqual(run('window_max'), 1.0)
+    self.assertEqual(run('lifetime_max'), 6.0)
+
+  def test_capacity_estimator_completion_rate_works_without_in_flight(self):
+    """A server whose gauge always reads 0 still gets a completion rate."""
+    concurrency = autoscaling_metrics.CompletionRateCapacityEstimator(
+        min_requests=0)
+    rate = autoscaling_metrics.CompletionRateCapacityEstimator(
+        min_value=0, min_requests=0, aggregation='window_mean')
+    for estimator in (concurrency, rate):
+      estimator.update(0, 0, now=0.0)
+    self.assertIsNone(concurrency.update(500, 0, now=5.0))
+    self.assertEqual(rate.update(500, 0, now=5.0), 100.0)
+
+  def test_capacity_estimator_rejects_unknown_aggregation(self):
+    with self.assertRaises(ValueError):
+      autoscaling_metrics.CompletionRateCapacityEstimator(aggregation='p90')
+
   def test_publisher_publishes_signal_values_as_is(self):
     """Each capacity is published rounded; None skips the tick."""
     cell = (
@@ -256,6 +308,11 @@ class AutoscalingMetricsTest(unittest.TestCase):
         config=autoscaling_metrics.AutoscalingMetricConfig(
             poll_interval_secs=7.0))
     self.assertEqual(publisher._poll_interval_secs, 7.0)
+    self.assertEqual(
+        _publisher(
+            config=autoscaling_metrics.AutoscalingMetricConfig(
+                aggregation='lifetime_max'))._estimator._aggregation,
+        'lifetime_max')
     # No config -> defaults.
     self.assertEqual(
         _publisher()._poll_interval_secs,
