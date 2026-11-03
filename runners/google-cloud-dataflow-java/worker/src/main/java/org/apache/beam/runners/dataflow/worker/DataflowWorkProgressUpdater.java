@@ -60,6 +60,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private boolean wasAskedToAbort = false;
 
+  private volatile boolean leaseRenewalOnly = false;
+
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
       WorkItem workItem,
@@ -108,58 +110,102 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     return fromCloudDuration(workItem.getReportStatusInterval()).getMillis();
   }
 
+  /**
+   * Switches progress reporting to lightweight lease renewal pings without extracting counters,
+   * metrics, or progress.
+   */
+  public void setLeaseRenewalOnly(boolean leaseRenewalOnly) {
+    this.leaseRenewalOnly = leaseRenewalOnly;
+  }
+
+  @VisibleForTesting
+  public boolean isLeaseRenewalOnly() {
+    return leaseRenewalOnly;
+  }
+
   @Override
   protected void reportProgressHelper() throws Exception {
     if (wasAskedToAbort) {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return;
     }
+    if (workItemStatusClient.isFinalStateSent()) {
+      LOG.debug(
+          "Final state already sent for work item {}, skipping progress report.", workString());
+      return;
+    }
+
+    if (leaseRenewalOnly && dynamicSplitResultToReport == null) {
+      reportLeasePing();
+      return;
+    }
+
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
 
     if (result != null) {
-      if (result.getCompleteWorkStatus() != null
-          && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
-        LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
-        wasAskedToAbort = true;
-        worker.abort();
-        return;
+      handleServiceState(result);
+    }
+  }
+
+  /**
+   * Reports a lightweight lease renewal heartbeat to the worker service without extracting counters
+   * or progress.
+   */
+  @VisibleForTesting
+  void reportLeasePing() throws Exception {
+    if (wasAskedToAbort || workItemStatusClient.isFinalStateSent()) {
+      return;
+    }
+    WorkItemServiceState result =
+        workItemStatusClient.reportLeasePing(Duration.millis(requestedLeaseDurationMs));
+    if (result != null) {
+      handleServiceState(result);
+    }
+  }
+
+  private void handleServiceState(WorkItemServiceState result) throws Exception {
+    if (result.getCompleteWorkStatus() != null
+        && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
+      LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
+      wasAskedToAbort = true;
+      worker.abort();
+      return;
+    }
+
+    if (result.getHotKeyDetection() != null
+        && result.getHotKeyDetection().getUserStepName() != null) {
+      HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+
+      // The key set in BatchModeExecutionContext is only set in the GroupingShuffleReader
+      // which is the correct key. The key is also translated into a Java object in the reader.
+      if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
+        hotKeyLogger.logHotKeyDetection(
+            hotKeyDetection.getUserStepName(),
+            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
+            workItemStatusClient.getExecutionContext().getKey());
+      } else {
+        hotKeyLogger.logHotKeyDetection(
+            hotKeyDetection.getUserStepName(),
+            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
       }
+    }
 
-      if (result.getHotKeyDetection() != null
-          && result.getHotKeyDetection().getUserStepName() != null) {
-        HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+    // Resets state after a successful progress report.
+    dynamicSplitResultToReport = null;
 
-        // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
-        // which is the correct key. The key is also translated into a Java object in the reader.
-        if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),
-              workItemStatusClient.getExecutionContext().getKey());
-        } else {
-          hotKeyLogger.logHotKeyDetection(
-              hotKeyDetection.getUserStepName(),
-              TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
-        }
-      }
+    progressReportIntervalMs =
+        nextProgressReportInterval(
+            fromCloudDuration(result.getReportStatusInterval()).getMillis(),
+            leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
-      // Resets state after a successful progress report.
-      dynamicSplitResultToReport = null;
-
-      progressReportIntervalMs =
-          nextProgressReportInterval(
-              fromCloudDuration(result.getReportStatusInterval()).getMillis(),
-              leaseRemainingTime(getLeaseExpirationTimestamp(result)));
-
-      ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
-      if (suggestedStopPoint != null) {
-        LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
-        dynamicSplitResultToReport =
-            worker.requestDynamicSplit(
-                SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
-      }
+    ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
+    if (suggestedStopPoint != null) {
+      LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
+      dynamicSplitResultToReport =
+          worker.requestDynamicSplit(
+              SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
     }
   }
 
