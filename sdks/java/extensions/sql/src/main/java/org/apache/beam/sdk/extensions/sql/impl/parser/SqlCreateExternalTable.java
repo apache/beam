@@ -57,6 +57,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.ExecutableStatement {
   private final SqlIdentifier name;
   private final List<Field> columnList;
+  private final @Nullable SqlNodeList primaryKey;
   private final SqlNode type;
   private final SqlNode comment;
   private final SqlNode location;
@@ -73,6 +74,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       boolean ifNotExists,
       SqlIdentifier name,
       List<Field> columnList,
+      @Nullable SqlNodeList primaryKey,
       SqlNode type,
       SqlNodeList partitionFields,
       SqlNode comment,
@@ -81,6 +83,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     super(OPERATOR, pos, replace, ifNotExists);
     this.name = checkNotNull(name);
     this.columnList = columnList; // may be null
+    this.primaryKey = primaryKey;
     this.type = checkNotNull(type);
     this.partitionFields = partitionFields;
     this.comment = comment; // may be null
@@ -107,6 +110,12 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     if (columnList != null) {
       SqlWriter.Frame frame = writer.startList("(", ")");
       columnList.forEach(column -> unparseColumn(writer, column));
+      if (primaryKey != null) {
+        writer.sep(",");
+        writer.keyword("PRIMARY KEY");
+        writer.list(SqlWriter.FrameTypeEnum.PARENTHESES, SqlWriter.COMMA, primaryKey);
+        writer.keyword("NOT ENFORCED");
+      }
       writer.endList(frame);
     }
     writer.keyword("TYPE");
@@ -180,6 +189,10 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
           name(name),
           SqlDdlNodes.getString(type));
     }
+    List<String> primaryKeyColumns = table.getPrimaryKey();
+    if (primaryKeyColumns != null) {
+      SqlDdlNodes.checkPrimaryKey(beamCalciteSchema.getTableProvider(), table, primaryKeyColumns);
+    }
 
     beamCalciteSchema.getTableProvider().createTable(table);
   }
@@ -207,11 +220,21 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
   }
 
   private Table toTable() {
+    List<String> primaryKeyColumns =
+        primaryKey == null ? null : SqlDdlNodes.getStringList(primaryKey);
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
         .name(name(name))
-        .schema(columnList.stream().collect(toSchema()))
+        .schema(
+            columnList.stream()
+                .map(
+                    column ->
+                        primaryKeyColumns != null && primaryKeyColumns.contains(column.getName())
+                            ? column.withNullable(false)
+                            : column)
+                .collect(toSchema()))
         .partitionFields(parsePartitionFields())
+        .primaryKey(primaryKeyColumns)
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))
         //        .path(path)

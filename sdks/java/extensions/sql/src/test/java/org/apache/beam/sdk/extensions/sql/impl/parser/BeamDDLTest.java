@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Arrays;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -33,12 +37,17 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.Lex;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDialect;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Test;
@@ -187,6 +196,125 @@ public class BeamDDLTest {
   }
 
   @Test
+  public void testParseCreateExternalTable_primaryKey() throws Exception {
+    TestTableProvider tableProvider = new PrimaryKeyTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
+    String create =
+        "CREATE EXTERNAL TABLE person (id INT, region VARCHAR, enforced VARCHAR,"
+            + " PRIMARY KEY (region, id) NOT ENFORCED) TYPE test";
+
+    env.executeDdl(create);
+
+    Table table = tableProvider.getTables().get("person");
+    assertEquals(Arrays.asList("region", "id"), table.getPrimaryKey());
+    assertEquals(
+        Stream.of(
+                Schema.Field.of("id", CalciteUtils.INTEGER),
+                Schema.Field.of("region", CalciteUtils.VARCHAR),
+                Schema.Field.nullable("enforced", CalciteUtils.VARCHAR))
+            .collect(toSchema()),
+        table.getSchema());
+    assertThat(
+        SqlParser.create(
+                create,
+                SqlParser.config().withLex(Lex.JAVA).withParserFactory(BeamSqlParser.FACTORY))
+            .parseStmt()
+            .toSqlString(new SqlDialect(SqlDialect.EMPTY_CONTEXT))
+            .getSql(),
+        containsString(", PRIMARY KEY (region, id) NOT ENFORCED) TYPE test"));
+
+    env.executeDdl(
+        "CREATE EXTERNAL TABLE keyed (name VARCHAR,"
+            + " id INT NOT NULL PRIMARY KEY NOT ENFORCED COMMENT 'key') TYPE test");
+    Table keyed = tableProvider.getTables().get("keyed");
+    assertEquals(Arrays.asList("id"), keyed.getPrimaryKey());
+    assertEquals("key", keyed.getSchema().getField("id").getDescription());
+  }
+
+  @Test
+  public void testInvalidPrimaryKey() {
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new PrimaryKeyTableProvider(), new TextTableProvider());
+    env.executeDdl("CREATE EXTERNAL TABLE keyed (id INT PRIMARY KEY NOT ENFORCED) TYPE test");
+    env.executeDdl("CREATE EXTERNAL TABLE unkeyed (id INT) TYPE test");
+    env.executeDdl("CREATE EXTERNAL TABLE lines (id INT NOT NULL) TYPE text");
+    String[][] ddlAndErrors = {
+      {
+        "CREATE EXTERNAL TABLE person (id INT PRIMARY KEY NOT ENFORCED) TYPE text",
+        "Invalid use of 'PRIMARY KEY': Table 'person' of type 'text' does not support primary keys."
+      },
+      // Text tables don't support ALTER either, so this also checks the key is validated first.
+      {
+        "ALTER TABLE lines ADD PRIMARY KEY (id) NOT ENFORCED",
+        "Invalid use of 'PRIMARY KEY': Table 'lines' of type 'text' does not support primary keys."
+      },
+      {
+        "CREATE EXTERNAL TABLE person (id INT, PRIMARY KEY (id, name) NOT ENFORCED) TYPE test",
+        "PRIMARY KEY column 'name' is not a column of table 'person'."
+      },
+      {
+        "CREATE EXTERNAL TABLE person (id INT, PRIMARY KEY (id, id) NOT ENFORCED) TYPE test",
+        "PRIMARY KEY column 'id' is listed more than once."
+      },
+      {
+        "ALTER TABLE keyed ADD PRIMARY KEY (id) NOT ENFORCED",
+        "Table 'keyed' already has primary key [id]. Drop it first with DROP PRIMARY KEY."
+      },
+      {"ALTER TABLE unkeyed DROP PRIMARY KEY", "Table 'unkeyed' has no primary key to drop."},
+      {
+        "ALTER TABLE unkeyed ADD PRIMARY KEY (id) NOT ENFORCED",
+        "PRIMARY KEY column 'id' must already be NOT NULL."
+      }
+    };
+    for (String[] ddlAndError : ddlAndErrors) {
+      IllegalArgumentException e =
+          assertThrows(
+              ddlAndError[0], IllegalArgumentException.class, () -> env.executeDdl(ddlAndError[0]));
+      assertEquals(ddlAndError[1], e.getMessage());
+    }
+    // A table has one key, declared only among CREATE EXTERNAL TABLE's own columns.
+    for (String ddl :
+        new String[] {
+          "CREATE EXTERNAL TABLE person (r ROW(id INT PRIMARY KEY NOT ENFORCED)) TYPE test",
+          "ALTER TABLE keyed ADD COLUMNS (k INT NOT NULL PRIMARY KEY NOT ENFORCED)"
+        }) {
+      assertThrows(ddl, ParseException.class, () -> env.executeDdl(ddl));
+    }
+    for (String columns :
+        new String[] {
+          "(id INT PRIMARY KEY NOT ENFORCED, name VARCHAR PRIMARY KEY NOT ENFORCED)",
+          "(id INT PRIMARY KEY NOT ENFORCED, PRIMARY KEY (id) NOT ENFORCED)"
+        }) {
+      ParseException twoKeys =
+          assertThrows(
+              columns,
+              ParseException.class,
+              () -> env.executeDdl("CREATE EXTERNAL TABLE person " + columns + " TYPE test"));
+      assertThat(
+          columns,
+          twoKeys.getCause().getMessage(),
+          containsString("A table can have only one PRIMARY KEY."));
+    }
+    // Beam SQL never checks key uniqueness, so a key without NOT ENFORCED fails at PRIMARY.
+    for (String ddl :
+        new String[] {
+          "CREATE EXTERNAL TABLE person (id INT, PRIMARY KEY (id) ENFORCED) TYPE test",
+          "CREATE EXTERNAL TABLE person (id INT PRIMARY KEY COMMENT 'id') TYPE test",
+          "ALTER TABLE keyed ADD PRIMARY KEY (id)"
+        }) {
+      SqlParseException enforced =
+          (SqlParseException)
+              assertThrows(ddl, ParseException.class, () -> env.executeDdl(ddl)).getCause();
+      assertThat(
+          ddl,
+          enforced.getMessage(),
+          containsString(
+              "Beam SQL doesn't enforce primary keys, so PRIMARY KEY must be declared NOT"
+                  + " ENFORCED."));
+      assertEquals(ddl, ddl.indexOf("PRIMARY") + 1, enforced.getPos().getColumnNum());
+    }
+  }
+
+  @Test
   public void testParseCreateExternalTable_withDatabase() throws Exception {
     TestTableProvider rootProvider = new TestTableProvider();
     TestTableProvider testProvider = new TestTableProvider();
@@ -248,6 +376,14 @@ public class BeamDDLTest {
     assertEquals(
         "CREATE AGGREGATE FUNCTION foo USING JAR 'path/to/udf.jar'",
         sqlWriter.toSqlString().getSql());
+  }
+
+  /** A {@link TestTableProvider} whose tables support primary keys. */
+  private static class PrimaryKeyTableProvider extends TestTableProvider {
+    @Override
+    public boolean supportsPrimaryKey(Table table) {
+      return true;
+    }
   }
 
   private static Table mockTable(String name, String type, String comment, ObjectNode properties) {

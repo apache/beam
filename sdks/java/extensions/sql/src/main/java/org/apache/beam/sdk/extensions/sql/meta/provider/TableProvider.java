@@ -81,6 +81,10 @@ public interface TableProvider {
     return false;
   }
 
+  default boolean supportsPrimaryKey(Table table) {
+    return false;
+  }
+
   default AlterTableOps alterTable(String name) {
     throw new UnsupportedOperationException(
         String.format("ALTER is not supported for table '%s' of type '%s'.", name, getTableType()));
