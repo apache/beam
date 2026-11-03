@@ -1336,6 +1336,10 @@ class BatchElementsTest(unittest.TestCase):
     dofn = util.WithBatchKey(key_fn=lambda d: d['tenant'], num_shards={'7': 3})
     keys = {list(dofn.process({'tenant': 7}))[0][0] for _ in range(100)}
     self.assertEqual(keys, {'7:0', '7:1', '7:2'})
+    # An unhashable key can still match by its str() form.
+    dofn = util.WithBatchKey(key_fn=lambda d: d['ids'], num_shards={'[1]': 2})
+    keys = {list(dofn.process({'ids': [1]}))[0][0] for _ in range(100)}
+    self.assertEqual(keys, {'[1]:0', '[1]:1'})
 
   def test_with_batch_key_num_shards_callable(self):
     """A callable computes the shard count per key."""
@@ -1344,9 +1348,11 @@ class BatchElementsTest(unittest.TestCase):
     hot_keys = {list(dofn.process('hot'))[0][0] for _ in range(100)}
     self.assertEqual(hot_keys, {'hot:0', 'hot:1', 'hot:2'})
     self.assertEqual(list(dofn.process('cold')), [('cold', 'cold')])
-    bad = util.WithBatchKey(key_fn=lambda s: s, num_shards=lambda k: 0)
-    with self.assertRaises(ValueError):
-      list(bad.process('x'))
+    for bad_count in (0, True, 2.0):
+      bad = util.WithBatchKey(
+          key_fn=lambda s: s, num_shards=lambda k, n=bad_count: n)
+      with self.assertRaises(ValueError):
+        list(bad.process('x'))
 
   def test_batch_elements_key_fn_validation(self):
     with self.assertRaises(ValueError):
@@ -1361,6 +1367,12 @@ class BatchElementsTest(unittest.TestCase):
       util.BatchElements(key_fn=len, num_shards={'a': 0})
     with self.assertRaises(ValueError):
       util.BatchElements(key_fn=len, num_shards='4')
+    # Keyed batching can't honor length bucketing or batch weights.
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, length_fn=len)
+    with self.assertRaises(ValueError):
+      util.BatchElements(
+          key_fn=len, max_batch_weight=10, element_size_fn=lambda x: 1)
     # Valid specs.
     util.BatchElements(key_fn=len, num_shards={'a': 2})
     util.BatchElements(key_fn=len, num_shards=lambda k: 2)

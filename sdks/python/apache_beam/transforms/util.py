@@ -1272,12 +1272,15 @@ class WithBatchKey(DoFn):
     if isinstance(spec, int):
       return spec
     if isinstance(spec, Mapping):
-      n = spec.get(raw_key)
+      try:
+        n = spec.get(raw_key)
+      except TypeError:  # Unhashable key; only its str() form can match.
+        n = None
       if n is None:
         n = spec.get(key, 1)
       return n
     n = spec(raw_key)
-    if not isinstance(n, int) or n < 1:
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
       raise ValueError(
           f'num_shards callable returned {n!r} for key {key!r}; expected an '
           'int >= 1.')
@@ -1430,6 +1433,12 @@ class BatchElements(PTransform):
           'max_batch_duration_secs is set.')
     if key_fn is not None and not callable(key_fn):
       raise ValueError('key_fn must be callable.')
+    if key_fn is not None and (length_fn is not None or
+                               max_batch_weight is not None):
+      # Keyed batching groups with GroupIntoBatches, which only bounds the
+      # number of elements per batch.
+      raise ValueError(
+          'key_fn cannot be combined with length_fn or max_batch_weight.')
     num_shards = _validate_num_shards(num_shards)
     if num_shards != 1 and key_fn is None:
       raise ValueError('num_shards requires key_fn to be set.')
