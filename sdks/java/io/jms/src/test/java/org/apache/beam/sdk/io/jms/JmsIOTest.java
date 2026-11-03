@@ -90,6 +90,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
@@ -608,21 +609,11 @@ public class JmsIOTest {
     JmsCheckpointMark mark = (JmsCheckpointMark) reader.getCheckpointMark();
     assertEquals(10, count(QUEUE));
 
-    // the runner serializes the mark and recreates the reader from it
-    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
-    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes)) {
-      out.writeObject(mark);
-    }
-    JmsCheckpointMark restored;
-    try (java.io.ObjectInputStream in =
-        new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
-      restored = (JmsCheckpointMark) in.readObject();
-    }
+    // the runner encodes the mark and recreates the reader from it
+    JmsIO.UnboundedJmsSource<?> source = (JmsIO.UnboundedJmsSource<?>) reader.getCurrentSource();
+    JmsCheckpointMark restored = CoderUtils.clone(source.getCheckpointMarkCoder(), mark);
     reader.close();
-    UnboundedJmsReader recreated =
-        (UnboundedJmsReader)
-            ((JmsIO.UnboundedJmsSource<?>) reader.getCurrentSource())
-                .createReader(PipelineOptionsFactory.create(), restored);
+    UnboundedJmsReader recreated = source.createReader(PipelineOptionsFactory.create(), restored);
     assertTrue(startWithRetry(recreated));
 
     // finalizing the restored copy acks the messages read by the original reader

@@ -35,6 +35,7 @@ import jakarta.jms.Queue;
 import jakarta.jms.Session;
 import java.io.IOException;
 import java.io.NotSerializableException;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -196,7 +197,26 @@ public class JmsLocalTest {
     assertEquals(live - 1, JmsCheckpointMark.liveCheckpointCount());
   }
 
-  /** Test the checkpoint mark default coder, which is actually AvroCoder. */
+  /** A checkpoint mark encoded by the checkpoint mark coder before marks had an id. */
+  private static final String CHECKPOINT_MARK_WITHOUT_ID =
+      "rO0ABXNyACxvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmptcy5KbXNDaGVja3BvaW50TWFya/wuL07g0x5MAgAB"
+          + "TAAWb2xkZXN0TWVzc2FnZVRpbWVzdGFtcHQAF0xvcmcvam9kYS90aW1lL0luc3RhbnQ7eHBzcgAVb3JnLmpv"
+          + "ZGEudGltZS5JbnN0YW50Lci+0MYOnM0CAAFKAAdpTWlsbGlzeHAAAAGLz+VoAA==";
+
+  @Test
+  public void testDecodeCheckpointMarkWithoutId() throws Exception {
+    Coder<JmsCheckpointMark> coder =
+        new JmsIO.UnboundedJmsSource<JmsRecord>(null).getCheckpointMarkCoder();
+    JmsCheckpointMark restored =
+        CoderUtils.decodeFromByteArray(
+            coder, Base64.getDecoder().decode(CHECKPOINT_MARK_WITHOUT_ID));
+    assertNull(restored.getMessages());
+
+    // nothing to acknowledge, and a missing id must not break finalization
+    restored.finalizeCheckpoint();
+  }
+
+  /** Test the checkpoint mark default coder, which is SerializableCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
     JmsCheckpointMark jmsCheckpointMark =

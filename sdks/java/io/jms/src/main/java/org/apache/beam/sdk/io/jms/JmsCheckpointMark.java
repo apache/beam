@@ -46,17 +46,22 @@ import org.slf4j.LoggerFactory;
  */
 class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
+  // Pinned to the value computed for this class before the id field was added, so checkpoints
+  // written by those versions can still be restored.
+  private static final long serialVersionUID = -275230511397134772L;
+
   private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
   /**
    * Live checkpoints of this JVM that still hold unacknowledged messages, by id. The messages,
    * consumer and session of a checkpoint are transient, so a runner that serializes and restores
    * the mark (or recreates the reader) would otherwise lose them and never acknowledge. A restored
-   * mark uses this registry to find the live checkpoint with the same id and finalize that one.
-   * Checkpoints not finalized within an hour are dropped; the broker redelivers their messages.
+   * mark uses this registry to find the live checkpoint with the same id and finalize that one. To
+   * bound memory, at most 10,000 checkpoints are kept and those not finalized within an hour are
+   * dropped; the broker redelivers their messages.
    */
   private static final Cache<String, JmsCheckpointMark> LIVE_CHECKPOINTS =
-      CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.HOURS).build();
+      CacheBuilder.newBuilder().maximumSize(10_000).expireAfterWrite(1, TimeUnit.HOURS).build();
 
   // May be null when restored from a checkpoint written by a version without this field.
   private final @Nullable String id = UUID.randomUUID().toString();
@@ -180,13 +185,13 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       return false;
     }
     JmsCheckpointMark that = (JmsCheckpointMark) o;
-    return Objects.equals(id, that.id)
-        && oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+    // The id is random and only used to find the live checkpoint, so it is not part of equality.
+    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, oldestMessageTimestamp);
+    return Objects.hash(oldestMessageTimestamp);
   }
 
   static Preparer newPreparer(AcknowledgeMode acknowledgeMode) {
