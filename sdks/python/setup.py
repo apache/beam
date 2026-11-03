@@ -98,7 +98,7 @@ PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 
-RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
+RECOMMENDED_MIN_PIP_VERSION = '26.2.2'
 try:
   _PIP_VERSION = distribution('pip').version
   if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
@@ -464,7 +464,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<8.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'requests>=2.32.4,<3.0.0',

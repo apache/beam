@@ -68,7 +68,9 @@
 
 ## New Features / Improvements
 
+* (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 
 ## Breaking Changes
 
@@ -80,6 +82,9 @@
 
 ## Bugfixes
 
+* (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
+* (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
+* (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -100,9 +105,11 @@
 * Added support for attributing BigQuery API quota and billing to a specific GCP project (quota project): `quota_project_id` parameter in `ReadFromBigQuery` or `--bigquery_quota_project_id` pipeline option, honored by the Python BigQuery IO transforms (`WriteToBigQuery` with `FILE_LOADS` or `STREAMING_INSERTS`; not yet `STORAGE_WRITE_API`, which is Java-backed), `--bigQueryQuotaProjectId` pipeline option (Java), and `bigqueryio.WithQuotaProject` read/query option (Go) ([#37431](https://github.com/apache/beam/issues/37431)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` can now include `op` and the remaining Debezium `source` fields (e.g. MySQL `file`, `pos`, `row`, `ts_ms`; PostgreSQL `lsn`, `txId`, `ts_ms`) in `metadata` via `withFullMetadata(true)` / `full_metadata=True` / `debeziumio.FullMetadata()`. Off by default ([#40701](https://github.com/apache/beam/issues/40701)).
 * [IcebergIO] AddFiles is now available through the Managed API with `Managed.write(Managed.ICEBERG_ADD_FILES)` (Java/Python) ([#40827](https://github.com/apache/beam/issues/40827)).
+* (Java) IcebergIO: `AddFiles` can register files in several tables in one transform, naming each file's table from its path. Set `path_pattern` (`withPathPattern` in Java) to a glob with `{name}` placeholders, such as `gs://lake/export/{table}/**`, and make `table` a template over what it captures, such as `default.{table}`. The schema pre-pass then runs per table, so a table whose files conflict is refused and its files reported while every other table is still registered. Requires `schema_evolution_options` and `error_handling`; not supported with `dry_run`. Error rows gain a `table` field only when `path_pattern` is set, so an existing pipeline's error output is unchanged ([#40849](https://github.com/apache/beam/issues/40849)).
 
 ## New Features / Improvements
 
+* (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * (Java) Flink runner: sources now forward Beam metrics to Flink at most once per second instead of after every record, which was a significant share of the CPU of reading. Metrics in the pipeline result are not affected ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
@@ -133,6 +140,7 @@
 * (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
 * (Java) [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) now carries the destination table alongside each file through the registration chain, so that one transform can register files into many tables. The coders of its internal `PCollection`s change, which makes this an update incompatible change for streaming pipelines that use it ([#40817](https://github.com/apache/beam/pull/40817)).
 * (YAML) `IcebergAddFiles` will be automatically replaced with the compatible managed transform. For older Beam versions, streaming update compatibility can be maintained by specifying the pipeline option `update_compatibility_version` ([#40827](https://github.com/apache/beam/issues/40827)).
+* (Java) [IcebergIO] AddFiles now collapses batch input into the global window. Manifests and snapshots are sized per key and window, so windowing applied upstream of AddFiles only divided `manifest_file_size` into smaller manifests and more snapshots; its outputs are now globally windowed in batch. Streaming pipelines keep the windowing they had ([#40849](https://github.com/apache/beam/issues/40849)).
 * Twister2 runner supported is removed ([#35905](https://github.com/apache/beam/issues/35905))).
 
 ## Deprecations
@@ -142,6 +150,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed timestamp and side-input argument binding when a `DoFn.process` or `DoFn.process_batch` method gives its element or batch parameter a default value ([#19631](https://github.com/apache/beam/issues/19631)).
 * (Python) Fixed BigQuery `FILE_LOADS` silently omitting files when dynamic destinations use different spellings of the same table ([#40001](https://github.com/apache/beam/pull/40001)).
 * (Python) DaskRunner now preserves outputs emitted by `DoFn.finish_bundle()` instead of silently dropping them ([#40519](https://github.com/apache/beam/issues/40519)).
 * (Python) BigQuery streaming inserts now reset the retry budget and backoff for each batch instead of sharing them across a bundle ([#39995](https://github.com/apache/beam/pull/39995)).
