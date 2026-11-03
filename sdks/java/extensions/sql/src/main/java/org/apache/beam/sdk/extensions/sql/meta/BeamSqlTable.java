@@ -61,10 +61,10 @@ public interface BeamSqlTable {
    * Returns the table to read for one reference in FROM that has a {@code WITH} clause, such as
    * {@code SELECT * FROM t WITH ('key' = 'value')}.
    *
-   * <p>By default, tables reject {@code WITH}. Override this method to support it in queries reading from your connector.
-   * Override the {@link #forWrite} method to support it for INSERT targets. Return a new table that has the given options applied to it.
-   * It may have a different schema, boundedness or push-down support than this
-   * one.
+   * <p>By default, tables reject {@code WITH}. Override this method to support it in queries
+   * reading from your connector. Override the {@link #forWrite} method to support it for INSERT
+   * targets. Return a new table that has the given options applied to it. It may have a different
+   * schema, boundedness or push-down support than this one.
    *
    * <p>{@code options} has the clause's keys in the order they were written. A string literal
    * arrives as a String, an integer as a Long, any other number as a Double, TRUE or FALSE as a
