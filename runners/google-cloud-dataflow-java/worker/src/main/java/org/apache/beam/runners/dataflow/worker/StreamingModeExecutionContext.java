@@ -779,6 +779,8 @@ public class StreamingModeExecutionContext
     failureTracker.trackFailure(systemName, currentWork.getWorkItem(), e);
     LOG.error("{}", e.toString());
 
+    invalidateCache();
+
     // Drop the current request in favor of a new, minimal one requesting truncation.
     // Messages, timers, counters, and other commit content will not be used by the service
     // so, we're purposefully dropping them here
