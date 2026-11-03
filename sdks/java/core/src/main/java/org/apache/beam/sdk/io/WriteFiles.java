@@ -653,9 +653,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new WriteAutoShardedBundlesToTempFiles(
                     destinationCoder,
                     fileResultCoder,
-                    getBatchSize(),
-                    getBatchSizeBytes(),
-                    getBatchMaxBufferingDuration()));
+                    getBatchSizeOrDefault(),
+                    getBatchSizeBytesOrDefault(),
+                    getBatchMaxBufferingDurationOrDefault()));
       }
     }
 
@@ -663,6 +663,23 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         "FinalizeTempFileBundles",
         new FinalizeTempFileBundles(
             numShardsView, destinationCoder, /* assignShardNumbersInFinalize= */ false));
+  }
+
+  private int getBatchSizeOrDefault() {
+    Integer batchSize = getBatchSize();
+    return batchSize != null ? batchSize : FILE_TRIGGERING_RECORD_COUNT;
+  }
+
+  private int getBatchSizeBytesOrDefault() {
+    Integer batchSizeBytes = getBatchSizeBytes();
+    return batchSizeBytes != null ? batchSizeBytes : FILE_TRIGGERING_BYTE_COUNT;
+  }
+
+  private Duration getBatchMaxBufferingDurationOrDefault() {
+    Duration maxBufferingDuration = getBatchMaxBufferingDuration();
+    return maxBufferingDuration != null
+        ? maxBufferingDuration
+        : FILE_TRIGGERING_RECORD_BUFFERING_DURATION;
   }
 
   @Override
@@ -1236,11 +1253,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 smallBundles,
                 destinationCoder,
                 fileResultCoder,
-                getBatchSize() != null ? getBatchSize() : FILE_TRIGGERING_RECORD_COUNT,
-                getBatchSizeBytes() != null ? getBatchSizeBytes() : FILE_TRIGGERING_BYTE_COUNT,
-                getBatchMaxBufferingDuration() != null
-                    ? getBatchMaxBufferingDuration()
-                    : FILE_TRIGGERING_RECORD_BUFFERING_DURATION);
+                getBatchSizeOrDefault(),
+                getBatchSizeBytesOrDefault(),
+                getBatchMaxBufferingDurationOrDefault());
       }
 
       // When the small path goes through GroupIntoShards (GBK), its trigger transitions to the
@@ -1254,46 +1269,19 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .setWindowingStrategyInternal(groupedFiles.getWindowingStrategy());
 
       // Group all temp files per destination so each window/pane firing is finalized together
-      // and shard numbers are assigned once across both paths.
-      return PCollectionList.of(directFiles)
-          .and(groupedFiles)
-          .apply("FlattenTempFiles", Flatten.pCollections())
-          .setCoder(fileResultCoder)
-          .apply(
-              "KeyedByDestination",
-              WithKeys.of(
-                  new SimpleFunction<FileResult<DestinationT>, DestinationT>() {
-                    @Override
-                    public DestinationT apply(FileResult<DestinationT> input) {
-                      return input.getDestination();
-                    }
-                  }))
-          .setCoder(KvCoder.of(destinationCoder, fileResultCoder))
-          .apply("GroupTempFilesByDestination", GroupByKey.create())
-          .apply(
-              "ExtractValuesToList",
-              ParDo.of(
-                  new DoFn<
-                      KV<DestinationT, Iterable<FileResult<DestinationT>>>,
-                      List<FileResult<DestinationT>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      // Stamp every file with this firing's pane so files from different
-                      // firings of the same window get distinct final names.
-                      List<FileResult<DestinationT>> result = new ArrayList<>();
-                      for (FileResult<DestinationT> e : c.element().getValue()) {
-                        result.add(
-                            new FileResult<>(
-                                e.getTempFilename(),
-                                UNKNOWN_SHARDNUM,
-                                e.getWindow(),
-                                c.pane(),
-                                e.getDestination()));
-                      }
-                      c.output(result);
-                    }
-                  }))
-          .setCoder(ListCoder.of(fileResultCoder));
+      // and shard numbers are assigned once across both paths. Every file is stamped with this
+      // firing's pane so files from different firings of the same window get distinct names.
+      PCollection<FileResult<DestinationT>> allTempFiles =
+          PCollectionList.of(directFiles)
+              .and(groupedFiles)
+              .apply("FlattenTempFiles", Flatten.pCollections())
+              .setCoder(fileResultCoder);
+      return groupTempFilesByDestination(
+          allTempFiles,
+          destinationCoder,
+          fileResultCoder,
+          "GroupTempFilesByDestination",
+          /* stampFiringPane= */ true);
     }
   }
 
@@ -1544,17 +1532,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     private WriteAutoShardedBundlesToTempFiles(
         Coder<DestinationT> destinationCoder,
         Coder<FileResult<DestinationT>> fileResultCoder,
-        Integer batchSize,
-        Integer batchSizeBytes,
+        int batchSize,
+        int batchSizeBytes,
         Duration maxBufferingDuration) {
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
-      this.batchSize = batchSize != null ? batchSize : FILE_TRIGGERING_RECORD_COUNT;
-      this.batchSizeBytes = batchSizeBytes != null ? batchSizeBytes : FILE_TRIGGERING_BYTE_COUNT;
-      this.maxBufferingDuration =
-          maxBufferingDuration != null
-              ? maxBufferingDuration
-              : FILE_TRIGGERING_RECORD_BUFFERING_DURATION;
+      this.batchSize = batchSize;
+      this.batchSizeBytes = batchSizeBytes;
+      this.maxBufferingDuration = maxBufferingDuration;
     }
 
     @Override
@@ -1571,36 +1556,70 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely
       // on the indexing within a bundle.
-      return tempFiles
-          .apply(
-              "KeyedByDestination",
-              WithKeys.of(
-                  new SimpleFunction<FileResult<DestinationT>, DestinationT>() {
-                    @Override
-                    public DestinationT apply(FileResult<DestinationT> input) {
-                      return input.getDestination();
-                    }
-                  }))
-          .setCoder(KvCoder.of(destinationCoder, fileResultCoder))
-          .apply(GroupByKey.create())
-          .apply(
-              "ExtractValuesToList",
-              ParDo.of(
-                  new DoFn<
-                      KV<DestinationT, Iterable<FileResult<DestinationT>>>,
-                      List<FileResult<DestinationT>>>() {
-                    @ProcessElement
-                    public void processElement(
-                        @Element KV<DestinationT, Iterable<FileResult<DestinationT>>> element,
-                        ProcessContext c) {
-                      List<FileResult<DestinationT>> result = new ArrayList<>();
-                      for (FileResult<DestinationT> e : element.getValue()) {
-                        result.add(e);
-                      }
-                      c.output(result);
-                    }
-                  }))
-          .setCoder(ListCoder.of(fileResultCoder));
+      // "GroupByKey" matches the default name this step has always had (update compatibility).
+      return groupTempFilesByDestination(
+          tempFiles, destinationCoder, fileResultCoder, "GroupByKey", /* stampFiringPane= */ false);
+    }
+  }
+
+  /**
+   * Groups temp file results by destination into one list per destination and window firing. Shared
+   * by the auto-sharded write and the direct-write path. Produces the steps {@code
+   * KeyedByDestination}, {@code groupByKeyName} and {@code ExtractValuesToList}.
+   *
+   * @param stampFiringPane if true, each file is re-stamped with the firing's pane and an unknown
+   *     shard number so shard numbers can be assigned in finalize across all files of the firing.
+   */
+  private PCollection<List<FileResult<DestinationT>>> groupTempFilesByDestination(
+      PCollection<FileResult<DestinationT>> tempFiles,
+      Coder<DestinationT> destinationCoder,
+      Coder<FileResult<DestinationT>> fileResultCoder,
+      String groupByKeyName,
+      boolean stampFiringPane) {
+    return tempFiles
+        .apply(
+            "KeyedByDestination",
+            WithKeys.of(
+                new SimpleFunction<FileResult<DestinationT>, DestinationT>() {
+                  @Override
+                  public DestinationT apply(FileResult<DestinationT> input) {
+                    return input.getDestination();
+                  }
+                }))
+        .setCoder(KvCoder.of(destinationCoder, fileResultCoder))
+        .apply(groupByKeyName, GroupByKey.create())
+        .apply("ExtractValuesToList", ParDo.of(new ExtractValuesToListFn<>(stampFiringPane)))
+        .setCoder(ListCoder.of(fileResultCoder));
+  }
+
+  private static class ExtractValuesToListFn<DestinationT>
+      extends DoFn<
+          KV<DestinationT, Iterable<FileResult<DestinationT>>>, List<FileResult<DestinationT>>> {
+    private final boolean stampFiringPane;
+
+    ExtractValuesToListFn(boolean stampFiringPane) {
+      this.stampFiringPane = stampFiringPane;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      List<FileResult<DestinationT>> result = new ArrayList<>();
+      for (FileResult<DestinationT> e : c.element().getValue()) {
+        if (stampFiringPane) {
+          // Stamp every file with this firing's pane so files from different firings of the
+          // same window get distinct final names.
+          result.add(
+              new FileResult<>(
+                  e.getTempFilename(),
+                  UNKNOWN_SHARDNUM,
+                  e.getWindow(),
+                  c.pane(),
+                  e.getDestination()));
+        } else {
+          result.add(e);
+        }
+      }
+      c.output(result);
     }
   }
 
