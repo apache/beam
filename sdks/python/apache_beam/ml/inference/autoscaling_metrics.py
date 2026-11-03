@@ -26,29 +26,26 @@ model server (vLLM, Triton, ...) always has exactly one copy per worker, so it
 publishes an estimate of the worker's capacity under that metric instead.
 
 Nothing here depends on a particular model server. A handler for a model server
-that exposes a completed-requests counter and an in-flight gauge makes one call,
-supplying only what it knows: the two metric names, how to find the server's
-port, and the RunInference model identifier::
+that exposes a completed-requests counter and an in-flight gauge creates a
+:class:`NumLoadedModelsPublisher`, supplying only what it knows: the two metric
+names, how to find the server's port, and the RunInference model identifier::
 
-  publisher = make_model_server_publisher(
-      config=autoscaling_config,  # An AutoscalingMetricConfig, or None.
-      model_identifier=model_identifier,
-      model_name=model_name,
+  publisher = NumLoadedModelsPublisher(
       metrics_port_fn=lambda: server.port if server.is_up else None,
       completed_metric='vllm:request_success_total',
-      running_metric='vllm:num_requests_running')
+      running_metric='vllm:num_requests_running',
+      model_identifier=model_identifier,
+      model_name=model_name,
+      config=autoscaling_config)  # An AutoscalingMetricConfig, or None.
   publisher.start()  # Once the server is reachable; publisher.stop() at exit.
 
-Handlers whose server needs a different capacity signal pass it to
-:func:`make_publisher` instead.
+The pieces:
 
-Inside, each component has one job:
-
+* :class:`NumLoadedModelsPublisher` reads the server, estimates its capacity
+  and publishes it from a background thread.
+* :class:`CompletionRateCapacityEstimator` is the estimate itself: pure
+  computation on the counter and the gauge, no I/O.
 * :class:`AutoscalingMetricConfig` holds the user-facing knobs. Plain data.
-* :class:`CompletionRateCapacityEstimator` computes a worker's capacity from
-  the counter and the gauge. It does no I/O.
-* :class:`NumLoadedModelsPublisher` publishes: a background thread polls a
-  capacity signal and writes each value to ``num_loaded_models_<tag>``.
 * :func:`scrape_prometheus_metrics` and :func:`parse_prometheus_metric` read a
   server's Prometheus ``/metrics`` endpoint.
 """
@@ -73,8 +70,6 @@ __all__ = [
     'AutoscalingMetricConfig',
     'CompletionRateCapacityEstimator',
     'NumLoadedModelsPublisher',
-    'make_model_server_publisher',
-    'make_publisher',
     'parse_prometheus_metric',
     'sanitize_metric_tag',
     'scrape_prometheus_metrics',
@@ -198,112 +193,6 @@ def _nearest_rank_percentile(values: list[float], q: float) -> float:
   # Nearest rank ceil(q / 100 * n), in arithmetic that avoids float rounding.
   rank = int((q * len(ordered) + 99) // 100)
   return ordered[min(max(rank - 1, 0), len(ordered) - 1)]
-
-
-class NumLoadedModelsPublisher:
-  """Publishes a capacity signal as the ``num_loaded_models_<tag>`` metric.
-
-  A daemon thread calls ``signal_fn`` every ``poll_interval_secs`` and writes
-  each value, rounded to an int, to the process-wide distribution the runner
-  reads. The publisher does not transform values: any smoothing belongs in
-  ``signal_fn`` (e.g. :class:`CompletionRateCapacityEstimator`, which already
-  smooths and never returns less than its ``min_value``).
-
-  A ``signal_fn`` result of ``None`` (e.g. the server is restarting) skips the
-  tick and leaves the last published value in place. The publisher never
-  injects a 0 of its own, on start, on stop or on a skipped tick: a 0 tells the
-  runner the worker has no capacity and can trigger a spurious downscale. Only
-  one publisher per metric name is active in a process; starting a new one
-  (e.g. after a model reload) stops the previous one.
-
-  Args:
-    tag: Metric tag. It must equal the RunInference model identifier the runner
-      looks up; :func:`make_publisher` derives it.
-    signal_fn: Returns the current capacity, or ``None`` to skip the tick.
-    poll_interval_secs: Seconds between polls.
-
-  Raises:
-    ValueError: if ``tag`` is empty.
-  """
-  # The publisher owning each metric name in this process, so a reloaded
-  # model's publisher can supersede the stale one.
-  _active: dict[str, 'NumLoadedModelsPublisher'] = {}
-  _active_lock = threading.Lock()
-
-  def __init__(
-      self,
-      tag: str,
-      signal_fn: Callable[[], Optional[float]],
-      poll_interval_secs: float = DEFAULT_POLL_INTERVAL_SECS,
-  ):
-    if not tag:
-      raise ValueError('num_loaded_models tag must be a non-empty string.')
-    self._metric_name = NUM_LOADED_MODELS_METRIC_PREFIX + tag
-    self._signal_fn = signal_fn
-    self._poll_interval_secs = poll_interval_secs
-    self._stop_event = threading.Event()
-    self._thread: Optional[threading.Thread] = None
-
-  def start(self) -> None:
-    """Starts the background polling thread.
-
-    The metric stays absent until the first sample is published.
-    """
-    if self._thread is not None:
-      return
-    with NumLoadedModelsPublisher._active_lock:
-      previous = NumLoadedModelsPublisher._active.get(self._metric_name)
-      NumLoadedModelsPublisher._active[self._metric_name] = self
-    if previous is not None and previous is not self:
-      logging.info(
-          'Replacing the active publisher for %s (model reload or server '
-          'restart).',
-          self._metric_name)
-      previous.stop()
-    self._thread = threading.Thread(
-        target=self._run, name='num-loaded-models-publisher', daemon=True)
-    self._thread.start()
-
-  def stop(self) -> None:
-    """Stops polling.
-
-    Publishes no final 0: when a worker is drained during a downscale, a 0
-    would shrink the pool's total capacity and could drive a feedback loop of
-    further downscales. The drained worker's value ages out instead.
-    """
-    self._stop_event.set()
-    with NumLoadedModelsPublisher._active_lock:
-      if NumLoadedModelsPublisher._active.get(self._metric_name) is self:
-        del NumLoadedModelsPublisher._active[self._metric_name]
-    thread = self._thread
-    if thread is not None:
-      thread.join(timeout=self._poll_interval_secs + 5)
-      self._thread = None
-
-  def _run(self) -> None:
-    while not self._stop_event.is_set():
-      try:
-        value = self._signal_fn()
-        if value is not None:
-          self._publish(value)
-      except Exception:  # pylint: disable=broad-except
-        logging.exception(
-            'Failed to publish autoscaling metric %s; will retry.',
-            self._metric_name)
-      self._stop_event.wait(self._poll_interval_secs)
-
-  def _publish(self, value: float) -> None:
-    published = int(round(value))
-    # The SDK harness reports process-wide distributions without resetting
-    # them, and Dataflow reads their cumulative mean (sum / count). Resetting
-    # before each update keeps the cell at (sum=published, count=1), so the
-    # runner sees the latest value rather than an average since worker start.
-    cell = MetricsEnvironment.process_wide_container().get_distribution(
-        MetricName(MODEL_MANAGER_METRICS_NAMESPACE, self._metric_name))
-    current = cell.get_cumulative()
-    if current.count != 1 or current.sum != published:
-      cell.reset()
-      cell.update(published)
 
 
 class _Interval(NamedTuple):
@@ -462,71 +351,32 @@ class AutoscalingMetricConfig:
   tag: Optional[str] = None
 
 
-def _metric_tag(
-    config: AutoscalingMetricConfig,
-    model_identifier: Optional[str],
-    model_name: str) -> str:
-  """Picks the ``num_loaded_models`` tag.
+class NumLoadedModelsPublisher:
+  """Publishes a model server's capacity as ``num_loaded_models_<tag>``.
 
-  Precedence: ``config.tag``; then ``model_identifier``, used verbatim because
-  it must equal the identifier RunInference annotates the step with (see
-  ``ModelHandler.set_model_identifier``); then ``model_name`` passed through
-  :func:`sanitize_metric_tag`, for handlers used outside RunInference.
-  """
-  tag = config.tag or model_identifier or sanitize_metric_tag(model_name)
-  if not tag:
-    raise ValueError(
-        'Cannot derive a num_loaded_models tag: pass a model_identifier, a '
-        'model_name, or set AutoscalingMetricConfig.tag.')
-  return tag
+  Every ``poll_interval_secs`` a daemon thread reads the server's Prometheus
+  ``/metrics`` endpoint, feeds the two metrics to a
+  :class:`CompletionRateCapacityEstimator`, and writes the estimate, rounded
+  to an int, to the process-wide distribution the runner reads. If
+  ``config.load_signal_fn`` is set, it replaces the scrape and the estimate.
 
+  A poll is skipped, leaving the last published value in place, while the
+  server is down, when the scrape fails, or while the estimator has no
+  estimate yet. The publisher never injects a 0 of its own, on start, on stop
+  or on a skipped poll: a 0 tells the runner the worker has no capacity and can
+  trigger a spurious downscale. Only one publisher per metric name is active in
+  a process; starting a new one (e.g. after a model reload) stops the previous
+  one.
 
-def make_publisher(
-    *,
-    signal_fn: Callable[[], Optional[float]],
-    model_identifier: Optional[str],
-    model_name: str = '',
-    config: Optional[AutoscalingMetricConfig] = None,
-) -> NumLoadedModelsPublisher:
-  """Builds a publisher for a handler's own capacity signal.
-
-  Args:
-    signal_fn: Returns the current capacity, or ``None`` to skip the tick.
-    model_identifier: The identifier RunInference reported through
-      ``ModelHandler.set_model_identifier``, or ``None`` outside RunInference.
-    model_name: Fallback for the metric tag outside RunInference.
-    config: Knobs; ``None`` uses the defaults.
-
-  Raises:
-    ValueError: if no metric tag can be derived.
-  """
-  config = config or AutoscalingMetricConfig()
-  return NumLoadedModelsPublisher(
-      tag=_metric_tag(config, model_identifier, model_name),
-      signal_fn=signal_fn,
-      poll_interval_secs=config.poll_interval_secs)
-
-
-def make_model_server_publisher(
-    *,
-    metrics_port_fn: Callable[[], Optional[int]],
-    completed_metric: str,
-    running_metric: str,
-    model_identifier: Optional[str],
-    model_name: str = '',
-    config: Optional[AutoscalingMetricConfig] = None,
-    label_filter: Optional[Mapping[str, str]] = None,
-) -> NumLoadedModelsPublisher:
-  """Builds a publisher of a model server's capacity.
-
-  Every poll reads the server's Prometheus ``/metrics`` endpoint, parses the
-  two metrics, feeds them to a :class:`CompletionRateCapacityEstimator` and
-  publishes the estimate. If ``config.load_signal_fn`` is set, it replaces the
-  scrape and the estimate.
+  The metric tag is ``config.tag`` if set; else ``model_identifier``, used
+  verbatim because it must equal the identifier RunInference annotates the
+  step with (see ``ModelHandler.set_model_identifier``); else ``model_name``
+  passed through :func:`sanitize_metric_tag`, for handlers used outside
+  RunInference.
 
   Args:
     metrics_port_fn: Returns the port serving ``/metrics`` while the server is
-      up, or ``None`` while it is not (the publisher then skips the tick).
+      up, or ``None`` while it is not.
     completed_metric: Name of the server's counter of completed requests, e.g.
       ``vllm:request_success_total``.
     running_metric: Name of the server's gauge of in-flight requests, e.g.
@@ -541,31 +391,118 @@ def make_model_server_publisher(
   Raises:
     ValueError: if no metric tag can be derived.
   """
-  config = config or AutoscalingMetricConfig()
-  estimator = CompletionRateCapacityEstimator(
-      multiplier=config.multiplier,
-      window_secs=config.signal_window_secs,
-      min_requests=config.min_requests,
-      warmup_timeout_secs=config.warmup_timeout_secs)
+  # The publisher owning each metric name in this process, so a reloaded
+  # model's publisher can supersede the stale one.
+  _active: dict[str, 'NumLoadedModelsPublisher'] = {}
+  _active_lock = threading.Lock()
 
-  def read_capacity() -> Optional[float]:
+  def __init__(
+      self,
+      *,
+      metrics_port_fn: Callable[[], Optional[int]],
+      completed_metric: str,
+      running_metric: str,
+      model_identifier: Optional[str],
+      model_name: str = '',
+      config: Optional[AutoscalingMetricConfig] = None,
+      label_filter: Optional[Mapping[str, str]] = None,
+  ):
+    config = config or AutoscalingMetricConfig()
+    tag = config.tag or model_identifier or sanitize_metric_tag(model_name)
+    if not tag:
+      raise ValueError(
+          'Cannot derive a num_loaded_models tag: pass a model_identifier, a '
+          'model_name, or set AutoscalingMetricConfig.tag.')
+    self._metric_name = NUM_LOADED_MODELS_METRIC_PREFIX + tag
+    self._metrics_port_fn = metrics_port_fn
+    self._completed_metric = completed_metric
+    self._running_metric = running_metric
+    self._label_filter = dict(label_filter) if label_filter else None
+    self._load_signal_fn = config.load_signal_fn
+    self._poll_interval_secs = config.poll_interval_secs
+    self._estimator = CompletionRateCapacityEstimator(
+        multiplier=config.multiplier,
+        window_secs=config.signal_window_secs,
+        min_requests=config.min_requests,
+        warmup_timeout_secs=config.warmup_timeout_secs)
+    self._stop_event = threading.Event()
+    self._thread: Optional[threading.Thread] = None
+
+  def start(self) -> None:
+    """Starts the background polling thread.
+
+    The metric stays absent until the first sample is published.
+    """
+    if self._thread is not None:
+      return
+    with NumLoadedModelsPublisher._active_lock:
+      previous = NumLoadedModelsPublisher._active.get(self._metric_name)
+      NumLoadedModelsPublisher._active[self._metric_name] = self
+    if previous is not None and previous is not self:
+      logging.info(
+          'Replacing the active publisher for %s (model reload or server '
+          'restart).',
+          self._metric_name)
+      previous.stop()
+    self._thread = threading.Thread(
+        target=self._run, name='num-loaded-models-publisher', daemon=True)
+    self._thread.start()
+
+  def stop(self) -> None:
+    """Stops polling.
+
+    Publishes no final 0: when a worker is drained during a downscale, a 0
+    would shrink the pool's total capacity and could drive a feedback loop of
+    further downscales. The drained worker's value ages out instead.
+    """
+    self._stop_event.set()
+    with NumLoadedModelsPublisher._active_lock:
+      if NumLoadedModelsPublisher._active.get(self._metric_name) is self:
+        del NumLoadedModelsPublisher._active[self._metric_name]
+    thread = self._thread
+    if thread is not None:
+      thread.join(timeout=self._poll_interval_secs + 5)
+      self._thread = None
+
+  def _run(self) -> None:
+    while not self._stop_event.is_set():
+      try:
+        capacity = self._read_capacity()
+        if capacity is not None:
+          self._publish(capacity)
+      except Exception:  # pylint: disable=broad-except
+        logging.exception(
+            'Failed to publish autoscaling metric %s; will retry.',
+            self._metric_name)
+      self._stop_event.wait(self._poll_interval_secs)
+
+  def _read_capacity(self) -> Optional[float]:
     """Reads the server once; returns its capacity, or None to skip."""
-    port = metrics_port_fn()
+    port = self._metrics_port_fn()
     if port is None:
       return None  # The server is not up.
-    if config.load_signal_fn is not None:
-      return config.load_signal_fn(port)
+    if self._load_signal_fn is not None:
+      return self._load_signal_fn(port)
     text = scrape_prometheus_metrics(port)
     if text is None:
       return None
-    completed = parse_prometheus_metric(text, completed_metric, label_filter)
-    running = parse_prometheus_metric(text, running_metric, label_filter)
+    completed = parse_prometheus_metric(
+        text, self._completed_metric, self._label_filter)
+    running = parse_prometheus_metric(
+        text, self._running_metric, self._label_filter)
     if completed is None or running is None:
       return None
-    return estimator.update(completed, running)
+    return self._estimator.update(completed, running)
 
-  return make_publisher(
-      signal_fn=read_capacity,
-      model_identifier=model_identifier,
-      model_name=model_name,
-      config=config)
+  def _publish(self, value: float) -> None:
+    published = int(round(value))
+    # The SDK harness reports process-wide distributions without resetting
+    # them, and Dataflow reads their cumulative mean (sum / count). Resetting
+    # before each update keeps the cell at (sum=published, count=1), so the
+    # runner sees the latest value rather than an average since worker start.
+    cell = MetricsEnvironment.process_wide_container().get_distribution(
+        MetricName(MODEL_MANAGER_METRICS_NAMESPACE, self._metric_name))
+    current = cell.get_cumulative()
+    if current.count != 1 or current.sum != published:
+      cell.reset()
+      cell.update(published)
