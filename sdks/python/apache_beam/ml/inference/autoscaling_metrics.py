@@ -25,38 +25,36 @@ model copies there. A handler that serves inference through an out-of-process
 model server (vLLM, Triton, ...) always has exactly one copy per worker, so it
 publishes an estimate of the worker's capacity under that metric instead.
 
-Nothing here depends on a particular model server. There are three classes,
-each with one job:
+Nothing here depends on a particular model server. A handler for a model server
+that exposes a completed-requests counter and an in-flight gauge makes one call,
+supplying only what it knows: the two metric names, how to find the server's
+port, and the RunInference model identifier::
 
-* :class:`CompletionRateCapacityEstimator` *computes* a smoothed per-worker
-  capacity from a server's completed-requests counter and in-flight gauge. It
-  does no I/O.
-* :class:`NumLoadedModelsPublisher` *publishes*: a background thread polls a
-  capacity signal and writes each value to ``num_loaded_models_<tag>`` as is.
-* :class:`AutoscalingMetricConfig` *configures*: it holds the user-facing
-  knobs, resolves the metric tag, and builds the publisher.
-
-plus :func:`scrape_prometheus_metrics` and :func:`parse_prometheus_metric` to
-read a server's Prometheus ``/metrics`` endpoint.
-
-A handler for a model server that exposes a completed-requests counter and an
-in-flight gauge only supplies the server-specific parts, the two metric names
-and how to find the server's port, and gets a ready publisher::
-
-  config = config.resolve_tag(model_identifier, model_name)
-  publisher = config.make_model_server_publisher(
+  publisher = make_model_server_publisher(
+      config=autoscaling_config,  # An AutoscalingMetricConfig, or None.
+      model_identifier=model_identifier,
+      model_name=model_name,
       metrics_port_fn=lambda: server.port if server.is_up else None,
       completed_metric='vllm:request_success_total',
       running_metric='vllm:num_requests_running')
   publisher.start()  # Once the server is reachable; publisher.stop() at exit.
 
-Handlers whose server needs a different capacity signal build it themselves
-and pass it to :meth:`AutoscalingMetricConfig.make_publisher`.
+Handlers whose server needs a different capacity signal pass it to
+:func:`make_publisher` instead.
+
+Inside, each component has one job:
+
+* :class:`AutoscalingMetricConfig` holds the user-facing knobs. Plain data.
+* :class:`CompletionRateCapacityEstimator` computes a worker's capacity from
+  the counter and the gauge. It does no I/O.
+* :class:`NumLoadedModelsPublisher` publishes: a background thread polls a
+  capacity signal and writes each value to ``num_loaded_models_<tag>``.
+* :func:`scrape_prometheus_metrics` and :func:`parse_prometheus_metric` read a
+  server's Prometheus ``/metrics`` endpoint.
 """
 
 # pytype: skip-file
 
-import dataclasses
 import logging
 import re
 import threading
@@ -75,6 +73,8 @@ __all__ = [
     'AutoscalingMetricConfig',
     'CompletionRateCapacityEstimator',
     'NumLoadedModelsPublisher',
+    'make_model_server_publisher',
+    'make_publisher',
     'parse_prometheus_metric',
     'sanitize_metric_tag',
     'scrape_prometheus_metrics',
@@ -218,7 +218,7 @@ class NumLoadedModelsPublisher:
 
   Args:
     tag: Metric tag. It must equal the RunInference model identifier the runner
-      looks up (see :meth:`AutoscalingMetricConfig.resolve_tag`).
+      looks up; :func:`make_publisher` derives it.
     signal_fn: Returns the current capacity, or ``None`` to skip the tick.
     poll_interval_secs: Seconds between polls.
 
@@ -436,122 +436,136 @@ class AutoscalingMetricConfig:
   """User-facing knobs for the capacity-based autoscaling signal.
 
   Model handlers that publish the signal take an instance, typically as an
-  ``autoscaling_config`` argument; leave it unset for the defaults. A handler
-  calls :meth:`resolve_tag` and then :meth:`make_model_server_publisher` with
-  its server's metric names, or builds its own signal and passes it to
-  :meth:`make_publisher`.
+  ``autoscaling_config`` argument; leave it unset for the defaults.
 
   Attributes:
-    tag: Metric tag to publish under. Leave unset so the handler uses the
-      RunInference model identifier (see :meth:`resolve_tag`), which is what
-      the runner looks up and which stays stable across model updates. Only
-      set it if you pass the same value as ``RunInference(model_identifier=)``.
-    poll_interval_secs: How often to sample and publish.
+    poll_interval_secs: How often to read the server and publish.
     multiplier: Factor on the capacity estimate; larger means fewer workers,
-      smaller scales out more aggressively. Applied once, by the estimator.
-    signal_window_secs: Trailing window of the capacity estimator.
+      smaller scales out more aggressively.
+    signal_window_secs: Trailing window of the capacity estimate.
     min_requests: Completions a newly started worker needs before it
       publishes, unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time a new worker waits for ``min_requests``.
-    load_signal_fn: Optional replacement for the estimator: given the server's
-      metrics port, returns the capacity directly. Used by
-      :meth:`make_model_server_publisher`.
+    load_signal_fn: Optional replacement for the built-in estimate: given the
+      server's metrics port, returns the capacity directly.
+    tag: Optional metric tag override. Leave unset so the RunInference model
+      identifier is used, which is what the runner looks up and which stays
+      stable across model updates. Only set it if you pass the same value as
+      ``RunInference(model_identifier=...)``.
   """
-  tag: Optional[str] = None
   poll_interval_secs: float = DEFAULT_POLL_INTERVAL_SECS
   multiplier: float = DEFAULT_MULTIPLIER
   signal_window_secs: float = DEFAULT_SIGNAL_WINDOW_SECS
   min_requests: int = DEFAULT_MIN_REQUESTS
   warmup_timeout_secs: float = DEFAULT_WARMUP_TIMEOUT_SECS
   load_signal_fn: Optional[Callable[[int], Optional[float]]] = None
+  tag: Optional[str] = None
 
-  def resolve_tag(
-      self,
-      model_identifier: Optional[str],
-      fallback_name: str = '') -> 'AutoscalingMetricConfig':
-    """Returns a copy whose ``tag`` is set.
 
-    Precedence: an explicit ``tag``; then ``model_identifier``, used verbatim
-    because it must equal the identifier RunInference annotates the step with
-    (see ``ModelHandler.set_model_identifier``); then ``fallback_name`` passed
-    through :func:`sanitize_metric_tag`, for handlers used outside RunInference.
+def _metric_tag(
+    config: AutoscalingMetricConfig,
+    model_identifier: Optional[str],
+    model_name: str) -> str:
+  """Picks the ``num_loaded_models`` tag.
 
-    Raises:
-      ValueError: if no tag can be derived.
-    """
-    if self.tag:
-      return self
-    tag = model_identifier or sanitize_metric_tag(fallback_name or '')
-    if not tag:
-      raise ValueError(
-          'Cannot derive a num_loaded_models tag: pass a model_identifier, a '
-          'fallback_name, or set AutoscalingMetricConfig.tag.')
-    return dataclasses.replace(self, tag=tag)
+  Precedence: ``config.tag``; then ``model_identifier``, used verbatim because
+  it must equal the identifier RunInference annotates the step with (see
+  ``ModelHandler.set_model_identifier``); then ``model_name`` passed through
+  :func:`sanitize_metric_tag`, for handlers used outside RunInference.
+  """
+  tag = config.tag or model_identifier or sanitize_metric_tag(model_name)
+  if not tag:
+    raise ValueError(
+        'Cannot derive a num_loaded_models tag: pass a model_identifier, a '
+        'model_name, or set AutoscalingMetricConfig.tag.')
+  return tag
 
-  def make_model_server_publisher(
-      self,
-      metrics_port_fn: Callable[[], Optional[int]],
-      completed_metric: str,
-      running_metric: str,
-      label_filter: Optional[Mapping[str, str]] = None,
-  ) -> NumLoadedModelsPublisher:
-    """Builds a publisher of a model server's capacity.
 
-    Every poll scrapes the server's Prometheus ``/metrics`` endpoint, reads the
-    two metrics, feeds them to a :class:`CompletionRateCapacityEstimator` built
-    from these knobs, and publishes the estimate. If ``load_signal_fn`` is set,
-    it replaces the scrape and the estimate.
+def make_publisher(
+    *,
+    signal_fn: Callable[[], Optional[float]],
+    model_identifier: Optional[str],
+    model_name: str = '',
+    config: Optional[AutoscalingMetricConfig] = None,
+) -> NumLoadedModelsPublisher:
+  """Builds a publisher for a handler's own capacity signal.
 
-    Args:
-      metrics_port_fn: Returns the port serving ``/metrics`` while the server
-        is up, or ``None`` while it is not (the publisher then skips the tick).
-      completed_metric: Name of the server's counter of completed requests,
-        e.g. ``vllm:request_success_total``.
-      running_metric: Name of the server's gauge of in-flight requests, e.g.
-        ``vllm:num_requests_running``.
-      label_filter: Optional labels a sample must have to be counted, e.g. to
-        select one model on a multi-model server.
+  Args:
+    signal_fn: Returns the current capacity, or ``None`` to skip the tick.
+    model_identifier: The identifier RunInference reported through
+      ``ModelHandler.set_model_identifier``, or ``None`` outside RunInference.
+    model_name: Fallback for the metric tag outside RunInference.
+    config: Knobs; ``None`` uses the defaults.
 
-    Raises:
-      ValueError: if ``tag`` is unset; call :meth:`resolve_tag` first.
-    """
-    estimator = CompletionRateCapacityEstimator(
-        multiplier=self.multiplier,
-        window_secs=self.signal_window_secs,
-        min_requests=self.min_requests,
-        warmup_timeout_secs=self.warmup_timeout_secs)
+  Raises:
+    ValueError: if no metric tag can be derived.
+  """
+  config = config or AutoscalingMetricConfig()
+  return NumLoadedModelsPublisher(
+      tag=_metric_tag(config, model_identifier, model_name),
+      signal_fn=signal_fn,
+      poll_interval_secs=config.poll_interval_secs)
 
-    def capacity() -> Optional[float]:
-      """One poll: returns the current capacity, or None to skip the tick."""
-      port = metrics_port_fn()
-      if port is None:
-        return None  # The server is not up.
-      if self.load_signal_fn is not None:
-        return self.load_signal_fn(port)
-      text = scrape_prometheus_metrics(port)
-      if text is None:
-        return None
-      completed = parse_prometheus_metric(text, completed_metric, label_filter)
-      running = parse_prometheus_metric(text, running_metric, label_filter)
-      if completed is None or running is None:
-        return None
-      return estimator.update(completed, running)
 
-    return self.make_publisher(capacity)
+def make_model_server_publisher(
+    *,
+    metrics_port_fn: Callable[[], Optional[int]],
+    completed_metric: str,
+    running_metric: str,
+    model_identifier: Optional[str],
+    model_name: str = '',
+    config: Optional[AutoscalingMetricConfig] = None,
+    label_filter: Optional[Mapping[str, str]] = None,
+) -> NumLoadedModelsPublisher:
+  """Builds a publisher of a model server's capacity.
 
-  def make_publisher(
-      self, signal_fn: Callable[[],
-                                Optional[float]]) -> NumLoadedModelsPublisher:
-    """Builds a :class:`NumLoadedModelsPublisher` for ``signal_fn``.
+  Every poll reads the server's Prometheus ``/metrics`` endpoint, parses the
+  two metrics, feeds them to a :class:`CompletionRateCapacityEstimator` and
+  publishes the estimate. If ``config.load_signal_fn`` is set, it replaces the
+  scrape and the estimate.
 
-    Raises:
-      ValueError: if ``tag`` is unset; call :meth:`resolve_tag` first.
-    """
-    if not self.tag:
-      raise ValueError(
-          'AutoscalingMetricConfig.tag is unset; call resolve_tag() first.')
-    return NumLoadedModelsPublisher(
-        tag=self.tag,
-        signal_fn=signal_fn,
-        poll_interval_secs=self.poll_interval_secs,
-    )
+  Args:
+    metrics_port_fn: Returns the port serving ``/metrics`` while the server is
+      up, or ``None`` while it is not (the publisher then skips the tick).
+    completed_metric: Name of the server's counter of completed requests, e.g.
+      ``vllm:request_success_total``.
+    running_metric: Name of the server's gauge of in-flight requests, e.g.
+      ``vllm:num_requests_running``.
+    model_identifier: The identifier RunInference reported through
+      ``ModelHandler.set_model_identifier``, or ``None`` outside RunInference.
+    model_name: Fallback for the metric tag outside RunInference.
+    config: Knobs; ``None`` uses the defaults.
+    label_filter: Optional labels a sample must have to be counted, e.g. to
+      select one model on a multi-model server.
+
+  Raises:
+    ValueError: if no metric tag can be derived.
+  """
+  config = config or AutoscalingMetricConfig()
+  estimator = CompletionRateCapacityEstimator(
+      multiplier=config.multiplier,
+      window_secs=config.signal_window_secs,
+      min_requests=config.min_requests,
+      warmup_timeout_secs=config.warmup_timeout_secs)
+
+  def read_capacity() -> Optional[float]:
+    """Reads the server once; returns its capacity, or None to skip."""
+    port = metrics_port_fn()
+    if port is None:
+      return None  # The server is not up.
+    if config.load_signal_fn is not None:
+      return config.load_signal_fn(port)
+    text = scrape_prometheus_metrics(port)
+    if text is None:
+      return None
+    completed = parse_prometheus_metric(text, completed_metric, label_filter)
+    running = parse_prometheus_metric(text, running_metric, label_filter)
+    if completed is None or running is None:
+      return None
+    return estimator.update(completed, running)
+
+  return make_publisher(
+      signal_fn=read_capacity,
+      model_identifier=model_identifier,
+      model_name=model_name,
+      config=config)

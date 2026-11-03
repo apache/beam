@@ -219,42 +219,52 @@ class AutoscalingMetricsTest(unittest.TestCase):
       self.assertIsNone(estimator.update(0.0, 1.0))
       self.assertAlmostEqual(estimator.update(10.0, 1.0), 2.0)
 
-  def test_autoscaling_metric_config_resolve_tag(self):
-    cfg = autoscaling_metrics.AutoscalingMetricConfig(
-        poll_interval_secs=7.0,
-        multiplier=2.0,
-        signal_window_secs=30.0,
-        min_requests=5,
-        warmup_timeout_secs=15.0)
+  def test_make_publisher_metric_tag(self):
+    def tag(model_identifier, model_name='', **config):
+      publisher = autoscaling_metrics.make_publisher(
+          signal_fn=lambda: None,
+          model_identifier=model_identifier,
+          model_name=model_name,
+          config=autoscaling_metrics.AutoscalingMetricConfig(**config))
+      return publisher._metric_name
+
     # The RunInference identifier is used verbatim (it has to match the step
     # annotation), even if it contains characters sanitize would change.
     self.assertEqual(
-        cfg.resolve_tag('my-step/id', 'org/model:v1').tag, 'my-step/id')
-    # Outside RunInference: the sanitized fallback name.
-    self.assertEqual(cfg.resolve_tag(None, 'org/model:v1').tag, 'org_model_v1')
+        tag('my-step/id', 'org/model:v1'), 'num_loaded_models_my-step/id')
+    # Outside RunInference: the sanitized model name.
+    self.assertEqual(
+        tag(None, 'org/model:v1'), 'num_loaded_models_org_model_v1')
     # An explicit tag always wins.
     self.assertEqual(
-        autoscaling_metrics.AutoscalingMetricConfig(tag='custom').resolve_tag(
-            'step-id', 'model').tag,
-        'custom')
+        tag('step-id', 'model', tag='custom'), 'num_loaded_models_custom')
     with self.assertRaises(ValueError):
-      autoscaling_metrics.AutoscalingMetricConfig().resolve_tag(None, '')
-    with self.assertRaises(ValueError):
-      autoscaling_metrics.AutoscalingMetricConfig().make_publisher(lambda: None)
+      tag(None, '')
 
-    publisher = cfg.resolve_tag('step-id').make_publisher(lambda: None)
-    self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
+  def test_make_publisher_uses_config_and_defaults(self):
+    publisher = autoscaling_metrics.make_publisher(
+        signal_fn=lambda: None,
+        model_identifier='step-id',
+        config=autoscaling_metrics.AutoscalingMetricConfig(
+            poll_interval_secs=7.0))
     self.assertEqual(publisher._poll_interval_secs, 7.0)
+    # No config -> defaults.
+    default = autoscaling_metrics.make_publisher(
+        signal_fn=lambda: None, model_identifier='step-id')
+    self.assertEqual(
+        default._poll_interval_secs,
+        autoscaling_metrics.DEFAULT_POLL_INTERVAL_SECS)
 
   def test_make_model_server_publisher(self):
     """The handler supplies metric names and a port; the rest is packaged."""
-    config = autoscaling_metrics.AutoscalingMetricConfig(
-        multiplier=2.0, poll_interval_secs=7.0).resolve_tag('step-id')
     port = [None]
-    publisher = config.make_model_server_publisher(
+    publisher = autoscaling_metrics.make_model_server_publisher(
         metrics_port_fn=lambda: port[0],
         completed_metric='done_total',
-        running_metric='running')
+        running_metric='running',
+        model_identifier='step-id',
+        config=autoscaling_metrics.AutoscalingMetricConfig(
+            multiplier=2.0, poll_interval_secs=7.0))
     self.assertEqual(publisher._metric_name, 'num_loaded_models_step-id')
     self.assertEqual(publisher._poll_interval_secs, 7.0)
     signal = publisher._signal_fn  # What the publisher's thread polls.
@@ -284,12 +294,12 @@ class AutoscalingMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(signal(), 8.0)
 
   def test_make_model_server_publisher_skips_unreadable_scrapes(self):
-    config = autoscaling_metrics.AutoscalingMetricConfig(
-        min_requests=0).resolve_tag('step-id')
-    publisher = config.make_model_server_publisher(
+    publisher = autoscaling_metrics.make_model_server_publisher(
         metrics_port_fn=lambda: 8000,
         completed_metric='done_total',
         running_metric='running',
+        model_identifier='step-id',
+        config=autoscaling_metrics.AutoscalingMetricConfig(min_requests=0),
         label_filter={'model': 'a'})
     signal = publisher._signal_fn
     scrapes = [
@@ -314,18 +324,16 @@ class AutoscalingMetricsTest(unittest.TestCase):
         self.assertAlmostEqual(signal(), 1.0)
 
   def test_make_model_server_publisher_load_signal_fn_override(self):
-    config = autoscaling_metrics.AutoscalingMetricConfig(
-        load_signal_fn=lambda port: port / 1000.0).resolve_tag('step-id')
-    publisher = config.make_model_server_publisher(
+    publisher = autoscaling_metrics.make_model_server_publisher(
         metrics_port_fn=lambda: 8000,
         completed_metric='done_total',
-        running_metric='running')
+        running_metric='running',
+        model_identifier='step-id',
+        config=autoscaling_metrics.AutoscalingMetricConfig(
+            load_signal_fn=lambda port: port / 1000.0))
     with mock.patch('urllib.request.urlopen') as urlopen:
       self.assertEqual(publisher._signal_fn(), 8.0)
       urlopen.assert_not_called()
-    with self.assertRaises(ValueError):
-      autoscaling_metrics.AutoscalingMetricConfig().make_model_server_publisher(
-          lambda: 8000, 'done_total', 'running')
 
 
 if __name__ == '__main__':
