@@ -183,6 +183,11 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
     kwargs: Additional keyword arguments to pass to the client's upsert method.
     dense_embedding_key: name for the dense vector in the qdrant collection.
     sparse_embedding_key: name for the sparse vector in the qdrant collection.
+    content_payload_key: Optional payload key under which the item's content
+      (``EmbeddableItem.content_string``) is stored, so that the chunk text is
+      returned with search results. If ``None`` (default), content is not
+      written and only ``metadata`` is stored as the payload. A ``ValueError``
+      is raised at conversion time if the key collides with a metadata key.
   """
 
   connection_params: QdrantConnectionParameters
@@ -193,12 +198,15 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
   kwargs: dict[str, Any] = field(default_factory=dict)
   dense_embedding_key: str = "dense"
   sparse_embedding_key: str = "sparse"
+  content_payload_key: Optional[str] = None
 
   def __post_init__(self):
     if not self.collection_name:
       raise ValueError("Collection name must be provided")
     if self.batch_size <= 0:
       raise ValueError("Batch size must be a positive integer")
+    if self.content_payload_key is not None and not self.content_payload_key:
+      raise ValueError("content_payload_key must be a non-empty string")
 
   def create_write_transform(self) -> beam.PTransform[EmbeddableItem, Any]:
     return _QdrantWriteTransform(self)
@@ -222,10 +230,17 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
       id = (
           int(item.id)
           if isinstance(item.id, str) and item.id.isdigit() else item.id)
+      payload = dict(item.metadata) if item.metadata else {}
+      if self.content_payload_key is not None:
+        if self.content_payload_key in payload:
+          raise ValueError(
+              f"content_payload_key '{self.content_payload_key}' collides "
+              f"with an existing metadata key for item {item.id}")
+        payload[self.content_payload_key] = item.content_string
       return models.PointStruct(
           id=id,
           vector=vector,
-          payload=item.metadata if item.metadata else None,
+          payload=payload if payload else None,
       )
 
     return convert

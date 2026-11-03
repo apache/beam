@@ -21,7 +21,6 @@ import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ResettableSingletonTraverser;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.jet.Utils;
@@ -44,13 +43,7 @@ import org.joda.time.Instant;
   "nullness",
   "keyfor"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class AssignWindowP<T> extends AbstractProcessor {
+public final class AssignWindowP<T> extends AbstractProcessor {
 
   @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private final String ownerId; // do not remove, useful for debugging

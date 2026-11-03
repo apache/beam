@@ -113,7 +113,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             actionFactory,
             metrics,
             Duration.standardMinutes(2),
-            CANCEL_QUERY_ON_HEARTBEAT);
+            CANCEL_QUERY_ON_HEARTBEAT,
+            false);
     doFn.setThroughputEstimator(throughputEstimator);
 
     partition =

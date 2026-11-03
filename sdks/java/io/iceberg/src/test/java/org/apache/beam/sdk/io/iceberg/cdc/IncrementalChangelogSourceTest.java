@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergIOReadTest.icebergGenericRecord;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -52,12 +53,19 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.deletes.EqualityDeleteWriter;
+import org.apache.iceberg.deletes.PositionDelete;
+import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.types.Types;
 import org.joda.time.Instant;
@@ -418,6 +426,93 @@ public class IncrementalChangelogSourceTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /** A merge-on-read delete is filtered on a partition column that 'keep' leaves out. */
+  @Test
+  public void mergeOnReadDeleteIsFilteredOnColumnLeftOutOfOutput() throws Exception {
+    TableIdentifier tableId = tableId();
+    PartitionSpec spec = PartitionSpec.builderFor(EVENT_SCHEMA).day("event_time").build();
+    Table table = warehouse.createTable(tableId, EVENT_SCHEMA, spec, tableProperties());
+    LocalDateTime time = LocalDateTime.parse("2026-01-01T10:00:00");
+    DataFile file =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-events.parquet",
+            table.schema(),
+            spec,
+            DataFiles.data(spec, "event_time_day=2026-01-01"),
+            ImmutableList.of(eventRecord(1L, "a", time), eventRecord(2L, "b", time.plusHours(4))));
+    table.newFastAppend().appendFile(file).commit();
+    commitPositionDelete(table, file, 1L);
+
+    IcebergScanConfig scanConfig =
+        baseConfigBuilder(table, tableId)
+            .setKeepFields(ImmutableList.of("id", "data"))
+            .setFilterString("event_time > TIMESTAMP '2026-01-01 12:00:00'")
+            .setToSnapshot(table.currentSnapshot().snapshotId())
+            .build();
+
+    PAssert.that(
+            pipeline
+                .apply(new IncrementalChangelogSource(scanConfig))
+                .apply(ParDo.of(new FormatValueKindAndRow())))
+        .containsInAnyOrder("INSERT:2:b", "DELETE:2:b");
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * An equality delete on a nested field that 'keep' leaves out, while keeping a sibling field,
+   * matches only its own rows.
+   */
+  @Test
+  public void nestedEqualityDeleteIsFilteredOnColumnLeftOutOfOutput() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table =
+        warehouse.createTable(tableId, TestFixtures.NESTED_SCHEMA, null, tableProperties());
+    table.updateSchema().addColumn("metadata", "region", Types.StringType.get()).commit();
+    DataFile file =
+        commitAppend(
+            table,
+            "nested.parquet",
+            ImmutableList.of(
+                TestFixtures.createRecord(table.schema(), ImmutableMap.of("id", 1L, "data", "a")),
+                icebergGenericRecord(
+                    table.schema().asStruct(),
+                    ImmutableMap.of(
+                        "id", 2L, "data", "b", "metadata", ImmutableMap.of("source", "x")))));
+    org.apache.iceberg.Schema sourceSchema = table.schema().select("metadata.source");
+    EqualityDeleteWriter<Record> writer =
+        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {4}, sourceSchema, null)
+            .newEqDeleteWriter(
+                EncryptedFiles.plainAsEncryptedOutput(
+                    table.io().newOutputFile(file.location() + ".deletes.parquet")),
+                FileFormat.PARQUET,
+                null);
+    try (writer) {
+      writer.write(
+          icebergGenericRecord(
+              sourceSchema.asStruct(),
+              ImmutableMap.of("metadata", ImmutableMap.of("source", "x"))));
+    }
+    table.newRowDelta().addDeletes(writer.toDeleteFile()).commit();
+    table.newDelete().deleteFile(file).commit();
+
+    // only the file deletion, whose rows are filtered by the earlier equality delete
+    IcebergScanConfig scanConfig =
+        baseConfigBuilder(table, tableId)
+            .setKeepFields(ImmutableList.of("id", "data", "metadata.region"))
+            .setFromSnapshotInclusive(table.currentSnapshot().snapshotId())
+            .setToSnapshot(table.currentSnapshot().snapshotId())
+            .build();
+
+    PAssert.that(
+            pipeline
+                .apply(new IncrementalChangelogSource(scanConfig))
+                .apply(ParDo.of(new FormatValueKindAndRow())))
+        .containsInAnyOrder("DELETE:1:a");
+
+    pipeline.run().waitUntilFinish();
+  }
+
   @Test
   public void watermarkColumnRestampsProjectedRows() throws Exception {
     TableIdentifier tableId = tableId();
@@ -458,6 +553,79 @@ public class IncrementalChangelogSourceTest {
                 new Instant(secondEventInstant.toEpochMilli())));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * 'keep' and 'drop' may leave out the primary key and watermark column. The source still reads
+   * them to pair updates and timestamp rows.
+   */
+  @Test
+  public void keyAndWatermarkCanBeLeftOutOfOutput() throws Exception {
+    LocalDateTime t1 =
+        LocalDateTime.ofInstant(
+            java.time.Instant.ofEpochMilli(System.currentTimeMillis() - 3_000L), ZoneOffset.UTC);
+    LocalDateTime t2 = t1.plusSeconds(1);
+    LocalDateTime t3 = t1.plusSeconds(2);
+    // SPLIT_SIZE=1 resolves updates through the CoGroupByKey, the default resolves them locally
+    Map<String, IcebergScanConfig> reads =
+        ImmutableMap.of(
+            "Keep",
+            eventChanges("1", t1, t2, t3).setKeepFields(ImmutableList.of("data")).build(),
+            "Drop",
+            eventChanges(String.valueOf(TableProperties.SPLIT_SIZE_DEFAULT), t1, t2, t3)
+                .setDropFields(ImmutableList.of("id", "event_time"))
+                .build());
+
+    for (Map.Entry<String, IcebergScanConfig> read : reads.entrySet()) {
+      PCollection<Row> rows =
+          pipeline.apply(read.getKey(), new IncrementalChangelogSource(read.getValue()));
+      assertEquals(
+          Schema.builder().addNullableField("data", Schema.FieldType.STRING).build(),
+          rows.getSchema());
+      PAssert.that(
+              rows.apply(read.getKey() + " Format", ParDo.of(new FormatValueKindAndValues()))
+                  .apply(read.getKey() + " Timestamps", Reify.timestamps()))
+          .containsInAnyOrder(
+              TimestampedValue.of("INSERT:[a]", millis(t1)),
+              TimestampedValue.of("INSERT:[b]", millis(t2)),
+              // only event_time changed, so pairing compared full rows
+              TimestampedValue.of("UPDATE_BEFORE:[a]", millis(t1)),
+              TimestampedValue.of("UPDATE_AFTER:[a]", millis(t3)),
+              TimestampedValue.of("DELETE:[b]", millis(t2)),
+              TimestampedValue.of("INSERT:[c]", millis(t3)));
+    }
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Commits id 1 and 2, then an overwrite that changes only id 1's event_time, deletes 2, adds 3.
+   */
+  private IcebergScanConfig.Builder eventChanges(
+      String splitSize, LocalDateTime t1, LocalDateTime t2, LocalDateTime t3) throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName() + splitSize);
+    Table table =
+        warehouse.createTable(
+            tableId,
+            EVENT_SCHEMA,
+            null,
+            ImmutableMap.of(
+                TableProperties.FORMAT_VERSION, "2", TableProperties.SPLIT_SIZE, splitSize));
+    DataFile v1 =
+        commitAppend(
+            table,
+            splitSize + "-v1.parquet",
+            ImmutableList.of(eventRecord(1L, "a", t1), eventRecord(2L, "b", t2)));
+    commitOverwrite(
+        table, splitSize + "-v2.parquet", v1, eventRecord(1L, "a", t3), eventRecord(3L, "c", t3));
+    return baseConfigBuilder(table, tableId)
+        .setWatermarkColumn("event_time")
+        .setStartingStrategy(StartingStrategy.EARLIEST)
+        .setToSnapshot(table.currentSnapshot().snapshotId());
+  }
+
+  private static Instant millis(LocalDateTime time) {
+    return new Instant(time.toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
   /**
@@ -516,12 +684,10 @@ public class IncrementalChangelogSourceTest {
   }
 
   private DataFile commitOverwrite(
-      Table table, String fileName, DataFile replaced, Record replacement) throws IOException {
+      Table table, String fileName, DataFile replaced, Record... replacements) throws IOException {
     DataFile file =
         warehouse.writeRecords(
-            testName.getMethodName() + "-" + fileName,
-            table.schema(),
-            ImmutableList.of(replacement));
+            testName.getMethodName() + "-" + fileName, table.schema(), Arrays.asList(replacements));
     table.newOverwrite().deleteFile(replaced).addFile(file).commit();
     table.refresh();
     return file;
@@ -561,6 +727,21 @@ public class IncrementalChangelogSourceTest {
     return file;
   }
 
+  private void commitPositionDelete(Table table, DataFile file, long position) throws IOException {
+    PositionDeleteWriter<Record> writer =
+        new GenericAppenderFactory(table.schema(), table.spec())
+            .newPosDeleteWriter(
+                EncryptedFiles.plainAsEncryptedOutput(
+                    table.io().newOutputFile(file.location() + ".deletes.parquet")),
+                FileFormat.PARQUET,
+                file.partition());
+    try (writer) {
+      writer.write(PositionDelete.<Record>create().set(file.location(), position));
+    }
+    table.newRowDelta().addDeletes(writer.toDeleteFile()).commit();
+    table.refresh();
+  }
+
   private static List<Record> records(long id, String data) {
     return ImmutableList.of(record(id, data));
   }
@@ -580,6 +761,14 @@ public class IncrementalChangelogSourceTest {
         @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
       outputReceiver.output(
           valueKind.name() + ":" + row.getInt64("id") + ":" + row.getString("data"));
+    }
+  }
+
+  private static final class FormatValueKindAndValues extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(valueKind.name() + ":" + row.getValues());
     }
   }
 

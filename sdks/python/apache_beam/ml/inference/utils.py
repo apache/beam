@@ -133,14 +133,17 @@ class WatchFilePattern(beam.PTransform):
     1. Any previously used filenames cannot be reused. If a file is added
         or updated to a previously used filename, this transform will ignore
         that update. To trigger a model update, always upload a file with
-        unique name.
-    2. Initially, before the pipeline startup time, WatchFilePattern expects
+        unique name. Do not preserve old modification timestamps when copying
+        or uploading a file (for example, when rolling back to an older model),
+        as files with timestamps older than the pipeline start time are ignored.
+    2. Do not upload more than one model update per polling ``interval``, as
+        matching multiple new files in the same poll can cause undefined
+        ordering or singleton side-input errors.
+    3. Initially, before the pipeline startup time, WatchFilePattern expects
         at least one file present that matches the file_pattern.
-    3. This transform is supported in streaming mode since
+    4. This transform is supported in streaming mode since
         MatchContinuously produces an unbounded source. Running in batch
         mode can lead to undesired results or result in pipeline being stuck.
-
-
     """
     self.file_pattern = file_pattern
     self.interval = interval

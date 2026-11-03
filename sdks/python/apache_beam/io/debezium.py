@@ -110,7 +110,7 @@ ReadFromDebeziumSchema = NamedTuple(
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
      ('connection_properties', list[str]),
      ('start_offset', Optional[list[str]]),
-     ('offset_storage_path', Optional[str])])
+     ('offset_storage_path', Optional[str]), ('full_metadata', Optional[bool])])
 
 
 class ReadFromDebezium(PTransform):
@@ -134,6 +134,7 @@ class ReadFromDebezium(PTransform):
       connection_properties=None,
       start_offset=None,
       offset_storage_path=None,
+      full_metadata=None,
       expansion_service=None):
     """
         Initializes a read operation from Debezium.
@@ -179,6 +180,11 @@ class ReadFromDebezium(PTransform):
 
                                     When set, takes precedence over
                                     ``start_offset``.
+        :param full_metadata: when True, adds ``op`` and all Debezium source
+                              fields not already present (e.g. MySQL
+                              ``file``, ``pos``, ``row``, ``ts_ms``;
+                              PostgreSQL ``lsn``, ``txId``, ``ts_ms``) to
+                              ``metadata``. Defaults to False.
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
@@ -192,7 +198,8 @@ class ReadFromDebezium(PTransform):
         max_number_of_records=max_number_of_records,
         connection_properties=connection_properties,
         start_offset=start_offset,
-        offset_storage_path=offset_storage_path)
+        offset_storage_path=offset_storage_path,
+        full_metadata=full_metadata)
     self.expansion_service = expansion_service or default_io_expansion_service()
 
   def expand(self, pbegin):

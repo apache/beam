@@ -212,6 +212,10 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    systemProperty "beam.iceberg.lakehouse.warehouse",
+      project.findProperty('lakehouseWarehouse') ?: 'bl://projects/apache-beam-testing/catalogs/beam-lakehouse-it'
+    systemProperty "beam.iceberg.lakehouse.locations",
+      project.findProperty('lakehouseLocations') ?: 'gs://beam-lakehouse-it,gs://beam-lakehouse-it-added-path'
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
@@ -247,10 +251,13 @@ task dataflowIntegrationTest(type: Test) {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamToPartitionedDynamicDestinations'
         // CDC sink. The native-ValueKind round trip tests run on legacy worker.
         // The change-type-column tests run on Runner v2.
-        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSource'
-        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithChangeTypeColumn'
-        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTable'
-        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTableWithChangeTypeColumn'
+        // TODO(https://github.com/apache/beam/issues/40732): unskip these tests when managed service upgrades to 2.77
+        if (!project.hasProperty('enableManagedTransforms')) {
+          includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSource'
+          includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithChangeTypeColumn'
+          includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTable'
+          includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTableWithChangeTypeColumn'
+        }
     }
 
     doLast {

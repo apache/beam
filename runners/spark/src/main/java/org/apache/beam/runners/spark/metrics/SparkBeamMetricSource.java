@@ -18,20 +18,13 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.spark.metrics.source.Source;
 
 /**
  * A Spark {@link Source} that is tailored to expose a {@link SparkBeamMetric}, wrapping an
  * underlying {@link org.apache.beam.sdk.metrics.MetricResults} instance.
  */
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class SparkBeamMetricSource implements Source {
+public final class SparkBeamMetricSource implements Source {
   private static final String METRIC_NAME = "Metrics";
 
   private final String name;

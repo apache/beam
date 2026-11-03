@@ -158,6 +158,7 @@ task run(type: JavaExec) {
     jvmArgs += sparkJvmArgs()
   }
 
+    systemProperty "java.util.logging.config.file", "${project.projectDir}/src/main/resources/logging.properties"
     mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"
     classpath = configurations.gradleRun
     args tpcdsArgsList.toArray()

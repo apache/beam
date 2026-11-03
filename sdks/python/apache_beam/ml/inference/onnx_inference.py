@@ -94,12 +94,14 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
         before emitting; used in streaming contexts.
-      max_batch_weight: the maximum total weight of a batch.
+      max_batch_weight: the maximum total weight of a batch. Cannot be
+        combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: a function that returns the size (weight) of an element.
       batch_length_fn: a callable that returns the length of an element for
-        length-aware batching.
+        length-aware batching. Cannot be used together with max_batch_weight.
       batch_bucket_boundaries: a sorted list of positive boundary values for
-        length-aware batching buckets.
+        length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
     """

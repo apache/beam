@@ -28,6 +28,7 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import require_linux_docker
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -588,6 +589,8 @@ class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
     if not hasattr(cls, '_db_adapter'):
       # Skip setup for the base class.
       raise unittest.SkipTest("Base class - no db_adapter defined")
+
+    require_linux_docker()
 
     # Type hint data from subclasses.
     cls._db_adapter: DatabaseTypeAdapter

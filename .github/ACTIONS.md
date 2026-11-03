@@ -36,9 +36,9 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
 * If your workflow runs successfully in a GitHub-hosted runner but not in the self-hosted runner, it might need a new installation step.
 ```yaml
   - name: Setup Node
-    uses: actions/setup-node@v3
+    uses: actions/setup-node@v7
     with:
-      node-version: 16
+      node-version: 24
 ```
 * You can find the GitHub-hosted runner installations in the following links:
   * [Ubuntu-24.04](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#installed-apt-packages)
@@ -59,9 +59,9 @@ jobs:
         uses: actions/checkout@v2
       - run: echo "This job is now running on a ubuntu server hosted by Apache Beam!"
       - name: Setup Node
-          uses: actions/setup-node@v3
+          uses: actions/setup-node@v7
           with:
-            node-version: 16
+            node-version: 24
           - name: Install npm dependencies
             run: npm ci
             working-directory: 'scripts/ci/your-path'
