@@ -69,6 +69,7 @@
 
 ## New Features / Improvements
 
+* (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 
