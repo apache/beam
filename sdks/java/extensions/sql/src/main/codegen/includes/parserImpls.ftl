@@ -74,7 +74,7 @@ List<Schema.Field> FieldListParens() :
 }
 {
     <LPAREN>
-        fields = FieldListBody()
+        fields = FieldListBody(null)
     <RPAREN>
     {
         return fields;
@@ -87,35 +87,40 @@ List<Schema.Field> FieldListAngular() :
 }
 {
     <LT>
-        fields = FieldListBody()
+        fields = FieldListBody(null)
     <GT>
     {
         return fields;
     }
 }
 
-List<Schema.Field> FieldListBody() :
+List<Schema.Field> FieldListBody(SqlNodeList primaryKey) :
 {
     final List<Schema.Field> fields = new ArrayList<Schema.Field>();
     Schema.Field field = null;
 }
 {
-    field = Field() { fields.add(field); }
+    field = Field(primaryKey) { fields.add(field); }
     (
-        <COMMA> field = Field() { fields.add(field); }
+        <COMMA> field = Field(primaryKey) { fields.add(field); }
     )*
     {
         return fields;
     }
 }
 
-Schema.Field Field() :
+/**
+ * A column definition. Columns declared PRIMARY KEY are added to primaryKey, which is null where
+ * keys aren't allowed: only CREATE EXTERNAL TABLE's own columns can be keys.
+ */
+Schema.Field Field(SqlNodeList primaryKey) :
 {
     final String name;
     final Schema.FieldType type;
     final boolean nullable;
     Schema.Field field = null;
     SqlNode comment = null;
+    final Span s;
 }
 {
     name = Identifier()
@@ -131,6 +136,11 @@ Schema.Field Field() :
         { field = field.withNullable(true); }
     )
     [
+        LOOKAHEAD(1, { primaryKey != null })
+        <PRIMARY> { s = span(); } <KEY> NotEnforced(s)
+        { primaryKey.add(new SqlIdentifier(name, s.pos())); }
+    ]
+    [
         <COMMENT> comment = StringLiteral()
         {
             if (comment != null) {
@@ -143,6 +153,16 @@ Schema.Field Field() :
     {
         return field;
     }
+}
+
+/** The NOT ENFORCED that must follow a PRIMARY KEY. */
+void NotEnforced(Span s) :
+{
+}
+{
+    <NOT> <ENFORCED>
+|
+    { throw SqlDdlNodes.enforcedPrimaryKey(s.end(this)); }
 }
 
 SqlNodeList PropertyList() :
@@ -546,18 +566,26 @@ SqlNodeList PartitionFieldList() :
  * Note: This example is probably out of sync with the code.
  *
  * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
- *   ( catalog_name '.' )? ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   ( catalog_name '.' )? ( database_name '.' )? table_name
+ *   '(' column_def ( ',' column_def )*
+ *     ( ',' PRIMARY KEY '(' column_name ( ',' column_name )* ')' NOT ENFORCED )? ')'
  *   TYPE type_name
  *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
+ *
+ * column_def:
+ *   column_name type ( NULL | NOT NULL )? ( PRIMARY KEY NOT ENFORCED )? ( COMMENT comment_string )?
  */
 SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 {
     final boolean ifNotExists;
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
+    final SqlNodeList columnKey = new SqlNodeList(SqlParserPos.ZERO);
+    SqlNodeList primaryKey = null;
+    final Span primaryKeySpan;
     final SqlNode type;
     SqlNodeList partitionFields = null;
     SqlNode comment = null;
@@ -572,7 +600,23 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
 
     ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
-    fieldList = FieldListParens()
+    <LPAREN>
+    fieldList = FieldListBody(columnKey)
+    [
+        <COMMA> <PRIMARY> { primaryKeySpan = span(); } <KEY>
+        primaryKey = ParenthesizedSimpleIdentifierList()
+        NotEnforced(primaryKeySpan)
+    ]
+    <RPAREN>
+    {
+        if (!columnKey.isEmpty()) {
+            if (columnKey.size() > 1 || primaryKey != null) {
+                throw new ParseException("A table can have only one PRIMARY KEY. Declare a key on "
+                    + "several columns as PRIMARY KEY (column, ...) NOT ENFORCED after the columns.");
+            }
+            primaryKey = columnKey;
+        }
+    }
     <TYPE>
     (
         type = StringLiteral()
@@ -591,6 +635,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
                 ifNotExists,
                 id,
                 fieldList,
+                primaryKey,
                 type,
                 partitionFields,
                 comment,
@@ -606,6 +651,8 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
  *   [ DROP COLUMNS <column_name, column_name> ]
  *   [ ADD PARTITIONS <partition_field, partition_field, ...> ]
  *   [ DROP PARTITIONS <partition_field, partition_field, ...> ]
+ *   [ ADD PRIMARY KEY (column_name, column_name, ...) NOT ENFORCED ]
+ *   [ DROP PRIMARY KEY ]
  *   [ SET (key1=val1, key2=val2, ...) ]
  *   [ (RESET | UNSET) (key1, key2, ...) ]
  */
@@ -616,6 +663,9 @@ SqlCall SqlAlterTable(Span s, String scope) :
     List<Schema.Field> columnsToAdd = null;
     SqlNodeList partitionsToDrop = null;
     SqlNodeList partitionsToAdd = null;
+    SqlNodeList primaryKeyToAdd = null;
+    boolean dropPrimaryKey = false;
+    final Span primaryKeySpan;
     SqlNodeList setProps = null;
     SqlNodeList resetProps = null;
 }
@@ -630,12 +680,18 @@ SqlCall SqlAlterTable(Span s, String scope) :
       <COLUMNS> columnsToDrop = ParenthesizedSimpleIdentifierList()
         |
       <PARTITIONS> partitionsToDrop = ParenthesizedLiteralOptionCommaList()
+        |
+      <PRIMARY> <KEY> { dropPrimaryKey = true; }
     ) ]
 
     [ <ADD> (
       <COLUMNS> columnsToAdd = FieldListParens()
         |
       <PARTITIONS> partitionsToAdd = ParenthesizedLiteralOptionCommaList()
+        |
+      <PRIMARY> { primaryKeySpan = span(); } <KEY>
+      primaryKeyToAdd = ParenthesizedSimpleIdentifierList()
+      NotEnforced(primaryKeySpan)
     ) ]
 
     [ (<RESET> | <UNSET>) <LPAREN> resetProps = ArgList() <RPAREN> ]
@@ -651,7 +707,9 @@ SqlCall SqlAlterTable(Span s, String scope) :
             partitionsToAdd,
             partitionsToDrop,
             setProps,
-            resetProps);
+            resetProps,
+            primaryKeyToAdd,
+            dropPrimaryKey);
     }
 }
 

@@ -42,7 +42,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@code <location>/splits} pins the split list, written once by the driver. {@code
  * <location>/marks/<epoch>/<splitId>} holds the coded checkpoint mark of a split at the end of the
- * batch ending at that epoch. The epoch Spark last committed is read from Spark's own {@code
+ * batch ending at that epoch. {@code <location>/done/<splitId>} marks a split whose reader reached
+ * the end of the global window. The epoch Spark last committed is read from Spark's own {@code
  * commits} and {@code offsets} logs two levels up. All IO goes through Spark's {@link
  * CheckpointFileManager}, writes are atomic renames.
  */
@@ -52,6 +53,7 @@ public final class BeamSourceCheckpoint {
 
   private static final String SPLITS_FILE = "splits";
   private static final String MARKS_DIR = "marks";
+  private static final String DONE_DIR = "done";
   private static final String SPARK_COMMITS_DIR = "commits";
   private static final String SPARK_OFFSETS_DIR = "offsets";
   private static final String SERIALIZED_VOID_OFFSET = "-";
@@ -64,6 +66,7 @@ public final class BeamSourceCheckpoint {
   private final Path root;
   private final Path splitsPath;
   private final Path marksRoot;
+  private final Path doneRoot;
 
   /** Every mark epoch strictly below the value is known to be deleted, -1 for unknown. */
   private volatile long purgeFloor = -1L;
@@ -74,6 +77,7 @@ public final class BeamSourceCheckpoint {
     this.fm = CheckpointFileManager.create(root, hadoopConf);
     this.splitsPath = new Path(root, SPLITS_FILE);
     this.marksRoot = new Path(root, MARKS_DIR);
+    this.doneRoot = new Path(root, DONE_DIR);
   }
 
   public String location() {
@@ -127,6 +131,32 @@ public final class BeamSourceCheckpoint {
       return null;
     }
     return read(path);
+  }
+
+  /** Writes the one time done marker of {@code splitId}, idempotent. */
+  public void writeDone(int splitId) throws IOException {
+    Path path = new Path(doneRoot, Integer.toString(splitId));
+    try {
+      write(path, new byte[0], true);
+    } catch (FileNotFoundException e) {
+      fm.mkdirs(doneRoot);
+      write(path, new byte[0], true);
+    }
+  }
+
+  /** Whether every split in {@code [0, numSplits)} has a marker under {@code done/}. */
+  public boolean allSplitsDone(int numSplits) throws IOException {
+    if (!fm.exists(doneRoot)) {
+      return false;
+    }
+    int count = 0;
+    for (FileStatus status : fm.list(doneRoot)) {
+      long splitId = parseEpoch(status.getPath().getName());
+      if (splitId >= 0 && splitId < numSplits && ++count == numSplits) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

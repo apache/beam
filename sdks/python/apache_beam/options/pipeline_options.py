@@ -1198,17 +1198,6 @@ class GoogleCloudOptions(PipelineOptions):
         help='Throttling counter in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counter to avoid it.')
     parser.add_argument(
-        '--quota_project_id',
-        default=None,
-        help='GCP project ID used for quota and billing attribution of Google '
-        'Cloud API requests (sets the x-goog-user-project header), if '
-        'different from the project the data resides in. Currently honored '
-        'by BigQuery IO transforms (ReadFromBigQuery, ReadAllFromBigQuery, '
-        'WriteToBigQuery with FILE_LOADS or STREAMING_INSERTS, '
-        'ReadBigQueryChangeHistory); STORAGE_WRITE_API (Java-backed) and '
-        'other GCP IOs do not use it yet. The credentials used must have the '
-        'serviceusage.services.use permission on this project.')
-    parser.add_argument(
         '--enable_gcsio_blob_generation',
         default=False,
         action='store_true',
@@ -1397,7 +1386,10 @@ class BigQueryOptions(PipelineOptions):
   """
 
   # Alternative attribute names, mapped to the option names they stand for.
-  _ATTRIBUTE_ALIASES = {'bigquery_endpoint': 'big_query_endpoint'}
+  _ATTRIBUTE_ALIASES = {
+      'bigquery_endpoint': 'big_query_endpoint',
+      'bigquery_quota_project_id': 'big_query_quota_project_id',
+  }
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -1413,6 +1405,21 @@ class BigQueryOptions(PipelineOptions):
             'variable when present, and otherwise the default public URL is '
             'used. Also passed to Java cross-language BigQuery transforms as '
             'bigQueryEndpoint.'))
+    parser.add_argument(
+        '--bigquery_quota_project_id',
+        '--big_query_quota_project_id',
+        dest='big_query_quota_project_id',
+        default=None,
+        help=(
+            'GCP project ID used for quota and billing attribution of '
+            'BigQuery API requests (sets the x-goog-user-project header), if '
+            'different from the project the data resides in. Honored by '
+            'ReadFromBigQuery, ReadAllFromBigQuery, WriteToBigQuery with '
+            'FILE_LOADS or STREAMING_INSERTS, and ReadBigQueryChangeHistory; '
+            'STORAGE_WRITE_API (Java-backed) does not use it yet. The '
+            'credentials used must have the serviceusage.services.use '
+            'permission on this project. Also passed to Java cross-language '
+            'BigQuery transforms as bigQueryQuotaProjectId.'))
 
   def __getattr__(self, name):
     return super().__getattr__(self._ATTRIBUTE_ALIASES.get(name, name))

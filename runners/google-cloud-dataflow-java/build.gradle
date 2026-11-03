@@ -259,7 +259,8 @@ def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcur
 def configureValidatesRunnerParallelism = { Test task, List pipelineOptions ->
   def streaming = pipelineOptions.any { it == '--streaming' || it == '--streaming=true' }
   def batching = validatesRunnerTestBatching == 'true' && !streaming
-  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '6')
+  // TODO: explore possibility to merge streaming tests into single Dataflow pipeline, as we did for batch
+  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '2')
   def batchMaxSize = project.findProperty('testBatchMaxSize') ?: parallelThreads
 
   task.systemProperty "beam.validatesRunner.parallelThreads", parallelThreads

@@ -2011,14 +2011,23 @@ def setup_timer_mapping(stages, pipeline_context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
   """Set up a mapping of {transform_id: [timer_ids]} for each stage.
+
+  Timer family coders are length prefixed where needed, as the runner has to
+  decode timers whose key coder may only be known to the SDK.
   """
   for stage in stages:
     for transform in stage.transforms:
       if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for timer_family_id in payload.timer_family_specs.keys():
+        for timer_family_id, timer_family_spec in (
+            payload.timer_family_specs.items()):
           stage.timers.add((transform.unique_name, timer_family_id))
+          timer_family_spec.timer_family_coder_id = (
+              pipeline_context.maybe_length_prefixed_coder(
+                  timer_family_spec.timer_family_coder_id))
+        if payload.timer_family_specs:
+          transform.spec.payload = payload.SerializeToString()
     yield stage
 
 

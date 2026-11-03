@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -536,7 +537,7 @@ public class BoundedQueueExecutor {
    * (e.g. retries or finalizations). {@code elementsOutstanding} counts non-shell work items, so
    * comparing {@code workQueue.size()} against {@code elementsOutstanding +
    * maximumElementsOutstanding} means there is at least {@code maximumElementsOutstanding} closed
-   * stale shells before running an O(n) {@code removeIf}.
+   * stale shells before running an O(n) purge scan.
    */
   private void onWorkStolen() {
     if (workQueue.size() <= (long) elementsOutstanding.get() + maximumElementsOutstanding
@@ -545,7 +546,21 @@ public class BoundedQueueExecutor {
     }
     try {
       if (!executor.isShutdown()) {
-        workQueue.removeIf(BoundedQueueExecutor::isStaleShell);
+        // Avoid LinkedBlockingQueue#removeIf, whose bulkRemove implementation reads the
+        // non-volatile head and Node.item fields without holding takeLock (causing TSAN data races
+        // with concurrent worker dequeues). LinkedBlockingQueue's iterator acquires fullyLock() on
+        // all queue/node accesses while still unlinking in amortized O(1) time per element.
+        boolean removed = false;
+        Iterator<Runnable> it = workQueue.iterator();
+        while (it.hasNext()) {
+          if (isStaleShell(it.next())) {
+            it.remove();
+            removed = true;
+          }
+        }
+        if (removed && executor.isShutdown()) {
+          executor.purge();
+        }
       }
     } finally {
       purgingStaleShells.set(false);

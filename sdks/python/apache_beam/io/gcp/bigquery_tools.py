@@ -62,7 +62,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import BigQueryOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -500,10 +499,10 @@ def _build_dataset_encryption_config(kms_key):
 
 
 def _quota_project_id_from_options(pipeline_options):
-  """Returns --quota_project_id from pipeline options, if any."""
+  """Returns --bigquery_quota_project_id from pipeline options, if any."""
   if pipeline_options is None:
     return None
-  return pipeline_options.view_as(GoogleCloudOptions).quota_project_id
+  return pipeline_options.view_as(BigQueryOptions).bigquery_quota_project_id
 
 
 def create_bq_storage_client(quota_project_id=None):
@@ -1654,7 +1653,7 @@ class BigQueryWrapper(object):
 
     Args:
       pipeline_options: Pipeline options containing GCP configuration.
-        The quota_project_id is read from GoogleCloudOptions if set.
+        The quota project is read from --bigquery_quota_project_id if set.
     """
     return BigQueryWrapper(pipeline_options=pipeline_options)
 

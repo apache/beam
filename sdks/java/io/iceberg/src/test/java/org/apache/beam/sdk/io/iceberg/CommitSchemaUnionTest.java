@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -137,6 +138,13 @@ public class CommitSchemaUnionTest {
   }
 
   private long commit(
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(commitVerdict(config, handling, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdict(
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
       CollectDistinctSchemas.SchemaGroup... schemas) {
@@ -811,6 +819,16 @@ public class CommitSchemaUnionTest {
       IncompatibleSchemaHandling handling,
       CommitSchemaUnion.NewTableSettings creation,
       CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(
+        commitVerdictTo(id, config, handling, creation, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdictTo(
+      TableIdentifier id,
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.NewTableSettings creation,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
     return CommitSchemaUnion.commit(
         catalog,
         id,
@@ -1005,14 +1023,17 @@ public class CommitSchemaUnionTest {
   @Test
   public void testMissingTableWithoutSchemasIsNotCreated() {
     TableIdentifier id = missing();
-    long result =
+    SchemaCommitVerdict result =
         CommitSchemaUnion.commit(
             catalog,
             id,
             new ArrayList<>(),
             settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
             CommitSchemaUnion.DEFAULT_COMMITTER);
-    assertEquals(CommitSchemaUnion.NO_TABLE, result);
+    assertTrue(result.refused());
+    assertEquals(
+        "the table does not exist and no file schema was read to create it from",
+        result.getRefusal());
     assertFalse(catalog.tableExists(id));
   }
 
@@ -1180,15 +1201,17 @@ public class CommitSchemaUnionTest {
     assertFalse(catalog.tableExists(id));
 
     // nothing valid to seed from: routed, and no table
-    long none =
-        commitTo(
+    SchemaCommitVerdict none =
+        commitVerdictTo(
             id,
             ALL,
             IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
             NO_CREATION,
             files(dotted, 1),
             files(caseDuplicate, 2));
-    assertEquals(CommitSchemaUnion.NO_TABLE, none);
+    assertTrue(none.refused());
+    assertEquals(
+        "the table does not exist and every file schema read was refused", none.getRefusal());
     assertFalse(catalog.tableExists(id));
 
     // the valid schema alone seeds the table
