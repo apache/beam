@@ -331,7 +331,8 @@ def read_from_pubsub(
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None,
-    publish_time_field: Optional[str] = None):
+    publish_time_field: Optional[str] = None,
+    max_read_time_seconds: Optional[int] = None):
   """Reads messages from Cloud Pub/Sub.
 
   Args:
@@ -383,11 +384,15 @@ def read_from_pubsub(
         units smaller than milliseconds) may be ignored.
     publish_time_field: Field to add to output messages with the Pub/Sub
       message publish time. If None, no such field is added.
+    max_read_time_seconds: Maximum time in seconds to read from Pub/Sub. Default
+      is forever.
   """
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
+  if max_read_time_seconds is not None and max_read_time_seconds <= 0:
+    raise ValueError('max_read_time_seconds must be positive.')
   if publish_time_field is not None and not publish_time_field.strip():
     raise ValueError('publish_time_field must be a non-empty field name.')
   has_publish_time_field = publish_time_field is not None
@@ -430,7 +435,8 @@ def read_from_pubsub(
           with_attributes=bool(
               attributes or attributes_map or has_publish_time_field),
           id_label=id_attribute,
-          timestamp_attribute=timestamp_attribute)
+          timestamp_attribute=timestamp_attribute,
+          max_read_time_seconds=max_read_time_seconds)
       | 'ParseMessage' >> beam.Map(mapper))
   output.element_type = schemas.named_tuple_from_schema(
       schema_pb2.Schema(fields=list(payload_schema.fields) + extra_fields))
