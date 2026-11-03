@@ -34,10 +34,15 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import combiners
+from apache_beam.transforms import userstate
+from apache_beam.transforms.core import CallableWrapperDoFn
 from apache_beam.typehints import decorators
+from apache_beam.typehints import typecheck
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 
@@ -298,6 +303,129 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
           | beam.ParDo(IntToInt())
           | beam.ParDo(StrToInt()))
       self.p.run().wait_until_finish()
+
+
+@with_input_types(int)
+@with_output_types(int)
+class _AddOneDoFn(beam.DoFn):
+  def process(self, element):
+    yield element + 1
+
+
+class RuntimeTypeCheckWrapperDoFnTest(unittest.TestCase):
+  def test_visitor_applies_single_wrapper_layer(self):
+    p = beam.Pipeline(options=PipelineOptions(runtime_type_check=True))
+    _ = (p | beam.Create([1, 2]) | 'TypedStep' >> beam.ParDo(_AddOneDoFn()))
+
+    p.visit(typecheck.TypeCheckVisitor())
+
+    wrapped_dofns = []
+
+    class _Collector(PipelineVisitor):
+      def visit_transform(self, applied_transform):
+        transform = applied_transform.transform
+        if isinstance(transform, beam.ParDo) and isinstance(
+            getattr(transform, 'fn', None), typecheck.AbstractDoFnWrapper):
+          wrapped_dofns.append(transform.fn)
+
+    p.visit(_Collector())
+
+    self.assertTrue(wrapped_dofns)
+    for wrapper in wrapped_dofns:
+      self.assertIsInstance(wrapper, typecheck.RuntimeTypeCheckWrapperDoFn)
+      self.assertNotIsInstance(wrapper.dofn, typecheck.AbstractDoFnWrapper)
+
+  def test_wrapper_labels_type_check_errors(self):
+    dofn = _AddOneDoFn()
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    with self.assertRaisesRegex(
+        typecheck.TypeCheckError,
+        r'Runtime type violation detected within ParDo\(MyStep\)'):
+      wrapper.process('not-an-int')
+
+  def test_wrapper_labels_output_type_check_error_once(self):
+    @with_output_types(int)
+    class BadOutputDoFn(beam.DoFn):
+      def process(self, element):
+        return ['not-an-int']
+
+    dofn = BadOutputDoFn()
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    with self.assertRaises(typecheck.TypeCheckError) as context:
+      wrapper.process(1)
+
+    prefix = 'Runtime type violation detected within ParDo(MyStep):'
+    error_message = str(context.exception)
+
+    self.assertEqual(error_message.count(prefix), 1)
+    self.assertIn('not-an-int', error_message)
+
+  def test_wrapper_preserves_results(self):
+    dofn = _AddOneDoFn()
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    self.assertEqual(list(wrapper.process(1)), [2])
+
+  def test_wrapper_preserves_bound_method_owner_with_varargs(self):
+    class MethodOwner:
+      pass
+
+    class BoundMethod(MethodOwner):
+      @with_input_types(MethodOwner, int)
+      @with_output_types(Iterable[int])
+      def process(*args):
+        return [args[-1]]
+
+    owner = BoundMethod()
+    dofn = CallableWrapperDoFn(owner.process)
+
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'MyStep')
+
+    self.assertIs(wrapper._process_fn_owner, owner)
+    self.assertEqual(list(wrapper.process(1)), [1])
+
+
+def _make_stateful_dofn():
+  count_state = userstate.CombiningValueStateSpec(
+      'count', combiners.CountCombineFn())
+
+  class _CountingStatefulDoFn(beam.DoFn):
+    def process(self, element, count=beam.DoFn.StateParam(count_state)):
+      count.add(1)
+      yield element[1]
+
+  return _CountingStatefulDoFn()
+
+
+class RuntimeTypeCheckStatefulDoFnTest(unittest.TestCase):
+  def test_wrapper_does_not_cache_bound_process(self):
+    dofn = _make_stateful_dofn()
+    wrapper = typecheck.RuntimeTypeCheckWrapperDoFn(
+        dofn, dofn.get_type_hints(), 'Step')
+
+    for attr, value in wrapper.__dict__.items():
+      self.assertFalse(
+          hasattr(value, '__self__'), 'wrapper caches bound method %r' % attr)
+
+    userstate.validate_stateful_dofn(wrapper)
+
+  def test_stateful_dofn_with_runtime_type_check(self):
+    options = PipelineOptions()
+    options.view_as(TypeOptions).runtime_type_check = True
+
+    with TestPipeline(options=options) as p:
+      result = (
+          p
+          | beam.Create([('k', 1), ('k', 2), ('k', 3)])
+          | beam.ParDo(_make_stateful_dofn()))
+
+      assert_that(result, equal_to([1, 2, 3]))
 
 
 if __name__ == '__main__':
