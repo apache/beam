@@ -196,7 +196,7 @@ public class UserParDoFnFactoryTest {
     parDoFn.startBundle(rcvr);
     parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
 
-    TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
+    TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getActiveDoFnInfo().getDoFn();
     assertThat(fn, not(theInstance(initialFn)));
 
     parDoFn.finishBundle();
@@ -217,7 +217,8 @@ public class UserParDoFnFactoryTest {
 
     secondParDoFn.startBundle(rcvr);
     secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("spam"));
-    TestDoFn reobtainedFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
+    TestDoFn reobtainedFn =
+        (TestDoFn) ((SimpleParDoFn) secondParDoFn).getActiveDoFnInfo().getDoFn();
     secondParDoFn.finishBundle();
     assertThat(reobtainedFn.state, equalTo(TestDoFn.State.FINISHED));
 
@@ -256,13 +257,13 @@ public class UserParDoFnFactoryTest {
     parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
 
     // Must be after the first call to process element for reallyStartBundle to have been called
-    TestDoFn firstDoFn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
+    TestDoFn firstDoFn = (TestDoFn) ((SimpleParDoFn) parDoFn).getActiveDoFnInfo().getDoFn();
 
     secondParDoFn.startBundle(rcvr);
     secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("spam"));
 
     // Must be after the first call to process element for reallyStartBundle to have been called
-    TestDoFn secondDoFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
+    TestDoFn secondDoFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getActiveDoFnInfo().getDoFn();
 
     parDoFn.finishBundle();
     secondParDoFn.finishBundle();
@@ -292,7 +293,7 @@ public class UserParDoFnFactoryTest {
 
     parDoFn.startBundle(rcvr);
     parDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
-    TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getDoFnInfo().getDoFn();
+    TestDoFn fn = (TestDoFn) ((SimpleParDoFn) parDoFn).getActiveDoFnInfo().getDoFn();
 
     parDoFn.abort();
     assertThat(fn.state, equalTo(TestDoFn.State.TORN_DOWN));
@@ -310,7 +311,7 @@ public class UserParDoFnFactoryTest {
 
     secondParDoFn.startBundle(rcvr);
     secondParDoFn.processElement(WindowedValues.valueInGlobalWindow("foo"));
-    TestDoFn secondFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getDoFnInfo().getDoFn();
+    TestDoFn secondFn = (TestDoFn) ((SimpleParDoFn) secondParDoFn).getActiveDoFnInfo().getDoFn();
 
     assertThat(secondFn, not(theInstance(fn)));
     assertThat(fn.state, equalTo(TestDoFn.State.TORN_DOWN));
