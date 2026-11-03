@@ -81,8 +81,8 @@ class FileBasedSink(iobase.Sink):
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
         :class:`~apache_beam.options.value_provider.ValueProvider`, or if
-        **compression_type** is not member of
-        :class:`~apache_beam.io.filesystem.CompressionTypes`.
+        **num_shards** is not an :class:`int`, or if **compression_type** is not
+        member of :class:`~apache_beam.io.filesystem.CompressionTypes`.
       ValueError: if **shard_name_template** is not of expected
         format.
     """
@@ -94,6 +94,8 @@ class FileBasedSink(iobase.Sink):
       raise TypeError(
           'file_name_suffix must be a string or ValueProvider;'
           'got %r instead' % file_name_suffix)
+    if not isinstance(num_shards, int):
+      raise TypeError('num_shards must be an int; got %r instead' % num_shards)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError(

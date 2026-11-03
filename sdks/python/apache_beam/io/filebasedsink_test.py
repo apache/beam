@@ -155,6 +155,17 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_file_sink_rejects_as_singleton_num_shards(self):
+    pipeline = beam.Pipeline()
+    count = (pipeline | beam.Create([1, 2]) | beam.combiners.Count.Globally())
+    num_shards = beam.pvalue.AsSingleton(count)
+
+    with self.assertRaisesRegex(TypeError, 'num_shards must be an int'):
+      MyFileBasedSink(
+          os.path.join(self._new_tempdir(), 'output'),
+          coder=coders.ToBytesCoder(),
+          num_shards=num_shards)
+
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
     sink = MyFileBasedSink(
