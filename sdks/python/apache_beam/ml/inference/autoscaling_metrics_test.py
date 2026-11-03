@@ -65,6 +65,8 @@ class AutoscalingMetricsTest(unittest.TestCase):
         'vllm:request_success_total{finished_reason="length"} 5.0\n'
         # A metric whose name merely starts with the requested one is ignored.
         'vllm:request_success_total_created 1.7e9\n'
+        # Values that aren't numbers are skipped.
+        'vllm:request_success_total{finished_reason="abort"} n/a\n'
         # Optional trailing timestamps are ignored.
         'nv_inference_request_success{model="a"} 3 1700000000000\n'
         # Quoted label values may contain commas, braces and escapes.
@@ -83,6 +85,19 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertIsNone(
         parse(prom_text, 'labeled', label_filter={'path': 'other'}))
 
+  def test_scrape_prometheus_metrics(self):
+    def fake_urlopen(url, timeout):
+      self.assertEqual(url, 'http://localhost:8000/metrics')
+      self.assertEqual(timeout, 5.0)
+      return io.BytesIO(b'running 4\n')
+
+    with mock.patch('urllib.request.urlopen', side_effect=fake_urlopen):
+      self.assertEqual(
+          autoscaling_metrics.scrape_prometheus_metrics(8000), 'running 4\n')
+    # Any failure (e.g. the server is restarting) -> None.
+    with mock.patch('urllib.request.urlopen', side_effect=OSError('refused')):
+      self.assertIsNone(autoscaling_metrics.scrape_prometheus_metrics(8000))
+
   def test_capacity_estimator(self):
     estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
         multiplier=2.0, min_value=1, window_secs=60.0, running_percentile=90.0)
@@ -100,8 +115,25 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertIsNone(estimator.update(5.0, 2.0, now=105.0))
     # Non-increasing timestamp -> skipped.
     self.assertIsNone(estimator.update(9.0, 2.0, now=105.0))
-    # delta=4 over 5s with running=2 -> mu=0.4, p90=2 -> 0.8 -> min_value 1.
-    self.assertAlmostEqual(estimator.update(13.0, 2.0, now=110.0), 1.0)
+    # Negative gauge reading -> skipped.
+    self.assertIsNone(estimator.update(9.0, -1.0, now=107.0))
+    # delta=4 over 3s with running=2 -> mu=0.67, p90=2 -> 1.33.
+    self.assertAlmostEqual(estimator.update(13.0, 2.0, now=110.0), 4 / 3)
+
+  def test_capacity_estimator_running_percentile(self):
+    def run(running_percentile):
+      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+          min_value=0, min_requests=0, running_percentile=running_percentile)
+      estimator.update(0.0, 1.0, now=0.0)
+      # Ten 1s intervals with 1..10 in flight, each completing as many
+      # requests: sum(completed) == sum(running * secs), so mu = 1.
+      for i in range(1, 11):
+        value = estimator.update(i * (i + 1) / 2, float(i), now=float(i))
+      return value
+
+    self.assertEqual(run(90.0), 9.0)  # Nearest rank: the 9th of 10.
+    self.assertEqual(run(50.0), 5.0)
+    self.assertEqual(run(100.0), 10.0)
 
   def test_capacity_estimator_warmup_min_requests_and_timeout(self):
     # Requires >= 3 completed requests before the 10s warmup timeout.
@@ -171,11 +203,11 @@ class AutoscalingMetricsTest(unittest.TestCase):
         run('lifetime_max', multiplier=0.5), [None, 1.0, 3.0, None, 3.0])
 
   def test_capacity_estimator_max_modes_differ_once_peak_leaves_window(self):
-    def run(aggregation):
+    def run(aggregation, window_secs=10.0):
       estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
           min_value=0,
           min_requests=0,
-          window_secs=10.0,
+          window_secs=window_secs,
           aggregation=aggregation)
       # Rates: 6 req/s, then 1 req/s for three intervals.
       samples = [(0, 1, 0.0), (30, 1, 5.0), (35, 1, 10.0), (40, 1, 15.0),
@@ -185,6 +217,8 @@ class AutoscalingMetricsTest(unittest.TestCase):
     # The 6 req/s interval ended at t=5, outside the 10s window at t=20.
     self.assertEqual(run('window_max'), 1.0)
     self.assertEqual(run('lifetime_max'), 6.0)
+    # window_secs=0 keeps every interval.
+    self.assertEqual(run('window_max', window_secs=0), 6.0)
 
   def test_capacity_estimator_completion_rate_works_without_in_flight(self):
     """A server whose gauge always reads 0 still gets a completion rate."""
@@ -202,7 +236,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
       autoscaling_metrics.CompletionRateCapacityEstimator(aggregation='p90')
 
   def test_publisher_publishes_signal_values_as_is(self):
-    """Each capacity is published rounded; None skips the tick."""
+    """Each capacity is published rounded; None or an error skips the tick."""
     cell = (
         autoscaling_metrics.MetricsEnvironment.process_wide_container().
         get_distribution(
@@ -212,7 +246,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     cell.reset()
     self.addCleanup(cell.reset)
     published = []
-    signal_values = [3.4, None, 7.6]
+    signal_values = [3.4, None, RuntimeError('scrape broke'), 7.6]
 
     def load_signal_fn(port):
       del port
@@ -223,7 +257,10 @@ class AutoscalingMetricsTest(unittest.TestCase):
         pub._stop_event.set()  # pylint: disable=protected-access
         return None
       published.append(None)
-      return signal_values.pop(0)
+      value = signal_values.pop(0)
+      if isinstance(value, Exception):
+        raise value
+      return value
 
     pub = _publisher(
         'sink_test',
@@ -231,9 +268,11 @@ class AutoscalingMetricsTest(unittest.TestCase):
         config=autoscaling_metrics.AutoscalingMetricConfig(
             poll_interval_secs=0, load_signal_fn=load_signal_fn))
     # Run the polling loop on this thread so the test is deterministic.
-    pub._run()  # pylint: disable=protected-access
-    # 3.4 -> 3; None leaves 3 in place; 7.6 -> 8.
-    self.assertEqual(published, [3, 3, 8])
+    with self.assertLogs(level='ERROR') as logs:
+      pub._run()  # pylint: disable=protected-access
+    self.assertIn('num_loaded_models_sink_test', logs.output[0])
+    # 3.4 -> 3; None and the error leave 3 in place; 7.6 -> 8.
+    self.assertEqual(published, [3, 3, 3, 8])
     self.assertEqual(cell.get_cumulative().count, 1)
 
   def test_publish_resets_process_wide_distribution_cell(self):
@@ -273,9 +312,16 @@ class AutoscalingMetricsTest(unittest.TestCase):
       self.assertTrue(second._thread.is_alive())
       self.assertTrue(other._thread.is_alive())
       self.assertIs(active['num_loaded_models_reload'], second)
-      # Stopping the stale one again must not unregister the new owner.
+      # Starting again is a no-op.
+      thread = second._thread
+      second.start()
+      self.assertIs(second._thread, thread)
+      # The stale one can neither take the tag back nor unregister the owner.
+      first.start()
+      self.assertIsNone(first._thread)
       first.stop()
       self.assertIs(active['num_loaded_models_reload'], second)
+      self.assertTrue(second._thread.is_alive())
     finally:
       first.stop()
       second.stop()

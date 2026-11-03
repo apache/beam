@@ -214,25 +214,36 @@ class CompletionRateCapacityEstimator:
   """Estimates how many requests a worker can handle.
 
   Feed it periodic samples of a model server's completed-requests counter and
-  in-flight gauge through :meth:`update`. Each sample closes an interval;
+  in-flight gauge through :meth:`update`. Each sample closes an interval, and
   ``aggregation`` picks how the intervals become an estimate. Every mode
-  returns ``max(min_value, value * multiplier)``.
+  returns ``max(min_value, value * multiplier)``. This class does no I/O.
 
   ``'concurrency'`` (the default) computes, over a trailing ``window_secs``
   window::
 
       mu          = sum(completed) / sum(running * secs)
-      value       = mu * percentile(running, running_percentile)
+      running_ref = percentile(running, running_percentile)
+      value       = mu * running_ref
 
   ``mu`` is the throughput of one in-flight slot (roughly ``1 / latency``),
   computed as a ratio of windowed sums so discrete completions don't make it
-  jumpy. The percentile (``running_ref``) is the concurrency the worker
-  typically sustains; the p90 rather than the max avoids latching onto rare
-  backlog spikes. Their product is the worker's sustained throughput.
+  jumpy. ``running_ref`` is the concurrency the worker typically sustains; the
+  p90 rather than the max avoids latching onto rare backlog spikes. Their
+  product is the worker's sustained throughput.
 
-  The other modes use the raw completion rate and ignore concurrency:
+  Normalizing by concurrency keeps the estimate steady when load changes: right
+  after a scaling event, when the runner rebalances work and a worker is
+  briefly starved, its raw completion rate collapses, but ``mu`` and
+  ``running_ref`` hold, so the estimate does not crater and trigger a downscale
+  spiral. This mode suits servers whose requests take long enough to be seen
+  in flight by periodic sampling, such as LLM servers with latencies of a
+  second or more; for millisecond latencies the gauge almost always reads 0.
 
-  * ``'window_mean'``: completions per second over the trailing window.
+  The other modes use the raw completion rate and ignore concurrency, so
+  they also work for millisecond-latency servers:
+
+  * ``'window_mean'``: completions per second over the trailing window. Drops
+    when a worker is starved.
   * ``'window_max'``: the highest single-interval completion rate in the
     trailing window.
   * ``'lifetime_max'``: the highest single-interval completion rate seen since
@@ -241,28 +252,13 @@ class CompletionRateCapacityEstimator:
   Single-interval rates are noisy when requests take seconds, since a few
   completions can land in one interval; the max modes latch onto such bursts.
 
-  Units: every mode is in requests per second. The runner reads the published value as how many requests one
-  worker can handle, so each worker is sized for about one second of its
-  sustained throughput; ``multiplier`` scales that, e.g. 2.0 sizes each worker
-  for two seconds' worth of requests.
-
-  Normalizing by concurrency keeps the estimate steady when load changes: right
-  after a scaling event, when the runner rebalances work and a worker is
-  briefly starved, its raw completion rate collapses, but ``mu`` and
-  ``running_ref`` hold, so the estimate does not crater and trigger a downscale
-  spiral. ``'window_mean'`` has no such protection; the max modes avoid it by
-  holding the peak.
-
-  ``'concurrency'`` suits servers whose requests take long enough to be seen
-  in flight by periodic sampling, such as LLM servers with latencies of a
-  second or more. For servers with millisecond latencies the in-flight gauge
-  reads almost always 0; use a completion-rate mode, or supply a different
-  signal through ``AutoscalingMetricConfig.load_signal_fn``.
-
   In every mode, intervals with no completions and nothing in flight are
   skipped, so idle periods don't drag the estimate down.
 
-  The estimate is already smoothed; publish it as is. This class does no I/O.
+  Units: every mode is in requests per second. The runner reads the published
+  value as how many requests one worker can handle, so each worker is sized
+  for about one second of its sustained throughput; ``multiplier`` scales
+  that, e.g. 2.0 sizes each worker for two seconds' worth of requests.
 
   Args:
     multiplier: Dimensionless factor on the estimate; larger means fewer
@@ -341,7 +337,7 @@ class CompletionRateCapacityEstimator:
       cutoff = now - self._window_secs
       self._samples = [s for s in self._samples if s.end_ts >= cutoff]
     if completed == 0 and running == 0:
-      # Skip fully idle intervals so troughs don't drag running_ref to 0.
+      # Skip fully idle intervals so idle periods don't drag the estimate down.
       return None
     self._samples.append(
         _Interval(now, float(completed), float(running), float(secs)))
@@ -490,9 +486,11 @@ class NumLoadedModelsPublisher:
   def start(self) -> None:
     """Starts the background polling thread.
 
-    The metric stays absent until the first sample is published.
+    The metric stays absent until the first sample is published. Does nothing
+    if already started or once stopped, so a superseded publisher can't take
+    its metric back from the newer one; create a new publisher instead.
     """
-    if self._thread is not None:
+    if self._thread is not None or self._stop_event.is_set():
       return
     with NumLoadedModelsPublisher._active_lock:
       previous = NumLoadedModelsPublisher._active.get(self._metric_name)
