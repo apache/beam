@@ -1409,17 +1409,21 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
+      closeAllWritersAndOutputFileResults(writers, c);
+      // Exactly one of these cases applies, and records are emitted in arrival order:
+      // - Direct mode: the buffer was flushed when the threshold was crossed, so only records
+      //   that exceeded the per-bundle writer limit remain (in `spilled`).
+      // - Grouped mode: nothing was written directly, so every record is still in `buffer`.
       if (directMode) {
         directBundles.inc();
+        for (BufferedRecord<UserT> record : spilled) {
+          c.output(smallBundlesTag, record.value, record.timestamp, record.window);
+        }
       } else if (!buffer.isEmpty()) {
         groupedBundles.inc();
-      }
-      closeAllWritersAndOutputFileResults(writers, c);
-      for (BufferedRecord<UserT> record : buffer) {
-        c.output(smallBundlesTag, record.value, record.timestamp, record.window);
-      }
-      for (BufferedRecord<UserT> record : spilled) {
-        c.output(smallBundlesTag, record.value, record.timestamp, record.window);
+        for (BufferedRecord<UserT> record : buffer) {
+          c.output(smallBundlesTag, record.value, record.timestamp, record.window);
+        }
       }
       buffer.clear();
       spilled.clear();
