@@ -57,7 +57,7 @@ For tests, use `TestPipeline` in place of `Pipeline` when you create the pipelin
 You create a `TestPipeline` as follows:
 
 {{< highlight java >}}
-Pipeline p = TestPipeline.create();
+@Rule public final transient TestPipeline p = TestPipeline.create();
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -162,10 +162,11 @@ public class CountTest {
 
   static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-  public void testCount() {
-    // Create a test pipeline.
-    Pipeline p = TestPipeline.create();
+  // Create a test pipeline.
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
+  @Test
+  public void testCount() {
     // Create an input PCollection.
     PCollection<String> input = p.apply(Create.of(WORDS));
 
@@ -285,7 +286,7 @@ You can use the test classes in the Beam SDKs (such as `TestPipeline` and `PAsse
 
 The following example code shows how one might test the [WordCount example pipeline](/get-started/wordcount-example/). `WordCount` usually reads lines from a text file for input data; instead, the test creates a `List<String>` containing some text lines and uses a `Create` transform to create an initial `PCollection`.
 
-`WordCount`'s final transform (from the composite transform `CountWords`) produces a `PCollection<String>` of formatted word counts suitable for printing. Rather than write that `PCollection` to an output text file, our test pipeline uses `PAssert` to verify that the elements of the `PCollection` match those of a static `String` array containing our expected output data.
+`WordCount`'s final transform formats the word counts from the composite transform `CountWords` into a `PCollection<String>` suitable for printing. Rather than write that `PCollection` to an output text file, our test pipeline uses `PAssert` to verify that the elements of the `PCollection` match those of a static `String` array containing our expected output data.
 
 {{< highlight java >}}
 public class WordCountTest {
@@ -304,13 +305,15 @@ public class WordCountTest {
         "hi: 5", "there: 1", "sue: 2", "bob: 2"};
 
     // Example test that tests the pipeline's transforms.
-
+    @Test
     public void testCountWords() throws Exception {
       // Create a PCollection from the WORDS static input data.
       PCollection<String> input = p.apply(Create.of(WORDS));
 
-      // Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
-      PCollection<String> output = input.apply(new CountWords());
+      // Run ALL the pipeline's transforms (in this case, the CountWords
+      // composite transform and the formatting step).
+      PCollection<String> output =
+          input.apply(new CountWords()).apply(MapElements.via(new FormatAsTextFn()));
 
       // Assert that the output PCollection matches the COUNTS_ARRAY known static output data.
       PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
