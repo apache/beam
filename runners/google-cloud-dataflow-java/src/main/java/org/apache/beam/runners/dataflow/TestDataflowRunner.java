@@ -589,11 +589,19 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
         if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          String messageText = message.getMessageText();
+          if (messageText != null && messageText.contains("The service will retry")) {
+            LOG.info(
+                "Dataflow job {} reported transient error that the service will retry: {}",
+                job.getJobId(),
+                messageText);
+            continue;
+          }
           LOG.info(
               "Dataflow job {} threw exception. Failure message was: {}",
               job.getJobId(),
-              message.getMessageText());
-          errorMessage.append(message.getMessageText());
+              messageText);
+          errorMessage.append(messageText);
           hasSeenError = true;
         }
       }
