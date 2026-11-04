@@ -46,14 +46,15 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRangeTracker;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -235,6 +236,8 @@ public class QueryChangeStreamAction {
           isBoundedRestriction && changeStreamQueryEndTimestamp.equals(endTimestamp);
     }
 
+    @Nullable Timestamp lastProcessedTimestamp = null;
+
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token,
@@ -322,14 +325,23 @@ public class QueryChangeStreamAction {
           }
 
           if (maybeContinuation.isPresent()) {
+            if (record instanceof HeartbeatRecord
+                && maybeContinuation.get().equals(ProcessContinuation.resume())
+                && !interrupter.tryInterrupt(record.getRecordTimestamp())) {
+              lastProcessedTimestamp = record.getRecordTimestamp();
+            }
             LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
-            bundleFinalizer.afterBundleCommit(
-                Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                updateWatermarkCallback(
-                    PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
-                    watermarkEstimator));
+            final Timestamp watermark = getLastClaimedTimestamp(tracker, lastProcessedTimestamp);
+            if (watermark != null) {
+              bundleFinalizer.afterBundleCommit(
+                  Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+                  updateWatermarkCallback(
+                      PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
+                      watermark));
+            }
             return maybeContinuation.get();
           }
+          lastProcessedTimestamp = record.getRecordTimestamp();
         }
       }
     } catch (SpannerException e) {
@@ -368,11 +380,13 @@ public class QueryChangeStreamAction {
       // This works around spanner backend issue where some child partition records
       // were not sent. In other cases since heartbeating is regular the last
       // received timestamp will not be far behind the query end timestamp.
-      bundleFinalizer.afterBundleCommit(
-          Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(
-              PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
-              watermarkEstimator));
+      final Timestamp watermark = getLastClaimedTimestamp(tracker, lastProcessedTimestamp);
+      if (watermark != null) {
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
+            updateWatermarkCallback(
+                PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName), watermark));
+      }
       LOG.debug("[{}] Rescheduling partition to resume reading", token);
       return ProcessContinuation.resume();
     }
@@ -399,14 +413,24 @@ public class QueryChangeStreamAction {
     return ProcessContinuation.stop();
   }
 
+  private @Nullable Timestamp getLastClaimedTimestamp(
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
+      @Nullable Timestamp lastProcessedTimestamp) {
+    if (tracker instanceof TimestampRangeTracker) {
+      Timestamp lastClaimed = ((TimestampRangeTracker) tracker).getLastClaimedPosition();
+      if (lastClaimed != null) {
+        return lastClaimed;
+      }
+    }
+    return lastProcessedTimestamp;
+  }
+
   private BundleFinalizer.Callback updateWatermarkCallback(
-      String composedToken, WatermarkEstimator<Instant> watermarkEstimator) {
+      String composedToken, Timestamp watermark) {
     return () -> {
-      final Instant watermark = watermarkEstimator.currentWatermark();
       LOG.debug("[{}] Updating current watermark to {}", composedToken, watermark);
       try {
-        partitionMetadataDao.updateWatermark(
-            composedToken, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
+        partitionMetadataDao.updateWatermark(composedToken, watermark);
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.debug(

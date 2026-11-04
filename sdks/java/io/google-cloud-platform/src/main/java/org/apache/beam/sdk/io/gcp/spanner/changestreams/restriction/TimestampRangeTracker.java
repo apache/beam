@@ -261,6 +261,10 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     return range;
   }
 
+  public @Nullable Timestamp getLastClaimedPosition() {
+    return lastClaimedPosition;
+  }
+
   @Override
   public IsBounded isBounded() {
     return IsBounded.BOUNDED;
