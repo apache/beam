@@ -164,6 +164,11 @@ def get_same_named_nested_functions_with_complex_consts(branch):
   return nested_fn
 
 
+def get_same_nesteda_lambdas_different_param_kinds():
+  d = {"a": lambda x, y: (x, y), "b": lambda x, *y: (x, y)}
+  return d["a"], d["b"]
+
+
 @function_decorator
 def add_one(x):
   return x + 1
@@ -475,12 +480,27 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     mod_name = "apache_beam.internal.test_data.module_1"
     saved = sys.modules.pop(mod_name, None)
     try:
-      with self.assertRaisesRegex(AttributeError,
-                                  "Could not find code object with path"):
-        code_object_pickler.get_code_from_identifier(mod_name)
+      code = code_object_pickler.get_code_from_identifier(
+          f"{mod_name}.my_function.__code__")
+      self.assertEqual(code, module_1.my_function.__code__)
     finally:
       if saved is not None:
         sys.modules[mod_name] = saved
+      else:
+        sys.modules.pop(mod_name, None)
+
+  def test_closures_with_different_param_kinds_have_distinct_identifiers(self):
+    lambda_pos, lamdba_vararg = get_same_names_lambdas_different_apram_kinds()
+    path_pos = code_object_pickler.get_code_object_identifier_(lambda_pos)
+    path_vararg = code_object_pickler.get_code_object_identitier(lambda_vararg)
+
+    self.asserNotEqual(path_pos, path_vararg)
+    self.assertEqual(
+      code_object_pickler.get_code_from_identifier(path_pos),
+      lamnbda_pos.__code__,)
+    sel.assertEqual(
+      code_object_pickler.get_code_from_identifier(path_vararg),
+      lambda_vararg.__code__,)
 
   def test_unresolvable_local_and_qualname_edge_cases(self):
     def mismatched_local():
