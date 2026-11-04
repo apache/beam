@@ -655,7 +655,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final StringBuilder errorMessage;
     private final StringBuilder retryableErrorMessage;
     private volatile boolean hasSeenError;
-    private volatile boolean hasSeenRetryableInfrastructureError;
+    private boolean hasSeenRetryableInfrastructureError;
 
     ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
@@ -680,16 +680,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   + " waiting for it to recover: {}",
               job.getJobId(),
               text);
-          synchronized (retryableErrorMessage) {
-            retryableErrorMessage.append(text);
-          }
+          retryableErrorMessage.append(text);
           hasSeenRetryableInfrastructureError = true;
         } else {
           LOG.info(
               "Dataflow job {} threw exception. Failure message was: {}", job.getJobId(), text);
-          synchronized (errorMessage) {
-            errorMessage.append(text);
-          }
+          errorMessage.append(text);
           hasSeenError = true;
         }
       }
@@ -709,14 +705,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * error messages. Empty if no error was reported at all.
      */
     String getErrorMessage() {
-      synchronized (errorMessage) {
-        if (errorMessage.length() > 0) {
-          return errorMessage.toString();
-        }
-      }
-      synchronized (retryableErrorMessage) {
-        return retryableErrorMessage.toString();
-      }
+      return errorMessage.length() > 0 ? errorMessage.toString() : retryableErrorMessage.toString();
     }
 
     /**
