@@ -353,7 +353,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.10'
+python_requires = '>=3.11'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
@@ -626,9 +626,6 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p310_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
           # xgboost_dependency includes datatable, which only has wheels for
           # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
           'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
