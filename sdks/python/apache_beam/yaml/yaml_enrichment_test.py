@@ -100,8 +100,9 @@ class EnrichmentTransformTest(unittest.TestCase):
     ]:
       with self.subTest(handler=handler_name):
         with (mock.patch.object(yaml_enrichment, 'Enrichment', _FakeEnrichment),
-              mock.patch.object(yaml_enrichment, attr_name, _FakeHandler) as
-              mock_cls):
+              mock.patch.object(yaml_enrichment,
+                                attr_name,
+                                side_effect=_FakeHandler) as mock_cls):
           with beam.Pipeline(options=_enrichment_options()) as p:
             result = (
                 p
@@ -111,7 +112,7 @@ class EnrichmentTransformTest(unittest.TestCase):
                     handler_config={'row_key': 'id'},
                     timeout=45))
             assert_that(result, equal_to([Row(id='k1', enriched_timeout=45)]))
-          self.assertIs(yaml_enrichment.__dict__[attr_name], mock_cls)
+          mock_cls.assert_called_once_with(row_key='id')
 
   def test_enrichment_requires_experimental_flag(self):
     with self.assertRaisesRegex(ValueError, 'Enrichment.*experimental'):
