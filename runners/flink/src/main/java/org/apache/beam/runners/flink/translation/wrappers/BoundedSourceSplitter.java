@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LongSummaryStatistics;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -159,28 +160,30 @@ public final class BoundedSourceSplitter {
       throws Exception {
     int readers = Math.max(1, parallelism);
     long maxSplitSizeBytes = maxSplitSizeBytes(source, options);
-    long perReaderTargetBytes =
-        Math.max(1L, estimatedSizeBytes / ((long) readers * MIN_SPLITS_PER_READER));
-    long minSplitSizeBytes = Math.min(MIN_SPLIT_SIZE_BYTES, perReaderTargetBytes);
-    long desiredSizeBytes =
-        Math.min(Math.max(1L, estimatedSizeBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
+    long desiredSizeBytes;
+    if (estimatedSizeBytes <= 0 || estimatedSizeBytes == Long.MAX_VALUE) {
+      // The size is unknown: rather than asking for 1 byte or exabyte splits, ask for splits of a
+      // reasonable size and let refine() adjust them from their actual sizes.
+      desiredSizeBytes = Math.min(MIN_SPLIT_SIZE_BYTES, maxSplitSizeBytes);
+    } else {
+      desiredSizeBytes =
+          Math.min(Math.max(1L, estimatedSizeBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
+    }
 
     List<SizedSource<T>> splits = sized(source.split(desiredSizeBytes, options), options);
     int initialSplits = splits.size();
 
-    // Aim for MIN_SPLITS_PER_READER splits per reader. This also handles sources (e.g. BigQuery)
-    // that return splits way larger than requested that can still be split further.
-    long targetSizeBytes =
-        Math.max(Math.min(desiredSizeBytes, perReaderTargetBytes), minSplitSizeBytes);
-    splits = resplitLargerThan(splits, options, targetSizeBytes);
-    if (allSizesKnown(splits)) {
-      long minTargetBytes =
-          Math.max(
-              minSplitSizeBytes,
-              estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
-      splits = balanceSizes(splits, options, minTargetBytes, maxSplitSizeBytes, MAX_RESPLIT_ROUNDS);
-      splits = balanceSplitCount(splits, options, readers, minSplitSizeBytes);
-      splits = orderForRoundRobin(splits, readers);
+    // Refining needs the size of every split. The target sizes are derived from their total rather
+    // than from estimatedSizeBytes, which may be unknown (0, negative or Long.MAX_VALUE) or
+    // inaccurate even when the splits have known sizes. A total that overflows is unknown too.
+    Optional<Long> totalBytes = totalSize(splits);
+    if (totalBytes.isPresent()) {
+      splits = refine(splits, options, numSplits, readers, totalBytes.get(), maxSplitSizeBytes);
+    } else {
+      LOG.info(
+          "Not re-splitting or balancing the {} splits of {}: their total size is unknown",
+          splits.size(),
+          source);
     }
 
     LOG.info(
@@ -199,6 +202,61 @@ public final class BoundedSourceSplitter {
       result.add(split.source);
     }
     return result;
+  }
+
+  /**
+   * Re-splits and balances {@code splits}, whose sizes are all known and add up to {@code
+   * totalBytes}, for {@code readers} readers.
+   */
+  private static <T> List<SizedSource<T>> refine(
+      List<SizedSource<T>> splits,
+      PipelineOptions options,
+      int numSplits,
+      int readers,
+      long totalBytes,
+      long maxSplitSizeBytes) {
+    long perReaderTargetBytes = Math.max(1L, totalBytes / ((long) readers * MIN_SPLITS_PER_READER));
+    long minSplitSizeBytes = Math.min(MIN_SPLIT_SIZE_BYTES, perReaderTargetBytes);
+    long desiredSizeBytes =
+        Math.min(Math.max(1L, totalBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
+
+    // Aim for MIN_SPLITS_PER_READER splits per reader. This also handles sources (e.g. BigQuery)
+    // that return splits way larger than requested that can still be split further.
+    long targetSizeBytes =
+        Math.max(Math.min(desiredSizeBytes, perReaderTargetBytes), minSplitSizeBytes);
+    List<SizedSource<T>> resplit = resplitLargerThan(splits, options, targetSizeBytes);
+    if (allSizesKnown(resplit)) {
+      long minTargetBytes =
+          Math.max(
+              minSplitSizeBytes,
+              totalBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
+      List<SizedSource<T>> balanced =
+          balanceSizes(resplit, options, minTargetBytes, maxSplitSizeBytes, MAX_RESPLIT_ROUNDS);
+      balanced = balanceSplitCount(balanced, options, readers, minSplitSizeBytes);
+      return orderForRoundRobin(balanced, readers);
+    } else {
+      return resplit;
+    }
+  }
+
+  /**
+   * The total size of {@code splits}, or empty when it is unknown: some split sizes are unknown, or
+   * their sum does not fit in a long.
+   */
+  private static Optional<Long> totalSize(List<? extends SizedSource<?>> splits) {
+    if (!allSizesKnown(splits)) {
+      return Optional.empty();
+    }
+    long total = 0;
+    for (SizedSource<?> split : splits) {
+      if (split.sizeBytes >= Long.MAX_VALUE - total) {
+        // Adding this split would reach Long.MAX_VALUE, which sources use for an unknown size.
+        return Optional.empty();
+      }
+      // The sum still fits in a long.
+      total += split.sizeBytes;
+    }
+    return Optional.of(total);
   }
 
   private static long maxSplitSizeBytes(BoundedSource<?> source, PipelineOptions options) {

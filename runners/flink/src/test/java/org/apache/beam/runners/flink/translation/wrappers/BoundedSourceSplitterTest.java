@@ -169,6 +169,52 @@ public class BoundedSourceSplitterTest {
     assertEquals(20, splits.size());
   }
 
+  @Test
+  public void testRefinesFromSplitSizesWhenTheEstimateIsUnknownOrWrong() throws Exception {
+    // The targets come from the split sizes, so an unknown estimate does not turn into 1 byte or
+    // exabyte targets, and a wrong one does not re-split the 8000 bytes into 1 byte splits.
+    for (long estimate : new long[] {0, -1, Long.MAX_VALUE, 1}) {
+      BoundedSource<Long> source = new CoarseSource(Collections.singletonList(range(0, 8000)));
+
+      List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 8, estimate);
+
+      assertEquals("estimate " + estimate, 16, splits.size());
+      assertEquals("estimate " + estimate, 8000, totalSize(splits));
+    }
+  }
+
+  @Test
+  public void testDoesNotAskForTinySplitsWhenTheEstimateIsUnknown() throws Exception {
+    // RangeSource honors the desired size, so asking for 1 byte splits would create 8000 splits.
+    for (long estimate : new long[] {0, -1, Long.MAX_VALUE}) {
+      List<BoundedSource<Long>> splits =
+          BoundedSourceSplitter.split(range(0, 8000), options, 8, estimate);
+
+      assertEquals("estimate " + estimate, 16, splits.size());
+      assertEquals("estimate " + estimate, 8000, totalSize(splits));
+    }
+  }
+
+  @Test
+  public void testDoesNotResplitSplitsOfUnknownSize() throws Exception {
+    BoundedSource<Long> source =
+        new CoarseSource(Arrays.asList(new UnknownSizeRangeSource(0, 8000), range(8000, 8100)));
+
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 8, 8100);
+
+    assertEquals(2, splits.size());
+  }
+
+  @Test
+  public void testDoesNotResplitSplitsWhoseTotalSizeOverflows() throws Exception {
+    BoundedSource<Long> source =
+        new CoarseSource(Arrays.asList(range(0, Long.MAX_VALUE - 1), range(0, 2)));
+
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 8, 8100);
+
+    assertEquals(2, splits.size());
+  }
+
   private static BoundedSource<Long> equalFiles(int count, long sizeBytes) {
     List<RangeSource> files = new ArrayList<>();
     for (int i = 0; i < count; i++) {
@@ -297,6 +343,18 @@ public class BoundedSourceSplitterTest {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) {
       return end - start;
+    }
+  }
+
+  /** A {@link RangeSource} reporting an unknown size, like {@code Long.MAX_VALUE}. */
+  private static class UnknownSizeRangeSource extends RangeSource {
+    UnknownSizeRangeSource(long start, long end) {
+      super(start, end);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return Long.MAX_VALUE;
     }
   }
 
