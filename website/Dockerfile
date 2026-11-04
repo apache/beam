@@ -74,9 +74,11 @@ RUN npm update -g npm
 
 RUN npm install postcss postcss-cli autoprefixer
 
-# Install yarn
-ENV COREPACK_HOME=/usr/local/share/corepack
+# Install yarn. Node.js 25+ no longer bundles Corepack.
+ENV COREPACK_HOME=/usr/local/share/corepack \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN mkdir -p "$COREPACK_HOME" \
+ && npm install -g corepack \
  && corepack enable \
  && corepack prepare yarn@1.22.22 --activate
 
