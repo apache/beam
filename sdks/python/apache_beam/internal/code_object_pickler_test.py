@@ -164,7 +164,7 @@ def get_same_named_nested_functions_with_complex_consts(branch):
   return nested_fn
 
 
-def get_same_nesteda_lambdas_different_param_kinds():
+def get_same_named_lambdas_different_param_kinds():
   d = {"a": lambda x, y: (x, y), "b": lambda x, *y: (x, y)}
   return d["a"], d["b"]
 
@@ -490,17 +490,19 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
         sys.modules.pop(mod_name, None)
 
   def test_closures_with_different_param_kinds_have_distinct_identifiers(self):
-    lambda_pos, lamdba_vararg = get_same_names_lambdas_different_apram_kinds()
+    lambda_pos, lambda_vararg = get_same_named_lambdas_different_param_kinds()
     path_pos = code_object_pickler.get_code_object_identifier_(lambda_pos)
     path_vararg = code_object_pickler.get_code_object_identitier(lambda_vararg)
 
     self.asserNotEqual(path_pos, path_vararg)
     self.assertEqual(
-      code_object_pickler.get_code_from_identifier(path_pos),
-      lamnbda_pos.__code__,)
-    sel.assertEqual(
-      code_object_pickler.get_code_from_identifier(path_vararg),
-      lambda_vararg.__code__,)
+        code_object_pickler.get_code_from_identifier(path_pos),
+        lambda_pos.__code__,
+    )
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path_vararg),
+        lambda_vararg.__code__,
+    )
 
   def test_unresolvable_local_and_qualname_edge_cases(self):
     def mismatched_local():
