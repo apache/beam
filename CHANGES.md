@@ -72,6 +72,7 @@
 * (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
+* FirestoreIO batch writes now ramp up from a single pipeline-wide start time instead of each worker's first write, as DatastoreIO does. This adds a side input to the write transforms; set `--updateCompatibilityVersion` to 2.78.0 or earlier to keep the previous pipeline shape (Java) ([#27170](https://github.com/apache/beam/issues/27170)).
 
 ## Breaking Changes
 

@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -75,14 +76,16 @@ final class FirestoreV1WriteFn {
         RpcQosOptions rpcQosOptions,
         CounterFactory counterFactory,
         @Nullable String projectId,
-        @Nullable String databaseId) {
+        @Nullable String databaseId,
+        @Nullable PCollectionView<Instant> rampUpStartView) {
       super(
           clock,
           firestoreStatefulComponentFactory,
           rpcQosOptions,
           counterFactory,
           projectId,
-          databaseId);
+          databaseId,
+          rampUpStartView);
     }
 
     @Override
@@ -112,14 +115,16 @@ final class FirestoreV1WriteFn {
         RpcQosOptions rpcQosOptions,
         CounterFactory counterFactory,
         @Nullable String projectId,
-        @Nullable String databaseId) {
+        @Nullable String databaseId,
+        @Nullable PCollectionView<Instant> rampUpStartView) {
       super(
           clock,
           firestoreStatefulComponentFactory,
           rpcQosOptions,
           counterFactory,
           projectId,
-          databaseId);
+          databaseId,
+          rampUpStartView);
     }
 
     @Override
@@ -175,6 +180,7 @@ final class FirestoreV1WriteFn {
     private transient DatabaseRootName databaseRootName;
     private final @Nullable String configuredProjectId;
     private final @Nullable String configuredDatabaseId;
+    private final @Nullable PCollectionView<Instant> rampUpStartView;
 
     @VisibleForTesting
     transient Queue<@NonNull WriteElement> writes = new PriorityQueue<>(WriteElement.COMPARATOR);
@@ -190,7 +196,8 @@ final class FirestoreV1WriteFn {
         RpcQosOptions rpcQosOptions,
         CounterFactory counterFactory,
         @Nullable String configuredProjectId,
-        @Nullable String configuredDatabaseId) {
+        @Nullable String configuredDatabaseId,
+        @Nullable PCollectionView<Instant> rampUpStartView) {
       this.clock = clock;
       this.firestoreStatefulComponentFactory = firestoreStatefulComponentFactory;
       this.rpcQosOptions = rpcQosOptions;
@@ -198,6 +205,7 @@ final class FirestoreV1WriteFn {
       this.rpcAttemptContext = V1FnRpcAttemptContext.BatchWrite;
       this.configuredProjectId = configuredProjectId;
       this.configuredDatabaseId = configuredDatabaseId;
+      this.rampUpStartView = rampUpStartView;
     }
 
     @Override
@@ -265,6 +273,9 @@ final class FirestoreV1WriteFn {
           "nullness") // error checker is configured to treat any method not explicitly annotated as
       // @Nullable as non-null, this includes Objects.requireNonNull
       Write write = requireNonNull(context.element(), "context.element() must be non null");
+      if (rampUpStartView != null) {
+        rpcQos.setRampUpStart(context.sideInput(rampUpStartView));
+      }
       ProcessContextAdapter<OutT> contextAdapter = new ProcessContextAdapter<>(context);
       int serializedSize = write.getSerializedSize();
       boolean tooLarge = rpcQos.bytesOverLimit(serializedSize);
