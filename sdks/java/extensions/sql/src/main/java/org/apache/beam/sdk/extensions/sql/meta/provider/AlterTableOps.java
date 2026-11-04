@@ -42,4 +42,13 @@ public interface AlterTableOps {
    * existing partitions.
    */
   void updatePartitionSpec(List<String> partitionsToAdd, Collection<String> partitionsToDrop);
+
+  /**
+   * Replaces a table's primary key with the given columns, or drops it if the list is empty. Only
+   * called for tables that {@link TableProvider#supportsPrimaryKey support primary keys}.
+   */
+  default void updatePrimaryKey(List<String> primaryKey) {
+    throw new UnsupportedOperationException(
+        getClass().getSimpleName() + " does not support altering primary keys.");
+  }
 }

@@ -18,15 +18,16 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import com.google.cloud.Timestamp;
+import java.util.Objects;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This restriction tracker delegates most of its behavior to an internal {@link
- * TimestampRangeTracker}. It has a different logic for tryClaim method. It ignores claims for the
- * same timestamp multiple times.
+ * TimestampRangeTracker}. It has a different logic for {@link #tryClaim} and {@link #trySplit}: it
+ * ignores claims for the same timestamp multiple times, and refuses non-checkpoint dynamic splits
+ * so only a single active restriction polls and schedules new partitions.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DetectNewPartitionsRangeTracker extends TimestampRangeTracker {
 
   public DetectNewPartitionsRangeTracker(TimestampRange range) {
@@ -44,10 +45,24 @@ public class DetectNewPartitionsRangeTracker extends TimestampRangeTracker {
    */
   @Override
   public boolean tryClaim(Timestamp position) {
-    if (position.equals(lastAttemptedPosition)) {
+    if (Objects.equals(position, lastAttemptedPosition)) {
       return true;
     }
 
     return super.tryClaim(position);
+  }
+
+  /**
+   * Refuses non-checkpoint splits ({@code fractionOfRemainder != 0}) because only one active
+   * restriction should poll and schedule new partitions at a time. Checkpoints ({@code
+   * fractionOfRemainder == 0}) are delegated to {@link TimestampRangeTracker#trySplit(double)}.
+   */
+  @Override
+  public @Nullable SplitResult<TimestampRange> trySplit(double fractionOfRemainder) {
+    if (fractionOfRemainder != 0) {
+      return null;
+    }
+
+    return super.trySplit(fractionOfRemainder);
   }
 }
