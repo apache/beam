@@ -23,11 +23,11 @@
   <suppress checks="JavadocPackage" files=".*[\\\/]build[\\\/]source-overrides[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]runners[\\\/]flink[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]runners[\\\/]spark[\\\/].*"/>
-  
+
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
-  
+
 
   <!-- suppress all checks in the generated directories -->
   <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
@@ -43,6 +43,7 @@
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*VendoredListenableFutureAdapter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableServiceImplTest\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*bigtable.*BigtableChangeStreamReadSchemaTransformProviderTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamValuesRel\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*cdap.*Plugin\.java" />
