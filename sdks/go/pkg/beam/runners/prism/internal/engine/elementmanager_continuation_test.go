@@ -342,6 +342,7 @@ func TestPersistBundle_ResidualResumeDelay(t *testing.T) {
 		const delay = 5 * time.Second
 		before := time.Now()
 		em.PersistBundle(rb, nil, TentativeData{}, info, residual(delay))
+		after := time.Now()
 
 		src.mu.Lock()
 		pendingLen := len(src.pending)
@@ -366,8 +367,10 @@ func TestPersistBundle_ResidualResumeDelay(t *testing.T) {
 		if !ok {
 			t.Fatal("no processing time event scheduled for the delayed residual")
 		}
-		if until := fireAt.ToTime().Sub(before); until <= 0 || until > delay {
-			t.Errorf("residual release scheduled %v after persisting, want within (0, %v]", until, delay)
+		// PersistBundle schedules the release at the delay after its own processing
+		// time, which it reads between before and after, truncated to milliseconds.
+		if earliest, latest := mtime.FromTime(before).Add(delay), mtime.FromTime(after).Add(delay); fireAt < earliest || fireAt > latest {
+			t.Errorf("residual release scheduled at %v, want within [%v, %v], %v after persisting", fireAt, earliest, latest, delay)
 		}
 	})
 
