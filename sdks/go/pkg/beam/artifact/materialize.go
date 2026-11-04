@@ -206,13 +206,28 @@ type artifact struct {
 	expectedSha256 string
 }
 
+func validatePath(dest, filename string) (string, error) {
+	destPath := filepath.Join(dest, filename)
+	cleanDest := filepath.Clean(dest)
+	cleanPath := filepath.Clean(destPath)
+
+	rel, err := filepath.Rel(cleanDest, cleanPath)
+	if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return "", errors.Errorf("file path %q is outside destination directory %q", filename, dest)
+	}
+	return cleanPath, nil
+}
+
 func (a artifact) retrieve(ctx context.Context, dest string) error {
 	path, err := extractStagingToPath(a.dep)
 	if err != nil {
 		return err
 	}
 
-	filename := filepath.Join(dest, filepath.FromSlash(path))
+	filename, err := validatePath(dest, filepath.FromSlash(path))
+	if err != nil {
+		return err
+	}
 
 	_, err = os.Stat(filename)
 	if err == nil {
@@ -413,9 +428,12 @@ func (a legacyArtifact) retrieve(ctx context.Context, dest string) error {
 // previous retrieval attempt and may leave a corrupt/partial local file on
 // failure.
 func Retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceClient, a *jobpb.ArtifactMetadata, rt string, dest string) error {
-	filename := filepath.Join(dest, filepath.FromSlash(a.Name))
+	filename, err := validatePath(dest, filepath.FromSlash(a.Name))
+	if err != nil {
+		return err
+	}
 
-	_, err := os.Stat(filename)
+	_, err = os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "failed to stat %v", filename)
 	}

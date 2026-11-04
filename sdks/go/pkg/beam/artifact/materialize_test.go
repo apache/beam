@@ -571,3 +571,42 @@ func makeArtifact(key, hash string) *jobpb.ArtifactMetadata {
 func makeFilename(dir, key string) string {
 	return filepath.Join(dir, filepath.FromSlash(key))
 }
+
+func TestValidatePath(t *testing.T) {
+	dest := filepath.Clean("/tmp/artifacts")
+	tests := []struct {
+		name     string
+		filename string
+		wantErr  bool
+	}{
+		{"valid simple file", "foo.jar", false},
+		{"valid nested file", "subdir/path/foo.jar", false},
+		{"traversal attack", "../../etc/passwd", true},
+		{"partial directory prefix attack", "../artifacts_evil/evil.sh", true},
+		{"parent directory traversal", "..", true},
+		{"nested traversal attack", "foo/bar/../../../etc/passwd", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validatePath(dest, filepath.FromSlash(tc.filename))
+			if (err != nil) != tc.wantErr {
+				t.Errorf("validatePath(%q, %q) error = %v, wantErr %v", dest, tc.filename, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestNewRetrieveWithPathTraversalFails(t *testing.T) {
+	client := &fakeRetrievalService{
+		artifacts: map[string]string{"../../escaped.txt": "bad"},
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	if _, err := newMaterializeWithClient(ctx, client, client.resolvedArtifactsWithStagingTo(), dest); err == nil {
+		t.Fatalf("expected materialization to fail for path traversal StagedName")
+	}
+}
