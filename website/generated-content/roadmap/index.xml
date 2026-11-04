@@ -337,7 +337,7 @@ limitations under the License.
 &lt;h1 id="python-sdk-roadmap">Python SDK Roadmap&lt;/h1>
 &lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
 &lt;h2 id="python-version-support">Python Version Support&lt;/h2>
-&lt;p>Apache Beam 2.73.0 and higher support Python 3.10, 3.11, 3.12, 3.13 and 3.14. Beam aims to support new Python minor versions in a timely manner:&lt;/p>
+&lt;p>Apache Beam supports Python 3.11, 3.12, 3.13 and 3.14. Beam aims to support new Python minor versions in a timely manner:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/sdks/python/#python-version-compatibility">Python Version Compatibility matrix&lt;/a>&lt;/li>
 &lt;/ul>
