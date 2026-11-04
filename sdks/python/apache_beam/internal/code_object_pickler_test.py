@@ -492,7 +492,7 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
   def test_closures_with_different_param_kinds_have_distinct_identifiers(self):
     lambda_pos, lambda_vararg = get_same_named_lambdas_different_param_kinds()
     path_pos = code_object_pickler.get_code_object_identifier(lambda_pos)
-    path_vararg = code_object_pickler.get_code_object_identitier(lambda_vararg)
+    path_vararg = code_object_pickler.get_code_object_identifier(lambda_vararg)
 
     self.asserNotEqual(path_pos, path_vararg)
     self.assertEqual(
