@@ -586,7 +586,8 @@ public class IcebergUtils {
   /**
    * Converts an Iceberg value and adds it to {@code values}. The values are attached to a Row
    * without the checks and conversions in {@link Row.Builder#build()}, so each one must already be
-   * the type Beam stores for its field, such as a {@link org.joda.time.Instant} for {@link Schema.FieldType#DATETIME}.
+   * the type Beam stores for its field, such as a {@link org.joda.time.Instant} for {@link
+   * Schema.FieldType#DATETIME}.
    */
   private static void addIcebergValue(
       List<@Nullable Object> values, Schema.Field field, @Nullable Object icebergValue) {

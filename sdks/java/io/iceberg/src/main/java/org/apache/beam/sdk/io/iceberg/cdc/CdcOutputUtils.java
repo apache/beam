@@ -146,7 +146,8 @@ final class CdcOutputUtils {
               valueKind,
               dataAndRowMetadata));
     }
-    // Each value comes from a Row or metadata that is a String or Long, so it is already the type Beam stores.
+    // Each value comes from a Row or metadata that is a String or Long, so it is already the type
+    // Beam stores.
     return Row.withSchema(outputSchema).attachValues(values);
   }
 
