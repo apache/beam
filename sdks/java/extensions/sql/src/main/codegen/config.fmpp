@@ -38,8 +38,10 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlAlterTable"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.TableClause"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
+        "java.util.LinkedHashMap"
       ]
 
       # List of keywords.

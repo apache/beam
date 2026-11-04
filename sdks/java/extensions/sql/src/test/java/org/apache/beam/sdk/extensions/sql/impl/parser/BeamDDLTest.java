@@ -193,6 +193,13 @@ public class BeamDDLTest {
             .properties(TableUtils.emptyProperties())
             .build(),
         tableProvider.getTables().get("person"));
+    IllegalArgumentException reservedName =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                env.executeDdl("CREATE EXTERNAL TABLE ```t`` WITH ('k' = 1)` (id INT) TYPE test"));
+    assertEquals(
+        "Table name '`t` WITH ('k' = 1)' is reserved for WITH options.", reservedName.getMessage());
   }
 
   @Test

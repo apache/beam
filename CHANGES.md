@@ -127,6 +127,7 @@
 * (Go) GCS and Dataflow clients now support non-default universes such as Trusted Partner Cloud (TPC), using the universe domain from `GOOGLE_CLOUD_UNIVERSE_DOMAIN` or the default credentials. Added a `--gcs_endpoint` pipeline option to override the GCS endpoint ([#40569](https://github.com/apache/beam/issues/40569)).
 * (Java) `GcsUtil` now uses the java-storage client (GcsUtil V2) for GCS operations by default instead of gcsio (GcsUtil V1). To go back to V1, pass `--experiments=disable_gcsutil_v2`. Pipelines with the `use_grpc_for_gcs` experiment keep using V1. The `use_gcsutil_v2` experiment is no longer needed and is now ignored ([#40712](https://github.com/apache/beam/issues/40712)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
+* [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
 
 ## Breaking Changes
 
