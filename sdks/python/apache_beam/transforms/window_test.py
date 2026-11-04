@@ -137,13 +137,20 @@ class WindowTest(unittest.TestCase):
     self.assertEqual([IntervalWindow(4.0, 7.5), IntervalWindow(1.5, 5.0)],
                      windowfn.assign(context('v', 4.5)))
 
-  def test_sliding_windows_non_positive_period(self):
-    # Control: the sibling window function already rejects a non-positive size.
-    with self.assertRaises(ValueError):
-      FixedWindows(size=0)
-    for period in (0, -5):
-      with self.assertRaisesRegex(ValueError, 'period'):
-        SlidingWindows(size=10, period=period)
+  def test_window_fns_reject_non_positive_parameters(self):
+    for value in (0, -5):
+      with self.subTest(window_fn='FixedWindows', size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          FixedWindows(size=value)
+      with self.subTest(window_fn='SlidingWindows', size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          SlidingWindows(size=value, period=5)
+      with self.subTest(window_fn='SlidingWindows', period=value):
+        with self.assertRaisesRegex(ValueError, 'period'):
+          SlidingWindows(size=10, period=value)
+      with self.subTest(window_fn='Sessions', gap_size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          Sessions(gap_size=value)
 
   def test_sessions_merging(self):
     windowfn = Sessions(10)
