@@ -140,6 +140,8 @@ final class NativeFileSorter {
     } finally {
       inputStream.close();
     }
+    // Every record is in a sorted block now, so the unsorted copy can go.
+    Files.deleteIfExists(dataFile.toPath());
     return files;
   }
 
@@ -204,7 +206,12 @@ final class NativeFileSorter {
 
   private @Nullable KV<byte[], byte[]> readKeyValueOrFail(InputStream inputStream) {
     try {
-      return readKeyValue(inputStream);
+      @Nullable KV<byte[], byte[]> kv = readKeyValue(inputStream);
+      if (kv == null) {
+        // The block is used up: release its file handle now
+        inputStream.close();
+      }
+      return kv;
     } catch (EOFException e) {
       return null;
     } catch (IOException e) {
