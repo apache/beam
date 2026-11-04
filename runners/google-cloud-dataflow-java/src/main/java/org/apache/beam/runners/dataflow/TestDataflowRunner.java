@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -374,24 +375,83 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  /** How waiting on a merged job ended; see {@link #waitForMergedJobTermination}. */
+  static final class MergedJobWait {
+    enum Kind {
+      /** The job reached {@link #terminalState}. */
+      TERMINATED,
+      /** The job was still running when the timeout passed. */
+      TIMED_OUT,
+      /**
+       * The job's state could not be fetched for long enough that polling gave up before the
+       * timeout; the job itself may be perfectly healthy.
+       */
+      POLLING_FAILED,
+      /** The waiting thread was interrupted. */
+      INTERRUPTED
+    }
+
+    final Kind kind;
+    final @Nullable State terminalState;
+
+    private MergedJobWait(Kind kind, @Nullable State terminalState) {
+      this.kind = kind;
+      this.terminalState = terminalState;
+    }
+
+    static MergedJobWait terminated(State state) {
+      return new MergedJobWait(Kind.TERMINATED, state);
+    }
+
+    static MergedJobWait of(Kind kind) {
+      return new MergedJobWait(kind, null);
+    }
+
+    @Override
+    public String toString() {
+      return kind == Kind.TERMINATED ? "terminated in state " + terminalState : kind.toString();
+    }
+  }
+
   /**
-   * Waits up to {@code timeout} for a merged test job to terminate, feeding its log messages to
-   * {@code messageHandler}. Returns its terminal state, or {@code null} if the job did not
-   * terminate in time or the wait was interrupted.
+   * Waits up to {@code timeout} (negative for no limit) for a merged test job to terminate, feeding
+   * its log messages to {@code messageHandler}.
    *
    * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
-   * the verdict for several tests at once, so it is never allowed to block them forever.
+   * the verdict for several tests at once, so it is never allowed to block them forever. A merged
+   * streaming job is additionally watched by {@link CancelOnError}, exactly like a standalone
+   * streaming job: a failing step would otherwise retry until the timeout.
+   *
+   * <p>{@link DataflowPipelineJob#waitUntilFinish} reports both "deadline passed" and "could not
+   * reach the service" as {@code null}; the two are told apart here by the time spent, since
+   * polling gives up well before a sane timeout. The distinction matters because the right reaction
+   * differs: a job that outlived its timeout should be cancelled, a job that merely could not be
+   * observed should be left alone.
    */
-  @Nullable State waitForMergedJobTermination(
+  @SuppressWarnings("FutureReturnValueIgnored") // CancelOnError's outcome is observed via the job
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
+  MergedJobWait waitForMergedJobTermination(
       DataflowPipelineJob job, Duration timeout, ErrorMonitorMessagesHandler messageHandler) {
+    if (options.isStreaming()) {
+      options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+    }
+    long startNanos = System.nanoTime();
     try {
       State state = job.waitUntilFinish(timeout, messageHandler);
-      return state != null && state.isTerminal() ? state : null;
+      if (state != null && state.isTerminal()) {
+        return MergedJobWait.terminated(state);
+      }
+      long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+      boolean bounded = timeout.getMillis() > 0;
+      return MergedJobWait.of(
+          bounded && elapsedMillis >= timeout.getMillis()
+              ? MergedJobWait.Kind.TIMED_OUT
+              : MergedJobWait.Kind.POLLING_FAILED);
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return null;
+      return MergedJobWait.of(MergedJobWait.Kind.INTERRUPTED);
     }
   }
 
