@@ -70,7 +70,7 @@
 ## New Features / Improvements
 
 * (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Java) Spark 4 runner: the Structured Streaming runner now runs streaming pipelines (`--streaming`), with unbounded and bounded reads, stateless and stateful ParDo with event time timers, windowed GroupByKey and Combine, and PAssert, covered by a streaming ValidatesRunner suite. Side inputs, ParDo with additional outputs ([#40949](https://github.com/apache/beam/issues/40949)), Redistribute ([#40950](https://github.com/apache/beam/issues/40950)), splittable DoFn, processing time timers, merging windows and triggers other than the default and `Never` are rejected at translation ([#36841](https://github.com/apache/beam/issues/36841)).
+* (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 
