@@ -27,11 +27,12 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
@@ -88,6 +89,8 @@ public abstract class UnboundedSolaceWriter
 
   private final List<Solace.Record> batchToEmit;
 
+  private transient @Nullable BlockingQueue<PublishResult> bundleResultsQueue;
+
   private @Nullable Instant bundleTimestamp;
 
   final UUID writerTransformUuid = UUID.randomUUID();
@@ -119,7 +122,7 @@ public abstract class UnboundedSolaceWriter
 
   public void updateProducerIndex() {
     currentBundleProducerIndex =
-        bundleProducerIndexCounter.getAndIncrement() % producersMapCardinality;
+        Math.floorMod(bundleProducerIndexCounter.getAndIncrement(), producersMapCardinality);
   }
 
   @StartBundle
@@ -127,6 +130,15 @@ public abstract class UnboundedSolaceWriter
     // Pick a producer at random for this bundle, reuse for the whole bundle
     updateProducerIndex();
     batchToEmit.clear();
+    bundleResultsQueue = new LinkedBlockingQueue<>();
+    bundleTimestamp = null;
+  }
+
+  public BlockingQueue<PublishResult> getBundleResultsQueue() {
+    if (bundleResultsQueue == null) {
+      bundleResultsQueue = new LinkedBlockingQueue<>();
+    }
+    return bundleResultsQueue;
   }
 
   public SessionService solaceSessionServiceWithProducer() {
@@ -134,14 +146,15 @@ public abstract class UnboundedSolaceWriter
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
-  public void publishResults(BeamContextWrapper context, @Nullable Set<String> messageIdsToAck) {
+  public void publishResults(
+      BeamContextWrapper context, @Nullable Collection<String> messageIdsToAck) {
     publishResults(context, null, messageIdsToAck);
   }
 
   public void publishResults(
       BeamContextWrapper context,
       @Nullable PublishResult firstResult,
-      @Nullable Set<String> messageIdsToAck) {
+      @Nullable Collection<String> messageIdsToAck) {
     long sumPublish = 0;
     long countPublish = 0;
     long minPublish = Long.MAX_VALUE;
@@ -152,8 +165,7 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    BlockingQueue<PublishResult> publishResultsQueue =
-        solaceSessionServiceWithProducer().getPublishedResultsQueue();
+    BlockingQueue<PublishResult> publishResultsQueue = getBundleResultsQueue();
     PublishResult result = firstResult != null ? firstResult : publishResultsQueue.poll();
 
     if (result != null) {
@@ -230,9 +242,8 @@ public abstract class UnboundedSolaceWriter
     }
   }
 
-  public void waitForAcks(BeamContextWrapper context, Set<String> messageIdsToAck) {
-    BlockingQueue<PublishResult> queue =
-        solaceSessionServiceWithProducer().getPublishedResultsQueue();
+  public void waitForAcks(BeamContextWrapper context, Collection<String> messageIdsToAck) {
+    BlockingQueue<PublishResult> queue = getBundleResultsQueue();
     long timeoutMs = System.currentTimeMillis() + ACKS_FLUSHING_INTERVAL_SECS * 1000;
     while (!messageIdsToAck.isEmpty()) {
       publishResults(context, messageIdsToAck);
