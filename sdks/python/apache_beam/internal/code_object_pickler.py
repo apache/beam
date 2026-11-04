@@ -176,7 +176,13 @@ def _search_module_or_class(
   rest = qual_name_parts[1:]
   if first_part == '<lambda>':
     for name in dir(node):
-      value = getattr(node, name)
+      try:
+        value = getattr(node, name)
+      except Exception:  # pylint: disable=broad-except
+        # Unrelated attributes (e.g. descriptors that only work on instances,
+        # or lazy module attributes with missing dependencies) can raise when
+        # read. They can't be the lambda we are looking for, so skip them.
+        continue
       if (hasattr(callable, '__code__') and
           isinstance(value, type(callable)) and
           value.__code__ == callable.__code__):
