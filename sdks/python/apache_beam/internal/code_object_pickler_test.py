@@ -149,7 +149,7 @@ def get_same_named_nested_functions_with_complex_consts(branch):
   if branch:
 
     def nested_fn(x):
-      def inner(x):
+      def inner():
         return 1
 
       return (inner(), (1, 2), x in {1, 2})
@@ -494,7 +494,7 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
     path_pos = code_object_pickler.get_code_object_identifier(lambda_pos)
     path_vararg = code_object_pickler.get_code_object_identifier(lambda_vararg)
 
-    self.asserNotEqual(path_pos, path_vararg)
+    self.assertNotEqual(path_pos, path_vararg)
     self.assertEqual(
         code_object_pickler.get_code_from_identifier(path_pos),
         lambda_pos.__code__,
