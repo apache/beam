@@ -430,6 +430,11 @@ def get_code_from_identifier(code_object_identifier: str):
   if not code_object_identifier:
     raise ValueError('Path must not be empty.')
   parts = code_object_identifier.split('.')
+  max_module_parts = len(parts)
+  for idx, part in enumerate(parts):
+    if part == '__code__' or part.startswith('co_consts[', '__defaults__[')):
+      max_module_parts = idx
+      break
   obj = None
   start_index = 0
   for i in range(len(parts), 0, -1):
@@ -512,7 +517,7 @@ def _normalize_const(const):
     return tuple(_normalize_const(x) for x in const)
   if isinstance(const, frozenset):
     return (
-        '__frozenset__',
+        'frozenset',
         tuple(sorted((_normalize_const(x) for x in const), key=repr)))
   return (type(const).__qualname__, repr(const))
 
@@ -528,6 +533,10 @@ def _create_bytecode_hash(code_object: types.CodeType):
   """
   hash_input = repr((
       code_object.co_code,
+      code_object.co_argcount,
+      getattr(code_object, 'co_posonlyargcount', 0),
+      code_object.co_kwonlyargcount,
+      code_object.co_flags,
       tuple(_normalize_const(c) for c in code_object.co_consts),
       code_object.co_names,
       code_object.co_varnames,
