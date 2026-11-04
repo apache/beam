@@ -447,7 +447,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         new ProcessBuilder(executable, "--version").start().waitFor();
         return true;
       } catch (IOException | InterruptedException exn) {
-        // Ignore.
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
       }
     }
     return false;
@@ -459,7 +461,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       new ProcessBuilder(executable, "--version").start().waitFor();
       return true;
     } catch (IOException | InterruptedException exn) {
-      // Ignore.
+      if (exn instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
     }
     return false;
   }

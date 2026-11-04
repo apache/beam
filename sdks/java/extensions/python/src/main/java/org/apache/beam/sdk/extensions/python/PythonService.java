@@ -144,7 +144,9 @@ public class PythonService {
         new ProcessBuilder(executable, "--version").start().waitFor();
         return executable;
       } catch (IOException | InterruptedException exn) {
-        // Ignore.
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
       }
     }
     throw new RuntimeException("Unable to find a suitable Python executable.");
@@ -171,7 +173,7 @@ public class PythonService {
         // Some systems don't free the port for future use immediately.
         Thread.sleep(100);
       } catch (InterruptedException exn) {
-        // ignore
+        Thread.currentThread().interrupt();
       }
     }
   }

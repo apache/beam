@@ -94,6 +94,9 @@ class DockerCommand {
           ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build(),
           pullTimeout);
     } catch (IOException | TimeoutException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       if (LOG.isDebugEnabled()) {
         LOG.debug("Unable to pull docker image {}", imageTag, e);
       } else {

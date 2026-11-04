@@ -1349,6 +1349,9 @@ public class FhirIO {
           // longer needed.
           FileSystems.delete(tempDestinations);
         } catch (IOException | InterruptedException e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
           ResourceId deadLetterResourceId =
               FileSystems.matchNewResource(deadLetterGcsPath.get(), true);
           LOG.warn(
