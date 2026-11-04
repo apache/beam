@@ -146,7 +146,6 @@ def sickbayTests = [
 
     // The stateful ParDo can't decode its keyed TestStream input.
     // org.apache.beam.sdk.coders.CoderException: java.io.EOFException
-    // Triggers index-out-of-bound error in Prism
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTimerSideInput',
 
     // Missing output due to processing time timer skew.

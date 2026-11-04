@@ -341,10 +341,10 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		return func(r io.Reader) {
 			l, _ := coder.DecodeInt32(r)
+			for i := int32(0); i < l; i++ {
+				ed(r)
+			}
 			if l != -1 {
-				for i := int32(0); i < l; i++ {
-					ed(r)
-				}
 				return
 			}
 			// A length of -1 means the length isn't known, so the elements follow in chunks,

@@ -348,6 +348,7 @@ func Test_pullDecoder(t *testing.T) {
 					},
 				},
 			},
+			// A big endian length of 4, then that many elements.
 			[]byte{0, 0, 0, 4, 0, 1, 2, 3},
 		}, {
 			"iterable_unknown_length",

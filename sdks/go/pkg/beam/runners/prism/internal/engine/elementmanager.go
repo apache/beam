@@ -1610,6 +1610,7 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
 	count := 0
+	owedCallbacks := 0
 	for _, e := range newPending {
 		count++
 		if len(e.keyBytes) == 0 {
@@ -1622,8 +1623,7 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			}
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
 		}
-		// The key owes an OnWindowExpiration callback for each window it uses. The callback counts
-		// as pending until its bundle persists, so the job can't end before the callback runs.
+		// The key owes an OnWindowExpiration callback for each window it uses.
 		// A cleared timer, with a sequence of -1, doesn't use its window.
 		if ss.keysToExpireByWindow != nil && e.sequence >= 0 {
 			w, ok := ss.keysToExpireByWindow[e.window]
@@ -1633,8 +1633,8 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			}
 			if !w.present(string(e.keyBytes)) {
 				w.insert(string(e.keyBytes))
-				count++
-			}
+				owedCallbacks++
+			} 
 		}
 		heap.Push(&dnt.elements, e)
 
@@ -1660,7 +1660,9 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			}
 		}
 	}
-	return count
+	// Owed callbacks are pending too, so the job can't end before they run.
+	// Each is released when its expiry bundle persists.
+	return count + owedCallbacks
 }
 
 func (*ordinaryStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -2571,6 +2573,7 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 
 		// Produce bundle(s) for these keys and window, and inject them.
 		wm := win.MaxTimestamp()
+		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
 
 		// Now we need to actually build the bundle.
 		var toProcess []element
@@ -2596,21 +2599,17 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 				elmBytes:      nil,
 			})
 		}
-		// Remove the key accounting, or continue tracking which keys still need clearing.
-		if len(busyKeys) == 0 {
-			delete(ss.keysToExpireByWindow, win)
-		} else {
-			ss.keysToExpireByWindow[win] = busyKeys
-		}
 		if len(toProcess) == 0 {
-			// Every key is busy, so the window expires once one is done.
+			// Every key is busy, so there's no bundle to build. The window keeps all
+			// its keys, and expires once one of them is done.
 			continue
 		}
 		// Hold off on garbage collecting data for these windows while these
-		// are in progress.
+		// are in progress. Only a bundle that gets built counts, since its
+		// persist is what releases this.
 		ss.inProgressExpiredWindows[win] += 1
-		rb := RunBundle{StageID: ss.ID, BundleID: "owe-" + em.nextBundID(), Watermark: wm}
-		// The callbacks are already pending, since their keys first used the window.
+		// statefulStageKind.addPending already counted these callbacks as
+		// pending, when their keys first used the window.
 		ss.watermarkHolds.Add(wm, 1)
 		ss.makeInProgressBundle(
 			func() string { return rb.BundleID },
@@ -2627,6 +2626,13 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		// Insert that this is in progress here to avoid a race condition.
 		em.inprogressBundles.insert(rb.BundleID)
 		em.injectedBundles = append(em.injectedBundles, rb)
+
+		// Remove the key accounting, or continue tracking which keys still need clearing.
+		if len(busyKeys) == 0 {
+			delete(ss.keysToExpireByWindow, win)
+		} else {
+			ss.keysToExpireByWindow[win] = busyKeys
+		}
 	}
 	return preventDownstreamUpdate
 }
