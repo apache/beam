@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -319,6 +320,182 @@ func TestCombiner_PartialCombiner2(t *testing.T) {
 	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
+}
+
+func TestCombiner_ContextCombiners(t *testing.T) {
+	// The combiners below add the offset stored in ctx to their results, which
+	// shows that the wrappers pass the caller's context through to the method.
+	ctx := context.WithValue(context.Background(), ctxOffsetKey{}, 100)
+	ctxType := reflect.TypeOf((*context.Context)(nil)).Elem()
+
+	type wrappedCall struct {
+		method string
+		args   []any // Not including the leading context.
+		want   any
+	}
+	tests := []struct {
+		name     string
+		register func()
+		accum    any
+		calls    []wrappedCall
+	}{
+		{
+			name:     "Combiner1",
+			register: func() { Combiner1[int](&ContextCombiner1{}) },
+			accum:    &ContextCombiner1{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, 3}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, 102},
+			},
+		},
+		{
+			name:     "Combiner1WithErrors",
+			register: func() { Combiner1[int](&ContextErrCombiner1{}) },
+			accum:    &ContextErrCombiner1{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, 3}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, 102},
+			},
+		},
+		{
+			name:     "Combiner2",
+			register: func() { Combiner2[int, CustomType](&ContextCombiner2{}) },
+			accum:    &ContextCombiner2{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, CustomType{val: 3}}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, CustomType{val: 102}},
+			},
+		},
+		{
+			name:     "Combiner2WithErrors",
+			register: func() { Combiner2[int, CustomType](&ContextErrCombiner2{}) },
+			accum:    &ContextErrCombiner2{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, CustomType{val: 3}}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, CustomType{val: 102}},
+			},
+		},
+		{
+			name:     "Combiner3",
+			register: func() { Combiner3[int, CustomType, CustomType2](&ContextCombiner3{}) },
+			accum:    &ContextCombiner3{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, CustomType{val: 3}}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, CustomType2{val2: 102}},
+			},
+		},
+		{
+			name:     "Combiner3WithErrors",
+			register: func() { Combiner3[int, CustomType, CustomType2](&ContextErrCombiner3{}) },
+			accum:    &ContextErrCombiner3{},
+			calls: []wrappedCall{
+				{"CreateAccumulator", nil, 100},
+				{"AddInput", []any{2, CustomType{val: 3}}, 105},
+				{"MergeAccumulators", []any{2, 4}, 106},
+				{"ExtractOutput", []any{2}, CustomType2{val2: 102}},
+			},
+		},
+		{
+			name:     "MergeAccumulatorsOnly",
+			register: func() { Combiner1[int](&ContextMergeOnlyCombiner{}) },
+			accum:    &ContextMergeOnlyCombiner{},
+			calls: []wrappedCall{
+				{"MergeAccumulators", []any{2, 4}, 106},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.register()
+
+			m, ok := reflectx.WrapMethods(test.accum)
+			if !ok {
+				t.Fatalf("reflectx.WrapMethods(%T), no registered entry found", test.accum)
+			}
+			if got, want := len(m), len(test.calls); got != want {
+				t.Errorf("reflectx.WrapMethods(%T) returned %v wrapped methods, want %v", test.accum, got, want)
+			}
+			for _, call := range test.calls {
+				fn, ok := m[call.method]
+				if !ok {
+					t.Errorf("reflectx.WrapMethods(%T), no registered entry found for %v", test.accum, call.method)
+					continue
+				}
+				if got := fn.Type(); got.NumIn() == 0 || got.In(0) != ctxType {
+					t.Errorf("Wrapped %v has type %v, want a leading context.Context parameter", call.method, got)
+				}
+				if !hasDirectCaller(fn) {
+					t.Errorf("Wrapped %v of type %v uses the reflection-based caller, want a registered caller", call.method, fn.Type())
+				}
+				out := fn.Call(append([]any{ctx}, call.args...))
+				if got := out[0]; !reflect.DeepEqual(got, call.want) {
+					t.Errorf("Wrapped %v call: got %v, want %v", call.method, got, call.want)
+				}
+				if len(out) == 2 && out[1] != nil {
+					t.Errorf("Wrapped %v call returned error %v, want nil", call.method, out[1])
+				}
+			}
+
+			// graph.NewCombineFn builds the CombineFn from the wrapped methods, so
+			// this checks that CombineFn validation accepts them and sees their
+			// context parameter.
+			cfn, err := graph.NewCombineFn(test.accum)
+			if err != nil {
+				t.Fatalf("graph.NewCombineFn(%T) failed: %v", test.accum, err)
+			}
+			cfnMethods := map[string]*funcx.Fn{
+				"CreateAccumulator": cfn.CreateAccumulatorFn(),
+				"AddInput":          cfn.AddInputFn(),
+				"MergeAccumulators": cfn.MergeAccumulatorsFn(),
+				"ExtractOutput":     cfn.ExtractOutputFn(),
+			}
+			for _, call := range test.calls {
+				fx := cfnMethods[call.method]
+				if fx == nil {
+					t.Errorf("graph.NewCombineFn(%T) has no %v method", test.accum, call.method)
+					continue
+				}
+				if !hasDirectCaller(fx.Fn) {
+					t.Errorf("graph.NewCombineFn(%T).%v doesn't use the registered wrapper", test.accum, call.method)
+				}
+				if _, ok := fx.Context(); !ok {
+					t.Errorf("graph.NewCombineFn(%T).%v has no context.Context parameter", test.accum, call.method)
+				}
+			}
+		})
+	}
+}
+
+// hasDirectCaller reports whether fn implements the arity-specific
+// reflectx.FuncNxM interface, which the reflection-based fallback
+// returned by reflectx.MakeFunc for unregistered function types does not.
+func hasDirectCaller(fn reflectx.Func) bool {
+	var ok bool
+	switch typ := fn.Type(); [2]int{typ.NumIn(), typ.NumOut()} {
+	case [2]int{1, 1}:
+		_, ok = fn.(reflectx.Func1x1)
+	case [2]int{1, 2}:
+		_, ok = fn.(reflectx.Func1x2)
+	case [2]int{2, 1}:
+		_, ok = fn.(reflectx.Func2x1)
+	case [2]int{2, 2}:
+		_, ok = fn.(reflectx.Func2x2)
+	case [2]int{3, 1}:
+		_, ok = fn.(reflectx.Func3x1)
+	case [2]int{3, 2}:
+		_, ok = fn.(reflectx.Func3x2)
+	}
+	return ok
 }
 
 type CustomFunctionParameter struct {
@@ -623,6 +800,135 @@ func (fn *PartialCombiner2) AddInput(i int, c CustomType) int {
 
 func (fn *PartialCombiner2) MergeAccumulators(i1 int, i2 int) int {
 	return i1 + i2
+}
+
+type ctxOffsetKey struct{}
+
+// ctxOffset returns the offset stored in ctx, so that the context combiners'
+// results show whether they received the caller's context.
+func ctxOffset(ctx context.Context) int {
+	return ctx.Value(ctxOffsetKey{}).(int)
+}
+
+type ContextCombiner1 struct {
+}
+
+func (fn *ContextCombiner1) CreateAccumulator(ctx context.Context) int {
+	return ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner1) AddInput(ctx context.Context, i1 int, i2 int) int {
+	return i1 + i2 + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner1) MergeAccumulators(ctx context.Context, i1 int, i2 int) int {
+	return i1 + i2 + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner1) ExtractOutput(ctx context.Context, i int) int {
+	return i + ctxOffset(ctx)
+}
+
+type ContextErrCombiner1 struct {
+}
+
+func (fn *ContextErrCombiner1) CreateAccumulator(ctx context.Context) (int, error) {
+	return ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner1) AddInput(ctx context.Context, i1 int, i2 int) (int, error) {
+	return i1 + i2 + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner1) MergeAccumulators(ctx context.Context, i1 int, i2 int) (int, error) {
+	return i1 + i2 + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner1) ExtractOutput(ctx context.Context, i int) (int, error) {
+	return i + ctxOffset(ctx), nil
+}
+
+type ContextCombiner2 struct {
+}
+
+func (fn *ContextCombiner2) CreateAccumulator(ctx context.Context) int {
+	return ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner2) AddInput(ctx context.Context, i int, c CustomType) int {
+	return i + c.val + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner2) MergeAccumulators(ctx context.Context, i1 int, i2 int) int {
+	return i1 + i2 + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner2) ExtractOutput(ctx context.Context, i int) CustomType {
+	return CustomType{val: i + ctxOffset(ctx)}
+}
+
+type ContextErrCombiner2 struct {
+}
+
+func (fn *ContextErrCombiner2) CreateAccumulator(ctx context.Context) (int, error) {
+	return ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner2) AddInput(ctx context.Context, i int, c CustomType) (int, error) {
+	return i + c.val + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner2) MergeAccumulators(ctx context.Context, i1 int, i2 int) (int, error) {
+	return i1 + i2 + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner2) ExtractOutput(ctx context.Context, i int) (CustomType, error) {
+	return CustomType{val: i + ctxOffset(ctx)}, nil
+}
+
+type ContextCombiner3 struct {
+}
+
+func (fn *ContextCombiner3) CreateAccumulator(ctx context.Context) int {
+	return ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner3) AddInput(ctx context.Context, i int, c CustomType) int {
+	return i + c.val + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner3) MergeAccumulators(ctx context.Context, i1 int, i2 int) int {
+	return i1 + i2 + ctxOffset(ctx)
+}
+
+func (fn *ContextCombiner3) ExtractOutput(ctx context.Context, i int) CustomType2 {
+	return CustomType2{val2: i + ctxOffset(ctx)}
+}
+
+type ContextErrCombiner3 struct {
+}
+
+func (fn *ContextErrCombiner3) CreateAccumulator(ctx context.Context) (int, error) {
+	return ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner3) AddInput(ctx context.Context, i int, c CustomType) (int, error) {
+	return i + c.val + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner3) MergeAccumulators(ctx context.Context, i1 int, i2 int) (int, error) {
+	return i1 + i2 + ctxOffset(ctx), nil
+}
+
+func (fn *ContextErrCombiner3) ExtractOutput(ctx context.Context, i int) (CustomType2, error) {
+	return CustomType2{val2: i + ctxOffset(ctx)}, nil
+}
+
+type ContextMergeOnlyCombiner struct {
+}
+
+func (fn *ContextMergeOnlyCombiner) MergeAccumulators(ctx context.Context, i1 int, i2 int) int {
+	return i1 + i2 + ctxOffset(ctx)
 }
 
 // Foo is a struct with a method for measuring method invocation

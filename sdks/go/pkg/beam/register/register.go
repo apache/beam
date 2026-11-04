@@ -7854,6 +7854,38 @@ type extractOutput1x2[T1, T2 any] interface {
 	ExtractOutput(a T1) (T2, error)
 }
 
+type createAccumulator1x1[T any] interface {
+	CreateAccumulator(ctx context.Context) T
+}
+
+type createAccumulator1x2[T any] interface {
+	CreateAccumulator(ctx context.Context) (T, error)
+}
+
+type addInput3x1[T1, T2 any] interface {
+	AddInput(ctx context.Context, a T1, i T2) T1
+}
+
+type addInput3x2[T1, T2 any] interface {
+	AddInput(ctx context.Context, a T1, i T2) (T1, error)
+}
+
+type mergeAccumulators3x1[T any] interface {
+	MergeAccumulators(ctx context.Context, a0 T, a1 T) T
+}
+
+type mergeAccumulators3x2[T any] interface {
+	MergeAccumulators(ctx context.Context, a0 T, a1 T) (T, error)
+}
+
+type extractOutput2x1[T1, T2 any] interface {
+	ExtractOutput(ctx context.Context, a T1) T2
+}
+
+type extractOutput2x2[T1, T2 any] interface {
+	ExtractOutput(ctx context.Context, a T1) (T2, error)
+}
+
 // Combiner1 registers a CombineFn's structural functions
 // and types and optimizes their runtime execution. There are 3 different Combiner
 // functions, each of which should be used for a different situation.
@@ -7888,6 +7920,30 @@ func Combiner1[T0 any](accum any) {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(mergeAccumulators3x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(mergeAccumulators3x2[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators3x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(mergeAccumulators3x1[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
 	}
 
 	if mergeAccumulatorsWrapper == nil {
@@ -7917,6 +7973,30 @@ func Combiner1[T0 any](accum any) {
 		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) (T0, error))
+			return &caller1x2[context.Context, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) (T0, error) {
+				return fn.(createAccumulator1x2[T0]).CreateAccumulator(a0)
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) T0)
+			return &caller1x1[context.Context, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) T0 {
+				return fn.(createAccumulator1x1[T0]).CreateAccumulator(a0)
 			})
 		}
 	}
@@ -7949,6 +8029,30 @@ func Combiner1[T0 any](accum any) {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(addInput3x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(addInput3x2[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(addInput3x1[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
 	}
 
 	if m := accumVal.MethodByName("AddInput"); m.IsValid() && addInputWrapper == nil {
@@ -7978,6 +8082,30 @@ func Combiner1[T0 any](accum any) {
 		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T0 {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T0, error))
+			return &caller2x2[context.Context, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T0, error) {
+				return fn.(extractOutput2x2[T0, T0]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T0)
+			return &caller2x1[context.Context, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T0 {
+				return fn.(extractOutput2x1[T0, T0]).ExtractOutput(a0, a1)
 			})
 		}
 	}
@@ -8040,6 +8168,30 @@ func Combiner2[T0, T1 any](accum any) {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(mergeAccumulators3x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(mergeAccumulators3x2[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators3x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(mergeAccumulators3x1[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
 	}
 
 	if mergeAccumulatorsWrapper == nil {
@@ -8069,6 +8221,30 @@ func Combiner2[T0, T1 any](accum any) {
 		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) (T0, error))
+			return &caller1x2[context.Context, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) (T0, error) {
+				return fn.(createAccumulator1x2[T0]).CreateAccumulator(a0)
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) T0)
+			return &caller1x1[context.Context, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) T0 {
+				return fn.(createAccumulator1x1[T0]).CreateAccumulator(a0)
 			})
 		}
 	}
@@ -8101,6 +8277,30 @@ func Combiner2[T0, T1 any](accum any) {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(addInput3x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(addInput3x2[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(addInput3x1[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
 	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) (T0, error))
@@ -8123,6 +8323,30 @@ func Combiner2[T0, T1 any](accum any) {
 		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
 				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput3x2[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T1) (T0, error))
+			return &caller3x2[context.Context, T0, T1, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T1) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T1) (T0, error) {
+				return fn.(addInput3x2[T0, T1]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T1) T0)
+			return &caller3x1[context.Context, T0, T1, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T1) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T1) T0 {
+				return fn.(addInput3x1[T0, T1]).AddInput(a0, a1, a2)
 			})
 		}
 	}
@@ -8156,6 +8380,30 @@ func Combiner2[T0, T1 any](accum any) {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
 		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T0, error))
+			return &caller2x2[context.Context, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T0, error) {
+				return fn.(extractOutput2x2[T0, T0]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T0)
+			return &caller2x1[context.Context, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T0 {
+				return fn.(extractOutput2x1[T0, T0]).ExtractOutput(a0, a1)
+			})
+		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T1, error))
@@ -8178,6 +8426,30 @@ func Combiner2[T0, T1 any](accum any) {
 		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T1 {
 				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T1, error))
+			return &caller2x2[context.Context, T0, T1, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T1, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T1, error) {
+				return fn.(extractOutput2x2[T0, T1]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T1)
+			return &caller2x1[context.Context, T0, T1]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T1)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T1 {
+				return fn.(extractOutput2x1[T0, T1]).ExtractOutput(a0, a1)
 			})
 		}
 	}
@@ -8240,6 +8512,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(mergeAccumulators3x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(mergeAccumulators3x2[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(mergeAccumulators3x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(mergeAccumulators3x1[T0]).MergeAccumulators(a0, a1, a2)
+			})
+		}
 	}
 
 	if mergeAccumulatorsWrapper == nil {
@@ -8269,6 +8565,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 		createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x2[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) (T0, error))
+			return &caller1x2[context.Context, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) (T0, error))(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) (T0, error) {
+				return fn.(createAccumulator1x2[T0]).CreateAccumulator(a0)
+			})
+		}
+	} else if _, ok := accum.(createAccumulator1x1[T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context) T0)
+			return &caller1x1[context.Context, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) T0)(nil)).Elem(), caller)
+
+		createAccumulatorWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context) T0 {
+				return fn.(createAccumulator1x1[T0]).CreateAccumulator(a0)
 			})
 		}
 	}
@@ -8301,6 +8621,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(addInput3x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) (T0, error))
+			return &caller3x2[context.Context, T0, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) (T0, error) {
+				return fn.(addInput3x2[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T0) T0)
+			return &caller3x1[context.Context, T0, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T0) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T0) T0 {
+				return fn.(addInput3x1[T0, T0]).AddInput(a0, a1, a2)
+			})
+		}
 	} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T1) (T0, error))
@@ -8325,6 +8669,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
 			})
 		}
+	} else if _, ok := accum.(addInput3x2[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T1) (T0, error))
+			return &caller3x2[context.Context, T0, T1, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T1) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T1) (T0, error) {
+				return fn.(addInput3x2[T0, T1]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T1) T0)
+			return &caller3x1[context.Context, T0, T1, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T1) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T1) T0 {
+				return fn.(addInput3x1[T0, T1]).AddInput(a0, a1, a2)
+			})
+		}
 	} else if _, ok := accum.(addInput2x2[T0, T2]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0, T2) (T0, error))
@@ -8347,6 +8715,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 		addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T2) T0 {
 				return fn.(addInput2x1[T0, T2]).AddInput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(addInput3x2[T0, T2]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T2) (T0, error))
+			return &caller3x2[context.Context, T0, T2, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T2) (T0, error))(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T2) (T0, error) {
+				return fn.(addInput3x2[T0, T2]).AddInput(a0, a1, a2)
+			})
+		}
+	} else if _, ok := accum.(addInput3x1[T0, T2]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0, T2) T0)
+			return &caller3x1[context.Context, T0, T2, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0, T2) T0)(nil)).Elem(), caller)
+
+		addInputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0, a2 T2) T0 {
+				return fn.(addInput3x1[T0, T2]).AddInput(a0, a1, a2)
 			})
 		}
 	}
@@ -8380,6 +8772,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
 		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T0, error))
+			return &caller2x2[context.Context, T0, T0, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T0, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T0, error) {
+				return fn.(extractOutput2x2[T0, T0]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T0]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T0)
+			return &caller2x1[context.Context, T0, T0]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T0)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T0 {
+				return fn.(extractOutput2x1[T0, T0]).ExtractOutput(a0, a1)
+			})
+		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T1, error))
@@ -8404,6 +8820,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
 			})
 		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T1, error))
+			return &caller2x2[context.Context, T0, T1, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T1, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T1, error) {
+				return fn.(extractOutput2x2[T0, T1]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T1]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T1)
+			return &caller2x1[context.Context, T0, T1]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T1)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T1 {
+				return fn.(extractOutput2x1[T0, T1]).ExtractOutput(a0, a1)
+			})
+		}
 	} else if _, ok := accum.(extractOutput1x2[T0, T2]); ok {
 		caller := func(fn any) reflectx.Func {
 			f := fn.(func(T0) (T2, error))
@@ -8426,6 +8866,30 @@ func Combiner3[T0, T1, T2 any](accum any) {
 		extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T2 {
 				return fn.(extractOutput1x1[T0, T2]).ExtractOutput(a0)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x2[T0, T2]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) (T2, error))
+			return &caller2x2[context.Context, T0, T2, error]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) (T2, error))(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) (T2, error) {
+				return fn.(extractOutput2x2[T0, T2]).ExtractOutput(a0, a1)
+			})
+		}
+	} else if _, ok := accum.(extractOutput2x1[T0, T2]); ok {
+		caller := func(fn any) reflectx.Func {
+			f := fn.(func(context.Context, T0) T2)
+			return &caller2x1[context.Context, T0, T2]{fn: f}
+		}
+		reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, T0) T2)(nil)).Elem(), caller)
+
+		extractOutputWrapper = func(fn any) reflectx.Func {
+			return reflectx.MakeFunc(func(a0 context.Context, a1 T0) T2 {
+				return fn.(extractOutput2x1[T0, T2]).ExtractOutput(a0, a1)
 			})
 		}
 	}
