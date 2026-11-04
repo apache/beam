@@ -46,19 +46,19 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
   public PublishResultHandler() {}
 
   public static Object correlationKey(
-      String messageId,
+      @Nullable String messageId,
       @Nullable Long publishMonotonicNanos,
       Queue<PublishResult> publishResultsQueue) {
     return new PublishCorrelationKey(messageId, publishMonotonicNanos, publishResultsQueue);
   }
 
   private static final class PublishCorrelationKey {
-    private final String messageId;
+    private final @Nullable String messageId;
     private final @Nullable Long publishMonotonicNanos;
     private final Queue<PublishResult> publishResultsQueue;
 
     private PublishCorrelationKey(
-        String messageId,
+        @Nullable String messageId,
         @Nullable Long publishMonotonicNanos,
         Queue<PublishResult> publishResultsQueue) {
       this.messageId = messageId;

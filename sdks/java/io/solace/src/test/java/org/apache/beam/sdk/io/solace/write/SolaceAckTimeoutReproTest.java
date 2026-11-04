@@ -103,12 +103,15 @@ public class SolaceAckTimeoutReproTest {
       assertEquals(Collections.singletonList("A"), resultsA);
       assertEquals(Collections.singletonList("B"), resultsB);
     } finally {
-      session.aFinished.countDown();
-      finishingB.cancel(true);
-      executor.shutdownNow();
-      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
-      a.teardown();
-      b.teardown();
+      try {
+        session.aFinished.countDown();
+        finishingB.cancel(true);
+        executor.shutdownNow();
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+      } finally {
+        a.teardown();
+        b.teardown();
+      }
     }
   }
 
@@ -150,12 +153,15 @@ public class SolaceAckTimeoutReproTest {
       assertEquals(Collections.singletonList("A"), resultsA);
       assertEquals(Collections.singletonList("B"), resultsB);
     } finally {
-      session.aFinished.countDown();
-      runningB.cancel(true);
-      executor.shutdownNow();
-      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
-      a.teardown();
-      b.teardown();
+      try {
+        session.aFinished.countDown();
+        runningB.cancel(true);
+        executor.shutdownNow();
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+      } finally {
+        a.teardown();
+        b.teardown();
+      }
     }
   }
 
