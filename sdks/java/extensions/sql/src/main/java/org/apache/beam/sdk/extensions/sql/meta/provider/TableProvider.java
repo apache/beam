@@ -35,6 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p><i>Note:</i> all implementations marked with {@code @AutoService(TableProvider.class)} are
  * automatically loaded by CLI or other cases when {@link JdbcDriver} is used with default
  * connection parameters.
+ *
+ * <p>To support {@code WITH ('key' = value, ...)} options on your tables, override {@link
+ * BeamSqlTable#forRead} and {@link BeamSqlTable#forWrite} in the tables this provider builds.
  */
 public interface TableProvider {
   /** Gets the table type this provider handles. */
