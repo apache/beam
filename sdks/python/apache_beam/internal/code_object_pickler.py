@@ -311,14 +311,14 @@ def _search_locals(
 
 
 # Matches a path like: co_consts[my_function]
-_SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([a-zA-Z0-9\<\>_-]+)]')
+_SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([^\s,\[\]]+)\]')
 # Matches a path like: co_consts[<lambda>, ()] or co_consts[my_function, ('x',)]
 _OBJECT_WITH_ARGS_PATTERN = re.compile(
-    r'co_consts\[([a-zA-Z0-9\<\>_-]+),\s*(\([^\)]*\))\]')
+    r'co_consts\[([^\s,\[\]]+),\s*(\([^\)]*\))\]')
 # Matches a path like: co_consts[<lambda>, ('x',), 1234567890] or
 # co_consts[my_function, ('x',), 1234567890]
 _OBJECT_WITH_HASH_PATTERN = re.compile(
-    r'co_consts\[([a-zA-Z0-9\<\>_-]+),\s*(\([^\)]*\)),\s*(.+)\]')
+    r'co_consts\[([^\s,\[\]]+),\s*(\([^\)]*\)),\s*(.+)\]')
 # Matches a path like: __defaults__[0]
 _DEFAULT_PATTERN = re.compile(r'(__defaults__)\[(\d+)\]')
 # Matches an argument like: 'x'
@@ -358,7 +358,7 @@ def _get_code_object_from_object_with_args_pattern(
 
   Args:
     obj: The object to search within.
-    object_with_args_result: The result of the lambda with args pattern search.
+    object_with_args_result: The result of the object with args pattern search.
     path: The path to the code object.
 
   Returns:
@@ -384,11 +384,11 @@ def _get_code_object_from_object_with_args_pattern(
 
 def _get_code_object_from_object_with_hash_pattern(
     obj: types.ModuleType, object_with_hash_result: re.Match[str], path: str):
-  """Returns the code object from a lambda with hash pattern.
+  """Returns the code object from an object with hash pattern.
 
   Args:
     obj: The object to search within.
-    object_with_hash_result: The result of the lambda with hash pattern search.
+    object_with_hash_result: The result of the object with hash pattern search.
     path: The path to the code object.
 
   Returns:
@@ -433,11 +433,11 @@ def get_code_from_identifier(code_object_identifier: str):
   max_module_parts = len(parts)
   for idx, part in enumerate(parts):
     if part == '__code__' or part.startswith(('co_consts[', '__defaults__[')):
-      max_module_parts = idx
+      max_module_parts = max(1, idx - 1)
       break
   obj = None
   start_index = 0
-  for i in range(len(parts), 0, -1):
+  for i in range(max_module_parts, 0, -1):
     module_name = '.'.join(parts[:i])
     if module_name in sys.modules and sys.modules[module_name] is not None:
       obj = sys.modules[module_name]
