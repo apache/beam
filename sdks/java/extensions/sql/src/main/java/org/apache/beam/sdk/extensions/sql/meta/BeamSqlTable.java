@@ -92,4 +92,16 @@ public interface BeamSqlTable {
     throw new UnsupportedOperationException(
         String.format("%s does not support WITH options for writes", getClass().getSimpleName()));
   }
+
+  /**
+   * Returns the table to read for one {@code CHANGES(...)} call in FROM, such as {@code SELECT *
+   * FROM CHANGES(t, 5, 10)}: the changes committed in the {@code changes} range, read with the
+   * {@code WITH} options, if any. Everything in {@link #forRead} applies here too.
+   *
+   * @throws UnsupportedOperationException if this table does not support {@code CHANGES(...)}
+   */
+  default BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support CHANGES(...)", getClass().getSimpleName()));
+  }
 }
