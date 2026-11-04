@@ -432,7 +432,7 @@ def get_code_from_identifier(code_object_identifier: str):
   parts = code_object_identifier.split('.')
   max_module_parts = len(parts)
   for idx, part in enumerate(parts):
-    if part == '__code__' or part.startswith('co_consts[', '__defaults__[')):
+    if part == '__code__' or part.startswith('co_consts[', '__defaults__['):
       max_module_parts = idx
       break
   obj = None
