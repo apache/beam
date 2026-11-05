@@ -18,6 +18,7 @@
 import contextlib
 import glob
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -27,22 +28,27 @@ from unittest import mock
 import apache_beam as beam
 from apache_beam.cli import main as cli
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import subprocess_server
 
 try:
+  import jsonschema
   from apache_beam.yaml import main as yaml_main
 except ImportError:
+  jsonschema = None
   yaml_main = None
 
+# Paths are formatted with `json.dumps` so Windows backslashes (such as `\U`
+# and `\t` in `C:\Users\...\temp`) are escaped as valid YAML strings.
 PIPELINE = '''
 pipeline:
   type: chain
   transforms:
     - type: ReadFromCsv
-      config: {path: "%(input)s"}
+      config: {path: %(input)s}
     - type: Filter
       config: {language: python, keep: "age > 20"}
     - type: WriteToJson
-      config: {path: "%(output)s"}
+      config: {path: %(output)s}
 '''
 
 FAILING_PIPELINE = '''
@@ -50,11 +56,11 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromCsv
-      config: {path: "%(input)s"}
+      config: {path: %(input)s}
     - type: MapToFields
       config: {language: python, fields: {x: "age // 0"}}
     - type: WriteToJson
-      config: {path: "%(output)s"}
+      config: {path: %(output)s}
 '''
 
 INVALID_PIPELINE = '''
@@ -104,39 +110,53 @@ class ParserTest(unittest.TestCase):
     self.assertIn('pipeline options go after FILE', err)
 
 
-@unittest.skipIf(yaml_main is None, 'requires the [yaml] extra')
+@unittest.skipIf(
+    yaml_main is None or jsonschema is None, 'requires the [yaml] extra')
 class RunTest(unittest.TestCase):
   def setUp(self):
     self.tmp = tempfile.mkdtemp()
-    self.addCleanup(shutil.rmtree, self.tmp)
+    self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
     self.input = os.path.join(self.tmp, 'users.csv')
     with open(self.input, 'w') as f:
       f.write('name,age\nAda,36\nLinus,17\nGrace,45\n')
 
-  def _pipeline_file(self, template, output='out/users'):
+  def _pipeline_file(self, template, output='users.json', input_path=None):
     path = os.path.join(self.tmp, 'pipeline.yaml')
     with open(path, 'w') as f:
       f.write(
           template % {
-              'input': self.input, 'output': os.path.join(self.tmp, output)
+              'input': json.dumps(input_path or self.input),
+              'output': json.dumps(os.path.join(self.tmp, output)),
           })
     return path
 
   def test_runs_like_yaml_main(self):
     # The CLI and `python -m apache_beam.yaml.main` write the same output for
     # the same pipeline file and options.
-    path = self._pipeline_file(PIPELINE, 'cli/users')
+    path = self._pipeline_file(PIPELINE, 'cli_users.json')
     code, out, _ = _run_cli(['run', path, '--runner=DirectRunner'])
     self.assertEqual(code, cli.EXIT_OK)
     self.assertRegex(out, r'Done\. Ran locally on (Prism|the Python direct)')
 
-    reference = self._pipeline_file(PIPELINE, 'reference/users')
+    reference = self._pipeline_file(PIPELINE, 'reference_users.json')
     yaml_main.run(
         ['--yaml_pipeline_file=' + reference, '--runner=DirectRunner'])
-    cli_rows = _read_lines(os.path.join(self.tmp, 'cli/users'))
+    cli_rows = _read_lines(os.path.join(self.tmp, 'cli_users.json'))
     self.assertEqual(len(cli_rows), 2)
     self.assertEqual(
-        cli_rows, _read_lines(os.path.join(self.tmp, 'reference/users')))
+        cli_rows, _read_lines(os.path.join(self.tmp, 'reference_users.json')))
+
+  def test_backslash_sequences_in_paths(self):
+    # Regression test for Windows temp paths (`C:\Users\...\tmp...`), where
+    # unescaped `\U` and `\t` inside double-quoted YAML strings fail parsing.
+    tricky_input = os.path.join(self.tmp, r'C_\Users\tmp_users.csv')
+    shutil.copyfile(self.input, tricky_input)
+    path = self._pipeline_file(
+        PIPELINE, 'backslash_users.json', input_path=tricky_input)
+    code, _, _ = _run_cli(['run', path, '--runner=DirectRunner'])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertEqual(
+        len(_read_lines(os.path.join(self.tmp, 'backslash_users.json'))), 2)
 
   def test_pipeline_failure_exits_with_1(self):
     path = self._pipeline_file(FAILING_PIPELINE)
@@ -198,6 +218,102 @@ class RunTest(unittest.TestCase):
     self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
     self.assertIn('No module named x', err)
     self.assertIn('pip install', err)
+
+  def test_pipeline_context_active_across_build_and_run(self):
+    # Java expansion services (Sql, Kafka, JDBC, Iceberg, ...) are started
+    # during `constructor(pipeline)` and queried again for artifacts during
+    # `pipeline.run()`, so `Pipeline.__enter__`'s subprocess cache and
+    # `--beam_services` overrides must stay active across both steps and be
+    # cleaned up afterwards.
+    path = self._pipeline_file(PIPELINE)
+    real_build = yaml_main.build_pipeline_components_from_argv
+    snapshots = {}
+
+    def capture(stage):
+      snapshots[stage] = (
+          dict(subprocess_server.JavaJarServer._BEAM_SERVICES.replacements),
+          set(subprocess_server.SubprocessServer._cache._live_owners),
+      )
+
+    def wrapped_build(argv):
+      options, constructor, display_data = real_build(argv)
+
+      def wrapped_constructor(pipeline):
+        capture('build')
+        constructor(pipeline)
+
+      return options, wrapped_constructor, display_data
+
+    result = mock.Mock()
+    result.wait_until_finish.return_value = cli.PipelineState.DONE
+
+    def fake_run(_self):
+      capture('run')
+      return result
+
+    owners_before = set(subprocess_server.SubprocessServer._cache._live_owners)
+    services_before = dict(
+        subprocess_server.JavaJarServer._BEAM_SERVICES.replacements)
+
+    with (
+        mock.patch.object(yaml_main,
+                          'build_pipeline_components_from_argv',
+                          side_effect=wrapped_build),
+        mock.patch.object(beam.Pipeline, 'run', fake_run),
+    ):
+      code, _, _ = _run_cli(
+          ['run', path, '--beam_services={"target": "override"}'])
+
+    self.assertEqual(code, cli.EXIT_OK)
+    build_services, build_owners = snapshots['build']
+    run_services, run_owners = snapshots['run']
+    self.assertTrue(build_owners - owners_before)
+    self.assertEqual(build_owners, run_owners)
+    self.assertEqual(build_services.get('target'), 'override')
+    self.assertEqual(run_services.get('target'), 'override')
+    self.assertEqual(
+        set(subprocess_server.SubprocessServer._cache._live_owners),
+        owners_before)
+    self.assertEqual(
+        dict(subprocess_server.JavaJarServer._BEAM_SERVICES.replacements),
+        services_before)
+
+    # Also verify cleanup when `constructor(pipeline)` raises during build.
+    def failing_build(argv):
+      options, _, display_data = real_build(argv)
+
+      def failing_constructor(_pipeline):
+        self.assertGreater(
+            len(subprocess_server.SubprocessServer._cache._live_owners),
+            len(owners_before))
+        raise RuntimeError('expansion failed')
+
+      return options, failing_constructor, display_data
+
+    with mock.patch.object(yaml_main,
+                           'build_pipeline_components_from_argv',
+                           side_effect=failing_build):
+      code, _, _ = _run_cli(
+          ['run', path, '--beam_services={"target": "override"}'])
+    self.assertEqual(code, cli.EXIT_USAGE)
+    self.assertEqual(
+        set(subprocess_server.SubprocessServer._cache._live_owners),
+        owners_before)
+    self.assertEqual(
+        dict(subprocess_server.JavaJarServer._BEAM_SERVICES.replacements),
+        services_before)
+
+  def test_no_wait_until_finish(self):
+    path = self._pipeline_file(PIPELINE)
+    result = mock.Mock()
+    result.state = cli.PipelineState.RUNNING
+    with mock.patch.object(beam.Pipeline, 'run',
+                           return_value=result) as run_mock:
+      code, out, _ = _run_cli(['run', path, '--no_wait_until_finish'])
+    self.assertEqual(code, cli.EXIT_OK)
+    run_mock.assert_called_once()
+    result.wait_until_finish.assert_not_called()
+    self.assertIn('not waiting for completion', out)
 
   def test_ctrl_c_cancels_and_exits_with_130(self):
     path = self._pipeline_file(PIPELINE)

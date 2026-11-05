@@ -56,7 +56,7 @@ Every other --flag is passed to the pipeline as a Beam pipeline option.
 Write them after FILE, as --flag=value.
 
 exit codes:
-  0    the pipeline finished
+  0    the pipeline finished (or was submitted with --no_wait_until_finish)
   1    the pipeline failed
   2    usage error, or the pipeline could not be built
   4    a required package is missing
@@ -138,39 +138,60 @@ def _run(file, pipeline_args, verbose):
         EXIT_MISSING_PACKAGE) from None
 
   # Build and run in two steps (yaml_main.run does both in a `with` block) so
-  # that build errors and pipeline failures get different exit codes.
+  # that build errors and pipeline failures get different exit codes. Enter
+  # `Pipeline.__enter__` across both steps so Java expansion service
+  # subprocesses stay cached between `constructor(pipeline)` and
+  # `pipeline.run()` (when artifacts are staged), and `--beam_services`
+  # overrides apply to both.
+  pipeline = None
   try:
-    options, constructor, display_data = (
-        yaml_main.build_pipeline_components_from_argv(
-            ['--yaml_pipeline_file=' + file] + pipeline_args))
-    pipeline = beam.Pipeline(options=options, display_data=display_data)
-    constructor(pipeline)
-  except ImportError as e:
-    # A transform's extra is missing, for example [gcp] for BigQuery.
-    _maybe_print_traceback(verbose)
-    raise _CliError(
-        f'a required package is missing: {e}\n'
-        '  install the extra the pipeline needs, for example: '
-        "pip install 'apache-beam[yaml,gcp]'",
-        EXIT_MISSING_PACKAGE) from None
-  except Exception as e:  # pylint: disable=broad-except
-    _maybe_print_traceback(verbose)
-    raise _CliError(f'could not build the pipeline: {e}', EXIT_USAGE) from None
-
-  try:
-    result = pipeline.run()
     try:
-      state = result.wait_until_finish()
-    except KeyboardInterrupt:
-      # main() reports the interruption after the pipeline is cancelled.
-      _cancel(result)
-      raise
-  except Exception as e:  # pylint: disable=broad-except
-    _maybe_print_traceback(verbose)
-    more = '' if verbose else '\n  rerun with --verbose for the traceback'
-    raise _CliError(
-        f'pipeline failed: {_summarize(e)}{more}',
-        EXIT_PIPELINE_FAILED) from None
+      options, constructor, display_data = (
+          yaml_main.build_pipeline_components_from_argv(
+              ['--yaml_pipeline_file=' + file] + pipeline_args))
+      pipeline = beam.Pipeline(options=options, display_data=display_data)
+      pipeline.__enter__()
+      constructor(pipeline)
+    except ImportError as e:
+      # A transform's extra is missing, for example [gcp] for BigQuery.
+      _maybe_print_traceback(verbose)
+      raise _CliError(
+          f'a required package is missing: {e}\n'
+          '  install the extra the pipeline needs, for example: '
+          "pip install 'apache-beam[yaml,gcp]'",
+          EXIT_MISSING_PACKAGE) from None
+    except Exception as e:  # pylint: disable=broad-except
+      _maybe_print_traceback(verbose)
+      raise _CliError(
+          f'could not build the pipeline: {e}', EXIT_USAGE) from None
+
+    no_wait = options.view_as(StandardOptions).no_wait_until_finish
+    state = None
+    try:
+      result = pipeline.run()
+      if not no_wait:
+        try:
+          state = result.wait_until_finish()
+        except KeyboardInterrupt:
+          # main() reports the interruption after the pipeline is cancelled.
+          _cancel(result)
+          raise
+    except Exception as e:  # pylint: disable=broad-except
+      _maybe_print_traceback(verbose)
+      more = '' if verbose else '\n  rerun with --verbose for the traceback'
+      raise _CliError(
+          f'pipeline failed: {_summarize(e)}{more}',
+          EXIT_PIPELINE_FAILED) from None
+  finally:
+    if pipeline is not None and hasattr(pipeline, '_extra_context'):
+      pipeline._extra_context.close()
+
+  if no_wait:
+    print(
+        f'Submitted {_describe_runner(options, result)} '
+        '(not waiting for completion).')
+    return EXIT_OK
+
   if state != PipelineState.DONE:
     raise _CliError(f'pipeline finished in state {state}', EXIT_PIPELINE_FAILED)
 
