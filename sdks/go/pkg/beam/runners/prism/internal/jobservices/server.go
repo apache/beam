@@ -67,9 +67,9 @@ type Server struct {
 	mw *worker.MultiplexW
 }
 
-// NewServer acquires the indicated port.
+// NewServer acquires the indicated port on localhost.
 func NewServer(port int, execute func(*Job)) *Server {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}

@@ -64,7 +64,7 @@ pipelines:
               key:
                 callable: |
                   def convert_to_bytes(row):
-                    return bytes(row.key, 'utf-8') if "key" in row._fields else None
+                    return bytes(row.key, 'utf-8') if hasattr(row, "key") else None
               type:
                 type
               family_name:
@@ -72,11 +72,11 @@ pipelines:
               column_qualifier:
                 callable: |
                   def convert_to_bytes(row):
-                    return bytes(row.column_qualifier, 'utf-8') if 'column_qualifier' in row._fields else None
+                    return bytes(row.column_qualifier, 'utf-8') if hasattr(row, 'column_qualifier') else None
               value:
                 callable: |
                   def convert_to_bytes(row):
-                    return bytes(row.value, 'utf-8') if 'value' in row._fields else None
+                    return bytes(row.value, 'utf-8') if hasattr(row, 'value') else None
               timestamp_micros:
                 timestamp_micros
         - type: WriteToBigTable
@@ -102,13 +102,13 @@ pipelines:
               key:
                 callable: |
                   def convert_to_string(row):
-                    return row.key.decode("utf-8") if "key" in row._fields else None
+                    return row.key.decode("utf-8") if hasattr(row, "key") else None
               family_name:
                 family_name
               column_qualifier:
                 callable: |
                   def convert_to_string(row):
-                    return row.column_qualifier.decode("utf-8") if "column_qualifier" in row._fields else None
+                    return row.column_qualifier.decode("utf-8") if hasattr(row, "column_qualifier") else None
               cells:
                 callable: |
                   def convert_to_string(row):

@@ -29,7 +29,6 @@ import secrets
 import shutil
 import sqlite3
 import string
-import struct
 import tempfile
 import time
 import unittest
@@ -38,42 +37,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import requests
-
-from apache_beam.coders import Coder
-from apache_beam.coders.coder_impl import CoderImpl
-
-
-class BigEndianIntegerCoderImpl(CoderImpl):
-  """Coder implementation for big-endian integers used in cross-language tests.
-
-  This is needed because Java's BigEndianIntegerCoder falls back to the generic
-  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
-  Python's FnApiRunner needs to know how to decode it.
-  """
-  def encode_to_stream(self, value, stream, nested):
-    stream.write(struct.pack('>i', value))
-
-  def decode_from_stream(self, stream, nested):
-    return struct.unpack('>i', stream.read(4))[0]
-
-
-class BigEndianIntegerCoder(Coder):
-  def get_impl(self):
-    return BigEndianIntegerCoderImpl()
-
-
-# Register the coder with the fallback URN used by the Java SDK for this coder.
-# This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder in integration tests.
-Coder.register_urn(
-    'beam:coders:javasdk:0.1',
-    None, lambda payload, components, context: BigEndianIntegerCoder())
-
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytds
+import requests
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
@@ -300,41 +268,43 @@ def temp_bigquery_table(
   table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  if table_schema:
-    schema = get_table_schema_from_string(table_schema)
-    additional_create_parameters = None
-    if primary_key:
-      pk_columns = set(primary_key)
-      for field in schema.fields:
-        if field.name in pk_columns:
-          field.mode = 'REQUIRED'
-      additional_create_parameters = {
-          'tableConstraints': bigquery.TableConstraints(
-              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
-                  columns=list(primary_key)))
-      }
-    bigquery_client.get_or_create_table(
-        project_id=project,
-        dataset_id=dataset_id,
-        table_id=table_id,
-        schema=schema,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_APPEND',
-        additional_create_parameters=additional_create_parameters)
-    logging.info(
-        "Created table %s.%s.%s (primary_key=%s)",
-        project,
-        dataset_id,
-        table_id,
-        primary_key)
-  if use_colon_table_spec:
-    yield f'{project}:{dataset_id}.{table_id}'
-  else:
-    yield f'{project}.{dataset_id}.{table_id}'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):

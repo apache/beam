@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,10 +32,9 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 
 /** {@link Coder} for {@link KafkaRecord}. */
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
@@ -76,29 +74,21 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
         longCoder.decode(inStream),
         longCoder.decode(inStream),
         KafkaTimestampType.forOrdinal(intCoder.decode(inStream)),
-        (Headers) toHeaders(headerCoder.decode(inStream)),
+        toHeaders(headerCoder.decode(inStream)),
         kvCoder.decode(inStream));
   }
 
-  private @Nullable Object toHeaders(Iterable<KV<String, byte[]>> records) {
-    if (!ConsumerSpEL.hasHeaders()) {
-      return null;
-    }
-
-    // ConsumerRecord is used to simply create a list of headers
-    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
-    records.forEach(kv -> consumerRecord.headers().add(kv.getKey(), kv.getValue()));
-    return consumerRecord.headers();
+  private static Headers toHeaders(Iterable<KV<String, byte[]>> records) {
+    RecordHeaders headers = new RecordHeaders();
+    records.forEach(kv -> headers.add(kv.getKey(), kv.getValue()));
+    return headers;
   }
 
-  private Iterable<KV<String, byte[]>> toIterable(KafkaRecord<K, V> record) {
-    if (!ConsumerSpEL.hasHeaders()) {
-      return Collections.emptyList();
-    }
-
+  private static Iterable<KV<String, byte[]>> toIterable(KafkaRecord<?, ?> record) {
     List<KV<String, byte[]>> vals = new ArrayList<>();
-    if (record.getHeaders() != null) {
-      for (Header header : record.getHeaders()) {
+    Headers headers = record.getHeaders();
+    if (headers != null) {
+      for (Header header : headers) {
         vals.add(KV.of(header.key(), header.value()));
       }
     }
@@ -133,7 +123,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
           value.getOffset(),
           value.getTimestamp(),
           value.getTimestampType(),
-          !ConsumerSpEL.hasHeaders() ? null : value.getHeaders(),
+          value.getHeaders(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }

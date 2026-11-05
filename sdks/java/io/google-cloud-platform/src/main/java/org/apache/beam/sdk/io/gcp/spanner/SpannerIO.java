@@ -2538,8 +2538,8 @@ public class SpannerIO {
                 .setExecuteStreamingSqlRetrySettings(
                     RetrySettings.newBuilder()
                         .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
-                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(5))
+                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(5))
                         .build())
                 .build();
       }

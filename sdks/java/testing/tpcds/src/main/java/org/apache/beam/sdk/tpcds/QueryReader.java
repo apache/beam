@@ -19,6 +19,7 @@ package org.apache.beam.sdk.tpcds;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.Quoting;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
@@ -50,7 +51,8 @@ public class QueryReader {
    * @throws SqlParseException
    */
   public static Set<String> getQueryIdentifiers(String queryString) throws SqlParseException {
-    SqlParser parser = SqlParser.create(queryString);
+    SqlParser parser =
+        SqlParser.create(queryString, SqlParser.config().withQuoting(Quoting.BACK_TICK));
     SqlNode parsedQuery = parser.parseQuery();
     SqlTransformRunner.SqlIdentifierVisitor sqlVisitor =
         new SqlTransformRunner.SqlIdentifierVisitor();

@@ -226,3 +226,19 @@ func ReadSimpleRowHeader(fields int, r io.Reader) error {
 	}
 	return nil
 }
+
+// RowFieldEncoderForType returns an encoding function for values of the given
+// type, using the encoding of that type as a field of a beam schema row.
+//
+// Returns an error if the given type cannot be a field of a beam schema row.
+func RowFieldEncoderForType(rt reflect.Type) (func(any, io.Writer) error, error) {
+	return defaultEnc.fieldEncoderForType(rt)
+}
+
+// RowFieldDecoderForType returns a decoding function for values of the given
+// type, using the encoding of that type as a field of a beam schema row.
+//
+// Returns an error if the given type cannot be a field of a beam schema row.
+func RowFieldDecoderForType(rt reflect.Type) (func(io.Reader) (any, error), error) {
+	return defaultDec.fieldDecoderForType(rt)
+}

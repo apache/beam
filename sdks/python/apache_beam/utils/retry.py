@@ -183,7 +183,7 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
         if not isinstance(content, dict):
           content = json.loads(exception.content)
         return content["error"]["errors"][0]["reason"] in _RETRYABLE_REASONS
-      except (KeyError, IndexError, TypeError) as e:
+      except (KeyError, IndexError, TypeError, ValueError) as e:
         _LOGGER.warning(
             "Could not determine if HttpError is transient. "
             "Will not retry: %s",

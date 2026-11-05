@@ -1001,12 +1001,6 @@ public class JmsIO {
         LOG.error("Error closing autoscaler", e);
       }
     }
-
-    @Override
-    @SuppressWarnings({"Finalize", "removal"})
-    protected void finalize() {
-      doClose();
-    }
   }
 
   /**

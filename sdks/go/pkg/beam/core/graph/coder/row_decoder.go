@@ -95,6 +95,23 @@ func (b *RowDecoderBuilder) decoderForType(t reflect.Type) (func(io.Reader) (any
 	if t.Kind() == reflect.Ptr {
 		isPtr = true
 		t = t.Elem()
+		// A provider for the value type also handles a top level pointer.
+		f, addr, err := b.customFunc(t)
+		if err != nil {
+			return nil, err
+		}
+		if f != nil && !addr {
+			vt := t
+			return func(r io.Reader) (any, error) {
+				v, err := f(r)
+				if err != nil {
+					return nil, err
+				}
+				rv := reflect.New(vt)
+				rv.Elem().Set(reflect.ValueOf(v))
+				return rv.Interface(), nil
+			}, nil
+		}
 	}
 	dec, err := b.decoderForStructReflect(t)
 	if err != nil {
@@ -434,4 +451,24 @@ type typeDecoderFieldReflect struct {
 	// If true the decoder is expecting us to pass it the address
 	// of the field value (i.e. &foo.bar) and not the field value (i.e. foo.bar).
 	addr bool
+}
+
+// fieldDecoderForType returns a decoder for values of t, using the encoding
+// of t as a row field.
+func (b *RowDecoderBuilder) fieldDecoderForType(t reflect.Type) (func(io.Reader) (any, error), error) {
+	decf, err := b.decoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
+	return func(r io.Reader) (any, error) {
+		rv := reflect.New(t)
+		v := rv.Elem()
+		if decf.addr {
+			v = rv
+		}
+		if err := decf.decode(v, r); err != nil {
+			return nil, err
+		}
+		return rv.Elem().Interface(), nil
+	}, nil
 }

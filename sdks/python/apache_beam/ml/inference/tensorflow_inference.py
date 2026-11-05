@@ -144,13 +144,15 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
-        max_batch_weight: the maximum total weight of a batch.
+        max_batch_weight: the maximum total weight of a batch. Cannot be
+          combined with batch_length_fn or batch_bucket_boundaries.
         element_size_fn: a function that returns the size (weight) of an
           element.
         batch_length_fn: a callable that returns the length of an element for
-          length-aware batching.
+          length-aware batching. Cannot be used together with max_batch_weight.
         batch_bucket_boundaries: a sorted list of positive boundary values for
-          length-aware batching buckets.
+          length-aware batching buckets. Cannot be used together with
+          max_batch_weight.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -285,13 +287,15 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
           GPU capacity and want to maximize resource utilization.
-        max_batch_weight: the maximum total weight of a batch.
+        max_batch_weight: the maximum total weight of a batch. Cannot be
+          combined with batch_length_fn or batch_bucket_boundaries.
         element_size_fn: a function that returns the size (weight) of an
           element.
         batch_length_fn: a callable that returns the length of an element for
-          length-aware batching.
+          length-aware batching. Cannot be used together with max_batch_weight.
         batch_bucket_boundaries: a sorted list of positive boundary values for
-          length-aware batching buckets.
+          length-aware batching buckets. Cannot be used together with
+          max_batch_weight.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 

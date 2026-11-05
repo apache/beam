@@ -315,6 +315,15 @@ func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func(
 	ss.inprogressKeys = set[string]{}
 }
 
+// StageRequiresTimeSortedInput marks the given stateful stage as requiring its
+// input sorted by event time. Data is held until the watermark passes its
+// timestamp plus the input's allowed lateness, then processed in timestamp order.
+func (em *ElementManager) StageRequiresTimeSortedInput(ID string, allowedLateness time.Duration) {
+	ss := em.stages[ID]
+	ss.requiresTimeSortedInput = true
+	ss.timeSortedAllowedLateness = allowedLateness
+}
+
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
 // processed by key.
 func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTimerID) {
@@ -1289,6 +1298,11 @@ type stageState struct {
 	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
 	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
 
+	// Whether the stage requires its input sorted by event time, and the
+	// allowed lateness of that input. See timeSortedDataReadyLocked.
+	requiresTimeSortedInput   bool
+	timeSortedAllowedLateness time.Duration
+
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
 	// the map and heap when the count goes to zero.
@@ -1515,6 +1529,20 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	return count
 }
 
+// isTriggerFinished returns true if the root trigger for the given window and key
+// has finished, meaning the window is closed and no further panes will be produced.
+// Callers must hold ss.mu.
+func (ss *stageState) isTriggerFinished(window typex.Window, key string) bool {
+	if ss.strat.Trigger == nil {
+		return false
+	}
+	state, ok := ss.state[LinkID{}][window][key]
+	if !ok {
+		return false
+	}
+	return state.getTriggerState(ss.strat.Trigger).finished
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1543,6 +1571,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 	count := 0
 	for _, e := range newPending {
+		if len(e.keyBytes) > 0 && ss.isTriggerFinished(e.window, string(e.keyBytes)) {
+			// The trigger for this window and key has already finished, so the
+			// window is closed. Drop the element, matching the Java ReduceFnRunner
+			// (droppedDueToClosedWindow). Otherwise the element would be emitted
+			// in an extra pane when the watermark passes the end of the window.
+			continue
+		}
 		count++
 		if len(e.keyBytes) == 0 {
 			panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
@@ -1937,6 +1972,10 @@ keysPerBundle:
 					(!dataInBundle && !dnt.elements[0].IsTimer())) { // we're about to add data to a bundle that already has a time
 				break
 			}
+			if dnt.elements[0].IsData() && !ss.timeSortedDataReadyLocked(dnt.elements[0].timestamp, watermark) {
+				// Hold data, and anything after it, until it can be time sorted.
+				break
+			}
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsData() {
 				dataInBundle = true
@@ -2003,11 +2042,28 @@ func (ss *stageState) hasBuildableDataLocked(watermark mtime.Time) bool {
 		if dnt.elements.Len() == 0 {
 			continue
 		}
-		if e := dnt.elements[0]; e.IsData() || e.timestamp <= watermark {
+		e := dnt.elements[0]
+		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) {
+			return true
+		}
+		if e.IsTimer() && e.timestamp <= watermark {
 			return true
 		}
 	}
 	return false
+}
+
+// timeSortedDataReadyLocked reports whether a data element with the given
+// timestamp may be processed at the given watermark. Data for stages that
+// require time sorted input is held until the watermark passes its timestamp
+// plus the allowed lateness, so no earlier element that isn't droppably late
+// can still arrive, and held elements are processed in timestamp order.
+// Data for other stages is always ready. Callers hold ss.mu.
+func (ss *stageState) timeSortedDataReadyLocked(ts, watermark mtime.Time) bool {
+	if !ss.requiresTimeSortedInput || watermark == mtime.MaxTimestamp {
+		return true
+	}
+	return ts.Add(ss.timeSortedAllowedLateness) <= watermark
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
@@ -2318,9 +2374,20 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	// A key stays assigned to this bundle while any primary element still
+	// carries it. Releasing it would let a residual of the same key run in a
+	// second bundle while the primary is still processing it, so both bundles
+	// would start from the same state and the last commit would drop the
+	// other's state changes.
+	primKeys := set[string]{}
+	for _, e := range prim {
+		primKeys.insert(string(e.keyBytes))
+	}
 	for _, e := range res {
-		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
-		delete(ss.inprogressKeys, string(e.keyBytes))
+		if k := string(e.keyBytes); !primKeys.present(k) {
+			delete(ss.inprogressKeysByBundle[rb.BundleID], k)
+			delete(ss.inprogressKeys, k)
+		}
 
 		if e.IsTimer() {
 			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")

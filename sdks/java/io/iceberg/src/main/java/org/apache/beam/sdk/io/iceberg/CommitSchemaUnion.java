@@ -82,9 +82,6 @@ final class CommitSchemaUnion {
   private static final Counter throttledMillis =
       Metrics.counter(Metrics.THROTTLE_TIME_NAMESPACE, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
-  /** Returned when the table does not exist and there is no schema to create it from. */
-  static final long NO_TABLE = -1L;
-
   /** What a table is created with when it does not exist yet; unused on an existing table. */
   static final class NewTableSettings implements Serializable {
     final @Nullable List<String> partitionFields;
@@ -137,12 +134,12 @@ final class CommitSchemaUnion {
   private CommitSchemaUnion() {}
 
   /**
-   * Applies the schemas and returns the table's schema id after the call, or {@link #NO_TABLE} when
-   * the table is missing and there is no schema to create it from.
+   * Applies the schemas and returns the table's schema id after the call, or a refusal naming why
+   * no table could be created.
    *
    * @param schemas the window's distinct schema groups, most common first
    */
-  static long commit(
+  static SchemaCommitVerdict commit(
       Catalog catalog,
       TableIdentifier tableId,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
@@ -152,7 +149,7 @@ final class CommitSchemaUnion {
   }
 
   /** Test hook: the sleeper keeps the retry tests from waiting out the backoff. */
-  static long commit(
+  static SchemaCommitVerdict commit(
       Catalog catalog,
       TableIdentifier tableId,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
@@ -166,6 +163,35 @@ final class CommitSchemaUnion {
         table -> commitOnce(catalog, tableId, table, schemas, settings, committer));
   }
 
+  /**
+   * As {@link #commit}, except that no failure escapes: one table's problem refuses that table and
+   * the rest of the window's tables load.
+   */
+  static SchemaCommitVerdict tryCommit(
+      Catalog catalog,
+      String table,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      Settings settings,
+      Committer committer) {
+    try {
+      // the parse belongs inside the catch: a rendered name the catalog cannot accept is this
+      // table's problem, not the run's
+      return commit(
+          catalog, IcebergUtils.parseTableIdentifier(table), schemas, settings, committer);
+    } catch (RuntimeException e) {
+      // Deliberately no retry here, and none added to withRetry. Iceberg's REST client already
+      // retries 429 and 503 itself (ExponentialHttpRequestRetryStrategy, 5 attempts by default),
+      // so a transient blip never reaches this. It does not retry 500/502/504, because the commit
+      // may have landed and retrying could commit twice. Either way what arrives here has
+      // genuinely failed, and retrying it would only multiply the backoff.
+      //
+      // Logged with the throwable because this also catches bugs in this code, which would
+      // otherwise surface only as an unexplained error row.
+      LOG.warn("Refusing {}: the schema pre-pass failed", table, e);
+      return SchemaCommitVerdict.refused(AddFiles.errorMessage(e));
+    }
+  }
+
   /** One attempt at a plan or a commit, against the table as it is now; null when missing. */
   private interface Attempt<T> {
     T run(@Nullable Table table);
@@ -174,6 +200,9 @@ final class CommitSchemaUnion {
   /**
    * Runs an attempt again, against a fresh load of the table, when a concurrent commit or a create
    * race invalidates the state it started from. Gives up when the backoff time is spent.
+   *
+   * <p>Only stale state belongs here: reloading the table is what makes the retry meaningful. A
+   * flaky catalog is a different problem, handled in {@link #tryCommit}.
    */
   private static <T> T withRetry(
       Catalog catalog, TableIdentifier tableId, Sleeper sleeper, Attempt<T> once) {
@@ -255,7 +284,7 @@ final class CommitSchemaUnion {
         table -> SchemaPlan.compute(catalog, tableId, table, schemas, settings));
   }
 
-  private static long commitOnce(
+  private static SchemaCommitVerdict commitOnce(
       Catalog catalog,
       TableIdentifier tableId,
       @Nullable Table table,
@@ -266,7 +295,8 @@ final class CommitSchemaUnion {
     if (plan instanceof SchemaPlan.Creation) {
       return create((SchemaPlan.Creation) plan, catalog, tableId, settings, committer);
     }
-    return evolve((SchemaPlan.Evolution) plan, tableId, settings.handling, committer);
+    return SchemaCommitVerdict.committed(
+        evolve((SchemaPlan.Evolution) plan, tableId, settings.handling, committer));
   }
 
   /** Replays the planned union onto the table and repairs the name mapping, in one commit. */
@@ -330,7 +360,7 @@ final class CommitSchemaUnion {
    * canonical order (sorted by name at every level), not in any file's declared order; later unions
    * append after them.
    */
-  private static long create(
+  private static SchemaCommitVerdict create(
       SchemaPlan.Creation plan,
       Catalog catalog,
       TableIdentifier tableId,
@@ -338,13 +368,15 @@ final class CommitSchemaUnion {
       Committer committer) {
     if (plan.schemasToMerge.isEmpty() && plan.incompatibleSchemas.isEmpty()) {
       LOG.info("Table {} does not exist and no file schema was read; not creating it", tableId);
-      return NO_TABLE;
+      return SchemaCommitVerdict.refused(
+          "the table does not exist and no file schema was read to create it from");
     }
     failOrWarnOnIncompatibleSchemas(
         tableId, plan.incompatibleSchemas, settings.handling, "no table was created");
     if (plan.newSchema == null) {
       LOG.info("Table {} does not exist and no file schema can seed it; not creating it", tableId);
-      return NO_TABLE;
+      return SchemaCommitVerdict.refused(
+          "the table does not exist and every file schema read was refused");
     }
     if (plan.problem != null) {
       throw new IllegalStateException(plan.problem);
@@ -371,7 +403,7 @@ final class CommitSchemaUnion {
         tableId,
         plan.schemasToMerge.size(),
         schemaId);
-    return schemaId;
+    return SchemaCommitVerdict.committed(schemaId);
   }
 
   private static void failOrWarnOnIncompatibleSchemas(
