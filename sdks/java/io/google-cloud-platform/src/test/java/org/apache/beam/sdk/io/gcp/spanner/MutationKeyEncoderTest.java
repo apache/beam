@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes;
 import org.junit.Assert;
@@ -304,6 +305,54 @@ public class MutationKeyEncoderTest {
                 .set("keydesc")
                 .to("a")
                 .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+  }
+
+  @Test
+  public void uuidKeys() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test", "key", "UUID");
+    builder.addKeyPart("test", "key", false);
+
+    builder.addColumn("test", "keydesc", "UUID");
+    builder.addKeyPart("test", "keydesc", true);
+
+    SpannerSchema schema = builder.build();
+
+    UUID u1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    UUID u2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    UUID u3 = UUID.fromString("00000000-0000-0000-0000-000000000003");
+    UUID u4 = UUID.fromString("00000000-0000-0000-0000-000000000004");
+
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(u1)
+                .set("keydesc")
+                .to(u2)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(u2)
+                .set("keydesc")
+                .to((UUID) null)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(u2)
+                .set("keydesc")
+                .to(u4)
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test")
+                .set("key")
+                .to(u2)
+                .set("keydesc")
+                .to(u3)
+                .build(),
+            Mutation.delete("test", Key.of(u2, u1)));
 
     verifyEncodedOrdering(schema, sortedMutations);
   }

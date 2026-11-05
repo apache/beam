@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.KeyPart;
@@ -140,6 +141,9 @@ class MutationKeyEncoder {
           case JSON:
             writeString(orderedCode, part, val.getJson());
             break;
+          case UUID:
+            writeString(orderedCode, part, val.getUuid().toString());
+            break;
           default:
             throw new IllegalArgumentException("Unknown type " + val.getType());
         }
@@ -173,6 +177,8 @@ class MutationKeyEncoder {
           writeTimestamp(orderedCode, part, (Timestamp) value);
         } else if (value instanceof Date) {
           writeNumber(orderedCode, part, encodeDate((Date) value));
+        } else if (value instanceof UUID) {
+          writeString(orderedCode, part, value.toString());
         } else {
           throw new IllegalArgumentException("Unknown key part " + value);
         }
