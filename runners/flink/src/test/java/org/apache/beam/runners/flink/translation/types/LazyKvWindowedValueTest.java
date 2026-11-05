@@ -283,6 +283,39 @@ public class LazyKvWindowedValueTest implements Serializable {
         is(true));
   }
 
+  private static final AtomicInteger KEY_CODER_CALLS = new AtomicInteger();
+
+  /** A coder for the KV keys that counts how often it is invoked. */
+  private static class CountingKeyCoder extends AtomicCoder<String> {
+    @Override
+    public void encode(String value, OutputStream outStream) throws IOException {
+      KEY_CODER_CALLS.incrementAndGet();
+      StringUtf8Coder.of().encode(value, outStream);
+    }
+
+    @Override
+    public String decode(InputStream inStream) throws IOException {
+      KEY_CODER_CALLS.incrementAndGet();
+      return StringUtf8Coder.of().decode(inStream);
+    }
+  }
+
+  @Test
+  public void decodesTheEncodedKeyOnce() throws IOException {
+    Coder<WindowedValue<KV<String, List<String>>>> coder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(new CountingKeyCoder(), new CountingValueCoder()),
+            GlobalWindow.Coder.INSTANCE);
+    LazyKvWindowedValue<String, List<String>> lazy = lazy(coder, GLOBAL_VALUE);
+    byte[] expected = FlinkKeyUtils.encodeKey("key", StringUtf8Coder.of()).array();
+
+    KEY_CODER_CALLS.set(0);
+    assertArrayEquals(expected, lazy.getEncodedKey());
+    assertArrayEquals(expected, lazy.getEncodedKey());
+    assertThat(KEY_CODER_CALLS.get(), is(1));
+    assertThat(VALUE_CODER_CALLS.get(), is(0));
+  }
+
   private static final AtomicInteger WINDOW_CODER_CALLS = new AtomicInteger();
 
   /** An {@link IntervalWindow} coder that counts how often it is invoked. */

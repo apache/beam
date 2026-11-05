@@ -67,6 +67,12 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
    */
   private int valueOffset;
 
+  /**
+   * End offset of the encoded key in {@link #encodedRecord}, or -1 until the key is first read.
+   * Flink may read the key of a record several times, e.g. to partition it and then to sort it.
+   */
+  private int keyEnd = -1;
+
   private @Nullable KV<K, V> value;
 
   LazyKvWindowedValue(
@@ -109,15 +115,18 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
     }
     header();
     byte[] bytes = encodedRecord;
-    // KvCoder encodes the key first, the same way as FlinkKeyUtils.encodeKey.
-    ByteArrayInputStreamWithPos in =
-        new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length - valueOffset);
-    try {
-      kvCoder.getKeyCoder().decode(in);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to decode key", e);
+    if (keyEnd < 0) {
+      // KvCoder encodes the key first, the same way as FlinkKeyUtils.encodeKey.
+      ByteArrayInputStreamWithPos in =
+          new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length - valueOffset);
+      try {
+        kvCoder.getKeyCoder().decode(in);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to decode key", e);
+      }
+      keyEnd = bytes.length - in.available();
     }
-    return Arrays.copyOfRange(bytes, valueOffset, bytes.length - in.available());
+    return Arrays.copyOfRange(bytes, valueOffset, keyEnd);
   }
 
   @Override
