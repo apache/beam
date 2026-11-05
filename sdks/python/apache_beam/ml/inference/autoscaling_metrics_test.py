@@ -34,11 +34,7 @@ def _publisher(model_identifier='step-id', port=None, **kwargs):
 
 
 def _cell(model_identifier):
-  """The process-wide ``num_loaded_models_<id>`` cell.
-
-  The publisher replaces the cell rather than mutating it, so fetch it again
-  for every read instead of holding on to it.
-  """
+  """The process-wide ``num_loaded_models_<id>`` cell."""
   return autoscaling_metrics.MetricsEnvironment.process_wide_container(
   ).get_distribution(
       autoscaling_metrics.MetricName(
@@ -190,6 +186,42 @@ class AutoscalingMetricsTest(unittest.TestCase):
     # 5 completions that already finished before the scrape (delta=5,
     # running=0): total_completed=30, total_slot_secs=25 -> mu=1.2, p90=5 -> 6.
     self.assertAlmostEqual(estimator.update(30.0, 0.0, now=125.0), 6.0)
+
+  def test_capacity_estimator_no_estimate_until_a_request_completes(self):
+    """In-flight requests with no completions never report the floor."""
+    # Slow first requests: still nothing completed after the warmup timeout.
+    slow = autoscaling_metrics.CompletionRateCapacityEstimator(
+        min_requests=3, warmup_timeout_secs=10.0)
+    self.assertIsNone(slow.update(0.0, 4.0, now=100.0))  # Baseline.
+    for t in (105.0, 110.0, 115.0):
+      self.assertIsNone(slow.update(0.0, 4.0, now=t))
+    # The first completions produce an estimate.
+    self.assertIsNotNone(slow.update(8.0, 4.0, now=120.0))
+
+    # First poll after an idle period longer than the window: the earlier
+    # samples have left the window and the new requests haven't finished yet.
+    for aggregation in ('concurrency', 'window_mean', 'window_max'):
+      resumed = autoscaling_metrics.CompletionRateCapacityEstimator(
+          min_value=1,
+          window_secs=10.0,
+          min_requests=0,
+          aggregation=aggregation)
+      resumed.update(0.0, 2.0, now=0.0)
+      self.assertGreater(resumed.update(20.0, 2.0, now=5.0), 1.0)
+      for t in (10.0, 15.0, 20.0):
+        self.assertIsNone(resumed.update(20.0, 0.0, now=t))  # Idle.
+      self.assertIsNone(resumed.update(20.0, 3.0, now=25.0), aggregation)
+
+    # lifetime_max keeps reporting its peak.
+    peak = autoscaling_metrics.CompletionRateCapacityEstimator(
+        min_value=1,
+        window_secs=10.0,
+        min_requests=0,
+        aggregation='lifetime_max')
+    peak.update(0.0, 2.0, now=0.0)
+    self.assertEqual(peak.update(20.0, 2.0, now=5.0), 4.0)
+    self.assertIsNone(peak.update(20.0, 0.0, now=20.0))  # Idle.
+    self.assertEqual(peak.update(20.0, 3.0, now=25.0), 4.0)
 
   def test_capacity_estimator_defaults_to_monotonic_clock(self):
     estimator = autoscaling_metrics.CompletionRateCapacityEstimator(

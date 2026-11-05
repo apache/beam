@@ -63,9 +63,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from typing import Optional
 
-from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.execution import _TypedMetricName
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = [
@@ -255,7 +253,9 @@ class CompletionRateCapacityEstimator:
   completions can land in one interval; the max modes latch onto such bursts.
 
   In every mode, intervals with no completions and nothing in flight are
-  skipped, so idle periods don't drag the estimate down.
+  skipped, so idle periods don't drag the estimate down. While requests are in
+  flight but none has completed within the window, there is no estimate either
+  (except in ``'lifetime_max'`` mode once a peak has been seen).
 
   Units: every mode is in requests per second. The runner reads the published
   value as how many requests one worker can handle, so each worker is sized
@@ -351,6 +351,13 @@ class CompletionRateCapacityEstimator:
       return None  # Nothing was in flight during the window.
     if self._first_active_ts is None:
       self._first_active_ts = prev_ts
+    if total_completed <= 0 and not (self._aggregation == LIFETIME_MAX and
+                                     self._peak_rate > 0):
+      # Requests are in flight but none has completed in the window yet, e.g.
+      # slow first requests or the first poll after an idle period. That says
+      # nothing about capacity, so keep the previous value instead of
+      # reporting the floor.
+      return None
     if (total_completed < self._min_requests and
         now - self._first_active_ts < self._warmup_timeout_secs):
       # Wait until a new worker is calibrated, so it doesn't briefly report
@@ -559,17 +566,10 @@ class NumLoadedModelsPublisher:
     # them, and Dataflow reads their cumulative mean (sum / count). Keeping the
     # cell at (sum=published, count=1) makes the runner see the latest value
     # rather than an average since worker start. The harness reads the cell
-    # from another thread, so the update must be atomic: reset() then update()
-    # would briefly expose an empty cell (count=0). The cell's lock and data
-    # are not reachable from Python when apache_beam.metrics is compiled with
-    # Cython (as on workers), so install a fresh cell holding the value with a
-    # single dict store instead, which is atomic under the GIL.
-    container = MetricsEnvironment.process_wide_container()
-    key = _TypedMetricName(
-        DistributionCell,
+    # from another thread, so replace the data in one step with reset_to():
+    # reset() then update() would briefly expose an empty cell (count=0).
+    cell = MetricsEnvironment.process_wide_container().get_distribution(
         MetricName(MODEL_MANAGER_METRICS_NAMESPACE, self._metric_name))
-    current = container.get_metric_cell(key).get_cumulative()
+    current = cell.get_cumulative()
     if current.count != 1 or current.sum != published:
-      cell = DistributionCell()
-      cell.update(published)
-      container.metrics[key] = cell
+      cell.reset_to(published)
