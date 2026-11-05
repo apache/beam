@@ -21,7 +21,7 @@ Generic across LLM servers that keep a prefix (KV) cache, such as vLLM, SGLang
 or TensorRT-LLM; nothing here depends on a particular server.
 
 ``ModelHandler(batch_key_fn=...)`` makes ``BatchElements`` route elements that
-share a key to the same worker via ``GroupIntoBatches``, so each batch the
+share a key to the same worker and batch them together, so each batch the
 server sees is homogeneous and its prefix cache gets hit instead of thrashed.
 This module packages the knobs for that into one :class:`PrefixBatchingConfig`
 plus the default key extractors a handler installs when the user does not
@@ -57,43 +57,80 @@ __all__ = [
 # on. Long enough to cover a typical system prompt, short enough that keys are
 # cheap to hash and shuffle.
 DEFAULT_PREFIX_CHAR_LEN = 128
-# GroupIntoBatches buffering applied when the handler's own
-# ``max_batch_duration_secs`` is unset, so low-traffic keys still flush in
-# streaming instead of waiting for a full batch.
+# Batch buffering applied when the handler's own ``max_batch_duration_secs`` is
+# unset, so low-traffic keys still flush in streaming instead of waiting for a
+# full batch.
 DEFAULT_KEYED_BATCH_DURATION_SECS = 1.0
 # Shards per prefix key. A single shard serves a hot prefix (e.g. a common
 # system prompt) on one worker at a time; a few shards keep that prefix's
 # throughput scaling with the pool while every shard still batches a single
 # prefix.
 DEFAULT_NUM_SHARDS = 8
+# Where PromptPrefixKeyFn cuts a prompt short of ``prefix_char_len``: the end of
+# the first paragraph, which usually ends a system prompt or instruction header.
+DEFAULT_PROMPT_DELIMITERS = ('\n\n', )
 
 # Accepted forms of ``num_shards``: one count for every key, a per-key table,
 # or a callable computed per key (see ``WithBatchKey`` in transforms/util.py).
 NumShardsSpec = Union[int, Mapping[Any, int], Callable[[Any], int]]
 
 
+def _validate_delimiters(delimiters: Sequence[str]) -> tuple[str, ...]:
+  if isinstance(delimiters, str):
+    raise TypeError(
+        'delimiters must be a sequence of strings, e.g. (":",), not a str.')
+  delimiters = tuple(delimiters)
+  if not all(isinstance(d, str) and d for d in delimiters):
+    raise ValueError('delimiters must be non-empty strings.')
+  return delimiters
+
+
+def _cut_at_delimiter(
+    text: str, prefix_char_len: int, delimiters: tuple[str, ...]) -> str:
+  """Returns ``text`` up to the earliest delimiter, capped at prefix_char_len.
+
+  A delimiter counts if it starts within the first ``prefix_char_len``
+  characters (and not at position 0). Only that leading part of ``text`` is
+  searched, so long prompts cost the same as short ones.
+  """
+  end = prefix_char_len
+  for delimiter in delimiters:
+    idx = text.find(delimiter, 1, prefix_char_len + len(delimiter))
+    if idx > 0:
+      end = min(end, idx)
+  return text[:end]
+
+
 class PromptPrefixKeyFn:
   """Default prefix key extractor for plain-text prompts.
 
   Keys a prompt string by its leading ``prefix_char_len`` characters, or by
-  everything before the first ``\\n\\n`` when that comes sooner, so prompts
-  sharing the same system prompt or instruction header are routed to the same
-  worker and batched together.
+  everything before the first of ``delimiters`` when that comes sooner, so
+  prompts sharing the same system prompt or instruction header are routed to
+  the same worker and batched together.
+
+  Args:
+    prefix_char_len: Most leading characters to key on.
+    delimiters: Strings that end the shared prefix early. Defaults to a blank
+      line (``"\\n\\n"``). Prompts with a different structure can use e.g.
+      ``(":", "\\n\\n")`` to key on an instruction that ends with a colon,
+      or ``()`` to always key on exactly ``prefix_char_len`` characters.
   """
-  def __init__(self, prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN):
+  def __init__(
+      self,
+      prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN,
+      delimiters: Sequence[str] = DEFAULT_PROMPT_DELIMITERS):
     if prefix_char_len <= 0:
       raise ValueError('prefix_char_len must be positive.')
     self._prefix_char_len = prefix_char_len
+    self._delimiters = _validate_delimiters(delimiters)
 
   def __call__(self, element: str) -> str:
     if not isinstance(element, str):
       raise TypeError(
           f'Expected str prompt for prefix key extraction, got '
           f'{type(element).__name__}.')
-    sep_idx = element.find('\n\n')
-    if 0 < sep_idx <= self._prefix_char_len:
-      return element[:sep_idx]
-    return element[:self._prefix_char_len]
+    return _cut_at_delimiter(element, self._prefix_char_len, self._delimiters)
 
 
 class ChatPrefixKeyFn:
@@ -106,11 +143,21 @@ class ChatPrefixKeyFn:
   ``OpenAIChatMessage``) or dicts with those keys. Any other message schema
   raises ``TypeError`` rather than silently collapsing every conversation onto
   one key; pass ``PrefixBatchingConfig(key_fn=...)`` for custom schemas.
+
+  Args:
+    prefix_char_len: Most leading characters of the first message to key on.
+    delimiters: Strings that end the shared part of the first message early,
+      as in :class:`PromptPrefixKeyFn`. Defaults to none, since the first
+      message is usually the whole system prompt.
   """
-  def __init__(self, prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN):
+  def __init__(
+      self,
+      prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN,
+      delimiters: Sequence[str] = ()):
     if prefix_char_len <= 0:
       raise ValueError('prefix_char_len must be positive.')
     self._prefix_char_len = prefix_char_len
+    self._delimiters = _validate_delimiters(delimiters)
 
   def __call__(self, element: Sequence[Any]) -> str:
     if not isinstance(element, (list, tuple)):
@@ -130,8 +177,9 @@ class ChatPrefixKeyFn:
           'Chat message has no role/content attributes or keys (got '
           f'{type(first_msg).__name__}); pass '
           'PrefixBatchingConfig(key_fn=...) to key a custom message schema.')
-    content_str = str(content or '')
-    return f'{role or ""}:{content_str[:self._prefix_char_len]}'
+    content_str = _cut_at_delimiter(
+        str(content or ''), self._prefix_char_len, self._delimiters)
+    return f'{role or ""}:{content_str}'
 
 
 @dataclass(frozen=True)
@@ -149,14 +197,19 @@ class PrefixBatchingConfig:
     (:class:`PromptPrefixKeyFn` or :class:`ChatPrefixKeyFn`).
   * ``prefix_char_len`` -- how many leading characters the default extractor
     keys on (default 128). Ignored when ``key_fn`` is set.
+  * ``prefix_delimiters`` -- strings that end the key early, e.g. ``(":",)``
+    for prompts whose shared instruction ends with a colon. Leave unset (the
+    default) for the extractor's own default: a blank line for
+    :class:`PromptPrefixKeyFn`, none for :class:`ChatPrefixKeyFn`. Ignored
+    when ``key_fn`` is set.
   * ``num_shards`` -- bounds hot-key fanout: an ``int`` applied to every key,
     a ``Mapping[key, int]`` with per-key shard counts for a known skewed
     prefix distribution (e.g. ``{'<the common system prompt>': 32}``;
     unlisted keys get 1), or a ``Callable[[key], int]``. Each key is spread
     across at most that many workers (default 8).
 
-    **Sharding is what lets skewed workloads scale.** ``GroupIntoBatches``
-    keeps per-key state, so all batches for one shard of a key are processed
+    **Sharding is what lets skewed workloads scale.** Keyed batching keeps
+    per-key state, so all batches for one shard of a key are processed
     by a single worker at a time. With a single shard, a prefix shared by most
     traffic (e.g. a common system prompt) is served at the throughput of one
     worker no matter how many workers the pipeline has, and its requests
@@ -175,6 +228,7 @@ class PrefixBatchingConfig:
   key_fn: Optional[Callable[[Any], Any]] = None
   prefix_char_len: int = DEFAULT_PREFIX_CHAR_LEN
   num_shards: Optional[NumShardsSpec] = DEFAULT_NUM_SHARDS
+  prefix_delimiters: Optional[Sequence[str]] = None
 
   def resolve(
       self, default_key_fn: Callable[[int], Callable[[Any], Any]]
@@ -183,12 +237,17 @@ class PrefixBatchingConfig:
 
     Args:
       default_key_fn: Factory (e.g. :class:`PromptPrefixKeyFn`) invoked with
-        ``prefix_char_len`` when ``key_fn`` is unset.
+        ``prefix_char_len``, and ``delimiters`` when ``prefix_delimiters`` is
+        set, when ``key_fn`` is unset.
     """
     if self.key_fn is not None:
       return self
-    return dataclasses.replace(
-        self, key_fn=default_key_fn(self.prefix_char_len))
+    if self.prefix_delimiters is None:
+      key_fn = default_key_fn(self.prefix_char_len)
+    else:
+      key_fn = default_key_fn(
+          self.prefix_char_len, delimiters=self.prefix_delimiters)
+    return dataclasses.replace(self, key_fn=key_fn)
 
   def batching_kwargs(self,
                       max_batch_duration_secs: Optional[float] = None

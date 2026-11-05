@@ -2831,6 +2831,31 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
         batch_key_fn=lambda s: s, batch_key_num_shards=shard_map)
     self.assertEqual(handler.batch_elements_kwargs()['num_shards'], shard_map)
 
+  def test_batch_key_args_validated_at_construction(self):
+    with self.assertRaisesRegex(ValueError, 'callable'):
+      FakeModelHandlerForBatching(batch_key_fn='not callable')
+    with self.assertRaisesRegex(ValueError, 'requires batch_key_fn'):
+      FakeModelHandlerForBatching(batch_key_num_shards=2)
+    with self.assertRaisesRegex(ValueError, 'length-based'):
+      FakeModelHandlerForBatching(batch_key_fn=len, batch_length_fn=len)
+    for bad_shards in (0, '4', {'a': 0}):
+      with self.assertRaises(ValueError):
+        FakeModelHandlerForBatching(
+            batch_key_fn=len, batch_key_num_shards=bad_shards)
+    # Weighted keyed batching is supported.
+    FakeModelHandlerForBatching(
+        batch_key_fn=len, element_size_fn=len, max_batch_weight=10)
+
+  def test_keyed_handler_batch_key_fn_receives_example(self):
+    key_fn = lambda prompt: prompt.split(':', 1)[0]
+    unkeyed = FakeModelHandlerForBatching(batch_key_fn=key_fn)
+    keyed_fn = base.KeyedModelHandler(unkeyed).batch_elements_kwargs()['key_fn']
+    self.assertEqual(keyed_fn(('k', 'fin:1')), 'fin')
+    maybe_keyed_fn = base.MaybeKeyedModelHandler(
+        unkeyed).batch_elements_kwargs()['key_fn']
+    self.assertEqual(maybe_keyed_fn(('k', 'fin:1')), 'fin')
+    self.assertEqual(maybe_keyed_fn('med:1'), 'med')
+
 
 class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
                                                            FakeModel]):
@@ -2909,6 +2934,31 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
               'fin:2|batch_prefixes=fin|size=2',
               'med:1|batch_prefixes=med|size=2',
               'med:2|batch_prefixes=med|size=2',
+          ]))
+
+  def test_run_inference_with_batch_key_fn_and_keyed_model_handler(self):
+    # A keyed handler passes the example, not the (key, example) pair, to
+    # batch_key_fn.
+    handler = base.KeyedModelHandler(
+        PrefixPeerReportingStringModelHandler(
+            min_batch_size=2,
+            max_batch_size=2,
+            max_batch_duration_secs=1.0,
+            batch_key_fn=lambda prompt: prompt.split(':', 1)[0]))
+    examples = [('k1', 'fin:1'), ('k2', 'med:1'), ('k3', 'fin:2'),
+                ('k4', 'med:2')]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([
+              ('k1', 'fin:1|batch_prefixes=fin|size=2'),
+              ('k3', 'fin:2|batch_prefixes=fin|size=2'),
+              ('k2', 'med:1|batch_prefixes=med|size=2'),
+              ('k4', 'med:2|batch_prefixes=med|size=2'),
           ]))
 
 

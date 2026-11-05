@@ -187,6 +187,8 @@ def _validate_batching_args(
     element_size_fn=None,
     batch_length_fn=None,
     batch_bucket_boundaries=None,
+    batch_key_fn=None,
+    batch_key_num_shards=None,
 ):
   if max_batch_weight is not None:
     if element_size_fn is None:
@@ -199,6 +201,19 @@ def _validate_batching_args(
   if batch_bucket_boundaries is not None and batch_length_fn is None:
     raise ValueError(
         'batch_bucket_boundaries requires batch_length_fn to be set.')
+
+  if batch_key_fn is not None:
+    if not callable(batch_key_fn):
+      raise ValueError('batch_key_fn must be callable.')
+    if batch_length_fn is not None or batch_bucket_boundaries is not None:
+      raise ValueError(
+          'batch_key_fn cannot be combined with length-based batching '
+          '(batch_length_fn or batch_bucket_boundaries).')
+  if batch_key_num_shards is not None:
+    if batch_key_fn is None:
+      raise ValueError('batch_key_num_shards requires batch_key_fn to be set.')
+    # pylint: disable=protected-access
+    beam.transforms.util._validate_num_shards(batch_key_num_shards)
 
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
@@ -251,9 +266,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         receives the element as it enters batching, i.e. *after* any
         ``with_preprocess_fn`` functions have been applied. When set,
         BatchElements keys elements via WithBatchKey (without a per-worker UUID)
-        and groups them across workers using GroupIntoBatches so that elements
-        sharing the same key (e.g., prompt prefix or category) are routed to
-        the same worker and batched together.
+        and batches them statefully across workers, so that elements sharing
+        the same key (e.g., prompt prefix or category) are routed to the same
+        worker and batched together. Batch sizes still adapt between
+        min_batch_size and max_batch_size, and element_size_fn /
+        max_batch_weight apply per key. When the handler is wrapped in a
+        KeyedModelHandler, it receives the example, not the (key, example)
+        pair. Cannot be combined with batch_length_fn.
       batch_key_num_shards: bounds hot-key fanout when batch_key_fn is set.
         Either an int applied to every key, a mapping from batch key to shard
         count for a known skewed distribution (keys not in the mapping get 1
@@ -275,7 +294,9 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
-        batch_bucket_boundaries=batch_bucket_boundaries)
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        batch_key_fn=batch_key_fn,
+        batch_key_num_shards=batch_key_num_shards)
 
     self._batching_kwargs: dict[str, Any] = {}
     if min_batch_size is not None:
@@ -761,9 +782,9 @@ class KeyModelMapping(Generic[KeyT, ExampleT, PredictionT, ModelT]):
 class _ApplyToExample:
   """Applies a function of an example to a (key, example) pair.
 
-  The element_size_fn and batch_length_fn of a ModelHandler take examples, but
-  BatchElements sees (key, example) pairs when the ModelHandler is wrapped in a
-  KeyedModelHandler or a MaybeKeyedModelHandler.
+  The element_size_fn, batch_length_fn and batch_key_fn of a ModelHandler take
+  examples, but BatchElements sees (key, example) pairs when the ModelHandler is
+  wrapped in a KeyedModelHandler or a MaybeKeyedModelHandler.
   """
   def __init__(self, fn: Callable[[Any], Any], maybe_keyed: bool = False):
     self._fn = fn
@@ -781,7 +802,7 @@ def _keyed_batch_elements_kwargs(
     maybe_keyed: bool = False) -> dict[str, Any]:
   """Adapts the BatchElements kwargs of a ModelHandler to keyed examples."""
   kwargs = dict(batch_elements_kwargs)
-  for name in ('element_size_fn', 'length_fn'):
+  for name in ('element_size_fn', 'length_fn', 'key_fn'):
     if kwargs.get(name) is not None:
       kwargs[name] = _ApplyToExample(kwargs[name], maybe_keyed)
   return kwargs

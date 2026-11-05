@@ -40,6 +40,38 @@ class PrefixBatchingTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       PromptPrefixKeyFn(prefix_char_len=0)
 
+  def test_prompt_prefix_key_fn_delimiters(self):
+    prompt = 'Foo, bar, baz. Choose one of these options:\n- x\n- y'
+    self.assertEqual(
+        PromptPrefixKeyFn(delimiters=(':', '\n\n'))(prompt),
+        'Foo, bar, baz. Choose one of these options')
+    # The earliest delimiter wins.
+    self.assertEqual(PromptPrefixKeyFn(delimiters=('\n', ':'))('a:b\nc'), 'a')
+    # No delimiters: always the leading prefix_char_len characters.
+    self.assertEqual(
+        PromptPrefixKeyFn(prefix_char_len=4, delimiters=())('ab\n\ncdef'),
+        'ab\n\n')
+    # Only delimiters starting within prefix_char_len count, and a delimiter
+    # at position 0 does not produce an empty key.
+    self.assertEqual(
+        PromptPrefixKeyFn(prefix_char_len=3, delimiters=(':', ))('abcd:e'),
+        'abc')
+    self.assertEqual(
+        PromptPrefixKeyFn(prefix_char_len=3, delimiters=(':', ))('abc:e'),
+        'abc')
+    self.assertEqual(
+        PromptPrefixKeyFn(prefix_char_len=5, delimiters=(':', ))(':ab:c'),
+        ':ab')
+    with self.assertRaises(TypeError):
+      PromptPrefixKeyFn(delimiters=':')
+    with self.assertRaises(ValueError):
+      PromptPrefixKeyFn(delimiters=('', ))
+
+  def test_prompt_prefix_key_fn_searches_only_the_prefix(self):
+    # A delimiter far past prefix_char_len is never looked for.
+    prompt = 'x' * 10 + '\n\n' + 'y' * 10
+    self.assertEqual(PromptPrefixKeyFn(prefix_char_len=4)(prompt), 'xxxx')
+
   def test_chat_prefix_key_fn(self):
     key_fn = ChatPrefixKeyFn(prefix_char_len=3)
     msgs = [_Msg('system', 'You are A'), _Msg('user', 'Hello')]
@@ -52,6 +84,10 @@ class PrefixBatchingTest(unittest.TestCase):
     self.assertEqual(key_fn([]), '')
     with self.assertRaises(TypeError):
       key_fn({'messages': msgs})
+    # Delimiters apply to the first message's content.
+    self.assertEqual(
+        ChatPrefixKeyFn(delimiters=(':', ))([_Msg('system', 'Rules: be nice')]),
+        'system:Rules')
     with self.assertRaises(ValueError):
       ChatPrefixKeyFn(prefix_char_len=0)
 
@@ -93,6 +129,19 @@ class PrefixBatchingTest(unittest.TestCase):
     self.assertIs(custom.key_fn, len)
     with self.assertRaises(ValueError):
       PrefixBatchingConfig().batching_kwargs()
+
+  def test_config_prefix_delimiters(self):
+    # Unset: the extractor's own default.
+    self.assertEqual(
+        PrefixBatchingConfig().resolve(PromptPrefixKeyFn).key_fn._delimiters,
+        prefix_batching.DEFAULT_PROMPT_DELIMITERS)
+    self.assertEqual(
+        PrefixBatchingConfig().resolve(ChatPrefixKeyFn).key_fn._delimiters, ())
+    # Set: passed to whichever default extractor the handler uses.
+    for default_key_fn in (PromptPrefixKeyFn, ChatPrefixKeyFn):
+      resolved = PrefixBatchingConfig(
+          prefix_delimiters=(':', )).resolve(default_key_fn)
+      self.assertEqual(resolved.key_fn._delimiters, (':', ))
 
   def test_resolve_batching_kwargs_without_config(self):
     # No config -> unkeyed batching with the handler's duration passed through.

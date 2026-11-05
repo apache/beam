@@ -1240,8 +1240,8 @@ def _validate_num_shards(num_shards: Any) -> Any:
 
 
 class WithBatchKey(DoFn):
-  """Keys elements with a deterministic string key for cross-worker
-  GroupIntoBatches batching.
+  """Keys elements with a deterministic string key for cross-worker stateful
+  batching in ``BatchElements(key_fn=...)``.
 
   Unlike ``WithSharedKey`` and ``WithLengthBucketKey`` (which include a
   per-worker UUID so elements remain worker-local), ``WithBatchKey`` omits any
@@ -1379,11 +1379,15 @@ class BatchElements(PTransform):
         length_fn is set. Requires length_fn.
     key_fn: (optional) a callable mapping an element to a grouping key. When
         set, elements are keyed via ``WithBatchKey`` (without a per-worker UUID)
-        and grouped across workers using ``GroupIntoBatches`` up to
-        ``max_batch_size``, producing homogeneous batches per key (e.g., for LLM
-        prefix caching). Incomplete batches are flushed after
+        and batched by the same stateful implementation used for
+        ``max_batch_duration_secs``, so elements sharing a key are routed to
+        the same worker and batched together (e.g., for LLM prefix caching).
+        Batch sizes still adapt between ``min_batch_size`` and
+        ``max_batch_size``, and ``element_size_fn`` / ``max_batch_weight`` are
+        honored per key. Incomplete batches are flushed after
         ``max_batch_duration_secs``, or after 1 second when it is unset, so
-        low-traffic keys still make progress in streaming pipelines.
+        low-traffic keys still make progress in streaming pipelines. Cannot be
+        combined with ``length_fn``.
     num_shards: (optional) bounds hot-key fanout when ``key_fn`` is set: an
         ``int`` applied to every key, a ``Mapping[key, int]`` giving per-key
         shard counts for a known skewed distribution (unlisted keys get 1), or
@@ -1433,12 +1437,10 @@ class BatchElements(PTransform):
           'max_batch_duration_secs is set.')
     if key_fn is not None and not callable(key_fn):
       raise ValueError('key_fn must be callable.')
-    if key_fn is not None and (length_fn is not None or
-                               max_batch_weight is not None):
-      # Keyed batching groups with GroupIntoBatches, which only bounds the
-      # number of elements per batch.
-      raise ValueError(
-          'key_fn cannot be combined with length_fn or max_batch_weight.')
+    if key_fn is not None and length_fn is not None:
+      # Both pick the state key: key_fn routes by key across workers, length_fn
+      # buckets by length within a worker.
+      raise ValueError('key_fn cannot be combined with length_fn.')
     num_shards = _validate_num_shards(num_shards)
     if num_shards != 1 and key_fn is None:
       raise ValueError('num_shards requires key_fn to be set.')
@@ -1464,25 +1466,37 @@ class BatchElements(PTransform):
     self._key_fn = key_fn
     self._num_shards = num_shards
 
+  def _stateful_batching_dofn(self, coder, max_buffering_duration_secs):
+    if self._element_size_fn is None:
+      return _pardo_stateful_batch_elements(
+          coder,
+          self._batch_size_estimator,
+          max_buffering_duration_secs,
+          self._clock)
+    return _pardo_stateful_weighted_batch_elements(
+        coder,
+        self._batch_size_estimator,
+        max_buffering_duration_secs,
+        self._element_size_fn,
+        self._max_batch_weight,
+        self._clock)
+
   def expand(self, pcoll):
     if self._key_fn is not None:
-      element_type = pcoll.element_type
-      # GroupIntoBatches treats a buffering duration of 0 as "no limit", which
-      # in a streaming global window would hold an incomplete batch forever.
+      coder = coders.registry.get_coder(pcoll)
+      # Without a buffering timer an incomplete batch in a streaming global
+      # window would only be flushed when the batch fills up.
       buffering_secs = (
           self._max_batch_dur if self._max_batch_dur is not None else
           _DEFAULT_KEYED_MAX_BUFFERING_SECS)
+      # WithBatchKey omits the per-worker UUID, so the stateful DoFn groups
+      # each key across workers instead of within one worker.
       return (
           pcoll
-          | 'WithBatchKey' >> ParDo(
-              WithBatchKey(self._key_fn, self._num_shards)).with_output_types(
-                  tuple[str, element_type])
-          | 'GroupIntoBatchesByKey' >> GroupIntoBatches(
-              self._batch_size_estimator._max_batch_size,
-              max_buffering_duration_secs=buffering_secs,
-              clock=self._clock)
-          | 'DropBatchKey' >> Map(lambda kv: list(kv[1])).with_output_types(
-              list[element_type]))
+          | ParDo(WithBatchKey(self._key_fn,
+                               self._num_shards)).with_output_types(
+                                   tuple[str, pcoll.element_type])
+          | ParDo(self._stateful_batching_dofn(coder, buffering_secs)))
     elif getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
@@ -1492,18 +1506,8 @@ class BatchElements(PTransform):
             self._length_fn, self._bucket_boundaries)
       else:
         keying_dofn = WithSharedKey()
-      if self._element_size_fn is None:
-        batching_dofn = _pardo_stateful_batch_elements(
-            coder, self._batch_size_estimator, self._max_batch_dur, self._clock)
-      else:
-        batching_dofn = _pardo_stateful_weighted_batch_elements(
-            coder,
-            self._batch_size_estimator,
-            self._max_batch_dur,
-            self._element_size_fn,
-            self._max_batch_weight,
-            self._clock)
-      return pcoll | ParDo(keying_dofn) | ParDo(batching_dofn)
+      return pcoll | ParDo(keying_dofn) | ParDo(
+          self._stateful_batching_dofn(coder, self._max_batch_dur))
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.

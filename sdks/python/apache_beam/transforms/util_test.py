@@ -1282,7 +1282,7 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(checks, is_not_empty())
 
   def test_batch_elements_key_fn_groups_homogeneous_batches(self):
-    """BatchElements with key_fn groups elements by key via GroupIntoBatches."""
+    """BatchElements with key_fn batches each key separately."""
     elements = ['sysA:q1', 'sysB:q1', 'sysA:q2', 'sysB:q2', 'sysA:q3']
     with TestPipeline('FnApiRunner') as p:
       batches = (
@@ -1367,34 +1367,79 @@ class BatchElementsTest(unittest.TestCase):
       util.BatchElements(key_fn=len, num_shards={'a': 0})
     with self.assertRaises(ValueError):
       util.BatchElements(key_fn=len, num_shards='4')
-    # Keyed batching can't honor length bucketing or batch weights.
+    # key_fn and length_fn both choose the state key.
     with self.assertRaises(ValueError):
       util.BatchElements(key_fn=len, length_fn=len)
-    with self.assertRaises(ValueError):
-      util.BatchElements(
-          key_fn=len, max_batch_weight=10, element_size_fn=lambda x: 1)
     # Valid specs.
     util.BatchElements(key_fn=len, num_shards={'a': 2})
     util.BatchElements(key_fn=len, num_shards=lambda k: 2)
+    util.BatchElements(
+        key_fn=len, max_batch_weight=10, element_size_fn=lambda x: 1)
 
-  def test_batch_elements_key_fn_default_buffering(self):
-    """Keyed batching never runs GroupIntoBatches without a flush timer."""
+  def test_batch_elements_key_fn_uses_stateful_batching(self):
+    """Keyed batching reuses the stateful DoFn and always has a flush timer."""
     def buffering_secs(**kwargs):
-      p = beam.Pipeline()
-      _ = p | beam.Create(['a']) | util.BatchElements(key_fn=len, **kwargs)
-      found = []
-
-      class Visitor(beam.pipeline.PipelineVisitor):
-        def enter_composite_transform(self, node):
-          if isinstance(node.transform, util.GroupIntoBatches):
-            found.append(node.transform.params.max_buffering_duration_secs)
-
-      p.visit(Visitor())
-      self.assertEqual(len(found), 1)
-      return found[0]
+      with mock.patch.object(
+          util,
+          '_pardo_stateful_batch_elements',
+          wraps=util._pardo_stateful_batch_elements) as stateful:
+        p = beam.Pipeline()
+        _ = p | beam.Create(['a']) | util.BatchElements(key_fn=len, **kwargs)
+      self.assertEqual(stateful.call_count, 1)
+      # (coder, batch_size_estimator, max_buffering_duration_secs, clock)
+      return stateful.call_args[0][2]
 
     self.assertEqual(buffering_secs(), 1.0)
     self.assertEqual(buffering_secs(max_batch_duration_secs=2.5), 2.5)
+
+  def test_batch_elements_key_fn_honors_batch_size_estimator(self):
+    """Batch sizes adapt from min_batch_size rather than max_batch_size."""
+    elements = [f'k:{i}' for i in range(5)]
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=10000,
+              max_batch_duration_secs=100,
+              clock=FakeClock(),
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      # The estimator starts at min_batch_size, so the first batch for the key
+      # is emitted as soon as it holds one element.
+      def check_not_one_batch(batch_list):
+        assert len(batch_list) > 1, batch_list
+        assert sorted(e for b in batch_list for e in b) == sorted(elements)
+
+      assert_that(batches, check_not_one_batch)
+
+  def test_batch_elements_key_fn_with_max_batch_weight(self):
+    """Keyed batches are bounded by weight as well as homogeneous."""
+    elements = ['a:xx', 'b:xx', 'a:xx', 'a:xx', 'b:xx', 'a:xxxxx']
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              element_size_fn=lambda s: len(s.split(':', 1)[1]),
+              max_batch_weight=4,
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      def check(batch_list):
+        flattened = []
+        for b in batch_list:
+          assert len({s.split(':', 1)[0] for s in b}) == 1, b
+          weight = sum(len(s.split(':', 1)[1]) for s in b)
+          # An element heavier than max_batch_weight is batched by itself.
+          assert weight <= 4 or len(b) == 1, b
+          flattened.extend(b)
+        assert sorted(flattened) == sorted(elements), flattened
+
+      assert_that(batches, check)
 
   def test_global_batching_dofn_single_vs_multiple_bundles(self):
     # This test directly verifies how bundling affects the batch sizes produced by
