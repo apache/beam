@@ -322,7 +322,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     def _do_fillna(df, value):
       val = get_value(value)
       if method is not None:
-        if PD_VERSION >= (3, 0):
+        if PD_VERSION >= (3, 0):  # pragma: no cover - pandas 3.0+
           fill_fn = getattr(df, method, None)
           if fill_fn is not None:
             return fill_fn(axis=axis, limit=limit)
@@ -350,7 +350,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   if hasattr(pd.DataFrame, 'first'):
 
     @frame_base.with_docs_from(pd.DataFrame)
-    def first(self, offset):
+    def first(self, offset):  # pragma: no cover - deprecated in pandas 2.1+
       per_partition = expressions.ComputedExpression(
           'first-per-partition',
           lambda df: df.sort_index().first(offset=offset), [self._expr],
@@ -367,7 +367,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   if hasattr(pd.DataFrame, 'last'):
 
     @frame_base.with_docs_from(pd.DataFrame)
-    def last(self, offset):
+    def last(self, offset):  # pragma: no cover - deprecated in pandas 2.1+
       per_partition = expressions.ComputedExpression(
           'last-per-partition', lambda df: df.sort_index().last(offset=offset),
           [self._expr],
@@ -404,7 +404,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       raise NotImplementedError('groupby(as_index=False)')
 
     if axis in (1, 'columns'):
-      if PD_VERSION >= (3, 0):
+      if PD_VERSION >= (3, 0):  # pragma: no cover - pandas 3.0+
         raise NotImplementedError("groupby(axis=1) is removed in Pandas 3.0+")
       return _DeferredGroupByCols(
           expressions.ComputedExpression(
