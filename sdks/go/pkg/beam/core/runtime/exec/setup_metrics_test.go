@@ -18,6 +18,7 @@ package exec
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -58,6 +59,20 @@ import (
 //
 // The two tests below pin down both halves of that contract, so that the lossy
 // case stays explicit and deliberate instead of regressing silently.
+//
+// A third property is pinned by TestSetupMetricsSharedWithBundle below:
+// metrics incremented in Setup and in the bundle methods of the same DoFn
+// must land in the same recorded metric. Setup runs with a context derived
+// from the bundle context, while the bundle methods use a different derived
+// context, and both carry the same PTransform ID. The metrics store must
+// therefore share one counterset per PTransform across those contexts;
+// otherwise increments to the same metric diverge into different objects
+// and only the first-registered one is reported (apache/beam#27038).
+//
+// The same attribution rule applies to CombineFn Setup methods, pinned by
+// TestCombineSetupMetricsAttribution below: Combine.Up must tag the Setup
+// context with the transform ID, or Setup metrics are recorded without
+// attribution and cannot be reported back to the runner.
 
 // setupMetricsCounter is incremented by setupMetricsDoFnWithContext.Setup using
 // the context supplied by the framework.
@@ -211,5 +226,174 @@ func TestSetupMetricsWithoutContext(t *testing.T) {
 
 	if found {
 		t.Error("setup_counter_no_ctx metric should not be found in the bundle's metrics store when Setup() does not accept context")
+	}
+}
+
+// sharedSetupCounter, sharedSetupDistribution and sharedSetupGauge are all
+// incremented by sharedSetupDoFn in both Setup and ProcessElement, using
+// the context the framework supplies in each case.
+var sharedSetupCounter = metrics.NewCounter("test", "shared_setup_counter")
+var sharedSetupDistribution = metrics.NewDistribution("test", "shared_setup_distribution")
+var sharedSetupGauge = metrics.NewGauge("test", "shared_setup_gauge")
+
+type sharedSetupDoFn struct{}
+
+func (fn *sharedSetupDoFn) Setup(ctx context.Context) {
+	sharedSetupCounter.Inc(ctx, 1)
+	sharedSetupDistribution.Update(ctx, 10)
+	sharedSetupGauge.Set(ctx, 7)
+}
+
+func (fn *sharedSetupDoFn) ProcessElement(ctx context.Context, v int) int {
+	sharedSetupCounter.Inc(ctx, 1)
+	sharedSetupDistribution.Update(ctx, 20)
+	sharedSetupGauge.Set(ctx, 9)
+	return v
+}
+
+// TestSetupMetricsSharedWithBundle verifies that metrics incremented in a
+// DoFn's Setup method and in its per-element methods are recorded together
+// in the same metric in the bundle's store. Setup runs with a context
+// derived from the bundle context, while the bundle methods use a different
+// derived context; both must resolve to the same counterset for the
+// transform, or increments from one side are silently dropped. See
+// apache/beam#27038.
+//
+// The plan is built with an explicit PTransform ID so the test also
+// verifies the metrics are attributed to the executing transform.
+func TestSetupMetricsSharedWithBundle(t *testing.T) {
+	fn, err := graph.NewDoFn(&sharedSetupDoFn{})
+	if err != nil {
+		t.Fatalf("invalid DoFn: %v", err)
+	}
+
+	g := graph.New()
+	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	out := &CaptureNode{UID: 1}
+	pardo := &ParDo{UID: 2, PID: "test-pardo-ptransform", Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
+	root := &FixedRoot{UID: 3, Elements: makeInput(1, 2, 3), Out: pardo}
+
+	p, err := NewPlan("test-plan", []Unit{root, pardo, out})
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	ctx := metrics.SetBundleID(context.Background(), "bundle-1")
+	if err := p.Execute(ctx, "bundle-1", DataContext{}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	store := metrics.GetStore(ctx)
+	if store == nil {
+		t.Fatal("no metrics store found")
+	}
+
+	var counter int64 = -1
+	var distCount, distSum, distMin, distMax int64 = -1, -1, -1, -1
+	var gauge int64 = -1
+	extractor := metrics.Extractor{
+		SumInt64: func(labels metrics.Labels, v int64) {
+			if labels.Transform() == pardo.PID && labels.Namespace() == "test" && labels.Name() == "shared_setup_counter" {
+				counter = v
+			}
+		},
+		DistributionInt64: func(labels metrics.Labels, count, sum, min, max int64) {
+			if labels.Transform() == pardo.PID && labels.Namespace() == "test" && labels.Name() == "shared_setup_distribution" {
+				distCount, distSum, distMin, distMax = count, sum, min, max
+			}
+		},
+		GaugeInt64: func(labels metrics.Labels, v int64, _ time.Time) {
+			if labels.Transform() == pardo.PID && labels.Namespace() == "test" && labels.Name() == "shared_setup_gauge" {
+				gauge = v
+			}
+		},
+	}
+	if err := extractor.ExtractFrom(store); err != nil {
+		t.Fatalf("extraction failed: %v", err)
+	}
+
+	// 1 from Setup + 3 from ProcessElement (3 input elements).
+	if counter != 4 {
+		t.Errorf("shared_setup_counter = %v, want 4 (1 from Setup + 3 from ProcessElement)", counter)
+	}
+	if distCount != 4 || distSum != 70 || distMin != 10 || distMax != 20 {
+		t.Errorf("shared_setup_distribution = count %v sum %v min %v max %v, want count 4 sum 70 min 10 max 20", distCount, distSum, distMin, distMax)
+	}
+	// The gauge keeps the latest value, set by ProcessElement.
+	if gauge != 9 {
+		t.Errorf("shared_setup_gauge = %v, want 9", gauge)
+	}
+}
+
+// combineSetupCounter is incremented by combineSetupDoFn.Setup using the
+// context supplied by the framework.
+var combineSetupCounter = metrics.NewCounter("test", "combine_setup_counter")
+
+type combineSetupDoFn struct{}
+
+func (fn *combineSetupDoFn) Setup(ctx context.Context) {
+	combineSetupCounter.Inc(ctx, 1)
+}
+
+func (fn *combineSetupDoFn) CreateAccumulator() int { return 0 }
+func (fn *combineSetupDoFn) AddInput(a, b int) int  { return a + b }
+func (fn *combineSetupDoFn) MergeAccumulators(a, b int) int {
+	return a + b
+}
+func (fn *combineSetupDoFn) ExtractOutput(a int) int { return a }
+
+// TestCombineSetupMetricsAttribution verifies that a metric incremented in
+// a CombineFn's context-aware Setup method is attributed to the Combine's
+// PTransform in the bundle's metrics store. Combine.Up must tag the Setup
+// context with the transform ID; without it the increment is recorded
+// without attribution and the runner cannot report it. See
+// apache/beam#27038.
+func TestCombineSetupMetricsAttribution(t *testing.T) {
+	edge := getCombineEdge(t, &combineSetupDoFn{}, reflectx.Int, intCoder(reflectx.Int64))
+
+	out := &CaptureNode{UID: 1}
+	combine := &Combine{UID: 2, PID: "test-combine-ptransform", Fn: edge.CombineFn, Out: out}
+	n := &FixedRoot{UID: 3, Elements: makeKeyedInput(42, 1, 2, 3), Out: combine}
+
+	p, err := NewPlan("test-plan", []Unit{n, combine, out})
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	ctx := metrics.SetBundleID(context.Background(), "bundle-1")
+	if err := p.Execute(ctx, "bundle-1", DataContext{}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	store := metrics.GetStore(ctx)
+	if store == nil {
+		t.Fatal("no metrics store found")
+	}
+
+	var found bool
+	extractor := metrics.Extractor{
+		SumInt64: func(labels metrics.Labels, v int64) {
+			if labels.Namespace() == "test" && labels.Name() == "combine_setup_counter" {
+				if labels.Transform() != combine.PID {
+					t.Errorf("combine setup metric attributed to transform %q, want %q", labels.Transform(), combine.PID)
+				} else if v != 1 {
+					t.Errorf("combine setup counter = %v, want 1", v)
+				} else {
+					found = true
+				}
+			}
+		},
+	}
+	if err := extractor.ExtractFrom(store); err != nil {
+		t.Fatalf("extraction failed: %v", err)
+	}
+	if !found {
+		t.Error("combine_setup_counter metric not found attributed to the Combine's PTransform")
 	}
 }
