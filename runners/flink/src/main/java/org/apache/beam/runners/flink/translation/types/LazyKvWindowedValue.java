@@ -111,7 +111,7 @@ public final class LazyKvWindowedValue<K, V> implements WindowedValue<KV<K, V>> 
     byte[] bytes = encodedRecord;
     // KvCoder encodes the key first, the same way as FlinkKeyUtils.encodeKey.
     ByteArrayInputStreamWithPos in =
-        new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length);
+        new ByteArrayInputStreamWithPos(bytes, valueOffset, bytes.length - valueOffset);
     try {
       kvCoder.getKeyCoder().decode(in);
     } catch (IOException e) {
