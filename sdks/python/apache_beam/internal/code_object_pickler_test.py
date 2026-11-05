@@ -219,6 +219,18 @@ class ClassWithNestedLambda:
     return get_lambda_from_dictionary()
 
 
+class _InstanceOnlyDescriptor:
+  def __get__(self, instance, owner=None):
+    if instance is None:
+      raise TypeError("only valid on instance")
+    return 1
+
+
+class ClassWithLambdaAndRaisingAttribute:
+  a_setting = _InstanceOnlyDescriptor()
+  fn = lambda self, x: x + 1
+
+
 prefix = __name__
 
 test_cases = [
@@ -556,6 +568,16 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
       code_object_pickler.get_code_from_identifier(
           "apache_beam.internal.test_data.module_3."
           "my_function.__code__.co_consts[<lambda>, ('',), 1234567890]")
+
+  def test_lambda_search_skips_attributes_that_raise(self):
+    fn = ClassWithLambdaAndRaisingAttribute.fn
+    path = code_object_pickler.get_code_object_identifier(fn)
+    self.assertEqual(
+        path,
+        "apache_beam.internal.code_object_pickler_test."
+        "ClassWithLambdaAndRaisingAttribute.fn.__code__")
+    self.assertEqual(
+        code_object_pickler.get_code_from_identifier(path), fn.__code__)
 
   def test_adding_local_variable_in_class_preserves_object(self):
     self.assertEqual(
