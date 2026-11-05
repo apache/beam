@@ -121,18 +121,16 @@ task deploy {
       exec {
         commandLine './build_and_publish_containers.sh', 'true', "${project.lastCommitId}"
       }
-
+      exec {
+        executable 'sh'
+        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
+      }
       exec {
         executable 'sh'
         args '-c', "kubectl --namespace default set image deployment/beamgrafana \
           beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
           beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
           beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
-      }
-
-      exec {
-        executable 'sh'
-        args '-c', 'kubectl --namespace default apply -f kubernetes/beamgrafana-deploy.yaml'
       }
     } else {
       println 'Nothing to do, exiting.'

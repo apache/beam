@@ -180,7 +180,14 @@ class ResourceEstimator:
       self,
       smoothing_factor: float = 0.2,
       min_data_points: int = 5,
-      verbose_logging: bool = False):
+      verbose_logging: bool = False,
+      metric_tags_fn: Optional[Callable[[str], list[str]]] = None):
+    """
+    Args:
+      metric_tags_fn: Resolves a model tag to the metric tags its
+        memory_estimate_mb_* metric is reported under. Defaults to the model
+        tag itself.
+    """
     self.smoothing_factor = smoothing_factor
     self.min_data_points = min_data_points
     self.verbose_logging = verbose_logging
@@ -188,10 +195,24 @@ class ResourceEstimator:
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
     self._lock = threading.Lock()
+    self._metric_tags_fn = metric_tags_fn or (lambda model_tag: [model_tag])
 
   def logging_info(self, message: str, *args):
     if self.verbose_logging:
       logger.info(message, *args)
+
+  def report_estimate(self, model_tag: str):
+    with self._lock:
+      if model_tag in self.estimates:
+        self._report_estimate(model_tag, self.estimates[model_tag])
+
+  # Should hold _lock when calling
+  def _report_estimate(self, model_tag: str, cost: float):
+    for metric_tag in self._metric_tags_fn(model_tag):
+      Metrics.distribution(
+          _MODEL_MANAGER_METRICS_NAMESPACE,
+          f"memory_estimate_mb_{metric_tag}",
+          process_wide=True).update(int(cost))
 
   def is_unknown(self, model_tag: str) -> bool:
     with self._lock:
@@ -205,10 +226,7 @@ class ResourceEstimator:
     with self._lock:
       self.estimates[model_tag] = cost
       self.known_models.add(model_tag)
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"memory_estimate_mb_{model_tag}",
-          process_wide=True).update(int(cost))
+      self._report_estimate(model_tag, cost)
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
@@ -296,10 +314,7 @@ class ResourceEstimator:
         self.logging_info(
             "Updated Estimate for %s: %.1f MB", model, self.estimates[model])
 
-        Metrics.distribution(
-            _MODEL_MANAGER_METRICS_NAMESPACE,
-            f"memory_estimate_mb_{model}",
-            process_wide=True).update(int(self.estimates[model]))
+        self._report_estimate(model, self.estimates[model])
       self.logging_info("System Bias: %s MB", bias)
 
     except Exception as e:
@@ -345,7 +360,8 @@ class ModelManager:
     self._estimator = ResourceEstimator(
         min_data_points=min_data_points,
         smoothing_factor=smoothing_factor,
-        verbose_logging=verbose_logging)
+        verbose_logging=verbose_logging,
+        metric_tags_fn=self._metric_tags_for)
     self._monitor = monitor if monitor else GPUMonitor(
         poll_interval=poll_interval, peak_window_seconds=peak_window_seconds)
     self._slack_percentage = slack_percentage
@@ -358,6 +374,17 @@ class ModelManager:
 
     # Resource State
     self._models = defaultdict(list)
+    # Maps a stable metric_tag (e.g. model_identifier) to the model tag that is
+    # currently active for it. Metrics for the active tag are reported under
+    # metric_tag so metric names stay stable across runtime side-input model
+    # updates; superseded tags that are still loaded report under their own
+    # tag while they linger in the LRU.
+    # NOTE: Because metrics under metric_tag are cumulative distributions that
+    # span model versions, a runtime model update should ideally only change
+    # weights (same architecture / memory footprint). Swapping to a model of a
+    # different size blends the two versions into one memory_estimate_mb_* and
+    # num_loaded_models_* series and skews the reported estimates.
+    self._metric_tag_to_active_tag: dict[str, str] = {}
     # Idle LRU used to track released models that
     # can be freed or reused upon request.
     self._idle_lru = OrderedDict()
@@ -383,23 +410,51 @@ class ModelManager:
 
     self._monitor.start()
 
+  def _metric_tags_for(self, tag: str) -> list[str]:
+    """Returns the metric tags that metrics for model tag are reported under."""
+    metric_tags = [
+        metric_tag
+        for metric_tag, active_tag in self._metric_tag_to_active_tag.items()
+        if active_tag == tag
+    ]
+    return metric_tags or [tag]
+
   def _update_model_count_metric(self):
     for tag, instances in self._models.items():
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{tag}",
-          process_wide=True).update(len(instances))
+      for metric_tag in self._metric_tags_for(tag):
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"num_loaded_models_{metric_tag}",
+            process_wide=True).update(len(instances))
 
   def _clear_all_model_metrics(self):
     for tag in self._models:
-      Metrics.distribution(
-          _MODEL_MANAGER_METRICS_NAMESPACE,
-          f"num_loaded_models_{tag}",
-          process_wide=True).update(0)
+      for metric_tag in self._metric_tags_for(tag):
+        Metrics.distribution(
+            _MODEL_MANAGER_METRICS_NAMESPACE,
+            f"num_loaded_models_{metric_tag}",
+            process_wide=True).update(0)
 
   def logging_info(self, message: str, *args):
     if self._verbose_logging:
       logger.info(message, *args)
+
+  # Should hold _cv lock when calling
+  def _maybe_switch_active_tag(self, metric_tag: str, tag: str):
+    """Tracks which model tag is active for metric_tag.
+
+    When a different tag is requested for a metric_tag (e.g. a side-input
+    model update), metrics for metric_tag start reflecting the new tag. The
+    previous tag's instances stay in the LRU and are evicted on demand.
+    """
+    prev_tag = self._metric_tag_to_active_tag.get(metric_tag)
+    if prev_tag == tag:
+      return
+    self._metric_tag_to_active_tag[metric_tag] = tag
+    # Re-emit under metric_tag right away if this tag is already profiled.
+    self._estimator.report_estimate(tag)
+    if prev_tag is not None or self._models.get(tag):
+      self._update_model_count_metric()
 
   def all_models(self, tag) -> list[Any]:
     return self._models[tag]
@@ -488,12 +543,19 @@ class ModelManager:
     finally:
       self._cv.acquire()
 
-  def acquire_model(self, tag: str, loader_func: Callable[[], Any]) -> Any:
+  def acquire_model(
+      self,
+      tag: str,
+      loader_func: Callable[[], Any],
+      metric_tag: Optional[str] = None) -> Any:
+    effective_metric_tag = metric_tag or tag
     current_priority = 0 if self._estimator.is_unknown(tag) else 1
     ticket_num = next(self._ticket_counter)
     my_ticket = QueueTicket(current_priority, ticket_num, tag)
 
     with self._cv:
+      self._maybe_switch_active_tag(effective_metric_tag, tag)
+
       # FAST PATH: Grab from idle LRU if available
       if not self._isolation_mode:
         cached_instance = self._try_grab_from_lru(tag)
@@ -757,13 +819,10 @@ class ModelManager:
     try:
       with self._cv:
         self.logging_info("Loading Model: %s (Unknown: %s)", tag, is_unknown)
-        baseline_snap, _, _ = self._monitor.get_stats()
+        # No estimator observation here: the estimator is fit on total memory
+        # readings, which release_model records along with the full snapshot
+        # of loaded models. A load delta would contradict those readings.
         instance = loader_func()
-        _, peak_during_load, _ = self._monitor.get_stats()
-
-        snapshot = {tag: 1}
-        self._estimator.add_observation(
-            snapshot, peak_during_load - baseline_snap)
 
         if not is_unknown:
           self._pending_reservations = max(
@@ -803,6 +862,7 @@ class ModelManager:
     logger.warning("Force Reset Triggered")
     self._delete_all_models()
     self._models = defaultdict(list)
+    self._metric_tag_to_active_tag = {}
     self._idle_lru = OrderedDict()
     self._active_counts = Counter()
     self._wait_queue = []

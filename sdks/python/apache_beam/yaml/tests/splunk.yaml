@@ -1,0 +1,60 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: FAKE_SPLUNK_SERVER
+    type: "apache_beam.yaml.test_utils.splunk_test_utils.temp_fake_splunk_server"
+    config:
+      expected_records:
+        - { time: 1700000000, host: "test-host", source: "apache-beam1", sourcetype: "test-type", index: "test-index", event: "Event for label 11a" }
+        - { host: "test-host", source: "apache-beam2", sourcetype: "test-type", index: "test-index", event: "Event for label 37a" }
+        - { host: "test-host", source: "apache-beam3", sourcetype: "test-type", event: "Event for label 389a" }
+        - { host: "test-host", source: "apache-beam4", event: "Event for label 3821b" }
+
+pipelines:
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - { time: 1700000000, host: "test-host", source: "apache-beam1", sourcetype: "test-type", index: "test-index", event: "Event for label 11a" }
+              - { host: "test-host", source: "apache-beam2", sourcetype: "test-type", index: "test-index", event: "Event for label 37a" }
+              - { host: "test-host", source: "apache-beam3", sourcetype: "test-type", event: "Event for label 389a" }
+              - { host: "test-host", source: "apache-beam4", event: "Event for label 3821b" }
+              - { host: "test-host", source: "apache-beam-broken" } # Triggers mandatory field failure
+        - type: WriteToSplunk
+          input: Create
+          config:
+            url: "{FAKE_SPLUNK_SERVER.url}"
+            token: "{FAKE_SPLUNK_SERVER.token}"
+            batch_count: 2
+            parallelism: 1
+            error_handling:
+              output: error_output
+        - type: MapToFields
+          input: WriteToSplunk.error_output
+          config:
+            language: python
+            fields:
+              failed_source: "failed_row.source"
+        - type: AssertEqual
+          input: MapToFields
+          config:
+            elements:
+              - { failed_source: "apache-beam-broken" }
+        # Asserting good records is taken care of by the fixture

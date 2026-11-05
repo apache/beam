@@ -80,11 +80,13 @@ defined, or before importing a module containing type-hinted functions.
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import functools
 import inspect
 import itertools
 import logging
 import traceback
 import types
+import typing
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -129,6 +131,67 @@ _MethodDescriptorType = type(str.upper)
 _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
 _disable_from_callable = False  # pylint: disable=invalid-name
+
+
+def _contains_forward_ref(annotation):
+  if isinstance(annotation, (str, typing.ForwardRef)):
+    return True
+  origin = get_origin(annotation)
+  if origin is Literal:
+    # Literal strings are values, not type names.
+    return False
+  args = get_args(annotation)
+  if origin is typing.Annotated:
+    args = args[:1]  # The remaining arguments are metadata.
+  return any(_contains_forward_ref(arg) for arg in args)
+
+
+def _annotation_namespaces(fn):
+  """Find the implementation and namespaces behind inspect.signature(fn)."""
+  target = fn
+  while isinstance(target, functools.partial):
+    target = target.func
+  localns = None
+  if inspect.isclass(target):
+    localns = dict(vars(target))
+    localns[target.__name__] = target
+    if target.__init__ is not object.__init__:
+      target = target.__init__
+    else:
+      target = target.__new__
+  elif inspect.ismethod(target):
+    owner = target.__self__
+    owner = owner if inspect.isclass(owner) else type(owner)
+    localns = dict(vars(owner))
+    localns[owner.__name__] = owner
+  elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
+    owner = type(target)
+    target = target.__call__
+    localns = dict(vars(owner))
+    localns[owner.__name__] = owner
+  target = inspect.unwrap(target)
+  if inspect.ismethod(target):
+    target = target.__func__
+  return getattr(target, '__globals__', {}), localns
+
+
+def _resolve_annotation(annotation, globalns, localns):
+  if not _contains_forward_ref(annotation):
+    return annotation
+
+  # get_type_hints resolves nested ForwardRefs and uses public typing APIs.
+  # A one-hint callable lets an unresolved name leave other hints intact.
+  def one_hint():
+    pass
+
+  one_hint.__annotations__ = {'value': annotation}
+  try:
+    return typing.get_type_hints(
+        one_hint, globalns=globalns, localns=localns,
+        include_extras=True)['value']
+  except (AttributeError, NameError, SyntaxError, TypeError):
+    # convert_to_beam_type maps unresolved strings and ForwardRefs to Any.
+    return annotation
 
 
 def get_signature(func):
@@ -334,6 +397,19 @@ class IOTypeHints(NamedTuple):
             for param in signature.parameters.values()) and
         signature.return_annotation == signature.empty):
       return None
+    if (any(_contains_forward_ref(param.annotation)
+            for param in signature.parameters.values()) or
+        _contains_forward_ref(signature.return_annotation)):
+      globalns, localns = _annotation_namespaces(fn)
+      signature = signature.replace(
+          parameters=[
+              param.replace(
+                  annotation=_resolve_annotation(
+                      param.annotation, globalns, localns))
+              for param in signature.parameters.values()
+          ],
+          return_annotation=_resolve_annotation(
+              signature.return_annotation, globalns, localns))
     input_args = []
     input_kwargs = {}
     for param in signature.parameters.values():
@@ -778,6 +854,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
     # Might be raised due to too few or too many arguments.
     raise TypeCheckError(e)
   bound_args = bindings.arguments
+  namespaces = None
   for param in signature.parameters.values():
     if param.name in bound_args:
       # Bound: unpack/convert variadic arguments.
@@ -790,7 +867,16 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
     else:
       # Unbound: must have a default or be variadic.
       if param.annotation != param.empty:
-        bound_args[param.name] = param.annotation
+        annotation = param.annotation
+        if _contains_forward_ref(annotation):
+          # Resolve string annotations (e.g. from functools.partial-bound
+          # keywords under `from __future__ import annotations`) the same way
+          # IOTypeHints.from_callable does, so they compare equal to the
+          # resolved hints.
+          if namespaces is None:
+            namespaces = _annotation_namespaces(func)
+          annotation = _resolve_annotation(annotation, *namespaces)
+        bound_args[param.name] = convert_to_beam_type(annotation)
       elif param.kind == param.VAR_POSITIONAL:
         bound_args[param.name] = _ANY_VAR_POSITIONAL
       elif param.kind == param.VAR_KEYWORD:

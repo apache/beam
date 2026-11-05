@@ -33,6 +33,8 @@ pip_dependencies:
   # TODO(BEAM-8371): License for this dependency cannot be automatically retrieved on Python 2.
   appdirs:
     license: "https://raw.githubusercontent.com/ActiveState/appdirs/master/LICENSE.txt"
+  arro3-core:
+    license: "https://raw.githubusercontent.com/kylebarron/arro3/refs/heads/main/LICENSE_APACHE"
   avro:
     license: "https://raw.githubusercontent.com/apache/avro/master/LICENSE.txt"
     notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"

@@ -22,7 +22,7 @@ import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumula
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state.BeamStatefulProcessor;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state.ParDoStatefulProcessor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -68,8 +68,8 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
             cxt.getCurrentTransform(), input, SparkSideInputReader.empty(), false);
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
 
-    BeamStatefulProcessor<K, V, OutputT> processor =
-        new BeamStatefulProcessor<>(
+    ParDoStatefulProcessor<K, V, OutputT> processor =
+        new ParDoStatefulProcessor<>(
             doFn, runnerFactory, inputCoder, windowing, cxt.getOptionsSupplier(), metrics);
 
     MapFunction<WindowedValue<KV<K, V>>, byte[]> keyFn =

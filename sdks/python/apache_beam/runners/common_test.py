@@ -20,6 +20,7 @@
 import unittest
 
 import hamcrest as hc
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -32,6 +33,8 @@ from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import DoFn
@@ -120,6 +123,40 @@ class DoFnProcessTest(unittest.TestCase):
         DoFnProcessTest.all_records.append(element)
 
     return RecordDoFn()
+
+  @parameterized.expand([
+      ('implicit_default', 1, 'default'),
+      ('implicit_positional', 1, 'positional'),
+      ('implicit_keyword', 1, 'keyword'),
+      ('implicit_side_input', 1, 'side_input'),
+      ('explicit_default', DoFn.ElementParam, 'default'),
+      ('explicit_positional', DoFn.ElementParam, 'positional'),
+      ('explicit_keyword', DoFn.ElementParam, 'keyword'),
+      ('explicit_side_input', DoFn.ElementParam, 'side_input'),
+  ])
+  def test_dofn_process_default_element(self, name, element_default, side_mode):
+    class ProcessDefaults(DoFn):
+      def process(
+          self,
+          element=element_default,
+          timestamp=DoFn.TimestampParam,
+          side_input=3):
+        yield element, timestamp, side_input
+
+    with TestPipeline() as p:
+      args, kwargs = [], {}
+      if side_mode == 'positional':
+        args = [2]
+      elif side_mode == 'keyword':
+        kwargs = {'side_input': 2}
+      elif side_mode == 'side_input':
+        args = [beam.pvalue.AsSingleton(p | 'SideInput' >> beam.Create([2]))]
+      result = (
+          p
+          | 'Input' >> beam.Create([window.TimestampedValue(5, 123)])
+          | beam.ParDo(ProcessDefaults(), *args, **kwargs))
+      expected_side = 3 if side_mode == 'default' else 2
+      assert_that(result, equal_to([(5, Timestamp(123), expected_side)]))
 
   def test_dofn_process_keyparam(self):
     class DoFnProcessWithKeyparam(DoFn):

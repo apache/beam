@@ -222,6 +222,22 @@ binary_add = inplace_add = symmetric_binary_op
 binary_subtract = inplace_subtract = symmetric_binary_op
 
 
+def _slice_type(base, index):
+  """Returns the type of base[index] for an indexable base and a slice index.
+
+  The index is a Const if the bounds of the slice are known.
+  """
+  if isinstance(base, typehints.TupleHint.TupleConstraint):
+    # Slicing changes the length of a fixed-size tuple.
+    if isinstance(index, Const):
+      try:
+        return Tuple[base.tuple_types[index.value]]
+      except (TypeError, ValueError):
+        pass
+    return Tuple[element_type(base), ...]
+  return base
+
+
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
@@ -237,7 +253,7 @@ def binary_subscr(state, unused_arg):
       base, typehints.IndexableTypeConstraint):
     # The slice is treated as a const in 3.14, using this instead of
     # BINARY_SLICE
-    out = base
+    out = _slice_type(base, index)
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -259,13 +275,16 @@ def store_subscr(unused_state, unused_args):
 
 
 def binary_slice(state, args):
-  _ = state.stack.pop()
-  _ = state.stack.pop()
+  stop = state.stack.pop()
+  start = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
   if base is str:
     out = base
   elif isinstance(base, typehints.IndexableTypeConstraint):
-    out = base
+    if isinstance(start, Const) and isinstance(stop, Const):
+      out = _slice_type(base, Const(slice(start.value, stop.value)))
+    else:
+      out = _slice_type(base, slice)
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -667,7 +686,11 @@ def make_closure(state, arg):
 
 
 def build_slice(state, arg):
-  state.stack[-arg:] = [slice]  # a slice object
+  bounds = state.stack[-arg:]
+  if all(isinstance(b, Const) for b in bounds):
+    state.stack[-arg:] = [Const(slice(*(b.value for b in bounds)))]
+  else:
+    state.stack[-arg:] = [slice]  # a slice object
 
 
 def to_bool(state, arg):

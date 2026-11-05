@@ -34,8 +34,11 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPaylo
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.AddFilesSchemaTransform;
 import org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider.IcebergCdcReadSchemaTransform;
+import org.apache.beam.sdk.io.iceberg.IcebergSchemaTransformTranslation.AddFilesSchemaTransformTranslator;
 import org.apache.beam.sdk.io.iceberg.IcebergSchemaTransformTranslation.IcebergCdcReadSchemaTransformTranslator;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -74,6 +77,8 @@ public class IcebergSchemaTransformTranslationTest {
       new IcebergReadSchemaTransformProvider();
   static final IcebergCdcReadSchemaTransformProvider READ_CDC_PROVIDER =
       new IcebergCdcReadSchemaTransformProvider();
+  static final AddFilesSchemaTransformProvider ADD_FILES_PROVIDER =
+      new AddFilesSchemaTransformProvider();
 
   private static final Map<String, String> CATALOG_PROPERTIES =
       ImmutableMap.<String, String>builder()
@@ -131,6 +136,15 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("keep", ImmutableList.of("id", "event_micros"))
           .withFieldValue("filter", "\"data\" = 'keep'")
           .withFieldValue("watermark_column", "event_micros")
+          .build();
+
+  private static final Row ADD_FILES_CONFIG_ROW =
+      Row.withSchema(ADD_FILES_PROVIDER.configurationSchema())
+          .withFieldValue("table", "test_table_identifier")
+          .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+          .withFieldValue("partition_fields", Collections.singletonList("id"))
+          .withFieldValue("manifest_file_size", 100)
+          .withFieldValue("error_handling.output", "errors")
           .build();
 
   @Test
@@ -372,6 +386,60 @@ public class IcebergSchemaTransformTranslationTest {
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, readTransformFromSpec.getConfigurationRow());
+  }
+
+  @Test
+  public void testAddFilesTransformProtoTranslation()
+      throws InvalidProtocolBufferException, IOException {
+    // First build a pipeline that adds files through the Managed API
+    Pipeline p = Pipeline.create();
+    Schema inputSchema = Schema.builder().addStringField("file").build();
+    p.apply(Create.of(Row.withSchema(inputSchema).addValue("data.parquet").build()))
+        .setRowSchema(inputSchema)
+        .apply(
+            Managed.write(Managed.ICEBERG_ADD_FILES)
+                .withConfig(
+                    ImmutableMap.<String, Object>builder()
+                        .put("table", "test_table_identifier")
+                        .put("catalog_properties", CATALOG_PROPERTIES)
+                        .put("partition_fields", Collections.singletonList("id"))
+                        .put("manifest_file_size", 100)
+                        .put("error_handling", ImmutableMap.of("output", "errors"))
+                        .build()));
+
+    // Then translate the pipeline to a proto and extract AddFilesSchemaTransform proto
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    List<RunnerApi.PTransform> addFilesTransformProto =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .filter(
+                tr -> {
+                  RunnerApi.FunctionSpec spec = tr.getSpec();
+                  try {
+                    return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
+                        && SchemaTransformPayload.parseFrom(spec.getPayload())
+                            .getIdentifier()
+                            .equals(ADD_FILES_PROVIDER.identifier());
+                  } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
+    assertEquals(1, addFilesTransformProto.size());
+    RunnerApi.FunctionSpec spec = addFilesTransformProto.get(0).getSpec();
+
+    // Check that the proto contains correct values
+    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
+    assertEquals(ADD_FILES_PROVIDER.configurationSchema(), schemaFromSpec);
+    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
+    assertEquals(ADD_FILES_CONFIG_ROW, rowFromSpec);
+
+    // Use the information in the proto to recreate the AddFilesSchemaTransform
+    AddFilesSchemaTransformTranslator translator = new AddFilesSchemaTransformTranslator();
+    AddFilesSchemaTransform transformFromSpec =
+        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+
+    assertEquals(ADD_FILES_CONFIG_ROW, transformFromSpec.getConfigurationRow());
   }
 
   private static Record record(long id, String data, long eventMicros) {
