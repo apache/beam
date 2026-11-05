@@ -201,12 +201,12 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   }
 
   @VisibleForTesting
-  @Nullable List<Message> getMessages() {
+  synchronized @Nullable List<Message> getMessages() {
     return messages;
   }
 
   /** Number of messages read for this checkpoint, still to be acknowledged. */
-  int getMessageCount() {
+  synchronized int getMessageCount() {
     return messages == null ? 0 : messageCount;
   }
 
