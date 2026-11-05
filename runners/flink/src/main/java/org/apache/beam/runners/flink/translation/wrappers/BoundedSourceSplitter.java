@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.LongSummaryStatistics;
 import java.util.Optional;
 import java.util.PriorityQueue;
@@ -476,7 +477,7 @@ public final class BoundedSourceSplitter {
   }
 
   private static String format(double value) {
-    return String.format("%.3f", value);
+    return String.format(Locale.ROOT, "%.3f", value);
   }
 
   private static final String[] SIZE_UNITS = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
@@ -492,7 +493,7 @@ public final class BoundedSourceSplitter {
       value /= 1024;
       unit++;
     }
-    return String.format("%.2f %s", value, SIZE_UNITS[unit]);
+    return String.format(Locale.ROOT, "%.2f %s", value, SIZE_UNITS[unit]);
   }
 
   /** Short description of the splits for logging. */
@@ -505,6 +506,7 @@ public final class BoundedSourceSplitter {
       sizes.accept(split.sizeBytes);
     }
     return String.format(
+        Locale.ROOT,
         "%d splits, size min/mean/max %s/%s/%s, coefficient of variation %.3f",
         sizes.getCount(),
         formatSize(sizes.getMin()),
