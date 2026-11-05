@@ -145,26 +145,22 @@ class ConvertToResultTest(unittest.TestCase):
     # For example, a model that returns a tuple of two outputs for a batch of
     # five inputs: zip() would pair the inputs with the outputs and drop the
     # last three inputs.
-    with self.assertRaisesRegex(ValueError,
-                                'got 2 predictions for a batch of 5 inputs'):
+    with self.assertRaisesRegex(ValueError, 'got 2 for a batch of size 5'):
       utils._convert_to_result(
           list(range(5)), ('logits', 'scores'), model_id='m')
 
   def test_raises_when_a_generator_yields_too_few_predictions(self):
-    with self.assertRaisesRegex(ValueError,
-                                'got 1 prediction for a batch of 3 inputs'):
+    with self.assertRaisesRegex(ValueError, 'got 1 for a batch of size 3'):
       utils._convert_to_result(['a', 'b', 'c'], (x for x in [1]))
 
-  def test_raises_naming_dict_outputs_without_one_entry_per_input(self):
+  def test_raises_when_a_dict_output_has_too_few_entries(self):
     # For example, a Hugging Face causal LM returns past_key_values with one
     # entry per layer rather than one per input.
     predictions = {
         'logits': [[0.1], [0.2], [0.3]],
         'past_key_values': [('k1', 'v1'), ('k2', 'v2')]
     }
-    with self.assertRaisesRegex(
-        ValueError,
-        "output 'past_key_values' has 2 entries for a batch of 3 inputs"):
+    with self.assertRaisesRegex(ValueError, 'got 2 for a batch of size 3'):
       utils._convert_to_result(['a', 'b', 'c'], predictions)
 
   def test_extra_predictions_are_ignored(self):
