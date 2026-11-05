@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.types;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThrows;
@@ -298,6 +299,21 @@ public class LazyKvWindowedValueTest implements Serializable {
       KEY_CODER_CALLS.incrementAndGet();
       return StringUtf8Coder.of().decode(inStream);
     }
+  }
+
+  @Test
+  public void copiesUntouchedValuesWithoutDecodingThem() throws IOException {
+    LengthPrefixedCoderTypeSerializer<WindowedValue<KV<String, List<String>>>> serializer =
+        new LengthPrefixedCoderTypeSerializer<>(INTERVAL_CODER, false, true);
+    LazyKvWindowedValue<String, List<String>> lazy = lazy(INTERVAL_CODER, INTERVAL_VALUE);
+
+    WindowedValue<KV<String, List<String>>> copy = serializer.copy(lazy);
+
+    assertThat(copy, instanceOf(LazyKvWindowedValue.class));
+    assertThat(VALUE_CODER_CALLS.get(), is(0));
+    assertThat(lazy.encodedRecord(), notNullValue());
+    assertThat(copy, is(INTERVAL_VALUE));
+    assertThat(lazy, is(INTERVAL_VALUE));
   }
 
   @Test

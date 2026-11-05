@@ -180,6 +180,19 @@ public class LengthPrefixedCoderTypeSerializer<T> extends CoderTypeSerializer<T>
   }
 
   @Override
+  public T copy(T t) {
+    if (!fasterCopy && headerCoder != null && t instanceof LazyKvWindowedValue) {
+      byte[] encodedRecord = ((LazyKvWindowedValue<?, ?>) t).encodedRecord();
+      if (encodedRecord != null) {
+        // Cloning through the coder would decode the value, and drop the encoded record of t.
+        // The encoded record is never mutated, so the copy can share it.
+        return (T) new LazyKvWindowedValue<>(encodedRecord, headerCoder, kvCoder);
+      }
+    }
+    return super.copy(t);
+  }
+
+  @Override
   public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
     int length = dataInputView.readInt();
     dataOutputView.writeInt(length);
