@@ -186,11 +186,16 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:       modelURL,
-					PipelineProtoHash: pipelineProtoHash,
-					Region:            opts.Region,
-					Experiments:       opts.Experiments,
-					TempLocation:      opts.TempLocation,
+					PipelineURL:                    modelURL,
+					PipelineProtoHash:              pipelineProtoHash,
+					Project:                        opts.Project,
+					JobName:                        opts.Name,
+					Region:                         opts.Region,
+					Experiments:                    opts.Experiments,
+					DataflowServiceOptions:         opts.DataflowServiceOptions,
+					TempLocation:                   opts.TempLocation,
+					DiskProvisionedIops:            opts.DiskProvisionedIops,
+					DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -366,12 +371,15 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 // needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
 	Experiments                    []string `json:"experiments,omitempty"`
+	DataflowServiceOptions         []string `json:"dataflowServiceOptions,omitempty"`
 	PipelineURL                    string   `json:"pipelineUrl"`
 	PipelineProtoHash              string   `json:"pipelineProtoHash,omitempty"`
+	Project                        string   `json:"project,omitempty"`
+	JobName                        string   `json:"jobName,omitempty"`
 	Region                         string   `json:"region"`
 	TempLocation                   string   `json:"tempLocation"`
-	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`
-	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps"`
+	DiskProvisionedIops            int64    `json:"diskProvisionedIops,omitempty"`
+	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
