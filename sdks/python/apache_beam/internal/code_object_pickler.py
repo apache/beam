@@ -177,10 +177,6 @@ def _search_module_or_class(
   rest = qual_name_parts[1:]
   if first_part == '<lambda>':
     for name in dir(node):
-      try:
-        value = getattr(node, name)
-      except Exception:
-        continue
       if (hasattr(callable, '__code__') and
           isinstance(value, type(callable)) and
           value.__code__ == callable.__code__):
