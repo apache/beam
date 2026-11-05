@@ -49,6 +49,8 @@ from apache_beam.typehints.decorators import _positional_arg_hints
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.typehints.typehints import visit_inner_types
 
@@ -1249,6 +1251,65 @@ class RegexTestCase(TypeHintTestCase):
     self.assertNotCompatible(re.Pattern, re.Match)
     self.assertNotCompatible(re.Match, re.Pattern)
     self.assertNotCompatible(re.Pattern[str], re.Match[str])
+
+
+class ProtocolTestCase(TypeHintTestCase):
+  # https://github.com/apache/beam/issues/20986
+  class Point(object):
+    def __init__(self, x):
+      self.x = x
+
+  def assertConsistentProtocol(self, sub, base):  # pylint: disable=invalid-name
+    for use_beartype in (True, False):
+      self.assertTrue(
+          is_consistent_with(sub, base, use_beartype),
+          '%s is not consistent with %s' % (sub, base))
+
+  def test_protocol(self):
+    class HasLen(typing.Protocol):
+      def __len__(self) -> int:
+        ...
+
+    self.assertConsistentProtocol(str, HasLen)
+    self.assertConsistentProtocol(typehints.List[int], HasLen)
+    self.assertConsistentProtocol(typehints.Tuple[int, str], HasLen)
+    self.assertConsistentProtocol(typehints.Dict[str, int], HasLen)
+    self.assertConsistentProtocol(
+        RowTypeConstraint.from_fields([('x', int)]), HasLen)
+    typehints.check_constraint(HasLen, 1)
+
+  def test_runtime_checkable_protocol_with_attribute(self):
+    @typing.runtime_checkable
+    class HasX(typing.Protocol):
+      x: int
+
+    @typing.runtime_checkable
+    class HasXProperty(typing.Protocol):
+      @property
+      def x(self) -> int:
+        ...
+
+    for protocol in (HasX, HasXProperty):
+      self.assertConsistentProtocol(self.Point, protocol)
+      self.assertConsistentProtocol(typehints.List[int], protocol)
+      self.assertConsistentProtocol(
+          RowTypeConstraint.from_fields([('x', int)]), protocol)
+      typehints.check_constraint(protocol, self.Point(1))
+      with self.assertRaises(SimpleTypeHintError):
+        typehints.check_constraint(protocol, 1)
+
+  def test_runtime_checkable_protocol_with_methods(self):
+    @typing.runtime_checkable
+    class HasUpper(typing.Protocol):
+      def upper(self) -> str:
+        ...
+
+    self.assertCompatible(HasUpper, str)
+    self.assertNotCompatible(HasUpper, int)
+    self.assertNotCompatible(HasUpper, typehints.List[str])
+    typehints.check_constraint(HasUpper, 'a')
+    with self.assertRaises(SimpleTypeHintError):
+      typehints.check_constraint(HasUpper, 1)
 
 
 # TODO(https://github.com/apache/beam/issues/34644): implement a

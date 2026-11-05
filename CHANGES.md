@@ -128,7 +128,7 @@
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
-* (Python) Type hints with a `typing.Protocol` that is not `@runtime_checkable`, such as `def fn(x: MyProtocol)` in `beam.Map(fn)`, no longer make pipeline or runtime type checking fail with a `TypeError` ([#20986](https://github.com/apache/beam/issues/20986)).
+* (Python) `typing.Protocol` type hints, such as `def fn(x: MyProtocol)` in `beam.Map(fn)`, no longer make pipeline type checking fail when the Protocol is not `@runtime_checkable` or declares attributes or properties, and no longer make runtime type checking fail with a `TypeError` when it is not `@runtime_checkable` ([#20986](https://github.com/apache/beam/issues/20986)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

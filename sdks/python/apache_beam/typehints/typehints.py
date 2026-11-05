@@ -378,6 +378,25 @@ def _is_unchecked_protocol(type_param):
       not getattr(type_param, '_is_runtime_protocol', False))
 
 
+def _is_protocol_without_issubclass(type_param):
+  """Determines if an object is a typing.Protocol class that issubclass()
+  rejects: one that is not runtime_checkable or that has non-method members.
+  """
+  if not (isinstance(type_param, type) and
+          getattr(type_param, '_is_protocol', False)):
+    return False
+  if getattr(type_param, '__non_callable_proto_members__', None):
+    # Set by runtime_checkable on Python 3.12+, where issubclass() stops
+    # rejecting such a protocol once pickling by value has replaced its
+    # __subclasshook__.
+    return True
+  try:
+    issubclass(object, type_param)
+  except TypeError:
+    return True
+  return False
+
+
 def validate_composite_type_param(type_param, error_msg_prefix):
   """Determines if an object is a valid type parameter to a
   :class:`CompositeTypeHint`.
@@ -1537,6 +1556,9 @@ def is_consistent_with(
     return all(is_consistent_with(c, base) for c in sub.union_types)
   elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
+  elif _is_protocol_without_issubclass(base):
+    # Protocols are matched structurally, which issubclass cannot check.
+    return True
   elif isinstance(sub, RowTypeConstraint):
     return base == Row
   elif isinstance(sub, TypeConstraint):
@@ -1548,9 +1570,6 @@ def is_consistent_with(
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
-  elif _is_unchecked_protocol(base):
-    # Protocols are matched structurally, which issubclass cannot check.
-    return True
   if use_beartype:
     try:
       return is_subhint(sub, base)

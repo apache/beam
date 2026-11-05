@@ -499,6 +499,38 @@ class MainInputTest(unittest.TestCase):
       result = p | beam.Create(['a', 'b']) | beam.Map(fn)
       assert_that(result, equal_to(['A', 'B']))
 
+  def test_typed_map_protocol_container_input(self):
+    # https://github.com/apache/beam/issues/20986
+    class HasLen(typing.Protocol):
+      def __len__(self) -> int:
+        ...
+
+    def fn(element: HasLen) -> int:
+      return len(element)
+
+    with TestPipeline() as p:
+      result = p | beam.Create([[1, 2], [3]]) | beam.Map(fn)
+      assert_that(result, equal_to([2, 1]))
+
+  def test_typed_map_runtime_checkable_protocol_with_property_input(self):
+    # https://github.com/apache/beam/issues/20986
+    @typing.runtime_checkable
+    class HasX(typing.Protocol):
+      @property
+      def x(self) -> int:
+        ...
+
+    def fn(element: HasX) -> int:
+      return element.x
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(
+              [types.SimpleNamespace(x=1), types.SimpleNamespace(x=2)])
+          | beam.Map(fn))
+      assert_that(result, equal_to([1, 2]))
+
   def test_inferred_type_of_tuple_slice(self):
     # https://github.com/apache/beam/issues/20899
     rows = [('day1', 'a', 1), ('day2', 'a', 2), ('day1', 'b', 3)]
