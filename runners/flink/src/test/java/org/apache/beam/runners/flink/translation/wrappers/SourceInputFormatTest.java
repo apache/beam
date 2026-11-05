@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -88,8 +89,14 @@ public class SourceInputFormatTest {
         new TestSourceInputFormat<>("step", CountingSource.upTo(1000), options);
 
     SourceInputSplit<Long>[] splits = sourceInputFormat.createInputSplits(2);
-    assertTrue(
-        sourceInputFormat.getInputSplitAssigner(splits) instanceof DefaultInputSplitAssigner);
+    InputSplitAssigner assigner = sourceInputFormat.getInputSplitAssigner(splits);
+    assertTrue(assigner instanceof DefaultInputSplitAssigner);
+
+    // The splits are ordered with the largest first, and are handed out in that order.
+    for (SourceInputSplit<Long> split : splits) {
+      assertEquals(split.getSplitNumber(), assigner.getNextInputSplit("host", 0).getSplitNumber());
+    }
+    assertNull(assigner.getNextInputSplit("host", 0));
   }
 
   private static class TestSourceInputFormat<T> extends SourceInputFormat<T> {

@@ -19,6 +19,9 @@ package org.apache.beam.runners.flink.translation.wrappers;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -166,7 +169,11 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
         sourceInputSplits.length,
         initialSource);
     if (lazyAssignment) {
-      return new DefaultInputSplitAssigner(sourceInputSplits);
+      // DefaultInputSplitAssigner hands out splits from the end of its list, but the splits are
+      // ordered with the largest first: reverse them so that the largest splits are read first.
+      List<InputSplit> largestLast = new ArrayList<>(Arrays.asList(sourceInputSplits));
+      Collections.reverse(largestLast);
+      return new DefaultInputSplitAssigner(largestLast);
     }
     return new StaticInputSplitAssigner(sourceInputSplits, numTasks);
   }
