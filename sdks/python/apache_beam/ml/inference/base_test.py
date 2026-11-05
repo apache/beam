@@ -2854,23 +2854,12 @@ class RunInferenceModelIdentifierTest(unittest.TestCase):
   def test_default_model_identifier_is_none(self):
     self.assertIsNone(IdentifierReportingModelHandler()._model_identifier)
 
-  def test_explicit_model_identifier_set_at_construction(self):
-    handler = IdentifierReportingModelHandler()
-    base.RunInference(handler, model_identifier='my-step-model')
-    self.assertEqual(handler._model_identifier, 'my-step-model')
-
-  def test_generated_model_identifier_set_at_construction(self):
-    handler = IdentifierReportingModelHandler()
-    run_inference = base.RunInference(handler)
-    self.assertRegex(handler._model_identifier, r'^[0-9a-f]{32}$')
-    self.assertEqual(handler._model_identifier, run_inference._model_tag)
-
-  def test_identifier_set_on_wrappers_at_construction(self):
+  def test_identifier_forwarded_through_wrappers(self):
     inner = IdentifierReportingModelHandler()
     keyed = base.KeyedModelHandler(inner)
     handler = keyed.with_preprocess_fn(lambda kv: kv).with_postprocess_fn(
         lambda kv: kv)
-    base.RunInference(handler, model_identifier='wrapped-id')
+    handler.set_model_identifier('wrapped-id')
     for mh in (handler, keyed, inner):
       self.assertEqual(mh._model_identifier, 'wrapped-id')
 
@@ -2881,7 +2870,7 @@ class RunInferenceModelIdentifierTest(unittest.TestCase):
         base.KeyModelMapping(['k1'], mh1),
         base.KeyModelMapping(['k2'], mh2),
     ])
-    base.RunInference(keyed, model_identifier='multi-id')
+    keyed.set_model_identifier('multi-id')
     self.assertEqual(mh1._model_identifier, 'multi-id')
     self.assertEqual(mh2._model_identifier, 'multi-id')
 
@@ -2910,7 +2899,7 @@ class RunInferenceModelIdentifierTest(unittest.TestCase):
       self.assertRegex(annotated[0], r'^[0-9a-f]{32}$')
       assert_that(out, equal_to([f'1:{annotated[0]}']))
 
-  def test_identifier_forwarded_through_wrappers(self):
+  def test_identifier_forwarded_through_wrappers_in_pipeline(self):
     handler = base.KeyedModelHandler(
         IdentifierReportingModelHandler()).with_preprocess_fn(
             lambda kv: kv).with_postprocess_fn(lambda kv: kv)

@@ -1668,12 +1668,6 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._model_tag = model_identifier
     if model_identifier is None:
       self._model_tag = uuid.uuid4().hex
-    # Report the identifier at construction time so it is pickled with the
-    # handler and inspectable on it before the pipeline runs.
-    # _RunInferenceDoFn.setup() reports it again on the worker in case the
-    # same handler instance was shared by RunInference transforms with
-    # different identifiers.
-    self._model_handler.set_model_identifier(self._model_tag)
 
   def annotations(self):
     extra = {}
