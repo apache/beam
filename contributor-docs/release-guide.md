@@ -698,7 +698,8 @@ as an example.
 
 > **NOTE**
 > Make sure to include any breaking changes, even to `@Experimental`
-> features, all major features and bug fixes, and all known issues.
+> features, all major features and impactful user-facing bug fixes, and all known issues.
+> Minor or internal changes that do not affect public API functionality (e.g., test-only changes, typos, CI/build fixes, internal refactors, or fixes to regressions introduced within the same release) do not need to be listed in `CHANGES.md` or the release blog post.
 
 **Template:**
 
@@ -741,15 +742,32 @@ as an example.
     * Support for X source added (Java) ([#X](https://github.com/apache/beam/issues/X)).
     {$TOPICS}
 
-    ### New Features / Improvements
+    ### Improvements
+
+    #### New Feature
 
     * X feature added (Python) ([#X](https://github.com/apache/beam/issues/X)).
-    * Y feature added (Java) [#Y](https://github.com/apache/beam/issues/Y).
+    * Y feature added (Java) ([#Y](https://github.com/apache/beam/issues/Y)).
+
+    #### Performance
+
+    * Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
+    * Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
 
     ### Breaking Changes
 
+    #### Package upgrades
+
+    * Upgraded X dependency to major version Y ([#X](https://github.com/apache/beam/issues/X)).
+
+    #### API changes
+
     * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
     * Y behavior was changed ([#Y](https://github.com/apache/beam/issues/Y)).
+
+    #### Upgrade compatibility
+
+    * Streaming pipeline state/coder compatibility change Z ([#Z](https://github.com/apache/beam/issues/Z)).
 
     ### Deprecations
 
