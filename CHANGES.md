@@ -128,6 +128,7 @@
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -211,7 +212,6 @@
 * (Python) DaskRunner now preserves outputs emitted by `DoFn.finish_bundle()` instead of silently dropping them ([#40519](https://github.com/apache/beam/issues/40519)).
 * (Python) BigQuery streaming inserts now reset the retry budget and backoff for each batch instead of sharing them across a bundle ([#39995](https://github.com/apache/beam/pull/39995)).
 * (Python) State write failures reported by portable runners now fail the bundle instead of silently losing state updates ([#39992](https://github.com/apache/beam/pull/39992)).
-* (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
 * (Python) Type inference now gives the right type for a slice of a fixed-size tuple, such as `row[1:]` in `beam.Map(lambda row: row[1:])`. The slice used to keep the type of the whole tuple, which could make a following `CombinePerKey` fail with a `TypeCheckError` or encode elements with the wrong coder ([#20899](https://github.com/apache/beam/issues/20899)).
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Go) Fixed the harness leaking Data/State gRPC streams after the worker stops, and a deadlock when Send returns EOF ([#40260](https://github.com/apache/beam/issues/40260)).
