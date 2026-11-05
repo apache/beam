@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -51,9 +53,6 @@ import org.joda.time.Instant;
  * followed by a call to {@link #fireForWatermark(AppliedPTransform, Instant)} for the same
  * transform with the current value of the watermark.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class WatermarkCallbackExecutor {
   /** Create a new {@link WatermarkCallbackExecutor}. */
   public static WatermarkCallbackExecutor create(Executor executor) {
@@ -84,10 +83,9 @@ class WatermarkCallbackExecutor {
 
     PriorityQueue<WatermarkCallback> callbackQueue = callbacks.get(step);
     if (callbackQueue == null) {
-      callbackQueue = new PriorityQueue<>(11, new CallbackOrdering());
-      if (callbacks.putIfAbsent(step, callbackQueue) != null) {
-        callbackQueue = callbacks.get(step);
-      }
+      PriorityQueue<WatermarkCallback> newQueue = new PriorityQueue<>(11, new CallbackOrdering());
+      PriorityQueue<WatermarkCallback> existing = callbacks.putIfAbsent(step, newQueue);
+      callbackQueue = existing != null ? existing : newQueue;
     }
 
     synchronized (callbackQueue) {
@@ -109,10 +107,9 @@ class WatermarkCallbackExecutor {
 
     PriorityQueue<WatermarkCallback> callbackQueue = callbacks.get(step);
     if (callbackQueue == null) {
-      callbackQueue = new PriorityQueue<>(11, new CallbackOrdering());
-      if (callbacks.putIfAbsent(step, callbackQueue) != null) {
-        callbackQueue = callbacks.get(step);
-      }
+      PriorityQueue<WatermarkCallback> newQueue = new PriorityQueue<>(11, new CallbackOrdering());
+      PriorityQueue<WatermarkCallback> existing = callbacks.putIfAbsent(step, newQueue);
+      callbackQueue = existing != null ? existing : newQueue;
     }
 
     synchronized (callbackQueue) {
@@ -132,8 +129,9 @@ class WatermarkCallbackExecutor {
     }
     synchronized (callbackQueue) {
       List<Runnable> toFire = new ArrayList<>();
-      while (!callbackQueue.isEmpty() && callbackQueue.peek().shouldFire(watermark)) {
-        toFire.add(callbackQueue.poll().getCallback());
+      while (!callbackQueue.isEmpty()
+          && checkStateNotNull(callbackQueue.peek()).shouldFire(watermark)) {
+        toFire.add(checkStateNotNull(callbackQueue.poll()).getCallback());
       }
       if (!toFire.isEmpty()) {
         CountDownLatch latch = new CountDownLatch(toFire.size());

@@ -22,9 +22,9 @@ pipeline:
     - type: ReadFromSpanner
       name: ReadOrders
       config:
-        project_id: 'apache-beam-testing'
-        instance_id: 'orders-test'
-        database_id: 'order-database'
+        project: 'apache-beam-testing'
+        instance: 'orders-test'
+        database: 'order-database'
         query: 'SELECT customer_id, product_id, order_date, order_amount FROM orders'
 
     # Step 2: Enrich order details with customers details from BigQuery
@@ -36,7 +36,8 @@ pipeline:
         handler_config:
           project: "apache-beam-testing"
           table_name: "apache-beam-testing.ALL_TEST.customers"
-          row_restriction_template: "customer_id = 1001 or customer_id = 1003"
+          # Use placeholder format string so values from 'fields' dynamically populate the WHERE clause.
+          row_restriction_template: "customer_id = {}"
           fields: ["customer_id"]
 
     # Step 3: Map enriched values to Beam schema
@@ -81,10 +82,10 @@ pipeline:
       name: WriteProcessedOrders
       input: FilterHighValueOrders
       config:
-        project_id: '$PROJECT'
-        instance_id: '$INSTANCE'
-        database_id: '$DATABASE'
-        table_id: '$TABLE'
+        project: '$PROJECT'
+        instance: '$INSTANCE'
+        database: '$DATABASE'
+        table: '$TABLE'
         error_handling:
           output: my_error_output
 

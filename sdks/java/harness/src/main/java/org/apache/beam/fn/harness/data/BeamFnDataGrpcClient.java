@@ -76,6 +76,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   private final ConcurrentMap<MultiplexerKey, BeamFnDataGrpcMultiplexer> multiplexerCache;
+  private final ConcurrentMap<MultiplexerKey, ManagedChannel> channelCache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
 
@@ -85,6 +86,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     this.channelFactory = channelFactory;
     this.outboundObserverFactory = outboundObserverFactory;
     this.multiplexerCache = new ConcurrentHashMap<>();
+    this.channelCache = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -128,6 +130,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       }
     }
     multiplexerCache.clear();
+    for (ManagedChannel channel : channelCache.values()) {
+      channel.shutdown();
+    }
+    channelCache.clear();
   }
 
   @Override
@@ -142,10 +148,11 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     return multiplexerCache.computeIfAbsent(
         key,
         k -> {
+          ManagedChannel channel =
+              channelCache.computeIfAbsent(k, unused -> channelFactory.apply(apiServiceDescriptor));
           OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory =
               inboundObserver -> {
-                BeamFnDataGrpc.BeamFnDataStub stub =
-                    BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
+                BeamFnDataGrpc.BeamFnDataStub stub = BeamFnDataGrpc.newStub(channel);
                 if (dataStreamId != null && !dataStreamId.isEmpty()) {
                   Metadata headers = new Metadata();
                   headers.put(

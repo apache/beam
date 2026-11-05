@@ -27,7 +27,7 @@ class Repositories {
     def useMirror = isCi && mirrorUrl
 
     if (useMirror) {
-      project.logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+      project.logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
     }
 
     project.repositories {

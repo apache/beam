@@ -23,14 +23,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Construct an oauth credential to be used by the SDK and the SDK workers. Always returns a null
  * Credential object.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class NoopCredentialFactory implements CredentialFactory {
   private static final NoopCredentialFactory INSTANCE = new NoopCredentialFactory();
   private static final NoopCredentials NOOP_CREDENTIALS = new NoopCredentials();
@@ -45,13 +43,18 @@ public class NoopCredentialFactory implements CredentialFactory {
   }
 
   private static class NoopCredentials extends Credentials {
+    // google-auth Credentials is not annotated for nullness; these overrides intentionally
+    // return null (this is a no-op credential), which its API permits.
     @Override
-    public String getAuthenticationType() {
+    @SuppressWarnings("nullness")
+    public @Nullable String getAuthenticationType() {
       return null;
     }
 
     @Override
-    public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
+    @SuppressWarnings("nullness")
+    public @Nullable Map<String, List<String>> getRequestMetadata(@Nullable URI uri)
+        throws IOException {
       return null;
     }
 

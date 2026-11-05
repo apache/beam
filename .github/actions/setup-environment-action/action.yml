@@ -32,7 +32,7 @@ inputs:
     default: ''
   disable-cache:
     required: false
-    description: 'Whether to disable the gradle cache'
+    description: 'Whether to disable the Gradle and Go caches'
     default: false
   python-cache:
     required: false
@@ -50,7 +50,7 @@ runs:
       if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
+        python-version: ${{ inputs.python-version == 'default' && '3.11' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}
         cache-dependency-path: |
           sdks/python/setup.py
@@ -68,7 +68,7 @@ runs:
         PYTHON_VERSION_INPUT: ${{ inputs.python-version }}
       run: |
         if [[ "$PYTHON_VERSION_INPUT" == "default" ]]; then
-          sanitized="310"
+          sanitized="311"
         else
           sanitized=$(printf '%s' "$PYTHON_VERSION_INPUT" | tr -s '[:space:]' '-' | sed 's/^-//;s/-$//')
         fi
@@ -98,9 +98,11 @@ runs:
       with:
         cache-disabled: ${{ inputs.disable-cache }}
         validate-wrappers: false
+        cache-read-only: ${{ !(github.event_name == 'schedule' || github.event_name == 'push' || github.run_attempt > 1) }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v6
       with:
         go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
-        cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}
+        cache: ${{ inputs.disable-cache != 'true' }}
+        cache-dependency-path: sdks/go.sum

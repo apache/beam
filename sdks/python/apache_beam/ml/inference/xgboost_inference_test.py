@@ -69,7 +69,9 @@ def _compare_keyed_prediction_result(
 
 
 def predict_fn(self, data):
-  self.inference_calls += 1
+  # Models loaded from disk inside the pipeline do not carry the counter set by
+  # build_monkeypatched_xgboost_classifier().
+  self.inference_calls = getattr(self, 'inference_calls', 0) + 1
   if isinstance(data, pandas.DataFrame):
     data = data.to_numpy()
   if isinstance(data, datatable.Frame):

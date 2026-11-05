@@ -34,4 +34,3 @@
 --clip_batch_size=8
 --clip_score_normalize=false
 --runner=DataflowRunner
---experiments=use_runner_v2

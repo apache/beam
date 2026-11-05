@@ -47,7 +47,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.known_buckets.add(test_data_bucket)
       self.aws = s3io.S3IO(self.client)
     else:
-      self.aws = s3io.S3IO(options=pipeline_options.S3Options())
+      self.aws = s3io.S3IO(options=pipeline_options.AwsOptions())
 
   def test_get_object_metadata(self):
 

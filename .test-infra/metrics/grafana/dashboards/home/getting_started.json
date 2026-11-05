@@ -12,7 +12,7 @@
       }
     ]
   },
-  "editable": true,
+  "editable": false,
   "gnetId": null,
   "graphTooltip": 0,
   "links": [],
@@ -20,7 +20,7 @@
     {
       "content": "<div class=\"dashboard-header\">\n  <span>Welcome to Grafana</span>\n</div>",
       "datasource": null,
-      "editable": true,
+      "editable": false,
       "gridPos": {
         "h": 2,
         "w": 24,

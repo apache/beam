@@ -113,13 +113,7 @@ def configureTestJvmArgs(Task task) {
 }
 
 test {
-    testLogging {
-        outputs.upToDateWhen {false}
-        showStandardStreams = true
-        exceptionFormat = 'full'
-    }
     configureTestJvmArgs(delegate)
-
 }
 
 task integrationTest(type: Test, dependsOn: processTestResources) {

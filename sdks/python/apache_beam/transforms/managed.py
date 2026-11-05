@@ -89,8 +89,19 @@ POSTGRES = "postgres"
 MYSQL = "mysql"
 SQL_SERVER = "sqlserver"
 DELTA = "delta"
+DELTA_CDC = "delta_cdc"
+ICEBERG_ADD_FILES = "iceberg_add_files"
 
-__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "DELTA", "Read", "Write"]
+__all__ = [
+    "ICEBERG",
+    "KAFKA",
+    "BIGQUERY",
+    "DELTA",
+    "DELTA_CDC",
+    "ICEBERG_ADD_FILES",
+    "Read",
+    "Write",
+]
 
 
 class Read(PTransform):
@@ -104,6 +115,7 @@ class Read(PTransform):
       MYSQL: ManagedTransforms.Urns.MYSQL_READ.urn,
       SQL_SERVER: ManagedTransforms.Urns.SQL_SERVER_READ.urn,
       DELTA: ManagedTransforms.Urns.DELTA_LAKE_READ.urn,
+      DELTA_CDC: ManagedTransforms.Urns.DELTA_LAKE_CDC_READ.urn,
   }
 
   def __init__(
@@ -155,7 +167,8 @@ class Write(PTransform):
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
       POSTGRES: ManagedTransforms.Urns.POSTGRES_WRITE.urn,
       MYSQL: ManagedTransforms.Urns.MYSQL_WRITE.urn,
-      SQL_SERVER: ManagedTransforms.Urns.SQL_SERVER_WRITE.urn
+      SQL_SERVER: ManagedTransforms.Urns.SQL_SERVER_WRITE.urn,
+      ICEBERG_ADD_FILES: ManagedTransforms.Urns.ICEBERG_ADD_FILES.urn,
   }
 
   def __init__(

@@ -22,6 +22,7 @@ import contextlib
 import copy
 import functools
 import glob
+import json
 import logging
 import re
 import subprocess
@@ -87,6 +88,8 @@ MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
     ManagedTransforms.Urns.SQL_SERVER_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
     ManagedTransforms.Urns.SQL_SERVER_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
     ManagedTransforms.Urns.DELTA_LAKE_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.DELTA_LAKE_CDC_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.ICEBERG_ADD_FILES.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
 }
 
 
@@ -256,6 +259,10 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
             key: dict_to_row_recursive(field_type.map_type.value_type, value)
             for key, value in py_value.items()
         }
+      elif (type_info == 'atomic_type' and
+            field_type.atomic_type == schema_pb2.STRING and
+            isinstance(py_value, (dict, list))):
+        return json.dumps(py_value)
       else:
         return py_value
 

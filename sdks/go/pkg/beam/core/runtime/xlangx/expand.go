@@ -29,11 +29,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"github.com/avast/retry-go/v4"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // maxRetries is the maximum number of retries to attempt connecting to
@@ -85,7 +89,12 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	delete(transforms, extTransformID)
 
 	// Querying the expansion service
-	res, err := expand(context.Background(), p.GetComponents(), extTransform, edge, ext)
+	ctx := context.Background()
+	pipelineOpts, err := expansionPipelineOptions(ctx, jobopts.GetPipelineResourceHints())
+	if err != nil {
+		return errors.Wrapf(err, "unable to generate pipeline options for expansion of %v", ext)
+	}
+	res, err := expand(ctx, p.GetComponents(), extTransform, edge, ext, pipelineOpts)
 	if err != nil {
 		return err
 	}
@@ -104,12 +113,45 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	return nil
 }
 
+// resourceHintsOptionURN is the portable pipeline option key for resource hints,
+// as understood by the PipelineOptions translation of the Java and Python SDKs.
+const resourceHintsOptionURN = "beam:option:resource_hints:v1"
+
+// expansionPipelineOptions produces the pipeline options to be sent with an
+// ExpansionRequest, or nil if there are none to send.
+//
+// Currently only the pipeline level resource hints are forwarded. Expansion
+// services use the request options as the defaults for the expansion pipeline,
+// which applies the hints to the environments of the expanded transforms. This
+// matches the behavior of the Java and Python SDKs, which forward their pipeline
+// options when expanding cross-language transforms.
+//
+// Other options are intentionally not forwarded, as Go SDK flags don't necessarily
+// share names or semantics with options in other SDKs.
+func expansionPipelineOptions(ctx context.Context, hints resource.Hints) (*structpb.Struct, error) {
+	opts, omitted := hints.OptionStrings()
+	if len(omitted) > 0 {
+		log.Warnf(ctx, "resource hints %v have no portable representation and won't be forwarded to expansion services", omitted)
+	}
+	if len(opts) == 0 {
+		return nil, nil
+	}
+	vals := make([]any, 0, len(opts))
+	for _, o := range opts {
+		vals = append(vals, o)
+	}
+	return structpb.NewStruct(map[string]any{
+		resourceHintsOptionURN: vals,
+	})
+}
+
 func expand(
 	ctx context.Context,
 	comps *pipepb.Components,
 	transform *pipepb.PTransform,
 	edge *graph.MultiEdge,
-	ext *graph.ExternalTransform) (*jobpb.ExpansionResponse, error) {
+	ext *graph.ExternalTransform,
+	pipelineOpts *structpb.Struct) (*jobpb.ExpansionResponse, error) {
 
 	h, config := defaultReg.getHandlerFunc(transform.GetSpec().GetUrn(), ext.ExpansionAddr)
 	// Overwrite expansion address if changed due to override for service or URN.
@@ -141,6 +183,7 @@ func expand(
 			Transform:           transform,
 			Namespace:           ext.Namespace,
 			OutputCoderRequests: outputCoderID,
+			PipelineOptions:     pipelineOpts,
 		},
 		edge: edge,
 		ext:  ext,

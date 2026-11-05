@@ -33,9 +33,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A factory that produces bundles that perform no additional validation. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class ImmutableListBundleFactory implements BundleFactory {
   private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
 
@@ -63,7 +60,7 @@ class ImmutableListBundleFactory implements BundleFactory {
 
   /** A {@link UncommittedBundle} that buffers elements in memory. */
   private static final class UncommittedImmutableListBundle<T> implements UncommittedBundle<T> {
-    private final PCollection<T> pcollection;
+    private final @Nullable PCollection<T> pcollection;
     private final StructuralKey<?> key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
@@ -73,18 +70,19 @@ class ImmutableListBundleFactory implements BundleFactory {
      * Create a new {@link UncommittedImmutableListBundle} for the specified {@link PCollection}.
      */
     public static <T> UncommittedImmutableListBundle<T> create(
-        PCollection<T> pcollection, StructuralKey<?> key) {
+        @Nullable PCollection<T> pcollection, StructuralKey<?> key) {
       return new UncommittedImmutableListBundle<>(pcollection, key);
     }
 
-    private UncommittedImmutableListBundle(PCollection<T> pcollection, StructuralKey<?> key) {
+    private UncommittedImmutableListBundle(
+        @Nullable PCollection<T> pcollection, StructuralKey<?> key) {
       this.pcollection = pcollection;
       this.key = key;
       this.elements = ImmutableList.builder();
     }
 
     @Override
-    public PCollection<T> getPCollection() {
+    public @Nullable PCollection<T> getPCollection() {
       return pcollection;
     }
 

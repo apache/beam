@@ -36,6 +36,7 @@ import org.apache.beam.fn.harness.control.Metrics.BundleDistribution;
 import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.debug.ElementSample;
 import org.apache.beam.fn.harness.debug.OutputSampler;
+import org.apache.beam.fn.harness.state.WorkCancelledException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -281,14 +282,16 @@ public class PCollectionConsumerRegistry {
       @Nullable OutputSampler<T> outputSampler,
       @Nullable ElementSample<T> elementSample)
       throws Exception {
-    ExecutionStateSampler.ExecutionStateTrackerStatus status = executionStateTracker.getStatus();
-    String processBundleId = status == null ? null : status.getProcessBundleId();
-    if (outputSampler != null) {
-      outputSampler.exception(elementSample, e, ptransformId, processBundleId);
-    }
+    if (!WorkCancelledException.isWorkCancelledException(e)) {
+      ExecutionStateSampler.ExecutionStateTrackerStatus status = executionStateTracker.getStatus();
+      String processBundleId = status == null ? null : status.getProcessBundleId();
+      if (outputSampler != null) {
+        outputSampler.exception(elementSample, e, ptransformId, processBundleId);
+      }
 
-    if (executionState.error()) {
-      LOG.error("Failed to process element for bundle \"{}\"", processBundleId, e);
+      if (executionState.error()) {
+        LOG.error("Failed to process element for bundle \"{}\"", processBundleId, e);
+      }
     }
     throw e;
   }

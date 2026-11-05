@@ -50,6 +50,9 @@ except ImportError:
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
+  if not GCS_INSTALLED:
+    GCSFileSystem = None  # type: ignore
 except ImportError:
   GCSFileSystem = None  # type: ignore
 

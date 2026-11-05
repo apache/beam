@@ -370,7 +370,7 @@ class AssertEqualAndRecord(beam.PTransform):
   def expand(self, pcoll):
     # Convert elements to rows outside the matcher to avoid capturing
     # any grpc channels that might be created during the conversion
-    expected_rows = yaml_provider.dicts_to_rows(self._elements)
+    expected_rows = [yaml_provider.to_dict(e) for e in self._elements]
     recording_id = self._recording_id
 
     # Create a serializable matcher function that doesn't capture
@@ -392,8 +392,7 @@ class AssertEqualAndRecord(beam.PTransform):
             raise
 
     matcher = SerializableMatcher(expected_rows, recording_id)
-    return assert_that(
-        pcoll | beam.Map(lambda row: beam.Row(**row._asdict())), matcher)
+    return assert_that(pcoll | beam.Map(yaml_provider.to_dict), matcher)
 
 
 def create_test(
@@ -548,10 +547,7 @@ def _composite_key_to_nested(
 
 
 def _try_row_as_dict(row):
-  try:
-    return row._asdict()
-  except AttributeError:
-    return row
+  return yaml_provider.to_dict(row)
 
 
 # Linter: No need for unittest.main here.

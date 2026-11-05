@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -34,9 +36,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link FileBasedSink} for Avro files. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroSink<UserT, DestinationT, OutputT>
     extends FileBasedSink<UserT, DestinationT, OutputT> {
   private final Class<OutputT> type;
@@ -121,33 +120,38 @@ public class AvroSink<UserT, DestinationT, OutputT>
               .orElse(AvroDatumFactory.of(type))
               .apply(schema);
 
-      dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
+      DataFileWriter<OutputT> writer = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();
         if (v instanceof String) {
-          dataFileWriter.setMeta(entry.getKey(), (String) v);
+          writer.setMeta(entry.getKey(), (String) v);
         } else if (v instanceof Long) {
-          dataFileWriter.setMeta(entry.getKey(), (Long) v);
+          writer.setMeta(entry.getKey(), (Long) v);
         } else if (v instanceof byte[]) {
-          dataFileWriter.setMeta(entry.getKey(), (byte[]) v);
+          writer.setMeta(entry.getKey(), (byte[]) v);
         } else {
           throw new IllegalStateException(
               "Metadata value type must be one of String, Long, or byte[]. Found "
                   + v.getClass().getSimpleName());
         }
       }
-      dataFileWriter.setSyncInterval(syncInterval);
-      dataFileWriter.create(schema, Channels.newOutputStream(channel));
+      writer.setSyncInterval(syncInterval);
+      writer.create(schema, Channels.newOutputStream(channel));
+      dataFileWriter = writer;
     }
 
     @Override
     public void write(OutputT value) throws Exception {
-      dataFileWriter.append(value);
+      dataFileWriter().append(value);
     }
 
     @Override
     protected void finishWrite() throws Exception {
-      dataFileWriter.flush();
+      dataFileWriter().flush();
+    }
+
+    private DataFileWriter<OutputT> dataFileWriter() {
+      return checkStateNotNull(dataFileWriter, "prepareWrite() has not been called");
     }
   }
 }

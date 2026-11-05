@@ -72,9 +72,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
-from apache_beam.utils.secret import GcpHsmGeneratedSecret
-from apache_beam.utils.secret import GcpSecret
-from apache_beam.utils.secret import Secret
 from apache_beam.transforms.util import _BatchSizeEstimator
 from apache_beam.transforms.util import _GlobalWindowsBatchingDoFn
 from apache_beam.transforms.window import FixedWindows
@@ -88,6 +85,9 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils.secret import GcpHsmGeneratedSecret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import Secret
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
@@ -567,6 +567,86 @@ class BatchElementsTest(unittest.TestCase):
               'a' * 7,
           ]))
 
+  def test_sized_batches_oversized_element(self):
+    # An element that exceeds the batch size on its own is emitted in a batch
+    # by itself, instead of after an empty batch.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'], reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10, max_batch_size=10, element_size_fn=len)
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(20, ), (1, 1)]))
+
+  def test_sized_windowed_batches_oversized_element(self):
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'], reshuffle=False)
+          | beam.Map(lambda e: window.TimestampedValue(e, 1))
+          | beam.WindowInto(window.FixedWindows(10))
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(20, ), (1, 1)]))
+
+  def test_max_batch_weight(self):
+    # Batches have at most 3 elements, with a total length of at most 10.
+    # The first batch of a bundle is limited by its number of elements, as the
+    # estimator replays its size as the next target.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create([1, 1, 1, 4, 4, 4, 1, 20, 1], reshuffle=False)
+          | beam.Map(lambda length: 'a' * length)
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(1, 1, 1), (4, 4), (4, 1), (20, ), (1, )]))
+
+  def test_max_batch_weight_windowed(self):
+    # As above, the first batch of the bundle is limited by its number of
+    # elements.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create([(1, 11), (1, 11), (1, 11), (1, 11), (4, 1), (4, 1),
+                         (4, 1)],
+                        reshuffle=False)
+          | beam.MapTuple(
+              lambda length, ts: window.TimestampedValue('a' * length, ts))
+          | beam.WindowInto(window.FixedWindows(10))
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_weight=10,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(
+          res,
+          equal_to([
+              (4, 4),
+              (4, ),  # Elements in [0, 10)
+              (1, 1, 1),
+              (1, ),  # Elements in [10, 20)
+          ]))
+
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError, 'requires element_size_fn'):
+      util.BatchElements(max_batch_weight=10)
+
+  def test_max_batch_weight_must_be_positive(self):
+    with self.assertRaisesRegex(ValueError, 'must be >= 1'):
+      util.BatchElements(max_batch_weight=0, element_size_fn=len)
+
   def test_target_duration(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
@@ -879,6 +959,93 @@ class BatchElementsTest(unittest.TestCase):
           | beam.Map(len))
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
+  def test_stateful_sized_batches(self):
+    # The stateful implementation used to ignore element_size_fn.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['aaaaa'] * 6)
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              element_size_fn=len)
+          | beam.Map(len))
+      assert_that(res, equal_to([2, 2, 2]))
+
+  def test_stateful_max_batch_weight(self):
+    def batch_lengths(label, elements):
+      return (
+          p
+          | f'Create{label}' >> beam.Create(elements)
+          | f'Batch{label}' >> util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_duration_secs=100,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | f'Len{label}' >> beam.Map(len))
+
+    with TestPipeline('FnApiRunner') as p:
+      # At most 2 elements of length 4 fit within max_batch_weight.
+      assert_that(
+          batch_lengths('Heavy', ['aaaa'] * 6),
+          equal_to([2, 2, 2]),
+          label='CheckHeavy')
+      # At most 3 elements fit within max_batch_size.
+      assert_that(
+          batch_lengths('Light', ['a'] * 7),
+          equal_to([3, 3, 1]),
+          label='CheckLight')
+
+  def test_stateful_max_batch_weight_oversized_element(self):
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'])
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_duration_secs=100,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | beam.Map(lambda batch: sorted(len(e) for e in batch)))
+
+      def check(batches):
+        # Whatever the order of the elements, the oversized element is emitted
+        # in a batch by itself, and no batch is empty.
+        assert [20] in batches, batches
+        assert all(batches), batches
+        assert sorted(sum(batches, [])) == [1, 1, 20], batches
+
+      assert_that(res, check)
+
+  def test_stateful_element_size_fn_keeps_state_and_label(self):
+    # Setting element_size_fn only adds a 'weight' state, and keeps the
+    # transform names, to minimize the impact on the update compatibility of
+    # streaming pipelines.
+    def stateful_transforms(**kwargs):
+      p = beam.Pipeline()
+      batch_elements = util.BatchElements(max_batch_duration_secs=100, **kwargs)
+      _ = p | beam.Create(['a']) | 'Batch' >> batch_elements
+      transforms = {}
+      for transform in p.to_runner_api().components.transforms.values():
+        if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+          payload = proto_utils.parse_Bytes(
+              transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+          if payload.state_specs:
+            transforms[transform.unique_name] = set(payload.state_specs)
+      return transforms
+
+    state = {'values', 'count', 'batch_size', 'batch_estimator'}
+    label = 'Batch/ParDo(_StatefulBatchElementsDoFn)'
+    self.assertEqual(stateful_transforms(), {label: state})
+    self.assertEqual(
+        stateful_transforms(element_size_fn=len), {label: state | {'weight'}})
+    self.assertEqual(
+        stateful_transforms(element_size_fn=len, max_batch_weight=10),
+        {label: state | {'weight'}})
+
   def test_length_bucket_assignment(self):
     """WithLengthBucketKey assigns correct bucket indices."""
     boundaries = [10, 50, 100]
@@ -956,12 +1123,15 @@ class BatchElementsTest(unittest.TestCase):
 
   def test_length_fn_without_stateful_is_ignored(self):
     """length_fn without max_batch_duration_secs uses non-stateful path."""
+    with self.assertLogs(util.__name__, level='WARNING') as logs:
+      batch_elements = util.BatchElements(
+          min_batch_size=3, max_batch_size=3, length_fn=len)
+    self.assertIn('ignores length_fn', logs.output[0])
     with TestPipeline() as p:
       res = (
           p
           | beam.Create(['a', 'bb', 'ccc'])
-          | util.BatchElements(
-              min_batch_size=3, max_batch_size=3, length_fn=len)
+          | batch_elements
           | beam.Map(len))
       assert_that(res, equal_to([3]))
 
@@ -1416,6 +1586,22 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     for batch in batches:
       self.assertEqual(len(batch), 2)
 
+  def test_global_dofn_batch_can_reach_max_batch_weight(self):
+    """Test that a batch can weigh exactly max_batch_weight."""
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+
+    # Each element has size 5, max_batch_weight=10 -> 2 per batch
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=10,
+        element_size_fn=len)
+    dofn.start_bundle()
+    for elem in ['aaaaa', 'bbbbb', 'ccccc', 'ddddd']:
+      dofn.process(elem)
+    batches = [wv.value for wv in dofn.finish_bundle()]
+    self.assertEqual([len(batch) for batch in batches], [2, 2])
+
   def test_windowed_dofn_flush_and_finish(self):
     """Test _WindowAwareSortAndBatchElementsDoFn directly."""
     from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
@@ -1492,6 +1678,21 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     for wv in batches:
       self.assertEqual(len(wv.value), 2)
       self.assertEqual(wv.windows[0], win)
+
+  def test_windowed_dofn_batch_can_reach_max_batch_weight(self):
+    """Test that a windowed batch can weigh exactly max_batch_weight."""
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=10,
+        element_size_fn=len)
+    dofn.start_bundle()
+    win = IntervalWindow(0, 10)
+    dofn._buffers[win].extend(['aaaaa', 'bbbbb', 'ccccc', 'ddddd'])
+    batches = list(dofn._flush_window(win))
+    self.assertEqual([len(wv.value) for wv in batches], [2, 2])
 
 
 class IdentityWindowTest(unittest.TestCase):
@@ -2481,6 +2682,14 @@ class LogElementsTest(unittest.TestCase):
           | util.LogElements(prefix='prefix_'))
       assert_that(result, equal_to(['a', 'b', 'c']))
 
+  def test_global_window_with_timestamp_and_window(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a'])
+          | util.LogElements(with_timestamp=True, with_window=True))
+      assert_that(result, equal_to(['a']))
+
   @pytest.fixture(scope="function")
   def _capture_logs(request, caplog):
     with caplog.at_level(logging.INFO):
@@ -2675,8 +2884,35 @@ class RegexTest(unittest.TestCase):
           pcol | 'all non empty groups' >> util.Regex.find_all(
               'a(b*)', util.Regex.ALL, outputEmpty=False),
           equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
-                    [('abb', 'bb'), ('abbb', 'bbb')]]),
+                    [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]),
           label='CheckAllNonEmptyGroups')
+
+  def test_find_all_groups_multiple_and_no_groups(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(['a=1 b=2 c=']))
+      assert_that(
+          pcol
+          | 'two groups' >> util.Regex.find_all(r'(\w)=(\d?)', util.Regex.ALL),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroups')
+
+      assert_that(
+          pcol | 'two groups non empty match' >> util.Regex.find_all(
+              r'(\w)=(\d?)', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroupsNonEmptyMatch')
+
+      digits = (p | 'create digits' >> beam.Create(['1 2']))
+      assert_that(
+          digits | 'no groups' >> util.Regex.find_all(r'\d*', util.Regex.ALL),
+          equal_to([[('1', ), ('', ), ('2', ), ('', )]]),
+          label='CheckNoGroups')
+
+      assert_that(
+          digits | 'no groups non empty' >> util.Regex.find_all(
+              r'\d*', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('1', ), ('2', )]]),
+          label='CheckNoGroupsNonEmpty')
 
   def test_find_kv(self):
     with TestPipeline() as p:
@@ -2787,6 +3023,22 @@ class RegexTest(unittest.TestCase):
       expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
                          ["z z", "z", "z"]]
       assert_that(result, equal_to(expected_result))
+
+  def test_all_matched_returns_every_group(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(["ab"]))
+      assert_that(
+          pcol | 'nested groups' >> util.Regex.all_matches("((a)(b))"),
+          equal_to([["ab", "ab", "a", "b"]]),
+          label='CheckNestedGroups')
+      assert_that(
+          pcol | 'optional group' >> util.Regex.all_matches("(a)(c)?"),
+          equal_to([["a", "a", None]]),
+          label='CheckOptionalGroup')
+      assert_that(
+          pcol | 'no groups' >> util.Regex.all_matches("a+"),
+          equal_to([["a"]]),
+          label='CheckNoGroups')
 
   def test_match_group_kv(self):
     with TestPipeline() as p:

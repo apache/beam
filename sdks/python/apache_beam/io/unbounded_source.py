@@ -104,6 +104,8 @@ from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import _MemoizingPickleCoder
 from apache_beam.io import iobase
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
+from apache_beam.options.pipeline_options import StreamingOptions
+from apache_beam.options.pipeline_options_context import get_pipeline_options
 from apache_beam.runners import sdf_utils
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
@@ -709,11 +711,18 @@ class _UnboundedSourceRestrictionProvider(core.RestrictionProvider):
       yield restriction
       return
 
+    desired_num_splits = _DEFAULT_DESIRED_NUM_SPLITS
+    options = get_pipeline_options()
+    if options is not None:
+      configured_splits = options.view_as(
+          StreamingOptions).desired_num_unbounded_source_splits
+      if configured_splits > 0:
+        desired_num_splits = configured_splits
+
     # ``source.split`` is user code and may refuse to split; fall back to a
     # single restriction on error.
     try:
-      split_sources = list(
-          restriction.source.split(_DEFAULT_DESIRED_NUM_SPLITS, None))
+      split_sources = list(restriction.source.split(desired_num_splits, None))
     except Exception:  # pylint: disable=broad-except
       _LOGGER.warning(
           'Exception while splitting UnboundedSource. Source not split.',

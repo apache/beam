@@ -107,7 +107,14 @@ public class WriteOperation extends ReceivingOperation {
   }
 
   @Override
-  public void finishKey(@Nullable Object key) throws Exception {}
+  public void finishKey(@Nullable Object key) throws Exception {
+    try (Closeable scope = context.enterProcess()) {
+      checkStarted();
+      if (writer != null) {
+        writer.finishKey(key);
+      }
+    }
+  }
 
   @Override
   public void abort() throws Exception {

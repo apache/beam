@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -72,10 +73,9 @@ public class GcsResourceId implements ResourceId {
     if (isDirectory()) {
       return this;
     } else {
-      GcsPath parent = gcsPath.getParent();
-      checkState(
-          parent != null,
-          String.format("Failed to get the current directory for path: [%s].", gcsPath));
+      GcsPath parent =
+          checkStateNotNull(
+              gcsPath.getParent(), "Failed to get the current directory for path: [%s].", gcsPath);
       return fromGcsPath(parent);
     }
   }

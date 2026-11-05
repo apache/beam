@@ -511,7 +511,7 @@ public class View {
     }
   }
 
-  private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
+  private static final class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
     private final boolean hasDefault;
     private final @Nullable Coder<T> valueCoder;
     private final byte @Nullable [] defaultValue;

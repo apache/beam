@@ -40,6 +40,8 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
+import org.apache.iceberg.hadoop.HadoopConfigurable;
+import org.apache.iceberg.io.FileIO;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -235,5 +237,53 @@ public class SideInputTableTest {
     assertNotEquals(table1a, table2);
     assertNotNull(table1a.toString());
     assertTrue(table1a.toString().contains("SideInputTable"));
+  }
+
+  @Test
+  public void testSideInputTableWithHadoopConfiguration() {
+    TableIdentifier tableId = TableIdentifier.of("default", "side_input_hadoop_conf_table");
+    Table realTable = catalog.createTable(tableId, TestFixtures.SCHEMA);
+    SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
+
+    Configuration conf = new Configuration();
+    conf.set("custom.sideinput.prop", "custom-value-456");
+
+    // Test constructor accepting hadoopConf directly
+    SideInputTable tableWithConf = new SideInputTable(spec, ImmutableMap.of(), conf);
+    FileIO io = tableWithConf.io();
+    assertNotNull(io);
+    assertTrue("FileIO must implement Configurable", io instanceof HadoopConfigurable);
+    assertEquals(
+        "custom-value-456", ((HadoopConfigurable) io).getConf().get("custom.sideinput.prop"));
+
+    // Test constructor accepting IcebergCatalogConfig
+    IcebergCatalogConfig catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("test_catalog")
+            .setConfigProperties(ImmutableMap.of("catalog.conf.prop", "val-789"))
+            .build();
+
+    SerializableTableSpec specFromConfig = SerializableTableSpec.fromTable(tableId, realTable);
+    SideInputTable tableFromCatalogConfig = new SideInputTable(specFromConfig, catalogConfig);
+    FileIO ioFromConfig = tableFromCatalogConfig.io();
+    assertNotNull(ioFromConfig);
+    assertTrue("FileIO must implement Configurable", ioFromConfig instanceof HadoopConfigurable);
+    assertEquals("val-789", ((HadoopConfigurable) ioFromConfig).getConf().get("catalog.conf.prop"));
+
+    // Test constructor accepting EncryptionManager and hadoopConf
+    SerializableTableSpec specWithEncryption = SerializableTableSpec.fromTable(tableId, realTable);
+    SideInputTable tableWithEncryptionAndConf =
+        new SideInputTable(specWithEncryption, PlaintextEncryptionManager.instance(), conf);
+    FileIO ioWithEncryption = tableWithEncryptionAndConf.io();
+    assertNotNull(ioWithEncryption);
+    assertTrue(
+        "FileIO must implement Configurable", ioWithEncryption instanceof HadoopConfigurable);
+    assertEquals(
+        "custom-value-456",
+        ((HadoopConfigurable) ioWithEncryption).getConf().get("custom.sideinput.prop"));
+
+    // Test constructor rejecting null catalogConfig
+    assertThrows(
+        NullPointerException.class, () -> new SideInputTable(spec, (IcebergCatalogConfig) null));
   }
 }

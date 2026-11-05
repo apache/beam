@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.Session;
-import javax.jms.TextMessage;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 
 /**
- * The TextMessageMapper takes a {@link String} value, a {@link javax.jms.Session} and returns a
- * {@link javax.jms.TextMessage}.
+ * The TextMessageMapper takes a {@link String} value, a {@link jakarta.jms.Session} and returns a
+ * {@link jakarta.jms.TextMessage}.
  */
 public class TextMessageMapper implements SerializableBiFunction<String, Session, Message> {
 

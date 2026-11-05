@@ -32,6 +32,8 @@ from apache_beam.testing.test_utils import read_files_from_pattern
 # Protect against environments where gcsio library is not available.
 try:
   from apache_beam.io.gcp import gcsio
+  if not gcsio.GCS_INSTALLED:
+    gcsio = None
 except ImportError:
   gcsio = None
 

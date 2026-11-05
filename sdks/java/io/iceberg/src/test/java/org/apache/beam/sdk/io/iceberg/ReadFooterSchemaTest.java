@@ -28,9 +28,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.avro.SchemaBuilder;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -39,7 +42,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -164,6 +170,62 @@ public class ReadFooterSchemaTest {
     pipeline.run();
   }
 
+  /** Hive names its output files like this, with no extension. */
+  @Test
+  public void testExtensionlessParquetEmitsSchema() throws IOException {
+    String file = writeParquet("000000_0", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertSchemas(run(file), FLAT_SCHEMA);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtensionlessNonParquetEmitsNothing() throws IOException {
+    String marker = writeBytes("_SUCCESS", new byte[0]);
+
+    PAssert.that(run(marker)).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRecordsPartitionKeysInPath() throws IOException {
+    String prefix = temporaryFolder.getRoot().getAbsolutePath() + "/";
+    new File(prefix + "dt=2024-01-15/region=EU").mkdirs();
+    String file =
+        writeParquet(
+            "dt=2024-01-15/region=EU/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(runWithPrefix(prefix, file), Arrays.asList("dt", "region"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testHiveNullFolderGivesNoPartitionKey() throws IOException {
+    String prefix = temporaryFolder.getRoot().getAbsolutePath() + "/";
+    new File(prefix + "dt=__HIVE_DEFAULT_PARTITION__").mkdirs();
+    String file =
+        writeParquet(
+            "dt=__HIVE_DEFAULT_PARTITION__/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(runWithPrefix(prefix, file), Collections.emptyList());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testNoPartitionKeysWithoutAPrefix() throws IOException {
+    new File(temporaryFolder.getRoot(), "dt=2024-01-15").mkdirs();
+    String file =
+        writeParquet("dt=2024-01-15/f.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+
+    assertPartitionKeysInPath(run(file), Collections.emptyList());
+
+    pipeline.run();
+  }
+
   /**
    * The schema is emitted exactly as declared; which columns proved null-free travels beside it.
    */
@@ -250,11 +312,75 @@ public class ReadFooterSchemaTest {
     return total;
   }
 
+  /** The footer reads, but its schema does not convert: the file contributes no schema. */
+  @Test
+  public void testUnconvertibleSchemaEmitsNothing() throws IOException {
+    File file = new File(temporaryFolder.getRoot(), "legacy.parquet");
+    writeLegacyRepeated(file);
+
+    PAssert.that(run(file.getAbsolutePath())).empty();
+
+    pipeline.run();
+  }
+
+  /** Readable Parquet whose unannotated repeated field Iceberg's converter rejects. */
+  private static void writeLegacyRepeated(File file) throws IOException {
+    org.apache.parquet.schema.MessageType legacy =
+        org.apache.parquet.schema.Types.buildMessage()
+            .required(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("id")
+            .repeated(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32)
+            .named("vals")
+            .named("root");
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.parquet.example.data.Group> writer =
+        org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withType(legacy)
+            .build()) {
+      org.apache.parquet.example.data.Group group =
+          new org.apache.parquet.example.data.simple.SimpleGroupFactory(legacy).newGroup();
+      group.add("id", 1);
+      group.add("vals", 2);
+      writer.write(group);
+    }
+  }
+
   private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
+    // the read is keyed by destination table; these tests are about the schema, so one key
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))
-        .apply(ParDo.of(new ReadFooterSchema()))
+        .apply(
+            "KeyByTable",
+            WithKeys.<String, String>of("db.t").withKeyType(TypeDescriptors.strings()))
+        .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled())))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), CollectDistinctSchemas.groupCoder()))
+        .apply("DropKey", Values.create())
         .setCoder(CollectDistinctSchemas.groupCoder());
+  }
+
+  private PCollection<CollectDistinctSchemas.SchemaGroup> runWithPrefix(
+      String prefix, String... paths) {
+    return pipeline
+        .apply(Create.of(Arrays.asList(paths)))
+        .apply(
+            "KeyByTable",
+            WithKeys.<String, String>of("db.t").withKeyType(TypeDescriptors.strings()))
+        .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled(), prefix)))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), CollectDistinctSchemas.groupCoder()))
+        .apply("DropKey", Values.create())
+        .setCoder(CollectDistinctSchemas.groupCoder());
+  }
+
+  private static void assertPartitionKeysInPath(
+      PCollection<CollectDistinctSchemas.SchemaGroup> out, List<String> expected) {
+    PAssert.that(out)
+        .satisfies(
+            groups -> {
+              for (CollectDistinctSchemas.SchemaGroup group : groups) {
+                assertEquals(expected, group.getPartitionKeysInPath());
+              }
+              return null;
+            });
   }
 
   /** Asserts the emitted declared schemas equal the canonical forms of {@code expected}. */

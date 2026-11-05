@@ -58,8 +58,8 @@ public class TpcdsSchemas {
         Schema.FieldType fieldType;
         if (type.equals("bigint")) {
           fieldType = Schema.FieldType.INT64;
-        } else if (type.equals("double")) {
-          fieldType = Schema.FieldType.DOUBLE;
+        } else if (type.equals("decimal")) {
+          fieldType = Schema.FieldType.DECIMAL;
         } else {
           fieldType = Schema.FieldType.STRING;
         }
@@ -235,8 +235,8 @@ public class TpcdsSchemas {
           .addNullableField("cc_state", Schema.FieldType.STRING)
           .addNullableField("cc_zip", Schema.FieldType.STRING)
           .addNullableField("cc_country", Schema.FieldType.STRING)
-          .addNullableField("cc_gmt_offset", Schema.FieldType.DOUBLE)
-          .addNullableField("cc_tax_percentage", Schema.FieldType.DOUBLE)
+          .addNullableField("cc_gmt_offset", Schema.FieldType.DECIMAL)
+          .addNullableField("cc_tax_percentage", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema catalogPageSchema =
@@ -272,15 +272,15 @@ public class TpcdsSchemas {
           .addNullableField("cr_reason_sk", Schema.FieldType.INT64)
           .addField("cr_order_number", Schema.FieldType.INT64)
           .addNullableField("cr_return_quantity", Schema.FieldType.INT64)
-          .addNullableField("cr_return_amount", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_return_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_return_amt_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_fee", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_return_ship_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_refunded_cash", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_reversed_charge", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_store_credit", Schema.FieldType.DOUBLE)
-          .addNullableField("cr_net_loss", Schema.FieldType.DOUBLE)
+          .addNullableField("cr_return_amount", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_return_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_return_amt_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_fee", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_return_ship_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_refunded_cash", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_reversed_charge", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_store_credit", Schema.FieldType.DECIMAL)
+          .addNullableField("cr_net_loss", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema catalogSalesSchema =
@@ -303,22 +303,22 @@ public class TpcdsSchemas {
           .addField("cs_item_sk", Schema.FieldType.INT64)
           .addNullableField("cs_promo_sk", Schema.FieldType.INT64)
           .addField("cs_order_number", Schema.FieldType.INT64)
-          .addNullableField("cs_quantity", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_discount_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_coupon_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_ext_ship_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_net_paid", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_net_paid_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_net_paid_inc_ship", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_net_paid_inc_ship_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("cs_net_profit", Schema.FieldType.DOUBLE)
+          .addNullableField("cs_quantity", Schema.FieldType.INT64)
+          .addNullableField("cs_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_discount_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_coupon_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_ext_ship_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_net_paid", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_net_paid_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_net_paid_inc_ship", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_net_paid_inc_ship_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("cs_net_profit", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema customerSchema =
@@ -356,7 +356,7 @@ public class TpcdsSchemas {
           .addNullableField("ca_state", Schema.FieldType.STRING)
           .addNullableField("ca_zip", Schema.FieldType.STRING)
           .addNullableField("ca_country", Schema.FieldType.STRING)
-          .addNullableField("ca_gmt_offset", Schema.FieldType.DOUBLE)
+          .addNullableField("ca_gmt_offset", Schema.FieldType.DECIMAL)
           .addNullableField("ca_location_type", Schema.FieldType.STRING)
           .build();
 
@@ -436,8 +436,8 @@ public class TpcdsSchemas {
           .addNullableField("i_rec_start_date", Schema.FieldType.STRING)
           .addNullableField("i_rec_end_date", Schema.FieldType.STRING)
           .addNullableField("i_item_desc", Schema.FieldType.STRING)
-          .addNullableField("i_current_price", Schema.FieldType.DOUBLE)
-          .addNullableField("i_wholesale_cost", Schema.FieldType.DOUBLE)
+          .addNullableField("i_current_price", Schema.FieldType.DECIMAL)
+          .addNullableField("i_wholesale_cost", Schema.FieldType.DECIMAL)
           .addNullableField("i_brand_id", Schema.FieldType.INT64)
           .addNullableField("i_brand", Schema.FieldType.STRING)
           .addNullableField("i_class_id", Schema.FieldType.INT64)
@@ -462,7 +462,7 @@ public class TpcdsSchemas {
           .addNullableField("p_start_date_sk", Schema.FieldType.INT64)
           .addNullableField("p_end_date_sk", Schema.FieldType.INT64)
           .addNullableField("p_item_sk", Schema.FieldType.INT64)
-          .addNullableField("p_cost", Schema.FieldType.DOUBLE)
+          .addNullableField("p_cost", Schema.FieldType.DECIMAL)
           .addNullableField("p_response_target", Schema.FieldType.INT64)
           .addNullableField("p_promo_name", Schema.FieldType.STRING)
           .addNullableField("p_channel_dmail", Schema.FieldType.STRING)
@@ -524,8 +524,8 @@ public class TpcdsSchemas {
           .addNullableField("s_state", Schema.FieldType.STRING)
           .addNullableField("s_zip", Schema.FieldType.STRING)
           .addNullableField("s_country", Schema.FieldType.STRING)
-          .addNullableField("s_gmt_offset", Schema.FieldType.DOUBLE)
-          .addNullableField("s_tax_percentage", Schema.FieldType.DOUBLE)
+          .addNullableField("s_gmt_offset", Schema.FieldType.DECIMAL)
+          .addNullableField("s_tax_percentage", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema storeReturnsSchema =
@@ -541,15 +541,15 @@ public class TpcdsSchemas {
           .addNullableField("sr_reason_sk", Schema.FieldType.INT64)
           .addField("sr_ticket_number", Schema.FieldType.INT64)
           .addNullableField("sr_return_quantity", Schema.FieldType.INT64)
-          .addNullableField("sr_return_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_return_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_return_amt_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_fee", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_return_ship_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_refunded_cash", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_reversed_charge", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_store_credit", Schema.FieldType.DOUBLE)
-          .addNullableField("sr_net_loss", Schema.FieldType.DOUBLE)
+          .addNullableField("sr_return_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_return_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_return_amt_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_fee", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_return_ship_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_refunded_cash", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_reversed_charge", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_store_credit", Schema.FieldType.DECIMAL)
+          .addNullableField("sr_net_loss", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema storeSalesSchema =
@@ -565,18 +565,18 @@ public class TpcdsSchemas {
           .addNullableField("ss_promo_sk", Schema.FieldType.INT64)
           .addField("ss_ticket_number", Schema.FieldType.INT64)
           .addNullableField("ss_quantity", Schema.FieldType.INT64)
-          .addNullableField("ss_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_ext_discount_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_ext_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_ext_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_ext_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_ext_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_coupon_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_net_paid", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_net_paid_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("ss_net_profit", Schema.FieldType.DOUBLE)
+          .addNullableField("ss_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_ext_discount_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_ext_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_ext_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_ext_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_ext_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_coupon_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_net_paid", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_net_paid_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("ss_net_profit", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema timeDimSchema =
@@ -608,7 +608,7 @@ public class TpcdsSchemas {
           .addNullableField("w_state", Schema.FieldType.STRING)
           .addNullableField("w_zip", Schema.FieldType.STRING)
           .addNullableField("w_country", Schema.FieldType.STRING)
-          .addNullableField("w_gmt_offset", Schema.FieldType.DOUBLE)
+          .addNullableField("w_gmt_offset", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema webPageSchema =
@@ -646,15 +646,15 @@ public class TpcdsSchemas {
           .addNullableField("wr_reason_sk", Schema.FieldType.INT64)
           .addField("wr_order_number", Schema.FieldType.INT64)
           .addNullableField("wr_return_quantity", Schema.FieldType.INT64)
-          .addNullableField("wr_return_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_return_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_return_amt_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_fee", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_return_ship_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_refunded_cash", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_reversed_charge", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_account_credit", Schema.FieldType.DOUBLE)
-          .addNullableField("wr_net_loss", Schema.FieldType.DOUBLE)
+          .addNullableField("wr_return_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_return_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_return_amt_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_fee", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_return_ship_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_refunded_cash", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_reversed_charge", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_account_credit", Schema.FieldType.DECIMAL)
+          .addNullableField("wr_net_loss", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema webSalesSchema =
@@ -678,21 +678,21 @@ public class TpcdsSchemas {
           .addNullableField("ws_promo_sk", Schema.FieldType.INT32)
           .addField("ws_order_number", Schema.FieldType.INT64)
           .addNullableField("ws_quantity", Schema.FieldType.INT32)
-          .addNullableField("ws_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_discount_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_sales_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_wholesale_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_list_price", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_coupon_amt", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_ext_ship_cost", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_net_paid", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_net_paid_inc_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_net_paid_inc_ship", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_net_paid_inc_ship_tax", Schema.FieldType.DOUBLE)
-          .addNullableField("ws_net_profit", Schema.FieldType.DOUBLE)
+          .addNullableField("ws_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_discount_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_sales_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_wholesale_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_list_price", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_coupon_amt", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_ext_ship_cost", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_net_paid", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_net_paid_inc_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_net_paid_inc_ship", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_net_paid_inc_ship_tax", Schema.FieldType.DECIMAL)
+          .addNullableField("ws_net_profit", Schema.FieldType.DECIMAL)
           .build();
 
   private static final Schema webSiteSchema =
@@ -721,7 +721,7 @@ public class TpcdsSchemas {
           .addNullableField("web_state", Schema.FieldType.STRING)
           .addNullableField("web_zip", Schema.FieldType.STRING)
           .addNullableField("web_country", Schema.FieldType.STRING)
-          .addNullableField("web_gmt_offset", Schema.FieldType.DOUBLE)
-          .addNullableField("web_tax_percentage", Schema.FieldType.DOUBLE)
+          .addNullableField("web_gmt_offset", Schema.FieldType.DECIMAL)
+          .addNullableField("web_tax_percentage", Schema.FieldType.DECIMAL)
           .build();
 }

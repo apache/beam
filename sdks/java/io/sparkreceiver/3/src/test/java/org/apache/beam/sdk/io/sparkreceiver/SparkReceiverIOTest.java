@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -33,23 +34,23 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Test class for {@link SparkReceiverIO}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class SparkReceiverIOTest {
 
-  public static final TestPipelineOptions OPTIONS =
-      TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
   public static final long PULL_FREQUENCY_SEC = 1L;
   public static final long START_POLL_TIMEOUT_SEC = 2L;
   public static final long START_OFFSET = 0L;
 
-  static {
-    OPTIONS.setBlockOnRun(false);
+  private static TestPipelineOptions createOptions() {
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    options.setBlockOnRun(false);
+    return options;
   }
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(OPTIONS);
+  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(createOptions());
 
   @Test
   public void testReadBuildsCorrectly() {
@@ -126,6 +127,7 @@ public class SparkReceiverIOTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testReadFromCustomReceiverWithOffset() {
     CustomReceiverWithOffset.shouldFailInTheMiddle = false;
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =
@@ -150,6 +152,7 @@ public class SparkReceiverIOTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testReadFromCustomReceiverWithOffsetFailsAndReread() {
     CustomReceiverWithOffset.shouldFailInTheMiddle = true;
     ReceiverBuilder<String, CustomReceiverWithOffset> receiverBuilder =

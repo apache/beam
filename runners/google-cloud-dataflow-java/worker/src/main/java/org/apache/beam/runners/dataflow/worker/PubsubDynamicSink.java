@@ -113,9 +113,12 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
       return stream.toByteStringAndReset();
     }
 
-    public void close(Windmill.PubSubMessageBundle.Builder outputBuilder) throws IOException {
-      context.getOutputBuilder().addPubsubMessages(outputBuilder);
-      outputBuilder.clear();
+    private Windmill.PubSubMessageBundle.Builder createOutputBuilder(String topic) {
+      return Windmill.PubSubMessageBundle.newBuilder()
+          .setTopic(topic)
+          .setTimestampLabel(timestampLabel)
+          .setIdLabel(idLabel)
+          .setWithAttributes(true);
     }
 
     @Override
@@ -127,32 +130,44 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
           !dataTopic.isEmpty(), "No topic set for message when using dynamic topics.");
       ByteString byteString = getDataFromMessage(data.getValue(), stream);
       Windmill.PubSubMessageBundle.Builder builder =
-          outputBuilders.computeIfAbsent(
-              dataTopic,
-              topic ->
-                  context
-                      .getOutputBuilder()
-                      .addPubsubMessagesBuilder()
-                      .setTopic(topic)
-                      .setTimestampLabel(timestampLabel)
-                      .setIdLabel(idLabel)
-                      .setWithAttributes(true));
+          outputBuilders.computeIfAbsent(dataTopic, this::createOutputBuilder);
       builder.addMessages(
           Windmill.Message.newBuilder()
               .setData(byteString)
               .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
               .build());
+
       return byteString.size();
+    }
+
+    private void flush(boolean bundleLevel) {
+      try {
+        for (Windmill.PubSubMessageBundle.Builder builder : outputBuilders.values()) {
+          if (builder.getMessagesCount() > 0) {
+            Windmill.PubSubMessageBundle pubsubMessages = builder.build();
+            if (bundleLevel) {
+              // If/when we add support for ordering keys, the flush needs to happen at the key
+              // level
+              context.addBundlePubsubMessages(pubsubMessages);
+            } else {
+              context.getKeyOutputBuilder().addPubsubMessages(pubsubMessages);
+            }
+          }
+        }
+      } finally {
+        outputBuilders.clear();
+      }
     }
 
     @Override
     public void close() throws IOException {
-      outputBuilders.clear();
+      flush(/* bundleLevel= */ context.multiKeyBundleEnabled());
     }
 
     @Override
     public void abort() throws IOException {
-      close();
+      outputBuilders.clear();
+      stream.reset();
     }
   }
 

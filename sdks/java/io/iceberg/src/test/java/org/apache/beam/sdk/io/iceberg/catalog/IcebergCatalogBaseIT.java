@@ -89,7 +89,6 @@ import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
@@ -103,7 +102,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
@@ -175,10 +174,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   /**
    * Catalogs whose tables are also queryable with BigQuery return the BigQuery table reference for
    * the given Iceberg table id: either the 4-part {@code project.catalog.namespace.table} form for
-   * Lakehouse runtime catalog (BigLake metastore REST) tables, or the 3-part {@code
-   * project.dataset.table} form for the BigQuery metastore federation, where namespaces surface as
-   * datasets. Returning null (the default) disables the cross-engine read checks in {@link
-   * #testReadWithBigQueryIO()}.
+   * Lakehouse runtime catalog (Iceberg REST) tables, or the 3-part {@code project.dataset.table}
+   * form for the BigQuery metastore federation, where namespaces surface as datasets. Returning
+   * null (the default) disables the cross-engine read checks in {@link #testReadWithBigQueryIO()}.
    */
   public @Nullable String bigQueryTableSpec(String tableId) {
     return null;
@@ -238,14 +236,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
+      // The warehouse may be a bare bucket (no object path), where getFileName() throws.
+      String prefix =
+          path.getObject().isEmpty()
+              ? getClass().getSimpleName()
+              : getClass().getSimpleName() + "/" + path.getFileName();
 
       @Nullable List<StorageObject> objects =
-          gcsUtil
-              .listObjects(
-                  path.getBucket(),
-                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
-                  null)
-              .getItems();
+          gcsUtil.listObjects(path.getBucket(), prefix, null).getItems();
 
       // sometimes a catalog's cleanup will take care of all the files.
       // If any files are left though, manually delete them with GCS utils
@@ -432,7 +430,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
   }
 
-  private List<Record> readRecords(Table table) throws IOException {
+  protected List<Record> readRecords(Table table) throws IOException {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();
@@ -1550,15 +1548,18 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   private DeleteFile writeCdcEqualityDelete(Table table, String filename, long id)
       throws IOException {
     org.apache.iceberg.Schema deleteSchema = table.schema().select("id");
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {1}, deleteSchema, null);
+    GenericFileWriterFactory appenderFactory =
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {1})
+            .equalityDeleteRowSchema(deleteSchema)
+            .build();
     EqualityDeleteWriter<Record> writer =
-        appenderFactory.newEqDeleteWriter(
+        appenderFactory.newEqualityDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table
                     .io()
                     .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
 
     try (writer) {
@@ -1570,15 +1571,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   private DeleteFile writeCdcPositionDelete(
       Table table, String filename, DataFile dataFile, long... positions) throws IOException {
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
+    GenericFileWriterFactory appenderFactory = new GenericFileWriterFactory.Builder(table).build();
     PositionDeleteWriter<Record> writer =
-        appenderFactory.newPosDeleteWriter(
+        appenderFactory.newPositionDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table
                     .io()
                     .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
 
     try (writer) {

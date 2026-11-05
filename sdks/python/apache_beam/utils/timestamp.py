@@ -26,6 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 import datetime
 import re
 import time
+import zoneinfo
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -64,7 +65,7 @@ class Timestamp(object):
   fraction of a second (e.g. 3 for millis, 6 for micros, 9 for
   nanos). Defaults to microseconds.
   If ``seconds`` is a float, the fractional part will be captured up
-  to ``precision`` digits.
+  to ``precision`` digits, rounded to the nearest subsecond unit.
 
   Lossy conversion operations will throw an error unless
   ``allow_lossy_conversion=True`` is specified (e.g. see ``to_utc_datetime``).
@@ -107,7 +108,10 @@ class Timestamp(object):
             'use subseconds instead.' % precision)
       subseconds = micros
     self._precision = precision
-    total = int(seconds * _POW_10[precision]) + int(subseconds)
+    # Round (rather than truncate) so that float inputs like 2.000002, which
+    # cannot be represented exactly in binary, land on the nearest subsecond
+    # unit instead of one unit low.
+    total = round(seconds * _POW_10[precision]) + int(subseconds)
     self._seconds, self._subseconds = divmod(total, _POW_10[precision])
 
   def _total(self, precision: int) -> int:
@@ -163,7 +167,8 @@ class Timestamp(object):
           "dt has no timezone info " +
           "(https://docs.python.org/3/library/datetime.html" +
           "#aware-and-naive-objects): %s" % dt)
-    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
+    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc and not (
+        isinstance(dt.tzinfo, zoneinfo.ZoneInfo) and dt.tzinfo.key == 'UTC'):
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     # Avoid total_seconds(): its float result can be off by a microsecond.
@@ -494,7 +499,10 @@ class Duration(object):
       self,
       seconds: Union[int, float] = 0,
       micros: Union[int, float] = 0) -> None:
-    self.micros = int(seconds * 1000000) + int(micros)
+    # Round rather than truncate, as the Timestamp constructor does: the float
+    # multiplication can land just below the exact integer (for example
+    # 2.000002 * 1e6 == 2000001.9999999998) and int() would drop a microsecond.
+    self.micros = round(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> 'Duration':

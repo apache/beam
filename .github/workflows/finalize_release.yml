@@ -32,7 +32,7 @@ on:
         required: true
         default: 'no'
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 permissions:
   contents: write
@@ -44,7 +44,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
-      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+      uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}

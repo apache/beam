@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_R
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.RECORDING_ROUTER;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -110,15 +111,21 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -140,6 +147,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -956,11 +964,18 @@ public class BigQueryIO {
     DynamicRead() {}
 
     class CreateBoundedSourceForTable
-        extends DoFn<KV<String, BigQueryDynamicReadDescriptor>, BigQueryStorageStreamSource<T>> {
+        extends DoFn<
+            KV<String, BigQueryDynamicReadDescriptor>, KV<String, BigQueryStorageStreamSource<T>>> {
+
+      private final TupleTag<KV<String, CleanupOperationMessage>> cleanupInfoTag;
+
+      CreateBoundedSourceForTable(TupleTag<KV<String, CleanupOperationMessage>> cleanupInfoTag) {
+        this.cleanupInfoTag = cleanupInfoTag;
+      }
 
       @ProcessElement
       public void processElement(
-          OutputReceiver<BigQueryStorageStreamSource<T>> receiver,
+          MultiOutputReceiver receiver,
           @Element KV<String, BigQueryDynamicReadDescriptor> kv,
           PipelineOptions options)
           throws Exception {
@@ -985,7 +1000,14 @@ public class BigQueryIO {
           // shards
           long desiredChunkSize = getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
-          split.stream().forEach(source -> receiver.output(source));
+          split.stream()
+              .forEach(
+                  source ->
+                      receiver
+                          .get(
+                              new TupleTag<KV<String, BigQueryStorageStreamSource<T>>>(
+                                  "mainOutput"))
+                          .output(KV.of(kv.getKey(), source)));
         } else {
           // run query
           BigQueryStorageQuerySource<T> querySource =
@@ -1022,7 +1044,21 @@ public class BigQueryIO {
           // shards
           long desiredChunkSize = getDesiredChunkSize(options, output);
           List<BigQueryStorageStreamSource<T>> split = output.split(desiredChunkSize, options);
-          split.stream().forEach(source -> receiver.output(source));
+          split.stream()
+              .forEach(
+                  source ->
+                      receiver
+                          .get(
+                              new TupleTag<KV<String, BigQueryStorageStreamSource<T>>>(
+                                  "mainOutput"))
+                          .output(KV.of(kv.getKey(), source.withFromQuery())));
+          boolean datasetCreatedByBeam = getQueryTempDataset() == null;
+          CleanupInfo cleanupInfo =
+              new CleanupInfo(
+                  queryResultTable.getTableReference(), datasetCreatedByBeam, split.size());
+          receiver
+              .get(cleanupInfoTag)
+              .output(KV.of(kv.getKey(), CleanupOperationMessage.initialize(cleanupInfo)));
         }
       }
 
@@ -1036,6 +1072,9 @@ public class BigQueryIO {
     @Override
     public PCollection<T> expand(PCollection<BigQueryDynamicReadDescriptor> input) {
       TupleTag<T> rowTag = new TupleTag<>();
+      TupleTag<KV<String, BigQueryStorageStreamSource<T>>> streamTag = new TupleTag<>("mainOutput");
+      TupleTag<KV<String, CleanupOperationMessage>> cleanupInfoTag = new TupleTag<>();
+
       PCollection<KV<String, BigQueryDynamicReadDescriptor>> addJobId =
           input
               .apply(
@@ -1050,21 +1089,193 @@ public class BigQueryIO {
               .apply("Checkpoint", Redistribute.byKey());
 
       PCollectionTuple resultTuple =
-          addJobId
-              .apply("Create streams", ParDo.of(new CreateBoundedSourceForTable()))
+          addJobId.apply(
+              "Create streams",
+              ParDo.of(new CreateBoundedSourceForTable(cleanupInfoTag))
+                  .withOutputTags(streamTag, TupleTagList.of(cleanupInfoTag)));
+
+      PCollection<KV<String, BigQueryStorageStreamSource<T>>> streams =
+          resultTuple
+              .get(streamTag)
               .setCoder(
-                  SerializableCoder.of(new TypeDescriptor<BigQueryStorageStreamSource<T>>() {}))
-              .apply("Redistribute", Redistribute.arbitrarily())
-              .apply(
-                  "Read Streams with storage read api",
-                  ParDo.of(
-                          new TypedRead.ReadTableSource<T>(
-                              rowTag, getParseFn(), getBadRecordRouter()))
-                      .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
+                  KvCoder.of(
+                      StringUtf8Coder.of(),
+                      SerializableCoder.of(
+                          new TypeDescriptor<BigQueryStorageStreamSource<T>>() {})))
+              .apply("Redistribute", Redistribute.arbitrarily());
+
+      PCollectionTuple readResultTuple =
+          streams.apply(
+              "Read Streams with storage read api",
+              ParDo.of(
+                      new ReadDynamicStreamSource<T>(
+                          rowTag, getParseFn(), getBadRecordRouter(), cleanupInfoTag))
+                  .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG).and(cleanupInfoTag)));
+
+      PCollection<KV<String, CleanupOperationMessage>> cleanupMessages1 =
+          resultTuple
+              .get(cleanupInfoTag)
+              .setCoder(
+                  KvCoder.of(
+                      StringUtf8Coder.of(), SerializableCoder.of(CleanupOperationMessage.class)));
+
+      PCollection<KV<String, CleanupOperationMessage>> cleanupMessages2 =
+          readResultTuple
+              .get(cleanupInfoTag)
+              .setCoder(
+                  KvCoder.of(
+                      StringUtf8Coder.of(), SerializableCoder.of(CleanupOperationMessage.class)));
+
+      PCollectionList.of(cleanupMessages1)
+          .and(cleanupMessages2)
+          .apply(Flatten.pCollections())
+          .apply("CleanupTempTables", ParDo.of(new CleanupTempTableDoFn(getBigQueryServices())));
+
       getBadRecordErrorHandler()
           .addErrorCollection(
-              resultTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
-      return resultTuple.get(rowTag).setCoder(getOutputCoder());
+              readResultTuple
+                  .get(BAD_RECORD_TAG)
+                  .setCoder(BadRecord.getCoder(input.getPipeline())));
+      return readResultTuple.get(rowTag).setCoder(getOutputCoder());
+    }
+  }
+
+  static class CleanupInfo implements Serializable {
+    private final String projectId;
+    private final String datasetId;
+    private final String tableId;
+    private final boolean datasetCreatedByBeam;
+    private final int totalStreams;
+
+    public CleanupInfo(TableReference tableRef, boolean datasetCreatedByBeam, int totalStreams) {
+      this.projectId = tableRef.getProjectId();
+      this.datasetId = tableRef.getDatasetId();
+      this.tableId = tableRef.getTableId();
+      this.datasetCreatedByBeam = datasetCreatedByBeam;
+      this.totalStreams = totalStreams;
+    }
+
+    public TableReference getTableReference() {
+      return new TableReference()
+          .setProjectId(projectId)
+          .setDatasetId(datasetId)
+          .setTableId(tableId);
+    }
+
+    public boolean isDatasetCreatedByBeam() {
+      return datasetCreatedByBeam;
+    }
+
+    public int getTotalStreams() {
+      return totalStreams;
+    }
+  }
+
+  static class CleanupOperationMessage implements Serializable {
+    private final @Nullable CleanupInfo cleanupInfo;
+    private final boolean isStreamCompletion;
+
+    private CleanupOperationMessage(@Nullable CleanupInfo cleanupInfo, boolean isStreamCompletion) {
+      this.cleanupInfo = cleanupInfo;
+      this.isStreamCompletion = isStreamCompletion;
+    }
+
+    public static CleanupOperationMessage streamComplete() {
+      return new CleanupOperationMessage(null, true);
+    }
+
+    public static CleanupOperationMessage initialize(CleanupInfo cleanupInfo) {
+      return new CleanupOperationMessage(cleanupInfo, false);
+    }
+
+    public @Nullable CleanupInfo getCleanupInfo() {
+      return cleanupInfo;
+    }
+
+    public boolean isStreamCompletion() {
+      return isStreamCompletion;
+    }
+  }
+
+  static class CleanupTempTableDoFn extends DoFn<KV<String, CleanupOperationMessage>, Void> {
+    private final BigQueryServices bqServices;
+    private static final Logger LOG = LoggerFactory.getLogger(CleanupTempTableDoFn.class);
+
+    @StateId("cleanupInfo")
+    private final StateSpec<ValueState<CleanupInfo>> cleanupInfoSpec = StateSpecs.value();
+
+    @StateId("completedStreams")
+    private final StateSpec<ValueState<Integer>> completedStreamsSpec = StateSpecs.value();
+
+    CleanupTempTableDoFn(BigQueryServices bqServices) {
+      this.bqServices = bqServices;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, CleanupOperationMessage> element,
+        @StateId("cleanupInfo") ValueState<CleanupInfo> cleanupInfoState,
+        @StateId("completedStreams") ValueState<Integer> completedStreamsState,
+        PipelineOptions options)
+        throws Exception {
+
+      CleanupOperationMessage msg = element.getValue();
+      CleanupInfo cleanupInfo = cleanupInfoState.read();
+      int completed = firstNonNull(completedStreamsState.read(), 0);
+
+      if (msg.isStreamCompletion()) {
+        completed += 1;
+        completedStreamsState.write(completed);
+      } else {
+        cleanupInfoState.write(Preconditions.checkNotNull(msg.getCleanupInfo()));
+        cleanupInfo = msg.getCleanupInfo();
+      }
+
+      if (cleanupInfo != null && completed == cleanupInfo.getTotalStreams()) {
+        TableReference tempTable = cleanupInfo.getTableReference();
+        try (DatasetService datasetService =
+            bqServices.getDatasetService(options.as(BigQueryOptions.class))) {
+          LOG.info("Deleting temporary table with query results {}", tempTable);
+          datasetService.deleteTable(tempTable);
+          if (cleanupInfo.isDatasetCreatedByBeam()) {
+            LOG.info("Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+            datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+          }
+        } catch (Exception e) {
+          LOG.warn("Failed to delete temporary BigQuery table {}", tempTable, e);
+        }
+        cleanupInfoState.clear();
+        completedStreamsState.clear();
+      }
+    }
+  }
+
+  private static class ReadDynamicStreamSource<T>
+      extends DoFn<KV<String, BigQueryStorageStreamSource<T>>, T> {
+    private final TypedRead.ReadTableSource<T> readTableSource;
+    private final TupleTag<KV<String, CleanupOperationMessage>> streamCompletionTag;
+
+    ReadDynamicStreamSource(
+        TupleTag<T> rowTag,
+        SerializableFunction<SchemaAndRecord, T> parseFn,
+        BadRecordRouter badRecordRouter,
+        TupleTag<KV<String, CleanupOperationMessage>> streamCompletionTag) {
+      this.readTableSource = new TypedRead.ReadTableSource<>(rowTag, parseFn, badRecordRouter);
+      this.streamCompletionTag = streamCompletionTag;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, BigQueryStorageStreamSource<T>> element,
+        MultiOutputReceiver receiver,
+        PipelineOptions options)
+        throws Exception {
+      readTableSource.processElement(element.getValue(), receiver, options);
+      if (element.getValue().getFromQuery()) {
+        receiver
+            .get(streamCompletionTag)
+            .output(KV.of(element.getKey(), CleanupOperationMessage.streamComplete()));
+      }
     }
   }
 
@@ -1725,6 +1936,12 @@ public class BigQueryIO {
                       .setJobId(
                           BigQueryResourceNaming.createJobIdPrefix(
                               bqOptions.getJobName(), jobUuid, JobType.EXPORT));
+              // Job lookups must specify the location for regional locations; without it the
+              // job isn't found, or some endpoints reject the request.
+              String location = getExtractJobLocation(bqOptions);
+              if (location != null) {
+                jobRef.setLocation(location);
+              }
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1736,6 +1953,28 @@ public class BigQueryIO {
                       extractFiles, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
               }
+            }
+
+            /**
+             * Returns the location the extract job ran in, which job lookups must specify for
+             * regional locations: the source table's dataset location for table reads, or the query
+             * location for query reads, resolved as {@link BigQueryQueryHelper#executeQuery} does
+             * (explicit location, or inferred from the referenced tables).
+             */
+            private @Nullable String getExtractJobLocation(BigQueryOptions bqOptions)
+                throws Exception {
+              if (sourceDef instanceof BigQueryTableSourceDef) {
+                TableReference tableRef =
+                    ((BigQueryTableSourceDef) sourceDef).getTableReference(bqOptions);
+                try (DatasetService datasetService =
+                    getBigQueryServices().getDatasetService(bqOptions)) {
+                  return BigQueryHelpers.getDatasetLocation(
+                      datasetService, tableRef.getProjectId(), tableRef.getDatasetId());
+                }
+              } else if (sourceDef instanceof BigQueryQuerySourceDef) {
+                return ((BigQueryQuerySourceDef) sourceDef).getQueryLocation(bqOptions);
+              }
+              return null;
             }
           };
 
@@ -2562,6 +2801,7 @@ public class BigQueryIO {
         .setAutoSharding(false)
         .setPropagateSuccessful(true)
         .setAutoSchemaUpdate(false)
+        .setAutoSchemaUpdateStrictTimeout(null)
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
@@ -2844,6 +3084,8 @@ public class BigQueryIO {
 
     abstract boolean getAutoSchemaUpdate();
 
+    abstract @Nullable Duration getAutoSchemaUpdateStrictTimeout();
+
     abstract @Nullable Class<T> getWriteProtosClass();
 
     abstract boolean getDirectWriteProtos();
@@ -2963,6 +3205,8 @@ public class BigQueryIO {
       abstract Builder<T> setPropagateSuccessful(boolean propagateSuccessful);
 
       abstract Builder<T> setAutoSchemaUpdate(boolean autoSchemaUpdate);
+
+      abstract Builder<T> setAutoSchemaUpdateStrictTimeout(@Nullable Duration timeout);
 
       abstract Builder<T> setWriteProtosClass(@Nullable Class<T> clazz);
 
@@ -3629,9 +3873,50 @@ public class BigQueryIO {
      * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
      * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
      * insert methods.
+     *
+     * <p>Rows that contain new columns will only have the new columns sent to BigQuery after the
+     * new table schema has been observed. Until then, only the known columns will be sent to
+     * BigQuery.
+     *
+     * <p>Note that this option detects table schema updates performed on the table, usually by an
+     * external process. If you want Beam to update the table schema for you, please see {@link
+     * #withSchemaUpdateOptions}.
      */
     public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
-      return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+      return toBuilder()
+          .setAutoSchemaUpdate(autoSchemaUpdate)
+          .setAutoSchemaUpdateStrictTimeout(null)
+          .build();
+    }
+
+    /**
+     * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
+     * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
+     * insert methods.
+     *
+     * <p>This mode ensures consistent writes - rows with new schemas will not be sent to BigQuery
+     * until we have observed the new table schema. This comes with a few caveats: - Detecting
+     * unknown columns requires extra parsing. Some increase in CPU usage may be noticed. - Rows
+     * with unknown columns will be retried until a new schema is observed. This may temporarily
+     * block inserts of rows into BigQuery whenever a schema update happens.
+     *
+     * <p>The timeout parameter specifies how long to wait until we see the new table schema. If
+     * more than the specified time goes by before a matching table schema is seen, the row will be
+     * sent to the failedRows output collection.
+     *
+     * <p>Note that this option detects table schema updates performed on the table, usually by an
+     * external process. If you want Beam to update the table schema for you, please see {@link
+     * #withSchemaUpdateOptions}.
+     */
+    public Write<T> withAutoSchemaUpdateConsistent(
+        boolean autoSchemaUpdate, Duration waitForSchemaTimeout) {
+      return toBuilder()
+          .setAutoSchemaUpdate(autoSchemaUpdate)
+          // Never leave a strict timeout configured when auto schema update is disabled -
+          // that would half-enable the consistent code path (buffering enabled, unknown-field
+          // capture and stream-schema refresh disabled).
+          .setAutoSchemaUpdateStrictTimeout(autoSchemaUpdate ? waitForSchemaTimeout : null)
+          .build();
     }
 
     /*
@@ -4170,6 +4455,14 @@ public class BigQueryIO {
         DynamicDestinations<T, DestinationT> dynamicDestinations,
         RowWriterFactory<T, DestinationT> rowWriterFactory,
         Write.Method method) {
+      if (getAutoSchemaUpdateStrictTimeout() != null) {
+        checkArgument(
+            method == Method.STORAGE_API_AT_LEAST_ONCE || method == Method.STORAGE_WRITE_API,
+            "Auto update schema only supported when using storage write API");
+        checkArgument(
+            input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming(),
+            "auto update schema only supported on streaming pipelines");
+      }
       if (method == Write.Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
@@ -4376,6 +4669,9 @@ public class BigQueryIO {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
+          boolean useSchemaUpdatingTableRow =
+              (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty())
+                  || (getAutoSchemaUpdate() && getAutoSchemaUpdateStrictTimeout() != null);
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
@@ -4385,7 +4681,7 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate(),
-                  schemaUpdateOptions == null ? Collections.emptySet() : schemaUpdateOptions);
+                  useSchemaUpdatingTableRow);
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
@@ -4408,6 +4704,7 @@ public class BigQueryIO {
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
                 enableAutoSharding,
                 getAutoSchemaUpdate(),
+                getAutoSchemaUpdateStrictTimeout(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
                 getPropagateSuccessfulStorageApiWritesPredicate(),

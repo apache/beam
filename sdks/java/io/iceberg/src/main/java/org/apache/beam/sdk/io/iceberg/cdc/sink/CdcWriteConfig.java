@@ -31,9 +31,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Configuration for the CDC sink. */
 @AutoValue
 abstract class CdcWriteConfig implements Serializable {
-  static final String DEFAULT_SEQUENCE_NUMBER_COLUMN =
-      IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER;
-
   /**
    * Every shard that touches a partition writes a file per commit window, so {@code num_shards x
    * touched partitions x windows per day} files. On a <b>partitioned</b> table {@link
@@ -52,7 +49,7 @@ abstract class CdcWriteConfig implements Serializable {
 
   /**
    * The column holding the per-primary-key monotonic sequence number used to order a single key's
-   * changes. Defaults to {@value #DEFAULT_SEQUENCE_NUMBER_COLUMN}.
+   * changes. Defaults to {@value IcebergCdcMetadataColumns#COMMIT_SNAPSHOT_SEQUENCE_NUMBER}.
    */
   abstract String getSequenceNumberColumn();
 
@@ -131,7 +128,7 @@ abstract class CdcWriteConfig implements Serializable {
 
   static Builder builder() {
     return new AutoValue_CdcWriteConfig.Builder()
-        .setSequenceNumberColumn(DEFAULT_SEQUENCE_NUMBER_COLUMN)
+        .setSequenceNumberColumn(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
         .setNumShards(DEFAULT_NUM_SHARDS)
         .setShardsPerPartition(DEFAULT_NUM_SHARDS)
         .setSorterMemoryMB(DEFAULT_SORTER_MEMORY_MB)

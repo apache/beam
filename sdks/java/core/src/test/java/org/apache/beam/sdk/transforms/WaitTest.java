@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -64,10 +65,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link Wait}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class WaitTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -167,8 +167,8 @@ public class WaitTest implements Serializable {
     return p.apply(name, stream.advanceWatermarkToInfinity());
   }
 
-  private static final AtomicReference<Instant> TEST_WAIT_MAX_MAIN_TIMESTAMP =
-      new AtomicReference<>();
+  private static final java.util.Map<java.util.UUID, AtomicReference<Instant>>
+      TEST_WAIT_MAX_MAIN_TIMESTAMP = new java.util.concurrent.ConcurrentHashMap<>();
 
   @Test
   @Category({NeedsRunner.class, UsesTestStreamWithProcessingTime.class})
@@ -273,6 +273,7 @@ public class WaitTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowExpiration() throws NoSuchSchemaException {
     PROCESSED_LONGS.clear();
@@ -399,7 +400,8 @@ public class WaitTest implements Serializable {
       @Nullable WindowFn<? super Long, ?> mainWindowFn,
       int numSignalElements,
       @Nullable WindowFn<? super Long, ?> signalWindowFn) {
-    TEST_WAIT_MAX_MAIN_TIMESTAMP.set(null);
+    final java.util.UUID testId = java.util.UUID.randomUUID();
+    TEST_WAIT_MAX_MAIN_TIMESTAMP.put(testId, new AtomicReference<>());
 
     Instant base = Instant.now();
 
@@ -442,7 +444,10 @@ public class WaitTest implements Serializable {
                     new DoFn<Long, Long>() {
                       @ProcessElement
                       public void process(ProcessContext c) {
-                        Instant maxMainTimestamp = TEST_WAIT_MAX_MAIN_TIMESTAMP.get();
+                        Instant maxMainTimestamp =
+                            TEST_WAIT_MAX_MAIN_TIMESTAMP
+                                .computeIfAbsent(testId, unused -> new AtomicReference<>())
+                                .get();
                         if (maxMainTimestamp != null) {
                           assertFalse(
                               "Signal at timestamp "
@@ -463,14 +468,16 @@ public class WaitTest implements Serializable {
             new DoFn<Long, Long>() {
               @ProcessElement
               public void process(ProcessContext c, @SuppressWarnings("unused") BoundedWindow w) {
+                AtomicReference<Instant> ref =
+                    TEST_WAIT_MAX_MAIN_TIMESTAMP.computeIfAbsent(
+                        testId, unused -> new AtomicReference<>());
                 while (true) {
-                  Instant maxMainTimestamp = TEST_WAIT_MAX_MAIN_TIMESTAMP.get();
+                  Instant maxMainTimestamp = ref.get();
                   Instant newMaxTimestamp =
                       (maxMainTimestamp == null || c.timestamp().isAfter(maxMainTimestamp))
                           ? c.timestamp()
                           : maxMainTimestamp;
-                  if (TEST_WAIT_MAX_MAIN_TIMESTAMP.compareAndSet(
-                      maxMainTimestamp, newMaxTimestamp)) {
+                  if (ref.compareAndSet(maxMainTimestamp, newMaxTimestamp)) {
                     break;
                   }
                 }

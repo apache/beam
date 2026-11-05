@@ -22,11 +22,12 @@ const { NO_MATCHING_LABEL } = require("./constants");
 export interface AssignReviewerOptions {
   labels?: (string | Label)[];
   notices?: string[];
+  backupReviewers?: { [label: string]: string };
 }
 
 // Custom notices for specific labels
 const LABEL_NOTICES: Record<string, string> = {
-  core: "This pull request likely touches a core component (\"core\" label). Please review with scrutiny.",
+  core: 'This pull request likely touches a core component ("core" label). Please review with scrutiny.',
 };
 
 function formatNotices(
@@ -59,15 +60,18 @@ export function assignReviewer(
   labelToReviewerMapping: any,
   options?: AssignReviewerOptions
 ): string {
-  let commentString =
-    "Assigning reviewers:\n\n";
+  let commentString = "Assigning reviewers:\n\n";
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
+    let backupReviewer = options?.backupReviewers?.[label];
     if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+    if (backupReviewer) {
+      commentString += `Backup reviewer: ${backupReviewer} (if the main reviewer is unresponsive, you can escalate to them by tagging their username)\n`;
     }
   }
 
@@ -159,10 +163,14 @@ export function assignNewReviewer(
 
   for (const label in labelToReviewerMapping) {
     const reviewer = labelToReviewerMapping[label];
+    const backupReviewer = options?.backupReviewers?.[label];
     if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+    if (backupReviewer) {
+      commentString += `Backup reviewer: ${backupReviewer} (if the main reviewer is unresponsive, you can escalate to them by tagging their username)\n`;
     }
   }
 

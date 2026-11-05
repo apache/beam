@@ -23,6 +23,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Lon
 
 public class BigtableUtils {
 
+  public static final String TEMP_DATASET_PREFIX = "beam_temp_dataset_";
+
   public static ByteString byteString(byte[] bytes) {
     return ByteString.copyFrom(bytes);
   }

@@ -48,7 +48,13 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def retry_on_http_timeout_and_value_error(exception):
-  """Filter allowing retries on Bigquery errors and value error."""
+  """Filter allowing retries on Bigquery errors and value error.
+
+  A missing table (HTTP 404) is not retried here. Streaming inserts create
+  the table on the first write, and matchers with a timeout poll for it.
+  """
+  if getattr(exception, 'code', None) == 404:
+    return False
   return isinstance(
       exception,
       (GoogleCloudError, ValueError, concurrent.futures.TimeoutError))
@@ -87,12 +93,18 @@ class BigqueryMatcher(BaseMatcher):
   def _matches(self, _):
     @retry.with_exponential_backoff(
         num_retries=1000,
-        initial_delay_secs=0.5,
+        initial_delay_secs=5,
         max_delay_secs=30,
         stop_after_secs=self.timeout_secs,
     )
     def get_checksum():
-      response = self._query_with_retry()
+      try:
+        response = self._query_with_retry()
+      except GoogleCloudError as exc:
+        # Keep polling until timeout_secs. The query retry does not retry 404.
+        if self.timeout_secs and getattr(exc, 'code', None) == 404:
+          raise ValueError('BigQuery table is not visible yet: %s' % exc)
+        raise
       _LOGGER.info(
           'Read from given query (%s), total rows %d',
           self.query,
@@ -196,11 +208,19 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
   def _get_query_result(self):
     start_time = time.time()
     while time.time() - start_time <= self.timeout:
-      response = self._query_with_retry()
+      try:
+        response = self._query_with_retry()
+      except GoogleCloudError as exc:
+        # The destination table does not exist until the first streaming write.
+        if getattr(exc, 'code', None) != 404:
+          raise
+        _LOGGER.info('BigQuery table is not visible yet: %s', exc)
+        response = []
       if len(response) >= len(self.expected_data):
         return response
       _LOGGER.debug('Query result contains %d rows' % len(response))
-      time.sleep(1)
+      # Space out polls so repeated 404s do not hit BigQuery too often.
+      time.sleep(5)
     raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
 
 

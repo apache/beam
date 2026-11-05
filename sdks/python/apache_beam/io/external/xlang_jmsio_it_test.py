@@ -306,7 +306,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
         cls.expansion_service_obj = BeamJarExpansionService(
             'sdks:java:io:messaging-expansion-service:shadowJar',
             classpath=[
-                'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25',
+                'com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25',
                 'org.json:json:20251224'
             ])
         cls.expansion_service = cls.expansion_service_obj.__enter__()
@@ -327,7 +327,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
       uri += '&' + connection_param
     return {
         'server_uri': uri,
-        'connection_factory_class_name': 'com.ibm.mq.jms.MQConnectionFactory',
+        'connection_factory_class_name': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'username': 'app',
         'password': 'admin123'
     }

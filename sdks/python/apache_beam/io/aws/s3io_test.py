@@ -98,7 +98,7 @@ class TestS3IO(unittest.TestCase):
       self.aws = s3io.S3IO(self.client)
 
     else:
-      self.aws = s3io.S3IO(options=pipeline_options.S3Options())
+      self.aws = s3io.S3IO(options=pipeline_options.AwsOptions())
       self.client = self.aws.client
 
   def test_size(self):

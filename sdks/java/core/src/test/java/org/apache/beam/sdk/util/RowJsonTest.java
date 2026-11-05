@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
@@ -134,15 +135,18 @@ public class RowJsonTest {
     }
 
     private static Object[] makeLogicalTypeTestCase() {
+      EnumerationType enumType = EnumerationType.create("ZERO", "ONE", "TWO");
       Schema schema =
           Schema.builder()
               .addLogicalTypeField("f_passThroughString", VariableString.of(10))
+              .addLogicalTypeField("f_enum", enumType)
               .build();
 
       // fixed string will do padding
-      String rowString = "{\n" + "\"f_passThroughString\" : \"hello\"\n" + "}";
+      String rowString =
+          "{\n" + "\"f_passThroughString\" : \"hello\",\n" + "\"f_enum\" : 1\n" + "}";
 
-      Row expectedRow = Row.withSchema(schema).addValues("hello").build();
+      Row expectedRow = Row.withSchema(schema).addValues("hello", enumType.valueOf("ONE")).build();
 
       return new Object[] {"Logical Types", schema, rowString, expectedRow};
     }

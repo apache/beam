@@ -39,16 +39,32 @@ dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   runtimeOnly project(":sdks:java:io:iceberg")
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
+  runtimeOnly(project(":sdks:java:io:delta")) {
+    exclude group: "org.apache.hadoop", module: "hadoop-aws"
+  }
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:managed")
+  implementation library.java.delta_kernel_api
+  implementation library.java.delta_kernel_defaults
   implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.hadoop_common
   implementation library.java.joda_time
+  implementation library.java.slf4j_api
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.vendored_guava_32_1_2_jre
   runtimeOnly library.java.hadoop_client
   runtimeOnly library.java.bigdataoss_gcs_connector
+
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  // Provides DeltaWriteTestUtils, which writes Delta Lake tables for tests.
+  testImplementation(project(path: ":sdks:java:io:delta", configuration: "testRuntimeMigration")) {
+    exclude group: "org.apache.hadoop", module: "hadoop-aws"
+    exclude group: "org.testcontainers"
+    exclude group: "org.slf4j", module: "slf4j-simple"
+  }
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
@@ -65,4 +81,19 @@ dependencies {
 configurations.all {
   // iceberg-core needs avro:1.12.0
   resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
+  // The Delta Lake source reads tables on GCS through the GCS connector, whose version enforced by
+  // the GCP libraries BOM conflicts with the latest Hadoop (see sdks/java/io/delta/build.gradle). So
+  // use Hadoop 3.3 together with a compatible Parquet version.
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-api:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-runtime:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
+  resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.16.0'
+  resolutionStrategy.force 'org.apache.parquet:parquet-hadoop:1.16.0'
+  // Exclude conflicting SLF4J bindings pulled in by the Delta Lake and Hadoop dependencies.
+  exclude group: "org.apache.logging.log4j", module: "log4j-slf4j2-impl"
+  exclude group: "org.apache.logging.log4j", module: "log4j-slf4j-impl"
+  exclude group: "org.slf4j", module: "slf4j-reload4j"
 }

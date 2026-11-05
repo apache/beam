@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Collection;
@@ -52,8 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * for the {@link PrimitiveBoundedRead SplittableParDo.PrimitiveBoundedRead} {@link PTransform}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   /**
@@ -149,7 +150,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       BoundedSource<OutputT> source = element.getValue().getSource();
       try (final BoundedReader<OutputT> reader = source.createReader(options)) {
         boolean contentsRemaining = reader.start();
-        Future<BoundedSource<OutputT>> residualFuture = startDynamicSplitThread(source, reader);
+        Future<@Nullable BoundedSource<OutputT>> residualFuture =
+            startDynamicSplitThread(source, reader);
         UncommittedBundle<OutputT> output = evaluationContext.createBundle(outputPCollection);
         while (contentsRemaining) {
           output.add(
@@ -159,24 +161,24 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         }
         resultBuilder.addOutput(output);
         try {
-          BoundedSource<OutputT> residual = residualFuture.get();
+          @Nullable BoundedSource<OutputT> residual = residualFuture.get();
           if (residual != null) {
             resultBuilder.addUnprocessedElements(
                 element.withValue(BoundedSourceShard.of(residual)));
           }
         } catch (ExecutionException exex) {
           // Un-and-rewrap the exception thrown by attempting to split
-          throw UserCodeException.wrap(exex.getCause());
+          throw UserCodeException.wrap(checkStateNotNull(exex.getCause()));
         }
       }
     }
 
-    private Future<BoundedSource<OutputT>> startDynamicSplitThread(
+    private Future<@Nullable BoundedSource<OutputT>> startDynamicSplitThread(
         BoundedSource<OutputT> source, BoundedReader<OutputT> reader) throws Exception {
       if (source.getEstimatedSizeBytes(options) > minimumDynamicSplitSize) {
         return produceSplitExecutor.submit(new GenerateSplitAtHalfwayPoint<>(reader));
       } else {
-        SettableFuture<BoundedSource<OutputT>> emptyFuture = SettableFuture.create();
+        SettableFuture<@Nullable BoundedSource<OutputT>> emptyFuture = SettableFuture.create();
         emptyFuture.set(null);
         return emptyFuture;
       }
@@ -230,7 +232,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  private static class GenerateSplitAtHalfwayPoint<T> implements Callable<BoundedSource<T>> {
+  private static class GenerateSplitAtHalfwayPoint<T>
+      implements Callable<@Nullable BoundedSource<T>> {
     private final BoundedReader<T> reader;
 
     private GenerateSplitAtHalfwayPoint(BoundedReader<T> reader) {
@@ -238,7 +241,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public BoundedSource<T> call() throws Exception {
+    public @Nullable BoundedSource<T> call() throws Exception {
       // Splits at halfway of the remaining work.
       Double currentlyConsumed = reader.getFractionConsumed();
       if (currentlyConsumed == null || currentlyConsumed == 1.0) {

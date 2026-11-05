@@ -27,7 +27,6 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,7 +35,6 @@ import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.spanner.ReadSpannerSchema;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
@@ -52,14 +50,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -304,42 +299,17 @@ public class SpannerChangestreamsReadSchemaTransformProvider
     }
   }
 
-  private static final HashMap<String, SpannerSchema> TABLE_SCHEMAS = new HashMap<>();
-
   private static Schema getTableSchema(SpannerChangestreamsReadConfiguration config) {
-    Pipeline miniPipeline = Pipeline.create();
-    PCollectionView<Dialect> sqlDialectView =
-        miniPipeline
-            .apply("Create Dialect", Create.of(Dialect.GOOGLE_STANDARD_SQL))
-            .apply("Dialect to View", View.asSingleton());
-    miniPipeline
-        .apply(Create.of((Void) null))
-        .apply(
-            ParDo.of(
-                    new ReadSpannerSchema(
-                        SpannerConfig.create()
-                            .withDatabaseId(config.getDatabaseId())
-                            .withInstanceId(config.getInstanceId())
-                            .withProjectId(config.getProjectId()),
-                        sqlDialectView,
-                        Sets.newHashSet(config.getTable())))
-                .withSideInput("dialect", sqlDialectView))
-        .apply(
-            ParDo.of(
-                new DoFn<SpannerSchema, String>() {
-                  @ProcessElement
-                  public void process(@DoFn.Element SpannerSchema schema) {
-                    TABLE_SCHEMAS.put(config.getTable(), schema);
-                  }
-                }))
-        .setCoder(StringUtf8Coder.of());
-    miniPipeline.run().waitUntilFinish();
-    // Clean up the static map from the object.
-    SpannerSchema finalSchemaObj = TABLE_SCHEMAS.remove(config.getTable());
-    if (finalSchemaObj == null) {
-      throw new RuntimeException(
-          String.format("Could not get schema for configuration %s", config));
-    }
+    // Query information_schema directly. A nested Pipeline would require DirectRunner,
+    // which is not on the GCP expansion-service classpath used by cross-language YAML.
+    SpannerSchema finalSchemaObj =
+        ReadSpannerSchema.getSpannerSchema(
+            SpannerConfig.create()
+                .withDatabaseId(config.getDatabaseId())
+                .withInstanceId(config.getInstanceId())
+                .withProjectId(config.getProjectId()),
+            Dialect.GOOGLE_STANDARD_SQL,
+            Sets.newHashSet(config.getTable()));
     return spannerSchemaToBeamSchema(finalSchemaObj, config.getTable());
   }
 

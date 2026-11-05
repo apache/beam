@@ -25,6 +25,9 @@
 - title: Twister2
   image_url: /images/logo_twister2.png
   url: /documentation/runners/twister2/
+- title: FlareDB Runner
+  image_url: /images/logo_flaredb.png
+  url: /documentation/runners/flaredb/
 - title: Amazon Kinesis Data Analytics
   image_url: /images/logo_amazon-kinesis.png
   url: https://docs.aws.amazon.com/kinesisanalytics/latest/java/examples-beam.html

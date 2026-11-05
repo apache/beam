@@ -30,6 +30,10 @@ cdef class LCGenerator(object):
     self._mask = (1ull << self._bits) - 1
     self.seed(0)
 
+  cdef inline libc.stdint.uint32_t _next_uint(self) noexcept nogil:
+    self._seed = (self._seed * self._a + self._c) & self._mask
+    return <libc.stdint.uint32_t>(self._seed >> (self._bits - 32))
+
   cpdef void seed(self, libc.stdint.uint64_t seed):
     self._seed = (seed * self._a + self._c) & self._mask
 
@@ -37,12 +41,10 @@ cdef class LCGenerator(object):
     self._seed = (seed ^ self._a) & self._mask
 
   cpdef libc.stdint.int32_t next_int(self):
-    self.seed(self._seed)
-    return <libc.stdint.int32_t>(self._seed >> (self._bits - 32))
+    return <libc.stdint.int32_t>self._next_uint()
 
   cpdef libc.stdint.uint32_t next_uint(self):
-    self.seed(self._seed)
-    return <libc.stdint.uint32_t>(self._seed >> (self._bits - 32))
+    return self._next_uint()
 
   cpdef bytes randbytes(self, int length):
     cdef libc.stdint.int32_t ints = (length + 3) // 4
@@ -50,11 +52,11 @@ cdef class LCGenerator(object):
     cdef libc.stdint.uint32_t value
     cdef libc.stdint.int32_t i
     for i in range(0, ints, 1):
-      value = self.next_uint()
+      value = self._next_uint()
       libc.string.memcpy(<void*>(data + i * 4), <void*>(& value), 4)
     retval = PyBytes_FromStringAndSize(data, length)
     libc.stdlib.free(data)
     return retval
 
   cpdef double random_sample(self):
-    return <double>(self.next_uint() >> 8) / <double>(1 << 24)
+    return <double>(self._next_uint() >> 8) / <double>(1 << 24)

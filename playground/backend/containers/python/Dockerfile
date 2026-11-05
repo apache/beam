@@ -17,7 +17,7 @@
 ###############################################################################
 ARG GO_BASE_IMAGE=golang:1-bookworm
 ARG SDK_TAG
-ARG BASE_IMAGE=apache/beam_python3.10_sdk:$SDK_TAG
+ARG BASE_IMAGE=apache/beam_python3.11_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"

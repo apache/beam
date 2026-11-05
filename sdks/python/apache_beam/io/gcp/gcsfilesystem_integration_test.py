@@ -40,7 +40,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-  fs_not_available = False
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
+  fs_not_available = not GCS_INSTALLED
 except ImportError:
   fs_not_available = True  # type: ignore
 

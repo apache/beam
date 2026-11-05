@@ -51,6 +51,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -79,10 +80,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for Create. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @SuppressWarnings({
   "unchecked",
 })
@@ -134,16 +134,17 @@ public class CreateTest {
     p.run();
   }
 
-  static class Record implements Serializable {}
+  static class TestRecord implements Serializable {}
 
-  static class Record2 extends Record {}
+  static class TestRecord2 extends TestRecord {}
 
-  private static class RecordCoder extends AtomicCoder<Record> {
+  private static class TestRecordCoder extends AtomicCoder<TestRecord> {
     @Override
-    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
+    public void encode(TestRecord value, OutputStream outStream)
+        throws CoderException, IOException {}
 
     @Override
-    public Record decode(InputStream inStream) throws CoderException, IOException {
+    public TestRecord decode(InputStream inStream) throws CoderException, IOException {
       return null;
     }
   }
@@ -154,7 +155,7 @@ public class CreateTest {
     thrown.expectMessage(Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
-    p.apply(Create.of(new Record(), new Record2()));
+    p.apply(Create.of(new TestRecord(), new TestRecord2()));
 
     p.run();
   }
@@ -309,11 +310,11 @@ public class CreateTest {
     thrown.expectMessage(Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
-    PCollection<Record> c =
+    PCollection<TestRecord> c =
         p.apply(
             Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0))));
+                TimestampedValue.of(new TestRecord(), new Instant(0)),
+                TimestampedValue.of(new TestRecord2(), new Instant(0))));
 
     p.run();
 
@@ -322,24 +323,24 @@ public class CreateTest {
 
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingCoder() throws Exception {
-    Coder<Record> coder = new RecordCoder();
-    Create.TimestampedValues<Record> values =
+    Coder<TestRecord> coder = new TestRecordCoder();
+    Create.TimestampedValues<TestRecord> values =
         Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new TestRecord(), new Instant(0)),
+                TimestampedValue.of(new TestRecord2(), new Instant(0)))
             .withCoder(coder);
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingTypeDescriptor() throws Exception {
-    Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    Create.TimestampedValues<Record> values =
+    Coder<TestRecord> coder = new TestRecordCoder();
+    p.getCoderRegistry().registerCoderForClass(TestRecord.class, coder);
+    Create.TimestampedValues<TestRecord> values =
         Create.timestamped(
-                TimestampedValue.of(new Record(), new Instant(0)),
-                TimestampedValue.of(new Record2(), new Instant(0)))
-            .withType(new TypeDescriptor<Record>() {});
+                TimestampedValue.of(new TestRecord(), new Instant(0)),
+                TimestampedValue.of(new TestRecord2(), new Instant(0)))
+            .withType(new TypeDescriptor<TestRecord>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
@@ -460,26 +461,28 @@ public class CreateTest {
 
   @Test
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
-    Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoderForClass(Record.class, coder);
+    Coder<TestRecord> coder = new TestRecordCoder();
+    p.getCoderRegistry().registerCoderForClass(TestRecord.class, coder);
     assertThat(
-        p.apply(Create.of(new Record(), new Record(), new Record())).getCoder(), equalTo(coder));
+        p.apply(Create.of(new TestRecord(), new TestRecord(), new TestRecord())).getCoder(),
+        equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingCoder() throws Exception {
-    Coder<Record> coder = new RecordCoder();
+    Coder<TestRecord> coder = new TestRecordCoder();
     assertThat(
-        p.apply(Create.of(new Record(), new Record2()).withCoder(coder)).getCoder(),
+        p.apply(Create.of(new TestRecord(), new TestRecord2()).withCoder(coder)).getCoder(),
         equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
-    Coder<Record> coder = new RecordCoder();
-    p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    Create.Values<Record> values =
-        Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
+    Coder<TestRecord> coder = new TestRecordCoder();
+    p.getCoderRegistry().registerCoderForClass(TestRecord.class, coder);
+    Create.Values<TestRecord> values =
+        Create.of(new TestRecord(), new TestRecord2())
+            .withType(new TypeDescriptor<TestRecord>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 

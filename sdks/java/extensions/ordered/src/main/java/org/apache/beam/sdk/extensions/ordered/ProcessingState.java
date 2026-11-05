@@ -313,6 +313,10 @@ class ProcessingState<KeyT> {
     return resultCount - numberOfResultsBeforeBundleStart;
   }
 
+  public long duplicatesProducedInBundle(long numberOfDuplicatesBeforeBundleStart) {
+    return duplicates - numberOfDuplicatesBeforeBundleStart;
+  }
+
   public void updateGlobalSequenceDetails(ContiguousSequenceRange updated) {
     if (thereAreGloballySequencedEventsToBeProcessed()) {
       // We don't update the timer if we can already process events in the onTimer batch.

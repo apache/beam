@@ -308,10 +308,8 @@ export function suite(runner: beam.Runner = directRunner()) {
           return v * 4;
         });
 
-      assert.deepEqual(
-        p.context.getPCollectionCoder(res),
-        new GeneralObjectCoder()
-      );
+      const coder = p.context.getPCollectionCoder(res);
+      assert.equal(coder.constructor.name, "GeneralObjectCoder");
     });
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {

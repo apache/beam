@@ -526,7 +526,10 @@ public class BeamBuiltinAggregations {
   static class FloatAvg extends Avg<Float> {
     @Override
     public @Nullable Float extractOutput(KV<Integer, BigDecimal> accumulator) {
-      return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).floatValue();
+      if (accumulator.getKey() == 0) {
+        return null;
+      }
+      return (float) (accumulator.getValue().doubleValue() / accumulator.getKey());
     }
 
     @Override
@@ -538,7 +541,10 @@ public class BeamBuiltinAggregations {
   static class DoubleAvg extends Avg<Double> {
     @Override
     public @Nullable Double extractOutput(KV<Integer, BigDecimal> accumulator) {
-      return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).doubleValue();
+      if (accumulator.getKey() == 0) {
+        return null;
+      }
+      return accumulator.getValue().doubleValue() / accumulator.getKey();
     }
 
     @Override

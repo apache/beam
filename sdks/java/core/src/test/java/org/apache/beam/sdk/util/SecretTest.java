@@ -55,6 +55,26 @@ public class SecretTest {
   }
 
   @Test
+  public void testParseSecretOptionWithMalformedParameter() {
+    String secretOption = "type:unsupported;version_name";
+    Exception exception =
+        assertThrows(IllegalArgumentException.class, () -> Secret.parseSecretOption(secretOption));
+    assertTrue(exception.getMessage().contains("Invalid secret parameter 'version_name'"));
+  }
+
+  @Test
+  public void testParseSecretOptionWithColonInValue() {
+    // Only the first ':' separates the parameter name from its value.
+    assertEquals(
+        new RawSecret("arn:aws:secretsmanager:us-east-1:123:secret:my-secret"),
+        Secret.parseSecretOption(
+            "type:TestSecret;secret:arn:aws:secretsmanager:us-east-1:123:secret:my-secret"));
+    assertEquals(
+        new RawSecret("http://localhost:4566"),
+        Secret.parseSecretOption("type:TestSecret;secret:http://localhost:4566;"));
+  }
+
+  @Test
   public void testRawSecretStr() {
     Secret secret = new RawSecret("STATIC_SECRET_");
     assertEquals("STATIC_SECRET_", secret.getString(true));

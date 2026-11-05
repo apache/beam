@@ -19,8 +19,10 @@
 
 # pytype: skip-file
 
+import importlib
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -93,6 +95,72 @@ class TestUtilsTest(unittest.TestCase):
     topic.name = 'test_topic'
     utils.cleanup_topics(pub_client, [topic])
     pub_client.delete_topic.assert_called_with(topic=topic.name)
+
+
+class BlockImportsTest(unittest.TestCase):
+  def test_block_imports_blocks_and_records_imports(self):
+    with utils.block_imports('colorsys') as attempted_imports:
+      with self.assertRaises(ImportError):
+        importlib.import_module('colorsys')
+    self.assertEqual(attempted_imports, ['colorsys'])
+    # The module can be imported again after exiting the context.
+    importlib.import_module('colorsys')
+
+  def test_block_imports_hides_and_restores_imported_modules(self):
+    wsgiref_util = importlib.import_module('wsgiref.util')
+    wsgiref = sys.modules['wsgiref']
+    with utils.block_imports('wsgiref') as attempted_imports:
+      self.assertNotIn('wsgiref', sys.modules)
+      self.assertNotIn('wsgiref.util', sys.modules)
+      with self.assertRaises(ImportError):
+        importlib.import_module('wsgiref.util')
+    # Importing a submodule first imports its parent package.
+    self.assertEqual(attempted_imports, ['wsgiref'])
+    self.assertIs(sys.modules['wsgiref'], wsgiref)
+    self.assertIs(sys.modules['wsgiref.util'], wsgiref_util)
+
+  def test_block_imports_only_blocks_given_packages(self):
+    with utils.block_imports('wsgi', 'colorsys.foo') as attempted_imports:
+      importlib.import_module('wsgiref')
+      importlib.import_module('colorsys')
+    self.assertEqual(attempted_imports, [])
+
+
+class RequireLinuxDockerTest(unittest.TestCase):
+  def _fake_docker(self, os_type=None, error=None):
+    fake_docker = mock.MagicMock()
+    client = fake_docker.from_env.return_value
+    if error:
+      client.info.side_effect = error
+    else:
+      client.info.return_value = {'OSType': os_type}
+    return fake_docker, client
+
+  def test_linux_docker_does_not_skip(self):
+    fake_docker, client = self._fake_docker(os_type='linux')
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_windows_docker_skips(self):
+    fake_docker, client = self._fake_docker(os_type='windows')
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      with self.assertRaisesRegex(unittest.SkipTest, 'windows containers'):
+        utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_unreachable_docker_skips(self):
+    fake_docker, client = self._fake_docker(
+        error=ConnectionError('no such file'))
+    with mock.patch.dict(sys.modules, {'docker': fake_docker}):
+      with self.assertRaisesRegex(unittest.SkipTest, 'Docker is not available'):
+        utils.require_linux_docker()
+    client.close.assert_called_once()
+
+  def test_missing_docker_sdk_skips(self):
+    with utils.block_imports('docker'):
+      with self.assertRaisesRegex(unittest.SkipTest, 'Docker is not available'):
+        utils.require_linux_docker()
 
 
 class LCGeneratorTest(unittest.TestCase):

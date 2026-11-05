@@ -20,17 +20,16 @@ package org.apache.beam.sdk.io.solace.write;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.FAILED_PUBLISH_TAG;
 import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TAG;
 
-import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import com.solacesystems.jcsmp.JCSMPFactory;
-import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
@@ -50,7 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -68,6 +66,7 @@ public abstract class UnboundedSolaceWriter
 
   // This is the batch limit supported by the send multiple JCSMP API method.
   static final int SOLACE_BATCH_LIMIT = 50;
+  static final int ACKS_FLUSHING_INTERVAL_SECS = 10;
   private final Distribution latencyPublish =
       Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
 
@@ -85,6 +84,8 @@ public abstract class UnboundedSolaceWriter
   private int currentBundleProducerIndex = 0;
 
   private final List<Solace.Record> batchToEmit;
+
+  private transient @Nullable BlockingQueue<PublishResult> bundleResultsQueue;
 
   private @Nullable Instant bundleTimestamp;
 
@@ -117,7 +118,7 @@ public abstract class UnboundedSolaceWriter
 
   public void updateProducerIndex() {
     currentBundleProducerIndex =
-        bundleProducerIndexCounter.getAndIncrement() % producersMapCardinality;
+        Math.floorMod(bundleProducerIndexCounter.getAndIncrement(), producersMapCardinality);
   }
 
   @StartBundle
@@ -125,6 +126,15 @@ public abstract class UnboundedSolaceWriter
     // Pick a producer at random for this bundle, reuse for the whole bundle
     updateProducerIndex();
     batchToEmit.clear();
+    bundleResultsQueue = new LinkedBlockingQueue<>();
+    bundleTimestamp = null;
+  }
+
+  public BlockingQueue<PublishResult> getBundleResultsQueue() {
+    if (bundleResultsQueue == null) {
+      bundleResultsQueue = new LinkedBlockingQueue<>();
+    }
+    return bundleResultsQueue;
   }
 
   public SessionService solaceSessionServiceWithProducer() {
@@ -132,7 +142,15 @@ public abstract class UnboundedSolaceWriter
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
-  public void publishResults(BeamContextWrapper context) {
+  public void publishResults(
+      BeamContextWrapper context, @Nullable Collection<String> messageIdsToAck) {
+    publishResults(context, null, messageIdsToAck);
+  }
+
+  public void publishResults(
+      BeamContextWrapper context,
+      @Nullable PublishResult firstResult,
+      @Nullable Collection<String> messageIdsToAck) {
     long sumPublish = 0;
     long countPublish = 0;
     long minPublish = Long.MAX_VALUE;
@@ -143,9 +161,8 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    Queue<PublishResult> publishResultsQueue =
-        solaceSessionServiceWithProducer().getPublishedResultsQueue();
-    Solace.PublishResult result = publishResultsQueue.poll();
+    BlockingQueue<PublishResult> publishResultsQueue = getBundleResultsQueue();
+    PublishResult result = firstResult != null ? firstResult : publishResultsQueue.poll();
 
     if (result != null) {
       if (getCurrentBundleTimestamp() == null) {
@@ -154,6 +171,9 @@ public abstract class UnboundedSolaceWriter
     }
 
     while (result != null) {
+      if (messageIdsToAck != null) {
+        messageIdsToAck.remove(result.getMessageId());
+      }
       Long latency = result.getLatencyNanos();
 
       if (latency == null && shouldPublishLatencyMetrics()) {
@@ -218,63 +238,35 @@ public abstract class UnboundedSolaceWriter
     }
   }
 
-  public BytesXMLMessage createSingleMessage(
-      Solace.Record record, boolean useCorrelationKeyLatency) {
-    JCSMPFactory jcsmpFactory = JCSMPFactory.onlyInstance();
-    BytesXMLMessage msg = jcsmpFactory.createBytesXMLMessage();
-    byte[] payload = record.getPayload();
-    msg.writeBytes(payload);
-
-    Long senderTimestamp = record.getSenderTimestamp();
-    if (senderTimestamp == null) {
-      LOG.error(
-          "SolaceIO.Write: Record with id {} has no sender timestamp. Using current"
-              + " worker clock as timestamp.",
-          record.getMessageId());
-      senderTimestamp = System.currentTimeMillis();
+  public void waitForAcks(BeamContextWrapper context, Collection<String> messageIdsToAck) {
+    BlockingQueue<PublishResult> queue = getBundleResultsQueue();
+    long timeoutMs = System.currentTimeMillis() + ACKS_FLUSHING_INTERVAL_SECS * 1000;
+    while (!messageIdsToAck.isEmpty()) {
+      publishResults(context, messageIdsToAck);
+      if (messageIdsToAck.isEmpty()) {
+        break;
+      }
+      long remainingTimeMs = timeoutMs - System.currentTimeMillis();
+      if (remainingTimeMs <= 0) {
+        break;
+      }
+      try {
+        PublishResult result = queue.poll(remainingTimeMs, TimeUnit.MILLISECONDS);
+        if (result != null) {
+          publishResults(context, result, messageIdsToAck);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
     }
-    msg.setSenderTimestamp(senderTimestamp);
-    msg.setDeliveryMode(getDeliveryMode());
-    if (useCorrelationKeyLatency) {
-      Solace.CorrelationKey key =
-          Solace.CorrelationKey.builder()
-              .setMessageId(record.getMessageId())
-              .setPublishMonotonicNanos(System.nanoTime())
-              .build();
-      msg.setCorrelationKey(key);
-    } else {
-      // Use only a string as correlation key
-      msg.setCorrelationKey(record.getMessageId());
+    if (!messageIdsToAck.isEmpty()) {
+      String errorMessage =
+          String.format(
+              "SolaceIO.Write: Timed out waiting for ACKs of %d messages. Outstanding message IDs: %s",
+              messageIdsToAck.size(), messageIdsToAck);
+      throw new RuntimeException(errorMessage);
     }
-    msg.setApplicationMessageId(record.getMessageId());
-    return msg;
-  }
-
-  public JCSMPSendMultipleEntry[] createMessagesArray(
-      Iterable<Solace.Record> records, boolean useCorrelationKeyLatency) {
-    // Solace batch publishing only supports 50 elements max, so it is safe to convert to
-    // list here
-    ArrayList<Solace.Record> recordsList = Lists.newArrayList(records);
-    if (recordsList.size() > SOLACE_BATCH_LIMIT) {
-      LOG.error(
-          "SolaceIO.Write: Trying to create a batch of {}, but Solace supports a"
-              + " maximum of {}. The batch will likely be rejected by Solace.",
-          recordsList.size(),
-          SOLACE_BATCH_LIMIT);
-    }
-
-    JCSMPSendMultipleEntry[] entries = new JCSMPSendMultipleEntry[recordsList.size()];
-    for (int i = 0; i < recordsList.size(); i++) {
-      Solace.Record record = recordsList.get(i);
-      JCSMPSendMultipleEntry entry =
-          JCSMPFactory.onlyInstance()
-              .createSendMultipleEntry(
-                  createSingleMessage(record, useCorrelationKeyLatency),
-                  getDestinationFn().apply(record));
-      entries[i] = entry;
-    }
-
-    return entries;
   }
 
   public int getProducersMapCardinality() {

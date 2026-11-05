@@ -38,4 +38,21 @@ public class SparkPipelineOptionsTest {
         "/tmp/" + sparkCommonPipelineOptions.getJobName(),
         sparkCommonPipelineOptions.getCheckpointDir());
   }
+
+  @Test
+  public void testPrepareFilesToStageSkipsStagingInLocalMode() {
+    for (String master : new String[] {"local", "local[4]", "local[*]", "local[2,3]"}) {
+      SparkCommonPipelineOptions options =
+          PipelineOptionsFactory.create().as(SparkCommonPipelineOptions.class);
+      options.setSparkMaster(master);
+      SparkCommonPipelineOptions.prepareFilesToStage(options);
+      assertEquals(null, options.getFilesToStage());
+
+      java.util.List<String> explicitFiles =
+          java.util.Collections.singletonList("/tmp/nonexistent.jar");
+      options.setFilesToStage(explicitFiles);
+      SparkCommonPipelineOptions.prepareFilesToStage(options);
+      assertEquals(explicitFiles, options.getFilesToStage());
+    }
+  }
 }

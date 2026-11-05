@@ -112,7 +112,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link PTransform Transforms} for reading from and writing to Google Cloud Bigtable.
  *
- * <p>Please note the Cloud BigTable HBase connector available <a
+ * <p>Please note the Cloud Bigtable HBase connector available <a
  * href="https://github.com/googleapis/java-bigtable-hbase/tree/master/bigtable-dataflow-parent/bigtable-hbase-beam">here</a>.
  * We recommend using that connector over this one if <a
  * href="https://cloud.google.com/bigtable/docs/hbase-bigtable">HBase API</a></> works for your

@@ -88,14 +88,17 @@ public class BoundedAsyncTasksTest {
         },
         delivered::add);
 
-    // Wait until fast task has finished running in the background
+    // The latch fires inside the task body; the future is marked done a moment later, so a
+    // single drain can miss it. Drain until it shows up while "slow" is still blocked.
     fastTaskDone.await();
-
-    // Trigger a drain by submitting another task
     tasks.submit(() -> "noop", delivered::add);
-
-    // "fast" should have been drained while "slow" is still blocked
-    assertTrue(delivered.contains("fast"));
+    int retries = 0;
+    while (!delivered.contains("fast") && retries < 1000) {
+      Thread.sleep(1);
+      tasks.drainFinished(delivered::add);
+      retries++;
+    }
+    assertTrue("fast task was never drained", delivered.contains("fast"));
     assertFalse(delivered.contains("slow"));
 
     slowTaskHold.countDown();

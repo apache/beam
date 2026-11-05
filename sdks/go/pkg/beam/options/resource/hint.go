@@ -22,6 +22,7 @@ package resource
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/dustin/go-humanize"
@@ -95,6 +96,44 @@ func NewHints(hs ...Hint) Hints {
 		hints.h[h.URN()] = h
 	}
 	return hints
+}
+
+// OptionStrings returns the hints formatted as "name=value" strings, in the format
+// accepted by the resource_hints pipeline option of the Beam SDKs. This allows the
+// hints to be forwarded to other SDKs, such as to expansion services for cross-language
+// transforms.
+//
+// Only standard hints with a well known short name are converted, since not every SDK
+// accepts arbitrary hint URNs. The URNs of any hints that couldn't be converted are
+// returned in omitted. Both lists are sorted for determinism.
+func (hs Hints) OptionStrings() (opts, omitted []string) {
+	for urn, h := range hs.h {
+		if s, ok := optionString(h); ok {
+			opts = append(opts, s)
+		} else {
+			omitted = append(omitted, urn)
+		}
+	}
+	sort.Strings(opts)
+	sort.Strings(omitted)
+	return opts, omitted
+}
+
+// optionString converts a known standard hint into its "name=value" option form.
+func optionString(h Hint) (string, bool) {
+	switch h := h.(type) {
+	case minRAMHint:
+		// Use an explicit byte unit suffix, as SDKs require a unit when parsing this hint.
+		return fmt.Sprintf("min_ram=%dB", h.value), true
+	case acceleratorHint:
+		return "accelerator=" + h.value, true
+	case CPUCountHint:
+		return fmt.Sprintf("cpu_count=%d", h.value), true
+	case maxActiveBundlesPerWorkerHint:
+		return fmt.Sprintf("max_active_bundles_per_worker=%d", h.value), true
+	default:
+		return "", false
+	}
 }
 
 // Hint contains all the information about a given resource hint.

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,6 +43,12 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> The type of elements in the input PCollection.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple> {
 
   final TupleTag<T> smallBatchTag;

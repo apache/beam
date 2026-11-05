@@ -36,7 +36,7 @@ See the following pages for performance measures recorded when reading from and
 writing to various Beam IOs.
 
 - [BigQuery](/performance/bigquery)
-- [BigTable](/performance/bigtable)
+- [Bigtable](/performance/bigtable)
 - [TextIO](/performance/textio)
 - [IcebergIO](/performance/icebergio)
 

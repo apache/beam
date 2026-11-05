@@ -403,6 +403,9 @@ class SyntheticSource(iobase.BoundedSource):
           'Unknown algorithm for input_spec: %s. Supported '
           'algorithms are "builtin" and "lcg".',
           self.gen_algo)
+    # optimization to reduce overhead of copying bytes
+    self._gen_kv_separately = (
+        self.gen_algo == 'lcg' and self._key_size % 4 == 0)
 
   @property
   def element_size(self):
@@ -469,6 +472,10 @@ class SyntheticSource(iobase.BoundedSource):
           seed=index % self._num_hot_keys, algorithm=self.gen_algo)
       bytes_ = generator_hot.randbytes(self._key_size), generator.randbytes(
         self._value_size)
+    elif self._gen_kv_separately:
+      bytes_ = (
+          generator.randbytes(self._key_size),
+          generator.randbytes(self._value_size))
     else:
       bytes_ = generator.randbytes(self.element_size)
       bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
@@ -478,7 +485,8 @@ class SyntheticSource(iobase.BoundedSource):
     index = range_tracker.start_position()
     generator = get_generator(algorithm=self.gen_algo)
     while range_tracker.try_claim(index):
-      time.sleep(self._sleep_per_input_record_sec)
+      if self._sleep_per_input_record_sec > 0:
+        time.sleep(self._sleep_per_input_record_sec)
       yield self._gen_kv_pair(generator, index)
       index += 1
 
@@ -598,7 +606,8 @@ class SyntheticSDFAsSource(beam.DoFn):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
       r = get_generator(algorithm=element.get('algorithm', None), seed=cur)
-      time.sleep(element['sleep_per_input_record_sec'])
+      if element['sleep_per_input_record_sec'] > 0:
+        time.sleep(element['sleep_per_input_record_sec'])
       yield (
           r.randbytes(element['key_size']), r.randbytes(element['value_size']))
       cur += 1

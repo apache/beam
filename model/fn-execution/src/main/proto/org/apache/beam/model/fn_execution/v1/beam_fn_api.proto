@@ -930,6 +930,19 @@ message StateResponse {
   // failed.
   string error = 2;
 
+  enum ErrorReason {
+    ERROR_REASON_UNSPECIFIED = 0;
+
+    // Indicates that the state request failed because the runner cancelled or
+    // invalidated the work item (e.g., due to autoscaling, rebalancing, or
+    // hedging). SDKs may choose to reduce logging severity for this error.
+    CANCELLED = 1;
+  }
+
+  // (Optional) If error is specified, provides a structured reason for why the
+  // request failed.
+  ErrorReason error_reason = 3;
+
   // A corresponding response matching the request will be populated.
   oneof response {
     // A response to getting state.
