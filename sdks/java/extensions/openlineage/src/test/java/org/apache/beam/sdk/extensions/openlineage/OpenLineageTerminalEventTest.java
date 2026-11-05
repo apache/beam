@@ -29,8 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -186,5 +190,86 @@ public class OpenLineageTerminalEventTest {
         0,
         countOf(events, OpenLineage.RunEvent.EventType.RUNNING));
     assertEquals(1, countOf(events, OpenLineage.RunEvent.EventType.COMPLETE));
+  }
+
+  @Test
+  public void trackerReportsATerminalStateWithoutWaitingForTheNextRunningEvent() throws Exception {
+    OpenLineageContext context = context();
+    context.onJobSubmitted();
+    FakeResult result = new FakeResult();
+    // An hour between RUNNING events: only the state poll can observe the cancellation in time.
+    OpenLineageJobTracker tracker = new OpenLineageJobTracker(context, result, 3600);
+    tracker.startTracking();
+    awaitCount(OpenLineage.RunEvent.EventType.RUNNING, 1);
+
+    result.state.set(PipelineResult.State.CANCELLED);
+
+    awaitCount(OpenLineage.RunEvent.EventType.ABORT, 1);
+    assertEquals(PipelineResult.State.CANCELLED, tracker.lastObservedState());
+  }
+
+  @Test
+  public void shutdownClosesAnOpenRunWithAbort() throws Exception {
+    OpenLineageContext context = context();
+    context.onJobSubmitted();
+
+    OpenLineageRunner.emitTerminalEventOnShutdown(context, null);
+    OpenLineageRunner.emitTerminalEventOnShutdown(context, null);
+
+    assertEquals(1, countOf(readEvents(), OpenLineage.RunEvent.EventType.ABORT));
+  }
+
+  @Test
+  public void shutdownDoesNothingOnceTheTerminalEventWasDelivered() throws Exception {
+    OpenLineageContext context = context();
+    context.onJobSubmitted();
+    context.onJobFinished(OpenLineage.RunEvent.EventType.COMPLETE, null);
+
+    OpenLineageRunner.emitTerminalEventOnShutdown(context, null);
+
+    List<OpenLineage.RunEvent> events = readEvents();
+    assertEquals(1, countOf(events, OpenLineage.RunEvent.EventType.COMPLETE));
+    assertEquals(0, countOf(events, OpenLineage.RunEvent.EventType.ABORT));
+  }
+
+  private void awaitCount(OpenLineage.RunEvent.EventType eventType, int count) throws Exception {
+    long deadline = System.currentTimeMillis() + 10_000;
+    while (countOf(readEvents(), eventType) < count) {
+      if (System.currentTimeMillis() > deadline) {
+        throw new AssertionError("Expected " + count + " " + eventType + " in " + readEvents());
+      }
+      Thread.sleep(100);
+    }
+  }
+
+  /** A pipeline whose state the test controls. */
+  private static class FakeResult implements PipelineResult {
+    final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
+
+    @Override
+    public State getState() {
+      return state.get();
+    }
+
+    @Override
+    public State cancel() {
+      state.set(State.CANCELLED);
+      return State.CANCELLED;
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      return state.get();
+    }
+
+    @Override
+    public State waitUntilFinish() {
+      return state.get();
+    }
+
+    @Override
+    public MetricResults metrics() {
+      throw new UnsupportedOperationException("no metrics");
+    }
   }
 }

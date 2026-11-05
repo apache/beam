@@ -25,22 +25,29 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Watches a running pipeline and emits periodic RUNNING events, mirroring the Flink integration's
- * {@code OpenLineageContinousJobTracker}: a daemon thread wakes up every {@code
- * trackingIntervalInSeconds} (default 60), sweeps any lineage reported through Beam metrics by the
- * IO connectors, and emits a RUNNING event. When it observes a terminal state it emits the terminal
- * event (DONE and UPDATED map to COMPLETE, CANCELLED to ABORT, other terminal states to FAIL) and
- * stops. The deterministic terminal trigger is {@link OpenLineagePipelineResult}; this tracker
- * covers callers that never invoke waitUntilFinish (e.g. detached submission), in which case a
- * runner whose {@code getState()} is unsupported may only ever produce RUNNING heartbeats.
+ * {@code OpenLineageContinousJobTracker}: every {@code trackingIntervalInSeconds} (default 60) a
+ * daemon thread sweeps any lineage reported through Beam metrics by the IO connectors and emits a
+ * RUNNING event. The job state is polled more often, every {@link #STATE_POLL_MILLIS}, so that a
+ * terminal state is reported before a short-lived process (such as a Flink Application mode
+ * JobManager, which exits seconds after its job ends) goes away. When it observes a terminal state
+ * it emits the terminal event (DONE and UPDATED map to COMPLETE, CANCELLED to ABORT, other terminal
+ * states to FAIL) and stops. The deterministic terminal trigger is {@link
+ * OpenLineagePipelineResult}; this tracker covers callers that never invoke waitUntilFinish (e.g.
+ * detached submission), in which case a runner whose {@code getState()} is unsupported may only
+ * ever produce RUNNING heartbeats.
  */
 class OpenLineageJobTracker {
 
   private static final Logger LOG = LoggerFactory.getLogger(OpenLineageJobTracker.class);
 
+  /** How often the job state is polled between RUNNING events. */
+  static final long STATE_POLL_MILLIS = 2_000;
+
   private final OpenLineageContext context;
   private final PipelineResult result;
   private final long intervalMillis;
   private @Nullable Thread trackingThread;
+  private volatile PipelineResult.@Nullable State lastObservedState;
 
   OpenLineageJobTracker(OpenLineageContext context, PipelineResult result, int intervalSeconds) {
     this.context = context;
@@ -54,16 +61,25 @@ class OpenLineageJobTracker {
         new Thread(
             () -> {
               LOG.info("Starting OpenLineage job tracking every {} ms", intervalMillis);
+              long nextTick = 0;
               while (true) {
-                context.sweepLineageMetrics(result);
                 PipelineResult.State state = currentState();
+                if (state != null) {
+                  lastObservedState = state;
+                }
                 if (state != null && state.isTerminal()) {
+                  context.sweepLineageMetrics(result);
                   context.onJobFinished(terminalEventType(state), null);
                   return;
                 }
-                context.onTrackingTick();
+                long now = System.currentTimeMillis();
+                if (now >= nextTick) {
+                  context.sweepLineageMetrics(result);
+                  context.onTrackingTick();
+                  nextTick = now + intervalMillis;
+                }
                 try {
-                  Thread.sleep(intervalMillis);
+                  Thread.sleep(Math.min(STATE_POLL_MILLIS, intervalMillis));
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                   return;
@@ -81,6 +97,11 @@ class OpenLineageJobTracker {
     if (thread != null) {
       thread.interrupt();
     }
+  }
+
+  /** The most recent job state the tracker observed, or null if none was observed yet. */
+  PipelineResult.@Nullable State lastObservedState() {
+    return lastObservedState;
   }
 
   private PipelineResult.@Nullable State currentState() {

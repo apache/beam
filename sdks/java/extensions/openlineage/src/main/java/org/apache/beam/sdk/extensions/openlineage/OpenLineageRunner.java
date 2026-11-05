@@ -25,6 +25,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,12 @@ import org.slf4j.LoggerFactory;
  * is emitted deterministically when the caller observes completion through the returned {@link
  * OpenLineagePipelineResult}. Transport configuration is read the standard OpenLineage way (see
  * {@link OpenLineagePipelineOptions}).
+ *
+ * <p>When the pipeline is launched inside the process that runs the job and is submitted without
+ * waiting for it, as with Flink Application mode and {@code --attachedMode=false}, nobody calls
+ * {@code waitUntilFinish()}. The tracker then reports the terminal state, and {@code
+ * --openLineageEmitTerminalEventOnShutdown} closes the run if the process exits first (for example
+ * when the job is suspended or upgraded).
  *
  * <p>Note: the delegate runner defaults to {@code DirectRunner}, matching Beam's own default when
  * no {@code --runner} is set.
@@ -115,7 +122,39 @@ public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
       tracker = new OpenLineageJobTracker(context, result, intervalSeconds);
       tracker.startTracking();
     }
+    if (olOptions.isOpenLineageEmitTerminalEventOnShutdown()) {
+      @Nullable OpenLineageJobTracker shutdownTracker = tracker;
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  () -> emitTerminalEventOnShutdown(context, shutdownTracker),
+                  "beam-openlineage-shutdown"));
+    }
     return new OpenLineagePipelineResult(result, context, tracker);
+  }
+
+  /**
+   * Closes a run that is still open when this JVM exits. Uses the last state the tracker observed
+   * rather than querying the job again, because the cluster may already be shutting down. A no-op
+   * when the terminal event was already delivered.
+   */
+  @VisibleForTesting
+  static void emitTerminalEventOnShutdown(
+      OpenLineageContext context, @Nullable OpenLineageJobTracker tracker) {
+    if (context.isFinished()) {
+      return;
+    }
+    PipelineResult.@Nullable State last = null;
+    if (tracker != null) {
+      tracker.stopTracking();
+      last = tracker.lastObservedState();
+    }
+    OpenLineage.RunEvent.EventType eventType =
+        last != null && last.isTerminal()
+            ? OpenLineageJobTracker.terminalEventType(last)
+            : OpenLineage.RunEvent.EventType.ABORT;
+    LOG.info("JVM is shutting down with the OpenLineage run still open; emitting {}", eventType);
+    context.onJobFinished(eventType, null);
   }
 
   private PipelineRunner<? extends PipelineResult> resolveDelegate(

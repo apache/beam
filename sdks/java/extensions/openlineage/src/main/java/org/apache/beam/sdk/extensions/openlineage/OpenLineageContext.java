@@ -212,6 +212,11 @@ class OpenLineageContext {
     return disabled;
   }
 
+  /** True once the terminal event has been delivered. */
+  boolean isFinished() {
+    return finished.get();
+  }
+
   void setStreaming(boolean streaming) {
     this.streaming = this.streaming || streaming;
   }

@@ -87,6 +87,19 @@ public interface OpenLineagePipelineOptions extends PipelineOptions {
   void setOpenLineageDisableTracking(boolean disabled);
 
   @Description(
+      "Treats shutdown of this JVM as the end of the run: when no terminal event has been "
+          + "emitted yet, emits one on the way out (ABORT, unless the tracker already observed a "
+          + "terminal job state). Enable when the pipeline is launched inside the process that "
+          + "runs the job, such as a Flink Application mode JobManager, which exits when the job "
+          + "is cancelled, suspended or upgraded. Leave disabled when the launcher exits while the "
+          + "job keeps running elsewhere, such as Dataflow or detached submission to a Flink "
+          + "session cluster.")
+  @Default.Boolean(false)
+  boolean isOpenLineageEmitTerminalEventOnShutdown();
+
+  void setOpenLineageEmitTerminalEventOnShutdown(boolean enabled);
+
+  @Description(
       "The runner to delegate to when using --runner=OpenLineageRunner. Accepts a simple class "
           + "name registered via PipelineRunnerRegistrar (e.g. FlinkRunner, DirectRunner) or a "
           + "fully qualified class name.")
