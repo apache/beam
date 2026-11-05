@@ -41,12 +41,16 @@ dependencies {
   // when the corresponding IO is already on the user's classpath.
   compileOnly project(path: ":sdks:java:io:google-cloud-platform")
   compileOnly project(path: ":sdks:java:io:iceberg")
+  compileOnly project(path: ":sdks:java:io:kafka")
+  compileOnly library.java.kafka_clients
   // keep in sync with iceberg_version in sdks/java/io/iceberg/build.gradle
   compileOnly "org.apache.iceberg:iceberg-api:1.11.0"
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:io:iceberg")
+  testImplementation project(path: ":sdks:java:io:kafka")
+  testImplementation library.java.kafka_clients
   testImplementation project(path: ":sdks:java:managed")
   testImplementation "org.apache.iceberg:iceberg-api:1.11.0"
   testImplementation "org.apache.iceberg:iceberg-core:1.11.0"

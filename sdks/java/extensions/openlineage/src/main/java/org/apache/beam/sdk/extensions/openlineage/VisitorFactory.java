@@ -39,6 +39,10 @@ class VisitorFactory {
     if (hasClass("org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource")) {
       visitors.add(new PubsubLineageVisitor());
     }
+    if (hasClass("org.apache.beam.sdk.io.kafka.KafkaIO")
+        && hasClass("org.apache.kafka.common.TopicPartition")) {
+      visitors.add(new KafkaLineageVisitor());
+    }
     if (hasClass("org.apache.beam.sdk.io.iceberg.IcebergIO")
         && hasClass("org.apache.iceberg.catalog.TableIdentifier")) {
       visitors.add(new IcebergLineageVisitor());

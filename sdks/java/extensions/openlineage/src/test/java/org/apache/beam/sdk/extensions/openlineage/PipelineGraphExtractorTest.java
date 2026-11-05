@@ -21,13 +21,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.openlineage.client.utils.DatasetIdentifier;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergIO;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -37,6 +41,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.types.Types;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.LongSerializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -179,6 +187,41 @@ public class PipelineGraphExtractorTest {
   }
 
   @Test
+  public void testKafkaReadExtraction() {
+    Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
+    pipeline.apply(
+        KafkaIO.<Long, String>read()
+            .withBootstrapServers("broker-1:9092,broker-2:9092")
+            .withTopics(Arrays.asList("orders", "payments"))
+            .withKeyDeserializer(LongDeserializer.class)
+            .withValueDeserializer(StringDeserializer.class)
+            .withoutMetadata());
+
+    assertEquals(
+        new HashSet<>(
+            Arrays.asList("kafka://broker-1:9092/orders", "kafka://broker-1:9092/payments")),
+        names(extract(pipeline, true)));
+    assertEquals(0, extract(pipeline, false).size());
+  }
+
+  @Test
+  public void testKafkaWriteExtraction() {
+    Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
+    pipeline
+        .apply(org.apache.beam.sdk.transforms.Create.of(org.apache.beam.sdk.values.KV.of(1L, "a")))
+        .apply(
+            KafkaIO.<Long, String>write()
+                .withBootstrapServers("broker-1:9092")
+                .withTopic("enriched-orders")
+                .withKeySerializer(LongSerializer.class)
+                .withValueSerializer(StringSerializer.class));
+
+    assertEquals(
+        new HashSet<>(Arrays.asList("kafka://broker-1:9092/enriched-orders")),
+        names(extract(pipeline, false)));
+  }
+
+  @Test
   public void testPubsubWriteTopicExtraction() {
     Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
     pipeline
@@ -223,6 +266,15 @@ public class PipelineGraphExtractorTest {
                         .build())
                 .to(TableIdentifier.parse("demo.orders")));
     return pipeline;
+  }
+
+  /** Distinct {@code namespace/name} pairs; composite and expanded transforms may both match. */
+  private static Set<String> names(List<DatasetIdentifier> datasets) {
+    Set<String> result = new HashSet<>();
+    for (DatasetIdentifier dataset : datasets) {
+      result.add(dataset.getNamespace() + "/" + dataset.getName());
+    }
+    return result;
   }
 
   /** Runs the visitor factory over the pipeline graph and collects one direction. */
