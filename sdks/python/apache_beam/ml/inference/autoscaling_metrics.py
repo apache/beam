@@ -63,8 +63,9 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from typing import Optional
 
-from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.execution import _TypedMetricName
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = [
@@ -558,11 +559,17 @@ class NumLoadedModelsPublisher:
     # them, and Dataflow reads their cumulative mean (sum / count). Keeping the
     # cell at (sum=published, count=1) makes the runner see the latest value
     # rather than an average since worker start. The harness reads the cell
-    # from another thread, so swap the data in one step: reset() then
-    # update() would briefly expose an empty cell (count=0).
-    cell = MetricsEnvironment.process_wide_container().get_distribution(
+    # from another thread, so the update must be atomic: reset() then update()
+    # would briefly expose an empty cell (count=0). The cell's lock and data
+    # are not reachable from Python when apache_beam.metrics is compiled with
+    # Cython (as on workers), so install a fresh cell holding the value with a
+    # single dict store instead, which is atomic under the GIL.
+    container = MetricsEnvironment.process_wide_container()
+    key = _TypedMetricName(
+        DistributionCell,
         MetricName(MODEL_MANAGER_METRICS_NAMESPACE, self._metric_name))
-    current = cell.get_cumulative()
+    current = container.get_metric_cell(key).get_cumulative()
     if current.count != 1 or current.sum != published:
-      with cell._lock:  # pylint: disable=protected-access
-        cell.data = DistributionData(published, 1, published, published)
+      cell = DistributionCell()
+      cell.update(published)
+      container.metrics[key] = cell

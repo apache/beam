@@ -19,6 +19,7 @@ import threading
 import unittest
 from unittest import mock
 
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.ml.inference import autoscaling_metrics
 
 
@@ -30,6 +31,23 @@ def _publisher(model_identifier='step-id', port=None, **kwargs):
       running_metric='running',
       model_identifier=model_identifier,
       **kwargs)
+
+
+def _cell(model_identifier):
+  """The process-wide ``num_loaded_models_<id>`` cell.
+
+  The publisher replaces the cell rather than mutating it, so fetch it again
+  for every read instead of holding on to it.
+  """
+  return autoscaling_metrics.MetricsEnvironment.process_wide_container(
+  ).get_distribution(
+      autoscaling_metrics.MetricName(
+          autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
+          f'num_loaded_models_{model_identifier}'))
+
+
+def _published(model_identifier):
+  return _cell(model_identifier).get_cumulative()
 
 
 class AutoscalingMetricsTest(unittest.TestCase):
@@ -238,14 +256,8 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_publisher_publishes_signal_values_as_is(self):
     """Each capacity is published rounded; None or an error skips the tick."""
-    cell = (
-        autoscaling_metrics.MetricsEnvironment.process_wide_container().
-        get_distribution(
-            autoscaling_metrics.MetricName(
-                autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
-                'num_loaded_models_sink_test')))
-    cell.reset()
-    self.addCleanup(cell.reset)
+    _cell('sink_test').reset()
+    self.addCleanup(lambda: _cell('sink_test').reset())
     published = []
     signal_values = [3.4, None, RuntimeError('scrape broke'), 7.6]
 
@@ -253,7 +265,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
       del port
       if published:
         # Record what the previous tick left in the cell.
-        published[-1] = cell.get_cumulative().sum
+        published[-1] = _published('sink_test').sum
       if not signal_values:
         pub._stop_event.set()  # pylint: disable=protected-access
         return None
@@ -274,44 +286,31 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertIn('num_loaded_models_sink_test', logs.output[0])
     # 3.4 -> 3; None and the error leave 3 in place; 7.6 -> 8.
     self.assertEqual(published, [3, 3, 3, 8])
-    self.assertEqual(cell.get_cumulative().count, 1)
+    self.assertEqual(_published('sink_test').count, 1)
 
   def test_publish_resets_process_wide_distribution_cell(self):
     pub = _publisher('reset_test')
-    cell = (
-        autoscaling_metrics.MetricsEnvironment.process_wide_container().
-        get_distribution(
-            autoscaling_metrics.MetricName(
-                autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
-                'num_loaded_models_reset_test')))
-    cell.reset()
-    self.addCleanup(cell.reset)
-    cell.update(7)  # A stale value, e.g. from before a model reload.
+    _cell('reset_test').reset()
+    self.addCleanup(lambda: _cell('reset_test').reset())
+    # A stale value, e.g. from before a model reload.
+    _cell('reset_test').update(7)
     for _ in range(10):
       pub._publish(2.0)
-    self.assertEqual(
-        cell.get_cumulative(), autoscaling_metrics.DistributionData(2, 1, 2, 2))
+    self.assertEqual(_published('reset_test'), DistributionData(2, 1, 2, 2))
     pub._publish(5.0)
-    self.assertEqual(
-        cell.get_cumulative(), autoscaling_metrics.DistributionData(5, 1, 5, 5))
+    self.assertEqual(_published('reset_test'), DistributionData(5, 1, 5, 5))
 
   def test_publish_never_exposes_an_empty_cell(self):
     """A concurrent reader must never see count=0 between updates."""
     pub = _publisher('atomic_test')
-    cell = (
-        autoscaling_metrics.MetricsEnvironment.process_wide_container().
-        get_distribution(
-            autoscaling_metrics.MetricName(
-                autoscaling_metrics.MODEL_MANAGER_METRICS_NAMESPACE,
-                'num_loaded_models_atomic_test')))
-    self.addCleanup(cell.reset)
+    self.addCleanup(lambda: _cell('atomic_test').reset())
     pub._publish(1.0)
     stop = threading.Event()
     counts = set()
 
     def read():
       while not stop.is_set():
-        counts.add(cell.get_cumulative().count)
+        counts.add(_published('atomic_test').count)
 
     reader = threading.Thread(target=read)
     reader.start()
