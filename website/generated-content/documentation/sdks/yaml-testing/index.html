@@ -104,10 +104,10 @@ purposes of this test, and the <code>expected_inputs</code> section indicates th
 transform <code>Write to GCS</code> should expect to receive exactly the given elements.
 Neither the actual Read transform nor Write transform from the original
 pipelines are executed when running the test, but all intermediate transforms
-are.</p><p>This test can then be executed by running</p><pre tabindex=0><code>python -m apache_beam.yaml.main \
+are.</p><p>This test can then be executed with the <code>--tests</code> flag by running</p><pre tabindex=0><code>python -m apache_beam.yaml.main \
     --yaml_pipeline_file=wordcount.yaml \
     --tests
-</code></pre><p>Alternatively, the a <code>tests:</code> block may be placed in a separate file and be
+</code></pre><p>Alternatively, a <code>tests:</code> block may be placed in a separate file and be
 validated by running</p><pre tabindex=0><code>python -m apache_beam.yaml.main \
     --yaml_pipeline_file=wordcount.yaml \
     --tests \
@@ -227,7 +227,7 @@ tests:
       - name: Upper
         elements: [element: A, element: Z]
 
-  - name: TestMultipelOuptuts
+  - name: TestMultipleOutputs
     mock_inputs:
       - name: Upper
         elements: [element: m, element: nnn]
