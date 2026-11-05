@@ -1060,6 +1060,370 @@ class YamlKafkaTest(unittest.TestCase):
         ''')
 
 
+class WriteToBigQueryTest(unittest.TestCase):
+  def test_write_file_loads(self):
+    from apache_beam.io import WriteToBigQuery
+    from apache_beam.yaml.yaml_io import write_to_bigquery
+
+    captured = {}
+
+    class FakeWriteToBigQuery(beam.PTransform):
+      Method = WriteToBigQuery.Method
+
+      def __init__(self, table, **kwargs):
+        captured['table'] = table
+        captured['kwargs'] = kwargs
+
+      def expand(self, pcoll):
+        res = mock.MagicMock()
+        res._method = WriteToBigQuery.Method.FILE_LOADS
+        res.destination_load_jobid_pairs = pcoll | beam.Map(
+            lambda _: ('dest', 'job_id'))
+        return res
+
+    with mock.patch('apache_beam.yaml.yaml_io.WriteToBigQuery',
+                    FakeWriteToBigQuery):
+      with beam.Pipeline() as p:
+        out = p | beam.Create([beam.Row(id=1)
+                               ]) | write_to_bigquery(table='proj:ds.tbl')
+        assert_that(out['post_write'], equal_to([]))
+
+    self.assertEqual(captured['table'], 'proj:ds.tbl')
+    self.assertIsNone(captured['kwargs']['method'])
+
+  def test_write_with_error_handling_uses_storage_write_api(self):
+    from apache_beam.io import WriteToBigQuery
+    from apache_beam.yaml.yaml_io import write_to_bigquery
+
+    captured = {}
+
+    class FakeWriteToBigQuery(beam.PTransform):
+      Method = WriteToBigQuery.Method
+
+      def __init__(self, table, **kwargs):
+        captured['kwargs'] = kwargs
+
+      def expand(self, pcoll):
+        res = mock.MagicMock()
+        res._method = WriteToBigQuery.Method.STORAGE_WRITE_API
+        res.failed_rows_with_errors = pcoll | beam.Map(
+            lambda r: beam.Row(row=r.id, error_message='bad row'))
+        return res
+
+    with mock.patch('apache_beam.yaml.yaml_io.WriteToBigQuery',
+                    FakeWriteToBigQuery):
+      with beam.Pipeline() as p:
+        out = (
+            p
+            | beam.Create([beam.Row(id=42)])
+            | write_to_bigquery(
+                table='proj:ds.tbl', error_handling={'output': 'bq_errors'}))
+        assert_that(out['post_write'], equal_to([]), label='CheckPostWrite')
+        assert_that(
+            out['bq_errors'],
+            equal_to([beam.Row(row=42, error_message='bad row')]),
+            label='CheckErrors')
+
+    self.assertEqual(
+        captured['kwargs']['method'], WriteToBigQuery.Method.STORAGE_WRITE_API)
+
+  def test_write_streaming_without_error_handling_raises_on_failed_row(self):
+    from apache_beam.io import WriteToBigQuery
+    from apache_beam.yaml.yaml_io import write_to_bigquery
+
+    class FakeWriteToBigQuery(beam.PTransform):
+      Method = WriteToBigQuery.Method
+
+      def __init__(self, table, **kwargs):
+        pass
+
+      def expand(self, pcoll):
+        res = mock.MagicMock()
+        res._method = WriteToBigQuery.Method.STORAGE_WRITE_API
+        res.failed_rows_with_errors = pcoll | beam.Map(
+            lambda _: beam.Row(error_message='permanent bq failure'))
+        return res
+
+    with mock.patch('apache_beam.yaml.yaml_io.WriteToBigQuery',
+                    FakeWriteToBigQuery):
+      with self.assertRaisesRegex(RuntimeError, 'permanent bq failure'):
+        with beam.Pipeline() as p:
+          _ = p | beam.Create([beam.Row(id=1)
+                               ]) | write_to_bigquery(table='proj:ds.tbl')
+
+
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+class YamlTFRecordTest(unittest.TestCase):
+  def test_write_and_read_tfrecord(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      prefix = os.path.join(tmpdir, 'data')
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create(
+                [beam.Row(payload=b'first'), beam.Row(payload=b'second')])
+            | YamlTransform(
+                f'''
+                type: WriteToTFRecord
+                config:
+                  file_path_prefix: "{prefix}"
+                  file_name_suffix: ".tfrecord"
+                  num_shards: 1
+                '''))
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = p | YamlTransform(
+            f'''
+            type: ReadFromTFRecord
+            config:
+              file_pattern: "{prefix}*.tfrecord"
+            ''')
+        assert_that(
+            result,
+            equal_to([beam.Row(record=b'first'), beam.Row(record=b'second')]))
+
+  def test_write_to_tfrecord_schema_validation(self):
+    from apache_beam.yaml.yaml_io import write_to_tfrecord
+
+    with self.assertRaisesRegex(ValueError, 'exactly one field'):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(a=b'1', b=b'2')])
+            | write_to_tfrecord(file_path_prefix='/tmp/unused'))
+
+    with self.assertRaisesRegex(ValueError, 'exactly one field'):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([b'raw_bytes'])
+            | write_to_tfrecord(file_path_prefix='/tmp/unused'))
+
+
+class _AsDictObj:
+  def __init__(self, data):
+    self._data = data
+
+  def as_dict(self):
+    return self._data
+
+
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
+class YamlMongoDBTest(unittest.TestCase):
+  def test_read_from_mongodb_string_and_dict_configs(self):
+    captured = {}
+
+    def fake_read(uri=None, db=None, coll=None, filter=None):
+      captured['args'] = (uri, db, coll, filter)
+      return beam.Create([
+          {
+              'name': 'Alice', 'score': 10
+          },
+          {
+              'name': 'Bob', 'score': 20
+          },
+      ])
+
+    schema_str = json.dumps({
+        'type': 'object',
+        'properties': {
+            'name': {
+                'type': 'string'
+            },
+            'score': {
+                'type': 'integer'
+            },
+        },
+        'required': ['name', 'score'],
+    })
+
+    with mock.patch('apache_beam.io.mongodbio.ReadFromMongoDB',
+                    side_effect=fake_read):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = p | YamlTransform(
+            f'''
+            type: ReadFromMongoDB
+            config:
+              uri: "mongodb://localhost:27017"
+              database: test_db
+              collection: users
+              schema: '{schema_str}'
+              filter: '{{"score": {{"$gte": 10}}}}'
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(name='Alice', score=10),
+                beam.Row(name='Bob', score=20),
+            ]))
+
+    self.assertEqual(
+        captured['args'],
+        (
+            'mongodb://localhost:27017',
+            'test_db',
+            'users', {
+                'score': {
+                    '$gte': 10
+                }
+            }))
+
+  def test_write_to_mongodb_converts_nested_rows(self):
+    from apache_beam.yaml.yaml_io import write_to_mongodb
+
+    expected_docs = [
+        {
+            'name': 'Alice',
+            'nothing': None,
+            'nested': {
+                'k': 'v'
+            },
+            'custom': {
+                'x': 1
+            },
+            'items': [{
+                'item_id': 2
+            }],
+            'tags': {
+                'env': 'prod'
+            },
+        },
+        {
+            'name': 'Bob',
+            'nothing': 'present',
+            'nested': {
+                'k': 'v2'
+            },
+            'custom': {
+                'x': 2
+            },
+            'items': [],
+            'tags': {},
+        },
+    ]
+
+    def fake_write(uri=None, db=None, coll=None, batch_size=1024):
+      self.assertEqual(uri, 'mongodb://localhost:27017')
+      self.assertEqual(db, 'test_db')
+      self.assertEqual(coll, 'events')
+      self.assertEqual(batch_size, 64)
+      return AssertThat(equal_to(expected_docs))
+
+    with mock.patch('apache_beam.io.mongodbio.WriteToMongoDB',
+                    side_effect=fake_write):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([
+                beam.Row(
+                    name='Alice',
+                    nothing=None,
+                    nested=beam.Row(k='v'),
+                    custom=_AsDictObj({'x': 1}),
+                    items=[beam.Row(item_id=2)],
+                    tags={'env': 'prod'}),
+                beam.Row(
+                    name='Bob',
+                    nothing='present',
+                    nested=beam.Row(k='v2'),
+                    custom=_AsDictObj({'x': 2}),
+                    items=[],
+                    tags={}),
+            ])
+            | write_to_mongodb(
+                uri='mongodb://localhost:27017',
+                database='test_db',
+                collection='events',
+                batch_size=64))
+
+
+class YamlIcebergTest(unittest.TestCase):
+  def test_read_from_iceberg(self):
+    from apache_beam.yaml.yaml_io import read_from_iceberg
+    transform = read_from_iceberg(
+        table='db.tbl', catalog_name='local', filter='id > 0', keep=['id'])
+    self.assertIsInstance(transform, beam.managed.Read)
+    self.assertEqual(transform._source, 'iceberg')
+
+  def test_write_to_iceberg(self):
+    from apache_beam.yaml.yaml_io import write_to_iceberg
+    transform = write_to_iceberg(
+        table='db.tbl', catalog_name='local', partition_fields=['dt'])
+    self.assertIsInstance(transform, beam.managed.Write)
+    self.assertEqual(transform._sink, 'iceberg')
+
+
+class YamlIoValidationTest(unittest.TestCase):
+  def test_write_to_text_schema_validation(self):
+    from apache_beam.yaml.yaml_io import write_to_text
+
+    with self.assertRaisesRegex(ValueError, 'exactly one field'):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create([beam.Row(a=1, b=2)]) | write_to_text(path='/tmp/x')
+
+    with self.assertRaisesRegex(ValueError, 'exactly one field'):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create(['untyped']) | write_to_text(path='/tmp/x')
+
+  def test_parser_and_formatter_validation(self):
+    from apache_beam.portability.api import schema_pb2
+    from apache_beam.yaml.yaml_io import _create_formatter
+    from apache_beam.yaml.yaml_io import _create_parser
+
+    with self.assertRaisesRegex(ValueError, 'requires valid JSON schema'):
+      _create_parser('JSON', None)
+    with self.assertRaisesRegex(ValueError, 'RAW format does not take'):
+      _create_parser('RAW', {'type': 'object'})
+    with self.assertRaisesRegex(ValueError, 'STRING format does not take'):
+      _create_parser('STRING', {'type': 'object'})
+    with self.assertRaisesRegex(ValueError, 'Unknown format: BOGUS'):
+      _create_parser('BOGUS', None)
+
+    one_field_schema = schema_pb2.Schema(
+        fields=[schema_utils.schema_field('payload', str)])
+    two_field_schema = schema_pb2.Schema(
+        fields=[
+            schema_utils.schema_field('a', str),
+            schema_utils.schema_field('b', str),
+        ])
+
+    with self.assertRaisesRegex(ValueError, 'RAW format does not take'):
+      _create_formatter('raw', {'type': 'object'}, one_field_schema)
+    with self.assertRaisesRegex(ValueError, 'Expecting exactly one field'):
+      _create_formatter('raw', None, two_field_schema)
+    with self.assertRaisesRegex(ValueError, 'Unknown format: BOGUS'):
+      _create_formatter('BOGUS', None, one_field_schema)
+
+    raw_formatter = _create_formatter('raw', None, one_field_schema)
+    self.assertEqual(raw_formatter(beam.Row(payload='hello')), b'hello')
+    with self.assertRaisesRegex(ValueError, 'Cannot encode payload'):
+      raw_formatter(beam.Row(payload=12345))
+
+  def test_pubsub_argument_validation(self):
+    from apache_beam.yaml.yaml_io import read_from_pubsub
+    from apache_beam.yaml.yaml_io import write_to_pubsub
+
+    with self.assertRaisesRegex(TypeError,
+                                'Only one of topic and subscription'):
+      with beam.Pipeline() as p:
+        _ = p | read_from_pubsub(topic='t', subscription='s', format='RAW')
+
+    with self.assertRaisesRegex(TypeError, 'One of topic or subscription'):
+      with beam.Pipeline() as p:
+        _ = p | read_from_pubsub(format='RAW')
+
+    with self.assertRaisesRegex(ValueError, 'Attribute fields.*not found'):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(payload=b'hi')])
+            | write_to_pubsub(
+                topic='t', format='RAW', attributes='missing_attr'))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
