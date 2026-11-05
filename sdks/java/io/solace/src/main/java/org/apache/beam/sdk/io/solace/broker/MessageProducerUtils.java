@@ -23,8 +23,10 @@ import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.util.List;
+import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 @Internal
@@ -38,23 +40,20 @@ public class MessageProducerUtils {
    * @param record The record to be published.
    * @param useCorrelationKeyLatency Whether to use a complex key for tracking latency.
    * @param deliveryMode The {@link DeliveryMode} used to publish the message.
+   * @param resultsQueue The queue where the publication result for this message will be added.
    * @return A {@link BytesXMLMessage} that can be sent to Solace "as is".
    */
   public static BytesXMLMessage createMessage(
-      Solace.Record record, boolean useCorrelationKeyLatency, DeliveryMode deliveryMode) {
+      Solace.Record record,
+      boolean useCorrelationKeyLatency,
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue) {
     BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
     msg.setDeliveryMode(deliveryMode);
-    if (useCorrelationKeyLatency) {
-      Solace.CorrelationKey key =
-          Solace.CorrelationKey.builder()
-              .setMessageId(record.getMessageId())
-              .setPublishMonotonicNanos(System.nanoTime())
-              .build();
-      msg.setCorrelationKey(key);
-    } else {
-      // Use only a string as correlation key
-      msg.setCorrelationKey(record.getMessageId());
-    }
+    Long publishMonotonicNanos = useCorrelationKeyLatency ? System.nanoTime() : null;
+    msg.setCorrelationKey(
+        PublishResultHandler.correlationKey(
+            record.getMessageId(), publishMonotonicNanos, resultsQueue));
     return msg;
   }
 
@@ -69,13 +68,15 @@ public class MessageProducerUtils {
    * @param useCorrelationKeyLatency Whether to use a complex key for tracking latency.
    * @param destinationFn A function that maps every record to its destination.
    * @param deliveryMode The {@link DeliveryMode} used to publish the message.
+   * @param resultsQueue The queue where publication results for these messages will be added.
    * @return A {@link JCSMPSendMultipleEntry} array that can be sent to Solace "as is".
    */
   public static JCSMPSendMultipleEntry[] createJCSMPSendMultipleEntry(
       List<Solace.Record> records,
       boolean useCorrelationKeyLatency,
       SerializableFunction<Solace.Record, Destination> destinationFn,
-      DeliveryMode deliveryMode) {
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue) {
     if (records.size() > SOLACE_BATCH_LIMIT) {
       throw new RuntimeException(
           String.format(
@@ -90,7 +91,7 @@ public class MessageProducerUtils {
       JCSMPSendMultipleEntry entry =
           JCSMPFactory.onlyInstance()
               .createSendMultipleEntry(
-                  createMessage(record, useCorrelationKeyLatency, deliveryMode),
+                  createMessage(record, useCorrelationKeyLatency, deliveryMode, resultsQueue),
                   destinationFn.apply(record));
       entries[i] = entry;
     }
