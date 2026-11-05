@@ -96,6 +96,25 @@ func (ctx *beamCtx) Value(key any) any {
 			} else {
 				// It's not created previously
 				ctx.store.mu.Lock()
+				// Reuse the counterset already registered in this store
+				// for this PTransform, if one exists. Different context
+				// objects for the same transform must share one
+				// counterset: a ParDo invokes Setup with a context
+				// derived from the bundle context, while the bundle
+				// methods use a different derived context, and both
+				// carry the same PTransform ID. If each context got its
+				// own counterset, increments to the same metric would
+				// diverge into different metric objects, and only the
+				// first-registered object would ever be reported --
+				// silently dropping the other increments. See
+				// apache/beam#27038.
+				for _, cs := range ctx.store.css {
+					if cs.pid == ctx.ptransformID {
+						ctx.cs = cs
+						ctx.store.mu.Unlock()
+						return ctx.cs
+					}
+				}
 				cs := &ptCounterSet{
 					pid:           ctx.ptransformID,
 					counters:      make(map[nameHash]*counter),
