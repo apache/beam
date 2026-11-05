@@ -173,6 +173,7 @@
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
+* (Java) IcebergIO now accepts more timestamp string formats: `timestamptz` strings may end with a zone ID such as `UTC` or `America/New_York` (e.g. `2024-10-08 13:18:20.053 UTC`) or have no offset or zone ID (read as UTC), and `timestamp` and `timestamptz` strings may separate the date and time by a `T`, a space, both, or neither ([#41024](https://github.com/apache/beam/issues/41024)).
 
 ## Security Fixes
 
