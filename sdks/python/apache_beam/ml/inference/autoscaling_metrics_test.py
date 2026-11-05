@@ -25,7 +25,7 @@ from apache_beam.ml.inference import autoscaling_metrics
 
 def _publisher(model_identifier='step-id', port=None, **kwargs):
   """A publisher for a fake server exposing ``done_total`` and ``running``."""
-  return autoscaling_metrics.NumLoadedModelsPublisher(
+  return autoscaling_metrics.PrometheusNumLoadedModelsPublisher(
       metrics_port_fn=lambda: port,
       completed_metric='done_total',
       running_metric='running',
@@ -49,10 +49,11 @@ def _published(model_identifier):
 class AutoscalingMetricsTest(unittest.TestCase):
   def test_sanitize_metric_tag(self):
     self.assertEqual(
-        autoscaling_metrics.sanitize_metric_tag('Qwen/Qwen2.5-7B:v1'),
+        autoscaling_metrics._sanitize_metric_tag('Qwen/Qwen2.5-7B:v1'),
         'Qwen_Qwen2_5_7B_v1')
     self.assertEqual(
-        autoscaling_metrics.sanitize_metric_tag('normal_tag_1'), 'normal_tag_1')
+        autoscaling_metrics._sanitize_metric_tag('normal_tag_1'),
+        'normal_tag_1')
 
   def test_parse_prometheus_metric(self):
     prom_text = (
@@ -61,17 +62,17 @@ class AutoscalingMetricsTest(unittest.TestCase):
         'vllm:num_requests_running{model_name="qwen"} 4.0\n'
         'vllm:num_requests_running{model_name="other"} 6.0\n')
     self.assertEqual(
-        autoscaling_metrics.parse_prometheus_metric(
+        autoscaling_metrics._parse_prometheus_metric(
             prom_text,
             'vllm:num_requests_running',
             label_filter={'model_name': 'qwen'}),
         4.0)
     self.assertEqual(
-        autoscaling_metrics.parse_prometheus_metric(
+        autoscaling_metrics._parse_prometheus_metric(
             prom_text, 'vllm:num_requests_running'),
         10.0)
     self.assertIsNone(
-        autoscaling_metrics.parse_prometheus_metric(prom_text, 'vllm:missing'))
+        autoscaling_metrics._parse_prometheus_metric(prom_text, 'vllm:missing'))
 
   def test_parse_prometheus_metric_exposition_details(self):
     prom_text = (
@@ -88,7 +89,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
         'labeled{path="a,b}c",quote="say \\"hi\\"",n="x\\ny"} 7\n'
         '  \n'
         'not a sample line\n')
-    parse = autoscaling_metrics.parse_prometheus_metric
+    parse = autoscaling_metrics._parse_prometheus_metric
     self.assertEqual(parse(prom_text, 'vllm:request_success_total'), 15.0)
     self.assertEqual(parse(prom_text, 'nv_inference_request_success'), 3.0)
     self.assertEqual(
@@ -108,13 +109,13 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
     with mock.patch('urllib.request.urlopen', side_effect=fake_urlopen):
       self.assertEqual(
-          autoscaling_metrics.scrape_prometheus_metrics(8000), 'running 4\n')
+          autoscaling_metrics._scrape_prometheus_metrics(8000), 'running 4\n')
     # Any failure (e.g. the server is restarting) -> None.
     with mock.patch('urllib.request.urlopen', side_effect=OSError('refused')):
-      self.assertIsNone(autoscaling_metrics.scrape_prometheus_metrics(8000))
+      self.assertIsNone(autoscaling_metrics._scrape_prometheus_metrics(8000))
 
   def test_capacity_estimator(self):
-    estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+    estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
         multiplier=2.0, min_value=1, window_secs=60.0, running_percentile=90.0)
     # First sample establishes baseline -> None.
     self.assertIsNone(estimator.update(10.0, 4.0, now=100.0))
@@ -123,7 +124,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertAlmostEqual(estimator.update(30.0, 4.0, now=105.0), 8.0)
 
   def test_capacity_estimator_skips_counter_reset_and_clock_skew(self):
-    estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+    estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
         window_secs=60.0, min_requests=0)
     self.assertIsNone(estimator.update(50.0, 2.0, now=100.0))
     # Counter went down (server restart) -> skipped, new baseline.
@@ -137,7 +138,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_capacity_estimator_running_percentile(self):
     def run(running_percentile):
-      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+      estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
           min_value=0, min_requests=0, running_percentile=running_percentile)
       estimator.update(0.0, 1.0, now=0.0)
       # Ten 1s intervals with 1..10 in flight, each completing as many
@@ -152,7 +153,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_capacity_estimator_warmup_min_requests_and_timeout(self):
     # Requires >= 3 completed requests before the 10s warmup timeout.
-    estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+    estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_requests=3, warmup_timeout_secs=10.0)
     self.assertIsNone(estimator.update(0.0, 2.0, now=100.0))  # Baseline.
     # 1 completion (< 3) at elapsed=5s (< 10s) -> None.
@@ -161,7 +162,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     # (4 / (2*5 + 2*3)) * 2 = 0.5 -> clamped to min_value=1.0.
     self.assertAlmostEqual(estimator.update(4.0, 2.0, now=108.0), 1.0)
 
-    slow = autoscaling_metrics.CompletionRateCapacityEstimator(
+    slow = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_requests=3, warmup_timeout_secs=10.0)
     self.assertIsNone(slow.update(0.0, 1.0, now=100.0))  # Baseline.
     # 1 completion (< 3) at elapsed=5s -> None.
@@ -170,7 +171,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertAlmostEqual(slow.update(2.0, 1.0, now=110.0), 1.0)
 
   def test_capacity_estimator_skips_idle_ticks_without_diluting_p90(self):
-    estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+    estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
         multiplier=1.0,
         min_value=1,
         window_secs=60.0,
@@ -190,7 +191,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
   def test_capacity_estimator_no_estimate_until_a_request_completes(self):
     """In-flight requests with no completions never report the floor."""
     # Slow first requests: still nothing completed after the warmup timeout.
-    slow = autoscaling_metrics.CompletionRateCapacityEstimator(
+    slow = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_requests=3, warmup_timeout_secs=10.0)
     self.assertIsNone(slow.update(0.0, 4.0, now=100.0))  # Baseline.
     for t in (105.0, 110.0, 115.0):
@@ -201,7 +202,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     # First poll after an idle period longer than the window: the earlier
     # samples have left the window and the new requests haven't finished yet.
     for aggregation in ('concurrency', 'window_mean', 'window_max'):
-      resumed = autoscaling_metrics.CompletionRateCapacityEstimator(
+      resumed = autoscaling_metrics._CompletionRateCapacityEstimator(
           min_value=1,
           window_secs=10.0,
           min_requests=0,
@@ -213,7 +214,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
       self.assertIsNone(resumed.update(20.0, 3.0, now=25.0), aggregation)
 
     # lifetime_max keeps reporting its peak.
-    peak = autoscaling_metrics.CompletionRateCapacityEstimator(
+    peak = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_value=1,
         window_secs=10.0,
         min_requests=0,
@@ -224,7 +225,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
     self.assertEqual(peak.update(20.0, 3.0, now=25.0), 4.0)
 
   def test_capacity_estimator_defaults_to_monotonic_clock(self):
-    estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+    estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_requests=0)
     with mock.patch.object(autoscaling_metrics.time,
                            'monotonic',
@@ -235,7 +236,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
   def test_capacity_estimator_completion_rate_aggregations(self):
     """The completion-rate modes ignore concurrency."""
     def run(aggregation, **kwargs):
-      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+      estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
           min_value=0,
           min_requests=0,
           window_secs=60.0,
@@ -255,7 +256,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_capacity_estimator_max_modes_differ_once_peak_leaves_window(self):
     def run(aggregation, window_secs=10.0):
-      estimator = autoscaling_metrics.CompletionRateCapacityEstimator(
+      estimator = autoscaling_metrics._CompletionRateCapacityEstimator(
           min_value=0,
           min_requests=0,
           window_secs=window_secs,
@@ -273,9 +274,9 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_capacity_estimator_completion_rate_works_without_in_flight(self):
     """A server whose gauge always reads 0 still gets a completion rate."""
-    concurrency = autoscaling_metrics.CompletionRateCapacityEstimator(
+    concurrency = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_requests=0)
-    rate = autoscaling_metrics.CompletionRateCapacityEstimator(
+    rate = autoscaling_metrics._CompletionRateCapacityEstimator(
         min_value=0, min_requests=0, aggregation='window_mean')
     for estimator in (concurrency, rate):
       estimator.update(0, 0, now=0.0)
@@ -284,7 +285,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_capacity_estimator_rejects_unknown_aggregation(self):
     with self.assertRaises(ValueError):
-      autoscaling_metrics.CompletionRateCapacityEstimator(aggregation='p90')
+      autoscaling_metrics._CompletionRateCapacityEstimator(aggregation='p90')
 
   def test_publisher_publishes_signal_values_as_is(self):
     """Each capacity is published rounded; None or an error skips the tick."""
@@ -356,7 +357,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
 
   def test_publisher_for_same_tag_supersedes_previous(self):
     """A reloaded model's publisher takes over its tag from the stale one."""
-    active = autoscaling_metrics.NumLoadedModelsPublisher._active
+    active = autoscaling_metrics.PrometheusNumLoadedModelsPublisher._active
     fast = autoscaling_metrics.AutoscalingMetricConfig(poll_interval_secs=0.01)
     first = _publisher('reload', config=fast)
     second = _publisher('reload', config=fast)
@@ -428,7 +429,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
   def test_publisher_reads_server_capacity(self):
     """The handler supplies metric names and a port; the rest is built in."""
     port = [None]
-    publisher = autoscaling_metrics.NumLoadedModelsPublisher(
+    publisher = autoscaling_metrics.PrometheusNumLoadedModelsPublisher(
         metrics_port_fn=lambda: port[0],
         completed_metric='done_total',
         running_metric='running',
@@ -476,7 +477,7 @@ class AutoscalingMetricsTest(unittest.TestCase):
         'running{model="a"} 2\nrunning{model="b"} 50\n',
     ]
     with mock.patch.object(autoscaling_metrics,
-                           'scrape_prometheus_metrics',
+                           '_scrape_prometheus_metrics',
                            side_effect=lambda port: scrapes.pop(0)):
       with mock.patch.object(autoscaling_metrics.time,
                              'monotonic',

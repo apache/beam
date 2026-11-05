@@ -25,12 +25,20 @@ model copies there. A handler that serves inference through an out-of-process
 model server (vLLM, Triton, ...) always has exactly one copy per worker, so it
 publishes an estimate of the worker's capacity under that metric instead.
 
-Nothing here depends on a particular model server. A handler for a model server
-that exposes a completed-requests counter and an in-flight gauge creates a
-:class:`NumLoadedModelsPublisher`, supplying only what it knows: the two metric
-names, how to find the server's port, and the RunInference model identifier::
+:class:`PrometheusNumLoadedModelsPublisher` reads the server's metrics over
+HTTP, so the server must:
 
-  publisher = NumLoadedModelsPublisher(
+* run on the same worker as the handler and serve the Prometheus text format
+  at ``http://localhost:<port>/metrics``;
+* export a counter of completed requests (monotonically increasing, reset only
+  when the server restarts), e.g. vLLM's ``vllm:request_success_total``; and
+* export a gauge of the requests currently in flight, e.g. vLLM's
+  ``vllm:num_requests_running``.
+
+A handler for such a server (vLLM, for example) supplies only the two metric
+names, a way to find the port, and the RunInference model identifier::
+
+  publisher = PrometheusNumLoadedModelsPublisher(
       metrics_port_fn=lambda: server.port if server.is_up else None,
       completed_metric='vllm:request_success_total',
       running_metric='vllm:num_requests_running',
@@ -39,15 +47,12 @@ names, how to find the server's port, and the RunInference model identifier::
       config=autoscaling_config)  # An AutoscalingMetricConfig, or None.
   publisher.start()  # Once the server is reachable; publisher.stop() at exit.
 
-The pieces:
+If the server exports different metrics,
+``AutoscalingMetricConfig.load_signal_fn`` can replace the scrape and the
+estimate: it is given the server's port and returns the capacity directly.
 
-* :class:`NumLoadedModelsPublisher` reads the server, estimates its capacity
-  and publishes it from a background thread.
-* :class:`CompletionRateCapacityEstimator` is the estimate itself: pure
-  computation on the counter and the gauge, no I/O.
-* :class:`AutoscalingMetricConfig` holds the user-facing knobs. Plain data.
-* :func:`scrape_prometheus_metrics` and :func:`parse_prometheus_metric` read a
-  server's Prometheus ``/metrics`` endpoint.
+The public API is :class:`PrometheusNumLoadedModelsPublisher` and
+:class:`AutoscalingMetricConfig`; everything else is an implementation detail.
 """
 
 # pytype: skip-file
@@ -68,11 +73,7 @@ from apache_beam.metrics.metricbase import MetricName
 
 __all__ = [
     'AutoscalingMetricConfig',
-    'CompletionRateCapacityEstimator',
-    'NumLoadedModelsPublisher',
-    'parse_prometheus_metric',
-    'sanitize_metric_tag',
-    'scrape_prometheus_metrics',
+    'PrometheusNumLoadedModelsPublisher',
 ]
 
 # The metric the runner reads (shared with model_manager.py).
@@ -90,7 +91,7 @@ DEFAULT_RUNNING_PERCENTILE = 90.0
 DEFAULT_MIN_REQUESTS = 3
 DEFAULT_WARMUP_TIMEOUT_SECS = 10.0
 
-# How CompletionRateCapacityEstimator turns its samples into an estimate.
+# How _CompletionRateCapacityEstimator turns its samples into an estimate.
 CONCURRENCY = 'concurrency'
 WINDOW_MEAN = 'window_mean'
 WINDOW_MAX = 'window_max'
@@ -109,7 +110,7 @@ _PROMETHEUS_LABEL_RE = re.compile(
 _PROMETHEUS_ESCAPE_RE = re.compile(r'\\(.)')
 
 
-def sanitize_metric_tag(name: str) -> str:
+def _sanitize_metric_tag(name: str) -> str:
   """Turns a model name into a metric-tag-safe token.
 
   Only used for the fallback tag of handlers running outside RunInference; the
@@ -124,7 +125,7 @@ def sanitize_metric_tag(name: str) -> str:
   return ''.join(c if (c.isalnum() or c == '_') else '_' for c in name)
 
 
-def scrape_prometheus_metrics(
+def _scrape_prometheus_metrics(
     port: int,
     timeout_secs: float = 5.0,
     path: str = '/metrics') -> Optional[str]:
@@ -158,7 +159,7 @@ def _parse_prometheus_labels(label_str: str) -> dict[str, str]:
   }
 
 
-def parse_prometheus_metric(
+def _parse_prometheus_metric(
     metrics_text: str,
     metric_name: str,
     label_filter: Optional[Mapping[str, str]] = None,
@@ -210,7 +211,7 @@ class _Interval(NamedTuple):
   secs: float  # Length of the interval.
 
 
-class CompletionRateCapacityEstimator:
+class _CompletionRateCapacityEstimator:
   """Estimates how many requests a worker can handle.
 
   Feed it periodic samples of a model server's completed-requests counter and
@@ -394,9 +395,16 @@ class AutoscalingMetricConfig:
     min_requests: Completions a newly started worker needs before it
       publishes, unless ``warmup_timeout_secs`` passes first.
     warmup_timeout_secs: Longest time a new worker waits for ``min_requests``.
-    aggregation: How the estimate is computed: ``'concurrency'`` (default),
-      ``'window_mean'``, ``'window_max'`` or ``'lifetime_max'``. See
-      :class:`CompletionRateCapacityEstimator`.
+    aggregation: How the estimate, in requests per second, is computed:
+
+      * ``'concurrency'`` (default): per-slot throughput over the window times
+        the p90 in-flight concurrency. Holds steady when a worker is briefly
+        starved; suits servers with request latencies of a second or more.
+      * ``'window_mean'``: completions per second over the window.
+      * ``'window_max'``: the highest single-interval completion rate in the
+        window.
+      * ``'lifetime_max'``: the highest single-interval completion rate seen
+        so far; never decays.
     load_signal_fn: Optional replacement for the built-in estimate: given the
       server's metrics port, returns the capacity directly.
     tag: Optional metric tag override. Leave unset so the RunInference model
@@ -414,12 +422,18 @@ class AutoscalingMetricConfig:
   tag: Optional[str] = None
 
 
-class NumLoadedModelsPublisher:
-  """Publishes a model server's capacity as ``num_loaded_models_<tag>``.
+class PrometheusNumLoadedModelsPublisher:
+  """Publishes a Prometheus model server's capacity for autoscaling.
 
-  Every ``poll_interval_secs`` a daemon thread reads the server's Prometheus
-  ``/metrics`` endpoint, feeds the two metrics to a
-  :class:`CompletionRateCapacityEstimator`, and writes the estimate, rounded
+  The capacity is published as ``num_loaded_models_<tag>``.
+
+  The server must meet the requirements in the module docstring: a Prometheus
+  text-format ``/metrics`` endpoint on ``localhost`` exporting a
+  completed-requests counter and an in-flight gauge.
+
+  Every ``poll_interval_secs`` a daemon thread reads that endpoint, feeds the
+  two metrics to a
+  capacity estimator, and writes the estimate, rounded
   to an int, to the process-wide distribution the runner reads. If
   ``config.load_signal_fn`` is set, it replaces the scrape and the estimate.
 
@@ -434,8 +448,8 @@ class NumLoadedModelsPublisher:
   The metric tag is ``config.tag`` if set; else ``model_identifier``, used
   verbatim because it must equal the identifier RunInference annotates the
   step with (see ``ModelHandler.set_model_identifier``); else ``model_name``
-  passed through :func:`sanitize_metric_tag`, for handlers used outside
-  RunInference.
+  with characters outside ``[A-Za-z0-9_]`` replaced by ``_``, for handlers
+  used outside RunInference.
 
   Args:
     metrics_port_fn: Returns the port serving ``/metrics`` while the server is
@@ -456,7 +470,7 @@ class NumLoadedModelsPublisher:
   """
   # The publisher owning each metric name in this process, so a reloaded
   # model's publisher can supersede the stale one.
-  _active: dict[str, 'NumLoadedModelsPublisher'] = {}
+  _active: dict[str, 'PrometheusNumLoadedModelsPublisher'] = {}
   _active_lock = threading.Lock()
 
   def __init__(
@@ -471,7 +485,7 @@ class NumLoadedModelsPublisher:
       label_filter: Optional[Mapping[str, str]] = None,
   ):
     config = config or AutoscalingMetricConfig()
-    tag = config.tag or model_identifier or sanitize_metric_tag(model_name)
+    tag = config.tag or model_identifier or _sanitize_metric_tag(model_name)
     if not tag:
       raise ValueError(
           'Cannot derive a num_loaded_models tag: pass a model_identifier, a '
@@ -483,7 +497,7 @@ class NumLoadedModelsPublisher:
     self._label_filter = dict(label_filter) if label_filter else None
     self._load_signal_fn = config.load_signal_fn
     self._poll_interval_secs = config.poll_interval_secs
-    self._estimator = CompletionRateCapacityEstimator(
+    self._estimator = _CompletionRateCapacityEstimator(
         multiplier=config.multiplier,
         window_secs=config.signal_window_secs,
         min_requests=config.min_requests,
@@ -501,9 +515,10 @@ class NumLoadedModelsPublisher:
     """
     if self._thread is not None or self._stop_event.is_set():
       return
-    with NumLoadedModelsPublisher._active_lock:
-      previous = NumLoadedModelsPublisher._active.get(self._metric_name)
-      NumLoadedModelsPublisher._active[self._metric_name] = self
+    with PrometheusNumLoadedModelsPublisher._active_lock:
+      previous = PrometheusNumLoadedModelsPublisher._active.get(
+          self._metric_name)
+      PrometheusNumLoadedModelsPublisher._active[self._metric_name] = self
     if previous is not None and previous is not self:
       logging.info(
           'Replacing the active publisher for %s (model reload or server '
@@ -522,9 +537,10 @@ class NumLoadedModelsPublisher:
     further downscales. The drained worker's value ages out instead.
     """
     self._stop_event.set()
-    with NumLoadedModelsPublisher._active_lock:
-      if NumLoadedModelsPublisher._active.get(self._metric_name) is self:
-        del NumLoadedModelsPublisher._active[self._metric_name]
+    with PrometheusNumLoadedModelsPublisher._active_lock:
+      if PrometheusNumLoadedModelsPublisher._active.get(
+          self._metric_name) is self:
+        del PrometheusNumLoadedModelsPublisher._active[self._metric_name]
     thread = self._thread
     if thread is not None:
       thread.join(timeout=self._poll_interval_secs + 5)
@@ -549,12 +565,12 @@ class NumLoadedModelsPublisher:
       return None  # The server is not up.
     if self._load_signal_fn is not None:
       return self._load_signal_fn(port)
-    text = scrape_prometheus_metrics(port)
+    text = _scrape_prometheus_metrics(port)
     if text is None:
       return None
-    completed = parse_prometheus_metric(
+    completed = _parse_prometheus_metric(
         text, self._completed_metric, self._label_filter)
-    running = parse_prometheus_metric(
+    running = _parse_prometheus_metric(
         text, self._running_metric, self._label_filter)
     if completed is None or running is None:
       return None
