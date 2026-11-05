@@ -187,10 +187,12 @@ def test_pubsub_read(
 
   if topic == 'test-topic':
     pubsub_messages = PUBSUB_TOPICS['test-topic']
+    schema = RowTypeConstraint.from_fields([('label', str), ('rank', int)])
     return (
         pcoll
         | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
-        | beam.Map(lambda element: beam.Row(**element)))
+        |
+        beam.Map(lambda element: beam.Row(**element)).with_output_types(schema))
   elif topic == 'taxi-ride-topic':
     pubsub_messages = PUBSUB_TOPICS['taxi-ride-topic']
     schema = input_data.TaxiRideEventSchema
@@ -686,7 +688,8 @@ def _kafka_test_preprocessor(
     'test_bigquery_write_yaml',
     'test_mongodb_to_bigquery_yaml',
     'test_gcs_avro_to_cloud_bigtable_yaml',
-    'test_bigquery_to_bigtable_yaml'
+    'test_bigquery_to_bigtable_yaml',
+    'test_pubsub_to_splunk_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -961,7 +964,8 @@ def _enrichment_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_pubsub_topic_to_bigquery_yaml',
     'test_pubsub_subscription_to_bigquery_yaml',
-    'test_pubsub_to_iceberg_yaml'
+    'test_pubsub_to_iceberg_yaml',
+    'test_pubsub_to_splunk_yaml'
 ])
 def _pubsub_io_read_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
