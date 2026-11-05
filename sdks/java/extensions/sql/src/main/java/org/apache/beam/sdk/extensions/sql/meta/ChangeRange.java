@@ -49,7 +49,10 @@ public abstract class ChangeRange implements Serializable {
     return new AutoValue_ChangeRange(start, end, null, null);
   }
 
-  /** The changes between two timestamps, either of which may be open (null). */
+  /**
+   * The changes between two timestamps, either of which may be open (null). In SQL, a timestamp
+   * bound is an ISO 8601 string or a TIMESTAMP literal. The default offset is UTC.
+   */
   public static ChangeRange timestamps(@Nullable Instant start, @Nullable Instant end) {
     return new AutoValue_ChangeRange(null, null, start, end);
   }

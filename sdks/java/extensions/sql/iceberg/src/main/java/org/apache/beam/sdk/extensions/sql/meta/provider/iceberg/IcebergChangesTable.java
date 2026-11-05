@@ -50,6 +50,10 @@ import org.joda.time.Instant;
  * The changes of an Iceberg table, for a {@code CHANGES(...)} call, read through {@link
  * Managed#ICEBERG_CDC}. Rows carry their change kind as their {@code ValueKind}, and the {@code
  * include_metadata_columns} option appends metadata columns.
+ *
+ * <p>The range becomes the CDC read's {@code from_snapshot} and {@code to_snapshot}, or its {@code
+ * from_timestamp} and {@code to_timestamp}. The read checks them against the table when the
+ * pipeline is built.
  */
 class IcebergChangesTable extends SchemaBaseBeamTable {
   private static final Schema READ_CONFIG_SCHEMA =

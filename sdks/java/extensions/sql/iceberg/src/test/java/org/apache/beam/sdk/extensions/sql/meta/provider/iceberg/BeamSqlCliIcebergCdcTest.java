@@ -164,6 +164,8 @@ public class BeamSqlCliIcebergCdcTest {
                     second, second),
                 SECOND_COMMIT)
             .put(format("CHANGES(orders, end_timestamp => '%s')", first), FIRST_COMMIT)
+            .put("CHANGES(orders, '2999-01-01')", ImmutableList.of())
+            .put("CHANGES(orders, NULL, '2000-01-01')", ImmutableList.of())
             .build();
 
     assertThat(rows("SELECT * FROM orders"), containsInAnyOrder("1:a:15", "2:bb:20", "4:d:8"));
@@ -183,6 +185,13 @@ public class BeamSqlCliIcebergCdcTest {
                     + " WITH ('starting_strategy' = 'latest', %s)",
                 secondVersion, CHANGE_TYPE)),
         containsInAnyOrder(SECOND_COMMIT.toArray()));
+    RuntimeException reversed =
+        assertThrows(
+            RuntimeException.class,
+            () -> rows(format("SELECT * FROM CHANGES(orders, '%s', '%s')", second, first)));
+    assertThat(
+        Throwables.getStackTraceAsString(reversed),
+        containsString("'from_timestamp' must not be later than 'to_timestamp'"));
   }
 
   @Test
