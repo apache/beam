@@ -302,7 +302,8 @@ public class IcebergUtilsTest {
               "2024-10-08 09:51:20.053 UTC",
               "2024-10-08T09:51:20.053 UTC",
               "2024-10-08 05:51:20.053 America/New_York",
-              "2024-10-08 13:18:20.053 +03:27")) {
+              "2024-10-08 13:18:20.053 +03:27",
+              "2024-10-08 09:51:20.053 Z")) {
         checkRowValueToRecordValue(
             Schema.FieldType.STRING,
             zoned,
