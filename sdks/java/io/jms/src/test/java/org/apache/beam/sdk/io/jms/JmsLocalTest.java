@@ -35,6 +35,7 @@ import jakarta.jms.Queue;
 import jakarta.jms.Session;
 import java.io.IOException;
 import java.io.NotSerializableException;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
@@ -170,7 +172,51 @@ public class JmsLocalTest {
     assertEquals(0, activeCheckpoints.get());
   }
 
-  /** Test the checkpoint mark default coder, which is actually AvroCoder. */
+  @Test
+  public void testRestoredCheckpointMarkAcknowledgesLiveMessages() throws Exception {
+    Message msg = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg);
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(
+            null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
+    long live = JmsCheckpointMark.liveCheckpointCount();
+
+    // encode/decode drops the transient state, as when a runner restores the mark
+    Coder<JmsCheckpointMark> coder =
+        new JmsIO.UnboundedJmsSource<JmsRecord>(null).getCheckpointMarkCoder();
+    JmsCheckpointMark restored = CoderUtils.clone(coder, mark);
+    assertNull(restored.getMessages());
+
+    restored.finalizeCheckpoint();
+
+    Mockito.verify(msg, Mockito.times(1)).acknowledge();
+    assertEquals(0, activeCheckpoints.get());
+    assertEquals(live - 1, JmsCheckpointMark.liveCheckpointCount());
+  }
+
+  /** A checkpoint mark encoded by the checkpoint mark coder before marks had an id. */
+  private static final String CHECKPOINT_MARK_WITHOUT_ID =
+      "rO0ABXNyACxvcmcuYXBhY2hlLmJlYW0uc2RrLmlvLmptcy5KbXNDaGVja3BvaW50TWFya/wuL07g0x5MAgAB"
+          + "TAAWb2xkZXN0TWVzc2FnZVRpbWVzdGFtcHQAF0xvcmcvam9kYS90aW1lL0luc3RhbnQ7eHBzcgAVb3JnLmpv"
+          + "ZGEudGltZS5JbnN0YW50Lci+0MYOnM0CAAFKAAdpTWlsbGlzeHAAAAGLz+VoAA==";
+
+  @Test
+  public void testDecodeCheckpointMarkWithoutId() throws Exception {
+    Coder<JmsCheckpointMark> coder =
+        new JmsIO.UnboundedJmsSource<JmsRecord>(null).getCheckpointMarkCoder();
+    JmsCheckpointMark restored =
+        CoderUtils.decodeFromByteArray(
+            coder, Base64.getDecoder().decode(CHECKPOINT_MARK_WITHOUT_ID));
+    assertNull(restored.getMessages());
+
+    // nothing to acknowledge, and a missing id must not break finalization
+    restored.finalizeCheckpoint();
+  }
+
+  /** Test the checkpoint mark default coder, which is SerializableCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
     JmsCheckpointMark jmsCheckpointMark =
