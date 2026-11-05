@@ -31,9 +31,11 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -144,6 +146,14 @@ public class PAssertStreamingTest implements Serializable {
   public void testCreateMultipleElements() throws Exception {
     PCollection<String> out = pipeline.apply(Create.of("one", "two", "three"));
     PAssert.that(out).containsInAnyOrder("one", "two", "three");
+    pipeline.run(options());
+  }
+
+  @Test
+  public void testFlattenSameSource() throws Exception {
+    PCollection<String> in = pipeline.apply(Create.of("one", "two", "three"));
+    PCollection<String> out = PCollectionList.of(in).and(in).apply(Flatten.pCollections());
+    PAssert.that(out).containsInAnyOrder("one", "one", "two", "two", "three", "three");
     pipeline.run(options());
   }
 }

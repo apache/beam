@@ -268,41 +268,43 @@ def temp_bigquery_table(
   table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  if table_schema:
-    schema = get_table_schema_from_string(table_schema)
-    additional_create_parameters = None
-    if primary_key:
-      pk_columns = set(primary_key)
-      for field in schema.fields:
-        if field.name in pk_columns:
-          field.mode = 'REQUIRED'
-      additional_create_parameters = {
-          'tableConstraints': bigquery.TableConstraints(
-              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
-                  columns=list(primary_key)))
-      }
-    bigquery_client.get_or_create_table(
-        project_id=project,
-        dataset_id=dataset_id,
-        table_id=table_id,
-        schema=schema,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_APPEND',
-        additional_create_parameters=additional_create_parameters)
-    logging.info(
-        "Created table %s.%s.%s (primary_key=%s)",
-        project,
-        dataset_id,
-        table_id,
-        primary_key)
-  if use_colon_table_spec:
-    yield f'{project}:{dataset_id}.{table_id}'
-  else:
-    yield f'{project}.{dataset_id}.{table_id}'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):

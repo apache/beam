@@ -91,8 +91,9 @@ applyJavaNature(
 # Check formatting
 ./gradlew spotlessCheck
 
-# Format CHANGES.md
+# Format and validate CHANGES.md
 ./gradlew formatChanges
+./gradlew validateChanges
 ```
 
 ### Publishing

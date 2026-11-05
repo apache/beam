@@ -329,6 +329,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			if stage.stateful {
 				em.StageStateful(stage.ID, stage.stateTypeLen)
 			}
+			if stage.timeSortedInput {
+				em.StageRequiresTimeSortedInput(stage.ID, stage.timeSortedAllowedLateness)
+			}
 			if stage.onWindowExpiration.TimerFamily != "" {
 				slog.Debug("OnWindowExpiration", slog.String("stage", stage.ID), slog.Any("values", stage.onWindowExpiration))
 				em.StageOnWindowExpiration(stage.ID, stage.onWindowExpiration)
