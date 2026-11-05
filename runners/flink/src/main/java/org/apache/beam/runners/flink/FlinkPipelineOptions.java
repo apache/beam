@@ -380,8 +380,8 @@ public interface FlinkPipelineOptions
   @Description(
       "Batch only. Decode the values of records sent to GroupByKey and Combine operators lazily, "
           + "so that records are passed from the network to Flink's sorter without decoding and "
-          + "re-encoding their values. Has no effect in streaming mode. "
-          + "Enabled by default; set to false to disable.")
+          + "re-encoding their values. Has no effect in streaming mode, nor in batch mode unless "
+          + "--useDataStreamForBatch is set. Enabled by default; set to false to disable.")
   @Default.Boolean(true)
   Boolean getLazyBatchGroupingInputs();
 
