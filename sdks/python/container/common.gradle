@@ -66,7 +66,8 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
     if ("${project.ext.pythonVersion}" != "3.13" && "${project.ext.pythonVersion}" != "3.14") {
       // GPU requirements not used for any containers directly due to
       // licensing, but can be picked up by customers or other consumers for
-      // use.
+      // use. This list excludes the vllm extra because vLLM pins a torch version
+      // above the cap in the transformers extra. Install vLLM with that extra.
       exec {
         executable 'sh'
         args '-c', "cd ${rootDir} && ${runScriptsPath} " +
@@ -74,7 +75,7 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
                 "${files(configurations.sdkSourceTarball.files).singleFile} " +
                 "gpu_image_requirements.txt " +
                 "container/ml " +
-                "[gcp,dataframe,test,tensorflow,tfrecord,torch,transformers,vllm] " +
+                "[gcp,dataframe,test,tensorflow,tfrecord,torch,transformers] " +
                 "${pipExtraOptions}"
       }
     }
