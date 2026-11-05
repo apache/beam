@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -31,6 +33,8 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.types.Types;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -108,11 +112,21 @@ public class IcebergMetastoreTest {
     String tableName = "uncached_table";
     catalog.catalogConfig.createTable(
         catalog.currentDatabase() + "." + tableName, Schema.of(), null, null);
+    // Listing skips a table whose schema Beam can't convert, but loading it by name still fails.
+    catalog
+        .catalogConfig
+        .catalog()
+        .buildTable(
+            TableIdentifier.of(catalog.currentDatabase(), "unknown_table"),
+            new org.apache.iceberg.Schema(optional(1, "c", Types.UnknownType.get())))
+        .withProperty("format-version", "3")
+        .create();
 
     Map<String, Table> tables = metastore().getTables();
 
     assertEquals(ImmutableSet.of(tableName), tables.keySet());
     assertEquals(tableName, tables.get(tableName).getName());
+    assertThrows(RuntimeException.class, () -> metastore().getTable("unknown_table"));
   }
 
   @Test
