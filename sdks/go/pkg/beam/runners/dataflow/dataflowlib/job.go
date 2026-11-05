@@ -37,7 +37,10 @@ import (
 )
 
 // JobOptions capture the various options for submitting jobs
-// to Dataflow.
+// to Dataflow. When adding a new option that is also read from
+// sdk_pipeline_options.options (by the Dataflow service, worker harness,
+// Managed Transforms, or cross-language SDK harnesses), also add it to
+// dataflowOptions and populate it in Translate.
 type JobOptions struct {
 	// Name is the job name.
 	Name string
@@ -366,9 +369,12 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
 }
 
-// dataflowOptions provides Dataflow with non Go-specific pipeline options. These are the only
-// pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
-// needed for cross-language transforms in Dataflow must be declared here.
+// dataflowOptions provides Dataflow with non Go-specific pipeline options in
+// sdk_pipeline_options.options. These are the only pipeline options read by
+// cross-language SDK harnesses, Dataflow Managed Transforms expansion, and
+// Dataflow worker harness / provisioning components that inspect top-level
+// sdk_pipeline_options.options rather than beam:option:go_options:v1.
+// Any field added here must also be populated in Translate above.
 type dataflowOptions struct {
 	Experiments                    []string `json:"experiments,omitempty"`
 	DataflowServiceOptions         []string `json:"dataflowServiceOptions,omitempty"`
