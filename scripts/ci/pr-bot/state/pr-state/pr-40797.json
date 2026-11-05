@@ -1,7 +1,7 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "spanner": "nielm"
+    "java": "kennknowles"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
