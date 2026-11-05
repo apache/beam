@@ -42,7 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWriteResult> {
-  private static final long DEFAULT_BYTES_PER_FILE = (1L << 29); // 512mb
+  static final long DEFAULT_BYTES_PER_FILE = (1L << 29); // 512mb
   private final IcebergCatalogConfig catalogConfig;
   private final DynamicDestinations dynamicDestinations;
   private final @Nullable Duration triggeringFrequency;
