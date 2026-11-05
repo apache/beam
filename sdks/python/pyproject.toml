@@ -34,7 +34,7 @@ requires = [
     "numpy>=1.23.2,<2.6.0; python_version >= '3.12'", # Update setup.py as well.
     "numpy>=1.23.2,<2.5.0; python_version < '3.12'",
     # having cython here will create wheels that are platform dependent.
-    "cython>=3.2.6,<4",
+    "cython>=3.3.1,<4",
     ## deps for generating external transform wrappers:
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
     'pyyaml>=3.12,<7.0.0',
