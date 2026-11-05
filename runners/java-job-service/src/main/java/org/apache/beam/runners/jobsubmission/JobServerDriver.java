@@ -73,7 +73,11 @@ public abstract class JobServerDriver implements Runnable {
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
-    @Option(name = "--job-host", usage = "The job server host name")
+    @Option(
+        name = "--job-host",
+        usage =
+            "The host name or address that the job server listens on. To accept connections from"
+                + " other hosts, use 0.0.0.0.")
     private String host = "localhost";
 
     @Option(
