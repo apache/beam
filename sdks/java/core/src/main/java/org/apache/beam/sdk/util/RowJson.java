@@ -321,7 +321,9 @@ public class RowJson {
       }
 
       if (fieldValue.typeName().isLogicalType()) {
-        String identifier = fieldValue.type().getLogicalType().getIdentifier();
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldValue.type().getLogicalType();
+        String identifier = logicalType.getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           return dateValueExtractor().extractValue(fieldValue.jsonValue());
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -329,11 +331,10 @@ public class RowJson {
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           return localDatetimeValueExtractor().extractValue(fieldValue.jsonValue());
         } else {
-          return extractJsonNodeValue(
-              FieldValue.of(
-                  fieldValue.name(),
-                  fieldValue.type().getLogicalType().getBaseType(),
-                  fieldValue.jsonValue()));
+          return logicalType.toInputType(
+              extractJsonNodeValue(
+                  FieldValue.of(
+                      fieldValue.name(), logicalType.getBaseType(), fieldValue.jsonValue())));
         }
       }
 
@@ -602,7 +603,9 @@ public class RowJson {
           gen.writeEndObject();
           break;
         case LOGICAL_TYPE:
-          String identifier = type.getLogicalType().getIdentifier();
+          Schema.LogicalType<Object, Object> logicalType =
+              (Schema.LogicalType<Object, Object>) type.getLogicalType();
+          String identifier = logicalType.getIdentifier();
           if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
             gen.writeString(((LocalDate) value).toString()); // ISO 8601 format
           } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -610,7 +613,7 @@ public class RowJson {
           } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
             gen.writeString(((LocalDateTime) value).toString()); // ISO 8601 format
           } else {
-            writeValue(gen, type.getLogicalType().getBaseType(), value);
+            writeValue(gen, logicalType.getBaseType(), logicalType.toBaseType(value));
           }
           break;
         default:

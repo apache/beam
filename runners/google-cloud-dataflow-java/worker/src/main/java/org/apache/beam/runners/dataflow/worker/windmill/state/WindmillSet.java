@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -110,7 +109,7 @@ public class WindmillSet<K> extends SimpleWindmillState implements SetState<K> {
 
     @Override
     public Boolean read() {
-      return Optional.ofNullable(putState.read()).orElse(false);
+      return putState.read() == null;
     }
 
     @Override

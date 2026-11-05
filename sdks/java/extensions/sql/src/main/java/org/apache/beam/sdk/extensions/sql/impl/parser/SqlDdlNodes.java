@@ -19,13 +19,20 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
@@ -139,6 +146,43 @@ public class SqlDdlNodes {
     }
 
     return builder.build();
+  }
+
+  /**
+   * Checks that {@code table} supports primary keys and that each of {@code primaryKey} is a column
+   * of the table, listed once.
+   */
+  static void checkPrimaryKey(TableProvider provider, Table table, List<String> primaryKey) {
+    checkArgument(
+        provider.supportsPrimaryKey(table),
+        "Invalid use of 'PRIMARY KEY': Table '%s' of type '%s' does not support primary keys.",
+        table.getName(),
+        table.getType());
+    Set<String> seen = new HashSet<>();
+    for (String column : primaryKey) {
+      checkArgument(
+          table.getSchema().hasField(column),
+          "PRIMARY KEY column '%s' is not a column of table '%s'.",
+          column,
+          table.getName());
+      checkArgument(seen.add(column), "PRIMARY KEY column '%s' is listed more than once.", column);
+    }
+  }
+
+  /**
+   * The parse error for a {@code PRIMARY KEY} declared without {@code NOT ENFORCED}. Beam SQL never
+   * checks that key values are unique, so {@code NOT ENFORCED} is the only mode it accepts.
+   */
+  public static CalciteContextException enforcedPrimaryKey(SqlParserPos pos) {
+    String message =
+        "Beam SQL doesn't enforce primary keys, so PRIMARY KEY must be declared NOT ENFORCED.";
+    return new CalciteContextException(
+        message,
+        new CalciteException(message, null),
+        pos.getLineNum(),
+        pos.getColumnNum(),
+        pos.getEndLineNum(),
+        pos.getEndColumnNum());
   }
 
   static SqlIdentifier getIdentifier(SqlNode n, SqlParserPos pos) {

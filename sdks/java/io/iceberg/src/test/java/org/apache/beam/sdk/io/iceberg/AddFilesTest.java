@@ -52,12 +52,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -65,6 +68,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -73,6 +77,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -96,6 +101,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
@@ -1086,6 +1092,112 @@ public class AddFilesTest {
     return GenericRecord.create(icebergSchema).copy("id", id, "name", name, "age", age);
   }
 
+  // ---- partition column read from the path (dt=.../)
+
+  private static final Schema WITH_DT =
+      new Schema(
+          Types.NestedField.required(1, "id", Types.IntegerType.get()),
+          Types.NestedField.required(2, "name", Types.StringType.get()),
+          Types.NestedField.required(3, "age", Types.IntegerType.get()),
+          Types.NestedField.required(4, "dt", Types.StringType.get()));
+
+  private void createTablePartitionedByDt() {
+    catalog.createTable(tableId, WITH_DT, PartitionSpec.builderFor(WITH_DT).identity("dt").build());
+  }
+
+  /** Writes a file without a dt column to root/folder/, e.g. root/dt=2024-01-15/. */
+  private String writeUnder(String folder, int id) throws IOException {
+    new File(root + folder).mkdirs();
+    String file = root + folder + "/data" + id + ".parquet";
+    DataWriter<Record> writer = createWriter(file);
+    writer.write(record(id, "n" + id, id));
+    writer.close();
+    return file;
+  }
+
+  private AddFiles addFilesUnderRoot(SchemaEvolutionConfig config) {
+    return new AddFiles(
+        catalogConfig, tableId.toString(), root, null, null, null, null, null, config);
+  }
+
+  /** Files under dt=2024-01-15/ and dt=2024-01-16/ with no dt column; dt reads back from them. */
+  @Test
+  public void testRequiredPartitionColumnFromThePathNeedsNoRelaxation() throws Exception {
+    createTablePartitionedByDt();
+    String first = writeUnder("dt=2024-01-15", 1);
+    String second = writeUnder("dt=2024-01-16", 2);
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(first, second))
+            .apply(addFilesUnderRoot(ADDITIONS));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertTrue("dt stays required", table.schema().findField("dt").isRequired());
+    List<String> rows = new ArrayList<>();
+    try (CloseableIterable<Record> records = IcebergGenerics.read(table).build()) {
+      for (Record record : records) {
+        rows.add(record.getField("id") + " " + record.getField("dt"));
+      }
+    }
+    Collections.sort(rows);
+    assertEquals(Arrays.asList("1 2024-01-15", "2 2024-01-16"), rows);
+  }
+
+  @Test
+  public void testPinnedPartitionColumnFromThePathIsSatisfied() throws Exception {
+    createTablePartitionedByDt();
+    String file = writeUnder("dt=2024-01-15", 1);
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setRequiredColumns(Collections.singleton("dt"))
+            .build();
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(file)).apply(addFilesUnderRoot(pinned));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(1, Iterables.size(catalog.loadTable(tableId).newScan().planFiles()));
+  }
+
+  /** A file directly under the prefix has no dt=... folder, so it alone is refused. */
+  @Test
+  public void testFileWithoutAPathValueForARequiredPartitionColumnIsRefused() throws Exception {
+    createTablePartitionedByDt();
+    String inFolder = writeUnder("dt=2024-01-15", 1);
+    String stray = root + "stray.parquet";
+    DataWriter<Record> writer = createWriter(stray);
+    writer.write(record(2, "n2", 2));
+    writer.close();
+    SchemaEvolutionConfig routed =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setIncompatibleSchemaHandling(
+                SchemaEvolutionConfig.IncompatibleSchemaHandling.ROUTE_TO_ERRORS)
+            .build();
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(inFolder, stray)).apply(addFilesUnderRoot(routed));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              assertEquals(stray, Iterables.getOnlyElement(rows).getString("file"));
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertTrue("dt stays required", table.schema().findField("dt").isRequired());
+    assertEquals(1, Iterables.size(table.newScan().planFiles()));
+  }
+
   // ---- AddFiles with schema evolution
 
   private AddFiles addFiles(@Nullable SchemaEvolutionConfig config) {
@@ -1691,6 +1803,35 @@ public class AddFilesTest {
   }
 
   /**
+   * Manifests and snapshots are sized per key and window, so upstream windowing used to divide
+   * them: two files 45s apart under 30s windows committed two snapshots. Batch input is collapsed
+   * to one window, so one snapshot, and this holds with no pre-pass to need it.
+   */
+  @Test
+  public void testUpstreamWindowedBatchInputWithoutEvolutionCommitsOneSnapshot() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String first = writeOneRecord("first.parquet");
+    String second = writeOneRecord("second.parquet");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply(
+                "Create Input",
+                Create.timestamped(
+                    TimestampedValue.of(first, new Instant(0)),
+                    TimestampedValue.of(second, new Instant(45_000))))
+            .apply("UpstreamWindow", Window.into(FixedWindows.of(Duration.standardSeconds(30))))
+            .apply(addFiles(null));
+    PAssert.that(output.get("errors")).empty();
+
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertEquals(2, Iterables.size(table.newScan().planFiles()));
+    assertEquals(1, Iterables.size(table.snapshots()));
+  }
+
+  /**
    * The schema commit retries a CommitFailedException (another writer got in first). The committer
    * is serialized with the DoFn, so the retry shows in the table and in the time the backoff
    * reports to the runner as throttled.
@@ -1751,13 +1892,26 @@ public class AddFilesTest {
         pipeline
             .apply("Create Input", Create.of(Arrays.asList(files)))
             .apply(
+                "KeyByTable",
+                WithKeys.<String, String>of(tableId.toString())
+                    .withKeyType(TypeDescriptors.strings()))
+            .apply(
                 ParDo.of(
                         new AddFiles.ConvertToDataFile(
-                            catalogConfig, tableId.toString(), null, null, null, null, config))
+                            catalogConfig, false, null, null, null, null, config))
                     .withOutputTags(
                         AddFiles.ConvertToDataFile.DATA_FILES,
                         TupleTagList.of(AddFiles.ConvertToDataFile.ERRORS)));
     out.get(AddFiles.ConvertToDataFile.ERRORS).setRowSchema(AddFiles.ERROR_SCHEMA);
+    try {
+      out.get(AddFiles.ConvertToDataFile.DATA_FILES)
+          .setCoder(
+              KvCoder.of(
+                  StringUtf8Coder.of(),
+                  SchemaRegistry.createDefault().getSchemaCoder(SerializableDataFile.class)));
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
     return out;
   }
 
