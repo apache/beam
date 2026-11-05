@@ -251,6 +251,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
         before loading the model.
     """
     self._env_vars = kwargs.get('env_vars', {})
+    self._model_identifier: Optional[str] = None
 
     _validate_batching_args(
         max_batch_weight=max_batch_weight,
@@ -368,10 +369,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     generated when none was passed). This is the value Dataflow's autoscaler
     uses to find the ``num_loaded_models_<identifier>`` metric for this step,
     and it is stable across side-input model updates, so handlers that publish
-    that metric themselves should tag it with this identifier. The default is
-    a no-op.
+    that metric themselves should tag it with this identifier.
+
+    The default implementation stores the value in ``self._model_identifier``
+    (initialized to ``None`` in ``__init__``), so subclasses can read it
+    directly without overriding this method.
     """
-    pass
+    self._model_identifier = model_identifier
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     """Gets all preprocessing functions to be run before batching/inference.
@@ -1139,6 +1143,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'ModelHandlers.')
 
   def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
     if self._single_model:
       return self._unkeyed.set_model_identifier(model_identifier)
     for mh in self._id_to_mh_map.values():
@@ -1271,6 +1276,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     return self._unkeyed.update_model_path(model_path=model_path)
 
   def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
     return self._unkeyed.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
@@ -1345,6 +1351,7 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
     return self._base.update_model_path(model_path=model_path)
 
   def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
     return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
@@ -1426,6 +1433,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
     return self._base.update_model_path(model_path=model_path)
 
   def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
     return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
@@ -1506,6 +1514,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
     return self._base.update_model_path(model_path=model_path)
 
   def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
     return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
@@ -1659,6 +1668,12 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._model_tag = model_identifier
     if model_identifier is None:
       self._model_tag = uuid.uuid4().hex
+    # Report the identifier at construction time so it is pickled with the
+    # handler and inspectable on it before the pipeline runs.
+    # _RunInferenceDoFn.setup() reports it again on the worker in case the
+    # same handler instance was shared by RunInference transforms with
+    # different identifiers.
+    self._model_handler.set_model_identifier(self._model_tag)
 
   def annotations(self):
     extra = {}

@@ -2837,15 +2837,12 @@ class IdentifierReportingModelHandler(base.ModelHandler[int, str, FakeModel]):
   """
   def __init__(self):
     super().__init__()
-    self._identifier = None
     self._identifier_at_load = None
 
-  def set_model_identifier(self, model_identifier):
-    self._identifier = model_identifier
-
   def load_model(self):
-    # Captures whether set_model_identifier ran before load_model.
-    self._identifier_at_load = self._identifier
+    # Relies on the default ModelHandler.set_model_identifier, which stores
+    # the identifier in self._model_identifier before load_model runs.
+    self._identifier_at_load = self._model_identifier
     return FakeModel()
 
   def run_inference(self, batch, model, inference_args=None):
@@ -2854,6 +2851,40 @@ class IdentifierReportingModelHandler(base.ModelHandler[int, str, FakeModel]):
 
 class RunInferenceModelIdentifierTest(unittest.TestCase):
   """RunInference hands handlers the identifier the autoscaler looks up."""
+  def test_default_model_identifier_is_none(self):
+    self.assertIsNone(IdentifierReportingModelHandler()._model_identifier)
+
+  def test_explicit_model_identifier_set_at_construction(self):
+    handler = IdentifierReportingModelHandler()
+    base.RunInference(handler, model_identifier='my-step-model')
+    self.assertEqual(handler._model_identifier, 'my-step-model')
+
+  def test_generated_model_identifier_set_at_construction(self):
+    handler = IdentifierReportingModelHandler()
+    run_inference = base.RunInference(handler)
+    self.assertRegex(handler._model_identifier, r'^[0-9a-f]{32}$')
+    self.assertEqual(handler._model_identifier, run_inference._model_tag)
+
+  def test_identifier_set_on_wrappers_at_construction(self):
+    inner = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler(inner)
+    handler = keyed.with_preprocess_fn(lambda kv: kv).with_postprocess_fn(
+        lambda kv: kv)
+    base.RunInference(handler, model_identifier='wrapped-id')
+    for mh in (handler, keyed, inner):
+      self.assertEqual(mh._model_identifier, 'wrapped-id')
+
+  def test_identifier_forwarded_to_every_per_key_handler(self):
+    mh1 = IdentifierReportingModelHandler()
+    mh2 = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler([
+        base.KeyModelMapping(['k1'], mh1),
+        base.KeyModelMapping(['k2'], mh2),
+    ])
+    base.RunInference(keyed, model_identifier='multi-id')
+    self.assertEqual(mh1._model_identifier, 'multi-id')
+    self.assertEqual(mh2._model_identifier, 'multi-id')
+
   def test_explicit_model_identifier_is_reported_before_load(self):
     with TestPipeline('FnApiRunner') as p:
       out = (
