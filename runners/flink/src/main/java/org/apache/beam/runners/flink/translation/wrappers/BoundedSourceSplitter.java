@@ -327,7 +327,7 @@ public final class BoundedSourceSplitter {
         splits.stream()
             .flatMap(
                 split -> {
-                  if (split.sizeBytes > OVERSIZED_SPLIT_FACTOR * targetBytes) {
+                  if (split.sizeBytes > thresholdBytes) {
                     return resplit(split, options, targetBytes).stream();
                   } else {
                     return Stream.of(split);
