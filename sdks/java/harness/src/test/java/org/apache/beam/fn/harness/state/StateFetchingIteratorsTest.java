@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -47,10 +48,13 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
@@ -568,16 +572,39 @@ public class StateFetchingIteratorsTest {
     @Test
     public void testIsReadyAndPrefetch() throws Exception {
       AtomicInteger callCount = new AtomicInteger();
+      byte[] first = new byte[] {'B', 'C'};
+      byte[] second = new byte[] {'D', 'E', 'F'};
       BeamFnStateClient fakeStateClient =
-          fakeStateClient(callCount, ByteString.copyFromUtf8("BC"), ByteString.copyFromUtf8("DEF"));
+          fakeStateClient(
+              callCount,
+              ByteString.copyFrom(
+                  CoderUtils.encodeToByteArray(ByteArrayCoder.of(), first, Coder.Context.NESTED)),
+              ByteString.copyFrom(
+                  CoderUtils.encodeToByteArray(ByteArrayCoder.of(), second, Coder.Context.NESTED)));
       PrefetchableIterable<byte[]> iterable =
           StateFetchingIterators.readAllAndDecodeStartingFrom(
-              fakeStateClient,
-              StateRequest.getDefaultInstance(),
-              org.apache.beam.sdk.coders.ByteArrayCoder.of());
+              fakeStateClient, StateRequest.getDefaultInstance(), ByteArrayCoder.of());
       // Not yet iterated or prefetched
       PrefetchableIterator<byte[]> iterator = iterable.iterator();
+      assertEquals(0, callCount.get());
       assertFalse(iterator.isReady());
+
+      // Prefetch triggers the first state request; isReady() pulls the first chunk into the
+      // decoder stream and eagerly prefetches the second chunk.
+      iterator.prefetch();
+      assertEquals(1, callCount.get());
+      assertTrue(iterator.isReady());
+      assertEquals(2, callCount.get());
+
+      // Calling prefetch while already ready is a no-op
+      iterator.prefetch();
+      assertEquals(2, callCount.get());
+
+      assertArrayEquals(first, iterator.next());
+      assertArrayEquals(second, iterator.next());
+      assertFalse(iterator.hasNext());
+      assertTrue(iterator.isReady());
+      assertEquals(2, callCount.get());
     }
 
     private void testFetch(int chunkSize, int... expected) {
