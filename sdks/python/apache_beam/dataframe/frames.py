@@ -1966,10 +1966,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     a Beam-specific option that guarantees only one duplicate will be kept, but
     unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
     duplicate element is kept."""
-    # Re-use the DataFrame based duplcated, extract the series back out
+    # Re-use the DataFrame based duplicated
     df = self._wrap_in_df()
-
-    return df.duplicated(keep=keep)[df.columns[0]]
+    result = df.duplicated(keep=keep)
+    if self.name is not None:
+      return result.rename(self.name)
+    return result
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
@@ -1983,8 +1985,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     duplicate element is kept."""
     # Re-use the DataFrame based drop_duplicates, extract the series back out
     df = self._wrap_in_df()
-
-    return df.drop_duplicates(keep=keep)[df.columns[0]]
+    result = df.drop_duplicates(keep=keep)[df.columns[0]]
+    if self.name is None:
+      return result.rename(None)
+    return result
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)

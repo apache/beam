@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
@@ -30,7 +31,9 @@ import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
@@ -60,6 +63,8 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
   private final @Nullable SqlNodeList partitionsToDrop;
   private final @Nullable SqlNodeList setProps;
   private final @Nullable SqlNodeList resetProps;
+  private final @Nullable SqlNodeList primaryKeyToAdd;
+  private final boolean dropPrimaryKey;
 
   /**
    * Called by the auto-generated {@link
@@ -75,7 +80,9 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
       @Nullable SqlNodeList partitionsToAdd,
       @Nullable SqlNodeList partitionsToDrop,
       @Nullable SqlNodeList setProps,
-      @Nullable SqlNodeList resetProps) {
+      @Nullable SqlNodeList resetProps,
+      @Nullable SqlNodeList primaryKeyToAdd,
+      boolean dropPrimaryKey) {
     super(pos, scope);
     this.name = SqlDdlNodes.getIdentifier(name, pos);
     this.columnsToAdd = columnsToAdd;
@@ -84,6 +91,8 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
     this.partitionsToDrop = partitionsToDrop;
     this.setProps = setProps;
     this.resetProps = resetProps;
+    this.primaryKeyToAdd = primaryKeyToAdd;
+    this.dropPrimaryKey = dropPrimaryKey;
   }
 
   @Override
@@ -110,7 +119,9 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
                   + schema.getClass()));
     }
 
-    if (beamCalciteSchema.getTable(pair.right) == null) {
+    TableProvider provider = beamCalciteSchema.getTableProvider();
+    Table table = provider.getTable(pair.right);
+    if (table == null) {
       // Table does not exist.
       throw SqlUtil.newContextException(
           name.getParserPosition(), RESOURCE.tableNotFound(name.toString()));
@@ -121,9 +132,13 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
     List<String> columnsToDropList = SqlDdlNodes.getStringList(columnsToDrop);
     List<String> partitionsToAddList = SqlDdlNodes.getStringList(partitionsToAdd);
     List<String> partitionsToDropList = SqlDdlNodes.getStringList(partitionsToDrop);
+    List<String> primaryKeyToAddList = SqlDdlNodes.getStringList(primaryKeyToAdd);
+    boolean alterPrimaryKey = dropPrimaryKey || primaryKeyToAdd != null;
+    if (alterPrimaryKey) {
+      validatePrimaryKey(provider, table, primaryKeyToAddList);
+    }
 
-    AlterTableOps alterOps =
-        beamCalciteSchema.getTableProvider().alterTable(SqlDdlNodes.name(name));
+    AlterTableOps alterOps = provider.alterTable(SqlDdlNodes.name(name));
 
     if (!setPropsMap.isEmpty() || !resetPropsList.isEmpty()) {
       validateNonOverlappingProps(setPropsMap, resetPropsList);
@@ -133,8 +148,32 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
     if (!columnsToDropList.isEmpty() || (columnsToAdd != null && !columnsToAdd.isEmpty())) {
       alterOps.updateSchema(firstNonNull(columnsToAdd, Collections.emptyList()), columnsToDropList);
     }
+    if (alterPrimaryKey) {
+      // DROP PRIMARY KEY ADD PRIMARY KEY (...) replaces the key in a single update.
+      alterOps.updatePrimaryKey(primaryKeyToAddList);
+    }
     if (!partitionsToDropList.isEmpty() || !partitionsToAddList.isEmpty()) {
       alterOps.updatePartitionSpec(partitionsToAddList, partitionsToDropList);
+    }
+  }
+
+  private void validatePrimaryKey(TableProvider provider, Table table, List<String> columns) {
+    SqlDdlNodes.checkPrimaryKey(provider, table, columns);
+    if (dropPrimaryKey) {
+      checkArgument(
+          table.getPrimaryKey() != null, "Table '%s' has no primary key to drop.", table.getName());
+    } else {
+      checkArgument(
+          table.getPrimaryKey() == null,
+          "Table '%s' already has primary key %s. Drop it first with DROP PRIMARY KEY.",
+          table.getName(),
+          table.getPrimaryKey());
+    }
+    for (String column : columns) {
+      checkArgument(
+          !table.getSchema().getField(column).getType().getNullable(),
+          "PRIMARY KEY column '%s' must already be NOT NULL.",
+          column);
     }
   }
 
@@ -193,6 +232,16 @@ public class SqlAlterTable extends SqlAlter implements BeamSqlParser.ExecutableS
         writer.identifier(partition, true);
       }
       writer.endList(frame);
+    }
+
+    if (dropPrimaryKey) {
+      writer.keyword("DROP PRIMARY KEY");
+    }
+
+    if (primaryKeyToAdd != null) {
+      writer.keyword("ADD PRIMARY KEY");
+      writer.list(SqlWriter.FrameTypeEnum.PARENTHESES, SqlWriter.COMMA, primaryKeyToAdd);
+      writer.keyword("NOT ENFORCED");
     }
 
     if (resetProps != null && !resetProps.isEmpty()) {

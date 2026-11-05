@@ -21,8 +21,6 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
@@ -31,7 +29,6 @@ import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -47,8 +44,6 @@ public abstract class MockSessionService extends SessionService {
   public abstract @Nullable SubmissionMode mode();
 
   public abstract Function<PublishResultHandler, MockProducer> mockProducerFn();
-
-  private final BlockingQueue<PublishResult> publishedResultsReceiver = new LinkedBlockingQueue<>();
 
   public static Builder builder() {
     return new AutoValue_MockSessionService.Builder()
@@ -88,14 +83,9 @@ public abstract class MockSessionService extends SessionService {
   @Override
   public MessageProducer getInitializedProducer(SubmissionMode mode) {
     if (messageProducer == null) {
-      messageProducer = mockProducerFn().apply(new PublishResultHandler(publishedResultsReceiver));
+      messageProducer = mockProducerFn().apply(new PublishResultHandler());
     }
     return messageProducer;
-  }
-
-  @Override
-  public BlockingQueue<PublishResult> getPublishedResultsQueue() {
-    return publishedResultsReceiver;
   }
 
   @Override

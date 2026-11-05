@@ -35,8 +35,8 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.EncryptedKeyParser;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
@@ -261,8 +261,8 @@ public abstract class SerializableTableSpec implements Serializable {
         }
       }
     }
-    if (conf != null && local instanceof Configurable) {
-      ((Configurable) local).setConf(conf);
+    if (conf != null) {
+      CatalogUtil.configureHadoopConf(local, conf);
     }
     return local;
   }

@@ -29,11 +29,31 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
-## New Features / Improvements
+## Improvements
+
+* [comment]: generic improvements if not covered in following sections.
+
+### New Feature
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
+### Performance
+
+* Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
+* Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Breaking Changes
+
+* [comment]: generic breaking changes if not covered in following sections.
+
+### Package upgrades
+* [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+
+### API changes
+* [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
+
+### Upgrade compatibility
+* [comment]: changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
@@ -65,17 +85,40 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 
-## New Features / Improvements
+## Improvements
 
-* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline ([#40891](https://github.com/apache/beam/issues/40891)).
-* (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
+* [comment]: generic improvements if not covered in following sections.
+
+### New Feature
+
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline ([#40891](https://github.com/apache/beam/issues/40891)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
+* (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
+* [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
+* [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
+
+### Performance
+
+* Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
+* Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
+* (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 
 ## Breaking Changes
 
+* [comment]: generic breaking changes if not covered in following sections.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+### Package upgrades
+* [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+
+### API changes
+* [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
+
+### Upgrade compatibility
+* [comment]: changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version
 
 ## Deprecations
 
@@ -85,6 +128,7 @@
 
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
+* (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -107,15 +151,16 @@
 * [IcebergIO] AddFiles is now available through the Managed API with `Managed.write(Managed.ICEBERG_ADD_FILES)` (Java/Python) ([#40827](https://github.com/apache/beam/issues/40827)).
 * (Java) IcebergIO: `AddFiles` can register files in several tables in one transform, naming each file's table from its path. Set `path_pattern` (`withPathPattern` in Java) to a glob with `{name}` placeholders, such as `gs://lake/export/{table}/**`, and make `table` a template over what it captures, such as `default.{table}`. The schema pre-pass then runs per table, so a table whose files conflict is refused and its files reported while every other table is still registered. Requires `schema_evolution_options` and `error_handling`; not supported with `dry_run`. Error rows gain a `table` field only when `path_pattern` is set, so an existing pipeline's error output is unchanged ([#40849](https://github.com/apache/beam/issues/40849)).
 
-## New Features / Improvements
+## Improvements
 
-* (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
-* (Java) Flink runner: sources now forward Beam metrics to Flink at most once per second instead of after every record, which was a significant share of the CPU of reading. Metrics in the pipeline result are not affected ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
-* (Python) Added typed decision questions and the `EvaluateDecisions` transform, with an optional Jev model adapter ([#40220](https://github.com/apache/beam/pull/40220)).
-* The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
 * (Go) Pipeline-level `--resource_hints` are now forwarded to expansion services, so they apply to cross-language transforms as they do in the Java and Python SDKs. The `max_active_bundles_per_worker` hint name is now also accepted by `--resource_hints` ([#23893](https://github.com/apache/beam/issues/23893)).
+* (Java) `GcsUtil` now uses the java-storage client (GcsUtil V2) for GCS operations by default instead of gcsio (GcsUtil V1). To go back to V1, pass `--experiments=disable_gcsutil_v2`. Pipelines with the `use_grpc_for_gcs` experiment keep using V1. The `use_gcsutil_v2` experiment is no longer needed and is now ignored ([#40712](https://github.com/apache/beam/issues/40712)).
+
+### New Feature
+
+* (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
+* (Python) Added typed decision questions and the `EvaluateDecisions` transform, with an optional Jev model adapter ([#40220](https://github.com/apache/beam/pull/40220)).
 * `QdrantWriteConfig` can now optionally store chunk content in the point payload via `content_payload_key`, so retrieved points include the chunk text (Python) ([#40476](https://github.com/apache/beam/issues/40476)).
 * ReadFromBigQuery now supports Lakehouse runtime catalog (BigLake metastore) tables with `method=DIRECT_READ`, using 4-part `project.catalog.namespace.table` identifiers. Previously `project:catalog.namespace.table` was silently mis-parsed and tables that report no `numBytes` failed to split (Python) ([#39597](https://github.com/apache/beam/issues/39597)).
 * (Python) Added `AwsOptions` with `--aws_*` pipeline options (e.g. `--aws_access_key_id`, `--aws_region_name`, `--aws_endpoint_url`) that set defaults for all AWS service clients. The existing `--s3_*` options in `S3Options` override these defaults for the S3 client only ([#40528](https://github.com/apache/beam/issues/40528)).
@@ -124,29 +169,41 @@
 * (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
 * (Python, Java, Go) Added `--dataflow_container_base_repository` (Python, Go) and `--dataflowContainerBaseRepository` (Java) to set the repository (e.g. `docker.example.com/my-prefix/cloud-dataflow/v1beta3`) from which the Dataflow runner pulls its default SDK container images, including the default images of cross-language Apache Beam environments. Defaults to `gcr.io/cloud-dataflow/v1beta3` ([#40569](https://github.com/apache/beam/issues/40569)).
 * (Go) GCS and Dataflow clients now support non-default universes such as Trusted Partner Cloud (TPC), using the universe domain from `GOOGLE_CLOUD_UNIVERSE_DOMAIN` or the default credentials. Added a `--gcs_endpoint` pipeline option to override the GCS endpoint ([#40569](https://github.com/apache/beam/issues/40569)).
-* (Java) `GcsUtil` now uses the java-storage client (GcsUtil V2) for GCS operations by default instead of gcsio (GcsUtil V1). To go back to V1, pass `--experiments=disable_gcsutil_v2`. Pipelines with the `use_grpc_for_gcs` experiment keep using V1. The `use_gcsutil_v2` experiment is no longer needed and is now ignored ([#40712](https://github.com/apache/beam/issues/40712)).
+
+### Performance
+
+* (Flink) Sources now forward Beam metrics to Flink at most once per second instead of after every record, which was a significant share of the CPU of reading. Metrics in the pipeline result are not affected ([#40607](https://github.com/apache/beam/issues/40607)).
+* The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
 
 ## Breaking Changes
 
-* (Java) Removed Beam SQL Google Cloud Data Catalog table provider (`beam-sdks-java-extensions-sql-datacatalog`) because GCP Data Catalog has been decommissioned ([#40663](https://github.com/apache/beam/issues/40663)).
-* (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. This is an update incompatible change for streaming pipelines that use rows with `int16` or `uint16` fields ([#40151](https://github.com/apache/beam/issues/40151)).
+### Package upgrades
+
 * (Java) JmsIO migrated to `jakarta.jms` (JMS 3.1) and ActiveMQ 6.2.5. User code implementing `JmsIO.MessageMapper`,
   `valueMapper`, `topicNameMapper`, or providing a `ConnectionFactory` must update imports from `javax.jms.*` to
   `jakarta.jms.*`. The module now requires Java 17 at runtime ([#38729](https://github.com/apache/beam/issues/38729)).
+* (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
+
+### API changes
+
+* (Java) Removed Beam SQL Google Cloud Data Catalog table provider (`beam-sdks-java-extensions-sql-datacatalog`) because GCP Data Catalog has been decommissioned ([#40663](https://github.com/apache/beam/issues/40663)).
 * (Java) Dataflow runner: `--apiRootUrl` no longer defaults to `https://dataflow.googleapis.com/`. When neither `--apiRootUrl` nor an absolute `--dataflowEndpoint` is set, the Google API client library resolves the Dataflow endpoint and honors `GOOGLE_CLOUD_UNIVERSE_DOMAIN`, so Dataflow jobs can be submitted in non-default universes. Code that reads `DataflowPipelineDebugOptions.getApiRootUrl()` should handle a `null` value ([#40569](https://github.com/apache/beam/issues/40569)).
 * (Python) `Regex.find_all` with `group=Regex.ALL` now returns every group, as `(match, group1, group2, ...)`, instead of only group 1, and with `outputEmpty=False` it drops a match only when the whole match is empty, matching the `group=0` behavior ([#40399](https://github.com/apache/beam/pull/40399)).
 * (Python) `Regex.all_matches` now returns every group of the regex, instead of failing with a `TypeError` when the regex has no groups and dropping nested or unmatched trailing groups ([#40562](https://github.com/apache/beam/issues/40562)).
 * (Python) `--dataflow_endpoint` now defaults to `''` instead of `https://dataflow.googleapis.com`. When unset, the Google Cloud client library resolves the Dataflow endpoint and honors `GOOGLE_CLOUD_UNIVERSE_DOMAIN`, so Dataflow jobs can be submitted in non-default universes. Code that reads `GoogleCloudOptions.dataflow_endpoint` should handle an empty value ([#40569](https://github.com/apache/beam/issues/40569)).
-* (Python) The `xgboost` extras now install `xgboost>=2.0.0,<4` and `datatable>=1.1.0,<2`, moving both the lower and upper bounds for both. The previous minimum `xgboost` and `datatable` versions (`1.6.0` and `1.0.0` respectively) are no longer allowed ([#40694](https://github.com/apache/beam/issues/40694)).
+* (Java) [IcebergIO] AddFiles now collapses batch input into the global window. Manifests and snapshots are sized per key and window, so windowing applied upstream of AddFiles only divided `manifest_file_size` into smaller manifests and more snapshots; its outputs are now globally windowed in batch. Streaming pipelines keep the windowing they had ([#40849](https://github.com/apache/beam/issues/40849)).
+
+### Upgrade compatibility
+
+* (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. This is an update incompatible change for streaming pipelines that use rows with `int16` or `uint16` fields ([#40151](https://github.com/apache/beam/issues/40151)).
 * (Java) [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) now carries the destination table alongside each file through the registration chain, so that one transform can register files into many tables. The coders of its internal `PCollection`s change, which makes this an update incompatible change for streaming pipelines that use it ([#40817](https://github.com/apache/beam/pull/40817)).
 * (YAML) `IcebergAddFiles` will be automatically replaced with the compatible managed transform. For older Beam versions, streaming update compatibility can be maintained by specifying the pipeline option `update_compatibility_version` ([#40827](https://github.com/apache/beam/issues/40827)).
-* (Java) [IcebergIO] AddFiles now collapses batch input into the global window. Manifests and snapshots are sized per key and window, so windowing applied upstream of AddFiles only divided `manifest_file_size` into smaller manifests and more snapshots; its outputs are now globally windowed in batch. Streaming pipelines keep the windowing they had ([#40849](https://github.com/apache/beam/issues/40849)).
-* Twister2 runner supported is removed ([#35905](https://github.com/apache/beam/issues/35905))).
 
 ## Deprecations
 
 * Support for Python 3.10 was removed following its end-of-life ([#40250](https://github.com/apache/beam/issues/40250)).
 * (Python) `XGBoostModelHandlerDatatable` is deprecated and will be removed in Beam 2.79.0, along with the `datatable` dependency of the `xgboost` extra. `datatable` has not had a release since 2023 and has no wheels for Python 3.13+. Use `XGBoostModelHandlerPandas` (or the NumPy/SciPy handlers) instead ([#40705](https://github.com/apache/beam/issues/40705)).
+* Twister2 runner supported is removed ([#35905](https://github.com/apache/beam/issues/35905)).
 
 ## Bugfixes
 

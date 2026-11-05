@@ -213,8 +213,12 @@ public class BoundAdjustmentTest {
             Arrays.asList(nanos),
             row(EPOCH_SECONDS * 1_000_000_000L + 1),
             row(EPOCH_SECONDS * 1_000_000_000L + 1_500));
-    Schema schema = convertedSchema(file);
-    assertEquals(Types.TimestampType.withoutZone(), schema.columns().get(0).type());
+    Schema fileSchema = convertedSchema(file);
+    assertEquals(Types.TimestampNanoType.withoutZone(), fileSchema.columns().get(0).type());
+    Schema schema =
+        new Schema(
+            Types.NestedField.optional(
+                fileSchema.columns().get(0).fieldId(), "ts", Types.TimestampType.withoutZone()));
 
     Metrics metrics = metricsOf(file, schema);
 
