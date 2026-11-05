@@ -231,7 +231,7 @@ class PrefixBatchingConfig:
   prefix_delimiters: Optional[Sequence[str]] = None
 
   def resolve(
-      self, default_key_fn: Callable[[int], Callable[[Any], Any]]
+      self, default_key_fn: Callable[..., Callable[[Any], Any]]
   ) -> 'PrefixBatchingConfig':
     """Returns a copy whose ``key_fn`` is set.
 
@@ -274,7 +274,7 @@ class PrefixBatchingConfig:
 
 def resolve_batching_kwargs(
     config: Optional[PrefixBatchingConfig],
-    default_key_fn: Callable[[int], Callable[[Any], Any]],
+    default_key_fn: Callable[..., Callable[[Any], Any]],
     max_batch_duration_secs: Optional[float] = None,
 ) -> dict[str, Any]:
   """Batching kwargs for an optional config; unkeyed when ``config`` is None.
