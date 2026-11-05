@@ -44,7 +44,7 @@ dependencies {
   compileOnly project(path: ":sdks:java:io:kafka")
   compileOnly library.java.kafka_clients
   // keep in sync with iceberg_version in sdks/java/io/iceberg/build.gradle
-  compileOnly "org.apache.iceberg:iceberg-api:1.11.0"
+  compileOnly "org.apache.iceberg:iceberg-api:1.12.0"
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
@@ -52,8 +52,8 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:kafka")
   testImplementation library.java.kafka_clients
   testImplementation project(path: ":sdks:java:managed")
-  testImplementation "org.apache.iceberg:iceberg-api:1.11.0"
-  testImplementation "org.apache.iceberg:iceberg-core:1.11.0"
+  testImplementation "org.apache.iceberg:iceberg-api:1.12.0"
+  testImplementation "org.apache.iceberg:iceberg-core:1.12.0"
   testImplementation library.java.hadoop_common
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
