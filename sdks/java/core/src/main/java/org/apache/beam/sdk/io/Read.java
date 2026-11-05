@@ -1012,6 +1012,22 @@ public class Read {
             watermark);
       }
 
+      /**
+       * Whether there is nothing left to read, like {@code currentRestriction().getSource()
+       * instanceof EmptyUnboundedSource} but without calling {@link
+       * UnboundedReader#getCheckpointMark()}: a checkpoint ends the bundle of elements read so far,
+       * so a checkpoint taken only to report progress would never be committed nor finalized.
+       */
+      private boolean isDone() {
+        @Nullable UnboundedReader<OutputT> reader = currentReader;
+        if (reader == null || !readerHasBeenStarted) {
+          return initialRestriction.getSource() instanceof EmptyUnboundedSource;
+        }
+        return reader instanceof EmptyUnboundedSource.EmptyUnboundedReader
+            || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(
+                ensureTimestampWithinBounds(reader.getWatermark()));
+      }
+
       @Override
       public @Nullable SplitResult<UnboundedSourceRestriction<OutputT, CheckpointT>> trySplit(
           double fractionOfRemainder) {
@@ -1075,7 +1091,7 @@ public class Read {
 
       private Progress tryGetProgressOrThrow() throws IOException {
         // We treat the empty source as implicitly done.
-        if (currentRestriction().getSource() instanceof EmptyUnboundedSource) {
+        if (isDone()) {
           return Progress.from(1, 0);
         }
         boolean resetReaderAfter = false;
