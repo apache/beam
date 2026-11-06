@@ -1071,6 +1071,8 @@ public class FileIO {
 
     abstract @Nullable Duration getBatchMaxBufferingDuration();
 
+    abstract @Nullable Long getDirectWriteByteThreshold();
+
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
@@ -1132,6 +1134,9 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setBatchMaxBufferingDuration(
           @Nullable Duration batchMaxBufferingDuration);
+
+      abstract Builder<DestinationT, UserT> setDirectWriteByteThreshold(
+          @Nullable Long directWriteByteThreshold);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1436,6 +1441,13 @@ public class FileIO {
       return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
+    /** See {@link WriteFiles#withDirectWriteByteThreshold(long)}. */
+    public Write<DestinationT, UserT> withDirectWriteByteThreshold(long thresholdBytes) {
+      checkArgument(
+          thresholdBytes > 0, "thresholdBytes must be positive, but was: %s", thresholdBytes);
+      return toBuilder().setDirectWriteByteThreshold(thresholdBytes).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1564,6 +1576,9 @@ public class FileIO {
       }
       if (getBatchMaxBufferingDuration() != null) {
         writeFiles = writeFiles.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
+      }
+      if (getDirectWriteByteThreshold() != null) {
+        writeFiles = writeFiles.withDirectWriteByteThreshold(getDirectWriteByteThreshold());
       }
       return input.apply(writeFiles);
     }
