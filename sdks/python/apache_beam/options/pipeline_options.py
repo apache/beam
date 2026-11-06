@@ -24,6 +24,7 @@ import difflib
 import json
 import logging
 import os
+import sys
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -89,6 +90,26 @@ def _static_value_provider_of(value_type):
     return StaticValueProvider(value_type, value)
 
   return _f
+
+
+def _find_positions(args, flags):
+  """Returns the index in flags of each of args.
+
+  args is expected to be a subsequence of flags, such as the unknown args that
+  argparse returns from parse_known_args. The position of an arg that cannot be
+  found is None.
+  """
+  positions = []
+  start = 0
+  for arg in args:
+    try:
+      position = flags.index(arg, start)
+    except ValueError:
+      positions.append(None)
+      continue
+    positions.append(position)
+    start = position + 1
+  return positions
 
 
 class _BeamArgumentParser(argparse.ArgumentParser):
@@ -535,6 +556,13 @@ class PipelineOptions(HasDisplayData):
           parser.add_argument(arg, **kwargs)
         seen.add(arg)
 
+      # Unknown args are returned in their original order, but they are not
+      # necessarily adjacent in the original flags, e.g. a known option may
+      # sit between an unknown flag and a stray value. Find where each one
+      # came from so that a value is only given to the flag right before it.
+      all_flags = sys.argv[1:] if self._flags is None else list(self._flags)
+      positions = _find_positions(unknown_args, all_flags)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -545,7 +573,12 @@ class PipelineOptions(HasDisplayData):
         if not unknown_args[i].startswith('-'):
           i += 1
           continue
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+        has_value = (
+            '=' not in unknown_args[i] and i + 1 < len(unknown_args) and
+            not unknown_args[i + 1].startswith('-') and
+            positions[i] is not None and positions[i] + 1 < len(all_flags) and
+            not all_flags[positions[i] + 1].startswith('-'))
+        if not has_value:
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             add_new_arg(unknown_args[i], action='store_true')
