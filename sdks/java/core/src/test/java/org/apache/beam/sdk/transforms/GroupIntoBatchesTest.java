@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
@@ -44,6 +47,7 @@ import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -861,5 +865,38 @@ public class GroupIntoBatchesTest implements Serializable {
               return null;
             });
     pipeline.run();
+  }
+
+  @Test
+  public void testMaxBatchSizeThrows() {
+    assertThrows(IllegalArgumentException.class, () -> GroupIntoBatches.ofSize(Long.MAX_VALUE));
+    assertThrows(
+        IllegalArgumentException.class, () -> GroupIntoBatches.ofSize(10).withSize(Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testMaxBatchSizeBytesThrows() {
+    assertThrows(IllegalArgumentException.class, () -> GroupIntoBatches.ofByteSize(Long.MAX_VALUE));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> GroupIntoBatches.ofByteSize(10).withByteSize(Long.MAX_VALUE));
+  }
+
+  @Test
+  public void testDisplayData() {
+    GroupIntoBatches<String, Integer> transform =
+        GroupIntoBatches.<String, Integer>ofSize(10)
+            .withByteSize(20)
+            .withMaxBufferingDuration(Duration.standardSeconds(5));
+    DisplayData displayData = DisplayData.from(transform);
+    assertThat(displayData, hasDisplayItem("batchSize", 10));
+    assertThat(displayData, hasDisplayItem("batchSizeBytes", 20));
+    assertThat(displayData, hasDisplayItem("maxBufferingDuration", Duration.standardSeconds(5)));
+
+    DisplayData shardedDisplayData = DisplayData.from(transform.withShardedKey());
+    assertThat(shardedDisplayData, hasDisplayItem("batchSize", 10));
+    assertThat(shardedDisplayData, hasDisplayItem("batchSizeBytes", 20));
+    assertThat(
+        shardedDisplayData, hasDisplayItem("maxBufferingDuration", Duration.standardSeconds(5)));
   }
 }
