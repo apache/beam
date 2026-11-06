@@ -20,6 +20,7 @@ cimport cython
 from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
+from apache_beam.runners.worker cimport statesampler_fast
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.utils.windowed_value cimport WindowedBatch
 #from libcpp.string cimport string
@@ -80,9 +81,9 @@ cdef class Operation(object):
 
   cdef readonly object state_sampler
 
-  cdef readonly object scoped_start_state
-  cdef readonly object scoped_process_state
-  cdef readonly object scoped_finish_state
+  cdef readonly statesampler_fast.ScopedState scoped_start_state
+  cdef readonly statesampler_fast.ScopedState scoped_process_state
+  cdef readonly statesampler_fast.ScopedState scoped_finish_state
 
   cdef readonly object data_sampler
 
@@ -117,7 +118,8 @@ cdef class DoOperation(Operation):
   cdef dict timer_specs
   cdef public object input_info
   cdef object fn
-  cdef object scoped_timer_processing_state
+  cdef object _fn_data
+  cdef statesampler_fast.ScopedState scoped_timer_processing_state
 
 
 cdef class SdfProcessSizedElements(DoOperation):
