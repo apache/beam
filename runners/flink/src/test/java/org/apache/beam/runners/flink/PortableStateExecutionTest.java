@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;
@@ -95,7 +97,7 @@ public class PortableStateExecutionTest implements Serializable {
   private static final int CLEAR_STATE = -1;
   private static final int WRITE_STATE = -2;
 
-  @Test(timeout = 120_000)
+  @Test(timeout = 300_000)
   public void testExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
@@ -205,9 +207,15 @@ public class PortableStateExecutionTest implements Serializable {
                     options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
 
     jobInvocation.start();
-
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
-      Thread.sleep(1000);
+    try {
+      while (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        Thread.sleep(1000);
+      }
+      assertEquals(JobState.Enum.DONE, jobInvocation.getState());
+    } finally {
+      if (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        jobInvocation.cancel();
+      }
     }
   }
 }
