@@ -125,7 +125,9 @@ def validate_generic_expression(
     return
 
   if allow_cmp:
-    maybe_cmp = re.fullmatch('(.*)([<>=!]+)(.*)', expr)
+    # The left side is non-greedy so that two-character operators such as
+    # '>=' stay whole; a greedy match would split 'a >= 1' into 'a >', '='.
+    maybe_cmp = re.fullmatch('(.*?)([<>=!]+)(.*)', expr)
     if maybe_cmp:
       left, cmp, right = maybe_cmp.groups()
       if (is_atomic(left.strip()) and is_atomic(right.strip()) and
