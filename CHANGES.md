@@ -131,6 +131,7 @@
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Python) `typing.Protocol` type hints, such as `def fn(x: MyProtocol)` in `beam.Map(fn)`, no longer make pipeline type checking fail when the Protocol is not `@runtime_checkable` or declares attributes or properties, and no longer make runtime type checking fail with a `TypeError` when it is not `@runtime_checkable` ([#20986](https://github.com/apache/beam/issues/20986)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

@@ -26,6 +26,8 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 # ruff: noqa: UP006
 import os
 import tempfile
+import types
+import typing
 import unittest
 from typing import Iterable
 from typing import Tuple
@@ -133,6 +135,35 @@ class RuntimeTypeCheckTest(unittest.TestCase):
       dofn = MyDoFnBadAnnotation(f.name)
       with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
         _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+
+  def test_protocol_type_hint(self):
+    # https://github.com/apache/beam/issues/20986
+    class HasUpper(typing.Protocol):
+      def upper(self) -> str:
+        ...
+
+    def fn(e: HasUpper) -> str:
+      return e.upper()
+
+    result = self.p | beam.Create(['a', 'b']) | beam.Map(fn)
+    assert_that(result, equal_to(['A', 'B']))
+    self.p.run()
+
+  def test_runtime_checkable_protocol_with_property_type_hint_violation(self):
+    # https://github.com/apache/beam/issues/20986
+    @typing.runtime_checkable
+    class HasX(typing.Protocol):
+      @property
+      def x(self) -> int:
+        ...
+
+    def fn(e: HasX) -> int:
+      return e.x
+
+    with self.assertRaisesRegex(Exception,
+                                r"Type-hint for argument: 'e' violated"):
+      _ = self.p | beam.Create([types.SimpleNamespace(x=1), 2]) | beam.Map(fn)
+      self.p.run()
 
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
@@ -298,6 +329,19 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
           | beam.ParDo(IntToInt())
           | beam.ParDo(StrToInt()))
       self.p.run().wait_until_finish()
+
+  def test_protocol_type_hint(self):
+    # https://github.com/apache/beam/issues/20986
+    class HasUpper(typing.Protocol):
+      def upper(self) -> str:
+        ...
+
+    def fn(e: HasUpper) -> str:
+      return e.upper()
+
+    result = self.p | beam.Create(['a', 'b']) | beam.Map(fn)
+    assert_that(result, equal_to(['A', 'B']))
+    self.p.run().wait_until_finish()
 
 
 if __name__ == '__main__':
