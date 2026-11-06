@@ -54,14 +54,22 @@ public class BaseExternalTest {
 
   private void waitForReady() {
     try {
-      ManagedChannel channel = ManagedChannelBuilder.forTarget(expansionAddr).build();
-      ConnectivityState state = channel.getState(true);
-      for (int retry = 0; retry < 30 && state != ConnectivityState.READY; retry++) {
-        Thread.sleep(500);
-        state = channel.getState(true);
+      ManagedChannel channel =
+          ManagedChannelBuilder.forTarget(expansionAddr).usePlaintext().build();
+      try {
+        ConnectivityState state = channel.getState(true);
+        for (int retry = 0; retry < 120 && state != ConnectivityState.READY; retry++) {
+          Thread.sleep(500);
+          if (state == ConnectivityState.TRANSIENT_FAILURE) {
+            channel.resetConnectBackoff();
+          }
+          state = channel.getState(true);
+        }
+      } finally {
+        channel.shutdownNow();
       }
-      channel.shutdownNow();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RuntimeException("interrupted.");
     }
   }

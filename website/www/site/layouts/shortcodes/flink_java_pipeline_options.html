@@ -123,6 +123,16 @@ Should be called before running the tests.
   <td>Default: <code>0</code></td>
 </tr>
 <tr>
+  <td><code>lazyBatchGroupingInputs</code></td>
+  <td>Batch only. Decode the values of records sent to GroupByKey and Combine operators lazily, so that records are passed from the network to Flink's sorter without decoding and re-encoding their values. Has no effect in streaming mode. Enabled by default; set to false to disable.</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
+  <td><code>lengthPrefixBatchRecords</code></td>
+  <td>Batch only. Prefix every record exchanged or sorted by Flink with its encoded length, so that Flink can copy records (e.g. when spilling sorted data to disk) without decoding and re-encoding them. Has no effect in streaming mode. Enabled by default; set to false to disable.</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
   <td><code>maxBundleSize</code></td>
   <td>The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch</td>
   <td>Default: <code>MaxBundleSizeFactory</code></td>
