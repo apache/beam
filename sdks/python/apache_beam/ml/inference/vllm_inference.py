@@ -20,7 +20,9 @@
 import asyncio
 import logging
 import os
+import random
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -89,12 +91,28 @@ class OpenAIChatMessage():
   content: str
 
 
-def start_process(cmd) -> tuple[subprocess.Popen, int]:
+def start_process(cmd,
+                  env: Optional[dict[str, str]] = None
+                  ) -> tuple[subprocess.Popen, int]:
+  """Starts ``cmd`` with ``{{PORT}}`` replaced by a free port.
+
+  Args:
+    cmd: The command; ``{{PORT}}`` in any argument is replaced by the port.
+    env: Extra environment variables, added to this process's environment.
+
+  Returns:
+    The process and the port picked for ``{{PORT}}``.
+  """
   port, = subprocess_server.pick_port(None)
   cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
   logging.info("Starting service with %s", str(cmd).replace("',", "'"))
   process = subprocess.Popen(
-      cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      cmd,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.STDOUT,
+      env={
+          **os.environ, **env
+      } if env else None)
 
   # Emit the output of this command as info level logging.
   def log_stdout():
@@ -109,6 +127,25 @@ def start_process(cmd) -> tuple[subprocess.Popen, int]:
   t.daemon = True
   t.start()
   return process, port
+
+
+# Dynamo parses DYN_SYSTEM_PORT as a signed 16-bit integer, so the worker's
+# system port must be below 32768, under the usual ephemeral port range.
+_DYNAMO_SYSTEM_PORT_RANGE = (20000, 32767)
+
+
+def _pick_dynamo_system_port() -> int:
+  """Returns a free port that Dynamo accepts for DYN_SYSTEM_PORT."""
+  low, high = _DYNAMO_SYSTEM_PORT_RANGE
+  for port in random.sample(range(low, high + 1), 100):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+      try:
+        s.bind(('localhost', port))
+      except OSError:
+        continue
+    return port
+  raise RuntimeError(
+      f'No free port in {low}-{high} for the Dynamo worker system server.')
 
 
 def getVLLMClient(port) -> OpenAI:
@@ -197,6 +234,9 @@ class _VLLMModelServer():
     self._etcd_data_dir: Optional[str] = None
     self._managed_etcd_endpoint = None
     self._server_port: int = -1
+    # In Dynamo mode, the port of the dynamo.vllm worker's system server, which
+    # serves vLLM's metrics; the frontend on _server_port does not.
+    self._dynamo_metrics_port: int = -1
     self._server_process_lock = threading.RLock()
     self._use_dynamo = use_dynamo
     # Autoscaling: a publisher thread, started once the server is confirmed up
@@ -215,10 +255,16 @@ class _VLLMModelServer():
     self.start_server()
 
   def _metrics_port(self) -> Optional[int]:
-    """The port serving vLLM's ``/metrics`` while the server is up, or None."""
-    if not self._server_started or self._server_port < 0:
+    """The port serving vLLM's ``/metrics`` while the server is up, or None.
+
+    That is the vLLM API server itself, or in Dynamo mode the dynamo.vllm
+    worker's system server: the Dynamo frontend only serves its own
+    ``dynamo_frontend_*`` metrics.
+    """
+    port = self._dynamo_metrics_port if self._use_dynamo else self._server_port
+    if not self._server_started or port < 0:
       return None
-    return self._server_port
+    return port
 
   @staticmethod
   def _stop_process(process: Optional[subprocess.Popen]) -> None:
@@ -253,6 +299,7 @@ class _VLLMModelServer():
     self._managed_etcd_endpoint = None
     self._server_started = False
     self._server_port = -1
+    self._dynamo_metrics_port = -1
 
   def _process_status(self) -> str:
     process_status = []
@@ -380,7 +427,12 @@ class _VLLMModelServer():
               self._model_name,
           ]
           _append_kwargs(server_cmd, self._vllm_server_kwargs)
-          self._dynamo_process, _ = start_process(server_cmd)
+          # DYN_SYSTEM_PORT turns on the worker's system server, which also
+          # serves vLLM's engine metrics for the autoscaling signal.
+          self._dynamo_metrics_port = _pick_dynamo_system_port()
+          self._dynamo_process, _ = start_process(
+              server_cmd,
+              env={'DYN_SYSTEM_PORT': str(self._dynamo_metrics_port)})
 
       self.check_connectivity(retries)
       if self._num_loaded_models_publisher is not None:

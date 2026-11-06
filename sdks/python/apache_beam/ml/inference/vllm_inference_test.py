@@ -85,9 +85,11 @@ class _FakeClient:
     return False
 
 
-def _record_start_process(commands):
-  def start_process(cmd):
+def _record_start_process(commands, envs=None):
+  def start_process(cmd, env=None):
     commands.append(list(cmd))
+    if envs is not None:
+      envs.append(env)
     return _FakeProcess(), 10000 + len(commands)
 
   return start_process
@@ -177,6 +179,53 @@ class VLLMInferenceTest(unittest.TestCase):
     self.assertNotIn('--http-port', engine_cmd)
     self.assertNotIn('--router-mode', engine_cmd)
     self.assertNotIn('--no-router-kv-events', engine_cmd)
+
+  def test_dynamo_autoscaling_reads_the_engine_system_port(self):
+    """In Dynamo mode the signal reads the dynamo.vllm worker's metrics.
+
+    The frontend only serves dynamo_frontend_* metrics, so the worker is
+    started with DYN_SYSTEM_PORT and the publisher scrapes that port.
+    """
+    commands, envs = [], []
+    with mock.patch.dict(os.environ,
+                         {'ETCD_ENDPOINTS': 'http://127.0.0.1:2379'}):
+      with mock.patch.object(vllm_inference,
+                             'start_process',
+                             _record_start_process(commands, envs)):
+        with mock.patch.object(vllm_inference,
+                               'getVLLMClient',
+                               return_value=_FakeClient()):
+          with mock.patch.object(
+              autoscaling_metrics.PrometheusNumLoadedModelsPublisher, 'start'):
+            server = vllm_inference.VLLMCompletionsModelHandler(
+                model_name='test-model', use_dynamo=True).load_model()
+    (frontend_cmd, frontend_env), (engine_cmd, engine_env) = zip(commands, envs)
+    self.assertIn('dynamo.frontend', frontend_cmd)
+    self.assertIsNone(frontend_env)
+    self.assertIn('dynamo.vllm', engine_cmd)
+    system_port = int(engine_env['DYN_SYSTEM_PORT'])
+    # Dynamo parses DYN_SYSTEM_PORT as a signed 16-bit integer.
+    self.assertLess(system_port, 2**15)
+    self.assertNotEqual(system_port, server._server_port)
+    self.assertEqual(server._metrics_port(), system_port)
+    # Down server -> no port, so the publisher skips the poll.
+    server._stop_processes()
+    self.assertIsNone(server._metrics_port())
+
+  def test_native_vllm_autoscaling_reads_the_api_server_port(self):
+    commands, envs = [], []
+    with mock.patch.object(vllm_inference,
+                           'start_process',
+                           _record_start_process(commands, envs)):
+      with mock.patch.object(vllm_inference,
+                             'getVLLMClient',
+                             return_value=_FakeClient()):
+        with mock.patch.object(
+            autoscaling_metrics.PrometheusNumLoadedModelsPublisher, 'start'):
+          server = vllm_inference.VLLMCompletionsModelHandler(
+              model_name='test-model').load_model()
+    self.assertEqual(envs, [None])
+    self.assertEqual(server._metrics_port(), server._server_port)
 
   def test_validate_inference_args_accepts_openai_request_kwargs(self):
     vllm_inference.VLLMCompletionsModelHandler(
