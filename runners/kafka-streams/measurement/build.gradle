@@ -25,7 +25,9 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
-mainClassName = "org.apache.beam.runners.kafka.streams.measurement.RescalingMeasurement"
+application {
+    mainClass = "org.apache.beam.runners.kafka.streams.measurement.RescalingMeasurement"
+}
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.kafka.streams.measurement',

@@ -102,7 +102,7 @@ public class SchemaUtils {
                   + ".v.s"
                   + fieldType2.getLogicalType().getIdentifier());
         }
-        // fall through
+      // fall through
       default:
         result = fieldType1;
     }

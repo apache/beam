@@ -864,10 +864,9 @@ tasks.register("pushAllRunnersDockerImages") {
 
   doLast {
     if (project.hasProperty("prune-images")) {
-      exec {
-        executable("docker")
-        args("system", "prune", "-a", "--force")
-      }
+      providers.exec {
+        commandLine("docker", "system", "prune", "-a", "--force")
+      }.result.get()
     }
   }
 }
@@ -888,10 +887,9 @@ tasks.register("pushAllSdkDockerImages") {
 
   doLast {
     if (project.hasProperty("prune-images")) {
-      exec {
-        executable("docker")
-        args("system", "prune", "-a", "--force")
-      }
+      providers.exec {
+        commandLine("docker", "system", "prune", "-a", "--force")
+      }.result.get()
     }
   }
 }
@@ -909,10 +907,9 @@ tasks.register("pushAllXlangDockerImages") {
 
   doLast {
     if (project.hasProperty("prune-images")) {
-      exec {
-        executable("docker")
-        args("system", "prune", "-a", "--force")
-      }
+      providers.exec {
+        commandLine("docker", "system", "prune", "-a", "--force")
+      }.result.get()
     }
   }
 }

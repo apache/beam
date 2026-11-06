@@ -107,13 +107,13 @@ def commonConfig = { Map args ->
 
 tasks.register('preCommitLegacyWorker', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar)
 }
 
 tasks.register('preCommitLegacyWorkerImpersonate', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     with commonConfig(
             dataflowWorkerJar: dataflowWorkerJar,
             gcsTempRoot: impersonationTempRoot,
@@ -126,7 +126,7 @@ tasks.register('preCommitLegacyWorkerImpersonate', Test) {
 tasks.register('verifyFnApiWorker', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     with commonConfig(
             dataflowWorkerJar: dataflowWorkerJar,
             workerHarnessContainerImage: dockerJavaImageName,
@@ -139,7 +139,7 @@ tasks.register('verifyFnApiWorker', Test) {
 
 tasks.register('postCommitLegacyWorker', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
 }
 
@@ -149,7 +149,7 @@ tasks.register('javaPostCommit') {
 
 tasks.register('postCommitLegacyWorkerJava8', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     systemProperty "java.specification.version", "8"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
@@ -160,7 +160,7 @@ tasks.register('java8PostCommit') {
 
 tasks.register('postCommitLegacyWorkerJava17', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     systemProperty "java.specification.version", "17"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
@@ -171,7 +171,7 @@ tasks.register('java17PostCommit') {
 
 tasks.register('postCommitLegacyWorkerJava21', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     systemProperty "java.specification.version", "21"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
 }
@@ -182,7 +182,7 @@ tasks.register('java21PostCommit') {
 
 tasks.register('postCommitLegacyWorkerJava25', Test) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archiveFile.get().asFile
     systemProperty "java.specification.version", "25"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
 }

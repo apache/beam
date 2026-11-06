@@ -418,7 +418,7 @@ public class ArtifactStagingService
               responseObserver.onError(exn);
             }
             state = State.GETCHUNK;
-            // fall through
+          // fall through
 
           case GETCHUNK:
             try {

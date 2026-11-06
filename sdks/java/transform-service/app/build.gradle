@@ -25,7 +25,9 @@ applyJavaNature(
     validateShadowJar: false,
     shadowClosure: {},
 )
-mainClassName = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
+application {
+    mainClass = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
+}
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: App"
 ext.summary = """Runs a transform service."""

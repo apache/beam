@@ -32,7 +32,7 @@ dependencies {
     implementation project(path: ":sdks:java:transform-service:launcher")
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
-    testImplementation project(":sdks:java:core").sourceSets.test.output
+    testImplementation files(rootProject.project(":sdks:java:core").sourceSets.test.output)
     testImplementation project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
 }

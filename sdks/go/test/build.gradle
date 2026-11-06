@@ -101,11 +101,11 @@ task flinkValidatesRunner {
   }
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").tasks.named("buildTestExpansionServiceJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).get().archiveFile.get().asFile}",
     ]
     def options = [
         "--runner flink",
-        "--flink_job_server_jar ${project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_job_server_jar ${project(":runners:flink:${flinkVersion}:job-server").shadowJar.archiveFile.get().asFile}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
         "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
@@ -131,11 +131,11 @@ task sparkValidatesRunner {
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").tasks.named("buildTestExpansionServiceJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).get().archiveFile.get().asFile}",
     ]
     def options = [
         "--runner spark",
-        "--spark_job_server_jar ${project(":runners:spark:3:job-server").shadowJar.archivePath}",
+        "--spark_job_server_jar ${project(":runners:spark:3:job-server").shadowJar.archiveFile.get().asFile}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
         "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
@@ -167,7 +167,7 @@ tasks.register("ulrValidatesRunner") {
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+         "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").tasks.named("buildTestExpansionServiceJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).get().archiveFile.get().asFile}",
     ]
     def options = [
         "--runner portable",
@@ -200,7 +200,7 @@ task prismValidatesRunner {
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").tasks.named("buildTestExpansionServiceJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).get().archiveFile.get().asFile}",
     ]
     def options = [
         "--runner prism",
@@ -232,11 +232,11 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
     dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
 
     doLast {
-      def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
-      def schemaIoExpJar = project(":sdks:java:extensions:schemaio-expansion-service").shadowJar.archivePath
-      def debeziumIoExpJar = project(":sdks:java:io:debezium:expansion-service").shadowJar.archivePath
-      def gcpIoExpJar = project(":sdks:java:io:google-cloud-platform:expansion-service").shadowJar.archivePath
-      def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+      def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archiveFile.get().asFile
+      def schemaIoExpJar = project(":sdks:java:extensions:schemaio-expansion-service").shadowJar.archiveFile.get().asFile
+      def debeziumIoExpJar = project(":sdks:java:io:debezium:expansion-service").shadowJar.archiveFile.get().asFile
+      def gcpIoExpJar = project(":sdks:java:io:google-cloud-platform:expansion-service").shadowJar.archiveFile.get().asFile
+      def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archiveFile.get().asFile
       def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
           "--kafka_jar=${kafkaJar}",
           "--expansion_jar=io:${ioExpJar}",

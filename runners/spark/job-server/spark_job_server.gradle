@@ -26,7 +26,9 @@ import org.apache.beam.gradle.BeamModulePlugin
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
-mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
+application {
+  mainClass = "org.apache.beam.runners.spark.SparkJobServerDriver"
+}
 
 def sparkVersion = project.findProperty('spark_version') ?: ''
 
@@ -304,7 +306,7 @@ def sparkJobServerJvmArgs() {
 def setupTask = project.tasks.register("sparkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
-  def sparkJobServerJar = shadowJar.archivePath
+  def sparkJobServerJar = shadowJar.archiveFile.get().asFile
   def jvmArgs = sparkJobServerJvmArgs().join(' ')
   def jvmArgsOpt = jvmArgs ? "--jvm_args \"${jvmArgs}\"" : ""
 

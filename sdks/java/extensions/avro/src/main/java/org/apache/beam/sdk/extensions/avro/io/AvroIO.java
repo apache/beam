@@ -1443,8 +1443,8 @@ public class AvroIO {
 
     abstract @Nullable FilenamePolicy getFilenamePolicy();
 
-    abstract @Nullable
-        DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
+    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
+        getDynamicDestinations();
 
     abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
 

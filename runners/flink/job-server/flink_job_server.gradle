@@ -27,7 +27,9 @@ import org.apache.beam.gradle.BeamModulePlugin
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
-mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+application {
+  mainClass = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+}
 
 // Resolve the Flink project name (and version) the job-server is based on
 def flinkRunnerProject = "${project.path.replace(":job-server", "")}"
@@ -268,7 +270,7 @@ def artifactPort = BeamModulePlugin.getRandomPort()
 def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
-  def flinkJobServerJar = shadowJar.archivePath
+  def flinkJobServerJar = shadowJar.archiveFile.get().asFile
   def flinkDir = project.project(":runners:flink").projectDir
   def additionalArgs = ""
 
@@ -341,11 +343,11 @@ shadowJar {
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
 tasks.register("miniCluster", Jar) {
   dependsOn shadowJar
-  archiveBaseName = "${project.archivesBaseName}-mini-cluster"
+  archiveBaseName = "${project.extensions.getByType(org.gradle.api.plugins.BasePluginExtension).archivesName.get()}-mini-cluster"
   dependencies {
     runtimeOnly project(path: flinkRunnerProject, configuration: "miniCluster")
   }
-  from zipTree(shadowJar.archivePath).matching {
+  from zipTree(shadowJar.archiveFile.get().asFile).matching {
     // If these classes aren't excluded from the mini cluster jar, they will be loaded instead of
     // the corresponding classes in the submitted job jar, preventing pipeline resources from
     // loading successfully.

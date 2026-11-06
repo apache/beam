@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-import java.io.FileOutputStream
+import java.io.ByteArrayOutputStream
 
 description = "Apache Beam :: Playground :: playground_components Flutter Package"
 
 tasks.register("generate") {
   dependsOn("generateCode")
   dependsOn("extractBeamSymbols")
-
   group = "build"
   description = "Generates all generated files."
 }
@@ -31,61 +30,51 @@ tasks.register("generate") {
 tasks.register("precommit") {
   dependsOn("analyze")
   dependsOn("test")
-
   group = "verification"
   description = "All possible checks before a commit."
 }
 
-tasks.register("analyze") {
+tasks.register<org.gradle.api.tasks.Exec>("analyze") {
   dependsOn("generateCode")
-
   group = "verification"
   description = "Run dart analyzer"
-
-  doLast {
-    exec {
-      executable("dart")
-      args("analyze", ".")
-    }
-  }
+  commandLine("dart", "analyze", ".")
 }
 
-tasks.register("test") {
+tasks.register<org.gradle.api.tasks.Exec>("test") {
   dependsOn("generateCode")
-
   group = "verification"
   description = "Run tests"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("test")
-    }
-  }
+  commandLine("flutter", "test")
 }
 
-tasks.register("cleanFlutter") {
+tasks.register<org.gradle.api.tasks.Exec>("cleanFlutter") {
   group = "build"
   description = "Remove build artifacts"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("clean")
-    }
-  }
+  commandLine("flutter", "clean")
 }
 
-tasks.register("pubGet") {
+tasks.register<org.gradle.api.tasks.Exec>("pubGet") {
   group = "build"
   description = "Install dependencies"
+  commandLine("flutter", "pub", "get")
+}
 
-  doLast {
-    exec {
-      executable("flutter")
-      args("pub", "get")
+val deleteFilesByRegExp: (String) -> Unit = { re ->
+  val regex = Regex(re)
+  val matchedFiles = listOf("assets", "lib", "test").flatMap { directory ->
+    val base = file(directory)
+    if (base.exists()) {
+      fileTree(base).files.filter {
+        regex.matches(it.relativeTo(base).invariantSeparatorsPath)
+      }
+    } else {
+      emptyList()
     }
-  }
+  }.distinct()
+
+  matchedFiles.forEach { println(it) }
+  delete(matchedFiles)
 }
 
 tasks.register("cleanGenerated") {
@@ -94,44 +83,23 @@ tasks.register("cleanGenerated") {
 
   doLast {
     println("Deleting:")
-
-    deleteFilesByRegExp(".*\\.g\\.dart\$")
-    deleteFilesByRegExp(".*\\.g\\.yaml\$")
-    deleteFilesByRegExp(".*\\.gen\\.dart\$")
-    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
+    deleteFilesByRegExp(".*\\.g\\.dart$")
+    deleteFilesByRegExp(".*\\.g\\.yaml$")
+    deleteFilesByRegExp(".*\\.gen\\.dart$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart$")
   }
 }
 
-val deleteFilesByRegExp by extra(
-  fun(re: String) {
-    // Prints file names.
-    exec {
-      executable("find")
-      args("assets", "lib", "test", "-regex", re)
-    }
-
-    // Actually deletes them.
-    exec {
-      executable("find")
-      args("assets", "lib", "test", "-regex", re, "-delete")
-    }
-  }
-)
-
-tasks.register("generateCode") {
+tasks.register<org.gradle.api.tasks.Exec>("generateCode") {
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
   mustRunAfter("extractBeamSymbols")
-
   group = "build"
   description = "Generate code"
-
-  doLast {
-    exec {
-      executable("flutter")
-      args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-    }
-  }
+  commandLine(
+    "flutter", "pub", "run", "build_runner", "build",
+    "--delete-conflicting-outputs"
+  )
 }
 
 tasks.register("extractBeamSymbols") {
@@ -139,32 +107,27 @@ tasks.register("extractBeamSymbols") {
   dependsOn("extractBeamSymbolsGo")
   dependsOn("extractBeamSymbolsJava")
   dependsOn("extractBeamSymbolsPython")
-
   group = "build"
   description = "Build Beam symbols dictionaries"
 }
 
-tasks.register("ensureSymbolsDirectoryExists") {
-  doLast {
-    exec {
-      executable("mkdir")
-      args("-p", "assets/symbols")
-    }
-  }
+tasks.register<org.gradle.api.tasks.Exec>("ensureSymbolsDirectoryExists") {
+  commandLine("mkdir", "-p", "assets/symbols")
 }
 
-tasks.register("extractBeamSymbolsGo") {
+tasks.register<org.gradle.api.tasks.Exec>("extractBeamSymbolsGo") {
+  val capturedOutput = ByteArrayOutputStream()
+
+  workingDir("tools/extract_symbols_go")
+  commandLine(
+    "go", "run", "extract_symbols_go.go",
+    "../../../../../sdks/go/pkg/beam"
+  )
+  standardOutput = capturedOutput
+
   doLast {
-    exec {
-      workingDir("tools/extract_symbols_go")
-      executable("go")
-      args(
-        "run",
-        "extract_symbols_go.go",
-        "../../../../../sdks/go/pkg/beam",
-      )
-      standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/go.g.yaml")
-    }
+    layout.projectDirectory.file("assets/symbols/go.g.yaml")
+      .asFile.writeBytes(capturedOutput.toByteArray())
   }
 }
 
@@ -172,15 +135,18 @@ tasks.register("extractBeamSymbolsJava") {
   dependsOn("tools:extract_symbols_java:buildJava")
 }
 
-tasks.register("extractBeamSymbolsPython") {
+tasks.register<org.gradle.api.tasks.Exec>("extractBeamSymbolsPython") {
+  val capturedOutput = ByteArrayOutputStream()
+
+  commandLine(
+    "python3",
+    "tools/extract_symbols_python/extract_symbols_python.py",
+    "../../../sdks/python/apache_beam"
+  )
+  standardOutput = capturedOutput
+
   doLast {
-    exec {
-      executable("python3")
-      args(
-        "tools/extract_symbols_python/extract_symbols_python.py",
-        "../../../sdks/python/apache_beam",
-      )
-      standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/python.g.yaml")
-    }
+    layout.projectDirectory.file("assets/symbols/python.g.yaml")
+      .asFile.writeBytes(capturedOutput.toByteArray())
   }
 }

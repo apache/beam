@@ -27,7 +27,9 @@
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 // Must be set before the shadow plugin is applied.
-mainClassName = "org.apache.beam.runners.kafka.streams.KafkaStreamsJobServerDriver"
+application {
+    mainClass = "org.apache.beam.runners.kafka.streams.KafkaStreamsJobServerDriver"
+}
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.kafka.streams.jobserver',

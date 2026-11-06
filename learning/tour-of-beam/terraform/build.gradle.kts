@@ -86,39 +86,37 @@ tasks.register<TerraformTask>("terraformDestroy") {
     )
 }
 
-tasks.register("getRouterHost") {
+tasks.register<org.gradle.api.tasks.Exec>("getRouterHost") {
     group = "backend-deploy"
+    commandLine(
+        "kubectl",
+        "get",
+        "svc",
+        "-l",
+        "app=backend-router-grpc",
+        "-o",
+        "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'"
+    )
+    standardOutput = ByteArrayOutputStream()
+
     doLast {
-        val result = ByteArrayOutputStream()
-        exec {
-            commandLine(
-                "kubectl",
-                "get",
-                "svc",
-                "-l",
-                "app=backend-router-grpc",
-                "-o",
-                "jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'"
-            )
-            standardOutput = result
-        }
+        val result = standardOutput as ByteArrayOutputStream
         val pgRouterHost = result.toString().trim().replace("'", "")
         project.extensions.extraProperties["pg_router_host"] = pgRouterHost
     }
 }
 
-tasks.register("indexcreate") {
+tasks.register<org.gradle.api.tasks.Exec>("indexcreate") {
     group = "backend-deploy"
     dependsOn("getRouterHost")
 
-    doLast {
-
-        val indexpath = "../backend/internal/storage/index.yaml"
-        exec {
-            executable("gcloud")
-            args("datastore", "indexes", "create", indexpath)
-        }
-    }
+    commandLine(
+        "gcloud",
+        "datastore",
+        "indexes",
+        "create",
+        "../backend/internal/storage/index.yaml"
+    )
 }
 
 tasks.register("firebaseProjectCreate") {
@@ -126,21 +124,18 @@ tasks.register("firebaseProjectCreate") {
     dependsOn("prepareFirebasercConfig")
 
     doLast {
-        val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
-        exec {
-            executable("firebase")
-            args("projects:list")
-            standardOutput = result
-        }
-        val output = result.toString().trim()
+        val output = providers.exec {
+            commandLine("firebase", "projects:list")
+        }.standardOutput.asText.get().trim()
+
         if (output.contains(projectId)) {
             println("Firebase is already added to project $projectId.")
         } else {
-            exec {
-                executable("firebase")
-                args("projects:addfirebase", projectId)
-            }.assertNormalExitValue()
+            providers.exec {
+                commandLine("firebase", "projects:addfirebase", projectId)
+            }.result.get().assertNormalExitValue()
+
             println("Firebase has been added to project $projectId.")
         }
     }
@@ -153,34 +148,31 @@ tasks.register("firebaseHostingCreate") {
     doLast {
         val projectId = project.property("project_id") as String
         val webapp_id = project.property("webapp_id") as String
-        val listSitesResult = ByteArrayOutputStream()
-        exec {
-            executable("firebase")
-            args("hosting:sites:list", "--project", projectId)
-            workingDir("../frontend")
-            standardOutput = listSitesResult
-        }
+        val frontendDir = project.file("../frontend")
 
-        println(listSitesResult)
-        val output = listSitesResult.toString()
+        val listSitesOutput = providers.exec {
+            commandLine("firebase", "hosting:sites:list", "--project", projectId)
+            workingDir(frontendDir)
+        }.standardOutput.asText.get()
+
+        println(listSitesOutput)
+
         val regex = "\\b$webapp_id\\b".toRegex()
-        if (regex.containsMatchIn(output)) {
-            println("Firebase is already added to project $projectId.")
+        if (regex.containsMatchIn(listSitesOutput)) {
+            println("Firebase hosting site is already added to project $projectId.")
         } else {
-            exec {
-                executable("firebase")
-                args("hosting:sites:create", webapp_id)
-                workingDir("../frontend")
-            }.assertNormalExitValue()
+            providers.exec {
+                commandLine("firebase", "hosting:sites:create", webapp_id)
+                workingDir(frontendDir)
+            }.result.get().assertNormalExitValue()
+
             println("Firebase hosting site has been added to project $projectId.")
         }
 
-        exec {
-            executable("firebase")
-            args("target:apply", "hosting", webapp_id , webapp_id)
-            workingDir("../frontend")
-
-        }.assertNormalExitValue()
+        providers.exec {
+            commandLine("firebase", "target:apply", "hosting", webapp_id, webapp_id)
+            workingDir(frontendDir)
+        }.result.get().assertNormalExitValue()
 
         val file = project.file("../frontend/firebase.json")
         val content = file.readText()
@@ -199,16 +191,15 @@ tasks.register("firebaseWebAppCreate") {
     dependsOn("firebaseProjectCreate")
 
     doLast {
-        val result = ByteArrayOutputStream()
         val projectId = project.property("project_id") as String
         val webappId = project.property("webapp_id") as String
-        exec {
-            executable("firebase")
-            args("apps:list", "--project", projectId)
-            standardOutput = result
-        }
-        println(result)
-        val output = result.toString()
+
+        val output = providers.exec {
+            commandLine("firebase", "apps:list", "--project", projectId)
+        }.standardOutput.asText.get()
+
+        println(output)
+
         if (output.contains(webappId)) {
             println("Webapp id $webappId is already created on the project: $projectId.")
             val regex = Regex("""$webappId[\W]+([\d:a-zA-Z]+)[\W]+WEB""")
@@ -216,14 +207,14 @@ tasks.register("firebaseWebAppCreate") {
             println("Firebase app ID for existing Firebase Web App: $firebaseAppId")
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
         } else {
-            val result2 = ByteArrayOutputStream()
-            exec {
-                executable("firebase")
-                args("apps:create", "WEB", webappId, "--project", projectId)
-                standardOutput = result2
-            }.assertNormalExitValue()
+            val result = providers.exec {
+                commandLine("firebase", "apps:create", "WEB", webappId, "--project", projectId)
+            }
+            val creationOutput = result.standardOutput.asText.get()
+            result.result.get().assertNormalExitValue()
+
             val firebaseAppId =
-                result2.toString().lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
+                creationOutput.lines().find { it.startsWith("  - App ID:") }?.substringAfter(":")?.trim()
             project.extensions.extraProperties["firebaseAppId"] = firebaseAppId
             println("Firebase app ID for newly created Firebase Web App: $firebaseAppId")
         }
@@ -237,13 +228,11 @@ tasks.register("getSdkConfigWebApp") {
 
     doLast {
         val firebaseAppId = project.extensions.extraProperties["firebaseAppId"] as String
-        val result = ByteArrayOutputStream()
-        exec {
-            executable("firebase")
-            args("apps:sdkconfig", "WEB", firebaseAppId)
-            standardOutput = result
+        val result = providers.exec {
+            commandLine("firebase", "apps:sdkconfig", "WEB", firebaseAppId)
         }
-        val output = result.toString().trim()
+        val output = result.standardOutput.asText.get().trim()
+        result.result.get().assertNormalExitValue()
         val pattern = Pattern.compile("\\{[^{]*\"locationId\":\\s*\".*?\"[^}]*\\}", Pattern.DOTALL)
         val matcher = pattern.matcher(output)
         if (matcher.find()) {
@@ -277,11 +266,10 @@ tasks.register("prepareFirebaseOptionsDart") {
 tasks.register("flutterPubGetPG") {
     dependsOn("prepareFirebaseOptionsDart")
     doLast {
-        exec {
-            executable("flutter")
-            args("pub", "get")
-            workingDir("../../../playground/frontend/playground_components")
-        }
+        providers.exec {
+            commandLine("flutter", "pub", "get")
+            workingDir(project.file("../../../playground/frontend/playground_components"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -289,11 +277,10 @@ tasks.register("flutterPubRunPG") {
     dependsOn("flutterPubGetPG")
 
     doLast {
-        exec {
-            executable("flutter")
-            args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-            workingDir("../../../playground/frontend/playground_components")
-        }
+        providers.exec {
+            commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+            workingDir(project.file("../../../playground/frontend/playground_components"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -302,11 +289,10 @@ tasks.register("flutterPubGetTob") {
     dependsOn("getSdkConfigWebApp")
 
     doLast {
-        exec {
-            executable("flutter")
-            args("pub", "get")
-            workingDir("../frontend")
-        }
+        providers.exec {
+            commandLine("flutter", "pub", "get")
+            workingDir(project.file("../frontend"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -314,11 +300,10 @@ tasks.register("flutterPubRunTob") {
     dependsOn("flutterPubGetTob")
 
     doLast {
-        exec {
-            executable("flutter")
-            args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
-            workingDir("../frontend")
-        }
+        providers.exec {
+            commandLine("flutter", "pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+            workingDir(project.file("../frontend"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -326,11 +311,10 @@ tasks.register("flutterBuildWeb") {
     dependsOn("flutterPubRunTob")
 
     doLast {
-        exec {
-            executable("flutter")
-            args("build", "web", "-v", "--release")
-            workingDir("../frontend")
-        }
+        providers.exec {
+            commandLine("flutter", "build", "web", "-v", "--release")
+            workingDir(project.file("../frontend"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -340,10 +324,10 @@ tasks.register("firebaseDeploy") {
     doLast {
         val projectId = project.property("project_id") as String
         val webapp_id = project.property("webapp_id") as String
-        exec {
-            commandLine("firebase", "deploy", "--only",  "hosting:$webapp_id", "--project", projectId)
-            workingDir("../frontend")
-        }
+        providers.exec {
+            commandLine("firebase", "deploy", "--only", "hosting:$webapp_id", "--project", projectId)
+            workingDir(project.file("../frontend"))
+        }.result.get().assertNormalExitValue()
     }
 }
 
@@ -400,13 +384,13 @@ tasks.register("uploadLearningMaterials") {
 
     doLast {
         val projectId = project.property("project_id") as String
-        exec {
+        providers.exec {
             commandLine("go", "run", "cmd/ci_cd/ci_cd.go")
             environment("DATASTORE_PROJECT_ID", projectId)
             environment("GOOGLE_PROJECT_ID", projectId)
             environment("TOB_LEARNING_ROOT", "../learning-content/")
-            workingDir("../backend")
-        }
+            workingDir(project.file("../backend"))
+        }.result.get().assertNormalExitValue()
     }
 }
 

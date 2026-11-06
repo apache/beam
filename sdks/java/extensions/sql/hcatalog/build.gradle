@@ -43,7 +43,12 @@ dependencies {
   implementation project(":sdks:java:core")
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
-  testImplementation project(":sdks:java:io:hcatalog").sourceSets.test.output
+  testImplementation files(
+      rootProject.project(":sdks:java:io:hcatalog")
+          .extensions
+          .getByType(org.gradle.api.tasks.SourceSetContainer)
+          .getByName("test").output
+  )
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
   testImplementation "io.netty:netty-all:$netty_version"

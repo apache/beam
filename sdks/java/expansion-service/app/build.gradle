@@ -23,7 +23,9 @@ applyJavaNature(
   validateShadowJar: false,
   shadowClosure: {},
 )
-mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
+application {
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+}
 
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service :: App"

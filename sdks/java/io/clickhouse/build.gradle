@@ -73,5 +73,5 @@ dependencies {
 
 processTestResources {
   // BEAM-12390: config.d/zookeeper_default.xml should have xx4 permission.
-  fileMode 0644
+  filePermissions { unix(0644) }
 }

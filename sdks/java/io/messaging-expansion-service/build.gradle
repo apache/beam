@@ -18,7 +18,9 @@
 
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
-mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
+application {
+    mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+}
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.messaging.expansion.service',

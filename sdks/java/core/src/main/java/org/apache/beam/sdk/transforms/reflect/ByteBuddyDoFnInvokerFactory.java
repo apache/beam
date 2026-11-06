@@ -507,8 +507,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static class DefaultGetInitialWatermarkEstimatorState {
     /** The default watermark estimator state is {@code null}. */
     @SuppressWarnings("unused")
-    public static <InputT, OutputT, WatermarkEstimatorStateT> @Nullable
-        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
+    public static <InputT, OutputT, WatermarkEstimatorStateT>
+        @Nullable WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
             DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
       return null;
     }

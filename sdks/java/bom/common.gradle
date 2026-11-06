@@ -35,7 +35,7 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             groupId = project.mavenGroupId
-            artifactId = archivesBaseName
+            artifactId = project.extensions.getByType(org.gradle.api.plugins.BasePluginExtension).archivesName.get()
             version = project.version
             pom {
                 name = project.description

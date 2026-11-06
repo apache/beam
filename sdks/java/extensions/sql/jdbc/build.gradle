@@ -148,6 +148,6 @@ processResources {
  * `-Pbeam.sql.shell.bundled="sdks:java:extensions:sql:hcatalog"`
  */
 run {
-  mainClassName = "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+  mainClass = "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
   standardInput System.in
 }
