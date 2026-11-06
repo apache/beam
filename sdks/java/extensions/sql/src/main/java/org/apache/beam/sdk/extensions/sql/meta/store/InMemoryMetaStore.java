@@ -130,6 +130,11 @@ public class InMemoryMetaStore implements MetaStore {
     return getProvider(table.getType()).supportsPartitioning(table);
   }
 
+  @Override
+  public boolean supportsPrimaryKey(Table table) {
+    return getProvider(table.getType()).supportsPrimaryKey(table);
+  }
+
   /**
    * Fetches a {@link TableProvider} for this type. This provider can exist in the current {@link
    * InMemoryMetaStore} or a nested {@link InMemoryMetaStore}.

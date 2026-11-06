@@ -186,11 +186,13 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:       modelURL,
-					PipelineProtoHash: pipelineProtoHash,
-					Region:            opts.Region,
-					Experiments:       opts.Experiments,
-					TempLocation:      opts.TempLocation,
+					PipelineURL:                  modelURL,
+					PipelineProtoHash:            pipelineProtoHash,
+					Region:                       opts.Region,
+					Experiments:                  opts.Experiments,
+					TempLocation:                 opts.TempLocation,
+					Streaming:                    opts.Streaming,
+					NumberOfWorkerHarnessThreads: opts.WorkerHarnessThreads,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -372,6 +374,8 @@ type dataflowOptions struct {
 	TempLocation                   string   `json:"tempLocation"`
 	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`
 	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps"`
+	Streaming                      bool     `json:"streaming,omitempty"`
+	NumberOfWorkerHarnessThreads   int64    `json:"numberOfWorkerHarnessThreads,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
