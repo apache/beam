@@ -95,6 +95,7 @@
 ### New Feature
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added an OpenLineage extension (`sdks/java/extensions/openlineage`) that emits OpenLineage events describing the datasets a pipeline reads and writes, via a wrapper runner (`--runner=OpenLineageRunner`) and a pluggable lineage backend (`--lineageType`) (Java) ([#39427](https://github.com/apache/beam/issues/39427)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
