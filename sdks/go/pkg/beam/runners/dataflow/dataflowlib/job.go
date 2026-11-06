@@ -199,6 +199,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 					TempLocation:                   opts.TempLocation,
 					DiskProvisionedIops:            opts.DiskProvisionedIops,
 					DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
+					Streaming:                      opts.Streaming,
+					NumberOfWorkerHarnessThreads:   opts.WorkerHarnessThreads,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -386,6 +388,8 @@ type dataflowOptions struct {
 	TempLocation                   string   `json:"tempLocation"`
 	DiskProvisionedIops            int64    `json:"diskProvisionedIops,omitempty"`
 	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps,omitempty"`
+	Streaming                      bool     `json:"streaming,omitempty"`
+	NumberOfWorkerHarnessThreads   int64    `json:"numberOfWorkerHarnessThreads,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
