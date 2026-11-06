@@ -150,6 +150,7 @@ class RunTest(unittest.TestCase):
     # Regression test for Windows temp paths (`C:\Users\...\tmp...`), where
     # unescaped `\U` and `\t` inside double-quoted YAML strings fail parsing.
     tricky_input = os.path.join(self.tmp, r'C_\Users\tmp_users.csv')
+    os.makedirs(os.path.dirname(tricky_input), exist_ok=True)
     shutil.copyfile(self.input, tricky_input)
     path = self._pipeline_file(
         PIPELINE, 'backslash_users.json', input_path=tricky_input)
