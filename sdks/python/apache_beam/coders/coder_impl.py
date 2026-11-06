@@ -694,7 +694,8 @@ class BytesCoderImpl(CoderImpl):
 
     # value might be of type np.bytes if passed from encode_batch, and cython
     # does not recognize it as bytes.
-    if is_compiled and isinstance(value, np.bytes_):
+    if type(value) is not bytes and is_compiled and isinstance(value,
+                                                               np.bytes_):
       value = bytes(value)
 
     out.write(value, nested)
@@ -709,6 +710,31 @@ class BytesCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     return encoded
+
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(len(value), nested)
+
+
+class StrUtf8CoderImpl(CoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for str objects encoded as UTF-8."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (str, create_OutputStream, bool) -> None
+    out.write(value.encode('utf-8'), nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> str
+    return in_stream.read_all(nested).decode('utf-8')
+
+  def encode(self, value):
+    return value.encode('utf-8')
+
+  def decode(self, encoded):
+    return encoded.decode('utf-8')
+
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(len(value.encode('utf-8')), nested)
 
 
 class BooleanCoderImpl(CoderImpl):
