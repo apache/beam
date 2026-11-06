@@ -635,6 +635,20 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     handle.unsafe_hard_delete()
     self.assertEqual(multiprocessing.active_children(), [])
 
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      stale_address = os.path.join(tmp_dir, 'stale_tag.address')
+      with open(stale_address, 'w') as f:
+        f.write('localhost:1')
+      stale_handle = multi_process_shared.MultiProcessShared(
+          Counter,
+          tag='stale_tag',
+          path=tmp_dir,
+          always_proxy=True,
+          spawn_process=True)
+      stale_handle.unsafe_hard_delete()
+      self.assertFalse(os.path.exists(stale_address))
+      self.assertEqual(multiprocessing.active_children(), [])
+
   def test_unsafe_hard_delete_terminates_server_during_inflight_blocked_call(
       self):
     with tempfile.TemporaryDirectory() as tmp_dir:

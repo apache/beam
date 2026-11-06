@@ -374,13 +374,17 @@ class MultiProcessShared(Generic[T]):
         os.path.join(self._path, self._tag) + '.lock')
     self._spawn_process = spawn_process
 
-  def _get_manager(self):
+  def _get_manager(self, create_if_missing: bool = True):
     if self._manager is None:
       address_file = os.path.join(self._path, self._tag) + ".address"
       while self._manager is None:
         with _process_local_lock:
           with self._cross_process_lock:
             if not os.path.exists(address_file):
+              if not create_if_missing:
+                if _process_level_singleton_manager.has_singleton(self._tag):
+                  self._manager = _process_level_singleton_manager
+                return self._manager
               self._create_server(address_file)
 
             if _process_level_singleton_manager.has_singleton(
@@ -442,13 +446,11 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
-    address_file = os.path.join(self._path, self._tag) + ".address"
-    if (self._manager is None and
-        not _process_level_singleton_manager.has_singleton(self._tag) and
-        not os.path.exists(address_file)):
+    manager = self._get_manager(create_if_missing=False)
+    if manager is None:
       return
     try:
-      self._get_manager().unsafe_hard_delete_singleton(self._tag)
+      manager.unsafe_hard_delete_singleton(self._tag)
     except (EOFError, OSError, BrokenPipeError):
       # Expected when a spawned server process exits via os._exit(0) before
       # sending an RPC reply.
