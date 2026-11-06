@@ -109,8 +109,11 @@ func init() {
 // or in the JobOpts to prevent them from appearing duplicated
 // as PipelineOption display data.
 //
-// New flags that are already put into pipeline options
-// should be added to this map.
+// Note: Filtered flags are excluded from beam:option:go_options:v1. Any option
+// that is also read from top-level sdk_pipeline_options.options by the Dataflow
+// worker harness, provisioning service, Managed Transforms expansion, or
+// cross-language SDK harnesses must be declared in dataflowOptions and
+// populated in dataflowlib.Translate.
 // Don't filter temp_location since we need this included in PipelineOptions to correctly upload heap dumps.
 var flagFilter = map[string]bool{
 	"dataflow_endpoint":                 true,
