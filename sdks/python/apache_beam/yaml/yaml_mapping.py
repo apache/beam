@@ -950,13 +950,14 @@ def _ExtractWindowingInfo(
           'Fields must be a mapping or iterable of strings, got {fields}')
 
   existing_fields = named_fields_from_element_type(pcoll.element_type)
+  existing_field_names = {name for name, _ in existing_fields}
   new_fields = []
   for field, value in fields.items():
     if value not in _WINDOWING_INFO_TYPES:
       raise ValueError(
           f'{value} is not a valid windowing parameter; '
           f'must be one of {list(_WINDOWING_INFO_TYPES.keys())}')
-    elif field in existing_fields:
+    elif field in existing_field_names:
       raise ValueError(f'Input schema already has a field named {field}.')
     else:
       new_fields.append((field, _WINDOWING_INFO_TYPES[value]))

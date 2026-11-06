@@ -1340,6 +1340,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 500)
 
+  @unittest.skipIf(
+      sys.platform == 'win32',
+      'The resource module is not available on Windows.')
+  def test_no_resource_warning_when_model_manager_unavailable(self):
+    # ModelManager needs optional dependencies (e.g. torch). RunInference should
+    # still measure model memory with `resource` when ModelManager is missing.
+    with unittest.mock.patch.object(base, 'ModelManager', None), \
+        unittest.mock.patch.object(base.logging, 'warning') as mock_warning:
+      with TestPipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([1, 5, 3, 10])
+            | base.RunInference(FakeModelHandler()))
+    messages = [str(call) for call in mock_warning.call_args_list]
+    self.assertFalse(
+        any('Resource module is not available' in m for m in messages),
+        messages)
+
   def test_forwards_batch_args(self):
     examples = list(range(100))
     with TestPipeline('FnApiRunner') as pipeline:
@@ -2415,7 +2433,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
-    raise Exception
+    raise RuntimeError('fake remote inference request failed')
 
   def batch_elements_kwargs(self):
     return {
@@ -2475,22 +2493,29 @@ class RunInferenceRemoteTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_repeated_requests_fail(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_repeated_requests_fail(self, sleep, unused_throttle):
     test_pipeline = TestPipeline()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(RuntimeError,
+                                'fake remote inference request failed'):
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
           | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
       test_pipeline.run()
+    self.assertEqual(sleep.call_count, 2)
 
-  def test_works_on_retry(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_works_on_retry(self, sleep, unused_throttle):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+    sleep.assert_called()
 
   def test_exception_on_load_model_override(self):
     with self.assertRaises(Exception):
@@ -2809,6 +2834,87 @@ class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
   def run_inference(self, batch, model, inference_args=None):
     max_len = max(len(s) for s in batch)
     return [f'{s}:{max_len}' for s in batch]
+
+
+class IdentifierReportingModelHandler(base.ModelHandler[int, str, FakeModel]):
+  """Emits the identifier RunInference reported, as seen at load_model time.
+
+  The DoFn works on a pickled copy of the handler, so the only way to observe
+  the hook is through the pipeline output.
+  """
+  def __init__(self):
+    super().__init__()
+    self._identifier_at_load = None
+
+  def load_model(self):
+    # Relies on the default ModelHandler.set_model_identifier, which stores
+    # the identifier in self._model_identifier before load_model runs.
+    self._identifier_at_load = self._model_identifier
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [f'{x}:{self._identifier_at_load}' for x in batch]
+
+
+class RunInferenceModelIdentifierTest(unittest.TestCase):
+  """RunInference hands handlers the identifier the autoscaler looks up."""
+  def test_default_model_identifier_is_none(self):
+    self.assertIsNone(IdentifierReportingModelHandler()._model_identifier)
+
+  def test_identifier_forwarded_through_wrappers(self):
+    inner = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler(inner)
+    handler = keyed.with_preprocess_fn(lambda kv: kv).with_postprocess_fn(
+        lambda kv: kv)
+    handler.set_model_identifier('wrapped-id')
+    for mh in (handler, keyed, inner):
+      self.assertEqual(mh._model_identifier, 'wrapped-id')
+
+  def test_identifier_forwarded_to_every_per_key_handler(self):
+    mh1 = IdentifierReportingModelHandler()
+    mh2 = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler([
+        base.KeyModelMapping(['k1'], mh1),
+        base.KeyModelMapping(['k2'], mh2),
+    ])
+    keyed.set_model_identifier('multi-id')
+    self.assertEqual(mh1._model_identifier, 'multi-id')
+    self.assertEqual(mh2._model_identifier, 'multi-id')
+
+  def test_explicit_model_identifier_is_reported_before_load(self):
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1, 2], reshuffle=False)
+          | base.RunInference(
+              IdentifierReportingModelHandler(),
+              model_identifier='my-step-model'))
+      assert_that(out, equal_to(['1:my-step-model', '2:my-step-model']))
+
+  def test_generated_uuid_identifier_matches_annotation(self):
+    # No model_identifier given: RunInference generates a uuid hex, annotates
+    # the inference step with it, and reports that same value to the handler.
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1], reshuffle=False)
+          | base.RunInference(IdentifierReportingModelHandler()))
+      annotated = [
+          t.annotations['model_identifier'].decode()
+          for t in p.to_runner_api().components.transforms.values()
+          if t.unique_name == 'RunInference/BeamML_RunInference'
+      ]
+      self.assertEqual(len(annotated), 1)
+      self.assertRegex(annotated[0], r'^[0-9a-f]{32}$')
+      assert_that(out, equal_to([f'1:{annotated[0]}']))
+
+  def test_identifier_forwarded_through_wrappers_in_pipeline(self):
+    handler = base.KeyedModelHandler(
+        IdentifierReportingModelHandler()).with_preprocess_fn(
+            lambda kv: kv).with_postprocess_fn(lambda kv: kv)
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([('k', 1)], reshuffle=False)
+          | base.RunInference(handler, model_identifier='wrapped-id'))
+      assert_that(out, equal_to([('k', '1:wrapped-id')]))
 
 
 class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
