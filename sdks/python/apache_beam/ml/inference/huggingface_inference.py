@@ -404,7 +404,8 @@ class HuggingFaceModelHandlerKeyedTensor(
       return sum(sys.getsizeof(element) for element in batch)
     else:
       return sum(
-          (el.element_size() for tensor in batch for el in tensor.values()))
+          el.element_size() * el.nelement() for tensor in batch
+          for el in tensor.values())
 
   def get_metrics_namespace(self) -> str:
     """
@@ -607,9 +608,12 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union['tf.Tensor',
     """
     if self._framework == "tf":
       return sum(sys.getsizeof(element) for element in batch)
-    else:
+    elif batch and isinstance(batch[0], dict):
       return sum(
-          (el.element_size() for tensor in batch for el in tensor.values()))
+          el.element_size() * el.nelement() for tensor in batch
+          for el in tensor.values())
+    else:
+      return sum(tensor.element_size() * tensor.nelement() for tensor in batch)
 
   def get_metrics_namespace(self) -> str:
     """

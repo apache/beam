@@ -212,6 +212,8 @@ def _default_pandas_inference_fn(
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
+  if len(batch) == vectorized_batch.shape[0]:
+    return predictions, batch
   splits = [
       vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
   ]
