@@ -744,6 +744,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         super().__init__(multi_process_shared=True)
         self.metrics_namespace = None
         self.model_paths = None
+        self.env_vars_set = False
 
       def override_metrics(self, metrics_namespace=''):
         self.metrics_namespace = metrics_namespace
@@ -755,6 +756,10 @@ class RunInferenceBaseTest(unittest.TestCase):
       def update_model_paths(self, model, model_paths=None):
         self.model_paths = model_paths
 
+      def set_environment_vars(self):
+        super().set_environment_vars()
+        self.env_vars_set = True
+
     wrappers = {
         'maybe_keyed': base.MaybeKeyedModelHandler,
         'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
@@ -765,11 +770,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       with self.subTest(wrapper=name):
         inner = HookRecordingModelHandler()
         wrapped = wrap(inner)
+        self.assertIsInstance(wrapped, base._DelegatingModelHandler)
         self.assertTrue(wrapped.override_metrics('test_namespace'))
         self.assertEqual(inner.metrics_namespace, 'test_namespace')
         self.assertFalse(wrapped.should_garbage_collect_on_timeout())
         wrapped.update_model_paths(None, 'new/path')
         self.assertEqual(inner.model_paths, 'new/path')
+        wrapped.set_environment_vars()
+        self.assertTrue(inner.env_vars_set)
 
   def test_wrapper_model_handlers_override_all_model_handler_methods(self):
     # Wrappers must forward every ModelHandler hook to the handler they wrap,
@@ -778,14 +786,14 @@ class RunInferenceBaseTest(unittest.TestCase):
         'with_preprocess_fn',
         'with_postprocess_fn',
         'with_no_batching',
-        'set_environment_vars',  # Wrappers copy _env_vars instead.
     }
     methods = [
         name for name, _ in inspect.getmembers(
             base.ModelHandler, inspect.isfunction)
         if not name.startswith('_') and name not in not_forwarded
     ]
-    for cls in (base.MaybeKeyedModelHandler,
+    for cls in (base._DelegatingModelHandler,
+                base.MaybeKeyedModelHandler,
                 base._PrebatchedModelHandler,
                 base._PreProcessingModelHandler,
                 base._PostProcessingModelHandler):
