@@ -53,8 +53,6 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
-	{"beam:logical_type:millis_instant:v1", "https://github.com/apache/beam/issues/39684: Support millis_instant."},
-	{"beam:logical_type:decimal:v1", "https://github.com/apache/beam/issues/39684: Support decimal."},
 	{"beam:logical_type:fixed_char:v1", "https://github.com/apache/beam/issues/39684: Support char/varchar, binary/varbinary."},
 	{"beam:logical_type:timestamp:v1", "https://github.com/apache/beam/issues/39684: Support timestamp."},
 }
@@ -183,6 +181,12 @@ var cmpOpts = []cmp.Option{
 	}),
 	cmp.Comparer(func(a, b schema.MicrosInstant) bool {
 		return a.Time().Equal(b.Time())
+	}),
+	cmp.Comparer(func(a, b schema.MillisInstant) bool {
+		return a.Time().Equal(b.Time())
+	}),
+	cmp.Comparer(func(a, b schema.Decimal) bool {
+		return a.String() == b.String()
 	}),
 }
 
@@ -484,6 +488,18 @@ func setValue(rv reflect.Value, v any) error {
 			}
 		}
 		rv.Set(reflect.ValueOf(schema.MicrosInstant(time.Unix(seconds, micros*1000).UTC())))
+		return nil
+	case reflect.TypeOf(schema.MillisInstant{}):
+		// The example value is the shifted INT64 representation.
+		millis := int64(v.(int)) + math.MinInt64
+		rv.Set(reflect.ValueOf(schema.MillisInstant(time.UnixMilli(millis).UTC())))
+		return nil
+	case reflect.TypeOf(schema.Decimal{}):
+		d, err := schema.ParseDecimal(v.(string))
+		if err != nil {
+			return err
+		}
+		rv.Set(reflect.ValueOf(d))
 		return nil
 	}
 	switch rv.Kind() {

@@ -486,33 +486,32 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
   }
 }
 
-tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
-  group = "Verification"
+def applyStructuredStreamingValidatesRunnerSetup = { Test it, Map pipelineOptions, List<String> extraExcludedCategories ->
+  it.group = "Verification"
   // Disable gradle cache
-  outputs.upToDateWhen { false }
-  systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"])
+  it.outputs.upToDateWhen { false }
+  it.systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"] + pipelineOptions)
   // Register various other classes used in tests
-  systemProperty 'spark.kryo.classesToRegister',
+  it.systemProperty 'spark.kryo.classesToRegister',
     'org.apache.beam.sdk.transforms.MapViewTest$NonDeterministicStringCoder,' +
     'org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RegularImmutableList'
-  jvmArgs += sparkTestJvmArgs()
-  jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
+  it.jvmArgs += sparkTestJvmArgs()
+  it.jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(
+  it.classpath = project.configurations.validatesRunner
+  it.testClassesDirs = project.files(
     project(":sdks:java:core").sourceSets.test.output.classesDirs,
     project(":runners:core-java").sourceSets.test.output.classesDirs,
   )
-  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+  it.testClassesDirs += project.files(project.sourceSets.test.output.classesDirs)
 
-  maxParallelForks 4
+  it.maxParallelForks 4
 
-  useJUnit {
+  it.useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     // Unbounded
-    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     // State and Timers
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
@@ -529,7 +528,13 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
+    extraExcludedCategories.each { excludeCategories it }
   }
+}
+ext.applyStructuredStreamingValidatesRunnerSetup = applyStructuredStreamingValidatesRunnerSetup
+
+tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
+  applyStructuredStreamingValidatesRunnerSetup(it, [:], ['org.apache.beam.sdk.testing.UsesUnboundedPCollections'])
   filter {
     // These build on PeriodicImpulse, so the pipeline is unbounded and rejected by this batch only
     // runner, but they are not categorized as UsesUnboundedPCollections. Excluded by name rather
@@ -560,6 +565,9 @@ tasks.register("validatesRunner") {
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerBatchWithBoundedSDFExperiment
   dependsOn validatesRunnerStreaming
+  if (spark_major == '4') {
+    dependsOn "validatesStructuredStreamingRunnerStreaming"
+  }
   // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass.
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
   //dependsOn validatesStructuredStreamingRunnerBatch

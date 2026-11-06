@@ -41,7 +41,7 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.data.GenericDeleteFilter;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.avro.DataReader;
+import org.apache.iceberg.data.avro.PlannedDataReader;
 import org.apache.iceberg.data.orc.GenericOrcReader;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptionManager;
@@ -180,8 +180,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
               Avro.read(input)
                   .split(fileTask.start(), fileTask.length())
                   .project(readSchema)
-                  .createReaderFunc(
-                      fileSchema -> DataReader.create(readSchema, fileSchema, idToConstants));
+                  .createResolvingReader(schema -> PlannedDataReader.create(schema, idToConstants));
 
           if (nameMapping != null) {
             avroReader.withNameMapping(NameMappingParser.fromJson(nameMapping));

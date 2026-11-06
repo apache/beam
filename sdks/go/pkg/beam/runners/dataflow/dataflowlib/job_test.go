@@ -375,3 +375,38 @@ func TestTranslateWithPipelineHash(t *testing.T) {
 		t.Errorf("Expected PipelineProtoHash %v, got %v", expectedHashStr, recoveredOptions.Options.PipelineProtoHash)
 	}
 }
+
+func TestTranslateStreamingWorkerHarnessThreads(t *testing.T) {
+	ctx := context.Background()
+	p := &pipepb.Pipeline{}
+	opts := &JobOptions{
+		Project:              "test-project",
+		Name:                 "test-streaming-job",
+		Region:               "us-central1",
+		Streaming:            true,
+		WorkerHarnessThreads: 16,
+	}
+
+	job, err := Translate(ctx, p, opts, "gs://bucket/worker", "gs://bucket/model", "hash-123")
+	if err != nil {
+		t.Fatalf("Translate(...) error = %v, want nil", err)
+	}
+
+	if got := job.Environment.WorkerPools[0].NumThreadsPerWorker; got != 16 {
+		t.Errorf("WorkerPools[0].NumThreadsPerWorker = %d, want 16", got)
+	}
+
+	var parsed struct {
+		Options map[string]any `json:"options"`
+	}
+	if err := json.Unmarshal(job.Environment.SdkPipelineOptions, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+
+	if got, ok := parsed.Options["streaming"].(bool); !ok || !got {
+		t.Errorf("SdkPipelineOptions.options[streaming] = %v, want true", parsed.Options["streaming"])
+	}
+	if got, ok := parsed.Options["numberOfWorkerHarnessThreads"].(float64); !ok || int64(got) != 16 {
+		t.Errorf("SdkPipelineOptions.options[numberOfWorkerHarnessThreads] = %v, want 16", parsed.Options["numberOfWorkerHarnessThreads"])
+	}
+}
