@@ -613,7 +613,7 @@ The specified schema is used to read and write Parquet files. The schema is conv
   <tr>
    <td>MAP
    </td>
-   <td>map (keys must be VARCHAR, because Avro maps only support string keys)
+   <td>map (keys must be CHAR or VARCHAR, because Avro maps only support string keys)
    </td>
   </tr>
   <tr>
