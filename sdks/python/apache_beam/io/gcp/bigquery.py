@@ -366,6 +366,7 @@ import json
 import logging
 import random
 import secrets
+import sys
 import time
 import uuid
 import warnings
@@ -1522,6 +1523,25 @@ def BigQuerySink(*args, validate=False, **kwargs):
 
 
 _KNOWN_TABLES = set()
+_PRIMITIVE_SIZEOF_TYPES = (str, int, float, bool, bytes, type(None))
+
+
+def _fast_row_and_insert_id_size(row_and_insert_id):
+  if type(row_and_insert_id) is tuple and len(row_and_insert_id) == 2:
+    row, insert_id = row_and_insert_id
+    if type(row) is dict and type(insert_id) in _PRIMITIVE_SIZEOF_TYPES:
+      getsizeof = sys.getsizeof
+      total = getsizeof(row_and_insert_id) + getsizeof(row)
+      if insert_id is not None:
+        total += getsizeof(insert_id)
+      for k, v in row.items():
+        if not (type(k) in _PRIMITIVE_SIZEOF_TYPES and
+                type(v) in _PRIMITIVE_SIZEOF_TYPES):
+          return get_deep_size(row_and_insert_id)
+        total += getsizeof(k) + (
+            getsizeof(v) if v is not None and v is not insert_id else 0)
+      return total
+  return get_deep_size(row_and_insert_id)
 
 
 class BigQueryWriteFn(DoFn):
@@ -1727,7 +1747,7 @@ class BigQueryWriteFn(DoFn):
 
   def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
     """Returns error string when the row estimated size is too big"""
-    row_byte_size = get_deep_size(row_and_insert_id)
+    row_byte_size = _fast_row_and_insert_id_size(row_and_insert_id)
 
     # Check if individual row exceeds size limit
     if row_byte_size >= self._max_insert_payload_size:
@@ -1744,15 +1764,17 @@ class BigQueryWriteFn(DoFn):
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
-    if callable(self.schema):
-      schema = self.schema(destination, *schema_side_inputs)
-    elif isinstance(self.schema, vp.ValueProvider):
-      schema = self.schema.get()
-    else:
-      schema = self.schema
+    if (self.create_disposition != BigQueryDisposition.CREATE_NEVER and
+        destination not in _KNOWN_TABLES):
+      if callable(self.schema):
+        schema = self.schema(destination, *schema_side_inputs)
+      elif isinstance(self.schema, vp.ValueProvider):
+        schema = self.schema.get()
+      else:
+        schema = self.schema
 
-    self._create_table_if_needed(
-        bigquery_tools.parse_table_reference(destination), schema)
+      self._create_table_if_needed(
+          bigquery_tools.parse_table_reference(destination), schema)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
