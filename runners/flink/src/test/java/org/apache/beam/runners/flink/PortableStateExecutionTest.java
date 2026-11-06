@@ -98,14 +98,13 @@ public class PortableStateExecutionTest implements Serializable {
   private static final int CLEAR_STATE = -1;
   private static final int WRITE_STATE = -2;
 
-  @Test(timeout = 300_000)
+  @Test(timeout = 120_000)
   public void testExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.as(FlinkPipelineOptions.class).setParallelism(2);
-    options.as(FlinkPipelineOptions.class).setNumberOfExecutionRetries(0);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
