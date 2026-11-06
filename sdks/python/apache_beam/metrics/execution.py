@@ -257,32 +257,46 @@ class MetricsContainer(object):
     self.lock = threading.Lock()
     self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
 
+  def _get_typed_metric_name(self, cell_type, metric_name):
+    if not isinstance(metric_name, str):
+      typed_name = metric_name._typed_metric_names.get(cell_type)
+      if typed_name is None:
+        typed_name = _TypedMetricName(cell_type, metric_name)
+        metric_name._typed_metric_names[cell_type] = typed_name
+      return typed_name
+    return _TypedMetricName(cell_type, metric_name)
+
   def get_counter(self, metric_name):
     # type: (MetricName) -> CounterCell
     return cast(
         CounterCell,
-        self.get_metric_cell(_TypedMetricName(CounterCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(CounterCell, metric_name)))
 
   def get_distribution(self, metric_name):
     # type: (MetricName) -> DistributionCell
     return cast(
         DistributionCell,
-        self.get_metric_cell(_TypedMetricName(DistributionCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(DistributionCell, metric_name)))
 
   def get_gauge(self, metric_name):
     # type: (MetricName) -> GaugeCell
     return cast(
         GaugeCell,
-        self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(GaugeCell, metric_name)))
 
   def get_string_set(self, metric_name):
     # type: (MetricName) -> StringSetCell
     return cast(
         StringSetCell,
-        self.get_metric_cell(_TypedMetricName(StringSetCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(StringSetCell, metric_name)))
 
   def get_bounded_trie(self, metric_name):
-    return self.get_metric_cell(_TypedMetricName(BoundedTrieCell, metric_name))
+    return self.get_metric_cell(
+        self._get_typed_metric_name(BoundedTrieCell, metric_name))
 
   def get_metric_cell(self, typed_metric_name):
     # type: (_TypedMetricName) -> MetricCell
