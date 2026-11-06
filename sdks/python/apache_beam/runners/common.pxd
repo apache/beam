@@ -118,6 +118,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_key_param_required
   cdef object splitting_lock
 
+  cdef _invoke_process_per_window(self, WindowedValue windowed_value,
+                                  additional_args, additional_kwargs)
+
 
 cdef class DoFnRunner:
   cdef DoFnContext context
