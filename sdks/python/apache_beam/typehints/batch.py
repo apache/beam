@@ -24,6 +24,7 @@ Sequence[E] for performance reasons.
 A trivial example is B=np.array(dtype=np.int64), E=int.
 """
 
+import itertools
 import random
 from math import ceil
 from typing import Callable
@@ -148,7 +149,7 @@ class ListBatchConverter(BatchConverter):
     return iter(batch)
 
   def combine_batches(self, batches):
-    return sum(batches, [])
+    return list(itertools.chain.from_iterable(batches))
 
   def get_length(self, batch):
     return len(batch)
