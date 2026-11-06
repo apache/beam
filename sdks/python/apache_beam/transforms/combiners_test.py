@@ -549,6 +549,144 @@ class CombineTest(unittest.TestCase):
     assert_that(
         result_windowed, matcher(set(the_list)), label='to-set-wo-defaults')
 
+  def test_to_iterable_to_list_to_dict_globally_windowed(self):
+    elements = [3, 1, 2]
+    pairs = [('a', 1), ('b', 2)]
+
+    with TestPipeline() as p:
+      pcoll = p | 'CreateElems' >> Create(elements)
+      pcoll_pairs = p | 'CreatePairs' >> Create(pairs)
+
+      # With defaults
+      res_iter = pcoll | 'ToIter' >> combine.ToIterable()
+      assert_that(
+          res_iter | 'SortIter' >> Map(sorted),
+          equal_to([[1, 2, 3]]),
+          label='IterDefault')
+
+      res_list = pcoll | 'ToList' >> combine.ToList()
+      assert_that(
+          res_list | 'SortList' >> Map(sorted),
+          equal_to([[1, 2, 3]]),
+          label='ListDefault')
+
+      res_dict = pcoll_pairs | 'ToDict' >> combine.ToDict()
+      assert_that(res_dict, equal_to([{'a': 1, 'b': 2}]), label='DictDefault')
+
+      # Without defaults
+      res_iter_wo = (
+          pcoll | 'ToIterWo' >> combine.ToIterable().without_defaults())
+      assert_that(
+          res_iter_wo | 'SortIterWo' >> Map(sorted),
+          equal_to([[1, 2, 3]]),
+          label='IterWoDefault')
+
+      res_list_wo = pcoll | 'ToListWo' >> combine.ToList().without_defaults()
+      assert_that(
+          res_list_wo | 'SortListWo' >> Map(sorted),
+          equal_to([[1, 2, 3]]),
+          label='ListWoDefault')
+
+      res_dict_wo = (
+          pcoll_pairs | 'ToDictWo' >> combine.ToDict().without_defaults())
+      assert_that(
+          res_dict_wo, equal_to([{
+              'a': 1, 'b': 2
+          }]), label='DictWoDefault')
+
+  def test_to_iterable_to_list_to_dict_empty(self):
+    with TestPipeline() as p:
+      empty = p | 'CreateEmpty' >> Create([])
+      empty_pairs = p | 'CreateEmptyPairs' >> Create([])
+
+      # Empty with defaults: [[]], [{}], [[]]
+      res_iter = empty | 'ToIter' >> combine.ToIterable()
+      assert_that(
+          res_iter | 'MapIter' >> Map(list),
+          equal_to([[]]),
+          label='EmptyIterDefault')
+
+      res_list = empty | 'ToList' >> combine.ToList()
+      assert_that(res_list, equal_to([[]]), label='EmptyListDefault')
+
+      res_dict = empty_pairs | 'ToDict' >> combine.ToDict()
+      assert_that(res_dict, equal_to([{}]), label='EmptyDictDefault')
+
+      # Empty without defaults: []
+      res_iter_wo = (
+          empty | 'ToIterWo' >> combine.ToIterable().without_defaults())
+      assert_that(
+          res_iter_wo | 'MapIterWo' >> Map(list),
+          equal_to([]),
+          label='EmptyIterWo')
+
+      res_list_wo = empty | 'ToListWo' >> combine.ToList().without_defaults()
+      assert_that(res_list_wo, equal_to([]), label='EmptyListWo')
+
+      res_dict_wo = (
+          empty_pairs | 'ToDictWo' >> combine.ToDict().without_defaults())
+      assert_that(res_dict_wo, equal_to([]), label='EmptyDictWo')
+
+  def test_to_iterable_to_list_to_dict_windowed(self):
+    # Non-globally windowed with defaults raises ValueError
+    p = TestPipeline()
+    windowed = (
+        p
+        | 'Create' >> Create([1, 2])
+        | 'Window' >> WindowInto(FixedWindows(10)))
+    windowed_pairs = (
+        p
+        | 'CreatePairs' >> Create([('a', 1), ('b', 2)])
+        | 'WindowPairs' >> WindowInto(FixedWindows(10)))
+    with self.assertRaises(ValueError):
+      _ = windowed | combine.ToIterable()
+    with self.assertRaises(ValueError):
+      _ = windowed | combine.ToList()
+    with self.assertRaises(ValueError):
+      _ = windowed_pairs | combine.ToDict()
+
+    # Non-globally windowed without defaults groups per window
+    with TestPipeline() as p:
+      timestamped_elems = (
+          p
+          | 'CreateTimed' >> Create([(1, 0), (2, 5), (3, 10), (4, 15)])
+          | 'AssignTimestamps' >>
+          Map(lambda x_ts: TimestampedValue(x_ts[0], x_ts[1])
+              ).with_output_types(int)
+          | 'WindowTimed' >> WindowInto(FixedWindows(10)))
+
+      timestamped_pairs = (
+          p
+          | 'CreateTimedPairs' >> Create([(('a', 1), 0), (('b', 2), 5),
+                                          (('c', 3), 10), (('d', 4), 15)])
+          | 'AssignTimestampsPairs' >>
+          Map(lambda p_ts: TimestampedValue(p_ts[0], p_ts[1])
+              ).with_output_types(tuple[str, int])
+          | 'WindowTimedPairs' >> WindowInto(FixedWindows(10)))
+
+      res_iter = (
+          timestamped_elems
+          | 'ToIter' >> combine.ToIterable().without_defaults()
+          | 'SortIter' >> Map(sorted))
+      assert_that(res_iter, equal_to([[1, 2], [3, 4]]), label='WindowedIter')
+
+      res_list = (
+          timestamped_elems
+          | 'ToList' >> combine.ToList().without_defaults()
+          | 'SortList' >> Map(sorted))
+      assert_that(res_list, equal_to([[1, 2], [3, 4]]), label='WindowedList')
+
+      res_dict = (
+          timestamped_pairs | 'ToDict' >> combine.ToDict().without_defaults())
+      assert_that(
+          res_dict,
+          equal_to([{
+              'a': 1, 'b': 2
+          }, {
+              'c': 3, 'd': 4
+          }]),
+          label='WindowedDict')
+
   def test_combine_globally_with_default(self):
     with TestPipeline() as p:
       assert_that(p | Create([]) | CombineGlobally(sum), equal_to([0]))

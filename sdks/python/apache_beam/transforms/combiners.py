@@ -31,6 +31,7 @@ from typing import Union
 
 import numpy as np
 
+from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -49,6 +50,7 @@ __all__ = [
     'Sample',
     'Top',
     'ToDict',
+    'ToIterable',
     'ToList',
     'ToSet',
     'Latest',
@@ -787,16 +789,71 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
     ]
 
 
+class ToSingleElementCollection(CombinerWithoutDefaults):
+  """Base class for combining a PCollection into a single element.
+
+  This is for combining a PCollection into a single element in the cases where
+  there is no value (and significant overhead) in using a combiner as the
+  output is no smaller than its input.
+  """
+  def expand(self, pcoll):
+    raise NotImplementedError
+
+  def _expand(self, pcoll, post_process):
+    if pcoll.windowing.is_default():
+      if self.has_defaults:
+        return (
+            pcoll.pipeline
+            | 'DoOnce' >> core.Create([None])
+            | core.Map(lambda _, s: post_process(s), pvalue.AsIter(pcoll)))
+      else:
+
+        def _if_non_empty(unused_elem, s):
+          for _ in s:
+            yield post_process(s)
+            break
+
+        return (
+            pcoll.pipeline
+            | 'DoOnce' >> core.Create([None])
+            | core.FlatMap(_if_non_empty, pvalue.AsIter(pcoll)))
+    else:
+      if self.has_defaults:
+        raise ValueError(
+            'Default values are not yet supported in %s() if the '
+            'output PCollection is not windowed by GlobalWindows. '
+            'Instead, use %s().without_defaults() to output '
+            'an empty PCollection if the input PCollection is empty.' %
+            (self.__class__.__name__, self.__class__.__name__))
+      return (
+          pcoll
+          | 'KeyWithVoid' >> core.ParDo(core._KeyWithNone())
+          | core.GroupByKey()
+          | core.MapTuple(lambda _, vs: post_process(vs)))
+
+
+@with_input_types(T)
+@with_output_types(Iterable[T])
+class ToIterable(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into an iterable.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
+  def expand(self, pcoll):
+    return self._expand(pcoll, lambda x: x)
+
+
 @with_input_types(T)
 @with_output_types(list[T])
-class ToList(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single list."""
+class ToList(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into a single list.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
-    if self.has_defaults:
-      return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
-    else:
-      return pcoll | self.label >> core.CombineGlobally(
-          ToListCombineFn()).without_defaults()
+    return self._expand(pcoll, list)
 
 
 @with_input_types(T)
@@ -836,19 +893,18 @@ class ConcatListCombineFn(core.CombineFn):
 
 @with_input_types(tuple[K, V])
 @with_output_types(dict[K, V])
-class ToDict(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single dict.
+class ToDict(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into a single dict.
 
   PCollections should consist of 2-tuples, notionally (key, value) pairs.
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
   """
   def expand(self, pcoll):
-    if self.has_defaults:
-      return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
-    else:
-      return pcoll | self.label >> core.CombineGlobally(
-          ToDictCombineFn()).without_defaults()
+    return self._expand(pcoll, dict)
 
 
 @with_input_types(tuple[K, V])
@@ -876,7 +932,11 @@ class ToDictCombineFn(core.CombineFn):
 @with_input_types(T)
 @with_output_types(set[T])
 class ToSet(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a set."""
+  """A global Combine that condenses a PCollection into a set.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
