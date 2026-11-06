@@ -623,6 +623,46 @@ public class JmsIOTest {
   }
 
   @Test
+  public void testCheckpointTakenForProgressIsAcknowledgedWithTheNextOne() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+    assertTrue(startWithRetry(reader));
+    for (int i = 0; i < 3; i++) {
+      assertTrue(advanceWithRetry(reader));
+    }
+
+    // a checkpoint that is never finalized, as when Beam's SDF wrapper reports progress
+    reader.getCheckpointMark();
+
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+    assertEquals(10, count(QUEUE));
+
+    // finalizing the checkpoint that ends the bundle acks the 6 messages read
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    assertEquals(4, count(QUEUE));
+  }
+
+  @Test
+  public void testResumingFromCheckpointAcknowledgesIt() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+    assertTrue(startWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+    JmsCheckpointMark mark = (JmsCheckpointMark) reader.getCheckpointMark();
+    assertEquals(10, count(QUEUE));
+
+    // the finalize callback is lost, and the runner recreates the reader from the checkpoint
+    JmsIO.UnboundedJmsSource<?> source = (JmsIO.UnboundedJmsSource<?>) reader.getCurrentSource();
+    JmsCheckpointMark restored = CoderUtils.clone(source.getCheckpointMarkCoder(), mark);
+    UnboundedJmsReader recreated = source.createReader(PipelineOptionsFactory.create(), restored);
+
+    assertEquals(7, count(QUEUE));
+    recreated.close();
+    reader.close();
+  }
+
+  @Test
   public void testCheckpointMarkAndFinalizeSeparatelyIndividualAcknowledge() throws Exception {
     UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
 
