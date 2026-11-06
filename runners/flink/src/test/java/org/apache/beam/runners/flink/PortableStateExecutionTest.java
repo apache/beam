@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -104,9 +105,11 @@ public class PortableStateExecutionTest implements Serializable {
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.as(FlinkPipelineOptions.class).setParallelism(2);
+    options.as(FlinkPipelineOptions.class).setNumberOfExecutionRetries(0);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    options.as(PortablePipelineOptions.class).setEnvironmentCacheMillis(10_000);
     Pipeline p = Pipeline.create(options);
     PCollection<KV<String, String>> output =
         p.apply(Impulse.create())
@@ -198,7 +201,7 @@ public class PortableStateExecutionTest implements Serializable {
     JobInvocation jobInvocation =
         FlinkJobInvoker.create(null)
             .createJobInvocation(
-                "id",
+                "id-" + UUID.randomUUID(),
                 "none",
                 flinkJobExecutor,
                 pipelineProto,
