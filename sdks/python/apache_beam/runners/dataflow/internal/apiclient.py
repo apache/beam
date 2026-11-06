@@ -599,6 +599,8 @@ class DataflowApplicationClient(object):
     resources = []
     staged_paths = {}
     staged_hashes = {}
+    # remote_name -> sha256, to detect different content staged under one name.
+    staged_names = {}
     for _, env in sorted(pipeline.components.environments.items(),
                          key=lambda kv: kv[0]):
       for dep in env.dependencies:
@@ -611,10 +613,8 @@ class DataflowApplicationClient(object):
           remote_name = (
               beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                   dep.role_payload)).staged_name
-          is_staged_role = True
         else:
           remote_name = os.path.basename(type_payload.path)
-          is_staged_role = False
         # compute sha256 even if caching is disabled.
         # This is used to check the payload integrity along with caching.
         if not type_payload.sha256:
@@ -626,31 +626,31 @@ class DataflowApplicationClient(object):
               type_payload.path,
               type_payload.sha256)
           remote_name = staged_hashes[type_payload.sha256]
-          if is_staged_role:
-            # We should not be overriding this, as dep.role_payload.staged_name
-            # refers to the desired name on the worker, whereas staged_name
-            # refers to its placement in a distributed filesystem.
-            # TODO(heejong): Clean this up.
-            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-                staged_name=remote_name).SerializeToString()
         elif type_payload.path and type_payload.path in staged_paths:
           _LOGGER.info(
               'Found duplicated artifact path: %s (%s)',
               type_payload.path,
               type_payload.sha256)
           remote_name = staged_paths[type_payload.path]
-          if is_staged_role:
-            # We should not be overriding this, as dep.role_payload.staged_name
-            # refers to the desired name on the worker, whereas staged_name
-            # refers to its placement in a distributed filesystem.
-            # TODO(heejong): Clean this up.
-            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-                staged_name=remote_name).SerializeToString()
         else:
+          if staged_names.get(remote_name,
+                              type_payload.sha256) != (type_payload.sha256):
+            # Different content already staged under this name (e.g. each
+            # Python environment stages its own requirements.txt).  Stage this
+            # one as <name>-<sha256><ext> instead of overwriting it.  The
+            # worker-local name (role_payload.staged_name) is unaffected.
+            stem, ext = os.path.splitext(remote_name)
+            remote_name = '%s-%s%s' % (stem, type_payload.sha256, ext)
+            _LOGGER.info(
+                'Artifact %s collides with a staged artifact of the same name '
+                'and different content; staging it as %s.',
+                type_payload.path,
+                remote_name)
           resources.append(
               (type_payload.path, remote_name, type_payload.sha256))
           staged_paths[type_payload.path] = remote_name
           staged_hashes[type_payload.sha256] = remote_name
+          staged_names[remote_name] = type_payload.sha256
 
         if FileSystems.get_scheme(
             google_cloud_options.staging_location) == GCSFileSystem.scheme():
