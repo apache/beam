@@ -169,8 +169,8 @@ case $STARTSTOP in
       exit 1
     fi
 
-    wait_for_port "$JAVA_PORT" "$java_pid" "Java" "$TEMP_DIR/$FILE_BASE-java.log"
-    wait_for_port "$PYTHON_PORT" "$python_pid" "Python" "$TEMP_DIR/$FILE_BASE-python.log"
+    wait_for_port "$JAVA_PORT" "$java_pid" "Java" "$TEMP_DIR/$FILE_BASE-java.log" || exit 1
+    wait_for_port "$PYTHON_PORT" "$python_pid" "Python" "$TEMP_DIR/$FILE_BASE-python.log" || exit 1
     ;;
   stop)
     if [ -f "$pid" ]; then
