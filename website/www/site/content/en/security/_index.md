@@ -53,6 +53,15 @@ Beam also provides local runners:
 
 **The staging location is trusted and protecting it is the user's responsibility.** The staging location is referenced across runners. It acts as the storage for pipeline logic and dependencies. While Beam provides file integrity checks for staged artifacts, it is the user's responsibility to protect access to the staging location.
 
+## Beam Playground
+
+[**Beam Playground**](/get-started/try-beam-playground/) ([play.beam.apache.org](https://play.beam.apache.org/)) is an interactive web-based environment for trying out Beam transforms and examples without installing Apache Beam locally. It is designed strictly as an educational and learning tool, and should not be used with sensitive or production data, credentials, or proprietary code.
+
+To speed up execution for all users, Beam Playground caches execution results across runs. Submitting code and configuration that matches a previous run will return the cached results. This shared caching behavior is by design and is not considered a security vulnerability because:
+
+1. The tool is for learning purposes, and should not be used with sensitive or production data.
+2. Exploiting this would require users uploading sensitive data and displaying it in the results, which is unexpected on a learning platform. It would also require other users knowing the exact code used for that submission.
+
 ## Security boundary reference
 
 The table below is intended for security researchers and enterprise security teams evaluating Beam:
@@ -68,6 +77,7 @@ The table below is intended for security researchers and enterprise security tea
 | Existing nomenclature, documentation, and logic expose risk of supply-chain attack | **Depends** | See notes below |
 | Denial of service (DoS) via certain data patterns where no Beam-level control exists to prevent it | In scope | Vulnerability – report it, with exceptions (see notes below) |
 | Remote Code Execution (RCE) via a submitted JAR, Expansion service, or UDF | Out of scope | By design – these submitters run arbitrary code |
+| Cached execution results shared across runs in Beam Playground | Out of scope | By design – Playground is for learning purposes and should not be used with sensitive data |
 {{< /table >}}
 </div>
 
