@@ -416,8 +416,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         # when value does not fit into int64.
         int_value = value
         # If Cython is not used, we must do a (slower) check ourselves.
-        if not TYPE_CHECKING and not is_compiled:
-          if not fits_in_64_bits(value):
+        # Put `not is_compiled` first so Cython short-circuits at C level
+        # without looking up TYPE_CHECKING in module globals.
+        if not is_compiled and not TYPE_CHECKING:
+          if not (-0x8000000000000000 <= value <= 0x7fffffffffffffff):
             raise OverflowError()
         stream.write_byte(INT_TYPE)
         stream.write_var_int64(int_value)
@@ -434,17 +436,18 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
-    elif t is list or t is tuple:
-      stream.write_byte(LIST_TYPE if t is list else TUPLE_TYPE)
-      stream.write_var_int64(len(value))
-      for e in value:
+    elif t is list:
+      list_value = value  # for typing
+      stream.write_byte(LIST_TYPE)
+      stream.write_var_int64(len(list_value))
+      for e in list_value:
         self.encode_to_stream(e, stream, True)
-    elif t is bool:
-      stream.write_byte(BOOL_TYPE)
-      stream.write_byte(value)
-    elif t in _ITERABLE_LIKE_TYPES:
-      stream.write_byte(ITERABLE_LIKE_TYPE)
-      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
+    elif t is tuple:
+      tuple_value = value  # for typing
+      stream.write_byte(TUPLE_TYPE)
+      stream.write_var_int64(len(tuple_value))
+      for e in tuple_value:
+        self.encode_to_stream(e, stream, True)
     elif t is dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
@@ -476,6 +479,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
               self.requires_deterministic_step_label) from exn
       for e in value:
         self.encode_to_stream(e, stream, True)
+    elif t is bool:
+      stream.write_byte(BOOL_TYPE)
+      stream.write_byte(value)
+    elif t in _ITERABLE_LIKE_TYPES:
+      stream.write_byte(ITERABLE_LIKE_TYPE)
+      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
     # All possibly deterministic encodings should be above this clause,
     # all non-deterministic ones below.
     elif self.requires_deterministic_step_label is not None:
