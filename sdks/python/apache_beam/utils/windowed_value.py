@@ -40,6 +40,9 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 
+_MIN_TIMESTAMP_MICROS = MIN_TIMESTAMP.micros
+_MAX_TIMESTAMP_MICROS = MAX_TIMESTAMP.micros
+
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
 
@@ -394,28 +397,34 @@ class _IntervalWindowBase(object):
   """
   def __init__(self, start, end):
     # type: (TimestampTypes, TimestampTypes) -> None
-    if start is not None:
-      self._start_object = Timestamp.of(start)  # type: Optional[Timestamp]
+    if isinstance(start, int) and -9223372036854 <= start <= 9223372036854:
+      self._start_micros = start * 1000000
+      self._start_object = None
+    elif start is not None:
+      self._start_object = (
+          start if isinstance(start, Timestamp) else Timestamp.of(start))
       try:
         self._start_micros = self._start_object.micros
       except OverflowError:
         self._start_micros = (
-            MIN_TIMESTAMP.micros
-            if self._start_object.micros < 0 else MAX_TIMESTAMP.micros)
+            _MIN_TIMESTAMP_MICROS
+            if self._start_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
-      # Micros must be populated elsewhere.
       self._start_object = None
 
-    if end is not None:
-      self._end_object = Timestamp.of(end)  # type: Optional[Timestamp]
+    if isinstance(end, int) and -9223372036854 <= end <= 9223372036854:
+      self._end_micros = end * 1000000
+      self._end_object = None
+    elif end is not None:
+      self._end_object = (
+          end if isinstance(end, Timestamp) else Timestamp.of(end))
       try:
         self._end_micros = self._end_object.micros
       except OverflowError:
         self._end_micros = (
-            MIN_TIMESTAMP.micros
-            if self._end_object.micros < 0 else MAX_TIMESTAMP.micros)
+            _MIN_TIMESTAMP_MICROS
+            if self._end_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
-      # Micros must be populated elsewhere.
       self._end_object = None
 
   @property
