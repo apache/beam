@@ -207,6 +207,56 @@ class FnApiRunnerTest(unittest.TestCase):
 
         assert_that(res, equal_to([9, 15, 21]))
 
+  @pytest.mark.uses_pyarrow
+  def test_batch_rebatch_pardos_into_multi_column_batches(self):
+    # Rebatching passes the producer's exploded elements to the consumer's
+    # batch converter, which may read them more than once: the pyarrow Table
+    # converter reads them once per column.
+    import pyarrow as pa
+
+    from apache_beam.typehints.row_type import RowTypeConstraint
+
+    class ListBatchDoFn(beam.DoFn):
+      def process_batch(self, batch, *unused_args, **unused_kwargs):
+        assert isinstance(batch, list)
+        yield batch
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        return list[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return list[input_element_type]
+
+    class TableBatchDoFn(beam.DoFn):
+      def process_batch(self, batch, *unused_args, **unused_kwargs):
+        assert isinstance(batch, pa.Table)
+        yield batch
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        return pa.Table
+
+      def get_output_batch_type(self, input_element_type):
+        return pa.Table
+
+    row_type = RowTypeConstraint.from_fields([('id', int), ('name', str)])
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([
+              beam.Row(id=1, name='Ada'), beam.Row(id=2, name='Grace')
+          ]).with_output_types(row_type)
+          | beam.ParDo(ListBatchDoFn())
+          | beam.ParDo(TableBatchDoFn())
+          | beam.Map(lambda row: (row.id, row.name)))
+
+      assert_that(res, equal_to([(1, 'Ada'), (2, 'Grace')]))
+
   def test_batch_pardo_fusion_break(self):
     class NormalizeDoFn(beam.DoFn):
       @no_type_check
