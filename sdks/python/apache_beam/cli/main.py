@@ -185,6 +185,9 @@ def _run(file, pipeline_args, verbose):
   finally:
     if pipeline is not None and hasattr(pipeline, '_extra_context'):
       pipeline._extra_context.close()
+    # PortableRunner's atexit handler retains `result` and its
+    # `_runtime_exception.__traceback__`, which references this frame.
+    pipeline = None
 
   if no_wait:
     print(
