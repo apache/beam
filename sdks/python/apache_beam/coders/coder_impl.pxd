@@ -231,6 +231,8 @@ cdef class PaneInfoCoderImpl(StreamCoderImpl):
 cdef libc.stdint.uint64_t _TIME_SHIFT
 cdef libc.stdint.int64_t MIN_TIMESTAMP_micros
 cdef libc.stdint.int64_t MAX_TIMESTAMP_micros
+cdef libc.stdint.int64_t MIN_TIMESTAMP_millis
+cdef libc.stdint.int64_t MAX_TIMESTAMP_millis
 
 
 cdef class _OrderedUnionCoderImpl(StreamCoderImpl):
@@ -255,7 +257,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
   cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
 
-  @cython.locals(c=CoderImpl)
+  @cython.locals(wv=windowed_value.WindowedValue, c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
   @cython.locals(timestamp=libc.stdint.int64_t)
