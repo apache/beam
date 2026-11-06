@@ -441,7 +441,7 @@ if __name__ == '__main__':
           'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio @ git+https://github.com/asheshvidyut/grpc.git@fix-pre-fork',  # pylint: disable=line-too-long
+          'grpcio @ https://raw.githubusercontent.com/asheshvidyut/testing/blob/main/grpcio-1.86.0.dev0-cp311-cp311-linux_x86_64.whl',  # pylint: disable=line-too-long
           'httplib2>=0.8,<1.0.0',
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
