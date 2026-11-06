@@ -370,7 +370,8 @@ public interface FlinkPipelineOptions
   @Description(
       "Batch only. Use a dedicated operator for the final step of GroupByKey and Combine in the "
           + "global window with the default trigger. It relies on Flink sorting the input by key "
-          + "and does not use keyed state or timers. Has no effect in streaming mode. "
+          + "and does not use keyed state or timers. Has no effect in streaming mode, nor in "
+          + "batch mode unless --useDataStreamForBatch is set. "
           + "Enabled by default; set to false to disable.")
   @Default.Boolean(true)
   Boolean getSortedBatchCombine();
