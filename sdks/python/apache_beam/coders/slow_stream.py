@@ -185,14 +185,10 @@ def get_varint_size(v):
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the size of the given integer value when encode as a VarInt."""
+  if 0 <= v <= 0x7F:
+    return 1
   if v < 0:
     v += 1 << 64
     if v <= 0:
       raise ValueError('Value too large (negative).')
-  varint_size = 0
-  while True:
-    varint_size += 1
-    v >>= 7
-    if not v:
-      break
-  return varint_size
+  return (v.bit_length() + 6) // 7
