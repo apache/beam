@@ -130,6 +130,7 @@
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Java) IcebergIO now accepts more timestamp string formats: `timestamptz` strings may end with a zone ID such as `UTC` or `America/New_York` (e.g. `2024-10-08 13:18:20.053 UTC`) or have no offset or zone ID (read as UTC), and `timestamp` and `timestamptz` strings may separate the date and time by a `T`, a space, both, or neither ([#41024](https://github.com/apache/beam/issues/41024)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
