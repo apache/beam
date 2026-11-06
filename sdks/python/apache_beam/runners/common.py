@@ -1046,22 +1046,27 @@ class PerWindowInvoker(DoFnInvoker):
                 window,
                 windowed_value.timestamp,
                 windowed_value.pane_info))
-      elif core.DoFn.BundleFinalizerParam == p:
+      elif p is core.DoFn.BundleFinalizerParam or core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
       elif isinstance(p, core.DoFn.BundleContextParam):
         args_for_process[i] = self._bundle_context_values[p][1]
       elif isinstance(p, core.DoFn.SetupContextParam):
         args_for_process[i] = self._setup_context_values[p][1]
 
-    kwargs_for_process = kwargs_for_process or {}
-
     if additional_kwargs:
-      kwargs_for_process.update(additional_kwargs)
+      if kwargs_for_process:
+        kwargs_for_process = kwargs_for_process.copy()
+        kwargs_for_process.update(additional_kwargs)
+      else:
+        kwargs_for_process = additional_kwargs
+
+    if kwargs_for_process:
+      results = self.process_method(*args_for_process, **kwargs_for_process)
+    else:
+      results = self.process_method(*args_for_process)
 
     self.output_handler.handle_process_outputs(
-        windowed_value,
-        self.process_method(*args_for_process, **kwargs_for_process),
-        self.threadsafe_watermark_estimator)
+        windowed_value, results, self.threadsafe_watermark_estimator)
 
     if self.is_splittable:
       assert self.threadsafe_restriction_tracker is not None
@@ -1711,14 +1716,22 @@ class _OutputHandler(OutputHandler):
             (object_type, results))
 
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_yields_batches:
         # process yields elements
