@@ -790,7 +790,11 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 @with_input_types(T)
 @with_output_types(list[T])
 class ToList(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single list."""
+  """A global Combine that condenses a PCollection into a single list.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
@@ -837,11 +841,14 @@ class ConcatListCombineFn(core.CombineFn):
 @with_input_types(tuple[K, V])
 @with_output_types(dict[K, V])
 class ToDict(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single dict.
+  """A global Combine that condenses a PCollection into a single dict.
 
   PCollections should consist of 2-tuples, notionally (key, value) pairs.
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
   """
   def expand(self, pcoll):
     if self.has_defaults:
@@ -876,7 +883,11 @@ class ToDictCombineFn(core.CombineFn):
 @with_input_types(T)
 @with_output_types(set[T])
 class ToSet(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a set."""
+  """A global Combine that condenses a PCollection into a set.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
