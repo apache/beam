@@ -63,6 +63,7 @@
 
 ## Bugfixes
 
+* (Python/YAML) Fixed SQL-backed `Combine` generating an invalid `GROUP BY ` clause for global aggregations when `group_by` is empty or omitted ([#41047](https://github.com/apache/beam/issues/41047)).
 * (Java) Improved the error message when decoding with a ProtoCoder for the raw `com.google.protobuf.Message` type (for example inferred from a generic `T extends Message`): it now explains how to fix it instead of surfacing a `NoSuchMethodException` ([#19713](https://github.com/apache/beam/issues/19713)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
