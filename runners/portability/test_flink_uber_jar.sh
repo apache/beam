@@ -112,6 +112,8 @@ java \
 FLINK_PID=$!
 
 for i in $(seq 1 60); do
+  # Signal 0 checks whether the backgrounded Flink process is still alive without
+  # actually sending a signal, so we fail fast if it crashed during startup.
   if ! kill -0 "$FLINK_PID" 2>/dev/null; then
     echo "Flink mini cluster exited prematurely"
     rm -rf "$ENV_DIR"
