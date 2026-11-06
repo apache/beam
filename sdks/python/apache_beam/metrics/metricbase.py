@@ -82,9 +82,12 @@ class MetricName(object):
     self.name = name
     self.urn = urn
     self.labels = labels if labels else {}
+    self._cached_fast_name: Optional[str] = None
+    self._cached_hash: Optional[int] = None
+    self._typed_metric_names: dict = {}
 
   def __eq__(self, other):
-    return (
+    return self is other or (
         self.namespace == other.namespace and self.name == other.name and
         self.urn == other.urn and self.labels == other.labels)
 
@@ -97,17 +100,33 @@ class MetricName(object):
           self.namespace, self.name)
 
   def __hash__(self):
-    return hash((self.namespace, self.name, self.urn) +
-                tuple(self.labels.items()))
+    if self._cached_hash is None:
+      self._cached_hash = hash(
+          (self.namespace, self.name, self.urn) +
+          tuple(self.labels.items())) if self.labels else hash(
+              (self.namespace, self.name, self.urn))
+    return self._cached_hash
 
   def fast_name(self):
-    name = self.name or ''
-    namespace = self.namespace or ''
-    urn = self.urn or ''
-    labels = ''
-    if self.labels:
-      labels = '_'.join(['%s=%s' % (k, v) for (k, v) in self.labels.items()])
-    return '%d_%s%s%s%s' % (len(name), name, namespace, urn, labels)
+    if self._cached_fast_name is None:
+      name = self.name or ''
+      namespace = self.namespace or ''
+      urn = self.urn or ''
+      labels = ''
+      if self.labels:
+        labels = '_'.join(['%s=%s' % (k, v) for (k, v) in self.labels.items()])
+      self._cached_fast_name = '%d_%s%s%s%s' % (
+          len(name), name, namespace, urn, labels)
+    return self._cached_fast_name
+
+  def __getstate__(self):
+    return (self.namespace, self.name, self.urn, self.labels)
+
+  def __setstate__(self, state):
+    self.namespace, self.name, self.urn, self.labels = state
+    self._cached_fast_name = None
+    self._cached_hash = None
+    self._typed_metric_names = {}
 
 
 class Metric(object):
