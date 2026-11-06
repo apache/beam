@@ -126,20 +126,15 @@ class PidCounter(object):
       return self.running
 
 
-class SlowFinalizingObject(object):
-  def __init__(self, entered_path, finalized_path):
+class SlowBlockingObject(object):
+  def __init__(self, entered_path):
     self._entered_path = entered_path
-    self._finalized_path = finalized_path
 
   def block_call(self):
     with open(self._entered_path, 'w') as f:
       f.write('entered')
     time.sleep(30)
     return 'done'
-
-  def __del__(self):
-    with open(self._finalized_path, 'w') as f:
-      f.write('finalized')
 
 
 class MultiProcessSharedTest(unittest.TestCase):
@@ -640,12 +635,12 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     handle.unsafe_hard_delete()
     self.assertEqual(multiprocessing.active_children(), [])
 
-  def test_unsafe_hard_delete_runs_del_during_inflight_blocked_call(self):
+  def test_unsafe_hard_delete_terminates_server_during_inflight_blocked_call(
+      self):
     with tempfile.TemporaryDirectory() as tmp_dir:
       entered_path = os.path.join(tmp_dir, 'entered')
-      finalized_path = os.path.join(tmp_dir, 'finalized')
       handle = multi_process_shared.MultiProcessShared(
-          lambda: SlowFinalizingObject(entered_path, finalized_path),
+          lambda: SlowBlockingObject(entered_path),
           tag='inflight_hard_delete',
           always_proxy=True,
           spawn_process=True)
@@ -671,9 +666,6 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       handle.unsafe_hard_delete()
       server_proc.join(timeout=5)
       self.assertFalse(server_proc.is_alive())
-      self.assertTrue(os.path.exists(finalized_path))
-      with open(finalized_path) as f:
-        self.assertEqual(f.read(), 'finalized')
 
 
 if __name__ == '__main__':

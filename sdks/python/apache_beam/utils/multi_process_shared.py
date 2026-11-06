@@ -26,7 +26,6 @@ import atexit
 import logging
 import multiprocessing.managers
 import os
-import sys
 import tempfile
 import threading
 import time
@@ -152,22 +151,8 @@ class _SingletonEntry:
   def unsafe_hard_delete(self):
     with self.lock:
       if self.initialied:
-        obj = self.obj
         del self.obj
         self.initialied = False
-        # When hard-deleting in a spawned server process that exits via
-        # os._exit(0), an in-flight RPC thread (e.g. a timed-out call) may
-        # still hold a stack reference to `obj`, preventing CPython from
-        # invoking `obj.__del__()` before `os._exit(0)`.
-        if (self._hard_delete_callback is not None and
-            sys.getrefcount(obj) > 2 and hasattr(type(obj), '__del__')):
-          try:
-            type(obj).__del__(obj)
-          except Exception:
-            logging.warning(
-                'Exception while finalizing object during unsafe_hard_delete',
-                exc_info=True)
-        del obj
       if self._hard_delete_callback:
         self._hard_delete_callback()
 
