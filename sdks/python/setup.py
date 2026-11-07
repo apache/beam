@@ -726,7 +726,7 @@ if __name__ == '__main__':
           ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'vllm': ['openai>=2.25.0,<3.0.0', 'vllm==0.32.0']
       },
       zip_safe=False,
       # PyPI package information.
