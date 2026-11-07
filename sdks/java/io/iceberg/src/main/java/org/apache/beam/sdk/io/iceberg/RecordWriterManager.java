@@ -21,11 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +31,6 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -44,7 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
@@ -57,7 +50,6 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +96,7 @@ class RecordWriterManager implements AutoCloseable {
     private final String stateToken = UUID.randomUUID().toString();
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
-    @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
+    @VisibleForTesting final Map<String, Integer> writerCounts = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
     private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
@@ -191,13 +183,13 @@ class RecordWriterManager implements AutoCloseable {
       // keep track of how many writers we opened for each destination-partition path
       // use this as a prefix to differentiate the new path.
       // this avoids overwriting a data file written by a previous writer in this destination state.
-      int recordIndex = writerCounts.merge(partitionKey, 1, Integer::sum);
+      int writerIndex = writerCounts.merge(partitionKey.toPath(), 1, Integer::sum);
       try {
         RecordWriter writer =
             new RecordWriter(
                 table,
                 icebergDestination.getFileFormat(),
-                filePrefix + "_" + stateToken + "_" + recordIndex,
+                filePrefix + "_" + stateToken + "_" + writerIndex,
                 partitionKey,
                 writeProperties);
         openWriters++;
@@ -211,40 +203,6 @@ class RecordWriterManager implements AutoCloseable {
       }
     }
   }
-
-  /**
-   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
-   * {@link DataFile}.
-   */
-  @VisibleForTesting
-  static String getPartitionDataPath(
-      String partitionPath, Map<String, PartitionField> partitionFieldMap) {
-    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
-      return partitionPath;
-    }
-    List<String> resolved = new ArrayList<>();
-    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
-      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
-      String name = nameAndValue.get(0);
-      String value = nameAndValue.get(1);
-      String transformName =
-          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
-      if (Transforms.month().toString().equals(transformName)) {
-        long months =
-            ChronoUnit.MONTHS.between(EPOCH, YearMonth.parse(value).atDay(1).atStartOfDay());
-        value = String.valueOf(months);
-      } else if (Transforms.hour().toString().equals(transformName)) {
-        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
-        value = String.valueOf(hour);
-      }
-      resolved.add(name + "=" + value);
-    }
-    return String.join("/", resolved);
-  }
-
-  private static final DateTimeFormatter HOUR_FORMATTER =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
-  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
 
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
