@@ -140,9 +140,12 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
     }
     if (o instanceof RowWithGetters) {
       RowWithGetters other = (RowWithGetters) o;
-      return Objects.equals(getSchema(), other.getSchema())
-          && Objects.equals(getterTarget, other.getterTarget);
-    } else if (o instanceof Row) {
+      if (Objects.equals(getSchema(), other.getSchema())
+          && Objects.equals(getterTarget, other.getterTarget)) {
+        return true;
+      }
+    }
+    if (o instanceof Row) {
       return super.equals(o);
     }
     return false;
@@ -150,6 +153,6 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getterTarget);
+    return super.hashCode();
   }
 }
