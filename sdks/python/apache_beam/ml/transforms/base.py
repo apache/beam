@@ -732,6 +732,9 @@ class _EmbeddingHandler(ModelHandler):
       batch_sizes_map['min_batch_size'] = self.embedding_config.min_batch_size
     return (self._underlying.batch_elements_kwargs() or batch_sizes_map)
 
+  def share_model_across_processes(self) -> bool:
+    return self._underlying.share_model_across_processes()
+
   def __repr__(self):
     return self._underlying.__repr__()
 

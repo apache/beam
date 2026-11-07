@@ -386,6 +386,13 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = InvalidEmbeddingsManager()
 
+  def test_share_model_across_processes_uses_underlying_handler(self):
+    text_handler = base._TextEmbeddingHandler(
+        embeddings_manager=self.embedding_conig)
+    self.assertFalse(text_handler.share_model_across_processes())
+    text_handler._underlying.share_model_across_processes = lambda: True
+    self.assertTrue(text_handler.share_model_across_processes())
+
   def test_handler_with_incompatible_datatype(self):
     text_handler = base._TextEmbeddingHandler(
         embeddings_manager=self.embedding_conig)
