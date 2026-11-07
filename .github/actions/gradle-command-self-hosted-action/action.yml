@@ -41,6 +41,11 @@ runs:
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
+        if ! ls "${GRADLE_USER_HOME:-$HOME/.gradle}"/wrapper/dists/gradle-*/*/*.ok >/dev/null 2>&1; then
+          for attempt in 1 2 3; do
+            ./gradlew --version --no-daemon && break || sleep 5
+          done
+        fi
         ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} --continue --no-daemon \
          -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.vfs.watch=false \
         ${{ inputs.arguments }}
