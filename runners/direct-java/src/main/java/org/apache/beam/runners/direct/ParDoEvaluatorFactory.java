@@ -19,8 +19,11 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoEvaluator.DoFnRunnerFactory;
 import org.apache.beam.runners.local.StructuralKey;
@@ -29,6 +32,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -45,6 +49,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
+  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, byte[]> serializedExecutionMetadata =
+      new ConcurrentHashMap<>();
   private final EvaluationContext evaluationContext;
   private final PipelineOptions options;
   private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
@@ -74,6 +80,14 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
 
+    // Schema conversion functions have mutable state, so each evaluator needs its own copy.
+    ExecutionMetadata metadata =
+        (ExecutionMetadata)
+            SerializableUtils.deserializeFromByteArray(
+                serializedExecutionMetadata.computeIfAbsent(
+                    application, ParDoEvaluatorFactory::serializeExecutionMetadata),
+                "ParDo execution metadata");
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         (TransformEvaluator<T>)
@@ -84,14 +98,36 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 ParDoTranslation.getSideInputs(application),
                 (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(application),
                 ParDoTranslation.getAdditionalOutputTags(application).getAll(),
-                ParDoTranslation.getSchemaInformation(application),
-                ParDoTranslation.getSideInputMapping(application));
+                metadata.schemaInformation,
+                metadata.sideInputMapping);
     return evaluator;
   }
 
   @Override
   public void cleanup() throws Exception {
-    DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
+    try {
+      DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
+    } finally {
+      serializedExecutionMetadata.clear();
+    }
+  }
+
+  private static byte[] serializeExecutionMetadata(AppliedPTransform<?, ?, ?> application) {
+    return SerializableUtils.serializeToByteArray(
+        new ExecutionMetadata(
+            ParDoTranslation.getSchemaInformation(application),
+            ParDoTranslation.getSideInputMapping(application)));
+  }
+
+  private static class ExecutionMetadata implements Serializable {
+    private final DoFnSchemaInformation schemaInformation;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
+
+    private ExecutionMetadata(
+        DoFnSchemaInformation schemaInformation, Map<String, PCollectionView<?>> sideInputMapping) {
+      this.schemaInformation = schemaInformation;
+      this.sideInputMapping = sideInputMapping;
+    }
   }
 
   /**
