@@ -86,6 +86,7 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+  private static final Object NAMESPACE_LOCK = new Object();
 
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
@@ -345,12 +346,14 @@ class RecordWriterManager implements AutoCloseable {
     // Create namespace if it does not exist yet
     if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
       SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
-      if (!supportsNamespaces.namespaceExists(namespace)) {
-        try {
-          supportsNamespaces.createNamespace(namespace);
-          LOG.info("Created new namespace '{}'.", namespace);
-        } catch (AlreadyExistsException ignored) {
-          // race condition: another worker already created this namespace
+      synchronized (NAMESPACE_LOCK) {
+        if (!supportsNamespaces.namespaceExists(namespace)) {
+          try {
+            supportsNamespaces.createNamespace(namespace);
+            LOG.info("Created new namespace '{}'.", namespace);
+          } catch (AlreadyExistsException ignored) {
+            // race condition: another worker already created this namespace
+          }
         }
       }
     }
