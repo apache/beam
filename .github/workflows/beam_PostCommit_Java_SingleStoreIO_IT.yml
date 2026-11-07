@@ -88,7 +88,19 @@ jobs:
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster.yaml
           kubectl wait --for=jsonpath='{.status.phase}'=Running memsqlclusters.memsql.com --all --timeout=300s
           kubectl wait svc/svc-sdb-cluster-ddl --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=300s
-          loadbalancer_IP=$(kubectl get svc svc-sdb-cluster-ddl -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
+          loadbalancer_IP=$(kubectl get svc svc-sdb-cluster-ddl -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "Waiting for SingleStore LoadBalancer $loadbalancer_IP:3306 to accept TCP connections..."
+          for i in {1..60}; do
+            if nc -zv -w 5 "$loadbalancer_IP" 3306 2>/dev/null; then
+              echo "SingleStore LoadBalancer $loadbalancer_IP:3306 is reachable."
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Timed out waiting for SingleStore LoadBalancer $loadbalancer_IP:3306"
+              exit 1
+            fi
+            sleep 5
+          done
           echo lb_ip=$loadbalancer_IP >> $GITHUB_OUTPUT
       - name: Run Java SingleStore IO IT
         uses: ./.github/actions/gradle-command-self-hosted-action
