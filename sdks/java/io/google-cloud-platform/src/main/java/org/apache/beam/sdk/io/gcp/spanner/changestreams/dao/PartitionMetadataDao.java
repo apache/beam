@@ -269,6 +269,40 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Fetches all partitions from the base partition metadata table that are not in {@link
+   * State#FINISHED} state.
+   */
+  public ResultSet getUnfinishedPartitions() {
+    Statement statement;
+    if (this.isPostgres()) {
+      statement =
+          Statement.newBuilder(
+                  "/*@ force_index=_base_table */ SELECT * FROM \""
+                      + metadataTableName
+                      + "\" WHERE \""
+                      + COLUMN_STATE
+                      + "\" != $1")
+              .bind("p1")
+              .to(State.FINISHED.name())
+              .build();
+    } else {
+      statement =
+          Statement.newBuilder(
+                  "@{FORCE_INDEX=_BASE_TABLE} SELECT * FROM "
+                      + metadataTableName
+                      + " WHERE "
+                      + COLUMN_STATE
+                      + " != @state")
+              .bind("state")
+              .to(State.FINISHED.name())
+              .build();
+    }
+    return databaseClient
+        .singleUse()
+        .executeQuery(statement, Options.tag("query=getUnfinishedPartitions"));
+  }
+
+  /**
    * Fetches all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
    * given timestamp. The results are ordered by the {@link
    * PartitionMetadataAdminDao#COLUMN_CREATED_AT} and {@link
