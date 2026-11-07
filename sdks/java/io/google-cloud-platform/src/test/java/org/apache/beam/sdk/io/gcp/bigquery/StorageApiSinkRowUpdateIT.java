@@ -24,7 +24,6 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1.Exceptions;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -206,21 +205,7 @@ public class StorageApiSinkRowUpdateIT {
     // Run on a single DirectRunner thread so concurrent bundles do not share a closed
     // StreamWriter while the destination table is being created on the first write retry.
     p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
-    try {
-      PipelineResult result = p.run();
-      result.waitUntilFinish();
-    } catch (Pipeline.PipelineExecutionException e) {
-      Throwable root = e.getCause();
-      // Unwrap nested exceptions to find the root cause.
-      while (root != null && root.getCause() != null) {
-        root = root.getCause();
-      }
-      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
-      // flushed.
-      if (root instanceof Exceptions.StreamWriterClosedException) {
-        return;
-      }
-      throw e;
-    }
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
   }
 }
