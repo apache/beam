@@ -450,3 +450,42 @@ func TestHints_OptionStrings(t *testing.T) {
 		})
 	}
 }
+
+func TestParseHints(t *testing.T) {
+	got := ParseHints([]string{
+		"min_ram=2GB",
+		"beam:resources:min_ram_bytes:v1=16GB",
+		"beam:resources:accelerator:v1=cheetah",
+		"accelerator=pedal_to_the_metal",
+		"beam:resources:novel_execution:v1=jaguar",
+		"min_ram=1GB",
+		"cpu_count=1",
+		"beam:resources:cpu_count:v1=4",
+		"max_active_bundles_per_worker=1",
+		"beam:resources:max_active_bundles_per_worker:v1=2",
+	})
+
+	want := NewHints(ParseMinRAM("1GB"), Accelerator("pedal_to_the_metal"), ParseCPUCount("4"), MaxActiveBundlesPerWorker(2), stringHint{
+		urn:   "beam:resources:novel_execution:v1",
+		value: "jaguar",
+	})
+	if !got.Equal(want) {
+		t.Errorf("ParseHints() = %v, want %v", got, want)
+	}
+
+	// Equal only compares payloads, so validate standard hints were parsed into
+	// their typed representations, which have portable option strings.
+	opts, omitted := got.OptionStrings()
+	wantOpts := []string{
+		"accelerator=pedal_to_the_metal",
+		"cpu_count=4",
+		"max_active_bundles_per_worker=2",
+		"min_ram=1000000000B",
+	}
+	if !reflect.DeepEqual(opts, wantOpts) {
+		t.Errorf("ParseHints().OptionStrings() opts = %v, want %v", opts, wantOpts)
+	}
+	if wantOmitted := []string{"beam:resources:novel_execution:v1"}; !reflect.DeepEqual(omitted, wantOmitted) {
+		t.Errorf("ParseHints().OptionStrings() omitted = %v, want %v", omitted, wantOmitted)
+	}
+}

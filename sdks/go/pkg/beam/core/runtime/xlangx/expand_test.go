@@ -17,6 +17,8 @@ package xlangx
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -144,5 +146,43 @@ func TestExpand_SetsPipelineOptions(t *testing.T) {
 				t.Errorf("ExpansionRequest.PipelineOptions diff (-want, +got):\n%v", d)
 			}
 		})
+	}
+}
+
+// stringsFlag is a repeatable flag, like the --resource_hints flag in jobopts.
+type stringsFlag []string
+
+func (s *stringsFlag) String() string     { return fmt.Sprint(*s) }
+func (s *stringsFlag) Set(v string) error { *s = append(*s, v); return nil }
+func (s *stringsFlag) Get() any           { return []string(*s) }
+
+func TestPipelineResourceHints(t *testing.T) {
+	t.Run("unregistered", func(t *testing.T) {
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		if got, want := pipelineResourceHints(fs), resource.NewHints(); !got.Equal(want) {
+			t.Errorf("pipelineResourceHints() = %v, want %v", got, want)
+		}
+	})
+	t.Run("registered", func(t *testing.T) {
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		fs.Var(&stringsFlag{}, "resource_hints", "")
+		if err := fs.Parse([]string{"--resource_hints=min_ram=16GB", "--resource_hints=beam:resources:accelerator:v1=type:nvidia-l4;count:1"}); err != nil {
+			t.Fatalf("Parse() = %v", err)
+		}
+		want := resource.NewHints(resource.ParseMinRAM("16GB"), resource.Accelerator("type:nvidia-l4;count:1"))
+		if got := pipelineResourceHints(fs); !got.Equal(want) {
+			t.Errorf("pipelineResourceHints() = %v, want %v", got, want)
+		}
+	})
+}
+
+// xlangx is imported by the root beam package, so it must not register the job
+// submission flags from jobopts. Binaries that define flags with the same
+// names, such as --endpoint, would panic at startup. See #40730.
+func TestNoJobSubmissionFlags(t *testing.T) {
+	for _, name := range []string{"endpoint", "job_name", "resource_hints"} {
+		if f := flag.Lookup(name); f != nil {
+			t.Errorf("flag --%v is registered (usage %q), want it left to the runner packages", name, f.Usage)
+		}
 	}
 }

@@ -45,7 +45,9 @@ func (s *stringSlice) Set(value string) error {
 	return nil
 }
 
-// Get returns the instance itself.
+// Get returns the values as a []string. This lets packages read the flag
+// through flag.Lookup and the flag.Getter interface, without importing this
+// package and so registering its flags.
 func (s stringSlice) Get() any {
-	return s
+	return []string(s)
 }

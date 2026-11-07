@@ -19,6 +19,7 @@ package xlangx
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"github.com/avast/retry-go/v4"
@@ -90,7 +90,7 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 
 	// Querying the expansion service
 	ctx := context.Background()
-	pipelineOpts, err := expansionPipelineOptions(ctx, jobopts.GetPipelineResourceHints())
+	pipelineOpts, err := expansionPipelineOptions(ctx, pipelineResourceHints(flag.CommandLine))
 	if err != nil {
 		return errors.Wrapf(err, "unable to generate pipeline options for expansion of %v", ext)
 	}
@@ -111,6 +111,24 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	}
 	ext.Expanded = exp
 	return nil
+}
+
+// pipelineResourceHints returns the pipeline level resource hints set with the
+// --resource_hints flag in fs, or no hints if the flag isn't registered.
+//
+// The flag is looked up by name rather than read through jobopts, since this
+// package is imported by the root beam package, and importing jobopts would
+// register its generically named flags, such as --endpoint and --job_name, in
+// every binary that uses Beam. Binaries defining flags with the same names
+// would then panic at startup.
+func pipelineResourceHints(fs *flag.FlagSet) resource.Hints {
+	var hints []string
+	if f := fs.Lookup("resource_hints"); f != nil {
+		if g, ok := f.Value.(flag.Getter); ok {
+			hints, _ = g.Get().([]string)
+		}
+	}
+	return resource.ParseHints(hints)
 }
 
 // resourceHintsOptionURN is the portable pipeline option key for resource hints,
