@@ -109,6 +109,48 @@ public class ValueAndCoderLazySerializableTest {
         Lists.newArrayList(materialized.getOrDecode(iterAccumCoder)));
   }
 
+  @Test
+  public void cheapCoderSerializationTest() throws IOException, ClassNotFoundException {
+    Integer val = 42;
+    BigEndianIntegerCoder coder = BigEndianIntegerCoder.of();
+    ValueAndCoderLazySerializable<Integer> underTest = ValueAndCoderLazySerializable.of(val, coder);
+
+    ByteArrayOutputStream inMemOut = new ByteArrayOutputStream();
+    ObjectOutputStream oos = new ObjectOutputStream(inMemOut);
+    oos.writeObject(underTest);
+
+    ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(inMemOut.toByteArray()));
+    @SuppressWarnings("unchecked")
+    ValueAndCoderLazySerializable<Integer> materialized =
+        (ValueAndCoderLazySerializable<Integer>) ois.readObject();
+    assertEquals(val, materialized.getOrDecode(coder));
+  }
+
+  @Test
+  public void cheapCoderKryoTest() {
+    Integer val = 42;
+    BigEndianIntegerCoder coder = BigEndianIntegerCoder.of();
+    ValueAndCoderLazySerializable<Integer> underTest = ValueAndCoderLazySerializable.of(val, coder);
+
+    ValueAndCoderKryoSerializer kryoSerializer = new ValueAndCoderKryoSerializer();
+    Kryo kryo = new Kryo();
+    kryo.register(ValueAndCoderLazySerializable.class, kryoSerializer);
+
+    ByteArrayOutputStream inMemOut = new ByteArrayOutputStream();
+    Output out = new Output(inMemOut);
+    kryo.writeObject(out, underTest);
+    out.close();
+
+    Input input = new Input(new ByteArrayInputStream(inMemOut.toByteArray()));
+    @SuppressWarnings("unchecked")
+    ValueAndCoderLazySerializable<Integer> materialized =
+        (ValueAndCoderLazySerializable<Integer>)
+            kryo.readObject(input, ValueAndCoderLazySerializable.class);
+    input.close();
+
+    assertEquals(val, materialized.getOrDecode(coder));
+  }
+
   private <T> WindowedValue<T> winVal(T val) {
     return WindowedValues.of(val, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
   }
