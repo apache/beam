@@ -1,0 +1,30 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_rows__row_errors",
+  "description": "insert_rows where the 200 response carries insertErrors",
+  "requests": [
+    {
+      "body": {
+        "ignoreUnknownValues": false,
+        "rows": [
+          {
+            "insertId": "id1",
+            "json": {
+              "a": 1
+            }
+          },
+          {
+            "insertId": "id2",
+            "json": {
+              "a": 2
+            }
+          }
+        ],
+        "skipInvalidRows": false
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t/insertAll",
+      "query": {}
+    }
+  ]
+}
