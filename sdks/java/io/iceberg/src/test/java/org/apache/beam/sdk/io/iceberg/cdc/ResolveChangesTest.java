@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -31,13 +32,15 @@ import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.TestDataWarehouse;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -175,20 +178,41 @@ public class ResolveChangesTest {
       throws Exception {
     CoGbkResult result =
         CoGbkResult.of(ResolveChanges.DELETES, deletes).and(ResolveChanges.INSERTS, inserts);
-    try (DoFnTester<KV<CdcRowDescriptor, CoGbkResult>, Row> tester =
-        DoFnTester.of(new ResolveChanges(scanConfig(icebergSchema)))) {
-      tester.processTimestampedElement(
-          TimestampedValue.of(
-              KV.of(
-                  CdcRowDescriptor.builder()
-                      .setCommitSnapshotId(123)
-                      .setSnapshotSequenceNumber(456)
-                      .setPrimaryKey(pk)
-                      .build(),
-                  result),
-              timestamp));
-      return tester.getMutableOutput(tester.getMainOutputTag());
-    }
+    ResolveChanges fn = new ResolveChanges(scanConfig(icebergSchema));
+    fn.setup();
+    List<ValueInSingleWindow<Row>> outputs = new ArrayList<>();
+    OutputReceiver<Row> receiver =
+        output ->
+            WindowedValues.<Row>builder()
+                .setValue(output)
+                .setWindow(GlobalWindow.INSTANCE)
+                .setPaneInfo(PaneInfo.NO_FIRING)
+                .setTimestamp(timestamp)
+                .setReceiver(
+                    wv ->
+                        outputs.add(
+                            ValueInSingleWindow.of(
+                                wv.getValue(),
+                                wv.getTimestamp(),
+                                wv.getWindows().iterator().next(),
+                                wv.getPaneInfo(),
+                                wv.getRecordId(),
+                                wv.getRecordOffset(),
+                                wv.causedByDrain(),
+                                wv.getOpenTelemetryContext(),
+                                wv.getValueKind())));
+
+    fn.processElement(
+        KV.of(
+            CdcRowDescriptor.builder()
+                .setCommitSnapshotId(123)
+                .setSnapshotSequenceNumber(456)
+                .setPrimaryKey(pk)
+                .build(),
+            result),
+        timestamp,
+        receiver);
+    return outputs;
   }
 
   private IcebergScanConfig scanConfig(org.apache.iceberg.Schema icebergSchema) {

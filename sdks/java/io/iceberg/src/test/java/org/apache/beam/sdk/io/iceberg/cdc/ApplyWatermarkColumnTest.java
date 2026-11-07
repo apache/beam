@@ -25,9 +25,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.values.PCollection;
@@ -116,30 +116,20 @@ public class ApplyWatermarkColumnTest {
   public void unsupportedWatermarkTypeThrows() {
     Schema schema = Schema.builder().addStringField("wm").build();
     Row row = Row.withSchema(schema).addValue("2026-05-24T00:00:00Z").build();
+    ApplyWatermarkColumn fn = new ApplyWatermarkColumn("wm", "microseconds");
+    TestOutputReceiver<Row> receiver = new TestOutputReceiver<>();
 
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> {
-          try (DoFnTester<Row, Row> tester =
-              DoFnTester.of(new ApplyWatermarkColumn("wm", "microseconds"))) {
-            tester.processElement(row);
-          }
-        });
+    assertThrows(UnsupportedOperationException.class, () -> fn.process(row, receiver));
   }
 
   @Test
   public void missingWatermarkColumnThrows() {
     Schema schema = Schema.builder().addStringField("other").build();
     Row row = Row.withSchema(schema).addValue("value").build();
+    ApplyWatermarkColumn fn = new ApplyWatermarkColumn("wm", "microseconds");
+    TestOutputReceiver<Row> receiver = new TestOutputReceiver<>();
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          try (DoFnTester<Row, Row> tester =
-              DoFnTester.of(new ApplyWatermarkColumn("wm", "microseconds"))) {
-            tester.processElement(row);
-          }
-        });
+    assertThrows(IllegalArgumentException.class, () -> fn.process(row, receiver));
   }
 
   private void assertWatermarkTimestamp(
