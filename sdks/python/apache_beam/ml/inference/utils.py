@@ -53,11 +53,19 @@ def _convert_to_result(
     predictions_per_tensor = [
         dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
-    return [
+    results = [
         PredictionResult(x, y, model_id)
         for x, y in zip(batch, predictions_per_tensor)
     ]
-  return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
+  else:
+    results = [
+        PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)
+    ]
+  if len(results) < len(batch):
+    raise ValueError(
+        f'Expected one prediction per input, but got {len(results)} for a '
+        f'batch of size {len(batch)}.')
+  return results
 
 
 class _ConvertIterToSingleton(beam.DoFn):

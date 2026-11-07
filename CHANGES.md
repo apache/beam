@@ -136,6 +136,7 @@
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
