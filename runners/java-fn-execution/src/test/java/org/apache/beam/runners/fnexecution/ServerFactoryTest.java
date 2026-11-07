@@ -31,6 +31,7 @@ import static org.junit.Assume.assumeTrue;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -135,6 +136,54 @@ public class ServerFactoryTest {
     grpcCleanupRule.register(
         serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder));
     assertThat(descriptorBuilder.getUrl(), is("foo:" + staticPort));
+  }
+
+  @Test
+  public void createListensOnRequestedHost() throws Exception {
+    ApiServiceDescriptor descriptor =
+        ApiServiceDescriptor.newBuilder().setUrl("localhost:0").build();
+    Server server =
+        grpcCleanupRule.register(
+            ServerFactory.createDefault().create(ImmutableList.of(noOpService()), descriptor));
+    assertThat(listenAddress(server).isLoopbackAddress(), is(true));
+  }
+
+  @Test
+  public void createListensOnAllInterfacesWhenRequested() throws Exception {
+    ApiServiceDescriptor descriptor = ApiServiceDescriptor.newBuilder().setUrl("0.0.0.0:0").build();
+    Server server =
+        grpcCleanupRule.register(
+            ServerFactory.createDefault().create(ImmutableList.of(noOpService()), descriptor));
+    assertThat(listenAddress(server).isAnyLocalAddress(), is(true));
+  }
+
+  @Test
+  public void allocatedAddressListensOnLoopback() throws Exception {
+    Server server =
+        grpcCleanupRule.register(
+            ServerFactory.createDefault()
+                .allocateAddressAndCreate(
+                    ImmutableList.of(noOpService()), ApiServiceDescriptor.newBuilder()));
+    assertThat(listenAddress(server).isLoopbackAddress(), is(true));
+  }
+
+  @Test
+  public void allocatedAddressWithUrlFactoryListensOnAllInterfaces() throws Exception {
+    Server server =
+        grpcCleanupRule.register(
+            ServerFactory.createWithUrlFactory((host, port) -> "foo")
+                .allocateAddressAndCreate(
+                    ImmutableList.of(noOpService()), ApiServiceDescriptor.newBuilder()));
+    assertThat(listenAddress(server).isAnyLocalAddress(), is(true));
+  }
+
+  private static TestDataService noOpService() {
+    return new TestDataService(
+        TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build());
+  }
+
+  private static InetAddress listenAddress(Server server) {
+    return ((InetSocketAddress) server.getListenSockets().get(0)).getAddress();
   }
 
   @Test
