@@ -202,29 +202,42 @@ public class SparkReceiverIOIT {
           NoSuchAlgorithmException,
           KeyManagementException,
           IOException,
-          TimeoutException {
+          TimeoutException,
+          InterruptedException {
 
     final ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri(options.getRabbitMqBootstrapServerAddress());
+    connectionFactory.setConnectionTimeout(30000);
+    connectionFactory.setAutomaticRecoveryEnabled(false);
     Map<String, Object> arguments = new HashMap<>();
     arguments.put("x-queue-type", "stream");
 
-    try (Connection connection = connectionFactory.newConnection();
-        Channel channel = connection.createChannel()) {
-      channel.queueDeclare(options.getStreamName(), true, false, false, arguments);
+    int maxAttempts = 5;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try (Connection connection = connectionFactory.newConnection();
+          Channel channel = connection.createChannel()) {
+        channel.queueDeclare(options.getStreamName(), true, false, false, arguments);
 
-      messages.forEach(
-          message -> {
-            try {
-              channel.basicPublish(
-                  "",
-                  options.getStreamName(),
-                  MessageProperties.PERSISTENT_TEXT_PLAIN,
-                  message.getBytes(StandardCharsets.UTF_8));
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
-          });
+        for (String message : messages) {
+          channel.basicPublish(
+              "",
+              options.getStreamName(),
+              MessageProperties.PERSISTENT_TEXT_PLAIN,
+              message.getBytes(StandardCharsets.UTF_8));
+        }
+        return;
+      } catch (IOException | TimeoutException | RuntimeException e) {
+        if (attempt == maxAttempts) {
+          throw e;
+        }
+        LOG.warn(
+            "Failed to write messages to RabbitMQ (attempt {}/{}), retrying...",
+            attempt,
+            maxAttempts,
+            e);
+        Thread.sleep(5000L);
+        clearRabbitMQ();
+      }
     }
   }
 
