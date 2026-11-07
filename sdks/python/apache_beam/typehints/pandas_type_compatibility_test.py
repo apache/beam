@@ -232,5 +232,29 @@ class PandasBatchConverterErrorsTest(unittest.TestCase):
           element_type=element_typehint, batch_type=batch_typehint)
 
 
+class PandasTypeCompatibilityTest(unittest.TestCase):
+  def test_dtype_to_fieldtype(self):
+    import datetime
+    from apache_beam.typehints import pandas_type_compatibility
+
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype(
+            np.dtype('datetime64[ns]')),
+        Optional[datetime.datetime])
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype(pd.StringDtype()),
+        Optional[str])
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype(str), Optional[str])
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype('string'), Optional[str])
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype(np.dtype('S')), bytes)
+    self.assertEqual(pandas_type_compatibility.dtype_to_fieldtype(bytes), bytes)
+    self.assertEqual(pandas_type_compatibility.dtype_to_fieldtype(object), Any)
+    self.assertEqual(
+        pandas_type_compatibility.dtype_to_fieldtype(np.int64), np.int64)
+
+
 if __name__ == '__main__':
   unittest.main()

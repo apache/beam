@@ -52,6 +52,7 @@ compatibility guarantees, except for the type mapping itself.
 """
 
 # ruff: noqa: UP006
+import datetime
 from typing import Any
 from typing import List
 from typing import Optional
@@ -130,8 +131,15 @@ def dtype_to_fieldtype(dtype):
 
   if fieldtype is not None:
     return fieldtype
-  elif dtype.kind == 'S':
+  elif getattr(dtype, 'kind', None) == 'O' or dtype is object:
+    return Any
+  elif getattr(dtype, 'kind', None) == 'S' or dtype is bytes:
     return bytes
+  elif getattr(dtype, 'kind', None) == 'M':
+    return Optional[datetime.datetime]
+  elif (str(dtype) in ('str', 'string') or isinstance(dtype, pd.StringDtype) or
+        pd.api.types.is_string_dtype(dtype)):
+    return Optional[str]
   else:
     return Any
 
