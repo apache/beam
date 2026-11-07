@@ -80,11 +80,13 @@ public class DetectNewPartitionsAction {
    *   <li>Fetches all the partitions with a createdAt timestamp > read timestamp.
    *   <li>Groups the partitions by createdAt timestamp.
    *   <li>Process the groups in ascending order of createdAt timestamp (oldest first)
-   *   <li>For each group, updates the state to {@link State#SCHEDULED}.
-   *   <li>Tries to claim the createdAt timestamp of the group within the restriction.
-   *   <li>If it is possible to claim the timestamp, outputs each partition to the next stage. It
-   *       then proceeds to process the next batch. When there are no more batches to process,
-   *       schedules the function to resume after the configured resume duration.
+   *   <li>Accumulates groups into batches of at least 200 partitions (or until all groups are
+   *       included) and tries to claim the batch's latest createdAt timestamp within the
+   *       restriction.
+   *   <li>If it is possible to claim the timestamp, updates the batch's state to {@link
+   *       State#SCHEDULED} and outputs each partition to the next stage. It then proceeds to
+   *       process the next batch. When there are no more batches to process, schedules the function
+   *       to resume after the configured resume duration.
    *   <li>If it is not possible to claim the timestamp, stops.
    * </ol>
    *
@@ -159,10 +161,10 @@ public class DetectNewPartitionsAction {
       batchPartitionsDifferentCreatedAt.addAll(batchPartitionsSameCreatedAt);
       if (batchPartitionsDifferentCreatedAt.size() >= 200
           || numTimestampsHandledSofar == batches.size()) {
-        final Timestamp scheduledAt = updateBatchToScheduled(batchPartitionsDifferentCreatedAt);
         if (!tracker.tryClaim(batchCreatedAt)) {
           return ProcessContinuation.stop();
         }
+        final Timestamp scheduledAt = updateBatchToScheduled(batchPartitionsDifferentCreatedAt);
         outputBatch(receiver, minWatermark, batchPartitionsDifferentCreatedAt, scheduledAt);
         batchPartitionsDifferentCreatedAt = new ArrayList<>();
       }

@@ -98,7 +98,7 @@ PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 
-RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
+RECOMMENDED_MIN_PIP_VERSION = '26.2.2'
 try:
   _PIP_VERSION = distribution('pip').version
   if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
@@ -353,7 +353,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.10'
+python_requires = '>=3.11'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
@@ -433,6 +433,10 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=extensions,
+      entry_points={
+          # Experimental; see apache_beam/cli/main.py.
+          'console_scripts': ['beam = apache_beam.cli.main:main'],
+      },
       install_requires=[
           'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
@@ -626,9 +630,6 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p310_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
           # xgboost_dependency includes datatable, which only has wheels for
           # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
           'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,

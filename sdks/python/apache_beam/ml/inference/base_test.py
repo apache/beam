@@ -2433,7 +2433,7 @@ class FakeAlwaysFailsRemoteModelHandler(base.RemoteModelHandler[int,
     return FakeModel()
 
   def request(self, batch, model, inference_args=None) -> Iterable[int]:
-    raise Exception
+    raise RuntimeError('fake remote inference request failed')
 
   def batch_elements_kwargs(self):
     return {
@@ -2493,22 +2493,29 @@ class RunInferenceRemoteTest(unittest.TestCase):
       actual = pcoll | base.RunInference(FakeRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_repeated_requests_fail(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_repeated_requests_fail(self, sleep, unused_throttle):
     test_pipeline = TestPipeline()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(RuntimeError,
+                                'fake remote inference request failed'):
       _ = (
           test_pipeline
           | beam.Create([1, 2, 3, 4])
           | base.RunInference(FakeAlwaysFailsRemoteModelHandler()))
       test_pipeline.run()
+    self.assertEqual(sleep.call_count, 2)
 
-  def test_works_on_retry(self):
+  @unittest.mock.patch.object(base.ReactiveThrottler, 'throttle')
+  @unittest.mock.patch.object(base.retry.Clock, 'sleep')
+  def test_works_on_retry(self, sleep, unused_throttle):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeFailsOnceRemoteModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+    sleep.assert_called()
 
   def test_exception_on_load_model_override(self):
     with self.assertRaises(Exception):
@@ -2817,6 +2824,45 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
     self.assertNotIn('bucket_boundaries', kwargs)
     self.assertEqual(kwargs['min_batch_size'], 5)
 
+  def test_batch_key_fn_and_num_shards_passed_to_kwargs(self):
+    key_fn = lambda s: s[:4]
+    handler = FakeModelHandlerForBatching(
+        batch_key_fn=key_fn, batch_key_num_shards=4)
+    kwargs = handler.batch_elements_kwargs()
+    self.assertIs(kwargs['key_fn'], key_fn)
+    self.assertEqual(kwargs['num_shards'], 4)
+
+  def test_batch_key_num_shards_mapping_passed_to_kwargs(self):
+    shard_map = {'hot_prefix': 8}
+    handler = FakeModelHandlerForBatching(
+        batch_key_fn=lambda s: s, batch_key_num_shards=shard_map)
+    self.assertEqual(handler.batch_elements_kwargs()['num_shards'], shard_map)
+
+  def test_batch_key_args_validated_at_construction(self):
+    with self.assertRaisesRegex(ValueError, 'callable'):
+      FakeModelHandlerForBatching(batch_key_fn='not callable')
+    with self.assertRaisesRegex(ValueError, 'requires batch_key_fn'):
+      FakeModelHandlerForBatching(batch_key_num_shards=2)
+    with self.assertRaisesRegex(ValueError, 'length-based'):
+      FakeModelHandlerForBatching(batch_key_fn=len, batch_length_fn=len)
+    for bad_shards in (0, '4', {'a': 0}):
+      with self.assertRaises(ValueError):
+        FakeModelHandlerForBatching(
+            batch_key_fn=len, batch_key_num_shards=bad_shards)
+    # Weighted keyed batching is supported.
+    FakeModelHandlerForBatching(
+        batch_key_fn=len, element_size_fn=len, max_batch_weight=10)
+
+  def test_keyed_handler_batch_key_fn_receives_example(self):
+    key_fn = lambda prompt: prompt.split(':', 1)[0]
+    unkeyed = FakeModelHandlerForBatching(batch_key_fn=key_fn)
+    keyed_fn = base.KeyedModelHandler(unkeyed).batch_elements_kwargs()['key_fn']
+    self.assertEqual(keyed_fn(('k', 'fin:1')), 'fin')
+    maybe_keyed_fn = base.MaybeKeyedModelHandler(
+        unkeyed).batch_elements_kwargs()['key_fn']
+    self.assertEqual(maybe_keyed_fn(('k', 'fin:1')), 'fin')
+    self.assertEqual(maybe_keyed_fn('med:1'), 'med')
+
 
 class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
                                                            FakeModel]):
@@ -2827,6 +2873,99 @@ class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
   def run_inference(self, batch, model, inference_args=None):
     max_len = max(len(s) for s in batch)
     return [f'{s}:{max_len}' for s in batch]
+
+
+class IdentifierReportingModelHandler(base.ModelHandler[int, str, FakeModel]):
+  """Emits the identifier RunInference reported, as seen at load_model time.
+
+  The DoFn works on a pickled copy of the handler, so the only way to observe
+  the hook is through the pipeline output.
+  """
+  def __init__(self):
+    super().__init__()
+    self._identifier_at_load = None
+
+  def load_model(self):
+    # Relies on the default ModelHandler.set_model_identifier, which stores
+    # the identifier in self._model_identifier before load_model runs.
+    self._identifier_at_load = self._model_identifier
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [f'{x}:{self._identifier_at_load}' for x in batch]
+
+
+class RunInferenceModelIdentifierTest(unittest.TestCase):
+  """RunInference hands handlers the identifier the autoscaler looks up."""
+  def test_default_model_identifier_is_none(self):
+    self.assertIsNone(IdentifierReportingModelHandler()._model_identifier)
+
+  def test_identifier_forwarded_through_wrappers(self):
+    inner = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler(inner)
+    handler = keyed.with_preprocess_fn(lambda kv: kv).with_postprocess_fn(
+        lambda kv: kv)
+    handler.set_model_identifier('wrapped-id')
+    for mh in (handler, keyed, inner):
+      self.assertEqual(mh._model_identifier, 'wrapped-id')
+
+  def test_identifier_forwarded_to_every_per_key_handler(self):
+    mh1 = IdentifierReportingModelHandler()
+    mh2 = IdentifierReportingModelHandler()
+    keyed = base.KeyedModelHandler([
+        base.KeyModelMapping(['k1'], mh1),
+        base.KeyModelMapping(['k2'], mh2),
+    ])
+    keyed.set_model_identifier('multi-id')
+    self.assertEqual(mh1._model_identifier, 'multi-id')
+    self.assertEqual(mh2._model_identifier, 'multi-id')
+
+  def test_explicit_model_identifier_is_reported_before_load(self):
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1, 2], reshuffle=False)
+          | base.RunInference(
+              IdentifierReportingModelHandler(),
+              model_identifier='my-step-model'))
+      assert_that(out, equal_to(['1:my-step-model', '2:my-step-model']))
+
+  def test_generated_uuid_identifier_matches_annotation(self):
+    # No model_identifier given: RunInference generates a uuid hex, annotates
+    # the inference step with it, and reports that same value to the handler.
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([1], reshuffle=False)
+          | base.RunInference(IdentifierReportingModelHandler()))
+      annotated = [
+          t.annotations['model_identifier'].decode()
+          for t in p.to_runner_api().components.transforms.values()
+          if t.unique_name == 'RunInference/BeamML_RunInference'
+      ]
+      self.assertEqual(len(annotated), 1)
+      self.assertRegex(annotated[0], r'^[0-9a-f]{32}$')
+      assert_that(out, equal_to([f'1:{annotated[0]}']))
+
+  def test_identifier_forwarded_through_wrappers_in_pipeline(self):
+    handler = base.KeyedModelHandler(
+        IdentifierReportingModelHandler()).with_preprocess_fn(
+            lambda kv: kv).with_postprocess_fn(lambda kv: kv)
+    with TestPipeline('FnApiRunner') as p:
+      out = (
+          p | beam.Create([('k', 1)], reshuffle=False)
+          | base.RunInference(handler, model_identifier='wrapped-id'))
+      assert_that(out, equal_to([('k', '1:wrapped-id')]))
+
+
+class PrefixPeerReportingStringModelHandler(base.ModelHandler[str,
+                                                              str,
+                                                              FakeModel]):
+  """Reports each element with the sorted prefix set of the batch it ran in."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    prefixes = ','.join(sorted({s.split(':', 1)[0] for s in batch}))
+    return [f'{s}|batch_prefixes={prefixes}|size={len(batch)}' for s in batch]
 
 
 class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
@@ -2846,6 +2985,69 @@ class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
           | beam.Create(examples, reshuffle=False)
           | base.RunInference(handler))
       assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
+
+  def test_run_inference_with_batch_key_fn_and_preprocess_fn(self):
+    # batch_key_fn receives the element *after* preprocessing (the prompt
+    # string here), not the raw input record.
+    handler = PrefixPeerReportingStringModelHandler(
+        min_batch_size=2,
+        max_batch_size=2,
+        max_batch_duration_secs=1.0,
+        batch_key_fn=lambda prompt: prompt.split(':', 1)[0]).with_preprocess_fn(
+            lambda rec: f"{rec['sector']}:{rec['id']}")
+
+    records = [
+        {
+            'sector': 'fin', 'id': '1'
+        },
+        {
+            'sector': 'med', 'id': '1'
+        },
+        {
+            'sector': 'fin', 'id': '2'
+        },
+        {
+            'sector': 'med', 'id': '2'
+        },
+    ]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(records, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([
+              'fin:1|batch_prefixes=fin|size=2',
+              'fin:2|batch_prefixes=fin|size=2',
+              'med:1|batch_prefixes=med|size=2',
+              'med:2|batch_prefixes=med|size=2',
+          ]))
+
+  def test_run_inference_with_batch_key_fn_and_keyed_model_handler(self):
+    # A keyed handler passes the example, not the (key, example) pair, to
+    # batch_key_fn.
+    handler = base.KeyedModelHandler(
+        PrefixPeerReportingStringModelHandler(
+            min_batch_size=2,
+            max_batch_size=2,
+            max_batch_duration_secs=1.0,
+            batch_key_fn=lambda prompt: prompt.split(':', 1)[0]))
+    examples = [('k1', 'fin:1'), ('k2', 'med:1'), ('k3', 'fin:2'),
+                ('k4', 'med:2')]
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(
+          results,
+          equal_to([
+              ('k1', 'fin:1|batch_prefixes=fin|size=2'),
+              ('k3', 'fin:2|batch_prefixes=fin|size=2'),
+              ('k2', 'med:1|batch_prefixes=med|size=2'),
+              ('k4', 'med:2|batch_prefixes=med|size=2'),
+          ]))
 
 
 class BatchLengthsModelHandler(base.ModelHandler[str, tuple, FakeModel]):

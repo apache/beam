@@ -18,6 +18,7 @@ package jobservices
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -28,11 +29,19 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
-// TestServer_Lifecycle validates that a server can start and stop.
+// TestServer_Lifecycle validates that a server can start and stop on loopback.
 func TestServer_Lifecycle(t *testing.T) {
 	undertest := NewServer(0, func(j *Job) {
 		t.Fatalf("unexpected call to execute: %v", j)
 	})
+
+	host, _, err := net.SplitHostPort(undertest.lis.Addr().String())
+	if err != nil {
+		t.Fatalf("net.SplitHostPort(%q) = %v", undertest.lis.Addr().String(), err)
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		t.Errorf("server listener host = %q, want loopback IP", host)
+	}
 
 	go undertest.Serve()
 

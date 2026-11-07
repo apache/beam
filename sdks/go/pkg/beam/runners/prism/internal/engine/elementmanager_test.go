@@ -22,6 +22,7 @@ import (
 	"io"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -56,6 +57,89 @@ func TestElementHeap(t *testing.T) {
 		if got := heap.Pop(&elements).(element).timestamp; got != want {
 			t.Errorf("[%d] heap.Pop(&elements).(element).timestamp = %v, want %v", i, got, want)
 		}
+	}
+}
+
+func TestStatefulStageKind_buildEventTimeBundle_TimeSortedInput(t *testing.T) {
+	// The key has data at 50 and 200 pending. Each step builds a bundle at the
+	// given watermark, and checks the timestamps of the data it processes.
+	// Data is buildable at a watermark exactly when the step processes some.
+	type step struct {
+		watermark mtime.Time
+		want      []mtime.Time
+	}
+	tests := []struct {
+		name            string
+		timeSorted      bool
+		allowedLateness time.Duration
+		steps           []step
+	}{
+		{
+			name: "not time sorted processes all data",
+			steps: []step{
+				{watermark: mtime.MinTimestamp, want: []mtime.Time{50, 200}},
+			},
+		}, {
+			name:       "time sorted holds data until the watermark passes it",
+			timeSorted: true,
+			steps: []step{
+				{watermark: 49, want: nil},
+				{watermark: 50, want: []mtime.Time{50}},
+				{watermark: 199, want: nil},
+				{watermark: 200, want: []mtime.Time{200}},
+			},
+		}, {
+			name:            "time sorted holds data for the allowed lateness",
+			timeSorted:      true,
+			allowedLateness: 100 * time.Millisecond,
+			steps: []step{
+				{watermark: 149, want: nil},
+				{watermark: 150, want: []mtime.Time{50}},
+				{watermark: 299, want: nil},
+				{watermark: mtime.MaxTimestamp, want: []mtime.Time{200}},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			em := NewElementManager(Config{})
+			em.AddStage("dofn", []string{"input"}, nil, nil)
+			em.StageStateful("dofn", nil)
+			if test.timeSorted {
+				em.StageRequiresTimeSortedInput("dofn", test.allowedLateness)
+			}
+			ss := em.stages["dofn"]
+			win := window.GlobalWindow{}
+			dnt := &dataAndTimers{
+				elements: elementHeap{
+					{window: win, timestamp: 200, elmBytes: []byte{2}, keyBytes: []byte("k")},
+					{window: win, timestamp: 50, elmBytes: []byte{1}, keyBytes: []byte("k")},
+				},
+				timers: map[timerKey]timerTimes{},
+			}
+			heap.Init(&dnt.elements)
+			ss.pendingByKeys = map[string]*dataAndTimers{"k": dnt}
+
+			for _, s := range test.steps {
+				ss.mu.Lock()
+				buildable := ss.hasBuildableDataLocked(s.watermark)
+				toProcess, _, _, _, _, _, _ := ss.kind.buildEventTimeBundle(ss, s.watermark)
+				ss.mu.Unlock()
+				var got []mtime.Time
+				for _, e := range toProcess {
+					got = append(got, e.timestamp)
+				}
+				if !cmp.Equal(got, s.want) {
+					t.Errorf("buildEventTimeBundle(watermark=%v) = %v, want %v", s.watermark, got, s.want)
+				}
+				if want := len(s.want) > 0; buildable != want {
+					t.Errorf("hasBuildableDataLocked(%v) = %v, want %v", s.watermark, buildable, want)
+				}
+			}
+			if got := len(ss.pendingByKeys); got != 0 {
+				t.Errorf("len(pendingByKeys) = %v, want 0", got)
+			}
+		})
 	}
 }
 
