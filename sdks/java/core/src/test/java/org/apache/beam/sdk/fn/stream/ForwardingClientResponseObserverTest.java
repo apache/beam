@@ -89,4 +89,38 @@ public class ForwardingClientResponseObserverTest {
     verifyNoMoreInteractions(delegateObserver, callStreamObserver);
     verify(onDoneHandler).run();
   }
+
+  private interface StalledResponseObserver<ReqT, RespT>
+      extends ClientResponseObserver<RespT, ReqT>, StalledPollHandler {}
+
+  @Test
+  public void testBeforeStartForwardsToClientResponseObserver() {
+    @SuppressWarnings("unchecked")
+    ClientResponseObserver<Object, Object> delegateObserver = mock(ClientResponseObserver.class);
+    @SuppressWarnings("unchecked")
+    ClientCallStreamObserver<Object> callStreamObserver = mock(ClientCallStreamObserver.class);
+    Runnable onReadyHandler = () -> {};
+    ClientResponseObserver<Object, Object> observer =
+        ForwardingClientResponseObserver.create(delegateObserver, onReadyHandler);
+    observer.beforeStart(callStreamObserver);
+    verify(callStreamObserver).setOnReadyHandler(onReadyHandler);
+    verify(delegateObserver).beforeStart(callStreamObserver);
+  }
+
+  @Test
+  public void testOnStalledPollForwardsToStalledPollHandler() {
+    @SuppressWarnings("unchecked")
+    StalledResponseObserver<Object, Object> delegateObserver = mock(StalledResponseObserver.class);
+    ForwardingClientResponseObserver<Object, Object> observer =
+        ForwardingClientResponseObserver.create(delegateObserver, () -> {});
+    observer.onStalledPoll();
+    verify(delegateObserver).onStalledPoll();
+
+    @SuppressWarnings("unchecked")
+    StreamObserver<Object> plainObserver = mock(StreamObserver.class);
+    ForwardingClientResponseObserver<Object, Object> observer2 =
+        ForwardingClientResponseObserver.create(plainObserver, () -> {});
+    observer2.onStalledPoll();
+    verifyNoMoreInteractions(plainObserver);
+  }
 }
