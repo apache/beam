@@ -29,9 +29,11 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -738,11 +741,13 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
-    assertThat(relNode, instanceOf(BeamPushDownIOSourceRel.class));
+    // Calc is not dropped because BigQuery does not support field reordering yet.
+    assertThat(relNode, instanceOf(BeamCalcRel.class));
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
     // IO projects fields in the same order they are defined in the schema.
     assertThat(
-        relNode.getRowType().getFieldNames(),
-        containsInAnyOrder("c_tinyint", "c_integer", "c_varchar"));
+        relNode.getInput(0).getRowType().getFieldNames(),
+        contains("c_tinyint", "c_integer", "c_varchar"));
     // Field reordering is done in a Calc
     assertThat(
         output.getSchema(),
@@ -812,9 +817,15 @@ public class BigQueryReadWriteIT implements Serializable {
     BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
 
-    assertThat(relNode, instanceOf(BeamPushDownIOSourceRel.class));
+    assertThat(relNode, instanceOf(BeamCalcRel.class));
+    // Predicate should be pushed-down to IO level
+    assertNull(((BeamCalcRel) relNode).getProgram().getCondition());
+
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
     // Unused fields should not be projected by an IO
-    assertThat(relNode.getRowType().getFieldNames(), containsInAnyOrder("c_varchar", "c_integer"));
+    assertThat(
+        relNode.getInput(0).getRowType().getFieldNames(),
+        containsInAnyOrder("c_varchar", "c_integer"));
 
     assertThat(
         output.getSchema(),
