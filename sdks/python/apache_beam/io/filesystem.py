@@ -331,9 +331,21 @@ class CompressedFile(object):
     self._file.close()
 
   def flush(self) -> None:
+    """Writes buffered data to the file without finishing the compressed stream.
+
+    Only close() finishes the stream, so more data can be written after a flush.
+    """
     if self.writeable():
       assert self._compressor
-      self._file.write(self._compressor.flush())
+      if self._compression_type in (CompressionTypes.GZIP,
+                                    CompressionTypes.DEFLATE):
+        self._file.write(self._compressor.flush(zlib.Z_SYNC_FLUSH))
+      elif self._compression_type == CompressionTypes.ZSTD:
+        self._file.write(
+            self._compressor.flush(zstandard.COMPRESSOBJ_FLUSH_BLOCK))
+      # BZIP2 and LZMA compressors cannot flush without finishing the stream,
+      # so their buffered data is written by close(), as in bz2.BZ2File and
+      # lzma.LZMAFile.
     self._file.flush()
 
   @property
