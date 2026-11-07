@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Indicates that an output element was too large. */
@@ -29,12 +30,6 @@ public class OutputTooLargeException extends RuntimeException {
 
   /** Returns whether an exception was caused by a {@link OutputTooLargeException}. */
   public static boolean isCausedByOutputTooLargeException(@Nullable Throwable t) {
-    while (t != null) {
-      if (t instanceof OutputTooLargeException) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
+    return ExceptionUtils.hasCause(t, OutputTooLargeException.class);
   }
 }
