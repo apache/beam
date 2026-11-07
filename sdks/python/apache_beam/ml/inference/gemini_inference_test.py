@@ -151,6 +151,24 @@ class ModelHandlerArgConditions(unittest.TestCase):
         request_fn=generate_from_string,
     )
 
+  def test_default_max_batch_size(self):
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789")
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 32})
+
+  def test_default_max_batch_size_is_not_below_min_batch_size(self):
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789",
+        min_batch_size=64)
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 64, 'max_batch_size': 64
+        })
+
 
 @mock.patch('apache_beam.ml.inference.gemini_inference.genai.Client')
 @mock.patch('apache_beam.ml.inference.gemini_inference.HttpOptions')

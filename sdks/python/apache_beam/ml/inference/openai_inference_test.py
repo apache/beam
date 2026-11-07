@@ -479,6 +479,31 @@ class OpenAIModelHandlerTest(unittest.TestCase):
     self.assertEqual(kwargs['max_batch_duration_secs'], 5)
     self.assertEqual(kwargs['max_batch_weight'], 100)
 
+  def test_default_max_batch_size(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=chat_completion_from_string,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 32})
+
+  def test_default_max_batch_size_for_embeddings(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_EMBEDDING_MODEL,
+        request_fn=embedding_from_string,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 2048})
+
+  def test_default_max_batch_size_is_not_below_min_batch_size(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=chat_completion_from_string,
+        api_key='fake',
+        min_batch_size=64)
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 64, 'max_batch_size': 64
+        })
+
   def test_custom_retry_filter(self):
     custom_filter = lambda e: False
     handler = OpenAIModelHandler(
