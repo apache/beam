@@ -21,6 +21,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -32,6 +33,20 @@ import org.apache.beam.sdk.options.StreamingOptions;
         + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
 public interface BigQueryOptions
     extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
+  /** Shared by workers so retries of the same clone use the same BigQuery job ID. */
+  @Hidden
+  @Default.InstanceFactory(CloneJobIdTokenFactory.class)
+  String getCloneJobIdToken();
+
+  void setCloneJobIdToken(String token);
+
+  class CloneJobIdTokenFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      return BigQueryHelpers.randomUUIDString();
+    }
+  }
+
   @Description(
       "Temporary dataset for BigQuery table operations. "
           + "Supported values are \"bigquery.googleapis.com/{dataset}\"")
