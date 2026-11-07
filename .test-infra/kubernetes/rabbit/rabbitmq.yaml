@@ -100,7 +100,7 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: "3Gi"
+            storage: "10Gi"
   template:
     metadata:
       labels:
@@ -143,14 +143,14 @@ spec:
             exec:
               command: ["rabbitmqctl", "status"]
             initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 60
           readinessProbe:
             exec:
               command: ["rabbitmqctl", "status"]
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 10
+            timeoutSeconds: 30
           imagePullPolicy: Always
           env:
             - name: MY_POD_IP
