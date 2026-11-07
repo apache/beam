@@ -43,6 +43,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.cli import pipe_spec
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineState
@@ -76,11 +77,11 @@ Write them after FILE, as --flag=value.
 
 _PIPE_EPILOG = """\
 examples:
-  beam pipe --from users.csv --to out/users.json
-  beam pipe --from 'data/*.parquet' --to out/data --to-format avro
-  beam pipe --from users.csv --to out/users.json --dry-run > pipeline.yaml
+  beam pipe --from users.csv --to out/users.parquet
+  beam pipe --from 'data/*.parquet' --to out/data --to-format json
+  beam pipe --from users.csv --to out/users.parquet --dry-run > pipeline.yaml
 
-Formats: csv, json and avro can be read and written; parquet can be read.
+Formats: csv, json, parquet, avro (from the file extension unless overridden).
 Paths can be local or on any Beam filesystem (gs://, s3://, ...). The
 output path is a prefix: Beam writes sharded files that start with it, and
 existing output is never overwritten.
@@ -210,9 +211,9 @@ def _pipe(args, pipeline_args, pipe_argv):
   except pipe_spec.PipeSpecError as e:
     raise _CliError(str(e), EXIT_USAGE) from None
 
-  # A dry run makes every check a real run makes, including building the
-  # pipeline, so that it predicts whether `beam run` on its output will work.
-  _refuse_existing_output(pipe.output_prefix)
+  # A dry run makes every check a real run makes, including checking for
+  # existing output and building the pipeline, so that it predicts whether
+  # `beam run` on its output will work.
   return _run_yaml(
       ['--yaml_pipeline=' + yaml.safe_dump(pipe.spec, sort_keys=False)] +
       pipeline_args,
@@ -254,7 +255,13 @@ def _run_yaml(
           yaml_main.build_pipeline_components_from_argv(yaml_main_argv))
       pipeline = beam.Pipeline(options=options, display_data=display_data)
       pipeline.__enter__()
+      if output_prefix is not None:
+        # Checked after Pipeline(options=...) calls FileSystems.set_options, so
+        # remote filesystems receive flags like --project, --s3_*, or --hdfs_*.
+        _refuse_existing_output(output_prefix, verbose)
       constructor(pipeline)
+    except _CliError:
+      raise
     except ImportError as e:
       # A transform's extra is missing, for example [gcp] for BigQuery.
       _maybe_print_traceback(verbose)
@@ -316,16 +323,17 @@ def _run_yaml(
 
   print(f'Done. Ran {_describe_runner(options, result)}.')
   if output_prefix is not None:
-    written = _matching_files(output_prefix)
+    written = _matching_files(
+        output_prefix, verbose, error_exit_code=EXIT_PIPELINE_FAILED)
     print(f'Wrote {len(written)} file{"" if len(written) == 1 else "s"}:')
     for path in written:
       print('  ' + path)
   return EXIT_OK
 
 
-def _refuse_existing_output(prefix):
+def _refuse_existing_output(prefix, verbose):
   """Fails if any file starts with the output prefix: pipe never overwrites."""
-  existing = _matching_files(prefix)
+  existing = _matching_files(prefix, verbose, error_exit_code=EXIT_USAGE)
   if existing:
     shown = '\n'.join('  ' + path for path in existing[:5])
     more = f'\n  ... and {len(existing) - 5} more' if len(existing) > 5 else ''
@@ -336,7 +344,7 @@ def _refuse_existing_output(prefix):
         EXIT_USAGE)
 
 
-def _matching_files(prefix):
+def _matching_files(prefix, verbose, error_exit_code):
   # LocalFileSystem.match calls os.path.dirname(prefix), which is '' for a
   # bare filename in the current directory and causes _list('') to return no
   # files. Prepending './' (or '.\' on Windows) gives dirname '.' so files in
@@ -346,10 +354,20 @@ def _matching_files(prefix):
       os.sep if '://' not in prefix and not os.path.dirname(prefix) else '')
   try:
     match = FileSystems.match([dot + prefix + '*'])[0]
-  except ValueError as e:
-    # No filesystem handles the scheme, for example gs:// without the [gcp]
-    # extra. Beam's message names the extra to install.
-    raise _CliError(str(e), EXIT_MISSING_PACKAGE) from None
+  except (BeamIOError, ValueError) as e:
+    _maybe_print_traceback(verbose)
+    cause = (
+        next(iter(e.exception_details.values()))
+        if isinstance(e, BeamIOError) and e.exception_details else e)
+    if (isinstance(cause, ImportError) or
+        'dependencies are not installed' in str(cause) or
+        'Unable to get filesystem from specified path' in str(cause)):
+      # Missing filesystem extra, for example [gcp], [aws], [azure], [hadoop].
+      raise _CliError(
+          f'a required package is missing: {cause}',
+          EXIT_MISSING_PACKAGE) from None
+    raise _CliError(
+        f'could not access {prefix!r}: {cause}', error_exit_code) from None
   return sorted(
       m.path[len(dot):] if dot and m.path.startswith(dot) else m.path
       for m in match.metadata_list)

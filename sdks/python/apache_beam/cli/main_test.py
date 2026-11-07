@@ -28,7 +28,9 @@ from unittest import mock
 
 import apache_beam as beam
 from apache_beam.cli import main as cli
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import subprocess_server
 
@@ -427,15 +429,122 @@ class PipeTest(unittest.TestCase):
     with open(f'{self.output}-00000-of-00007') as f:
       self.assertEqual(f.read(), 'keep me\n')
 
-  def test_missing_filesystem_extra_exits_with_4(self):
-    with mock.patch.object(
-        FileSystems,
-        'match',
-        side_effect=ValueError('Unable to get filesystem from specified path')):
+  def test_pipes_csv_to_parquet_and_back_to_json(self):
+    parquet_prefix = os.path.join(self.tmp, 'out', 'users.parquet')
+    json_prefix = os.path.join(self.tmp, 'out', 'roundtrip.json')
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        self.input,
+        '--to',
+        parquet_prefix,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('Wrote 1 file:', out)
+
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        parquet_prefix + '*',
+        '--to',
+        json_prefix,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertEqual([json.loads(line) for line in _read_lines(json_prefix)],
+                     [{
+                         'name': 'Ada', 'age': 36
+                     }, {
+                         'name': 'Linus', 'age': 17
+                     }])
+
+  def test_filesystem_options_and_errors(self):
+    # Fresh CLI invocations start with FileSystems._pipeline_options == None;
+    # _refuse_existing_output must run after Pipeline(options=...) sets it.
+    seen_projects = []
+
+    def check_options_on_match(_patterns):
+      opts = FileSystems._pipeline_options
+      seen_projects.append(
+          opts.view_as(GoogleCloudOptions).project if opts else None)
+      raise BeamIOError(
+          'Match operation failed',
+          {'gs://b/u*': RuntimeError('GCP dependencies are not installed')})
+
+    FileSystems._pipeline_options = None
+    with mock.patch.object(FileSystems,
+                           'match',
+                           side_effect=check_options_on_match):
+      code, _, err = _run_cli([
+          'pipe',
+          '--from',
+          self.input,
+          '--to',
+          'gs://b/users.json',
+          '--project=my-custom-project'
+      ])
+    self.assertEqual(seen_projects, ['my-custom-project'])
+    self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+    self.assertIn('GCP dependencies are not installed', err)
+
+    # Missing extras raised as ValueError or wrapped in BeamIOError exit with 4.
+    for exc in [
+        ValueError('Unable to get filesystem from specified path'),
+        BeamIOError('Unable to get the Filesystem',
+                    {'hdfs://b/u*': ImportError('Failed to import hdfs')}),
+    ]:
+      with self.subTest(exc=exc):
+        with mock.patch.object(FileSystems, 'match', side_effect=exc):
+          code, _, err = _run_cli(
+              ['pipe', '--from', self.input, '--to', 's3://bucket/users.json'])
+        self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+
+    # Remote access / configuration errors exit with 2 before running (and show
+    # tracebacks only with --verbose), and 1 if post-run listing fails.
+    io_err = BeamIOError(
+        'Match operation failed',
+        {'s3://bucket/users.json*': RuntimeError('403 Forbidden')})
+    with mock.patch.object(FileSystems, 'match', side_effect=io_err):
       code, _, err = _run_cli(
           ['pipe', '--from', self.input, '--to', 's3://bucket/users.json'])
-    self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
-    self.assertIn('Unable to get filesystem', err)
+      self.assertEqual(code, cli.EXIT_USAGE)
+      self.assertIn('403 Forbidden', err)
+      self.assertNotIn('Traceback', err)
+
+      code, _, err = _run_cli([
+          'pipe',
+          '--from',
+          self.input,
+          '--to',
+          's3://bucket/users.json',
+          '--verbose'
+      ])
+      self.assertEqual(code, cli.EXIT_USAGE)
+      self.assertIn('Traceback', err)
+
+    real_match = FileSystems.match
+    output_checks = 0
+
+    def fail_post_run_match(patterns, *args, **kwargs):
+      nonlocal output_checks
+      if patterns == [self.output + '*']:
+        output_checks += 1
+        if output_checks == 2:
+          raise io_err
+      return real_match(patterns, *args, **kwargs)
+
+    result = mock.Mock()
+    result.wait_until_finish.return_value = cli.PipelineState.DONE
+    with (
+        mock.patch.object(beam.Pipeline, 'run', return_value=result),
+        mock.patch.object(FileSystems, 'match',
+                          side_effect=fail_post_run_match),
+    ):
+      code, _, err = _run_cli(
+          ['pipe', '--from', self.input, '--to', self.output])
+    self.assertEqual(code, cli.EXIT_PIPELINE_FAILED)
+    self.assertIn('403 Forbidden', err)
 
   def test_no_wait_and_failure_and_ctrl_c_exit_codes(self):
     result = mock.Mock()

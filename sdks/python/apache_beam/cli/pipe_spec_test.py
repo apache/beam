@@ -23,43 +23,47 @@ from apache_beam.cli import pipe_spec
 from apache_beam.cli.pipe_spec import PipeSpecError
 from apache_beam.cli.pipe_spec import build_pipe_spec
 
-CSV_TO_AVRO = '''
+CSV_TO_PARQUET = '''
 pipeline:
   type: chain
   transforms:
     - type: ReadFromCsv
       config: {path: users.csv}
-    - type: WriteToAvro
-      config: {path: out/users.avro}
+    - type: WriteToParquet
+      config: {path: out/users.parquet}
 '''
 
 
 class BuildPipeSpecTest(unittest.TestCase):
-  def test_csv_to_avro(self):
-    pipe = build_pipe_spec('users.csv', 'out/users.avro')
-    self.assertEqual(pipe.spec, yaml.safe_load(CSV_TO_AVRO))
-    self.assertEqual(pipe.output_prefix, 'out/users.avro')
+  def test_csv_to_parquet(self):
+    pipe = build_pipe_spec('users.csv', 'out/users.parquet')
+    self.assertEqual(pipe.spec, yaml.safe_load(CSV_TO_PARQUET))
+    self.assertEqual(pipe.output_prefix, 'out/users.parquet')
 
   def test_formats_come_from_extensions(self):
-    for path, transform in [
-        ('a.csv', 'ReadFromCsv'),
-        ('logs/*.json', 'ReadFromJson'),
-        ('a.jsonl', 'ReadFromJson'),
-        ('gs://bucket/a.parquet', 'ReadFromParquet'),
-        ('GS://bucket/a.parquet', 'ReadFromParquet'),
-        ('a.AVRO', 'ReadFromAvro'),
+    for path, read_transform, write_transform in [
+        ('a.csv', 'ReadFromCsv', 'WriteToCsv'),
+        ('logs/*.json', 'ReadFromJson', 'WriteToJson'),
+        ('a.jsonl', 'ReadFromJson', 'WriteToJson'),
+        ('gs://bucket/a.parquet', 'ReadFromParquet', 'WriteToParquet'),
+        ('GS://bucket/a.parquet', 'ReadFromParquet', 'WriteToParquet'),
+        ('a.AVRO', 'ReadFromAvro', 'WriteToAvro'),
         # Output of an earlier command, read back.
-        ('out/users.parquet*', 'ReadFromParquet'),
-        ('out/users.avro-*', 'ReadFromAvro'),
-        ('out/users.json-00000-of-00001', 'ReadFromJson'),
+        ('out/users.parquet*', 'ReadFromParquet', 'WriteToParquet'),
+        ('out/users.avro-*', 'ReadFromAvro', 'WriteToAvro'),
+        ('out/users.json-00000-of-00001', 'ReadFromJson', 'WriteToJson'),
         # Windows backslash paths.
-        (r'C:\Users\Ada\users.csv', 'ReadFromCsv'),
-        (r'C:\Users\Ada\out\users.parquet*', 'ReadFromParquet'),
+        (r'C:\Users\Ada\users.csv', 'ReadFromCsv', 'WriteToCsv'),
+        (
+            r'C:\Users\Ada\out\users.parquet*',
+            'ReadFromParquet',
+            'WriteToParquet'),
     ]:
       with self.subTest(path=path):
-        pipe = build_pipe_spec(path, 'out.csv')
+        pipe = build_pipe_spec(path, path)
         self.assertEqual(
-            pipe.spec['pipeline']['transforms'][0]['type'], transform)
+            [t['type'] for t in pipe.spec['pipeline']['transforms']],
+            [read_transform, write_transform])
 
   def test_explicit_formats_override_extensions(self):
     pipe = build_pipe_spec('data.txt', 'out', 'csv', 'json')
@@ -73,13 +77,16 @@ class BuildPipeSpecTest(unittest.TestCase):
         (('a.csv', 'out/users'), {}, 'add --to-format'),
         (('a.csv', 'b.csv'), {
             'from_format': 'xml'
-        }, "unsupported format 'xml'"),
-        (('a.csv', 'out/users.parquet'), {},
-         "unsupported format 'parquet' .* use one of: csv, json, avro"),
+        },
+         "unsupported format 'xml' .* use one of: csv, json, parquet, avro"),
+        (('a.csv', 'b.csv'), {
+            'to_format': 'xml'
+        },
+         "unsupported format 'xml' .* use one of: csv, json, parquet, avro"),
         (('kafka://broker:9092/topic', 'b.csv'), {}, 'unsupported location'),
     ]
     for args, kwargs, message in cases:
-      with self.subTest(args=args):
+      with self.subTest(args=args, kwargs=kwargs):
         with self.assertRaisesRegex(PipeSpecError, message):
           build_pipe_spec(*args, **kwargs)
 
