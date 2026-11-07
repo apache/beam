@@ -208,8 +208,7 @@ public class SparkReceiverIOIT {
     final ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri(options.getRabbitMqBootstrapServerAddress());
     connectionFactory.setConnectionTimeout(30000);
-    connectionFactory.setAutomaticRecoveryEnabled(true);
-    connectionFactory.setRequestedHeartbeat(60);
+    connectionFactory.setAutomaticRecoveryEnabled(false);
     Map<String, Object> arguments = new HashMap<>();
     arguments.put("x-queue-type", "stream");
 
