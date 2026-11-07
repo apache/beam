@@ -65,6 +65,7 @@ from typing import Optional
 
 import apache_beam as beam
 import numpy as np
+from apache_beam.examples.inference import table_row_inference_utils
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
@@ -281,6 +282,21 @@ def run(
     raise ValueError(
         'In batch mode, specify at least one of --output_table or --output_file'
     )
+
+  # Create the Pub/Sub topic and subscription before submit so Dataflow
+  # preflight validation finds them.
+  if known_args.mode == 'streaming':
+    parts = known_args.input_subscription.strip('/').split('/')
+    if (len(parts) != 4 or parts[0] != 'projects' or
+        parts[2] != 'subscriptions'):
+      raise ValueError(
+          'input_subscription must be projects/PROJECT/subscriptions/NAME')
+    project = parts[1]
+    subscription_name = parts[3]
+    topic_name = subscription_name
+    table_row_inference_utils.ensure_pubsub_topic(project, topic_name)
+    table_row_inference_utils.ensure_pubsub_subscription(
+        project, topic_name, subscription_name)
 
   feature_columns = [
       col.strip() for col in known_args.feature_columns.split(',')

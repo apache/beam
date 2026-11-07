@@ -144,6 +144,13 @@ class PostProcessDoFn(beam.DoFn):
 # ============ Model Handlers ============
 
 
+class _ModelAndProcessor(object):
+  """Bundle returned by load_model(); must support weakrefs for Shared."""
+  def __init__(self, model, processor):
+    self.model = model
+    self.processor = processor
+
+
 class BlipCaptionModelHandler(ModelHandler):
   def __init__(
       self,
@@ -166,7 +173,7 @@ class BlipCaptionModelHandler(ModelHandler):
     model = BlipForConditionalGeneration.from_pretrained(self.model_name)
     model.to(self.device)
     model.eval()
-    return (model, processor)
+    return _ModelAndProcessor(model, processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
@@ -174,7 +181,7 @@ class BlipCaptionModelHandler(ModelHandler):
   def run_inference(
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    model, processor = model_bundle
+    model, processor = model_bundle.model, model_bundle.processor
     start = now_millis()
 
     images = [x["image"] for x in batch]
@@ -238,7 +245,7 @@ class ClipRankModelHandler(ModelHandler):
     model = CLIPModel.from_pretrained(self.model_name)
     model.to(self.device)
     model.eval()
-    return (model, processor)
+    return _ModelAndProcessor(model, processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
@@ -246,7 +253,7 @@ class ClipRankModelHandler(ModelHandler):
   def run_inference(
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    model, processor = model_bundle
+    model, processor = model_bundle.model, model_bundle.processor
     start_batch = now_millis()
 
     # Flat lists for a single batched CLIP forward pass
@@ -461,19 +468,6 @@ def cleanup_pubsub_resources(
   except NotFound:
     logging.info(f"Topic already deleted: {topic_path}")
 
-  try:
-    subscriber.delete_subscription(
-        request={"subscription": full_subscription_path})
-    logging.info(f"Deleted subscription: {subscription_name}")
-  except NotFound:
-    logging.info(f"Subscription already deleted: {subscription_name}")
-
-  try:
-    publisher.delete_topic(request={"topic": full_topic_path})
-    logging.info(f"Deleted topic: {topic_name}")
-  except NotFound:
-    logging.info(f"Topic already deleted: {topic_name}")
-
 
 def override_or_add(args, flag, value):
   if flag in args:
@@ -622,12 +616,13 @@ def run(
   try:
     result.wait_until_finish(duration=1800000)  # 30 min
   finally:
-    try:
-      result.cancel()
-    except Exception:
-      logging.debug("Failed to cancel pipeline result.", exc_info=True)
-
     if known_args.mode == 'streaming':
+      try:
+        result.cancel()
+        result.wait_until_finish(
+            duration=600000)  # up to 10 min to settle cancel
+      except Exception:
+        logging.debug("Failed to cancel pipeline result.", exc_info=True)
       cleanup_pubsub_resources(
           project=known_args.project,
           topic_path=known_args.pubsub_topic,

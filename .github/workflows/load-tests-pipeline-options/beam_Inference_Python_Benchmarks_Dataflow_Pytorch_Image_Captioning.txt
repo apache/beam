@@ -15,6 +15,7 @@
 --region=us-central1
 --worker_machine_type=n1-standard-4
 --num_workers=50
+--timeout_ms=600000
 --disk_size_gb=50
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
@@ -24,7 +25,7 @@
 --metrics_dataset=beam_run_inference
 --input_options={}
 --influx_measurement=result_torch_inference_image_captioning
---input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --blip_model_name=Salesforce/blip-image-captioning-base
 --blip_batch_size=4
 --num_captions=5

@@ -499,12 +499,13 @@ def run(
   try:
     result.wait_until_finish(duration=1800000)  # 30 min
   finally:
-    try:
-      result.cancel()
-    except Exception:
-      logging.debug("Failed to cancel pipeline result.", exc_info=True)
-
     if known_args.mode == 'streaming':
+      try:
+        result.cancel()
+        result.wait_until_finish(
+            duration=600000)  # up to 10 min to settle cancel
+      except Exception:
+        logging.debug("Failed to cancel pipeline result.", exc_info=True)
       cleanup_pubsub_resources(
           project=known_args.project,
           topic_path=known_args.pubsub_topic,
