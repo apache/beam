@@ -767,4 +767,88 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 		validateSideBundles(t, keys2)
 		validateSideBundles(t, singleSet("\u0004key5")) // still exist..
 	})
+
+	// Each OnWindowExpiration callback a key owes counts as pending until its bundle persists,
+	// or the job could end before the callback runs.
+	t.Run("pendingUntilExpiryPersists", func(t *testing.T) {
+		em := NewElementManager(Config{})
+		var instID uint64
+		em.nextBundID = func() string {
+			return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+		}
+		em.AddStage("dofn", []string{"input"}, nil, nil)
+		em.StageStateful("dofn", nil)
+		em.StageOnWindowExpiration("dofn", StaticTimerID{TransformID: "dofn", TimerFamily: "onWinExp"})
+		stage := em.stages["dofn"]
+		w1 := window.IntervalWindow{Start: 0, End: 10}
+		w2 := window.IntervalWindow{Start: 10, End: 20}
+		side := LinkID{Transform: "dofn", Local: "side"}
+		stage.sideInputs = map[LinkID]map[typex.Window][][]byte{side: {w1: {{1}}}}
+
+		add := func(wins ...window.IntervalWindow) {
+			var es []element
+			for _, w := range wins {
+				es = append(es, element{window: w, timestamp: w.Start, pane: typex.NoFiringPane(), elmBytes: []byte{1}, keyBytes: []byte("k")})
+			}
+			em.addPending(stage.AddPending(em, es))
+		}
+		start := func(watermark mtime.Time) RunBundle {
+			t.Helper()
+			bundID, ok, _, _ := stage.startEventTimeBundle(watermark, em.nextBundID)
+			if !ok {
+				t.Fatalf("startEventTimeBundle(%v) started no bundle", watermark)
+			}
+			return RunBundle{StageID: stage.ID, BundleID: bundID, Watermark: watermark}
+		}
+		persist := func(rb RunBundle, wantPending int64) {
+			t.Helper()
+			em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, Residuals{})
+			if got := em.livePending.Load(); got != wantPending {
+				t.Fatalf("pending after bundle %v = %v, want %v", rb.BundleID, got, wantPending)
+			}
+		}
+		// refresh updates the watermarks, and takes the expiry bundles they inject, which must be for wantWins.
+		refresh := func(upstream mtime.Time, wantWins ...typex.Window) []RunBundle {
+			t.Helper()
+			em.refreshCond.L.Lock()
+			stage.updateUpstreamWatermark("input", upstream)
+			em.changedStages.insert(stage.ID)
+			em.refreshWatermarks()
+			injected := em.injectedBundles
+			em.injectedBundles = nil
+			em.refreshCond.L.Unlock()
+			var gotWins []typex.Window
+			for _, rb := range injected {
+				gotWins = append(gotWins, stage.expiryWindowsByBundles[rb.BundleID])
+			}
+			if !cmp.Equal(gotWins, wantWins) {
+				t.Fatalf("refresh(%v) expired windows %v, want %v", upstream, gotWins, wantWins)
+			}
+			return injected
+		}
+
+		// The last data in the job, for one key in two windows.
+		add(w1, w2)
+		persist(start(5), 2)
+		// The key is busy with more data when w1 expires, so w1 waits, and keeps its side input.
+		add(w2)
+		busy := start(15)
+		refresh(15)
+		if _, ok := stage.sideInputs[side][w1]; !ok {
+			t.Fatalf("side input for %v collected before its expiry ran", w1)
+		}
+		persist(busy, 2)
+		persist(refresh(15, w1)[0], 1)
+		persist(refresh(mtime.MaxTimestamp, w2)[0], 0)
+		if _, ok := stage.sideInputs[side][w1]; ok {
+			t.Fatalf("side input for %v not collected after its expiry ran", w1)
+		}
+		refresh(mtime.MaxTimestamp)
+
+		// Late data for an expired window owes the callback again, which runs after that data.
+		add(w1)
+		refresh(mtime.MaxTimestamp)
+		persist(start(mtime.MaxTimestamp), 1)
+		persist(refresh(mtime.MaxTimestamp, w1)[0], 0)
+	})
 }
