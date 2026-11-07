@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
+import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.apache.beam.sdk.extensions.sorter.SortValues;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -119,7 +120,9 @@ final class CommitWindows
         onTimeUnsorted.apply(
             "SortBySeqKind",
             SortValues.create(
-                BufferedExternalSorter.options().withMemoryMB(config.getSorterMemoryMB())));
+                BufferedExternalSorter.options()
+                    .withMemoryMB(config.getSorterMemoryMB())
+                    .withExternalSorterType(SorterType.NATIVE)));
 
     return new Result(input.getPipeline(), sorted, deadLetter, deadLetterSchema);
   }
