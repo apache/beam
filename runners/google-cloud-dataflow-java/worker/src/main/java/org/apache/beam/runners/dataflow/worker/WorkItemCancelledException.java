@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -34,15 +32,7 @@ public class WorkItemCancelledException extends RuntimeException {
   }
 
   /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
-  public static boolean isWorkItemCancelledException(Throwable t) {
-    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-    @Nullable Throwable throwable = t;
-    while (throwable != null && seen.add(throwable)) {
-      if (throwable instanceof WorkItemCancelledException) {
-        return true;
-      }
-      throwable = throwable.getCause();
-    }
-    return false;
+  public static boolean isWorkItemCancelledException(@Nullable Throwable t) {
+    return ExceptionUtils.hasCause(t, WorkItemCancelledException.class);
   }
 }
