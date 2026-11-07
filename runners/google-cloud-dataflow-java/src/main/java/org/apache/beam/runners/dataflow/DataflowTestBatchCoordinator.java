@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.TestDataflowRunner.ErrorMonitorMessagesHandler;
+import org.apache.beam.runners.dataflow.TestDataflowRunner.MergedJobWait;
 import org.apache.beam.runners.dataflow.TestDataflowRunner.PAssertCounts;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.CompositePipeline;
@@ -97,8 +97,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Coordinates merging concurrent batch {@code TestPipeline} executions within a JVM into a single
- * Dataflow job per batch, with scoped {@link PAssert} and {@link MetricResults} verification.
+ * Coordinates merging concurrent {@code TestPipeline} executions within a JVM into a single
+ * Dataflow job per batch, with scoped {@link PAssert} and {@link MetricResults} verification. Batch
+ * and streaming pipelines are both merged (never with each other, since {@code streaming} is part
+ * of the compatibility key); how a merged job's members are credited depends on the mode.
  *
  * <p>Batching spans runner instances: every test builds its own {@link TestDataflowRunner}, and the
  * pipelines merged into one job come from different tests, threads and classes. Runners therefore
@@ -118,18 +120,19 @@ import org.slf4j.LoggerFactory;
  * executor that submits the merged job, waits for it and reaches a verdict for every member. A
  * member is credited from the merged job when its scoped PAsserts are verified and &mdash; if the
  * job did not end {@code DONE} &mdash; every stage that may belong to it is {@code DONE} (see
- * {@link StageAttribution}). Any other member gets {@link TestPipeline.StandaloneRerunRequested}
- * thrown out of its {@code run()}, and its test is executed again from scratch as a standalone job
- * by {@link BeamParallelJunit4Runner}. (A pipeline for which no merged job was built at all,
- * because no partner arrived in time, simply runs standalone on its own test thread.) No test
- * thread ever performs work on behalf of another test, so a test timeout or interrupt affects only
- * that test.
+ * {@link StageAttribution}; batch mode only, streaming jobs credit nobody unless they end {@code
+ * DONE} without errors, see {@link #streamingVerdicts}). Any other member gets {@link
+ * TestPipeline.StandaloneRerunRequested} thrown out of its {@code run()}, and its test is executed
+ * again from scratch as a standalone job by {@link BeamParallelJunit4Runner}. (A pipeline for which
+ * no merged job was built at all, because no partner arrived in time, simply runs standalone on its
+ * own test thread.) No test thread ever performs work on behalf of another test, so a test timeout
+ * or interrupt affects only that test.
  *
  * <p>No-hang guarantee: a member's future is always completed, whatever happens on the scheduler or
  * batch-runner threads (see {@link BatchCollector} and {@link #executeBatch}); the merged job is
- * waited on for at most the shortest member test timeout ({@link #mergedJobTimeout}); and as a last
- * resort each test thread's wait is bounded ({@link PendingItem#awaitResult()}), so an unforeseen
- * failure surfaces as a diagnosable test failure rather than a fork that never finishes.
+ * waited on for a bounded time ({@link #mergedJobTimeout}); and as a last resort each test thread's
+ * wait is bounded ({@link PendingItem#awaitResult()}), so an unforeseen failure surfaces as a
+ * diagnosable test failure rather than a fork that never finishes.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -333,17 +336,6 @@ class DataflowTestBatchCoordinator {
     if (!options.isBlockOnRun()) {
       return false;
     }
-    if (options.isStreaming()) {
-      // Streaming batches need their own verdict strategy (see executeBatchInternal); until that
-      // exists streaming tests always run as individual jobs. Say so once so the flag is not
-      // silently ignored by the streaming ValidatesRunner tasks.
-      if (STREAMING_UNSUPPORTED_LOGGED.compareAndSet(false, true)) {
-        LOG.info(
-            "Dataflow test batching does not yet support streaming jobs; streaming tests run as"
-                + " individual jobs.");
-      }
-      return false;
-    }
     if (!(pipeline instanceof TestPipeline)) {
       return false;
     }
@@ -372,7 +364,6 @@ class DataflowTestBatchCoordinator {
   }
 
   private static final AtomicBoolean UNNAMED_PIPELINE_WARNED = new AtomicBoolean(false);
-  private static final AtomicBoolean STREAMING_UNSUPPORTED_LOGGED = new AtomicBoolean(false);
 
   private static boolean isDefaultMatcher(@Nullable Object matcher) {
     return matcher == null
@@ -440,22 +431,33 @@ class DataflowTestBatchCoordinator {
    * How long a test thread waits for the batch machinery's verdict before failing its test, or a
    * negative value for no limit. Every path through the machinery completes the member's future, so
    * this is a safety net that turns an unknown bug into a diagnosable failure rather than a hung
-   * fork. It is deliberately generous: the merged job itself is only waited on for the shortest
-   * member test timeout (see {@link #mergedJobTimeout}); the rest is slack for queueing (at most
-   * two batch windows), submission, metrics retrieval and cancellation.
+   * fork. It is deliberately generous: the merged job itself is waited on for at most twice the
+   * shortest member test timeout (see {@link #mergedJobTimeout}); the rest is slack for queueing
+   * (at most two batch windows), submission, metrics retrieval and cancellation.
    */
   private long verdictTimeoutMillis(TestDataflowPipelineOptions options) {
     Long testTimeoutSeconds = options.getTestTimeoutSeconds();
     if (testTimeoutSeconds == null || testTimeoutSeconds <= 0) {
       return -1;
     }
-    return 2 * config.windowMs + 2 * TimeUnit.SECONDS.toMillis(testTimeoutSeconds);
+    return 2 * config.windowMs + 3 * TimeUnit.SECONDS.toMillis(testTimeoutSeconds);
   }
 
   /**
+   * Extra time a merged job is allowed per member beyond the first. A merged job runs its members'
+   * stages on the same single worker, so a large batch legitimately takes longer than any one of
+   * its members would standalone; without slack a big batch that is nearly done gets cancelled and
+   * every member re-run, which is the worst of both worlds.
+   */
+  @VisibleForTesting
+  static final Duration MERGED_JOB_SLACK_PER_MEMBER = Duration.standardSeconds(20);
+
+  /**
    * The bound on waiting for a merged job: the shortest {@code testTimeoutSeconds} among its
-   * members, so that no member waits longer for the merged job than it would have for its own
-   * standalone job. Negative (unbounded) only if no member has a timeout configured.
+   * members, plus {@link #MERGED_JOB_SLACK_PER_MEMBER} for every member beyond the first, capped at
+   * twice that shortest timeout. A member thus never waits more than twice as long for the merged
+   * job as it would have for its own standalone job. Negative (unbounded) only if no member has a
+   * timeout configured.
    */
   @VisibleForTesting
   static Duration mergedJobTimeout(List<PendingItem> items) {
@@ -466,7 +468,11 @@ class DataflowTestBatchCoordinator {
         minSeconds = Math.min(minSeconds, timeout);
       }
     }
-    return Duration.standardSeconds(minSeconds == Long.MAX_VALUE ? -1 : minSeconds);
+    if (minSeconds == Long.MAX_VALUE) {
+      return Duration.standardSeconds(-1);
+    }
+    long slackSeconds = MERGED_JOB_SLACK_PER_MEMBER.getStandardSeconds() * (items.size() - 1);
+    return Duration.standardSeconds(Math.min(minSeconds + slackSeconds, 2 * minSeconds));
   }
 
   private static class EligibilityVisitor extends PipelineVisitor.Defaults {
@@ -930,19 +936,43 @@ class DataflowTestBatchCoordinator {
           items.size());
       messages = TestDataflowRunner.errorMonitorFor(batchJob);
       Duration timeout = mergedJobTimeout(items);
-      terminalState = leader.runner.waitForMergedJobTermination(batchJob, timeout, messages);
-      if (terminalState == null) {
-        noVerdictReason =
-            "the merged job did not terminate within " + timeout + " and was cancelled";
-        LOG.warn(
-            "Merged Dataflow job {} for batch #{} did not terminate within {}; cancelling it; all"
-                + " {} tests will be executed again standalone.{}",
-            batchJob.getJobId(),
-            batchNumber,
-            timeout,
-            items.size(),
-            errorSuffix(messages));
-        cancelQuietly(batchJob);
+      MergedJobWait wait = leader.runner.waitForMergedJobTermination(batchJob, timeout, messages);
+      switch (wait.kind) {
+        case TERMINATED:
+          terminalState = wait.terminalState;
+          break;
+        case POLLING_FAILED:
+          // The job may be fine; it is the service we could not reach. Cancelling would most
+          // likely fail for the same reason, and the job finishes on its own anyway.
+          noVerdictReason =
+              "the state of the merged job could not be fetched (see earlier warnings); the job"
+                  + " was left running";
+          LOG.warn(
+              "Merged Dataflow job {} for batch #{} could not be observed (polling failed before the"
+                  + " {} timeout); leaving it alone; all {} tests will be executed again"
+                  + " standalone.{}",
+              batchJob.getJobId(),
+              batchNumber,
+              timeout,
+              items.size(),
+              errorSuffix(messages));
+          break;
+        case TIMED_OUT:
+        case INTERRUPTED:
+        default:
+          noVerdictReason =
+              "the merged job did not terminate within " + timeout + " and was cancelled";
+          LOG.warn(
+              "Merged Dataflow job {} for batch #{} did not terminate within {} ({}); cancelling"
+                  + " it; all {} tests will be executed again standalone.{}",
+              batchJob.getJobId(),
+              batchNumber,
+              timeout,
+              wait.kind,
+              items.size(),
+              errorSuffix(messages));
+          cancelQuietly(batchJob);
+          break;
       }
     } catch (Exception e) {
       noVerdictReason = "the merged job failed during submission or execution (" + e + ")";
@@ -964,13 +994,11 @@ class DataflowTestBatchCoordinator {
       for (int i = 0; i < items.size(); i++) {
         outcomes.add(BatchOutcome.rerunRequired(noVerdictReason + errorSuffix(messages)));
       }
+    } else if (leader.options.isStreaming()) {
+      // All members of a batch share one execution mode because `streaming` is part of the
+      // compatibility key, so the strategy is chosen once per job.
+      outcomes = streamingVerdicts(batchJob, terminalState, messages, items);
     } else {
-      // How members are credited depends on the execution mode, and all members of a batch share
-      // one mode because `streaming` is part of the compatibility key. Only batch mode is eligible
-      // today (see isEligibleForBatching); a streaming strategy would plug in here, e.g. crediting
-      // everyone on DONE without error messages and nobody otherwise, since streaming jobs expose
-      // neither per-stage terminal states nor the batch verification counters.
-      checkState(!leader.options.isStreaming(), "Streaming batches are not supported yet");
       outcomes = batchModeVerdicts(batchJob, terminalState, messages, items, scopes);
     }
 
@@ -1014,12 +1042,7 @@ class DataflowTestBatchCoordinator {
       String scope = item.scope;
       PAssertCounts counts = scopedPAssertCounts(batchJob, metrics, scope);
       boolean countersOk = counts != null && counts.satisfy(item.expectedAssertions);
-      String passertVerdict =
-          (countersOk ? "PAsserts verified (" : "PAsserts unverified (")
-              + (counts == null ? "metrics unavailable" : counts)
-              + " out of "
-              + item.expectedAssertions
-              + " expected assertions)";
+      String passertVerdict = describePAsserts(countersOk, counts, item);
       String verdict;
       boolean credited;
       if (terminalState == State.DONE) {
@@ -1033,36 +1056,109 @@ class DataflowTestBatchCoordinator {
         credited = countersOk && status.isComplete();
         verdict = "job " + terminalState + ", " + status + ", " + passertVerdict;
       }
-      if (credited) {
-        LOG.info(
-            "Test {} (scope {}) passed in merged Dataflow job {} ({}).",
-            item.options.getAppName(),
-            scope,
-            batchJob.getJobId(),
-            verdict);
-        outcomes.add(BatchOutcome.passed(new ScopedDataflowPipelineJob(batchJob, scope)));
-      } else {
-        LOG.warn(
-            "Test {} (scope {}) could not be credited from merged Dataflow job {} ({}); it will be"
-                + " executed again standalone.{}",
-            item.options.getAppName(),
-            scope,
-            batchJob.getJobId(),
-            verdict,
-            errorSuffix(messages));
-        outcomes.add(BatchOutcome.rerunRequired(verdict + errorSuffix(messages)));
-      }
+      outcomes.add(memberOutcome(batchJob, item, credited, verdict, messages));
     }
     return outcomes;
+  }
+
+  /**
+   * Credits members of a terminated <i>streaming</i> merged job.
+   *
+   * <p>A streaming job only terminates on its own once every member's sources are exhausted and
+   * their work is done, so on {@code DONE} without a fatal error each member is credited by the
+   * same scoped PAssert counter check as in batch mode (streaming jobs do report the tentative
+   * counters). In every other case &mdash; a fatal error (on which {@link
+   * TestDataflowRunner.CancelOnError} cancels the job, as it would a standalone streaming job), a
+   * job that ended {@code FAILED}/{@code CANCELLED} for any other reason &mdash; nobody is
+   * credited: streaming exposes neither per-stage terminal states nor a way to attribute an error
+   * message to a step, so a member whose PAsserts all passed could still be the one whose sink DoFn
+   * is throwing. Re-running everyone is the only verdict that is never wrong.
+   */
+  private List<BatchOutcome> streamingVerdicts(
+      DataflowPipelineJob batchJob,
+      State terminalState,
+      ErrorMonitorMessagesHandler messages,
+      List<PendingItem> items) {
+    List<BatchOutcome> outcomes = new ArrayList<>(items.size());
+    if (terminalState != State.DONE || messages.hasSeenError()) {
+      String verdict =
+          "streaming job "
+              + terminalState
+              + (messages.hasSeenError() ? " with errors" : "")
+              + "; a streaming job offers no per-member evidence unless it finishes cleanly";
+      LOG.warn(
+          "Merged streaming Dataflow job {} did not finish cleanly ({}); all {} tests will be"
+              + " executed again standalone.{}",
+          batchJob.getJobId(),
+          verdict,
+          items.size(),
+          errorSuffix(messages));
+      for (int i = 0; i < items.size(); i++) {
+        outcomes.add(BatchOutcome.rerunRequired(verdict + errorSuffix(messages)));
+      }
+      return outcomes;
+    }
+    JobMetrics metrics = leader(items).runner.getJobMetrics(batchJob);
+    for (PendingItem item : items) {
+      PAssertCounts counts = scopedPAssertCounts(batchJob, metrics, item.scope);
+      boolean countersOk = counts != null && counts.satisfy(item.expectedAssertions);
+      outcomes.add(
+          memberOutcome(
+              batchJob,
+              item,
+              countersOk,
+              "streaming job DONE, " + describePAsserts(countersOk, counts, item),
+              messages));
+    }
+    return outcomes;
+  }
+
+  private static String describePAsserts(
+      boolean countersOk, @Nullable PAssertCounts counts, PendingItem item) {
+    return (countersOk ? "PAsserts verified (" : "PAsserts unverified (")
+        + (counts == null ? "metrics unavailable" : counts)
+        + " out of "
+        + item.expectedAssertions
+        + " expected assertions)";
+  }
+
+  /** Logs and builds the outcome for one member of a terminated merged job. */
+  private static BatchOutcome memberOutcome(
+      DataflowPipelineJob batchJob,
+      PendingItem item,
+      boolean credited,
+      String verdict,
+      ErrorMonitorMessagesHandler messages) {
+    if (credited) {
+      LOG.info(
+          "Test {} (scope {}) passed in merged Dataflow job {} ({}).",
+          item.options.getAppName(),
+          item.scope,
+          batchJob.getJobId(),
+          verdict);
+      return BatchOutcome.passed(new ScopedDataflowPipelineJob(batchJob, item.scope));
+    }
+    LOG.warn(
+        "Test {} (scope {}) could not be credited from merged Dataflow job {} ({}); it will be"
+            + " executed again standalone.{}",
+        item.options.getAppName(),
+        item.scope,
+        batchJob.getJobId(),
+        verdict,
+        errorSuffix(messages));
+    return BatchOutcome.rerunRequired(verdict + errorSuffix(messages));
   }
 
   private static PendingItem leader(List<PendingItem> items) {
     return items.get(0);
   }
 
-  /** The job's error messages, formatted for appending to a log line, or empty if none. */
+  /**
+   * The job's error messages (fatal, or failing that the infrastructure errors the service was
+   * retrying), formatted for appending to a log line, or empty if none.
+   */
   private static String errorSuffix(@Nullable ErrorMonitorMessagesHandler messages) {
-    if (messages == null || !messages.hasSeenError()) {
+    if (messages == null || messages.getErrorMessage().isEmpty()) {
       return "";
     }
     return " Job errors: " + messages.getErrorMessage();
