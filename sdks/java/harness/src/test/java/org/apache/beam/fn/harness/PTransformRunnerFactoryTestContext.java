@@ -65,6 +65,12 @@ import org.joda.time.Instant;
 public abstract class PTransformRunnerFactoryTestContext
     implements PTransformRunnerFactory.Context {
 
+  @Override
+  public abstract Supplier<Boolean> getHasNoStateSupplier();
+
+  @Override
+  public abstract Supplier<Boolean> getOnlyBundleForKeysSupplier();
+
   /** Returns a builder for the specified PTransform id and PTransform definition. */
   public static Builder builder(String pTransformId, RunnerApi.PTransform pTransform) {
     return new AutoValue_PTransformRunnerFactoryTestContext.Builder()
@@ -151,7 +157,9 @@ public abstract class PTransformRunnerFactoryTestContext
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
-        .runnerCapabilities(new HashSet<>());
+        .runnerCapabilities(new HashSet<>())
+        .hasNoStateSupplier(() -> false)
+        .onlyBundleForKeysSupplier(() -> false);
   }
 
   /** A builder to create a context for tests. */
@@ -218,6 +226,10 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder outgoingTimersEndpoints(List<TimerEndpoint<?>> value);
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
+
+    Builder hasNoStateSupplier(Supplier<Boolean> value);
+
+    Builder onlyBundleForKeysSupplier(Supplier<Boolean> value);
 
     PTransformRunnerFactoryTestContext build();
   }
