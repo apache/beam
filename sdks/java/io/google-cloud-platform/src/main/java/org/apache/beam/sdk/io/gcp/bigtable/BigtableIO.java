@@ -2553,8 +2553,9 @@ public class BigtableIO {
         daoFactory.close();
       }
 
+      String pipelineRunId = UniqueIdGenerator.generateRowKeyPrefix();
       InitializeDoFn initializeDoFn =
-          new InitializeDoFn(daoFactory, startTime, existingPipelineOptions);
+          new InitializeDoFn(daoFactory, startTime, existingPipelineOptions, pipelineRunId);
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
