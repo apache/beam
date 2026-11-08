@@ -54,9 +54,10 @@ type testStreamHandler struct {
 
 func makeTestStreamHandler(id string) *testStreamHandler {
 	return &testStreamHandler{
-		ID:          id,
-		tagState:    map[string]tagState{},
-		currentHold: mtime.MinTimestamp,
+		ID:             id,
+		processingTime: time.Now(),
+		tagState:       map[string]tagState{},
+		currentHold:    mtime.MinTimestamp,
 	}
 }
 
