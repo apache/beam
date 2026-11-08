@@ -243,6 +243,11 @@ type ElementManager struct {
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
+// canHoldWatermark reports whether a stage can hold its watermark while emitting data.
+func (em *ElementManager) canHoldWatermark() bool {
+	return em.sawResidual.Load() || em.testStreamHandler != nil
+}
+
 func (em *ElementManager) addPending(v int) {
 	em.livePending.Add(int64(v))
 	em.pendingElements.Add(v)
@@ -875,15 +880,13 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 // input elements, and the committed output elements.
 func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
-	// Consumers that received data from this bundle, recorded so they can still
-	// be scheduled when this stage's output watermark is held back. Only needed
-	// once something self checkpoints, so pipelines that never do keep their
-	// previous bundle scheduling exactly.
+	// Record consumers with new data when an upstream watermark can stay held,
+	// so updateWatermarks still schedules them.
 	if len(residuals.Data) > 0 {
 		em.sawResidual.Store(true)
 	}
 	var changedConsumers set[string]
-	if em.sawResidual.Load() {
+	if em.canHoldWatermark() {
 		changedConsumers = set[string]{}
 	}
 	var seq int
@@ -2681,11 +2684,9 @@ func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.T
 		if len(ss.pending) == 0 {
 			return mtime.MinTimestamp, false, ptimeEventsReady, injectedReady
 		}
-	case isStatefulStage && len(ss.sides) == 0 && em.sawResidual.Load() && ss.hasBuildableDataLocked(upstreamW):
-		// A stateful stage processes pending data at whatever the current
-		// watermark is, so data alone makes it ready once something is self
-		// checkpointing. Side input readiness comes from the watermark, so
-		// stages that read one keep waiting.
+	case isStatefulStage && len(ss.sides) == 0 && em.canHoldWatermark() && ss.hasBuildableDataLocked(upstreamW):
+		// Run stateful stages with pending data even when an upstream watermark
+		// stays held. Stages with side inputs still wait for watermarks.
 	case inputW == upstreamW && previousInputW == inputW:
 		// Otherwise, use the progression of watermark to determine the bundle readiness.
 		slog.Debug("bundleReady: unchanged upstream watermark",
