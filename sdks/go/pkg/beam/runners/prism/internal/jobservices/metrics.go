@@ -21,6 +21,7 @@ import (
 	"hash/maphash"
 	"log/slog"
 	"math"
+	"slices"
 	"sort"
 	"sync"
 
@@ -183,7 +184,9 @@ func buildUrnToOpsMap(mUrn2Spec map[string]*pipepb.MonitoringInfoSpec) map[strin
 		getMetTyp(pipepb.MonitoringInfoTypeUrns_SET_STRING_TYPE): func() metricAccumulator {
 			return &stringSet{set: map[string]struct{}{}}
 		},
-		getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE): func() metricAccumulator { return &progress{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_BOUNDED_TRIE_TYPE): func() metricAccumulator { return &boundedTrie{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_HISTOGRAM):         func() metricAccumulator { return &histogramInt64{} },
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE):     func() metricAccumulator { return &progress{} },
 	}
 
 	ret := make(map[string]urnOps)
@@ -470,6 +473,268 @@ func (m *stringSet) toProto(key metricKey) *pipepb.MonitoringInfo {
 		Urn:     key.Urn(),
 		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_SET_STRING_TYPE),
 		Payload: buf.Bytes(),
+		Labels:  key.Labels(),
+	}
+}
+
+const defaultBoundedTrieBound int32 = 100
+
+type boundedTrieNode struct {
+	children  map[string]*boundedTrieNode
+	truncated bool
+	// size is the number of leaf or truncated paths in this subtree.
+	size int
+}
+
+func boundedTrieNodeFromProto(p *pipepb.BoundedTrieNode) *boundedTrieNode {
+	if p.GetTruncated() {
+		return &boundedTrieNode{truncated: true, size: 1}
+	}
+	if len(p.GetChildren()) == 0 {
+		return &boundedTrieNode{size: 1}
+	}
+	children := make(map[string]*boundedTrieNode, len(p.GetChildren()))
+	size := 0
+	for k, child := range p.GetChildren() {
+		c := boundedTrieNodeFromProto(child)
+		children[k] = c
+		size += c.size
+	}
+	return &boundedTrieNode{
+		children: children,
+		size:     ordMax(1, size),
+	}
+}
+
+func (n *boundedTrieNode) toProto() *pipepb.BoundedTrieNode {
+	if n.truncated {
+		return &pipepb.BoundedTrieNode{Truncated: true}
+	}
+	if len(n.children) == 0 {
+		return &pipepb.BoundedTrieNode{}
+	}
+	children := make(map[string]*pipepb.BoundedTrieNode, len(n.children))
+	for k, child := range n.children {
+		children[k] = child.toProto()
+	}
+	return &pipepb.BoundedTrieNode{Children: children}
+}
+
+func (n *boundedTrieNode) add(segments []string) int {
+	if n.truncated || len(segments) == 0 {
+		return 0
+	}
+	wasEmpty := len(n.children) == 0
+	if n.children == nil {
+		n.children = make(map[string]*boundedTrieNode)
+	}
+	head := segments[0]
+	child, ok := n.children[head]
+	delta := 0
+	if !ok {
+		child = &boundedTrieNode{size: 1}
+		n.children[head] = child
+		if !wasEmpty {
+			delta = 1
+		}
+	}
+	if len(segments) > 1 {
+		delta += child.add(segments[1:])
+	}
+	n.size += delta
+	return delta
+}
+
+func (n *boundedTrieNode) merge(other *boundedTrieNode) int {
+	if n.truncated {
+		return 0
+	}
+	if other.truncated {
+		delta := 1 - n.size
+		n.truncated = true
+		n.children = nil
+		n.size = 1
+		return delta
+	}
+	if len(other.children) == 0 {
+		return 0
+	}
+	if len(n.children) == 0 {
+		n.children = other.children
+		delta := other.size - n.size
+		n.size = other.size
+		return delta
+	}
+	delta := 0
+	for prefix, otherChild := range other.children {
+		if child, ok := n.children[prefix]; ok {
+			delta += child.merge(otherChild)
+		} else {
+			n.children[prefix] = otherChild
+			delta += otherChild.size
+		}
+	}
+	n.size += delta
+	return delta
+}
+
+// trim collapses the largest child subtree to reduce size.
+func (n *boundedTrieNode) trim() int {
+	if len(n.children) == 0 {
+		return 0
+	}
+	var maxKey string
+	var maxChild *boundedTrieNode
+	for k, child := range n.children {
+		if maxChild == nil || child.size > maxChild.size || (child.size == maxChild.size && k < maxKey) {
+			maxKey = k
+			maxChild = child
+		}
+	}
+	var delta int
+	if maxChild.size == 1 {
+		delta = 1 - n.size
+		n.truncated = true
+		n.children = nil
+	} else {
+		delta = maxChild.trim()
+	}
+	n.size += delta
+	return delta
+}
+
+type boundedTrie struct {
+	bound     int32
+	singleton []string
+	root      *boundedTrieNode
+}
+
+func (m *boundedTrie) trimToBound() {
+	for m.root != nil && m.root.size > int(m.bound) {
+		if m.root.trim() == 0 {
+			break
+		}
+	}
+}
+
+func (m *boundedTrie) accumulate(pyld []byte) error {
+	var incoming pipepb.BoundedTrie
+	if err := proto.Unmarshal(pyld, &incoming); err != nil {
+		return err
+	}
+	inBound := incoming.GetBound()
+	if inBound <= 0 {
+		inBound = defaultBoundedTrieBound
+	}
+	if incoming.GetRoot() == nil && len(incoming.GetSingleton()) == 0 {
+		if m.root == nil && len(m.singleton) == 0 && m.bound == 0 {
+			m.bound = inBound
+		}
+		return nil
+	}
+	if m.root == nil && len(m.singleton) == 0 {
+		m.bound = inBound
+		if incoming.GetRoot() != nil {
+			m.root = boundedTrieNodeFromProto(incoming.GetRoot())
+			m.trimToBound()
+		} else {
+			m.singleton = slices.Clone(incoming.GetSingleton())
+		}
+		return nil
+	}
+	m.bound = ordMin(m.bound, inBound)
+	if m.root == nil && incoming.GetRoot() == nil && slices.Equal(m.singleton, incoming.GetSingleton()) {
+		return nil
+	}
+	if m.root == nil {
+		m.root = &boundedTrieNode{size: 1}
+		m.root.add(m.singleton)
+		m.singleton = nil
+	}
+	if incoming.GetRoot() != nil {
+		m.root.merge(boundedTrieNodeFromProto(incoming.GetRoot()))
+	} else {
+		m.root.add(incoming.GetSingleton())
+	}
+	m.trimToBound()
+	return nil
+}
+
+func (m *boundedTrie) toProto(key metricKey) *pipepb.MonitoringInfo {
+	bound := m.bound
+	if bound <= 0 {
+		bound = defaultBoundedTrieBound
+	}
+	pb := &pipepb.BoundedTrie{
+		Bound: bound,
+	}
+	if m.root != nil {
+		pb.Root = m.root.toProto()
+	} else if len(m.singleton) > 0 {
+		pb.Singleton = slices.Clone(m.singleton)
+	}
+	pyld, err := proto.MarshalOptions{Deterministic: true}.Marshal(pb)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal BoundedTrie metric %v: %v", key, err))
+	}
+	return &pipepb.MonitoringInfo{
+		Urn:     key.Urn(),
+		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_BOUNDED_TRIE_TYPE),
+		Payload: pyld,
+		Labels:  key.Labels(),
+	}
+}
+
+type histogramInt64 struct {
+	count         int64
+	bucketOptions *pipepb.HistogramValue_BucketOptions
+	bucketCounts  []int64
+}
+
+func (m *histogramInt64) accumulate(pyld []byte) error {
+	var incoming pipepb.HistogramValue
+	if err := proto.Unmarshal(pyld, &incoming); err != nil {
+		return err
+	}
+	if opts := incoming.GetBucketOptions(); opts != nil {
+		if m.bucketOptions == nil {
+			m.bucketOptions = proto.Clone(opts).(*pipepb.HistogramValue_BucketOptions)
+		} else if !proto.Equal(m.bucketOptions, opts) {
+			slog.Warn("ignoring histogram update with mismatched bucket options")
+			return nil
+		}
+	}
+	m.count += incoming.GetCount()
+	inCounts := incoming.GetBucketCounts()
+	if len(inCounts) > len(m.bucketCounts) {
+		extended := make([]int64, len(inCounts))
+		copy(extended, m.bucketCounts)
+		m.bucketCounts = extended
+	}
+	for i, c := range inCounts {
+		m.bucketCounts[i] += c
+	}
+	return nil
+}
+
+func (m *histogramInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
+	var opts *pipepb.HistogramValue_BucketOptions
+	if m.bucketOptions != nil {
+		opts = proto.Clone(m.bucketOptions).(*pipepb.HistogramValue_BucketOptions)
+	}
+	pb := &pipepb.HistogramValue{
+		Count:         proto.Int64(m.count),
+		BucketOptions: opts,
+		BucketCounts:  slices.Clone(m.bucketCounts),
+	}
+	pyld, err := proto.MarshalOptions{Deterministic: true}.Marshal(pb)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal HistogramValue metric %v: %v", key, err))
+	}
+	return &pipepb.MonitoringInfo{
+		Urn:     key.Urn(),
+		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_HISTOGRAM),
+		Payload: pyld,
 		Labels:  key.Labels(),
 	}
 }
