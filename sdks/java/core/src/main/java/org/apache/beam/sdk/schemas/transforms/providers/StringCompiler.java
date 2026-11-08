@@ -101,18 +101,16 @@ public class StringCompiler {
 
     if (cl instanceof URLClassLoader) {
       for (URL url : ((URLClassLoader) cl).getURLs()) {
+        File file;
         try {
-          File file = new File(url.toURI());
-          if (file.exists()) {
-            cp.add(file.getAbsolutePath());
-            if (file.isFile() && isJarFile(file)) {
-              extractManifestClasspath(file, cp, visitedJars);
-            }
-          }
+          file = new File(url.toURI());
         } catch (Exception e) {
-          File file = new File(url.getPath());
-          if (file.exists()) {
-            cp.add(file.getAbsolutePath());
+          file = new File(url.getPath());
+        }
+        if (file.exists()) {
+          cp.add(file.getAbsolutePath());
+          if (file.isFile() && isJarFile(file)) {
+            extractManifestClasspath(file, cp, visitedJars);
           }
         }
       }
@@ -173,30 +171,29 @@ public class StringCompiler {
     }
   }
 
-  private static @Nullable File resolveManifestEntry(@Nullable File parentDir, String entry) {
-    if (entry.startsWith("file:")) {
-      try {
-        URI uri = URI.create(entry);
-        File f = new File(uri.getPath());
-        if (f.isAbsolute()) {
-          return f;
-        }
-        return parentDir != null ? new File(parentDir, f.getPath()) : f;
-      } catch (Exception e) {
-        String path = entry.substring("file:".length());
+  @VisibleForTesting
+  static @Nullable File resolveManifestEntry(@Nullable File parentDir, String entry) {
+    try {
+      URI uri = URI.create(entry);
+      String path = uri.getPath();
+      if (path != null && !path.isEmpty()) {
         File f = new File(path);
         if (f.isAbsolute()) {
           return f;
         }
         return parentDir != null ? new File(parentDir, path) : f;
       }
-    } else {
-      File f = new File(entry);
-      if (f.isAbsolute()) {
-        return f;
-      }
-      return parentDir != null ? new File(parentDir, entry) : f;
+    } catch (IllegalArgumentException | NullPointerException e) {
+      // Fallback if entry is not a valid URI (e.g. unencoded special characters or raw Windows
+      // path)
     }
+
+    String rawPath = entry.startsWith("file:") ? entry.substring("file:".length()) : entry;
+    File f = new File(rawPath);
+    if (f.isAbsolute()) {
+      return f;
+    }
+    return parentDir != null ? new File(parentDir, rawPath) : f;
   }
 
   private static boolean isJarFile(File file) {

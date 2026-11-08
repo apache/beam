@@ -25,6 +25,8 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.jar.Attributes;
@@ -158,5 +160,166 @@ public class StringCompilerTest {
     assertNotNull(clazz);
     Function<Row, Row> fn = (Function<Row, Row>) clazz.getDeclaredConstructor().newInstance();
     assertNotNull(fn);
+  }
+
+  @Test
+  public void testResolveManifestEntryWithEncodedSpacesAndRelativePaths() {
+    File parentDir = new File("/base/dir");
+    // Percent-encoded relative path
+    File f1 = StringCompiler.resolveManifestEntry(parentDir, "my%20lib.jar");
+    assertEquals(new File(parentDir, "my lib.jar"), f1);
+
+    // Percent-encoded nested relative path
+    File f2 = StringCompiler.resolveManifestEntry(parentDir, "sub%20dir/dep%202.jar");
+    assertEquals(new File(parentDir, "sub dir/dep 2.jar"), f2);
+
+    // Percent-encoded file: URL
+    File f3 = StringCompiler.resolveManifestEntry(parentDir, "file:/opt/beam/my%20lib.jar");
+    assertEquals(new File("/opt/beam/my lib.jar"), f3);
+
+    // Raw unencoded spaces fallback
+    File f4 = StringCompiler.resolveManifestEntry(parentDir, "raw space.jar");
+    assertEquals(new File(parentDir, "raw space.jar"), f4);
+
+    // Invalid URI fallback
+    File f5 = StringCompiler.resolveManifestEntry(parentDir, ":::invalid-uri:::");
+    assertEquals(new File(parentDir, ":::invalid-uri:::"), f5);
+  }
+
+  @Test
+  public void testBuildClasspathWithPercentEncodedSpacesInManifest() throws Exception {
+    File folder = tmp.newFolder("folder with spaces");
+    File dep = new File(folder, "dep with spaces.jar");
+    try (JarOutputStream os = new JarOutputStream(new FileOutputStream(dep), new Manifest())) {}
+
+    Manifest pathingManifest = new Manifest();
+    pathingManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    // Class-Path attribute with percent-encoded relative URL per JAR spec
+    pathingManifest.getMainAttributes().put(Attributes.Name.CLASS_PATH, "dep%20with%20spaces.jar");
+
+    File pathingJar = new File(folder, "pathing.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(pathingJar), pathingManifest)) {}
+
+    List<String> cp = StringCompiler.buildClasspath(null, pathingJar.getAbsolutePath());
+    assertTrue(
+        "Should resolve percent-encoded dep with spaces", cp.contains(dep.getAbsolutePath()));
+  }
+
+  @Test
+  public void testBuildClasspathURLClassLoaderNormalPath() throws Exception {
+    File folder = tmp.newFolder("ucl_normal");
+    File childJar = new File(folder, "child.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(childJar), new Manifest())) {}
+
+    Manifest parentManifest = new Manifest();
+    parentManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    parentManifest.getMainAttributes().put(Attributes.Name.CLASS_PATH, "child.jar");
+
+    File parentJar = new File(folder, "parent.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(parentJar), parentManifest)) {}
+
+    try (URLClassLoader ucl = new URLClassLoader(new URL[] {parentJar.toURI().toURL()})) {
+      List<String> cp = StringCompiler.buildClasspath(ucl, "");
+      assertTrue(
+          "Should contain parent.jar from URLClassLoader",
+          cp.contains(parentJar.getAbsolutePath()));
+      assertTrue(
+          "Should expand child.jar from manifest in URLClassLoader",
+          cp.contains(childJar.getAbsolutePath()));
+    }
+  }
+
+  @Test
+  public void testBuildClasspathURLClassLoaderFallbackPath() throws Exception {
+    // Create folder with space so that a raw file URL with unencoded space throws
+    // URISyntaxException in url.toURI()
+    File folder = tmp.newFolder("ucl fallback space");
+    File childJar = new File(folder, "child.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(childJar), new Manifest())) {}
+
+    Manifest parentManifest = new Manifest();
+    parentManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    parentManifest.getMainAttributes().put(Attributes.Name.CLASS_PATH, "child.jar");
+
+    File parentJar = new File(folder, "parent.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(parentJar), parentManifest)) {}
+
+    // Construct a URL with unescaped space to intentionally trigger URISyntaxException in
+    // url.toURI()
+    URL unescapedUrl = new URL("file", "", parentJar.getAbsolutePath());
+    assertThrows(Exception.class, unescapedUrl::toURI);
+
+    try (URLClassLoader ucl = new URLClassLoader(new URL[] {unescapedUrl})) {
+      List<String> cp = StringCompiler.buildClasspath(ucl, "");
+      assertTrue(
+          "Should contain parent.jar via fallback", cp.contains(parentJar.getAbsolutePath()));
+      assertTrue(
+          "Should expand child.jar from manifest via fallback",
+          cp.contains(childJar.getAbsolutePath()));
+    }
+  }
+
+  @Test
+  public void testBuildClasspathCyclicManifestReferences() throws Exception {
+    File folder = tmp.newFolder("cyclic_test");
+    File cycleA = new File(folder, "cycleA.jar");
+    File cycleB = new File(folder, "cycleB.jar");
+
+    Manifest manifestA = new Manifest();
+    manifestA.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    manifestA.getMainAttributes().put(Attributes.Name.CLASS_PATH, "cycleB.jar");
+
+    Manifest manifestB = new Manifest();
+    manifestB.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    manifestB.getMainAttributes().put(Attributes.Name.CLASS_PATH, "cycleA.jar");
+
+    try (JarOutputStream osA = new JarOutputStream(new FileOutputStream(cycleA), manifestA);
+        JarOutputStream osB = new JarOutputStream(new FileOutputStream(cycleB), manifestB)) {}
+
+    List<String> cp = StringCompiler.buildClasspath(null, cycleA.getAbsolutePath());
+    assertTrue("Should contain cycleA.jar", cp.contains(cycleA.getAbsolutePath()));
+    assertTrue(
+        "Should contain cycleB.jar without infinite loop", cp.contains(cycleB.getAbsolutePath()));
+  }
+
+  @Test
+  public void testBuildClasspathDeduplication() throws Exception {
+    File folder = tmp.newFolder("dedup_test");
+    File dep = new File(folder, "dep.jar");
+    try (JarOutputStream os = new JarOutputStream(new FileOutputStream(dep), new Manifest())) {}
+
+    Manifest pathingManifest = new Manifest();
+    pathingManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    // Duplicate references in manifest
+    pathingManifest
+        .getMainAttributes()
+        .put(Attributes.Name.CLASS_PATH, "dep.jar dep.jar file:" + dep.getAbsolutePath());
+
+    File pathingJar = new File(folder, "pathing.jar");
+    try (JarOutputStream os =
+        new JarOutputStream(new FileOutputStream(pathingJar), pathingManifest)) {}
+
+    // Pass duplicate in classPathProperty as well
+    String classPathProp =
+        pathingJar.getAbsolutePath()
+            + File.pathSeparator
+            + dep.getAbsolutePath()
+            + File.pathSeparator
+            + pathingJar.getAbsolutePath();
+
+    List<String> cp = StringCompiler.buildClasspath(null, classPathProp);
+    assertEquals(
+        "dep.jar should appear exactly once in classpath",
+        1,
+        Collections.frequency(cp, dep.getAbsolutePath()));
+    assertEquals(
+        "pathing.jar should appear exactly once in classpath",
+        1,
+        Collections.frequency(cp, pathingJar.getAbsolutePath()));
   }
 }
