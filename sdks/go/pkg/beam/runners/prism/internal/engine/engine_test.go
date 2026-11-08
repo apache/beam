@@ -17,22 +17,37 @@
 package engine_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/rand"
 	"os"
+	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
@@ -41,6 +56,9 @@ func init() {
 	// will avoid accidentally using a different runner for
 	// the tests if I change things later.
 	beam.RegisterRunner("testlocal", execute)
+	register.Function1x2[int64, string, int64](keyByConstK)
+	register.DoFn7x1[beam.Window, beam.EventTime, state.Provider, timers.Provider, string, int64, func(string), error](&bufferWithTimeoutFn{})
+	register.Emitter1[string]()
 }
 
 func TestMain(m *testing.M) {
@@ -191,6 +209,8 @@ func TestTestStream(t *testing.T) {
 		{pipeline: primitives.TestStreamSimple_InfinityDefault},
 		{pipeline: primitives.TestStreamToGBK},
 		{pipeline: primitives.TestStreamTimersEventTime},
+		{pipeline: testStreamStatefulProcessingTimeDirect},
+		{pipeline: testStreamStatefulProcessingTimeViaMap},
 	}
 
 	configs := []struct {
@@ -306,4 +326,129 @@ func TestProcessingTime(t *testing.T) {
 			})
 		}
 	}
+}
+
+func keyByConstK(v int64) (string, int64) {
+	return "k", v
+}
+
+type bufferWithTimeoutFn struct {
+	Buf   state.Bag[int64]
+	Flush timers.ProcessingTime
+}
+
+func (fn *bufferWithTimeoutFn) ProcessElement(_ beam.Window, ts beam.EventTime, sp state.Provider, tp timers.Provider, _ string, val int64, _ func(string)) error {
+	existing, ok, err := fn.Buf.Read(sp)
+	if err != nil {
+		return err
+	}
+	if !ok || len(existing) == 0 {
+		fn.Flush.Set(tp, time.Now().Add(10*time.Second), timers.WithOutputTimestamp(ts.ToTime()))
+	}
+	return fn.Buf.Add(sp, val)
+}
+
+func (fn *bufferWithTimeoutFn) OnTimer(_ context.Context, _ beam.EventTime, sp state.Provider, _ timers.Provider, key string, timer timers.Context, emit func(string)) {
+	if timer.Family != fn.Flush.Family {
+		panic(fmt.Sprintf("unexpected timer family %q", timer.Family))
+	}
+	vals, ok, err := fn.Buf.Read(sp)
+	if err != nil {
+		panic(err)
+	}
+	if !ok || len(vals) == 0 {
+		return
+	}
+	slices.Sort(vals)
+	if err := fn.Buf.Clear(sp); err != nil {
+		panic(err)
+	}
+	parts := make([]string, len(vals))
+	for i, v := range vals {
+		parts[i] = strconv.FormatInt(v, 10)
+	}
+	emit(fmt.Sprintf("%s:%s", key, strings.Join(parts, ",")))
+}
+
+func encodeKVStringInt64(k string, v int64) []byte {
+	var buf bytes.Buffer
+	if err := coder.EncodeVarInt(int64(len(k)), &buf); err != nil {
+		panic(err)
+	}
+	buf.WriteString(k)
+	if err := coder.EncodeVarInt(v, &buf); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func testStreamStatefulProcessingTimeDirect(s beam.Scope) {
+	events := []*pipepb.TestStreamPayload_Event{
+		{
+			Event: &pipepb.TestStreamPayload_Event_ElementEvent{
+				ElementEvent: &pipepb.TestStreamPayload_Event_AddElements{
+					Elements: []*pipepb.TestStreamPayload_TimestampedElement{
+						{EncodedElement: encodeKVStringInt64("k", 1), Timestamp: 200},
+						{EncodedElement: encodeKVStringInt64("k", 2), Timestamp: 200},
+					},
+				},
+			},
+		},
+		{
+			Event: &pipepb.TestStreamPayload_Event_ProcessingTimeEvent{
+				ProcessingTimeEvent: &pipepb.TestStreamPayload_Event_AdvanceProcessingTime{
+					AdvanceDuration: int64(mtime.FromDuration(60 * time.Second)),
+				},
+			},
+		},
+		{
+			Event: &pipepb.TestStreamPayload_Event_ElementEvent{
+				ElementEvent: &pipepb.TestStreamPayload_Event_AddElements{
+					Elements: []*pipepb.TestStreamPayload_TimestampedElement{
+						{EncodedElement: encodeKVStringInt64("k", 3), Timestamp: 200},
+					},
+				},
+			},
+		},
+		{
+			Event: &pipepb.TestStreamPayload_Event_WatermarkEvent{
+				WatermarkEvent: &pipepb.TestStreamPayload_Event_AdvanceWatermark{
+					NewWatermark: mtime.MaxTimestamp.Milliseconds(),
+				},
+			},
+		},
+	}
+	// KV<string, int64> registers c0 (string) and c1 (varint) first, so c2 is the KV coder.
+	pyld := protox.MustEncode(&pipepb.TestStreamPayload{
+		CoderId: "c2",
+		Events:  events,
+	})
+	kvType := typex.NewKV(typex.New(reflect.TypeFor[string]()), typex.New(reflect.TypeFor[int64]()))
+	keyed := beam.External(s, urns.TransformTestStream, pyld, nil, []beam.FullType{kvType}, false)[0]
+	out := beam.ParDo(s, &bufferWithTimeoutFn{
+		Buf:   state.MakeBagState[int64]("buf"),
+		Flush: timers.InProcessingTime("flush"),
+	}, keyed)
+	passert.Equals(s, out, "k:1,2", "k:3")
+}
+
+func testStreamStatefulProcessingTimeViaMap(s beam.Scope) {
+	c := teststream.NewConfig()
+	if err := c.AddElements(200, int64(1), int64(2)); err != nil {
+		panic(err)
+	}
+	c.AdvanceProcessingTime(int64(mtime.FromDuration(60 * time.Second)))
+	if err := c.AddElements(200, int64(3)); err != nil {
+		panic(err)
+	}
+	if err := c.AdvanceWatermarkToInfinity(); err != nil {
+		panic(err)
+	}
+	col := teststream.Create(s, c)
+	keyed := beam.ParDo(s, keyByConstK, col)
+	out := beam.ParDo(s, &bufferWithTimeoutFn{
+		Buf:   state.MakeBagState[int64]("buf"),
+		Flush: timers.InProcessingTime("flush"),
+	}, keyed)
+	passert.Equals(s, out, "k:1,2", "k:3")
 }
