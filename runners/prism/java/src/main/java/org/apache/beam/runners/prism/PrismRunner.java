@@ -18,18 +18,28 @@
 package org.apache.beam.runners.prism;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +56,7 @@ import org.slf4j.LoggerFactory;
 public class PrismRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismRunner.class);
+  private static final int MAX_START_ATTEMPTS = 3;
 
   private final PrismPipelineOptions prismPipelineOptions;
 
@@ -92,9 +103,9 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
   }
 
   PrismExecutor startPrism() throws IOException {
+    checkInterrupted();
     PrismLocator locator = new PrismLocator(prismPipelineOptions);
-    int port = findAvailablePort();
-    String portFlag = String.format(PrismExecutor.JOB_PORT_FLAG_TEMPLATE, port);
+    String command = locator.resolve();
     String serveHttpFlag =
         String.format(
             PrismExecutor.SERVE_HTTP_FLAG_TEMPLATE, prismPipelineOptions.getEnableWebUI());
@@ -104,18 +115,92 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
     String logLevelFlag =
         String.format(
             PrismExecutor.LOG_LEVEL_FLAG_TEMPLATE, prismPipelineOptions.getPrismLogLevel());
-    String endpoint = "localhost:" + port;
-    prismPipelineOptions.setJobEndpoint(endpoint);
-    String command = locator.resolve();
-    PrismExecutor executor =
-        PrismExecutor.builder()
-            .setCommand(command)
-            .setArguments(
-                Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag, logLevelFlag))
-            .build();
-    executor.execute();
-    checkState(executor.isAlive());
-    return executor;
+    for (int attempt = 1; attempt <= MAX_START_ATTEMPTS; attempt++) {
+      checkInterrupted();
+      int port = findAvailablePort();
+      String endpoint = "localhost:" + port;
+      prismPipelineOptions.setJobEndpoint(endpoint);
+      PrismExecutor executor =
+          PrismExecutor.builder()
+              .setCommand(command)
+              .setArguments(
+                  Arrays.asList(
+                      String.format(PrismExecutor.JOB_PORT_FLAG_TEMPLATE, port),
+                      serveHttpFlag,
+                      idleShutdownTimeoutFlag,
+                      logLevelFlag))
+              .build();
+      boolean ready = false;
+      try {
+        executor.execute();
+        ready = waitForJobService(executor, port, endpoint);
+        if (ready) {
+          return executor;
+        }
+      } finally {
+        if (!ready) {
+          executor.stop();
+        }
+      }
+      LOG.warn("Prism did not start its JobService at {} (attempt {})", endpoint, attempt);
+    }
+    throw new IOException(
+        "Prism failed to start its JobService after " + MAX_START_ATTEMPTS + " attempts");
+  }
+
+  private boolean waitForJobService(PrismExecutor executor, int port, String endpoint)
+      throws IOException {
+    long deadline =
+        System.nanoTime() + TimeUnit.SECONDS.toNanos(prismPipelineOptions.getJobServerTimeout());
+    ManagedChannel channel =
+        ManagedChannelFactory.createDefault()
+            .forDescriptor(ApiServiceDescriptor.newBuilder().setUrl(endpoint).build());
+    try {
+      while (executor.isAlive() && System.nanoTime() < deadline) {
+        checkInterrupted();
+        // Wait for the listener before connecting gRPC to avoid its reconnect backoff on startup.
+        try (Socket socket = new Socket()) {
+          socket.connect(
+              new InetSocketAddress("localhost", port),
+              (int)
+                  Math.max(
+                      1,
+                      Math.min(100, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()))));
+          long remaining = deadline - System.nanoTime();
+          if (remaining <= 0) {
+            return false;
+          }
+          JobServiceGrpc.newBlockingStub(channel)
+              .withDeadlineAfter(
+                  Math.min(remaining, TimeUnit.SECONDS.toNanos(1)), TimeUnit.NANOSECONDS)
+              .getJobs(GetJobsRequest.getDefaultInstance());
+          return executor.isAlive();
+        } catch (StatusRuntimeException e) {
+          checkInterrupted();
+          if (e.getStatus().getCode() != Status.Code.UNAVAILABLE
+              && e.getStatus().getCode() != Status.Code.DEADLINE_EXCEEDED) {
+            return false;
+          }
+        } catch (IOException ignored) {
+          // The child process has not bound its port yet.
+        }
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new InterruptedIOException("Interrupted while waiting for Prism's JobService");
+        }
+      }
+      return false;
+    } finally {
+      channel.shutdownNow();
+    }
+  }
+
+  private static void checkInterrupted() throws InterruptedIOException {
+    if (Thread.currentThread().isInterrupted()) {
+      throw new InterruptedIOException("Interrupted while starting Prism's JobService");
+    }
   }
 
   private static void assignDefaultsIfNeeded(PrismPipelineOptions prismPipelineOptions) {
@@ -124,7 +209,7 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
     }
   }
 
-  private static int findAvailablePort() throws IOException {
+  int findAvailablePort() throws IOException {
     try (ServerSocket socket = new ServerSocket(0)) {
       return socket.getLocalPort();
     }
