@@ -200,19 +200,17 @@ func (d *TentativeData) AppendMultimapState(stateID LinkID, wKey, uKey, mapKey, 
 //
 // The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
 func (d *TentativeData) ClearMultimapState(stateID LinkID, wKey, uKey, mapKey []byte) {
-	kmap := d.clearState(stateID, wKey)
-	if kmap == nil {
+	kMap := d.clearState(stateID, wKey)
+	if kMap == nil {
 		return
 	}
-	// Nil the current entry to clear.
-	// Delete makes it difficult to delete the persisted stage state for the key.
-	userMap, ok := kmap[string(uKey)]
+	userMap, ok := kMap[string(uKey)]
 	if !ok || userMap.Multimap == nil {
 		return
 	}
-	userMap.Multimap[string(mapKey)] = nil
-	// The Multimap field is aliased to the instance we stored in kmap,
-	// so we don't need to re-assign back to kmap after clearing the data from mapKey.
+	delete(userMap.Multimap, string(mapKey))
+	// Keep uKey in kMap so PersistBundle overwrites the stage state.
+	kMap[string(uKey)] = userMap
 	slog.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey))
 }
 
@@ -224,7 +222,10 @@ func (d *TentativeData) GetMultimapKeysState(stateID LinkID, wKey, uKey []byte) 
 	w := d.toWindow(wKey)
 	userMap := winMap[w][string(uKey)]
 	var keys [][]byte
-	for k := range userMap.Multimap {
+	for k, v := range userMap.Multimap {
+		if len(v) == 0 {
+			continue
+		}
 		keys = append(keys, []byte(k))
 	}
 	slog.Debug("State() MultimapKeys.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Keys", keys))

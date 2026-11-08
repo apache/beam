@@ -771,12 +771,15 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 					linkMap[w] = wlinkMap
 				}
 				var mm map[string][][]byte
-				if len(data.Multimap) > 0 {
-					mm = map[string][][]byte{}
-					for uk, v := range data.Multimap {
-						// Clone the "holding" slice, but refer to the existing data bytes.
-						mm[uk] = append([][]byte(nil), v...)
+				for uk, v := range data.Multimap {
+					if len(v) == 0 {
+						continue
 					}
+					if mm == nil {
+						mm = map[string][][]byte{}
+					}
+					// Clone the "holding" slice, but refer to the existing data bytes.
+					mm[uk] = append([][]byte(nil), v...)
 				}
 				// Clone the "holding" slice, but refer to the existing data bytes.
 				wlinkMap[key] = StateData{
