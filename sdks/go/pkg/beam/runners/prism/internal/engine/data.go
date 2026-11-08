@@ -39,8 +39,9 @@ type StateData struct {
 	Bag      [][]byte
 	Multimap map[string][][]byte
 
-	Trigger map[Trigger]triggerState
-	Pane    typex.PaneInfo
+	Trigger     map[Trigger]triggerState
+	Pane        typex.PaneInfo
+	Accumulated []element // Emitted elements kept for later accumulating panes.
 }
 
 func (s *StateData) getTriggerState(key Trigger) triggerState {
