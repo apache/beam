@@ -96,6 +96,10 @@ func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 // remain valid for subsequent reads. Files must remain unchanged between matching
 // and opening so that Metadata.Size describes the opened contents. Object-store
 // reads are pinned at open time; local files must not be modified in place.
+//
+// On object stores, ReadAt calls generally issue individual range requests.
+// Callers should coalesce small reads and use bounded concurrency to hide request
+// latency.
 func (f ReadableFile) OpenSeekable(ctx context.Context) (filesystem.ReaderAtCloser, error) {
 	comp := f.Compression
 	if comp == compressionAuto {

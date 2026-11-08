@@ -108,6 +108,10 @@ type ReaderAtCloser interface {
 
 // SeekableOpener is an optional capability for efficient positional reads.
 // It does not change the sequential OpenRead contract.
+//
+// On object stores, ReadAt calls generally issue individual range requests.
+// Callers should coalesce small reads and use bounded concurrency to hide request
+// latency.
 type SeekableOpener interface {
 	// OpenSeekable opens filename for positional reads. An error wrapping
 	// ErrNotSeekable means this particular file does not support them. Other
