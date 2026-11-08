@@ -488,14 +488,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ready {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startEventTimeBundle(watermark, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -511,14 +511,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ptimeEventsReady {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startProcessingTimeBundle(em, emNow, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -1871,6 +1871,9 @@ func (ss *stageState) startTriggeredBundle(em *ElementManager, key string, win t
 	}
 	toProcess, accumulationDiff := ss.buildTriggeredBundle(key, win, endOfWindowReached, holdsInBundle)
 	if len(toProcess) == 0 {
+		for hold, v := range holdsInBundle {
+			ss.watermarkHolds.Drop(hold, v)
+		}
 		return accumulationDiff
 	}
 	if len(holdsInBundle) == 0 {
@@ -2007,6 +2010,12 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildEventTimeBundle(ss, watermark)
 
 	if len(toProcess) == 0 {
+		for hold, v := range holdsInBundle {
+			ss.watermarkHolds.Drop(hold, v)
+		}
+		if len(holdsInBundle) > 0 {
+			stillSchedulable = true
+		}
 		// If we have nothing, there's nothing to progress.
 		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}
@@ -2244,6 +2253,7 @@ keysPerBundle:
 			newElems := newByWin[win]
 			priorCount := len(state.Accumulated)
 			if priorCount+len(newElems) == 0 {
+				accumulatingPendingAdjustment -= removed
 				continue
 			}
 
@@ -2251,11 +2261,12 @@ keysPerBundle:
 			winElems = append(winElems, state.Accumulated...)
 			winElems = append(winElems, newElems...)
 
+			ss.strat.OnWatermarkFire(&state)
 			state.Pane = computeNextWatermarkPane(state.Pane, win.MaxTimestamp() < ss.output)
 			if watermark > ss.strat.EarliestCompletion(win) && state.Pane.Timing != typex.PaneOnTime {
 				state.Pane.IsLast = true
 			}
-			if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() {
+			if ss.strat.AllowedLateness == 0 || ss.strat.IsNeverTrigger() || (ss.strat.Trigger != nil && state.getTriggerState(ss.strat.Trigger).finished) {
 				state.Pane.IsLast = true
 			}
 			if ss.strat.Accumulating && !state.Pane.IsLast && watermark <= ss.strat.EarliestCompletion(win) {
@@ -2302,6 +2313,12 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	toProcess, minTs, newKeys, holdsInBundle, panesInBundle, stillSchedulable, accumulatingPendingAdjustment := ss.kind.buildProcessingTimeBundle(ss, em, emNow)
 
 	if len(toProcess) == 0 {
+		for hold, v := range holdsInBundle {
+			ss.watermarkHolds.Drop(hold, v)
+		}
+		if len(holdsInBundle) > 0 {
+			stillSchedulable = true
+		}
 		// If we have nothing
 		return "", false, stillSchedulable, accumulatingPendingAdjustment
 	}

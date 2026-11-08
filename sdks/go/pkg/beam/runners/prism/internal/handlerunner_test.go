@@ -70,6 +70,7 @@ func runLocalTestPipeline(t *testing.T, p *beam.Pipeline, runFn func(*jobservice
 		s.Stop()
 		t.Fatal(err)
 	}
+	_ = f.Close()
 
 	*jobopts.Endpoint = s.Endpoint()
 	*jobopts.EnvironmentType = "loopback"
@@ -165,6 +166,92 @@ func TestTriggerAccumulating(t *testing.T) {
 			"timing=early index=0 nonSpec=-1 first=true last=false vals=[1 2]",
 			"timing=ontime index=1 nonSpec=0 first=false last=false vals=[1 2 3]",
 			"timing=late index=2 nonSpec=1 first=false last=false vals=[1 2 3 4]",
+		)
+
+		runLocalTestPipeline(t, p, RunPipeline)
+	})
+
+	t.Run("early_count2_nonempty_ontime_late_count2", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		con := teststream.NewConfig()
+		if err := con.AddElements(1000, int64(1), int64(2)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(3000, int64(3)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermark(20000); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(4000, int64(4)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(5000, int64(5)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermarkToInfinity(); err != nil {
+			t.Fatal(err)
+		}
+
+		col := teststream.Create(s, con)
+		keyed := beam.AddFixedKey(s, col)
+		trig := trigger.AfterEndOfWindow().
+			EarlyFiring(trigger.AfterCount(2)).
+			LateFiring(trigger.AfterCount(2))
+		windowed := beam.WindowInto(s, window.NewFixedWindows(10*time.Second), keyed,
+			beam.Trigger(trig),
+			beam.PanesAccumulate(),
+			beam.AllowedLateness(60*time.Second),
+		)
+		grouped := beam.GroupByKey(s, windowed)
+		panes := beam.ParDo(s, formatAccumPaneFn, grouped)
+		globalPanes := beam.WindowInto(s, window.NewGlobalWindows(), panes)
+		passert.Equals(s, globalPanes,
+			"timing=early index=0 nonSpec=-1 first=true last=false vals=[1 2]",
+			"timing=ontime index=1 nonSpec=0 first=false last=false vals=[1 2 3]",
+			"timing=late index=2 nonSpec=1 first=false last=false vals=[1 2 3 4 5]",
+		)
+
+		runLocalTestPipeline(t, p, RunPipeline)
+	})
+
+	t.Run("repeated_count2_resets_partial_count_at_ontime", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		con := teststream.NewConfig()
+		if err := con.AddElements(1000, int64(1), int64(2)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(3000, int64(3)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermark(20000); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(4000, int64(4)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(5000, int64(5)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermarkToInfinity(); err != nil {
+			t.Fatal(err)
+		}
+
+		col := teststream.Create(s, con)
+		keyed := beam.AddFixedKey(s, col)
+		trig := trigger.Repeat(trigger.AfterCount(2))
+		windowed := beam.WindowInto(s, window.NewFixedWindows(10*time.Second), keyed,
+			beam.Trigger(trig),
+			beam.PanesAccumulate(),
+			beam.AllowedLateness(60*time.Second),
+		)
+		grouped := beam.GroupByKey(s, windowed)
+		panes := beam.ParDo(s, formatAccumPaneFn, grouped)
+		globalPanes := beam.WindowInto(s, window.NewGlobalWindows(), panes)
+		passert.Equals(s, globalPanes,
+			"timing=early index=0 nonSpec=-1 first=true last=false vals=[1 2]",
+			"timing=ontime index=1 nonSpec=0 first=false last=false vals=[1 2 3]",
+			"timing=late index=2 nonSpec=1 first=false last=false vals=[1 2 3 4 5]",
 		)
 
 		runLocalTestPipeline(t, p, RunPipeline)

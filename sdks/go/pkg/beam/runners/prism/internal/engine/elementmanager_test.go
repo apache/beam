@@ -948,6 +948,73 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "repeated_count2_resets_partial_count_at_ontime",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerRepeatedly{
+					Repeated: &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+				{key: 'k', vals: []byte{5}, eventTime: 5},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+			},
+		},
+		{
+			name: "early_count2_without_late_finishes_at_ontime",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: true},
+					Values: []int{1, 2, 3},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1099,5 +1166,52 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 				t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
 			}
 		})
+	}
+}
+
+func TestEmptyPendingOnTimeCleanup(t *testing.T) {
+	ctx, cancelFn := context.WithTimeoutCause(context.Background(), 5*time.Second, fmt.Errorf("timed out waiting for empty pendingOnTime cleanup"))
+	defer cancelFn()
+
+	em := NewElementManager(Config{StreamingMode: true})
+	em.AddStage("ts", nil, []string{"tsOut"}, nil)
+	em.AddStage("agg", []string{"tsOut"}, []string{"aggOut"}, nil)
+	em.StageAggregates("agg", WinStrat{
+		AllowedLateness: 60 * time.Millisecond,
+		Accumulating:    true,
+		Trigger: &TriggerAfterEndOfWindow{
+			Early: &TriggerElementCount{ElementCount: 1},
+			Late:  &TriggerElementCount{ElementCount: 1},
+		},
+	})
+
+	tsb := em.AddTestStream("ts", map[string]string{"": "tsOut"})
+	tsb.AddWatermarkEvent("", 20)
+
+	aggStage := em.stages["agg"]
+	aggStage.mu.Lock()
+	delta := aggStage.addPendingOnTimeLocked(window.IntervalWindow{Start: 0, End: 10}, "k")
+	aggStage.mu.Unlock()
+	em.addPending(delta)
+
+	var bundSeq uint64
+	ch := em.Bundles(ctx, func(err error) {
+		t.Errorf("unexpected cancel: %v", err)
+	}, func() string {
+		return fmt.Sprintf("b%d", atomic.AddUint64(&bundSeq, 1))
+	})
+
+	for rb := range ch {
+		t.Fatalf("unexpected bundle emitted: %+v", rb)
+	}
+
+	if err := context.Cause(ctx); err != nil && err.Error() == "timed out waiting for empty pendingOnTime cleanup" {
+		t.Fatalf("Bundles() hung: %v", err)
+	}
+	if gotOut := aggStage.OutputWatermark(); gotOut != mtime.MaxTimestamp {
+		t.Errorf("agg OutputWatermark = %v, want %v", gotOut, mtime.MaxTimestamp)
+	}
+	if gotOnTime := len(aggStage.pendingOnTime); gotOnTime != 0 {
+		t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
 	}
 }
