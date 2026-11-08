@@ -185,8 +185,8 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     for metric_key, metric in metrics_by_name.items():
-      attempted = self._get_metric_value(metric['tentative'])
-      committed = self._get_metric_value(metric['committed'])
+      attempted = self._get_metric_value(metric.get('tentative'))
+      committed = self._get_metric_value(metric.get('committed'))
       result.append(
           MetricResult(metric_key, attempted=attempted, committed=committed))
 
