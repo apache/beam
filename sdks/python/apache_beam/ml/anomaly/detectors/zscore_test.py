@@ -56,6 +56,17 @@ class ZScoreTest(unittest.TestCase):
             0.932910509720565
         ])
 
+  def test_non_univariate_input_error_message(self):
+    detector = ZScore()
+    row = beam.Row(x=1, y=2)
+
+    for name in ('learn_one', 'score_one'):
+      with self.assertRaisesRegex(
+          ValueError,
+          rf'ZScore\.{name} expected univariate input, but got '
+          r'Row\(x=1, y=2\)'):
+        getattr(detector, name)(row)
+
   def test_with_custom_mean_tracker(self):
     zscore = ZScore(
         sub_stat_tracker=IncSlidingMeanTracker(3),

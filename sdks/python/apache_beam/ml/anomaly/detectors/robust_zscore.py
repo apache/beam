@@ -79,7 +79,7 @@ class RobustZScore(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "RobustZScore.learn_one expected univariate input, but got %s",
+          "RobustZScore.learn_one expected univariate input, but got %s" %
           str(x))
 
     v = next(iter(x))
@@ -96,7 +96,7 @@ class RobustZScore(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "RobustZScore.score_one expected univariate input, but got %s",
+          "RobustZScore.score_one expected univariate input, but got %s" %
           str(x))
 
     v = next(iter(x))

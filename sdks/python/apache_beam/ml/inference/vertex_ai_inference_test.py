@@ -77,6 +77,40 @@ class ModelHandlerArgConditions(unittest.TestCase):
         private=True)
 
 
+class RetrieveEndpointErrorMessageTest(unittest.TestCase):
+  def _create_handler(self):
+    import unittest.mock as mock
+
+    with mock.patch.object(VertexAIModelHandlerJSON,
+                           '_retrieve_endpoint',
+                           return_value=None):
+      with mock.patch('google.cloud.aiplatform.init'):
+        return VertexAIModelHandlerJSON(
+            endpoint_id="1", project="testproject", location="us-central1")
+
+  def test_endpoint_without_models_message(self):
+    import unittest.mock as mock
+
+    handler = self._create_handler()
+    endpoint = mock.Mock()
+    endpoint.list_models.return_value = []
+    with mock.patch('google.cloud.aiplatform.Endpoint', return_value=endpoint):
+      with self.assertRaisesRegex(
+          ValueError, r'^Endpoint 123 has no models deployed to it\.$'):
+        handler._retrieve_endpoint('123', 'us-central1', False)
+
+  def test_unreachable_endpoint_message(self):
+    import unittest.mock as mock
+
+    handler = self._create_handler()
+    endpoint = mock.Mock()
+    endpoint.list_models.side_effect = RuntimeError('boom')
+    with mock.patch('google.cloud.aiplatform.Endpoint', return_value=endpoint):
+      with self.assertRaisesRegex(
+          ValueError, r'^Failed to contact endpoint 123, got exception: boom$'):
+        handler._retrieve_endpoint('123', 'us-central1', False)
+
+
 class ParseInvokeResponseTest(unittest.TestCase):
   """Tests for _parse_invoke_response method."""
   def _create_handler_with_invoke_route(self, invoke_route="/test"):

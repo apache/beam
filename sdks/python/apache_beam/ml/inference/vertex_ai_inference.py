@@ -203,10 +203,11 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       mod_list = endpoint.list_models()
     except Exception as e:
       raise ValueError(
-          "Failed to contact endpoint %s, got exception: %s", endpoint_id, e)
+          "Failed to contact endpoint %s, got exception: %s" % (endpoint_id, e))
 
     if len(mod_list) == 0:
-      raise ValueError("Endpoint %s has no models deployed to it.", endpoint_id)
+      raise ValueError(
+          "Endpoint %s has no models deployed to it." % endpoint_id)
 
     return endpoint
 

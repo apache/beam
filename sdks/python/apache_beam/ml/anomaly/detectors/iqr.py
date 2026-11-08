@@ -85,7 +85,7 @@ class IQR(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "IQR.learn_one expected univariate input, but got %s", str(x))
+          "IQR.learn_one expected univariate input, but got %s" % str(x))
 
     v = next(iter(x))
     self._q1_tracker.push(v)
@@ -102,7 +102,7 @@ class IQR(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "IQR.score_one expected univariate input, but got %s", str(x))
+          "IQR.score_one expected univariate input, but got %s" % str(x))
 
     v = next(iter(x))
     if v is None or math.isnan(v):

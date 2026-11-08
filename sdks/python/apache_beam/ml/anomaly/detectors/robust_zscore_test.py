@@ -45,6 +45,17 @@ class RobustZScoreTest(unittest.TestCase):
     self.assertTrue(math.isnan(scores[0]))
     self.assertEqual(scores[1:], [0.0, 0.0, 0.0, 5.73325, 0.168625, 1.349])
 
+  def test_non_univariate_input_error_message(self):
+    detector = RobustZScore()
+    row = beam.Row(x=1, y=2)
+
+    for name in ('learn_one', 'score_one'):
+      with self.assertRaisesRegex(
+          ValueError,
+          rf'RobustZScore\.{name} expected univariate input, but got '
+          r'Row\(x=1, y=2\)'):
+        getattr(detector, name)(row)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
