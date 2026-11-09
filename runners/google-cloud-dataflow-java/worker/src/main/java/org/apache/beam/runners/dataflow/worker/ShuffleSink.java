@@ -208,7 +208,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     }
 
     @Override
-    public long add(WindowedValue<T> windowedElem) throws IOException {
+    public synchronized long add(WindowedValue<T> windowedElem) throws IOException {
       if (this.chunk == null) {
         // Initialize the chunk with the minimum size so we do not have to
         // "grow" the internal byte[] up to the minimum chunk size.
@@ -303,7 +303,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
       try (Closeable trackedCloseState = tracker.enterState(writeState)) {
         if (chunk != null) {
           outputChunk();
@@ -320,7 +320,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     }
 
     @Override
-    public void abort() throws IOException {
+    public synchronized void abort() throws IOException {
       if (!closed) {
         // ShuffleWriter extends AutoCloseable, so it may not be idempotent. Only close if it has
         // not already been closed.
