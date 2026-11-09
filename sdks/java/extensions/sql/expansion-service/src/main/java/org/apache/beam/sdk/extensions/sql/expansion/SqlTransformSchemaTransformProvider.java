@@ -25,14 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
-import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -51,18 +50,6 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
 
   private static final Map<String, Class<? extends QueryPlanner>> QUERY_PLANNERS =
       ImmutableMap.of("calcite", org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.class);
-  private static final EnumerationType QUERY_ENUMERATION =
-      EnumerationType.create(QUERY_PLANNERS.keySet().stream().collect(Collectors.toList()));
-
-  private static final OneOfType QUERY_PARAMETER =
-      OneOfType.create(
-          Schema.Field.nullable("string", Schema.FieldType.STRING),
-          Schema.Field.nullable("short", Schema.FieldType.INT16),
-          Schema.Field.nullable("int", Schema.FieldType.INT32),
-          Schema.Field.nullable("long", Schema.FieldType.INT64),
-          Schema.Field.nullable("float", Schema.FieldType.FLOAT),
-          Schema.Field.nullable("double", Schema.FieldType.DOUBLE),
-          Schema.Field.nullable("datetime", Schema.FieldType.DATETIME));
 
   @Override
   public String identifier() {
@@ -84,38 +71,58 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
         + "[the Beam SQL documentation](https://beam.apache.org/documentation/dsls/sql/overview/).";
   }
 
+  /**
+   * The configuration schema deliberately uses only primitive field types (strings, booleans and
+   * arrays of strings) so that it can be decoded by every SDK. Logical types such as {@code
+   * EnumerationType} and {@code OneOfType} are Java-specific and cannot be decoded from Python.
+   *
+   * <p>{@code dialect} must be one of the supported query planner names and each entry of {@code
+   * tableproviders} must be the table type of an available {@link TableProvider}; both are
+   * validated in {@link #from(Row)}.
+   */
   @Override
   public Schema configurationSchema() {
-    List<String> providers = new ArrayList<>();
-    ServiceLoader.load(TableProvider.class)
-        .forEach(
-            (provider) -> {
-              providers.add(provider.getTableType());
-            });
-    EnumerationType providerEnum = EnumerationType.create(providers);
-
     return Schema.of(
         Schema.Field.of("query", Schema.FieldType.STRING).withDescription("SQL query to execute"),
         Schema.Field.nullable(
             "ddl", Schema.FieldType.STRING), // TODO: Underlying builder seems more capable?
-        Schema.Field.nullable("dialect", Schema.FieldType.logicalType(QUERY_ENUMERATION)),
+        Schema.Field.nullable("dialect", Schema.FieldType.STRING)
+            .withDescription(
+                "Query planner to use. Supported values: "
+                    + String.join(", ", QUERY_PLANNERS.keySet())),
         Schema.Field.nullable("autoload", Schema.FieldType.BOOLEAN),
-        Schema.Field.nullable(
-            "tableproviders", Schema.FieldType.array(Schema.FieldType.logicalType(providerEnum))),
-        Schema.Field.nullable(
-            "parameters",
-            Schema.FieldType.logicalType(
-                OneOfType.create(
-                    Schema.Field.of(
-                        "positional",
-                        Schema.FieldType.array(Schema.FieldType.logicalType(QUERY_PARAMETER))),
-                    Schema.Field.of(
-                        "named",
-                        Schema.FieldType.array(Schema.FieldType.logicalType(QUERY_PARAMETER)))))));
+        Schema.Field.nullable("tableproviders", Schema.FieldType.array(Schema.FieldType.STRING))
+            .withDescription("Names (table types) of the table providers to make available."));
+  }
+
+  private static Map<String, TableProvider> availableTableProviders() {
+    Map<String, TableProvider> tableProviders = new HashMap<>();
+    ServiceLoader.load(TableProvider.class)
+        .forEach((provider) -> tableProviders.put(provider.getTableType(), provider));
+    return tableProviders;
   }
 
   @Override
   public SchemaTransform from(Row configuration) {
+    String dialect = configuration.getString("dialect");
+    if (dialect != null && !QUERY_PLANNERS.containsKey(dialect)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported dialect '%s'. Supported dialects: %s.",
+              dialect, QUERY_PLANNERS.keySet()));
+    }
+    Collection<String> requested = configuration.getArray("tableproviders");
+    if (requested != null) {
+      Set<String> available = availableTableProviders().keySet();
+      for (String name : requested) {
+        if (name != null && !available.contains(name)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unknown table provider '%s'. Available table providers: %s.",
+                  name, new TreeSet<>(available)));
+        }
+      }
+    }
     return new SqlSchemaTransform(configuration);
   }
 
@@ -172,11 +179,9 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
       SqlTransform transform = SqlTransform.query(queryString);
 
       // Allow setting the query planner class via the dialect name.
-      EnumerationType.Value dialect =
-          config.getLogicalTypeValue("dialect", EnumerationType.Value.class);
+      String dialect = config.getString("dialect");
       if (dialect != null) {
-        Class<? extends QueryPlanner> queryPlannerClass =
-            QUERY_PLANNERS.get(QUERY_ENUMERATION.toString(dialect));
+        Class<? extends QueryPlanner> queryPlannerClass = QUERY_PLANNERS.get(dialect);
         if (queryPlannerClass != null) {
           transform = transform.withQueryPlannerClass(queryPlannerClass);
         }
@@ -196,28 +201,19 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
         transform = transform.withAutoLoading(false);
 
         // Add any user specified table providers from the set of available tableproviders.
-        Map<String, TableProvider> tableProviders = new HashMap<>();
-        ServiceLoader.load(TableProvider.class)
-            .forEach(
-                (provider) -> {
-                  tableProviders.put(provider.getTableType(), provider);
-                });
-        Collection<?> tableproviderList = config.getArray("tableproviders");
+        Map<String, TableProvider> tableProviders = availableTableProviders();
+        Collection<String> tableproviderList = config.getArray("tableproviders");
         if (tableproviderList != null) {
-          for (Object nameObj : tableproviderList) {
-            if (nameObj != null) { // This actually could in theory be null...
-              TableProvider p = tableProviders.get(nameObj);
-              if (p != null) { // TODO: We ignore tableproviders that don't exist, we could change
-                // that.
-                transform = transform.withTableProvider(p.getTableType(), p);
-              }
+          for (String name : tableproviderList) {
+            TableProvider p = name == null ? null : tableProviders.get(name);
+            if (p != null) { // Names are validated in from(Row).
+              transform = transform.withTableProvider(p.getTableType(), p);
             }
           }
         }
       }
 
-      // TODO: Process query parameters. This is not necessary for Syndeo GA but would be
-      // really nice to have.
+      // TODO: Support query parameters (positional/named) using primitive field types.
 
       // TODO: See about reimplementing a correct version of SqlTransform
       ErrorCapture errors = new ErrorCapture();

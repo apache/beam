@@ -533,6 +533,11 @@ class DoctestTest(unittest.TestCase):
                 's.drop_duplicates()',
                 "s.drop_duplicates(keep='last')",
             ],
+            'pandas.core.series.Series.duplicated': [
+                'animals.duplicated()',
+                "animals.duplicated(keep='first')",
+                "animals.duplicated(keep='last')",
+            ],
             'pandas.core.series.Series.reindex': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
             'pandas.core.series.Series.repeat': ['s.repeat([1, 2, 3])'],
@@ -576,7 +581,6 @@ class DoctestTest(unittest.TestCase):
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.series.Series.idxmin': ['s.idxmin()'],
             'pandas.core.series.Series.idxmax': ['s.idxmax()'],
-            'pandas.core.series.Series.duplicated': ['*'],
             # Relies on setting index.
             'pandas.core.series.Series.rename_axis': ['*'],
             'pandas.core.series.Series.set_axis': ['*'],
