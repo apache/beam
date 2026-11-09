@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -184,6 +185,51 @@ public class StringCompilerTest {
     // Invalid URI fallback
     File f5 = StringCompiler.resolveManifestEntry(parentDir, ":::invalid-uri:::");
     assertEquals(new File(parentDir, ":::invalid-uri:::"), f5);
+
+    // Root-relative path without scheme
+    File f6 = StringCompiler.resolveManifestEntry(parentDir, "/opt/beam/my%20lib.jar");
+    assertEquals(new File("/opt/beam/my lib.jar"), f6);
+
+    // Root-relative path with raw space
+    File f7 = StringCompiler.resolveManifestEntry(parentDir, "/opt/beam/my lib.jar");
+    assertEquals(new File("/opt/beam/my lib.jar"), f7);
+
+    // Windows root-relative path with a single leading backslash (\opt\beam\my lib.jar)
+    File fRootBackslash = StringCompiler.resolveManifestEntry(parentDir, "\\opt\\beam\\my lib.jar");
+    assertEquals(new File("\\opt\\beam\\my lib.jar"), fRootBackslash);
+
+    // Windows drive-letter absolute path with slash
+    File f8 = StringCompiler.resolveManifestEntry(parentDir, "C:/opt/beam/my lib.jar");
+    assertEquals(new File("C:/opt/beam/my lib.jar"), f8);
+
+    // Windows drive-letter absolute path with encoded space
+    File f9 = StringCompiler.resolveManifestEntry(parentDir, "C:/opt/beam/my%20lib.jar");
+    assertEquals(new File("C:/opt/beam/my lib.jar"), f9);
+
+    // Windows drive-letter absolute path with backslash
+    File f10 = StringCompiler.resolveManifestEntry(parentDir, "C:\\opt\\beam\\my lib.jar");
+    assertEquals(new File("C:\\opt\\beam\\my lib.jar"), f10);
+
+    // Windows file: URL with drive letter
+    File f11 = StringCompiler.resolveManifestEntry(parentDir, "file:/C:/opt/beam/my%20lib.jar");
+    assertEquals(new File("C:/opt/beam/my lib.jar"), f11);
+
+    // Windows drive-relative path without slash (e.g. C:folder/dep.jar) must NOT be treated as
+    // absolute
+    File f12 = StringCompiler.resolveManifestEntry(parentDir, "C:folder/dep.jar");
+    assertEquals(new File(parentDir, "C:folder/dep.jar"), f12);
+
+    // UNC path must NOT be resolved against parentDir
+    File f13 = StringCompiler.resolveManifestEntry(parentDir, "\\\\server\\share\\dep.jar");
+    assertEquals(new File("\\\\server\\share\\dep.jar"), f13);
+
+    // Null and empty entry handling
+    assertNull(StringCompiler.resolveManifestEntry(parentDir, null));
+    assertNull(StringCompiler.resolveManifestEntry(parentDir, ""));
+
+    // Null parentDir with relative entry
+    File f14 = StringCompiler.resolveManifestEntry(null, "my%20lib.jar");
+    assertEquals(new File("my lib.jar"), f14);
   }
 
   @Test

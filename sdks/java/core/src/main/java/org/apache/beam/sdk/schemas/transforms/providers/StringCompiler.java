@@ -172,28 +172,62 @@ public class StringCompiler {
   }
 
   @VisibleForTesting
-  static @Nullable File resolveManifestEntry(@Nullable File parentDir, String entry) {
+  static @Nullable File resolveManifestEntry(@Nullable File parentDir, @Nullable String entry) {
+    if (entry == null || entry.isEmpty()) {
+      return null;
+    }
     try {
-      URI uri = URI.create(entry);
+      String uriStr = entry;
+      if (isWindowsAbsoluteDrivePath(uriStr)) {
+        uriStr = "file:///" + uriStr.replace('\\', '/');
+      }
+      URI uri = URI.create(uriStr);
       String path = uri.getPath();
       if (path != null && !path.isEmpty()) {
+        if (path.length() >= 3
+            && path.charAt(0) == '/'
+            && Character.isLetter(path.charAt(1))
+            && path.charAt(2) == ':') {
+          path = path.substring(1);
+        }
         File f = new File(path);
-        if (f.isAbsolute()) {
+        if (isRootedOrAbsolute(path, f)) {
           return f;
         }
         return parentDir != null ? new File(parentDir, path) : f;
       }
-    } catch (IllegalArgumentException | NullPointerException e) {
+    } catch (IllegalArgumentException e) {
       // Fallback if entry is not a valid URI (e.g. unencoded special characters or raw Windows
       // path)
     }
 
     String rawPath = entry.startsWith("file:") ? entry.substring("file:".length()) : entry;
     File f = new File(rawPath);
-    if (f.isAbsolute()) {
+    if (isRootedOrAbsolute(rawPath, f)) {
       return f;
     }
     return parentDir != null ? new File(parentDir, rawPath) : f;
+  }
+
+  private static boolean isRootedOrAbsolute(String path, File f) {
+    if (f.isAbsolute()) {
+      return true;
+    }
+    if (!path.isEmpty()) {
+      char c0 = path.charAt(0);
+      // Leading '/' (Unix root-relative or absolute) or '\' (Windows root-relative or UNC '\\')
+      if (c0 == '/' || c0 == '\\') {
+        return true;
+      }
+    }
+    return isWindowsAbsoluteDrivePath(path);
+  }
+
+  private static boolean isWindowsAbsoluteDrivePath(String path) {
+    return path.length() >= 3
+        && Character.isLetter(path.charAt(0))
+        && path.charAt(1) == ':'
+        && (path.charAt(2) == '/' || path.charAt(2) == '\\');
   }
 
   private static boolean isJarFile(File file) {
