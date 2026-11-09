@@ -124,6 +124,10 @@ spec:
               echo "${HOST} is ready."
               break
             fi
+            if [ "${attempt}" -eq 60 ]; then
+              echo "Timed out waiting for SSH on ${HOST}" >&2
+              exit 1
+            fi
             sleep 2
           done
         done
