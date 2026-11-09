@@ -30,11 +30,15 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.TransformWithState;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
@@ -151,7 +155,13 @@ public class StreamingEvaluationContext extends EvaluationContext {
       int leafIndex,
       SparkStructuredStreamingPipelineOptions options) {
     try {
-      return dataset
+      Dataset<?> queryDataset =
+          leafIndex == 0
+              ? dataset
+              : org.apache.spark.sql.classic.Dataset.ofRows(
+                  (org.apache.spark.sql.classic.SparkSession) dataset.sparkSession(),
+                  cloneStatefulProcessors(dataset.queryExecution().logical()));
+      return queryDataset
           .writeStream()
           .format("noop")
           .outputMode("append")
@@ -164,6 +174,37 @@ public class StreamingEvaluationContext extends EvaluationContext {
       throw new RuntimeException(
           "Failed to start streaming query for leaf dataset index " + leafIndex, e);
     }
+  }
+
+  /**
+   * Clones {@link TransformWithState} stateful processor instances so sibling leaf streaming
+   * queries do not concurrently mutate the same {@code StatefulProcessor} handle on the driver.
+   */
+  private static LogicalPlan cloneStatefulProcessors(LogicalPlan plan) {
+    LogicalPlan mapped =
+        (LogicalPlan)
+            plan.mapChildren(
+                ScalaInterop.fun1(StreamingEvaluationContext::cloneStatefulProcessors));
+    if (mapped instanceof TransformWithState) {
+      TransformWithState tws = (TransformWithState) mapped;
+      return tws.copy(
+          tws.keyDeserializer(),
+          tws.valueDeserializer(),
+          tws.groupingAttributes(),
+          tws.dataAttributes(),
+          SerializableUtils.clone(tws.statefulProcessor()),
+          tws.timeMode(),
+          tws.outputMode(),
+          tws.keyEncoder(),
+          tws.outputObjAttr(),
+          tws.child(),
+          tws.hasInitialState(),
+          tws.initialStateGroupingAttrs(),
+          tws.initialStateDataAttrs(),
+          tws.initialStateDeserializer(),
+          tws.initialState());
+    }
+    return mapped;
   }
 
   /** Blocks until every query in toAwait has terminated. Sibling queries stop on failure. */
