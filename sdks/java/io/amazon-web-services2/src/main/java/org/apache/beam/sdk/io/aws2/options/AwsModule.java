@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.beam.sdk.io.aws2.auth.SecretCredentialsProvider;
 import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -83,6 +84,7 @@ public class AwsModule extends SimpleModule {
   private static final String AUDIENCE = "audience";
   private static final String WEBID_TOKEN_FQCN = "webIdTokenProviderFQCN";
   private static final String SESSION_DURATION_SECONDS = "durationSeconds";
+  private static final String SECRET_MANAGER = "secretManager";
 
   public AwsModule() {
     super("AwsModule");
@@ -204,10 +206,26 @@ public class AwsModule extends SimpleModule {
                     .orElse(
                         StsAssumeRoleForFederatedCredentialsProvider.DEFAULT_SESSION_DURATION_SECS))
             .build();
+      } else if (typeName.equals(SecretCredentialsProvider.class.getSimpleName())) {
+        return SecretCredentialsProvider.create(
+            getNotNull(json, SECRET_MANAGER, typeName),
+            getSpec(json, ACCESS_KEY_ID, typeName),
+            getSpec(json, SECRET_ACCESS_KEY, typeName),
+            json.has(SESSION_TOKEN) ? getSpec(json, SESSION_TOKEN, typeName) : null);
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
       }
+    }
+
+    /**
+     * Returns a secret spec, which may be given as a JSON string or, to avoid escaping, as a JSON
+     * object.
+     */
+    private String getSpec(JsonNode json, String key, String typeName) {
+      JsonNode node = json.get(key);
+      checkNotNull(node, "AWS credentials provider type '%s' is missing '%s'", typeName, key);
+      return node.isTextual() ? node.textValue() : node.toString();
     }
 
     private String getNotNull(JsonNode json, String key, String typeName) {
@@ -292,6 +310,16 @@ public class AwsModule extends SimpleModule {
         Integer sessionDurationSecs = provider.sessionDurationSecs();
         if (sessionDurationSecs != null) {
           jsonGenerator.writeNumberField(SESSION_DURATION_SECONDS, sessionDurationSecs);
+        }
+      } else if (credentialsProvider instanceof SecretCredentialsProvider) {
+        // Only the secret specs are serialized, never the resolved credentials.
+        SecretCredentialsProvider provider = (SecretCredentialsProvider) credentialsProvider;
+        jsonGenerator.writeStringField(SECRET_MANAGER, provider.secretManager());
+        jsonGenerator.writeStringField(ACCESS_KEY_ID, provider.accessKeyId());
+        jsonGenerator.writeStringField(SECRET_ACCESS_KEY, provider.secretAccessKey());
+        String sessionToken = provider.sessionToken();
+        if (sessionToken != null) {
+          jsonGenerator.writeStringField(SESSION_TOKEN, sessionToken);
         }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(providerClass)) {
         throw new IllegalArgumentException(
