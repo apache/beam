@@ -309,7 +309,16 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
           Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
           memoizedParser = tParser;
         }
-      } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+      } catch (NoSuchMethodException e) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Cannot decode %s: it has no static getDefaultInstance() method, so its Parser "
+                    + "cannot be determined. This happens for the raw %s interface, e.g. when the "
+                    + "coder was inferred for a generic 'T extends Message'. Use a concrete "
+                    + "generated message class, DynamicProtoCoder, or call setCoder().",
+                protoMessageClass.getName(), Message.class.getName()),
+            e);
+      } catch (IllegalAccessException | InvocationTargetException e) {
         throw new IllegalArgumentException(e);
       }
     }

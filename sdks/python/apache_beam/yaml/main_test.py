@@ -172,7 +172,12 @@ class MainTest(unittest.TestCase):
             fin.read().strip(), datetime.datetime.now().strftime("%Y-%m-%d"))
 
   def test_inline_test_specs(self):
-    main.run_tests(['--yaml_pipeline', TEST_PIPELINE, '--test'], exit=False)
+    for flag in ['--tests', '--test']:
+      known_args, pipeline_args = main._parse_arguments(
+          ['--yaml_pipeline', TEST_PIPELINE, flag])
+      self.assertTrue(known_args.tests)
+      self.assertEqual(pipeline_args, [])
+      main.run_tests(['--yaml_pipeline', TEST_PIPELINE, flag], exit=False)
 
   def test_external_test_specs(self):
     with tempfile.TemporaryDirectory() as tmpdir:

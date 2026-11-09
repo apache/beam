@@ -29,12 +29,12 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -91,17 +91,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
 
     if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
       return READ_UNBOUNDED;
-    }
-
-    if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
-      throw new UnsupportedOperationException(
-          "Bounded Read (Read.from(BoundedSource), Create with two or more elements)"
-              + NOT_SUPPORTED);
-    }
-
-    if (transform instanceof Impulse) {
-      throw new UnsupportedOperationException(
-          "Impulse (Create with fewer than two elements, PAssert)" + NOT_SUPPORTED);
     }
 
     if (transform instanceof GroupByKey) {
@@ -175,7 +164,8 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
   private static void checkSupportedGroupByKey(PCollection<?> input) {
     WindowingStrategy<?, ?> strategy = input.getWindowingStrategy();
     checkNotMergingWindows(strategy, "GroupByKey");
-    if (!(strategy.getTrigger() instanceof DefaultTrigger)) {
+    if (!(strategy.getTrigger() instanceof DefaultTrigger
+        || strategy.getTrigger() instanceof NeverTrigger)) {
       throw new UnsupportedOperationException(
           "Custom triggers (" + strategy.getTrigger() + ")" + NOT_SUPPORTED);
     }

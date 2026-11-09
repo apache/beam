@@ -81,10 +81,10 @@ jobs:
           branchName=upgrade_gcp_bom_${LATEST_VER//./_}
           git checkout -b $branchName
           git add -A
-          git diff-index --quiet HEAD || gitdiff=$? || echo $?
-          if [[ $gitDiff != 0 ]]; then
+          if ! git diff --cached --quiet; then
             echo "Changes are ready to commit"
             git commit -m "Upgrade GCP Libraries BOM to ${LATEST_VER}" --quiet
+            gh auth setup-git
             git push origin $branchName --quiet
             
             PR_BODY="This PR was created by automation. It upgrades the Google Cloud Platform Libraries BOM from **${CURRENT_VER}** to **${LATEST_VER}** and updates Netty, gRPC, Arrow, Gax, Protobuf, and OpenTelemetry versions to match.

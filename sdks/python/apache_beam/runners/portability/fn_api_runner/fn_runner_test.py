@@ -207,6 +207,56 @@ class FnApiRunnerTest(unittest.TestCase):
 
         assert_that(res, equal_to([9, 15, 21]))
 
+  @pytest.mark.uses_pyarrow
+  def test_batch_rebatch_pardos_into_multi_column_batches(self):
+    # Rebatching passes the producer's exploded elements to the consumer's
+    # batch converter, which may read them more than once: the pyarrow Table
+    # converter reads them once per column.
+    import pyarrow as pa
+
+    from apache_beam.typehints.row_type import RowTypeConstraint
+
+    class ListBatchDoFn(beam.DoFn):
+      def process_batch(self, batch, *unused_args, **unused_kwargs):
+        assert isinstance(batch, list)
+        yield batch
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        return list[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return list[input_element_type]
+
+    class TableBatchDoFn(beam.DoFn):
+      def process_batch(self, batch, *unused_args, **unused_kwargs):
+        assert isinstance(batch, pa.Table)
+        yield batch
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        return pa.Table
+
+      def get_output_batch_type(self, input_element_type):
+        return pa.Table
+
+    row_type = RowTypeConstraint.from_fields([('id', int), ('name', str)])
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([
+              beam.Row(id=1, name='Ada'), beam.Row(id=2, name='Grace')
+          ]).with_output_types(row_type)
+          | beam.ParDo(ListBatchDoFn())
+          | beam.ParDo(TableBatchDoFn())
+          | beam.Map(lambda row: (row.id, row.name)))
+
+      assert_that(res, equal_to([(1, 'Ada'), (2, 'Grace')]))
+
   def test_batch_pardo_fusion_break(self):
     class NormalizeDoFn(beam.DoFn):
       @no_type_check
@@ -268,6 +318,29 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(ConsumeParamsDoFn()))
 
       assert_that(res, equal_to([0, 1, 0, 3, 0, 5, 0, 7, 0, 9]))
+
+  def test_batch_pardo_default_element(self):
+    class ProcessDefaults(beam.DoFn):
+      @no_type_check
+      def process_batch(
+          self,
+          batch: np.ndarray = None,
+          ts=beam.DoFn.TimestampParam,
+          side_input=3) -> Iterator[np.ndarray]:
+        yield batch * (ts.seconds() + side_input)
+
+      def infer_output_type(self, input_type):
+        return input_type
+
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.Map(lambda value: window.TimestampedValue(value, 123)).
+          with_output_types(np.int64)
+          | beam.ParDo(ProcessDefaults(), 2))
+      assert_that(result, equal_to([125, 250, 375]))
 
   def test_batch_pardo_window_param(self):
     class PerWindowDoFn(beam.DoFn):

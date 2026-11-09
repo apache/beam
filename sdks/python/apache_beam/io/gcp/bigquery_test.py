@@ -66,6 +66,7 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamin
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -892,16 +893,17 @@ class TestReadFromBigQuery(unittest.TestCase):
 class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   """Tests for quota_project_id in ReadFromBigQuery sources."""
   def test_quota_project_id_from_pipeline_options(self):
-    """Test that quota_project_id is read from GoogleCloudOptions."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
-    gcp_options = options.view_as(GoogleCloudOptions)
-    self.assertEqual(gcp_options.quota_project_id, 'my-billing-project')
+    """Test that quota_project_id is read from BigQueryOptions."""
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.bigquery_quota_project_id, 'my-billing-project')
 
   def test_quota_project_id_none_by_default_in_options(self):
     """Test that quota_project_id is None by default in options."""
     options = PipelineOptions([])
-    gcp_options = options.view_as(GoogleCloudOptions)
-    self.assertIsNone(gcp_options.quota_project_id)
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.bigquery_quota_project_id)
 
   def test_export_source_explicit_quota_project(self):
     """Test that explicit quota_project_id is stored in
@@ -916,7 +918,8 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   def test_export_source_gets_quota_from_options(self):
     """Test that _CustomBigQuerySource falls back to options for
     quota_project_id."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
         table='project:dataset.table',
@@ -925,7 +928,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
 
   def test_export_source_explicit_overrides_options(self):
     """Test that explicit quota_project_id overrides options."""
-    options = PipelineOptions(['--quota_project_id=options-project'])
+    options = PipelineOptions(['--bigquery_quota_project_id=options-project'])
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
         table='project:dataset.table',
@@ -945,7 +948,8 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
 
   def test_storage_source_gets_quota_from_options(self):
     """Test that _CustomBigQueryStorageSource falls back to options."""
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     source = beam_bq._CustomBigQueryStorageSource(
         method=ReadFromBigQuery.Method.DIRECT_READ,
         table='project:dataset.table',
@@ -955,7 +959,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
   def test_export_source_split_passes_quota_to_client(self, mock_bq_client):
     """split() must pass the transform-level quota_project_id to the BigQuery
-    client, not only the --quota_project_id pipeline option."""
+    client, not only the --bigquery_quota_project_id pipeline option."""
     mock_bq_client.side_effect = RuntimeError('stop')
     source = beam_bq._CustomBigQuerySource(
         method=ReadFromBigQuery.Method.EXPORT,
@@ -972,7 +976,7 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
   @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
   def test_storage_source_split_passes_quota_to_client(self, mock_bq_client):
     """split() must pass the transform-level quota_project_id to the BigQuery
-    client, not only the --quota_project_id pipeline option."""
+    client, not only the --bigquery_quota_project_id pipeline option."""
     mock_bq_client.side_effect = RuntimeError('stop')
     source = beam_bq._CustomBigQueryStorageSource(
         method=ReadFromBigQuery.Method.DIRECT_READ,
@@ -1204,7 +1208,8 @@ class TestWriteToBigQueryQuotaProject(unittest.TestCase):
         mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_stream_to_bigquery_resolves_quota_project_from_options(self):
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     p = TestPipeline(options=options)
     with mock.patch.object(
         beam_bq.BigQueryWriteFn,
@@ -2996,11 +3001,29 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   def test_failure_in_some_rows_does_not_duplicate(self, retry_strategy=None):
     with mock.patch('time.sleep'):
       # In this test we simulate a failure to write out two out of three rows.
-      # Row 0 and row 2 fail to be written on the first attempt, and then
-      # succeed on the next attempt (if there is one).
+      # Rows 'value1' and 'value5' fail to be written on the first attempt, and
+      # then succeed on the next attempt (if there is one).
       tempdir = '%s%s' % (self._new_tempdir(), os.sep)
       file_name_1 = os.path.join(tempdir, 'file1_partial')
       file_name_2 = os.path.join(tempdir, 'file2_partial')
+
+      # Errors to return on the first attempt, keyed by 'columnA' of the failed
+      # rows. Failed rows are identified by their value rather than by their
+      # position in the batch, since _StreamToBigQuery assigns random shard
+      # keys and reshuffles the rows, so the order in which they reach the
+      # client is not guaranteed to match the input order.
+      first_attempt_errors = {
+          'value1': [{
+              'reason': 'i dont like this row'
+          }, {
+              'reason': 'its bad'
+          }],
+          'value5': [{
+              'reason': 'i het this row'
+          }, {
+              'reason': 'its no gud'
+          }],
+      }
 
       def store_callback(table, **kwargs):
         insert_ids = [r for r in kwargs['row_ids']]
@@ -3008,11 +3031,17 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
 
         # The first time this function is called, all rows are included
         # so we need to filter out 'failed' rows.
+        passed_indices = [
+            i for i, value in enumerate(colA_values)
+            if value not in first_attempt_errors
+        ]
         json_output_1 = {
-            'insertIds': [insert_ids[1]], 'colA_values': [colA_values[1]]
+            'insertIds': [insert_ids[i] for i in passed_indices],
+            'colA_values': [colA_values[i] for i in passed_indices]
         }
-        # The second time this function is called, only rows 0 and 2 are incl
-        # so we don't need to filter any of them. We just write them all out.
+        # The second time this function is called, only the rows that failed
+        # the first time are included, so we don't need to filter any of them.
+        # We just write them all out.
         json_output_2 = {'insertIds': insert_ids, 'colA_values': colA_values}
 
         # The first time we try to insert, we save those insertions in
@@ -3020,24 +3049,10 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
         if not os.path.exists(file_name_1):
           with open(file_name_1, 'w') as f:
             json.dump(json_output_1, f)
-          return [
-              {
-                  'index': 0,
-                  'errors': [{
-                      'reason': 'i dont like this row'
-                  }, {
-                      'reason': 'its bad'
-                  }]
-              },
-              {
-                  'index': 2,
-                  'errors': [{
-                      'reason': 'i het this row'
-                  }, {
-                      'reason': 'its no gud'
-                  }]
-              },
-          ]
+          return [{
+              'index': i, 'errors': first_attempt_errors[value]
+          } for i, value in enumerate(colA_values)
+                  if value in first_attempt_errors]
         else:
           with open(file_name_2, 'w') as f:
             json.dump(json_output_2, f)

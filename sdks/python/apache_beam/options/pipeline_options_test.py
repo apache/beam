@@ -1284,6 +1284,7 @@ class BigQueryOptionsTest(unittest.TestCase):
   # beam:option:<dest>:v1, and Java derives the property name from <dest>.
   JAVA_OPTION_NAMES = {
       'big_query_endpoint': 'bigQueryEndpoint',
+      'big_query_quota_project_id': 'bigQueryQuotaProjectId',
   }
 
   def test_option_names_map_to_java_option_names(self):
@@ -1297,12 +1298,19 @@ class BigQueryOptionsTest(unittest.TestCase):
       self.assertEqual(_java_option_name(dest), java_name)
 
   def test_options_serialized_with_java_compatible_names(self):
-    options = PipelineOptions(['--bigquery_endpoint=https://bq.example.com'])
+    options = PipelineOptions([
+        '--bigquery_endpoint=https://bq.example.com',
+        '--bigquery_quota_project_id=billing-project',
+    ])
     fields = options.to_runner_api().fields
     self.assertEqual(
         fields['beam:option:big_query_endpoint:v1'].string_value,
         'https://bq.example.com')
     self.assertNotIn('beam:option:bigquery_endpoint:v1', fields)
+    self.assertEqual(
+        fields['beam:option:big_query_quota_project_id:v1'].string_value,
+        'billing-project')
+    self.assertNotIn('beam:option:bigquery_quota_project_id:v1', fields)
 
   @parameterized.expand([
       ('--bigquery_endpoint', ),
@@ -1316,6 +1324,24 @@ class BigQueryOptionsTest(unittest.TestCase):
     bq_options = options.view_as(BigQueryOptions)
     self.assertEqual(bq_options.big_query_endpoint, 'https://bq.example.com')
     self.assertEqual(bq_options.bigquery_endpoint, 'https://bq.example.com')
+
+  @parameterized.expand([
+      ('--bigquery_quota_project_id', ),
+      ('--big_query_quota_project_id', ),
+  ])
+  def test_quota_project_id_flags(self, flag):
+    options = PipelineOptions([flag, 'billing-project'])
+    self.assertEqual(
+        options.get_all_options()['big_query_quota_project_id'],
+        'billing-project')
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.big_query_quota_project_id, 'billing-project')
+    self.assertEqual(bq_options.bigquery_quota_project_id, 'billing-project')
+
+  def test_quota_project_id_default(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.big_query_quota_project_id)
+    self.assertIsNone(bq_options.bigquery_quota_project_id)
 
   def test_endpoint_default(self):
     bq_options = PipelineOptions([]).view_as(BigQueryOptions)
