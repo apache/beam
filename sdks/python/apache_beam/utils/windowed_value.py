@@ -42,6 +42,7 @@ from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused
 
 _MIN_TIMESTAMP_MICROS = MIN_TIMESTAMP.micros
 _MAX_TIMESTAMP_MICROS = MAX_TIMESTAMP.micros
+_MAX_INT64_SECONDS = _MAX_TIMESTAMP_MICROS // 1000000
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
@@ -397,7 +398,9 @@ class _IntervalWindowBase(object):
   """
   def __init__(self, start, end):
     # type: (TimestampTypes, TimestampTypes) -> None
-    if isinstance(start, int) and -9223372036854 <= start <= 9223372036854:
+    # Fast-path int seconds when start * 1_000_000 fits in int64_t micros.
+    if (isinstance(start, int) and
+        -_MAX_INT64_SECONDS <= start <= _MAX_INT64_SECONDS):
       self._start_micros = start * 1000000
       self._start_object = None
     elif start is not None:
@@ -410,9 +413,11 @@ class _IntervalWindowBase(object):
             _MIN_TIMESTAMP_MICROS
             if self._start_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
+      # Micros must be populated elsewhere.
       self._start_object = None
 
-    if isinstance(end, int) and -9223372036854 <= end <= 9223372036854:
+    if (isinstance(end, int) and
+        -_MAX_INT64_SECONDS <= end <= _MAX_INT64_SECONDS):
       self._end_micros = end * 1000000
       self._end_object = None
     elif end is not None:
@@ -425,6 +430,7 @@ class _IntervalWindowBase(object):
             _MIN_TIMESTAMP_MICROS
             if self._end_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
+      # Micros must be populated elsewhere.
       self._end_object = None
 
   @property
