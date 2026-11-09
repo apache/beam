@@ -270,7 +270,17 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
-      run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
+      # note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
+      run: |
+        cibuildwheel --print-build-identifiers
+        for attempt in 1 2 3; do
+          if cibuildwheel --output-dir wheelhouse; then
+            exit 0
+          fi
+          echo "cibuildwheel failed on attempt ${attempt}. Will retry."
+          rm -rf wheelhouse
+        done
+        exit 1
       shell: bash
     - name: install sha512sum on MacOS
       if: startsWith(matrix.os_python.os, 'macos')
@@ -298,7 +308,17 @@ jobs:
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
-      run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
+      # note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
+      run: |
+        cibuildwheel --print-build-identifiers
+        for attempt in 1 2 3; do
+          if cibuildwheel --output-dir wheelhouse; then
+            exit 0
+          fi
+          echo "cibuildwheel failed on attempt ${attempt}. Will retry."
+          rm -rf wheelhouse
+        done
+        exit 1
       shell: bash
     - name: Add RC checksums
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
