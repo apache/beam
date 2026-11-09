@@ -20,11 +20,13 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -108,6 +110,7 @@ public class ReadSourcePortableTest implements Serializable {
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    options.as(PortablePipelineOptions.class).setEnvironmentCacheMillis(10_000);
     Pipeline p = Pipeline.create(options);
     PCollection<Long> result =
         p.apply(Read.from(new Source(10)))
@@ -134,7 +137,7 @@ public class ReadSourcePortableTest implements Serializable {
     JobInvocation jobInvocation =
         FlinkJobInvoker.create(null)
             .createJobInvocation(
-                "fakeId",
+                "fakeId-" + UUID.randomUUID(),
                 "fakeRetrievalToken",
                 flinkJobExecutor,
                 pipelineProto,
@@ -142,9 +145,15 @@ public class ReadSourcePortableTest implements Serializable {
                 new FlinkPipelineRunner(
                     options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
-      assertThat(jobInvocation.getState(), not(JobState.Enum.FAILED));
-      Thread.sleep(100);
+    try {
+      while (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        Thread.sleep(100);
+      }
+      assertEquals(JobState.Enum.DONE, jobInvocation.getState());
+    } finally {
+      if (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        jobInvocation.cancel();
+      }
     }
   }
 
