@@ -110,6 +110,7 @@
 * (Java) Flink runner: the batch-only `--lazyBatchGroupingInputs` option is enabled by default (disable it with `--lazyBatchGroupingInputs=false`). Records sent to GroupByKey and Combine operators keep their values encoded until they are accessed, so Flink can move them from the network into its sorter without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Java) Flink runner: the batch-only `--lengthPrefixBatchRecords` option is enabled by default (disable it with `--lengthPrefixBatchRecords=false`). Each record is prefixed with its encoded length, so Flink's sorter can spill records to disk without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Java) Flink runner: the batch-only `--sortedBatchCombine` option is enabled by default (disable it with `--sortedBatchCombine=false`). GroupByKey and Combine in the global window with the default trigger then finish with a dedicated operator that relies on Flink sorting its input by key, instead of keyed state and timers ([#40607](https://github.com/apache/beam/issues/40607)).
 
 ## Breaking Changes
 
@@ -138,6 +139,7 @@
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
+* (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -235,6 +237,7 @@
 * (Python) `VertexAIFeatureStoreEnrichmentHandler` now logs a warning instead of failing when the caller lacks permission to read the feature store metadata ([#40442](https://github.com/apache/beam/issues/40442)).
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 * (Java) Fixed BigQuery Storage Write API failure outputs returning the wrong original row after consecutive serialization errors ([#39999](https://github.com/apache/beam/pull/39999)).
+* (Java) `BigQueryIO.Write.withMaxRetryJobs` is now honored for bounded (batch) pipelines using `FILE_LOADS`, which previously always retried failed load jobs 3 times. Pipelines that never call it keep their existing defaults ([#28281](https://github.com/apache/beam/issues/28281)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
 * (Python) Fixed `AsyncWrapper` finalizing bundles before generator processing, which could drop buffered writes, and nesting iterable outputs ([#40000](https://github.com/apache/beam/pull/40000)).
