@@ -1854,8 +1854,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     std_x = self.std()
     std_y = other.std()
     cov = self._cov_aligned(other, min_periods)
+    # Like pandas, a series with no variance has a NaN correlation.
     return cov.apply(
-        lambda cov, std_x, std_y: cov / (std_x * std_y), args=[std_x, std_y])
+        lambda cov, std_x, std_y: cov / (std_x * std_y)
+        if std_x * std_y else float('nan'),
+        args=[std_x, std_y])
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
@@ -3082,16 +3085,23 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       columns = list(proxy.columns)
       args = []
       arg_indices = []
+      for col in columns:
+        arg_indices.append((col, col))
+        x = self[col].dropna()
+        args.append(x._cov_aligned(x, min_periods))
       for col1, col2 in itertools.combinations(columns, 2):
         arg_indices.append((col1, col2))
         args.append(self[col1].corr(self[col2], method=method,
                                     min_periods=min_periods))
       def fill_matrix(*args):
         data = collections.defaultdict(dict)
-        for col in columns:
-          data[col][col] = 1.0
         for ix, (col1, col2) in enumerate(arg_indices):
-          data[col1][col2] = data[col2][col1] = args[ix]
+          if col1 == col2:
+            # The diagonal is NaN for a column with fewer than min_periods
+            # values or no variance, as in pandas.
+            data[col1][col1] = 1.0 if args[ix] > 0 else float('nan')
+          else:
+            data[col1][col2] = data[col2][col1] = args[ix]
         return pd.DataFrame(data, columns=columns, index=columns)
       with expressions.allow_non_parallel_operations(True):
         return frame_base.DeferredFrame.wrap(
@@ -3123,8 +3133,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     arg_indices = []
     for col in columns:
       arg_indices.append((col, col))
-      std = self[col].std(ddof)
-      args.append(std.apply(lambda x: x*x, 'square'))
+      x = self[col].dropna()
+      args.append(x._cov_aligned(x, min_periods, ddof))
     for ix, col1 in enumerate(columns):
       for col2 in columns[ix+1:]:
         arg_indices.append((col1, col2))

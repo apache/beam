@@ -941,6 +941,21 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df, df2: df.corrwith(df2, axis=1), df, df2, check_proxy=False)
 
+  def test_dataframe_cov_corr_diagonal(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.cov(ddof=0), df)
+    self._run_test(lambda df: df.cov(ddof=2), df)
+
+    df.loc[df.index[:5], 'a'] = np.nan
+    self._run_test(lambda df: df.cov(min_periods=16), df)
+    self._run_test(lambda df: df.corr(min_periods=16), df)
+
+  def test_corr_no_variance(self):
+    df = pd.DataFrame({'a': np.random.randn(10), 'b': 1.0})
+    self._run_test(lambda df: df.a.corr(df.b), df)
+    self._run_test(lambda df: df.b.corr(df.b), df)
+    self._run_test(lambda df: df.corr(), df)
+
   def test_corrwith_bad_axis(self):
     df = pd.DataFrame({'a': range(3), 'b': range(3, 6), 'c': range(6, 9)})
     self._run_error_test(lambda df: df.corrwith(df.a, axis=2), df)
