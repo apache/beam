@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -202,9 +201,6 @@ public class StorageApiSinkRowUpdateIT {
   }
 
   private void runPipelineAndWait(Pipeline p) {
-    // Run on a single DirectRunner thread so concurrent bundles do not share a closed
-    // StreamWriter while the destination table is being created on the first write retry.
-    p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
     PipelineResult result = p.run();
     result.waitUntilFinish();
   }

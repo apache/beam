@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
@@ -183,7 +182,6 @@ public class BigQueryIOIcebergManagedTableIT {
       @Nullable TableSchema schema,
       boolean withBigLakeConfiguration) {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-    p.getOptions().as(DirectOptions.class).setTargetParallelism(1);
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to(tableSpec(table))

@@ -829,7 +829,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 }
                 return response;
               } catch (Exception e) {
-                throw new RuntimeException(e);
+                return ApiFutures.immediateFailedFuture(e);
               }
             },
             contexts -> {
@@ -1013,11 +1013,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + failedContext.offset);
               }
 
+              boolean streamWriterClosed = error instanceof Exceptions.StreamWriterClosedException;
               boolean hasPersistentErrors =
                   failedContext.getError() instanceof Exceptions.StreamFinalizedException
                       || statusCode.equals(Status.Code.INVALID_ARGUMENT)
                       || (!this.useDefaultStream && statusCode.equals(Status.Code.NOT_FOUND))
-                      || statusCode.equals(Status.Code.FAILED_PRECONDITION);
+                      || (statusCode.equals(Status.Code.FAILED_PRECONDITION)
+                          && !streamWriterClosed);
               hasPersistentErrors = hasPersistentErrors && !schemaMismatchError;
               if (hasPersistentErrors) {
                 throw new RuntimeException(
