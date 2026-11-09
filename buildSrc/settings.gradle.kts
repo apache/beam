@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import java.util.Properties
-
 pluginManagement {
-  val parentProperties = Properties().apply {
+  val parentProperties = java.util.Properties().apply {
     val file = file("../gradle.properties")
     if (file.exists()) {
       file.inputStream().use { load(it) }
