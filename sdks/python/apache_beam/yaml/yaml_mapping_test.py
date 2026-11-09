@@ -541,6 +541,19 @@ class YamlMappingTest(unittest.TestCase):
                 fields: [timestamp]
             ''')
 
+  def test_extract_windowing_info_invalid_fields_type(self):
+    with self.assertRaisesRegex(
+        TypeError, 'Fields must be a mapping or iterable of strings, got 123'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([beam.Row(value='a')])
+        _ = elements | YamlTransform(
+            '''
+            type: ExtractWindowingInfo
+            config:
+                fields: 123
+            ''')
+
   def test_extract_windowing_info_iterable(self):
     T = typing.TypeVar('T')
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -623,6 +636,22 @@ class ValidateGenericExpressionTest(unittest.TestCase):
                                                self.FIELDS,
                                                False,
                                                'field')
+
+
+class AsCallableTest(unittest.TestCase):
+  def test_non_dict_expression_raises_value_error(self):
+    for bad_expr in (42, [1, 2], True):
+      with self.subTest(expr=bad_expr):
+        with self.assertRaisesRegex(ValueError, 'Ambiguous expression type'):
+          yaml_mapping._as_callable(
+              ['a', 'b'], bad_expr, 'fields', 'python', {'a': int})
+
+  def test_original_field_defaults_to_python_and_preserves_dict(self):
+    expr_dict = dict(expression='a', output_type='integer')
+    fn = yaml_mapping._as_callable(
+        ['a', 'b'], expr_dict, 'fields', 'javascript', {'a': int})
+    self.assertEqual(expr_dict, dict(expression='a', output_type='integer'))
+    self.assertEqual(fn(beam.Row(a=10, b='x')), 10)
 
 
 if __name__ == '__main__':

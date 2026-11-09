@@ -919,10 +919,10 @@ def expand_chain_transform(spec, scope):
 
 def chain_as_composite(spec):
   def is_not_output_of_last_transform(new_transforms, value):
+    last = new_transforms[-1]
     return (
-        ('name' in new_transforms[-1] and
-         value != new_transforms[-1]['name']) or
-        ('type' in new_transforms[-1] and value != new_transforms[-1]['type']))
+        ('name' in last or 'type' in last) and
+        value not in (last.get('name'), last.get('type')))
 
   # A chain is simply a composite transform where all inputs and outputs
   # are implicit.

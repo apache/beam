@@ -130,7 +130,7 @@ class PyJsYamlCombine(beam.PTransform):
           fn = fn(**fn_spec['config'])
         return fn
       else:
-        raise TypeError('Unknown CombineFn: {fn_spec}')
+        raise TypeError(f'Unknown CombineFn: {fn_spec}')
 
     def extract_return_type(expr):
       if isinstance(expr, str) and expr in input_types:

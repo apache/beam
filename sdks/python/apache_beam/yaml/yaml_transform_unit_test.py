@@ -270,6 +270,39 @@ class MainTest(unittest.TestCase):
         chain_as_composite(spec)['output']['output'],
         f"{spec['transforms'][1]['__uuid__']}.PyMap")
 
+  def test_chain_as_composite_with_named_last_transform_output(self):
+    spec_by_name = '''
+        type: chain
+        transforms:
+        - type: Create
+          elements: [0,1,2]
+        - type: PyMap
+          name: MySquare
+          fn: 'lambda x: x*x'
+        output:
+          MySquare
+      '''
+    spec_by_name = yaml.load(spec_by_name, Loader=SafeLineLoader)
+    self.assertEqual(
+        chain_as_composite(spec_by_name)['output']['output'],
+        f"{spec_by_name['transforms'][1]['__uuid__']}.MySquare")
+
+    spec_by_type = '''
+        type: chain
+        transforms:
+        - type: Create
+          elements: [0,1,2]
+        - type: PyMap
+          name: MySquare
+          fn: 'lambda x: x*x'
+        output:
+          PyMap
+      '''
+    spec_by_type = yaml.load(spec_by_type, Loader=SafeLineLoader)
+    self.assertEqual(
+        chain_as_composite(spec_by_type)['output']['output'],
+        f"{spec_by_type['transforms'][1]['__uuid__']}.PyMap")
+
   def test_chain_as_composite_with_input(self):
     spec = '''
         type: chain
