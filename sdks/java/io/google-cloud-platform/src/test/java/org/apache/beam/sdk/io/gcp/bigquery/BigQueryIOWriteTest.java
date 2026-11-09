@@ -3244,6 +3244,9 @@ public class BigQueryIOWriteTest implements Serializable {
 
     TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> expectedTag =
         expectedNumPartitionsPerTable > 1 ? multiPartitionsTag : singlePartitionTag;
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> unexpectedTag =
+        expectedNumPartitionsPerTable > 1 ? singlePartitionTag : multiPartitionsTag;
+    PAssert.that(outputs.get(unexpectedTag)).empty();
     PAssert.that(outputs.get(expectedTag))
         .satisfies(
             partitions -> {
