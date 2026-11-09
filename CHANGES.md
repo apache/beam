@@ -113,7 +113,6 @@
 * (Java) Flink runner: the batch-only `--lengthPrefixBatchRecords` option is enabled by default (disable it with `--lengthPrefixBatchRecords=false`). Each record is prefixed with its encoded length, so Flink's sorter can spill records to disk without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Java) Flink runner: the batch-only `--sortedBatchCombine` option is enabled by default (disable it with `--sortedBatchCombine=false`). GroupByKey and Combine in the global window with the default trigger then finish with a dedicated operator that relies on Flink sorting its input by key, instead of keyed state and timers ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Java) Flink runner: `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
 
 ## Breaking Changes
 
