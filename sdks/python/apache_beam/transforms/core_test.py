@@ -800,6 +800,7 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
 class SubprocessDoFnTest(unittest.TestCase):
   def test_call_remote_retries_broken_process_pool_on_init(self):
     import concurrent.futures
+    import concurrent.futures.process
     from unittest import mock
 
     dofn = beam.core._SubprocessDoFn(beam.core.CallableWrapperDoFn(lambda x: x))
