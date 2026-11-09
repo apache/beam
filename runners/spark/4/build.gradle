@@ -109,15 +109,6 @@ tasks.register("validatesStructuredStreamingRunnerStreaming", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoTaggedOutputWithTimestamp'
     excludeTestsMatching 'org.apache.beam.sdk.values.PCollectionTupleTest.testComposePCollectionTuple'
 
-    // TODO(https://github.com/apache/beam/issues/40950): Redistribute expands to GroupByKey with ReshuffleTrigger
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testJustRedistribute'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterFixedWindows'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterFixedWindowsAndGroupByKey'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSlidingWindows'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSlidingWindowsAndGroupByKey'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesTimestamps'
-
     // TODO(https://github.com/apache/beam/issues/36841): PeriodicImpulse uses a splittable DoFn
     excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithShuffle'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithoutShuffle'
