@@ -528,5 +528,25 @@ func TestTimerHandler_Clear(t *testing.T) {
 		if got := th.Peek(); got != mtime.MaxTimestamp {
 			t.Errorf("Peek() after FireAt = %v, want %v", got, mtime.MaxTimestamp)
 		}
+
+		// Clearing a prior bundle's hold and re-adding or replacing onto the same
+		// hold timestamp in one holdChanges map cancels the delta back to empty.
+		priorHolds := map[mtime.Time]int{}
+		th.Persist(fireTime1, setElem(userKey1, eventTime1, holdTime1, "tag1", glo), priorHolds)
+		th.Persist(fireTime1, setElem(userKey1, eventTime1, holdTime2, "tag2", glo), priorHolds)
+
+		bundleHolds := map[mtime.Time]int{}
+		th.Persist(0, clearElem(userKey1, "tag1", glo), bundleHolds)
+		th.Persist(fireTime2, setElem(userKey1, eventTime2, holdTime1, "tag3", glo), bundleHolds)
+		if d := cmp.Diff(map[mtime.Time]int{}, bundleHolds); d != "" {
+			t.Errorf("bundleHolds after clear+insert diff (-want,+got):\n%s", d)
+		}
+
+		replaceHolds := map[mtime.Time]int{}
+		th.Persist(0, clearElem(userKey1, "tag3", glo), replaceHolds)
+		th.Persist(fireTime3, setElem(userKey1, eventTime2, holdTime1, "tag2", glo), replaceHolds)
+		if d := cmp.Diff(map[mtime.Time]int{holdTime2: -1}, replaceHolds); d != "" {
+			t.Errorf("replaceHolds after clear+replace diff (-want,+got):\n%s", d)
+		}
 	})
 }
