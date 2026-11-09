@@ -27,10 +27,12 @@ import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
@@ -49,8 +51,10 @@ public class SolaceMessageProducer implements MessageProducer {
       Solace.Record record,
       Destination topicOrQueue,
       boolean useCorrelationKeyLatency,
-      DeliveryMode deliveryMode) {
-    BytesXMLMessage msg = createMessage(record, useCorrelationKeyLatency, deliveryMode);
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue) {
+    BytesXMLMessage msg =
+        createMessage(record, useCorrelationKeyLatency, deliveryMode, resultsQueue);
     Callable<Integer> publish =
         () -> {
           producer.send(msg, topicOrQueue);
@@ -65,10 +69,11 @@ public class SolaceMessageProducer implements MessageProducer {
       List<Solace.Record> records,
       boolean useCorrelationKeyLatency,
       SerializableFunction<Solace.Record, Destination> destinationFn,
-      DeliveryMode deliveryMode) {
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue) {
     JCSMPSendMultipleEntry[] batch =
         createJCSMPSendMultipleEntry(
-            records, useCorrelationKeyLatency, destinationFn, deliveryMode);
+            records, useCorrelationKeyLatency, destinationFn, deliveryMode, resultsQueue);
     Callable<Integer> publish = () -> producer.sendMultiple(batch, 0, batch.length, 0);
     return retryCallableManager.retryCallable(publish, ImmutableSet.of(JCSMPException.class));
   }

@@ -24,9 +24,11 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFn} that writes side input data using {@link
@@ -82,5 +84,10 @@ public class StreamingPCollectionViewWriterParDoFn implements ParDoFn {
   @Override
   public void abort() throws Exception {
     // no-op as long as it remains stateless
+  }
+
+  @Override
+  public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+    return null;
   }
 }
