@@ -274,11 +274,10 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       }
       successorOffset += 1;
     }
-    CloudObject cloudUserFn = CloudObject.fromSpec(parDo.getUserFn());
     ParDoFn fn =
         parDoFnFactory.create(
             options,
-            cloudUserFn,
+            CloudObject.fromSpec(parDo.getUserFn()),
             parDo.getSideInputs(),
             mainOutputTag,
             outputTagsToReceiverIndicesBuilder.build(),
