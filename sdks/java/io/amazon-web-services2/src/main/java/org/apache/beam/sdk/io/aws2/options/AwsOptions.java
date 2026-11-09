@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.options;
 
 import java.net.URI;
+import org.apache.beam.sdk.io.aws2.auth.SecretCredentialsProvider;
 import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.sdk.io.aws2.auth.WebIdTokenProvider;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
@@ -44,9 +45,10 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCred
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  *
- * <p>The options {@code --awsRegionName} and {@code --awsEndpointUrl} have the same names as the
- * {@code --aws_region_name} and {@code --aws_endpoint_url} options of the Python SDK, so they are
- * shared in cross-language pipelines.
+ * <p>The options {@code --awsRegionName}, {@code --awsEndpointUrl}, {@code --awsAccessKeyId},
+ * {@code --awsSecretAccessKey}, {@code --awsSessionToken} and {@code --awsCredentialsSecretManager}
+ * have the same names as the {@code --aws_*} options of the Python SDK, so they are shared in
+ * cross-language pipelines.
  */
 public interface AwsOptions extends PipelineOptions {
 
@@ -132,6 +134,74 @@ public interface AwsOptions extends PipelineOptions {
       return AwsOptionsResolver.parseEndpointUrl(options.as(AwsOptions.class).getAwsEndpointUrl());
     }
   }
+
+  /**
+   * The AWS access key ID used to configure AWS service clients.
+   *
+   * <p>Must be set together with {@link #getAwsSecretAccessKey()}. If {@link
+   * #getAwsCredentialsSecretManager()} is set, this is a secret spec parsed by that secret manager
+   * (see {@link SecretCredentialsProvider}). Otherwise, it is the raw access key ID.
+   *
+   * <p>Cannot be combined with an explicitly set {@link #getAwsCredentialsProvider()}.
+   */
+  @Description(
+      "The access key ID used by AWS service clients. If --awsCredentialsSecretManager is set, "
+          + "this is a secret spec parsed by that secret manager. Cannot be combined with "
+          + "--awsCredentialsProvider.")
+  @Nullable String getAwsAccessKeyId();
+
+  void setAwsAccessKeyId(String value);
+
+  /**
+   * The AWS secret access key used to configure AWS service clients.
+   *
+   * <p>See {@link #getAwsAccessKeyId()}.
+   */
+  @Description(
+      "The secret access key used by AWS service clients. If --awsCredentialsSecretManager is set, "
+          + "this is a secret spec parsed by that secret manager. Cannot be combined with "
+          + "--awsCredentialsProvider.")
+  @Nullable String getAwsSecretAccessKey();
+
+  void setAwsSecretAccessKey(String value);
+
+  /**
+   * The optional AWS session token used to configure AWS service clients.
+   *
+   * <p>See {@link #getAwsAccessKeyId()}.
+   */
+  @Description(
+      "The session token used by AWS service clients. If --awsCredentialsSecretManager is set, "
+          + "this is a secret spec parsed by that secret manager. Cannot be combined with "
+          + "--awsCredentialsProvider.")
+  @Nullable String getAwsSessionToken();
+
+  void setAwsSessionToken(String value);
+
+  /**
+   * The secret manager used to parse {@link #getAwsAccessKeyId()}, {@link #getAwsSecretAccessKey()}
+   * and {@link #getAwsSessionToken()} as secret specs, e.g. {@code GoogleCloudSecretManager}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code --awsCredentialsSecretManager=GoogleCloudSecretManager
+   * --awsAccessKeyId='{"name": "my-aws-key-id", "project": "my-project"}'
+   * --awsSecretAccessKey='{"name": "my-aws-secret-key", "project": "my-project"}'
+   * }</pre>
+   *
+   * <p>The credentials are fetched when they are first needed, typically on the workers, so only
+   * the secret specs are part of the pipeline options. AWS Secrets Manager cannot be used here,
+   * because the AWS credentials are needed to access it.
+   */
+  @Description(
+      "Secret manager used to parse --awsAccessKeyId, --awsSecretAccessKey and --awsSessionToken "
+          + "as secret specs (a JSON string or plain text), e.g. GoogleCloudSecretManager. For "
+          + "example: --awsCredentialsSecretManager=GoogleCloudSecretManager "
+          + "--awsSecretAccessKey='{\"name\": \"my-key\", \"project\": \"p\"}'. If not set, these "
+          + "options are used as raw credentials.")
+  @Nullable String getAwsCredentialsSecretManager();
+
+  void setAwsCredentialsSecretManager(String value);
 
   /**
    * {@link AwsCredentialsProvider} used to configure AWS service clients.
@@ -224,6 +294,24 @@ public interface AwsOptions extends PipelineOptions {
    *   "durationSeconds": 3600
    * }}</pre>
    *
+   * <li>{@link SecretCredentialsProvider}
+   *
+   *     <p>Resolves static credentials through a secret manager. Only the secret specs are
+   *     serialized. Usually configured with {@link #getAwsCredentialsSecretManager()} instead.
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "SecretCredentialsProvider",
+   *   "secretManager": "GoogleCloudSecretManager",
+   *   "accessKeyId": {"name": "my-aws-key-id", "project": "my-project"},
+   *   "secretAccessKey": {"name": "my-aws-secret-key", "project": "my-project"}
+   * }}</pre>
+   *
+   *     <p>If not set, the provider is derived from {@link #getAwsAccessKeyId()}, {@link
+   *     #getAwsSecretAccessKey()}, {@link #getAwsSessionToken()} and {@link
+   *     #getAwsCredentialsSecretManager()} if they are set, and is {@link
+   *     DefaultCredentialsProvider} otherwise. Setting both this option and those options is an
+   *     error.
+   *
    * @see DefaultCredentialsProvider
    */
   @Description(
@@ -235,11 +323,16 @@ public interface AwsOptions extends PipelineOptions {
 
   void setAwsCredentialsProvider(AwsCredentialsProvider value);
 
-  /** Return {@link DefaultCredentialsProvider} as default provider. */
+  /**
+   * Returns the provider derived from {@link #getAwsAccessKeyId()} and related options if they are
+   * set, and {@link DefaultCredentialsProvider} otherwise.
+   */
   class AwsUserCredentialsFactory implements DefaultValueFactory<AwsCredentialsProvider> {
     @Override
     public AwsCredentialsProvider create(PipelineOptions options) {
-      return DefaultCredentialsProvider.create();
+      AwsCredentialsProvider provider =
+          AwsOptionsResolver.credentialsProviderFromKeys(options.as(AwsOptions.class));
+      return provider != null ? provider : DefaultCredentialsProvider.create();
     }
   }
 

@@ -102,6 +102,7 @@
 * [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
+* (Java) Added `--awsCredentialsSecretManager` so AWS credentials (`--awsAccessKeyId`, `--awsSecretAccessKey`, `--awsSessionToken`, also new) can be secret specs resolved through a secret manager such as `GoogleCloudSecretManager`, instead of plain-text values. Only the specs are serialized; credentials are fetched lazily on the workers via the new `SecretCredentialsProvider`. Also added `--awsRegionName` and `--awsEndpointUrl`. These options match the Python `--aws_*` options, so they are shared in cross-language pipelines ([#40528](https://github.com/apache/beam/issues/40528)).
 
 ### Performance
 

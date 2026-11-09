@@ -161,7 +161,8 @@ public interface ClientBuilderFactory {
     public void checkConfiguration(ClientConfiguration config, @Nullable AwsOptions options) {
       Region region = valueOrElse(config.region(), options, AwsOptionsResolver::region);
       AwsCredentialsProvider credentials =
-          valueOrElse(config.credentialsProvider(), options, AwsOptions::getAwsCredentialsProvider);
+          valueOrElse(
+              config.credentialsProvider(), options, AwsOptionsResolver::credentialsProvider);
       checkState(region != null, "No AWS region available");
       checkState(
           credentials != null && credentials.resolveCredentials() != null,
@@ -175,7 +176,8 @@ public interface ClientBuilderFactory {
 
       Region region = valueOrElse(config.region(), options, AwsOptionsResolver::region);
       AwsCredentialsProvider credentials =
-          valueOrElse(config.credentialsProvider(), options, AwsOptions::getAwsCredentialsProvider);
+          valueOrElse(
+              config.credentialsProvider(), options, AwsOptionsResolver::credentialsProvider);
       URI endpoint = valueOrElse(config.endpoint(), options, AwsOptionsResolver::endpoint);
 
       setOptional(credentials, builder::credentialsProvider);
