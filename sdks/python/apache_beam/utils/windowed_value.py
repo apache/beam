@@ -399,6 +399,7 @@ class _IntervalWindowBase(object):
   def __init__(self, start, end):
     # type: (TimestampTypes, TimestampTypes) -> None
     # Fast-path int seconds when start * 1_000_000 fits in int64_t micros.
+    # _start_object and _end_object can be lazily initialized as needed.
     if (isinstance(start, int) and
         -_MAX_INT64_SECONDS <= start <= _MAX_INT64_SECONDS):
       self._start_micros = start * 1000000
@@ -413,7 +414,6 @@ class _IntervalWindowBase(object):
             _MIN_TIMESTAMP_MICROS
             if self._start_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
-      # Micros must be populated elsewhere.
       self._start_object = None
 
     if (isinstance(end, int) and
@@ -430,7 +430,6 @@ class _IntervalWindowBase(object):
             _MIN_TIMESTAMP_MICROS
             if self._end_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
     else:
-      # Micros must be populated elsewhere.
       self._end_object = None
 
   @property
