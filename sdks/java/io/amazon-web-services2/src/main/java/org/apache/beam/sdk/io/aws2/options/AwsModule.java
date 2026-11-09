@@ -225,7 +225,7 @@ public class AwsModule extends SimpleModule {
     private String getSpec(JsonNode json, String key, String typeName) {
       JsonNode node = json.get(key);
       checkNotNull(node, "AWS credentials provider type '%s' is missing '%s'", typeName, key);
-      return node.isTextual() ? node.textValue() : node.toString();
+      return node.isObject() ? node.toString() : node.textValue();
     }
 
     private String getNotNull(JsonNode json, String key, String typeName) {
