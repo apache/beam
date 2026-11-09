@@ -36,7 +36,7 @@ MAVEN_DISTRIBUTION_URL="https://repo.maven.apache.org/maven2/org/apache/maven/ap
 
 # Maven Plugin Configuration
 MAVEN_SHADE_PLUGIN_VERSION="3.5.1"
-ICEBERG_VERSION="${ICEBERG_VERSION:-1.10.0}"
+ICEBERG_VERSION="${ICEBERG_VERSION:-1.12.0}"
 BIGDATAOSS_GCS_CONNECTOR_VERSION="${BIGDATAOSS_GCS_CONNECTOR_VERSION:-4.0.4}"
 APACHE_SNAPSHOT_REPOSITORY_URL="https://repository.apache.org/content/repositories/snapshots/"
 mkdir -p "${CACHE_DIR}"
