@@ -47,7 +47,19 @@ runs:
   using: "composite"
   steps:
     - name: Install Python
+      id: install-python
       if: ${{ inputs.python-version != '' }}
+      continue-on-error: true
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version == 'default' && '3.11' || inputs.python-version }}
+        cache: ${{ inputs.python-cache && 'pip' || 'none' }}
+        cache-dependency-path: |
+          sdks/python/setup.py
+          sdks/python/tox.ini
+
+    - name: Retry Install Python
+      if: ${{ inputs.python-version != '' && steps.install-python.outcome == 'failure' }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version == 'default' && '3.11' || inputs.python-version }}
@@ -88,7 +100,15 @@ runs:
           tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-
 
     - name: Install Java
+      id: install-java
       if: ${{ inputs.java-version != '' }}
+      continue-on-error: true
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java-version == 'default' && '21' || inputs.java-version }}
+    - name: Retry Install Java
+      if: ${{ inputs.java-version != '' && steps.install-java.outcome == 'failure' }}
       uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
@@ -100,7 +120,16 @@ runs:
         validate-wrappers: false
         cache-read-only: ${{ !(github.event_name == 'schedule' || github.event_name == 'push' || github.run_attempt > 1) }}
     - name: Install Go
+      id: install-go
       if: ${{ inputs.go-version != '' }}
+      continue-on-error: true
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
+        cache: ${{ inputs.disable-cache != 'true' }}
+        cache-dependency-path: sdks/go.sum
+    - name: Retry Install Go
+      if: ${{ inputs.go-version != '' && steps.install-go.outcome == 'failure' }}
       uses: actions/setup-go@v6
       with:
         go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
