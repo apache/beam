@@ -93,6 +93,7 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.encryption.EncryptedFiles;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Types;
@@ -206,11 +207,27 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
   public void setUp() throws Exception {
     OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
     warehouse = warehouse(getClass());
-    catalog = createCatalog();
-    namespacesToCleanup.add(namespace());
-    if (catalog instanceof SupportsNamespaces) {
-      ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        catalog = createCatalog();
+        if (catalog instanceof SupportsNamespaces) {
+          ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
+        }
+        break;
+      } catch (AlreadyExistsException e) {
+        if (attempt == 1) {
+          throw e;
+        }
+        break;
+      } catch (Exception e) {
+        if (attempt == 3) {
+          throw e;
+        }
+        LOG.warn("Transient failure during catalog setup (attempt {}/3), retrying...", attempt, e);
+        Thread.sleep(SETUP_TEARDOWN_SLEEP_MS * attempt);
+      }
     }
+    namespacesToCleanup.add(namespace());
     if (isGcs(warehouse)) {
       Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
     }
