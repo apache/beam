@@ -580,3 +580,176 @@ func TestTriggers_isReady(t *testing.T) {
 		})
 	}
 }
+
+func TestOnWatermarkFire(t *testing.T) {
+	t.Run("nil_and_leaf_triggers", func(t *testing.T) {
+		var state StateData
+		(WinStrat{}).OnWatermarkFire(&state)
+		(WinStrat{Trigger: &TriggerAlways{}}).OnWatermarkFire(&state)
+		(WinStrat{Trigger: &TriggerNever{}}).OnWatermarkFire(&state)
+		(WinStrat{Trigger: &TriggerAfterSynchronizedProcessingTime{}}).OnWatermarkFire(&state)
+
+		def := &TriggerDefault{}
+		if def.shouldFire(&state) {
+			t.Fatal("TriggerDefault.shouldFire before elements = true, want false")
+		}
+		(WinStrat{Trigger: def}).OnWatermarkFire(&state)
+		if !def.shouldFire(&state) {
+			t.Fatal("TriggerDefault.shouldFire after OnWatermarkFire = false, want true")
+		}
+
+		cnt := &TriggerElementCount{ElementCount: 2}
+		wsCnt := WinStrat{Trigger: cnt}
+		if wsCnt.IsTriggerReady(triggerInput{newElementCount: 1}, &state) {
+			t.Fatal("ElementCount(2) fired on 1 element")
+		}
+		wsCnt.OnWatermarkFire(&state)
+		if wsCnt.IsTriggerReady(triggerInput{newElementCount: 1}, &state) {
+			t.Fatal("ElementCount(2) fired on 1 element after OnWatermarkFire reset")
+		}
+		if !wsCnt.IsTriggerReady(triggerInput{newElementCount: 1}, &state) {
+			t.Fatal("ElementCount(2) did not fire on second element")
+		}
+		wsCnt.OnWatermarkFire(&state)
+
+		pt := &TriggerAfterProcessingTime{Transforms: []TimestampTransform{{Delay: 5 * time.Second}}}
+		wsPT := WinStrat{Trigger: pt}
+		wsPT.IsTriggerReady(triggerInput{newElementCount: 1, emNow: 1000}, &state)
+		if state.getTriggerState(pt).extra == nil {
+			t.Fatal("AfterProcessingTime did not set firing state")
+		}
+		wsPT.OnWatermarkFire(&state)
+		if state.getTriggerState(pt).extra != nil {
+			t.Fatal("AfterProcessingTime kept uncommitted timer state after OnWatermarkFire")
+		}
+		wsPT.IsTriggerReady(triggerInput{newElementCount: 1, emNow: 1000}, &state)
+		if !wsPT.IsTriggerReady(triggerInput{emNow: 6000}, &state) {
+			t.Fatal("AfterProcessingTime did not fire at deadline")
+		}
+		wsPT.OnWatermarkFire(&state)
+	})
+
+	t.Run("after_all", func(t *testing.T) {
+		var state StateData
+		partial := &TriggerAfterAll{SubTriggers: []Trigger{
+			&TriggerAfterEndOfWindow{},
+			&TriggerElementCount{ElementCount: 2},
+		}}
+		wsPartial := WinStrat{Trigger: partial}
+		wsPartial.IsTriggerReady(triggerInput{newElementCount: 1}, &state)
+		wsPartial.OnWatermarkFire(&state)
+		if state.getTriggerState(partial).finished {
+			t.Fatal("AfterAll finished while ElementCount(2) remained unfinished")
+		}
+
+		both := &TriggerAfterAll{SubTriggers: []Trigger{
+			&TriggerAfterEndOfWindow{},
+			&TriggerAfterEndOfWindow{},
+		}}
+		wsBoth := WinStrat{Trigger: both}
+		wsBoth.OnWatermarkFire(&state)
+		if !state.getTriggerState(both).finished {
+			t.Fatal("AfterAll did not finish when all subtriggers finished on watermark")
+		}
+		wsBoth.OnWatermarkFire(&state)
+	})
+
+	t.Run("after_any", func(t *testing.T) {
+		var state StateData
+		none := &TriggerAfterAny{SubTriggers: []Trigger{
+			&TriggerElementCount{ElementCount: 2},
+		}}
+		wsNone := WinStrat{Trigger: none}
+		wsNone.IsTriggerReady(triggerInput{newElementCount: 1}, &state)
+		wsNone.OnWatermarkFire(&state)
+		if state.getTriggerState(none).finished {
+			t.Fatal("AfterAny finished when no subtrigger finished")
+		}
+
+		fin := &TriggerAfterAny{SubTriggers: []Trigger{
+			&TriggerElementCount{ElementCount: 2},
+			&TriggerAfterEndOfWindow{},
+		}}
+		wsFin := WinStrat{Trigger: fin}
+		wsFin.OnWatermarkFire(&state)
+		if !state.getTriggerState(fin).finished {
+			t.Fatal("AfterAny did not finish when subtrigger finished on watermark")
+		}
+		wsFin.OnWatermarkFire(&state)
+	})
+
+	t.Run("after_each", func(t *testing.T) {
+		var state StateData
+		seq := &TriggerAfterEach{SubTriggers: []Trigger{
+			&TriggerAfterEndOfWindow{},
+			&TriggerAfterEndOfWindow{},
+		}}
+		ws := WinStrat{Trigger: seq}
+		ws.OnWatermarkFire(&state)
+		if state.getTriggerState(seq).finished {
+			t.Fatal("AfterEach finished after first subtrigger")
+		}
+		ws.OnWatermarkFire(&state)
+		if !state.getTriggerState(seq).finished {
+			t.Fatal("AfterEach did not finish after last subtrigger")
+		}
+		ws.OnWatermarkFire(&state)
+	})
+
+	t.Run("or_finally_and_repeatedly_and_eow", func(t *testing.T) {
+		var state StateData
+		orfFin := &TriggerOrFinally{
+			Main:    &TriggerElementCount{ElementCount: 2},
+			Finally: &TriggerAfterEndOfWindow{},
+		}
+		wsOrfFin := WinStrat{Trigger: orfFin}
+		wsOrfFin.OnWatermarkFire(&state)
+		if !state.getTriggerState(orfFin).finished {
+			t.Fatal("OrFinally did not finish when Finally finished on watermark")
+		}
+		wsOrfFin.OnWatermarkFire(&state)
+
+		var state2 StateData
+		mainEOW := &TriggerAfterEndOfWindow{}
+		orfKeep := &TriggerOrFinally{
+			Main: mainEOW,
+			Finally: &TriggerAfterEndOfWindow{
+				Late: &TriggerElementCount{ElementCount: 2},
+			},
+		}
+		wsOrfKeep := WinStrat{Trigger: orfKeep}
+		wsOrfKeep.OnWatermarkFire(&state2)
+		if state2.getTriggerState(orfKeep).finished {
+			t.Fatal("OrFinally finished while Finally still had Late firings")
+		}
+		if state2.getTriggerState(mainEOW).finished {
+			t.Fatal("OrFinally did not reset finished Main subtrigger")
+		}
+
+		var state3 StateData
+		rep := &TriggerRepeatedly{Repeated: &TriggerAfterEndOfWindow{}}
+		(WinStrat{Trigger: rep}).OnWatermarkFire(&state3)
+		if state3.getTriggerState(rep.Repeated).finished {
+			t.Fatal("Repeatedly did not reset finished subtrigger on watermark")
+		}
+
+		var state4 StateData
+		eowNoLate := &TriggerAfterEndOfWindow{Early: &TriggerElementCount{ElementCount: 2}}
+		wsNoLate := WinStrat{Trigger: eowNoLate}
+		wsNoLate.OnWatermarkFire(&state4)
+		if !state4.getTriggerState(eowNoLate).finished {
+			t.Fatal("AfterEndOfWindow without Late did not finish at watermark")
+		}
+		wsNoLate.OnWatermarkFire(&state4)
+
+		var state5 StateData
+		lateOnce := &TriggerAfterEndOfWindow{}
+		eowLate := &TriggerAfterEndOfWindow{Late: lateOnce}
+		wsLate := WinStrat{Trigger: eowLate}
+		wsLate.OnWatermarkFire(&state5)
+		wsLate.OnWatermarkFire(&state5)
+		if state5.getTriggerState(lateOnce).finished {
+			t.Fatal("AfterEndOfWindow did not reset finished Late subtrigger")
+		}
+	})
+}

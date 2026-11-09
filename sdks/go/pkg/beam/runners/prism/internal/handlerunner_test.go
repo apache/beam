@@ -256,6 +256,62 @@ func TestTriggerAccumulating(t *testing.T) {
 
 		runLocalTestPipeline(t, p, RunPipeline)
 	})
+
+	t.Run("closing_emit_always_emits_final_pane_without_new_elements", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		con := teststream.NewConfig()
+		if err := con.AddElements(1000, int64(1), int64(2), int64(3)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermark(20000); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(2000, int64(4)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AddElements(3000, int64(5)); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermark(80000); err != nil {
+			t.Fatal(err)
+		}
+		if err := con.AdvanceWatermarkToInfinity(); err != nil {
+			t.Fatal(err)
+		}
+
+		col := teststream.Create(s, con)
+		keyed := beam.AddFixedKey(s, col)
+		trig := trigger.AfterEndOfWindow().
+			EarlyFiring(trigger.AfterProcessingTime().PlusDelay(5 * time.Minute)).
+			LateFiring(trigger.AfterCount(1))
+		windowed := beam.WindowInto(s, window.NewFixedWindows(10*time.Second), keyed,
+			beam.Trigger(trig),
+			beam.PanesAccumulate(),
+			beam.AllowedLateness(60*time.Second),
+		)
+		grouped := beam.GroupByKey(s, windowed)
+		panes := beam.ParDo(s, formatAccumPaneFn, grouped)
+		globalPanes := beam.WindowInto(s, window.NewGlobalWindows(), panes)
+		passert.Equals(s, globalPanes,
+			"timing=ontime index=0 nonSpec=0 first=true last=false vals=[1 2 3]",
+			"timing=late index=1 nonSpec=1 first=false last=false vals=[1 2 3 4]",
+			"timing=late index=2 nonSpec=2 first=false last=false vals=[1 2 3 4 5]",
+			"timing=late index=3 nonSpec=3 first=false last=true vals=[1 2 3 4 5]",
+		)
+
+		runLocalTestPipeline(t, p, runWithClosingBehavior(pipepb.ClosingBehavior_EMIT_ALWAYS))
+	})
+}
+
+func runWithClosingBehavior(mode pipepb.ClosingBehavior_Enum) func(*jobservices.Job) {
+	return func(j *jobservices.Job) {
+		for _, ws := range j.Pipeline.GetComponents().GetWindowingStrategies() {
+			if ws.GetAccumulationMode() == pipepb.AccumulationMode_ACCUMULATING {
+				ws.ClosingBehavior = mode
+			}
+		}
+		RunPipeline(j)
+	}
 }
 
 func TestHandleReshuffle(t *testing.T) {

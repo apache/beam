@@ -774,6 +774,7 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 	type tsStep struct {
 		watermark mtime.Time
+		advancePT time.Duration
 		key       byte
 		vals      []byte
 		eventTime mtime.Time
@@ -832,6 +833,7 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 	}
 
 	win0to10 := window.IntervalWindow{Start: 0, End: 10}
+	win10to20 := window.IntervalWindow{Start: 10, End: 20}
 
 	tests := []struct {
 		name  string
@@ -1015,6 +1017,213 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "closing_emit_always_after_triggered_late_panes",
+			strat: WinStrat{
+				AllowedLateness:   60 * time.Millisecond,
+				Accumulating:      true,
+				ClosingEmitAlways: true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+					},
+					Late: &TriggerElementCount{ElementCount: 1},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2, 3}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 2},
+				{key: 'k', vals: []byte{5}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 1, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 2, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 3, NonSpeculativeIndex: 3, IsFirst: false, IsLast: true},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+			},
+		},
+		{
+			name: "processing_time_accumulating_early_and_late",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerAfterAny{
+						SubTriggers: []Trigger{
+							&TriggerElementCount{ElementCount: 2},
+							&TriggerAfterProcessingTime{
+								Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+							},
+						},
+					},
+					Late: &TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+					},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1}, eventTime: 1},
+				{key: 'k', vals: []byte{2}, eventTime: 2},
+				{advancePT: 25 * time.Millisecond},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{advancePT: 25 * time.Millisecond},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+				{advancePT: 25 * time.Millisecond},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 1, NonSpeculativeIndex: -1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 2, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 3, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4},
+				},
+			},
+		},
+		{
+			name: "single_shot_processing_time_finishes_last_pane",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{advancePT: 25 * time.Millisecond},
+				{key: 'k', vals: []byte{3}, eventTime: 2},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: true},
+					Values: []int{1, 2},
+				},
+			},
+		},
+		{
+			name: "never_trigger_waits_for_closing_deadline",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger:         &TriggerNever{},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: true},
+					Values: []int{1, 2, 3},
+				},
+			},
+		},
+		{
+			name: "multi_window_and_late_only_arrivals",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 2},
+					Late:  &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{9}, eventTime: 12},
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{8}, eventTime: 13},
+				{watermark: 15},
+				{watermark: 25},
+				{key: 'a', vals: []byte{4, 5}, eventTime: 2},
+				{key: 'b', vals: []byte{6}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win10to20,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{8, 9},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win10to20,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{8, 9},
+				},
+				{
+					Win:    win0to10,
+					Key:    "a",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: false},
+					Values: []int{4, 5},
+				},
+				{
+					Win:    win0to10,
+					Key:    "b",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: true},
+					Values: []int{6},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1041,6 +1250,8 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 						})
 					}
 					tsb.AddElementEvent("", elms)
+				} else if st.advancePT > 0 {
+					tsb.AddProcessingTimeEvent(st.advancePT)
 				} else {
 					tsb.AddWatermarkEvent("", st.watermark)
 				}
@@ -1165,20 +1376,27 @@ func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
 			if gotOnTime := len(aggStage.pendingOnTime); gotOnTime != 0 {
 				t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
 			}
+			if gotClosing := len(aggStage.pendingClosing); gotClosing != 0 {
+				t.Errorf("len(agg.pendingClosing) = %d, want 0", gotClosing)
+			}
+			if dump := em.DumpStages(); dump == "" {
+				t.Errorf("em.DumpStages() returned empty string")
+			}
 		})
 	}
 }
 
 func TestEmptyPendingOnTimeCleanup(t *testing.T) {
-	ctx, cancelFn := context.WithTimeoutCause(context.Background(), 5*time.Second, fmt.Errorf("timed out waiting for empty pendingOnTime cleanup"))
+	ctx, cancelFn := context.WithTimeoutCause(context.Background(), 5*time.Second, fmt.Errorf("timed out waiting for empty pending watermark cleanup"))
 	defer cancelFn()
 
 	em := NewElementManager(Config{StreamingMode: true})
 	em.AddStage("ts", nil, []string{"tsOut"}, nil)
 	em.AddStage("agg", []string{"tsOut"}, []string{"aggOut"}, nil)
 	em.StageAggregates("agg", WinStrat{
-		AllowedLateness: 60 * time.Millisecond,
-		Accumulating:    true,
+		AllowedLateness:   60 * time.Millisecond,
+		Accumulating:      true,
+		ClosingEmitAlways: true,
 		Trigger: &TriggerAfterEndOfWindow{
 			Early: &TriggerElementCount{ElementCount: 1},
 			Late:  &TriggerElementCount{ElementCount: 1},
@@ -1187,10 +1405,12 @@ func TestEmptyPendingOnTimeCleanup(t *testing.T) {
 
 	tsb := em.AddTestStream("ts", map[string]string{"": "tsOut"})
 	tsb.AddWatermarkEvent("", 20)
+	tsb.AddWatermarkEvent("", 80)
 
 	aggStage := em.stages["agg"]
 	aggStage.mu.Lock()
 	delta := aggStage.addPendingOnTimeLocked(window.IntervalWindow{Start: 0, End: 10}, "k")
+	delta += aggStage.addPendingClosingLocked(window.IntervalWindow{Start: 0, End: 10}, "k")
 	aggStage.mu.Unlock()
 	em.addPending(delta)
 
@@ -1205,7 +1425,7 @@ func TestEmptyPendingOnTimeCleanup(t *testing.T) {
 		t.Fatalf("unexpected bundle emitted: %+v", rb)
 	}
 
-	if err := context.Cause(ctx); err != nil && err.Error() == "timed out waiting for empty pendingOnTime cleanup" {
+	if err := context.Cause(ctx); err != nil && err.Error() == "timed out waiting for empty pending watermark cleanup" {
 		t.Fatalf("Bundles() hung: %v", err)
 	}
 	if gotOut := aggStage.OutputWatermark(); gotOut != mtime.MaxTimestamp {
@@ -1213,5 +1433,8 @@ func TestEmptyPendingOnTimeCleanup(t *testing.T) {
 	}
 	if gotOnTime := len(aggStage.pendingOnTime); gotOnTime != 0 {
 		t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
+	}
+	if gotClosing := len(aggStage.pendingClosing); gotClosing != 0 {
+		t.Errorf("len(agg.pendingClosing) = %d, want 0", gotClosing)
 	}
 }

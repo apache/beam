@@ -266,9 +266,10 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				}
 				ws := windowingStrategy(comps, tid)
 				em.StageAggregates(stage.ID, engine.WinStrat{
-					AllowedLateness: time.Duration(ws.GetAllowedLateness()) * time.Millisecond,
-					Accumulating:    pipepb.AccumulationMode_ACCUMULATING == ws.GetAccumulationMode(),
-					Trigger:         buildTrigger(ws.GetTrigger()),
+					AllowedLateness:   time.Duration(ws.GetAllowedLateness()) * time.Millisecond,
+					Accumulating:      pipepb.AccumulationMode_ACCUMULATING == ws.GetAccumulationMode(),
+					ClosingEmitAlways: pipepb.ClosingBehavior_EMIT_ALWAYS == ws.GetClosingBehavior(),
+					Trigger:           buildTrigger(ws.GetTrigger()),
 				})
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
