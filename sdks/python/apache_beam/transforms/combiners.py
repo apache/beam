@@ -513,7 +513,7 @@ class TopCombineFn(core.CombineFn):
 
       if result_heap is None:
         result_heap = list(heap)
-      elif n > 0:
+      else:
         for comparable in heap:
           if len(result_heap) < n:
             heapq.heappush(result_heap, comparable)
