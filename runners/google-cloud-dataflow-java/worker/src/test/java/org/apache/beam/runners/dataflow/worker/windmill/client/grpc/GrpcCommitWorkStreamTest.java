@@ -911,8 +911,8 @@ public class GrpcCommitWorkStreamTest {
     assertThat(parsedRequest1).isEqualTo(workItemCommitRequest1);
 
     // Trigger handover but fail new connections
-    assertTrue(triggeredExecutor.unblockNextFuture());
     fakeService.setFailedStreamConnectsRemaining(1);
+    assertTrue(triggeredExecutor.unblockNextFuture());
     fakeService.waitForFailedConnectAttempts();
     assertNull(streamInfo1.onDone.get());
 
