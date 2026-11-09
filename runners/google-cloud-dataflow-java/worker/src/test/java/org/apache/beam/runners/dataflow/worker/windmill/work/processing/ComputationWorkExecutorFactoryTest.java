@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -444,21 +445,29 @@ public class ComputationWorkExecutorFactoryTest {
     ParDoOperation multiOutputSdfOp = allParDoOps.get(0);
     assertTrue(multiOutputSdfOp.shouldReportBytesRead());
     assertEquals(2, multiOutputSdfOp.receivers.length);
-    assertEquals(
-        windowedStringCoder, multiOutputSdfOp.getBytesReadCoder(multiOutputSdfOp.receivers[0]));
-    assertEquals(
-        windowedIntCoder, multiOutputSdfOp.getBytesReadCoder(multiOutputSdfOp.receivers[1]));
+    OutputReceiver stringReceiver =
+        windowedStringCoder.equals(
+                multiOutputSdfOp.getBytesReadCoder(multiOutputSdfOp.receivers[0]))
+            ? multiOutputSdfOp.receivers[0]
+            : multiOutputSdfOp.receivers[1];
+    OutputReceiver intReceiver =
+        multiOutputSdfOp.receivers[0] == stringReceiver
+            ? multiOutputSdfOp.receivers[1]
+            : multiOutputSdfOp.receivers[0];
+
+    assertEquals(windowedStringCoder, multiOutputSdfOp.getBytesReadCoder(stringReceiver));
+    assertEquals(windowedIntCoder, multiOutputSdfOp.getBytesReadCoder(intReceiver));
 
     String counterName = computationState.sourceBytesProcessCounterName();
-    assertNotNull(multiOutputSdfOp.receivers[0].getOutputCounters().get(counterName));
-    assertNotNull(multiOutputSdfOp.receivers[1].getOutputCounters().get(counterName));
+    assertNotNull(stringReceiver.getOutputCounters().get(counterName));
+    assertNotNull(intReceiver.getOutputCounters().get(counterName));
 
     // Process differently typed elements on main and side output receivers without
     // ClassCastException.
     WindowedValue<String> stringElem = WindowedValues.valueInGlobalWindow("hello");
     WindowedValue<Integer> intElem = WindowedValues.valueInGlobalWindow(12345);
-    multiOutputSdfOp.receivers[0].process(stringElem);
-    multiOutputSdfOp.receivers[1].process(intElem);
+    stringReceiver.process(stringElem);
+    intReceiver.process(intElem);
 
     long expectedStringBytes =
         CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
