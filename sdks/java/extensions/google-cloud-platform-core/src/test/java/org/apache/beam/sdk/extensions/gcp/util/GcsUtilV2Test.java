@@ -1174,6 +1174,19 @@ public class GcsUtilV2Test {
         () ->
             withForbidden.remove(
                 ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
+
+    GcsPath transientError = GcsPath.fromComponents("testbucket", "transient");
+    Storage retryStorage =
+        storageDeleting(
+            ImmutableMap.of(
+                "deleted",
+                batchResult(true, null),
+                "transient",
+                batchResult(null, new StorageException(503, "Service Unavailable"))));
+    when(retryStorage.delete(BlobId.of("testbucket", "transient"))).thenReturn(true);
+    gcsUtilWithV2Storage(retryStorage)
+        .remove(ImmutableList.of(deleted.toString(), transientError.toString()));
+    verify(retryStorage).delete(BlobId.of("testbucket", "transient"));
   }
 
   /**
