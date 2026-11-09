@@ -27,10 +27,6 @@ pluginManagement {
   val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
   val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
-  if (useMirror) {
-    logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror for buildSrc pluginManagement.")
-  }
-
   repositories {
     if (useMirror) {
       maven { url = uri(mavenCentralMirrorUrl!!) }
