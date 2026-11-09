@@ -258,8 +258,11 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   @classmethod
   def from_micros(cls, start_micros: int, end_micros: int) -> 'IntervalWindow':
     w = cls(None, None)
-    w._start_micros = start_micros
-    w._end_micros = end_micros
+    try:
+      w._start_micros = start_micros
+      w._end_micros = end_micros
+    except OverflowError:
+      return cls(Timestamp(micros=start_micros), Timestamp(micros=end_micros))
     return w
 
   def __lt__(self, other):
