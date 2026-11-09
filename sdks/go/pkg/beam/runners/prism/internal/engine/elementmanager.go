@@ -1634,7 +1634,7 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			if !w.present(string(e.keyBytes)) {
 				w.insert(string(e.keyBytes))
 				owedCallbacks++
-			} 
+			}
 		}
 		heap.Push(&dnt.elements, e)
 
