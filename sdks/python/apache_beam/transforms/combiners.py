@@ -652,9 +652,8 @@ class SampleCombineFn(core.CombineFn):
     return self._top_combiner.create_accumulator()
 
   def add_input(self, heap, element):
-    # Before passing elements to the Top combiner, we pair them with random
-    # numbers. The elements with the n largest random number "keys" will be
-    # selected for the output.
+    # Pair elements with random numbers and maintain the n largest random
+    # number "keys" directly in the Top combiner's heap for the output.
     n = self._top_combiner._n
     if n <= 0:
       return heap
