@@ -37,6 +37,7 @@ from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.io.jdbc import WriteToJdbc
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils.timestamp import Timestamp
@@ -228,11 +229,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     # Creating a container with testcontainers sometimes raises ReadTimeout
     # error. In java there are 2 retries set by default.
     for attempt in range(max_retries):
+      container = None
       try:
         container = container_init()
         container.start()
         return container
       except Exception:  # pylint: disable=broad-except
+        cleanup_testcontainer_on_retry(container)
         if attempt == max_retries - 1:
           logging.error(
               'Failed to initialize container after %s attempts', max_retries)
