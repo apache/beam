@@ -1751,6 +1751,8 @@ class BigQueryWriteFn(DoFn):
 
     # Check if individual row exceeds size limit
     if row_byte_size >= self._max_insert_payload_size:
+      row_byte_size = get_deep_size(row_and_insert_id)
+    if row_byte_size >= self._max_insert_payload_size:
       row_mb_size = row_byte_size / 1_000_000
       max_mb_size = self._max_insert_payload_size / 1_000_000
       return (
