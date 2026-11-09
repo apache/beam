@@ -822,7 +822,7 @@ class SubprocessDoFnTest(unittest.TestCase):
                     side_effect=[pool1, pool2]) as mock_executor:
       self.assertEqual(dofn.process('elem'), ['ok'])
       self.assertEqual(mock_executor.call_count, 2)
-      pool1.shutdown.assert_called_once_with(False)
+      pool1.shutdown.assert_called_once_with(wait=False)
       self.assertIs(dofn._pool, pool2)
 
 
