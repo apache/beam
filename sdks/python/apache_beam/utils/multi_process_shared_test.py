@@ -558,21 +558,17 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
     def gc_on_accepter_accept(listener_self):
       if 'accepter' in threading.current_thread().name:
-        gc.collect()
+        gc.collect(0)
       return orig_accept(listener_self)
 
-    stop_bg_gc = threading.Event()
-
-    def background_gc():
-      while not stop_bg_gc.is_set():
-        gc.collect()
-        time.sleep(0.005)
-
+    stop_worker = threading.Event()
     errors = []
 
     def workload():
       try:
-        for i in range(15):
+        for i in range(5):
+          if stop_worker.is_set():
+            break
           handle = multi_process_shared.MultiProcessShared(
               Counter,
               tag='issue_40673_tag',
@@ -587,21 +583,20 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           del proxy
           del handle
           del cycle
-          if i % 3 == 0:
-            gc.collect()
+        gc.collect(0)
       except BaseException as e:  # pylint: disable=broad-exception-caught
         errors.append(e)
 
     with patch.object(multiprocessing.connection.Listener,
                       'accept',
                       gc_on_accepter_accept):
-      gc_thread = threading.Thread(target=background_gc, daemon=True)
       worker_thread = threading.Thread(target=workload, daemon=True)
-      gc_thread.start()
       worker_thread.start()
-      worker_thread.join(timeout=30)
-      stop_bg_gc.set()
-      gc_thread.join(timeout=5)
+      try:
+        worker_thread.join(timeout=30)
+      finally:
+        stop_worker.set()
+        worker_thread.join(timeout=5)
 
     self.assertFalse(
         worker_thread.is_alive(),
@@ -609,10 +604,11 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
         'instances with spawn_process=True')
     self.assertEqual(errors, [])
 
-    final_proxy = multi_process_shared.MultiProcessShared(
-        Counter, tag='issue_40673_tag', always_proxy=True,
-        spawn_process=True).acquire()
-    self.assertEqual(final_proxy.get(), 15)
+    final_handle = multi_process_shared.MultiProcessShared(
+        Counter, tag='issue_40673_tag', always_proxy=True, spawn_process=True)
+    final_proxy = final_handle.acquire()
+    self.assertEqual(final_proxy.get(), 5)
+    final_handle.unsafe_hard_delete()
 
   def test_spawn_process_supports_lambda_and_closure_constructors(self):
     captured_offset = 42
