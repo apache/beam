@@ -346,13 +346,15 @@ class RecordWriterManager implements AutoCloseable {
     // Create namespace if it does not exist yet
     if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
       SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
-      synchronized (NAMESPACE_LOCK) {
-        if (!supportsNamespaces.namespaceExists(namespace)) {
-          try {
-            supportsNamespaces.createNamespace(namespace);
-            LOG.info("Created new namespace '{}'.", namespace);
-          } catch (AlreadyExistsException ignored) {
-            // race condition: another worker already created this namespace
+      if (!supportsNamespaces.namespaceExists(namespace)) {
+        synchronized (NAMESPACE_LOCK) {
+          if (!supportsNamespaces.namespaceExists(namespace)) {
+            try {
+              supportsNamespaces.createNamespace(namespace);
+              LOG.info("Created new namespace '{}'.", namespace);
+            } catch (AlreadyExistsException ignored) {
+              // race condition: another worker already created this namespace
+            }
           }
         }
       }
