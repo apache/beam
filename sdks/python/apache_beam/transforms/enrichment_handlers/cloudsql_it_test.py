@@ -41,6 +41,7 @@ try:
   from sqlalchemy import MetaData
   from sqlalchemy import Table
   from sqlalchemy import create_engine
+  from testcontainers.core.container import Reaper
   from testcontainers.core.generic import DbContainer
   from testcontainers.mssql import SqlServerContainer
   from testcontainers.mysql import MySqlContainer
@@ -148,9 +149,28 @@ class SQLEnrichmentTestHelper:
             info.address)
         break
       except Exception as e:
-        stdout_logs, stderr_logs = sql_db_container.get_logs()
-        stdout_logs = stdout_logs.decode("utf-8")
-        stderr_logs = stderr_logs.decode("utf-8")
+        stdout_logs = stderr_logs = ""
+        if getattr(sql_db_container, "_container", None) is not None:
+          try:
+            raw_out, raw_err = sql_db_container.get_logs()
+            stdout_logs = raw_out.decode("utf-8")
+            stderr_logs = raw_err.decode("utf-8")
+          except Exception:
+            pass
+          try:
+            sql_db_container.stop()
+          except Exception:
+            pass
+        if getattr(Reaper, "_instance", None) is None:
+          try:
+            docker_client = sql_db_container.get_docker_client()
+            session_id = docker_client.client.api.headers.get("x-tc-sid")
+            if session_id:
+              ryuk_container = docker_client.client.containers.get(
+                  f"testcontainers-ryuk-{session_id}")
+              ryuk_container.remove(force=True)
+          except Exception:
+            pass
         _LOGGER.warning(
             "Retry %d/%d: Failed to start %s container. Reason: %s. "
             "STDOUT logs:\n%s\nSTDERR logs:\n%s",

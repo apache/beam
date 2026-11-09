@@ -38,6 +38,7 @@ try:
   from pymilvus.exceptions import MilvusException
   from pymilvus.milvus_client import IndexParams
   from testcontainers.core.config import testcontainers_config
+  from testcontainers.core.container import Reaper
   from testcontainers.core.generic import DbContainer
   from testcontainers.milvus import MilvusContainer
 
@@ -195,10 +196,29 @@ class MilvusTestHelpers:
           break
         except Exception as e:
           stdout_logs = stderr_logs = ""
-          if vector_db_container is not None:
-            raw_out, raw_err = vector_db_container.get_logs()
-            stdout_logs = raw_out.decode("utf-8")
-            stderr_logs = raw_err.decode("utf-8")
+          if (vector_db_container is not None and
+              getattr(vector_db_container, "_container", None) is not None):
+            try:
+              raw_out, raw_err = vector_db_container.get_logs()
+              stdout_logs = raw_out.decode("utf-8")
+              stderr_logs = raw_err.decode("utf-8")
+            except Exception:
+              pass
+            try:
+              vector_db_container.stop()
+            except Exception:
+              pass
+          if (vector_db_container is not None and
+              getattr(Reaper, "_instance", None) is None):
+            try:
+              docker_client = vector_db_container.get_docker_client()
+              session_id = docker_client.client.api.headers.get("x-tc-sid")
+              if session_id:
+                ryuk_container = docker_client.client.containers.get(
+                    f"testcontainers-ryuk-{session_id}")
+                ryuk_container.remove(force=True)
+            except Exception:
+              pass
           _LOGGER.warning(
               "Retry %d/%d: Failed to start Milvus DB container. Reason: %s. "
               "STDOUT logs:\n%s\nSTDERR logs:\n%s",
