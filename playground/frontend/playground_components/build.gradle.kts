@@ -55,6 +55,7 @@ tasks.register<org.gradle.api.tasks.Exec>("cleanFlutter") {
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("pubGet") {
+  mustRunAfter("cleanFlutter")
   group = "build"
   description = "Install dependencies"
   commandLine("flutter", "pub", "get")
@@ -116,6 +117,7 @@ tasks.register<org.gradle.api.tasks.Exec>("ensureSymbolsDirectoryExists") {
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("extractBeamSymbolsGo") {
+  dependsOn("ensureSymbolsDirectoryExists")
   val capturedOutput = ByteArrayOutputStream()
 
   workingDir("tools/extract_symbols_go")
@@ -136,6 +138,7 @@ tasks.register("extractBeamSymbolsJava") {
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("extractBeamSymbolsPython") {
+  dependsOn("ensureSymbolsDirectoryExists")
   val capturedOutput = ByteArrayOutputStream()
 
   commandLine(

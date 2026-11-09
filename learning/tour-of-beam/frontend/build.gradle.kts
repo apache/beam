@@ -34,6 +34,7 @@ tasks.register<org.gradle.api.tasks.Exec>("analyze") {
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("pubGet") {
+  mustRunAfter("cleanFlutter")
   group = "build"
   description = "Get packages for the frontend project"
   commandLine("flutter", "pub", "get")
@@ -66,6 +67,7 @@ tasks.register("precommit") {
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("generateCode") {
+  dependsOn(":playground:frontend:playground_components:generateCode")
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
   group = "build"

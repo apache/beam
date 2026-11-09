@@ -1565,8 +1565,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
-            html.enabled = true
-            xml.enabled = false
+            html.required = true
+            xml.required = false
           }
         }
       }

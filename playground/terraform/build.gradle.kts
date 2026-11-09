@@ -381,6 +381,7 @@ func_view: ${pgfuncview}
 
 tasks.register<Exec>("applyMigrations") {
     group = "deploy"
+    dependsOn("setPlaygroundGkeProject")
 
     val modulePath = project(":playground").projectDir.absolutePath
     val sdkConfig = "$modulePath/sdks.yaml"
@@ -393,16 +394,17 @@ tasks.register<Exec>("applyMigrations") {
         ""
     }
 
-    val projectId = project.rootProject.extra["playground_gke_project"]
-
-    commandLine(
-        "go",
-        "run",
-        "cmd/migration_tool/migration_tool.go",
-        "-project-id", projectId.toString(),
-        "-sdk-config", sdkConfig,
-        "-namespace", namespace
-    )
+    doFirst {
+        val projectId = project.rootProject.extra["playground_gke_project"]
+        commandLine(
+            "go",
+            "run",
+            "cmd/migration_tool/migration_tool.go",
+            "-project-id", projectId.toString(),
+            "-sdk-config", sdkConfig,
+            "-namespace", namespace
+        )
+    }
 }
 
 tasks.register<Exec>("helmRelease") {

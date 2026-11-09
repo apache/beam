@@ -54,26 +54,30 @@ val testWithoutCache by tasks.registering(org.gradle.api.tasks.Exec::class) {
 
 tasks.register<org.gradle.api.tasks.Exec>("removeUnusedSnippet") {
     executable = "go"
-    args(
-        "run",
-        "cmd/remove_unused_snippets/remove_unused_snippets.go",
-        "cleanup",
-        "-day_diff", System.getProperty("dayDiff"),
-        "-project_id", System.getProperty("projectId"),
-        "-namespace", System.getProperty("namespace")
-    )
+    doFirst {
+        args(
+            "run",
+            "cmd/remove_unused_snippets/remove_unused_snippets.go",
+            "cleanup",
+            "-day_diff", System.getProperty("dayDiff") ?: "",
+            "-project_id", System.getProperty("projectId") ?: "",
+            "-namespace", System.getProperty("namespace") ?: ""
+        )
+    }
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("removeSnippet") {
     executable = "go"
-    args(
-        "run",
-        "cmd/remove_unused_snippets/remove_unused_snippets.go",
-        "remove",
-        "-snippet_id", System.getProperty("snippetId"),
-        "-project_id", System.getProperty("projectId"),
-        "-namespace", System.getProperty("namespace")
-    )
+    doFirst {
+        args(
+            "run",
+            "cmd/remove_unused_snippets/remove_unused_snippets.go",
+            "remove",
+            "-snippet_id", System.getProperty("snippetId") ?: "",
+            "-project_id", System.getProperty("projectId") ?: "",
+            "-namespace", System.getProperty("namespace") ?: ""
+        )
+    }
 }
 
 tasks.register<org.gradle.api.tasks.Exec>("benchmarkPrecompiledObjects") {
