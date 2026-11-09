@@ -66,6 +66,7 @@ public class SolaceIOIT {
   private static final String queueName = "test_queue";
   private static final TestPipelineOptions pipelineOptions;
   private static final long PUBLISH_MESSAGE_COUNT = 20;
+  private static final Duration READ_TIMEOUT = Duration.standardMinutes(2);
 
   static {
     pipelineOptions = PipelineOptionsFactory.create().as(TestPipelineOptions.class);
@@ -100,7 +101,7 @@ public class SolaceIOIT {
   }
 
   @Test
-  public void test02Read() {
+  public void test02Read() throws IOException {
     pipeline
         .apply(
             "Read from Solace",
@@ -126,12 +127,9 @@ public class SolaceIOIT {
         .apply("Count", ParDo.of(new CountingFn<>(NAMESPACE, READ_COUNT)));
 
     PipelineResult pipelineResult = pipeline.run();
-    // We need enough time for Beam to pull all messages from the queue, but we need a timeout too,
-    // as the Read connector will keep attempting to read forever.
-    pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
-
-    MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
-    long actualRecordsCount = metricsReader.getCounterMetric(READ_COUNT);
+    long actualRecordsCount =
+        SolaceTestUtils.waitForCounterAndCancel(
+            pipelineResult, NAMESPACE, READ_COUNT, PUBLISH_MESSAGE_COUNT, READ_TIMEOUT);
     assertEquals(PUBLISH_MESSAGE_COUNT, actualRecordsCount);
   }
 
