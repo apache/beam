@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/bigtable v1.58.0
 	cloud.google.com/go/datastore v1.28.1
 	cloud.google.com/go/profiler v0.7.1
-	cloud.google.com/go/pubsub v1.51.1
+	cloud.google.com/go/pubsub v1.52.0
 	cloud.google.com/go/spanner v1.96.1
 	cloud.google.com/go/storage v1.70.0
 	github.com/aws/aws-sdk-go-v2 v1.47.7
@@ -140,7 +140,7 @@ require (
 require (
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	cloud.google.com/go/iam v1.14.0 // indirect
-	cloud.google.com/go/longrunning v1.3.0 // indirect
+	cloud.google.com/go/longrunning v1.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
