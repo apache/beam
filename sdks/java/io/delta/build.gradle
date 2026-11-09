@@ -69,7 +69,6 @@ dependencies {
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation project(":sdks:java:io:parquet")
     testImplementation project(":sdks:java:managed")
-    testRuntimeOnly "org.yaml:snakeyaml:2.0"
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")

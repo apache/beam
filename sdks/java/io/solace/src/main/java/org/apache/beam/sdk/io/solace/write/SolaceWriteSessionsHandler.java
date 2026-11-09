@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * All the writer threads belonging to the same factory share the same instance of this class, to
@@ -41,8 +43,18 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
  */
 final class SolaceWriteSessionsHandler {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SolaceWriteSessionsHandler.class);
+
   private static final ConcurrentHashMap<SessionConfigurationIndex, SessionService> sessionsMap =
       new ConcurrentHashMap<>(DEFAULT_WRITER_CLIENTS_PER_WORKER);
+
+  static {
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                SolaceWriteSessionsHandler::closeAllSessions,
+                "solace-write-sessions-shutdown-hook"));
+  }
 
   public static SessionService getSessionServiceWithProducer(
       int producerIndex, SessionServiceFactory sessionServiceFactory, UUID writerTransformUuid) {
@@ -82,6 +94,19 @@ final class SolaceWriteSessionsHandler {
       SessionService sessionService = sessionsMap.remove(key);
       if (sessionService != null) {
         sessionService.close();
+      }
+    }
+  }
+
+  static void closeAllSessions() {
+    for (SessionConfigurationIndex key : sessionsMap.keySet()) {
+      SessionService sessionService = sessionsMap.remove(key);
+      if (sessionService != null) {
+        try {
+          sessionService.close();
+        } catch (Exception e) {
+          LOG.warn("SolaceIO.Write: Failed to close Solace session on shutdown.", e);
+        }
       }
     }
   }

@@ -131,6 +131,37 @@ class TestDistributionCell(unittest.TestCase):
     d.update(900)
     self.assertEqual(d.get_cumulative(), DistributionData(912, 3, 2, 900))
 
+  def test_reset_to(self):
+    d = DistributionCell()
+    d.update(10)
+    d.update(2)
+    d.reset_to(7)
+    self.assertEqual(d.get_cumulative(), DistributionData(7, 1, 7, 7))
+    d.reset_to(3.6)
+    self.assertEqual(d.get_cumulative(), DistributionData(3, 1, 3, 3))
+    d.update(5)
+    self.assertEqual(d.get_cumulative(), DistributionData(8, 2, 3, 5))
+
+  def test_reset_to_never_exposes_an_empty_distribution(self):
+    d = DistributionCell()
+    d.reset_to(1)
+    stop = threading.Event()
+    counts = set()
+
+    def read():
+      while not stop.is_set():
+        counts.add(d.get_cumulative().count)
+
+    reader = threading.Thread(target=read)
+    reader.start()
+    try:
+      for i in range(20000):
+        d.reset_to(i % 7 + 1)
+    finally:
+      stop.set()
+      reader.join()
+    self.assertEqual(counts, {1})
+
   def test_integer_only(self):
     d = DistributionCell()
     d.update(3.1)
