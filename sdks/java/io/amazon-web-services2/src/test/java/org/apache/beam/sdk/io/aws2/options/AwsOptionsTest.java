@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.options;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static software.amazon.awssdk.core.SdkSystemSetting.AWS_REGION;
 
 import java.net.URI;
@@ -142,6 +143,58 @@ public class AwsOptionsTest {
 
     assertThat(options.getHttpClientConfiguration()).isEqualTo(expected);
     assertThat(serializeDeserialize(options).getHttpClientConfiguration()).isEqualTo(expected);
+  }
+
+  @Test
+  public void testSetAwsRegionName() {
+    AwsOptions options = create("--awsRegionName=us-west-1");
+    assertThat(options.getAwsRegionName()).isEqualTo("us-west-1");
+    assertThat(options.getAwsRegion()).isEqualTo(Region.US_WEST_1);
+    assertThat(AwsOptionsResolver.region(options)).isEqualTo(Region.US_WEST_1);
+    assertThat(AwsOptionsResolver.region(serializeDeserialize(options)))
+        .isEqualTo(Region.US_WEST_1);
+  }
+
+  @Test
+  public void testConflictingRegions() {
+    AwsOptions same = create("--awsRegion=us-west-1", "--awsRegionName=us-west-1");
+    assertThat(AwsOptionsResolver.region(same)).isEqualTo(Region.US_WEST_1);
+
+    AwsOptions conflict = create("--awsRegion=us-west-1", "--awsRegionName=us-east-1");
+    assertThatThrownBy(() -> AwsOptionsResolver.region(conflict))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Conflicting AWS regions");
+  }
+
+  @Test
+  public void testSetAwsEndpointUrl() {
+    AwsOptions options = create("--awsEndpointUrl=https://localhost:4566");
+    URI expected = URI.create("https://localhost:4566");
+    assertThat(options.getAwsEndpointUrl()).isEqualTo("https://localhost:4566");
+    assertThat(options.getEndpoint()).isEqualTo(expected);
+    assertThat(AwsOptionsResolver.endpoint(options)).isEqualTo(expected);
+    assertThat(AwsOptionsResolver.endpoint(serializeDeserialize(options))).isEqualTo(expected);
+  }
+
+  @Test
+  public void testConflictingEndpoints() {
+    AwsOptions same =
+        create("--endpoint=https://localhost:4566", "--awsEndpointUrl=https://localhost:4566");
+    assertThat(AwsOptionsResolver.endpoint(same)).isEqualTo(URI.create("https://localhost:4566"));
+
+    AwsOptions conflict =
+        create("--endpoint=https://localhost:4566", "--awsEndpointUrl=https://localhost:8080");
+    assertThatThrownBy(() -> AwsOptionsResolver.endpoint(conflict))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Conflicting AWS endpoints");
+  }
+
+  @Test
+  public void testInvalidAwsEndpointUrl() {
+    AwsOptions options = create("--awsEndpointUrl=http://bad host");
+    assertThatThrownBy(() -> AwsOptionsResolver.endpoint(options))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid --awsEndpointUrl");
   }
 
   private <T> T withRegionProperty(Region region, Supplier<T> fun) {

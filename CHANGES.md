@@ -129,6 +129,7 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) `--awsRegion` and `--endpoint` in `AwsOptions` (`amazon-web-services2`) are deprecated in favor of `--awsRegionName` and `--awsEndpointUrl`. Setting a deprecated option and its replacement to different values is an error ([#40528](https://github.com/apache/beam/issues/40528)).
 
 ## Bugfixes
 

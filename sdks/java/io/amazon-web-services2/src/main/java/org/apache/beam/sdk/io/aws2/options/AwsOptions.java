@@ -43,21 +43,54 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCred
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
+ *
+ * <p>The options {@code --awsRegionName} and {@code --awsEndpointUrl} have the same names as the
+ * {@code --aws_region_name} and {@code --aws_endpoint_url} options of the Python SDK, so they are
+ * shared in cross-language pipelines.
  */
 public interface AwsOptions extends PipelineOptions {
 
-  /** Region used to configure AWS service clients. */
-  @Description("Region used by AWS service clients")
+  /**
+   * Region used to configure AWS service clients.
+   *
+   * <p>If not set, defaults to {@link #getAwsRegionName()} or else the region from the AWS default
+   * region provider chain.
+   *
+   * @deprecated Use {@link #getAwsRegionName()} ({@code --awsRegionName}) instead. Use {@link
+   *     AwsOptionsResolver#region(AwsOptions)} to get the effective region.
+   */
+  @Deprecated
+  @Description("Deprecated, use --awsRegionName instead. Region used by AWS service clients")
   @Default.InstanceFactory(AwsRegionFactory.class)
   Region getAwsRegion();
 
+  /**
+   * @deprecated Use {@link #setAwsRegionName(String)} instead.
+   */
+  @Deprecated
   void setAwsRegion(Region region);
+
+  /**
+   * Name of the region used to configure AWS service clients, e.g. {@code us-east-1}.
+   *
+   * <p>If not set, the region from the AWS default region provider chain is used.
+   */
+  @Description(
+      "The name of the region used by AWS service clients, e.g. us-east-1. If not set, the AWS "
+          + "default region provider chain is used.")
+  @Nullable String getAwsRegionName();
+
+  void setAwsRegionName(String regionName);
 
   /** Attempt to load default region. */
   class AwsRegionFactory implements DefaultValueFactory<@Nullable Region> {
     @Override
     @Nullable
     public Region create(PipelineOptions options) {
+      String regionName = options.as(AwsOptions.class).getAwsRegionName();
+      if (regionName != null && !regionName.trim().isEmpty()) {
+        return Region.of(regionName.trim());
+      }
       try {
         return new DefaultAwsRegionProviderChain().getRegion();
       } catch (SdkClientException e) {
@@ -66,11 +99,39 @@ public interface AwsOptions extends PipelineOptions {
     }
   }
 
-  /** Endpoint used to configure AWS service clients. */
-  @Description("Endpoint used by AWS service clients")
+  /**
+   * Endpoint used to configure AWS service clients.
+   *
+   * <p>If not set, defaults to {@link #getAwsEndpointUrl()}.
+   *
+   * @deprecated Use {@link #getAwsEndpointUrl()} ({@code --awsEndpointUrl}) instead. Use {@link
+   *     AwsOptionsResolver#endpoint(AwsOptions)} to get the effective endpoint.
+   */
+  @Deprecated
+  @Description("Deprecated, use --awsEndpointUrl instead. Endpoint used by AWS service clients")
+  @Default.InstanceFactory(EndpointFactory.class)
   URI getEndpoint();
 
+  /**
+   * @deprecated Use {@link #setAwsEndpointUrl(String)} instead.
+   */
+  @Deprecated
   void setEndpoint(URI uri);
+
+  /** The complete URL used by AWS service clients, e.g. {@code https://localhost:4566}. */
+  @Description("The complete URL used by AWS service clients, e.g. https://localhost:4566.")
+  @Nullable String getAwsEndpointUrl();
+
+  void setAwsEndpointUrl(String endpointUrl);
+
+  /** Returns {@link #getAwsEndpointUrl()} as a {@link URI}, if set. */
+  class EndpointFactory implements DefaultValueFactory<@Nullable URI> {
+    @Override
+    @Nullable
+    public URI create(PipelineOptions options) {
+      return AwsOptionsResolver.parseEndpointUrl(options.as(AwsOptions.class).getAwsEndpointUrl());
+    }
+  }
 
   /**
    * {@link AwsCredentialsProvider} used to configure AWS service clients.
