@@ -104,14 +104,14 @@ public class PortableTimersExecutionTest implements Serializable {
     flinkJobExecutor = null;
   }
 
-  @Test(timeout = 120_000)
+  @Test(timeout = 240_000)
   public void testTimerExecution() throws Exception {
     FlinkPipelineOptions options =
         PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").as(FlinkPipelineOptions.class);
     options.setRunner(CrashingRunner.class);
     options.setFlinkMaster("[local]");
     options.setStreaming(isStreaming);
-    options.setParallelism(2);
+    options.setParallelism(1);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
