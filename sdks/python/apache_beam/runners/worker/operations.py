@@ -629,22 +629,22 @@ class Operation(object):
 
   def execution_time_monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
-    start_msecs = self.scoped_start_state.sampled_msecs_int()
-    process_msecs = self.scoped_process_state.sampled_msecs_int()
-    finish_msecs = self.scoped_finish_state.sampled_msecs_int()
-    total_time_spent_msecs = start_msecs + process_msecs + finish_msecs
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int() +
+        self.scoped_process_state.sampled_msecs_int() +
+        self.scoped_finish_state.sampled_msecs_int())
     mis = [
         monitoring_infos.int64_counter(
             monitoring_infos.START_BUNDLE_MSECS_URN,
-            start_msecs,
+            self.scoped_start_state.sampled_msecs_int(),
             ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
-            process_msecs,
+            self.scoped_process_state.sampled_msecs_int(),
             ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.FINISH_BUNDLE_MSECS_URN,
-            finish_msecs,
+            self.scoped_finish_state.sampled_msecs_int(),
             ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.TOTAL_MSECS_URN,
@@ -1232,8 +1232,10 @@ class PGBKOperation(Operation):
       keys_to_delete.append(kw)
       key, windows = kw
       output_value = [v.value[1] for v in vs]
-      windowed_value = windowed_value_create(
-          (key, output_value), vs[0].timestamp_micros, windows, vs[0].pane_info)
+      windowed_value = windowed_value_create((key, output_value),
+                                             vs[0].timestamp_micros,
+                                             windows,
+                                             vs[0].pane_info)
       self.output(windowed_value)
     for kw in keys_to_delete:
       del self.table[kw]
