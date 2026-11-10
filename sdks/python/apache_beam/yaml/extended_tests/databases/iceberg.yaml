@@ -113,7 +113,7 @@ pipelines:
               type: rest
               uri: "{ICEBERG_FIXTURE[api_url]}"
             streaming: True
-            to_timestamp: 2078352000000
+            to_timestamp: "{NOW_MS}"
             filter: '"label" = ''11a'' or "rank" = 1'
             keep:
               - label
