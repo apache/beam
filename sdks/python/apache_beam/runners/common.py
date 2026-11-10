@@ -824,8 +824,7 @@ class PerWindowInvoker(DoFnInvoker):
     # and has_cached_window_batch_args will be set to true if the corresponding
     # self.args_for_process,have been updated and should be reused directly.
     self.recalculate_window_args = (
-        not all(si.is_globally_windowed() for si in side_inputs) or
-        'disable_global_windowed_args_caching'
+        self.has_windowed_inputs or 'disable_global_windowed_args_caching'
         in RuntimeValueProvider.experiments)
     self.has_cached_window_args = False
     self.has_cached_window_batch_args = False
@@ -991,13 +990,14 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs,
   ):
     # type: (...) -> Optional[SplitResultResidual]
-    if self.has_windowed_inputs:
-      window = windowed_value.windows[0]
     if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
     else:
-      if not self.has_windowed_inputs:
+      if self.has_windowed_inputs:
+        assert len(windowed_value.windows) <= 1
+        window, = windowed_value.windows
+      else:
         window = GlobalWindow()
       side_inputs = [si[window] for si in self.side_inputs]
       side_inputs.extend(additional_args)
@@ -1027,7 +1027,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = key
       elif p is core.DoFn.WindowParam or core.DoFn.WindowParam == p:
         args_for_process[i] = window
-      elif p is core.DoFn.WindowedValueParam or core.DoFn.WindowedValueParam == p:
+      elif (p is core.DoFn.WindowedValueParam or
+            core.DoFn.WindowedValueParam == p):
         args_for_process[i] = windowed_value
       elif p is core.DoFn.TimestampParam or core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
@@ -1046,7 +1047,8 @@ class PerWindowInvoker(DoFnInvoker):
                 window,
                 windowed_value.timestamp,
                 windowed_value.pane_info))
-      elif p is core.DoFn.BundleFinalizerParam or core.DoFn.BundleFinalizerParam == p:
+      elif (p is core.DoFn.BundleFinalizerParam or
+            core.DoFn.BundleFinalizerParam == p):
         args_for_process[i] = self.bundle_finalizer_param
       elif isinstance(p, core.DoFn.BundleContextParam):
         args_for_process[i] = self._bundle_context_values[p][1]
@@ -1094,15 +1096,15 @@ class PerWindowInvoker(DoFnInvoker):
   ):
     # type: (...) -> Optional[SplitResultResidual]
 
-    if self.has_windowed_inputs:
-      assert isinstance(windowed_batch, HomogeneousWindowedBatch)
-      assert len(windowed_batch.windows) <= 1
-      window = windowed_batch.windows[0]
     if self.has_cached_window_batch_args:
       args_for_process_batch, kwargs_for_process_batch = (
           self.args_for_process_batch, self.kwargs_for_process_batch)
     else:
-      if not self.has_windowed_inputs:
+      if self.has_windowed_inputs:
+        assert isinstance(windowed_batch, HomogeneousWindowedBatch)
+        assert len(windowed_batch.windows) <= 1
+        window, = windowed_batch.windows
+      else:
         window = GlobalWindow()
       side_inputs = [si[window] for si in self.side_inputs]
       side_inputs.extend(additional_args)
