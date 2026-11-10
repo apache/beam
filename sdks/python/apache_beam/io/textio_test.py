@@ -21,6 +21,7 @@
 import bz2
 import glob
 import gzip
+import json
 import logging
 import os
 import platform
@@ -1888,6 +1889,48 @@ class JsonTest(unittest.TestCase):
             assert type(a) == type(b), (a, b, type(a), type(b))
 
         _ = pcoll | beam.Map(check_types)
+
+  def test_float_precision_not_truncated(self):
+    records = [
+        beam.Row(id=1, x=0.1234567890123),
+        beam.Row(id=2, x=1e-11),
+    ]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToJson(
+            os.path.join(dest, 'out'))
+      written = []
+      for path in glob.glob(os.path.join(dest, 'out*')):
+        with open(path) as f:
+          written.extend(json.loads(line) for line in f if line.strip())
+    self.assertCountEqual(
+        written, [{
+            'id': 1, 'x': 0.1234567890123
+        }, {
+            'id': 2, 'x': 1e-11
+        }])
+
+  def test_double_precision_override(self):
+    records = [
+        beam.Row(id=1, x=0.1234567890123),
+        beam.Row(id=2, x=1e-11),
+    ]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToJson(
+            os.path.join(dest, 'out'), double_precision=10)
+      written = []
+      for path in glob.glob(os.path.join(dest, 'out*')):
+        with open(path) as f:
+          written.extend(json.loads(line) for line in f if line.strip())
+    self.assertCountEqual(
+        written, [{
+            'id': 1, 'x': 0.123456789
+        }, {
+            'id': 2, 'x': 0.0
+        }])
 
 
 class GenerateEvent(beam.PTransform):
