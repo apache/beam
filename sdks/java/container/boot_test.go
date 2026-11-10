@@ -135,3 +135,36 @@ func TestExtractProfilerServiceName(t *testing.T) {
 		})
 	}
 }
+
+func TestGCOption(t *testing.T) {
+	ctx, logger := context.Background(), &tools.Logger{}
+	tests := []struct {
+		name     string
+		options  string
+		expected string
+	}{
+		{
+			name:     "Valid GC option",
+			options:  `{"options": {"experiments": ["java_gc=UseG1GC"]}}`,
+			expected: "-XX:+UseG1GC",
+		},
+		{
+			name:     "Invalid GC option falls back to default",
+			options:  `{"options": {"experiments": ["java_gc=Invalid"]}}`,
+			expected: "-XX:+UseParallelGC",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			protoOpts, err := tools.JSONToProto(tt.options)
+			if err != nil {
+				t.Fatalf("JSONToProto(%s) failed: %v", tt.options, err)
+			}
+			po := tools.ParseOptionsFromProto(protoOpts, "")
+			if got := GCOption(ctx, logger, po); got != tt.expected {
+				t.Errorf("GCOption() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

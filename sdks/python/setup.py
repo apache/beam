@@ -229,9 +229,9 @@ ml_adk_dependency = [
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api>=1.36.0,<1.43',
-    'opentelemetry-sdk>=1.36.0,<1.43',
-    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
+    'opentelemetry-api>=1.36.0,<2.0',
+    'opentelemetry-sdk>=1.36.0,<2.0',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<2.0',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]

@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg;
+package org.apache.beam.sdk.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
-import org.apache.beam.sdk.io.iceberg.BundleLifter.BundleLiftDoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.util.BundleLifter.BundleLiftDoFn;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 import org.junit.runner.RunWith;
