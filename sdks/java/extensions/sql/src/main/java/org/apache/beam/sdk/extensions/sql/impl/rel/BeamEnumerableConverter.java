@@ -278,6 +278,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       State state = result.waitUntilFinish();
       checkNotCancelled(cancelFlag);
       return state;
+    } catch (RuntimeException e) {
+      checkNotCancelled(cancelFlag);
+      throw e;
     } finally {
       canceller.interrupt();
     }
