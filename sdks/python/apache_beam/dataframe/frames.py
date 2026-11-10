@@ -1641,7 +1641,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def var(self, axis, skipna, level, ddof, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
+    return self._var(ddof)
 
+  def _var(self, ddof=1, min_periods=None):
     # See the online, numerically stable formulae at
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     # and
@@ -1650,22 +1652,30 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       n = len(x)
       m = x.std(ddof=0)**2 * n
       s = x.sum()
-      return pd.DataFrame(dict(m=[m], s=[s], n=[n]))
+      return pd.DataFrame(
+          dict(m=[m], s=[s], n=[n], min=[x.min()], max=[x.max()]))
 
     def combine_moments(data):
       m = s = n = 0.0
+      lo = hi = None
       for datum in data.itertuples():
         if datum.n == 0:
           continue
         elif n == 0:
           m, s, n = datum.m, datum.s, datum.n
+          lo, hi = datum.min, datum.max
         else:
           delta = s / n - datum.s / datum.n
           m += datum.m + delta**2 * n * datum.n / (n + datum.n)
           s += datum.s
           n += datum.n
-      if n <= ddof:
+          lo, hi = min(lo, datum.min), max(hi, datum.max)
+      if n <= ddof or n < (min_periods or 0):
         return float('nan')
+      elif lo == hi:
+        # Combining partitions can leave rounding error in m for a constant
+        # series, e.g. one of 0.1s, so return exactly 0.
+        return 0.0
       else:
         return m / (n - ddof)
 
@@ -1857,7 +1867,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     # Like pandas, a series with no variance has a NaN correlation.
     return cov.apply(
         lambda cov, std_x, std_y: cov / (std_x * std_y)
-        if std_x * std_y else float('nan'),
+        if std_x and std_y else float('nan'),
         args=[std_x, std_y])
 
   @frame_base.with_docs_from(pd.Series)
@@ -1894,7 +1904,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           sx += datum.sx
           sy += datum.sy
           n += datum.n
-      if n < max(2, ddof, min_periods or 0):
+      if n <= ddof or n < (min_periods or 0):
         return float('nan')
       else:
         return c / (n - ddof)
@@ -3087,8 +3097,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       arg_indices = []
       for col in columns:
         arg_indices.append((col, col))
-        x = self[col].dropna()
-        args.append(x._cov_aligned(x, min_periods))
+        args.append(self[col].dropna()._var(min_periods=min_periods))
       for col1, col2 in itertools.combinations(columns, 2):
         arg_indices.append((col1, col2))
         args.append(self[col1].corr(self[col2], method=method,
@@ -3133,8 +3142,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     arg_indices = []
     for col in columns:
       arg_indices.append((col, col))
-      x = self[col].dropna()
-      args.append(x._cov_aligned(x, min_periods, ddof))
+      args.append(self[col].dropna()._var(ddof, min_periods))
     for ix, col1 in enumerate(columns):
       for col2 in columns[ix+1:]:
         arg_indices.append((col1, col2))
