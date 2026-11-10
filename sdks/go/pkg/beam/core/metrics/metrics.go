@@ -96,6 +96,17 @@ func (ctx *beamCtx) Value(key any) any {
 			} else {
 				// It's not created previously
 				ctx.store.mu.Lock()
+				// Reuse the counterset already registered for this PTransform,
+				// so Setup and bundle contexts for the same transform share one
+				// counterset instead of diverging into separate metric objects.
+				// See apache/beam#27038.
+				for _, cs := range ctx.store.css {
+					if cs.pid == ctx.ptransformID {
+						ctx.cs = cs
+						ctx.store.mu.Unlock()
+						return ctx.cs
+					}
+				}
 				cs := &ptCounterSet{
 					pid:           ctx.ptransformID,
 					counters:      make(map[nameHash]*counter),
