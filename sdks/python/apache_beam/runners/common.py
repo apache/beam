@@ -993,18 +993,17 @@ class PerWindowInvoker(DoFnInvoker):
     # type: (...) -> Optional[SplitResultResidual]
     if self.has_windowed_inputs:
       window = windowed_value.windows[0]
-    if self.has_cached_window_args and not additional_args:
+    if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
     else:
       if not self.has_windowed_inputs:
         window = GlobalWindow()
       side_inputs = [si[window] for si in self.side_inputs]
-      if additional_args:
-        side_inputs.extend(additional_args)
+      side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process, side_inputs)
-      if not self.recalculate_window_args and not additional_args:
+      if not self.recalculate_window_args:
         self.args_for_process, self.kwargs_for_process = (
             args_for_process, kwargs_for_process)
         self.has_cached_window_args = True
@@ -1047,7 +1046,7 @@ class PerWindowInvoker(DoFnInvoker):
                 window,
                 windowed_value.timestamp,
                 windowed_value.pane_info))
-      elif core.DoFn.BundleFinalizerParam == p:
+      elif p is core.DoFn.BundleFinalizerParam or core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
       elif isinstance(p, core.DoFn.BundleContextParam):
         args_for_process[i] = self._bundle_context_values[p][1]
@@ -1099,15 +1098,14 @@ class PerWindowInvoker(DoFnInvoker):
       assert isinstance(windowed_batch, HomogeneousWindowedBatch)
       assert len(windowed_batch.windows) <= 1
       window = windowed_batch.windows[0]
-    if self.has_cached_window_batch_args and not additional_args:
+    if self.has_cached_window_batch_args:
       args_for_process_batch, kwargs_for_process_batch = (
           self.args_for_process_batch, self.kwargs_for_process_batch)
     else:
       if not self.has_windowed_inputs:
         window = GlobalWindow()
       side_inputs = [si[window] for si in self.side_inputs]
-      if additional_args:
-        side_inputs.extend(additional_args)
+      side_inputs.extend(additional_args)
       args_for_process_batch, kwargs_for_process_batch = (
           util.insert_values_in_args(
               self.args_for_process_batch,
@@ -1115,7 +1113,7 @@ class PerWindowInvoker(DoFnInvoker):
               side_inputs,
           )
       )
-      if not self.recalculate_window_args and not additional_args:
+      if not self.recalculate_window_args:
         self.args_for_process_batch, self.kwargs_for_process_batch = (
             args_for_process_batch, kwargs_for_process_batch)
         self.has_cached_window_batch_args = True
