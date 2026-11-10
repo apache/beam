@@ -65,6 +65,8 @@ class ProberTests {
     SELECT
       COUNT(*) AS source_count,
       COUNT(last_sync) AS synced_source_count,
+      MIN(EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / 60)
+        AS min_staleness_minutes,
       MAX(EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / 60)
         AS max_staleness_minutes
     FROM sources
@@ -111,6 +113,7 @@ class ProberTests {
 
     def sourceCount = value('source_count')
     def syncedSourceCount = value('synced_source_count')
+    def minStalenessMinutes = value('min_staleness_minutes')
     def maxStalenessMinutes = value('max_staleness_minutes')
 
     assert sourceCount == 2 :
@@ -119,10 +122,20 @@ class ProberTests {
     assert syncedSourceCount == 2 :
       "One or more metrics sources have no synchronization timestamp"
 
+    assert minStalenessMinutes != null
     assert maxStalenessMinutes != null
 
-    assert maxStalenessMinutes <= 480 :
-      "Input data is stale: ${maxStalenessMinutes} minutes\n" +
+    // gh_sync_metadata.timestamp stores the updatedAt timestamp of the most
+    // recently updated GitHub Issue (gh_issue_sync) and PR (gh_pr_sync), both
+    // updated in the same sync loop. Verify that at least one source has seen
+    // synced activity within 8 hours (480m) and both within 48 hours (2880m) to
+    // avoid false positives during quiet overnight/weekend issue windows.
+    assert minStalenessMinutes <= 480 :
+      "Input data is stale (min staleness): ${minStalenessMinutes} minutes\n" +
+        "See: ${grafanaEndpoint}/d/data-freshness"
+
+    assert maxStalenessMinutes <= 2880 :
+      "Input data is stale (max staleness): ${maxStalenessMinutes} minutes\n" +
         "See: ${grafanaEndpoint}/d/data-freshness"
   }
 }
