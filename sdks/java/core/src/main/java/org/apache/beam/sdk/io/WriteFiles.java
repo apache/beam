@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -79,9 +80,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.BundleLifter;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MoreFutures;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -1209,22 +1210,37 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public PCollection<List<FileResult<DestinationT>>> expand(PCollection<UserT> input) {
-      TupleTag<FileResult<DestinationT>> directFilesTag = new TupleTag<>("directFiles");
       TupleTag<UserT> smallBundlesTag = new TupleTag<>("smallBundles");
+      TupleTag<UserT> largeBundlesTag = new TupleTag<>("largeBundles");
+      TupleTag<FileResult<DestinationT>> directFilesTag = new TupleTag<>("directFiles");
+      TupleTag<UserT> spilledRecordsTag = new TupleTag<>("spilledRecords");
+
+      // Evaluate the threshold per window, pane and destination, i.e. per output file.
+      PCollectionTuple lifted =
+          input.apply(
+              "LiftLargeBundles",
+              BundleLifter.of(smallBundlesTag, largeBundlesTag, thresholdBytes, input.getCoder())
+                  .withKeyFn(new DestinationKeyFn<>(getDynamicDestinations())));
 
       PCollectionTuple routed =
-          input.apply(
-              "DirectWriteLargeBundles",
-              ParDo.of(
-                      new DirectWriteLargeBundlesFn(
-                          smallBundlesTag, thresholdBytes, input.getCoder()))
-                  .withSideInputs(getSideInputs())
-                  .withOutputTags(
-                      directFilesTag,
-                      TupleTagList.of(ImmutableList.of(smallBundlesTag, BAD_RECORD_TAG))));
+          lifted
+              .get(largeBundlesTag)
+              .setCoder(input.getCoder())
+              .apply(
+                  "DirectWriteLargeBundles",
+                  ParDo.of(new DirectWriteRecordsFn(spilledRecordsTag, input.getCoder()))
+                      .withSideInputs(getSideInputs())
+                      .withOutputTags(
+                          directFilesTag,
+                          TupleTagList.of(ImmutableList.of(spilledRecordsTag, BAD_RECORD_TAG))));
       addErrorCollection(routed);
 
-      PCollection<UserT> smallBundles = routed.get(smallBundlesTag).setCoder(input.getCoder());
+      PCollection<UserT> smallBundles =
+          PCollectionList.of(lifted.get(smallBundlesTag).setCoder(input.getCoder()))
+              .and(routed.get(spilledRecordsTag).setCoder(input.getCoder()))
+              .apply("FlattenSmallBundles", Flatten.pCollections())
+              .apply("CountGroupedBundles", ParDo.of(new CountGroupedBundlesFn<>()))
+              .setCoder(input.getCoder());
       PCollection<FileResult<DestinationT>> groupedFiles;
       if (getComputeNumShards() != null || getNumShardsProvider() != null) {
         groupedFiles =
@@ -1281,50 +1297,73 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private static class ByteSizeObserver extends ElementByteSizeObserver {
-    private long byteSize;
+  /**
+   * Key function for {@link BundleLifter}: the record's destination, so that together with the
+   * window and pane the threshold is evaluated per output file. Returns {@code null} if the
+   * destination cannot be computed, which sends the record to the grouped path where the usual
+   * error handling applies.
+   */
+  private static class DestinationKeyFn<UserT, DestinationT>
+      implements SerializableFunction<UserT, @Nullable Object> {
+    private final DynamicDestinations<UserT, DestinationT, ?> dynamicDestinations;
+
+    DestinationKeyFn(DynamicDestinations<UserT, DestinationT, ?> dynamicDestinations) {
+      this.dynamicDestinations = dynamicDestinations;
+    }
 
     @Override
-    protected void reportElementSize(long elementByteSize) {
-      this.byteSize = elementByteSize;
+    public @Nullable Object apply(UserT record) {
+      try {
+        // Wrapped so that a null destination (e.g. Void) is still a valid key.
+        return java.util.Optional.ofNullable(dynamicDestinations.getDestination(record));
+      } catch (Exception e) {
+        return null;
+      }
+    }
+  }
+
+  /** Passes records through, counting the bundles that take the grouped path. */
+  private static class CountGroupedBundlesFn<T> extends DoFn<T, T> {
+    private final Counter groupedBundles = Metrics.counter(WriteFiles.class, "groupedWriteBundles");
+    private transient boolean counted;
+
+    @StartBundle
+    public void startBundle() {
+      counted = false;
+    }
+
+    @ProcessElement
+    public void processElement(@Element T element, OutputReceiver<T> receiver) {
+      if (!counted) {
+        groupedBundles.inc();
+        counted = true;
+      }
+      receiver.output(element);
     }
   }
 
   /**
-   * Buffers each bundle's records until their encoded size reaches {@code thresholdBytes}. Bundles
-   * that reach it are written directly to temporary files. Records of smaller bundles, and records
-   * that would exceed the per-bundle writer limit, are emitted to {@code smallBundlesTag} at the
-   * end of the bundle for the grouped path.
+   * Writes the records lifted by {@link BundleLifter} directly to temporary files, one writer per
+   * window, pane and destination. Records that would exceed the per-bundle writer limit are emitted
+   * to {@code spilledRecordsTag} for the grouped path.
    */
-  private class DirectWriteLargeBundlesFn extends DoFn<UserT, FileResult<DestinationT>> {
-    private final TupleTag<UserT> smallBundlesTag;
-    private final long thresholdBytes;
+  private class DirectWriteRecordsFn extends DoFn<UserT, FileResult<DestinationT>> {
+    private final TupleTag<UserT> spilledRecordsTag;
     private final Coder<UserT> inputCoder;
 
     private final Counter directBundles = Metrics.counter(WriteFiles.class, "directWriteBundles");
-    private final Counter groupedBundles = Metrics.counter(WriteFiles.class, "groupedWriteBundles");
 
     // Per-bundle state, reset in startBundle.
-    private transient List<BufferedRecord<UserT>> buffer;
-    private transient long bufferedBytes;
-    private transient boolean directMode;
     private transient Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
-    private transient List<BufferedRecord<UserT>> spilled;
 
-    DirectWriteLargeBundlesFn(
-        TupleTag<UserT> smallBundlesTag, long thresholdBytes, Coder<UserT> inputCoder) {
-      this.smallBundlesTag = smallBundlesTag;
-      this.thresholdBytes = thresholdBytes;
+    DirectWriteRecordsFn(TupleTag<UserT> spilledRecordsTag, Coder<UserT> inputCoder) {
+      this.spilledRecordsTag = spilledRecordsTag;
       this.inputCoder = inputCoder;
     }
 
     @StartBundle
     public void startBundle() {
-      buffer = new ArrayList<>();
-      bufferedBytes = 0;
-      directMode = false;
       writers = new LinkedHashMap<>();
-      spilled = new ArrayList<>();
     }
 
     @ProcessElement
@@ -1332,44 +1371,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver)
         throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-      BufferedRecord<UserT> record =
-          new BufferedRecord<>(c.element(), c.timestamp(), window, c.pane());
-      if (directMode) {
-        write(record, outputReceiver);
-        return;
-      }
-      buffer.add(record);
-      bufferedBytes += estimateSize(c.element());
-      if (bufferedBytes >= thresholdBytes) {
-        directMode = true;
-        // Direct writes are disabled when destinations use side inputs (see
-        // expand()), so resolving buffered records' destinations here is safe.
-        for (BufferedRecord<UserT> buffered : buffer) {
-          write(buffered, outputReceiver);
-        }
-        buffer.clear();
-      }
-    }
-
-    private long estimateSize(UserT value) throws Exception {
-      if (inputCoder.isRegisterByteSizeObserverCheap(value)) {
-        ByteSizeObserver observer = new ByteSizeObserver();
-        inputCoder.registerByteSizeObserver(value, observer);
-        observer.advance();
-        return observer.byteSize;
-      }
-      return CoderUtils.encodeToByteArray(inputCoder, value).length;
-    }
-
-    private void write(BufferedRecord<UserT> record, MultiOutputReceiver outputReceiver)
-        throws Exception {
       MaybeDestination<DestinationT> maybeDestination =
-          getDestinationWithErrorHandling(record.value, outputReceiver, inputCoder);
+          getDestinationWithErrorHandling(c.element(), outputReceiver, inputCoder);
       if (!maybeDestination.isValid) {
         return;
       }
       DestinationT destination = maybeDestination.destination;
-      WriterKey<DestinationT> key = new WriterKey<>(record.window, record.pane, destination);
+      WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
         int maxWriters =
@@ -1378,13 +1386,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 : getMaxNumWritersPerBundle();
         if (writers.size() >= maxWriters) {
           // Too many open writers in this bundle; send the record to the grouped path.
-          spilled.add(record);
+          outputReceiver.get(spilledRecordsTag).output(c.element());
           return;
         }
         writer = openAndRegisterWriter(writers, key);
       }
       OutputT formattedRecord =
-          formatRecordWithErrorHandling(record.value, outputReceiver, inputCoder);
+          formatRecordWithErrorHandling(c.element(), outputReceiver, inputCoder);
       if (formattedRecord == null) {
         return;
       }
@@ -1393,42 +1401,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      closeAllWritersAndOutputFileResults(writers, c);
-      // Exactly one of these cases applies, and records are emitted in arrival order:
-      // - Direct mode: the buffer was flushed when the threshold was crossed, so only records
-      //   that exceeded the per-bundle writer limit remain (in `spilled`).
-      // - Grouped mode: nothing was written directly, so every record is still in `buffer`.
-      if (directMode) {
+      if (!writers.isEmpty()) {
         directBundles.inc();
-        for (BufferedRecord<UserT> record : spilled) {
-          c.output(smallBundlesTag, record.value, record.timestamp, record.window);
-        }
-      } else if (!buffer.isEmpty()) {
-        groupedBundles.inc();
-        for (BufferedRecord<UserT> record : buffer) {
-          c.output(smallBundlesTag, record.value, record.timestamp, record.window);
-        }
       }
-      buffer.clear();
-      spilled.clear();
+      closeAllWritersAndOutputFileResults(writers, c);
       writers.clear();
-      bufferedBytes = 0;
-      directMode = false;
-    }
-  }
-
-  /** A record held by {@link DirectWriteLargeBundlesFn} with the metadata needed to re-emit it. */
-  private static class BufferedRecord<T> {
-    private final T value;
-    private final Instant timestamp;
-    private final BoundedWindow window;
-    private final PaneInfo pane;
-
-    BufferedRecord(T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
-      this.value = value;
-      this.timestamp = timestamp;
-      this.window = window;
-      this.pane = pane;
     }
   }
 

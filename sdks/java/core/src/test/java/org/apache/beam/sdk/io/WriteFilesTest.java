@@ -87,6 +87,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.Values;
@@ -611,6 +612,106 @@ public class WriteFilesTest {
 
     checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
     assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
+  /** Routes each element to a destination chosen by {@code destinationOf}, without side inputs. */
+  private static class PerElementDestinations extends DynamicDestinations<String, String, String> {
+    private final ResourceId baseOutputDirectory;
+    private final SerializableFunction<String, String> destinationOf;
+
+    PerElementDestinations(
+        ResourceId baseOutputDirectory, SerializableFunction<String, String> destinationOf) {
+      this.baseOutputDirectory = baseOutputDirectory;
+      this.destinationOf = destinationOf;
+    }
+
+    @Override
+    public String formatRecord(String record) {
+      return record;
+    }
+
+    @Override
+    public String getDestination(String element) {
+      return destinationOf.apply(element);
+    }
+
+    @Override
+    public String getDefaultDestination() {
+      return "file";
+    }
+
+    @Override
+    public FilenamePolicy getFilenamePolicy(String destination) {
+      return new PerWindowFiles(
+          baseOutputDirectory.resolve(destination, StandardResolveOptions.RESOLVE_FILE), "simple");
+    }
+  }
+
+  private PipelineResult runPerDestinationDirectWrite(
+      List<String> elements, SerializableFunction<String, String> destinationOf, long threshold)
+      throws IOException {
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(new Instant(0L))
+            // A single bundle containing every element.
+            .addElements(
+                elements.get(0),
+                Iterables.toArray(elements.subList(1, elements.size()), String.class))
+            .advanceWatermarkToInfinity();
+
+    SimpleSink<String> sink =
+        new SimpleSink<>(
+            getBaseOutputDirectory(),
+            new PerElementDestinations(getBaseOutputDirectory(), destinationOf),
+            Compression.UNCOMPRESSED);
+    WriteFiles<String, String, String> write =
+        WriteFiles.to(sink)
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(threshold);
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    return result;
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteThresholdIsPerDestination() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    // ~300 bytes in one bundle, but split over 10 destinations of ~30 bytes each, so no output
+    // file reaches the 50-byte threshold and everything takes the grouped path.
+    PipelineResult result =
+        runPerDestinationDirectWrite(
+            elements, e -> "file" + (Integer.parseInt(e.substring(8)) % 10), 50L);
+
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
+    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteLargeAndSmallDestinationsInOneBundle() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 23; ++i) {
+      elements.add("number: " + i);
+    }
+    // 20 elements (~220 bytes) go to one destination and 3 (~33 bytes) to another. With a
+    // 100-byte threshold, the large destination is written directly and the small one is grouped.
+    PipelineResult result =
+        runPerDestinationDirectWrite(
+            elements, e -> Integer.parseInt(e.substring(8)) < 20 ? "fileLarge" : "fileSmall", 100L);
+
+    assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
+    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
   }
 
   private void runDirectWriteTestStream(long thresholdBytes) throws IOException {
