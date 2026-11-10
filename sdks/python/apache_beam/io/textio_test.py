@@ -1900,8 +1900,7 @@ class JsonTest(unittest.TestCase):
     def write_and_read(**kwargs):
       with tempfile.TemporaryDirectory() as dest:
         with TestPipeline() as p:
-          # pylint: disable=expression-not-assigned
-          p | beam.Create(records) | beam.io.WriteToJson(
+          _ = p | beam.Create(records) | beam.io.WriteToJson(
               os.path.join(dest, 'out'), **kwargs)
         written = []
         for path in glob.glob(os.path.join(dest, 'out*')):
