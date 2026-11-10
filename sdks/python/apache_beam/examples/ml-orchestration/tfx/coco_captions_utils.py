@@ -27,15 +27,15 @@ from tfx import v1 as tfx
 def run_fn(fn_args: tfx.components.FnArgs) -> None:
   """Build the TF model, train it and export it."""
   # create a model
-  model = tf.keras.Sequential()
-  model.add(tf.keras.layers.Dense(1, input_dim=10))
+  model = tf.keras.Sequential(
+      [tf.keras.Input(shape=(10, )), tf.keras.layers.Dense(1)])
   model.compile()
 
   # train the model on the preprocessed data
   # model.fit(...)
 
-  # Save model to fn_args.serving_model_dir.
-  model.save(fn_args.serving_model_dir)
+  # Export the model as a SavedModel to fn_args.serving_model_dir.
+  model.export(fn_args.serving_model_dir)
 
 
 # [END tfx_run_fn]
