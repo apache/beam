@@ -141,12 +141,18 @@ AR_REDIRECTED_GCR_RE = re.compile(
 def expand_uri_variants(uri: str, extra_digests: list[str] | None = None) -> list[str]:
   """Expands a container repository URI into all GCR / AR forms needed by gcloud load-vex."""
   cleaned = re.sub(r"^https?://", "", uri.strip())
-  base_uri = cleaned.split("@")[0].split(":")[0]
-  explicit_suffix = ""
   if "@" in cleaned:
-    explicit_suffix = "@" + cleaned.split("@", 1)[1]
-  elif ":" in cleaned.split("/")[-1]:
-    explicit_suffix = ":" + cleaned.split("/")[-1].split(":", 1)[1]
+    base_uri, digest_part = cleaned.split("@", 1)
+    explicit_suffix = "@" + digest_part
+  else:
+    last_slash = cleaned.rfind("/")
+    if last_slash != -1 and ":" in cleaned[last_slash:]:
+      tag_part, tag = cleaned[last_slash:].split(":", 1)
+      base_uri = cleaned[:last_slash] + tag_part
+      explicit_suffix = ":" + tag
+    else:
+      base_uri = cleaned
+      explicit_suffix = ""
 
   base_variants: list[str] = [base_uri]
 
@@ -494,7 +500,9 @@ def parse_artifact_registry_vulns(raw_json: str) -> list[dict[str, Any]]:
     occ = item.get("occurrence", item)
     if not isinstance(occ, dict):
       continue
-    vuln = occ.get("vulnerability", {})
+    vuln = occ.get("vulnerability")
+    if not isinstance(vuln, dict):
+      continue
     cve_id = vuln.get("shortDescription", "")
     if not cve_id.startswith("CVE-"):
       continue
@@ -527,10 +535,16 @@ def parse_trivy_vulns(raw_json: str) -> list[dict[str, Any]]:
   if not raw_json.strip():
     return []
   data = json.loads(raw_json)
+  if not isinstance(data, dict):
+    return []
   findings: list[dict[str, Any]] = []
-  for result in data.get("Results", []):
-    pkg_type = result.get("Class", "os-pkgs")
-    for vuln in result.get("Vulnerabilities", []) or []:
+  for result in data.get("Results") or []:
+    if not isinstance(result, dict):
+      continue
+    pkg_type = result.get("Type") or result.get("Class", "os-pkgs")
+    for vuln in result.get("Vulnerabilities") or []:
+      if not isinstance(vuln, dict):
+        continue
       cve_id = vuln.get("VulnerabilityID", "")
       if not cve_id.startswith("CVE-"):
         continue
@@ -598,7 +612,7 @@ def classify_finding_reachability(
         "confidence": "high",
     }
 
-  if reachable_go_cves is not None and pkg_type in ("GO", "GOBINARY", "LANG-PKGS"):
+  if reachable_go_cves is not None and pkg_type in ("GO", "GOBINARY", "GOMOD"):
     if cve_id not in reachable_go_cves:
       return {
           "id": cve_id,
@@ -660,13 +674,21 @@ def invoke_llm_triage(
       text = body["candidates"][0]["content"]["parts"][0]["text"]
       parsed = json.loads(text)
       if parsed.get("status") in ("not_affected", "under_investigation"):
+        raw_just = parsed.get("justification", "")
+        valid_just = (
+            raw_just
+            if raw_just in CSAF_JUSTIFICATION_MAP
+            else (
+                "vulnerable_code_not_in_execute_path"
+                if parsed["status"] == "not_affected"
+                else ""
+            )
+        )
         return {
             "id": finding["id"],
             "package": finding.get("package", ""),
             "status": parsed["status"],
-            "justification": parsed.get(
-                "justification", "vulnerable_code_not_in_execute_path"
-            ),
+            "justification": valid_just,
             "impact_statement": parsed.get("impact_statement", ""),
             "confidence": "agentic_llm",
         }
@@ -737,7 +759,24 @@ def cmd_generate(args: argparse.Namespace) -> int:
   return 0
 
 
+def _extract_leading_comments(path: Path) -> str:
+  """Extracts leading comment/license header lines from a YAML file."""
+  if not path.exists():
+    return ""
+  header_lines: list[str] = []
+  for line in path.read_text(encoding="utf-8").splitlines():
+    if line.startswith("#") or not line.strip():
+      header_lines.append(line)
+    else:
+      break
+  return "\n".join(header_lines).rstrip() + "\n\n" if header_lines else ""
+
+
 def cmd_scan(args: argparse.Namespace) -> int:
+  if not args.ar_image and not args.trivy_image:
+    raise ValueError(
+        "At least one of --ar-image or --trivy-image must be specified."
+    )
   config_path = Path(args.config)
   config = load_vex_config(config_path)
   families = config.get("image_families", {})
@@ -821,6 +860,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
         r for r in triage_results if r["status"] == "not_affected"
     ]
     if new_not_affected:
+      header_prefix = _extract_leading_comments(config_path)
       family_stmts = family_cfg.setdefault("statements", [])
       for item in new_not_affected:
         family_stmts.append({
@@ -830,8 +870,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
             "packages": [item["package"]] if item.get("package") else [],
             "impact_statement": item["impact_statement"],
         })
-      with config_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(config, f, sort_keys=False)
+      dumped = yaml.safe_dump(config, sort_keys=False)
+      config_path.write_text(header_prefix + dumped, encoding="utf-8")
       print(
           f"Appended {len(new_not_affected)} new not_affected VEX statements to {config_path}"
       )
@@ -911,8 +951,7 @@ def build_parser() -> argparse.ArgumentParser:
   )
   gen.add_argument(
       "--timestamp",
-      default="2026-11-10T00:00:00Z",
-      help="ISO-8601 timestamp for deterministic VEX output.",
+      help="Optional ISO-8601 timestamp for deterministic VEX output (defaults to current UTC time).",
   )
   gen.set_defaults(func=cmd_generate)
 

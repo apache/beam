@@ -48,6 +48,11 @@ class VexManagerTest(unittest.TestCase):
         "us-docker.pkg.dev/cloud-dataflow/gcr.io/v1beta3/beam_go_sdk@sha256:0957e5bf",
         variants,
     )
+    port_variants = vex_manager.expand_uri_variants(
+        "localhost:5000/project/image:latest"
+    )
+    self.assertIn("localhost:5000/project/image", port_variants)
+    self.assertIn("localhost:5000/project/image:latest", port_variants)
 
   def test_generate_openvex_csaf_and_lichene(self) -> None:
     config_path = Path(__file__).with_name("beam_containers_vex.yaml")
@@ -118,6 +123,7 @@ class VexManagerTest(unittest.TestCase):
         "Results": [
             {
                 "Class": "lang-pkgs",
+                "Type": "gobinary",
                 "Vulnerabilities": [
                     {
                         "VulnerabilityID": "CVE-2026-88888",
@@ -126,15 +132,31 @@ class VexManagerTest(unittest.TestCase):
                         "FixedVersion": "0.40.0",
                     }
                 ],
-            }
+            },
+            {
+                "Class": "lang-pkgs",
+                "Type": "pip",
+                "Vulnerabilities": [
+                    {
+                        "VulnerabilityID": "CVE-2026-77777",
+                        "PkgName": "urllib3",
+                        "Severity": "HIGH",
+                        "FixedVersion": "2.2.2",
+                    }
+                ],
+            },
         ]
     })
     trivy_findings = vex_manager.parse_trivy_vulns(trivy_sample)
-    self.assertEqual(len(trivy_findings), 1)
+    self.assertEqual(len(trivy_findings), 2)
     go_verdict = vex_manager.classify_finding_reachability(
         trivy_findings[0], reachable_go_cves=set()
     )
     self.assertEqual(go_verdict["status"], "not_affected")
+    py_verdict = vex_manager.classify_finding_reachability(
+        trivy_findings[1], reachable_go_cves=set()
+    )
+    self.assertEqual(py_verdict["status"], "under_investigation")
 
 
 if __name__ == "__main__":

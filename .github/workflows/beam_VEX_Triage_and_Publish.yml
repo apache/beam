@@ -67,11 +67,17 @@ jobs:
           python3 -m pip install pyyaml
           go install golang.org/x/vuln/cmd/govulncheck@latest
           if ! command -v cosign >/dev/null 2>&1; then
-            sudo curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
-            sudo chmod +x /usr/local/bin/cosign
+            curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /tmp/cosign
+            echo "8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b  /tmp/cosign" | sha256sum -c -
+            sudo install -m 0755 /tmp/cosign /usr/local/bin/cosign
+            rm -f /tmp/cosign
           fi
           if ! command -v trivy >/dev/null 2>&1; then
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+            curl -sSfL https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz -o /tmp/trivy.tar.gz
+            echo "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  /tmp/trivy.tar.gz" | sha256sum -c -
+            sudo tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
+            sudo chmod 0755 /usr/local/bin/trivy
+            rm -f /tmp/trivy.tar.gz
           fi
 
       - name: Authenticate on GCP
@@ -83,6 +89,10 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
 
+      - name: Configure Docker credential helper
+        run: |
+          gcloud auth configure-docker gcr.io --quiet
+
       - name: Run VEX unit tests
         run: |
           python3 sdks/containers/vex/vex_manager_test.py
@@ -92,25 +102,33 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           mkdir -p /tmp/vex-reports
+          (cd sdks && go build -o /tmp/beam_go_boot ./go/container)
           for entry in \
             "beam_go_sdk:beam_go_sdk" \
             "beam_python3.11_sdk:beam_python_sdk" \
             "beam_python3.12_sdk:beam_python_sdk" \
+            "beam_python3.13_sdk:beam_python_sdk" \
+            "beam_java11_sdk:beam_java_sdk" \
             "beam_java17_sdk:beam_java_sdk" \
             "beam_java21_sdk:beam_java_sdk"; do
             image_name="${entry%%:*}"
             family_name="${entry##*:}"
             repo="gcr.io/apache-beam-testing/updated_released_container_images/${image_name}"
-            digest=$(gcloud artifacts docker images describe "${repo}:${RELEASE}" --format='value(image_summary.digest)' 2>/dev/null || true)
+            digest=$(gcloud artifacts docker images describe "${repo}:${RELEASE}" --format='value(image_summary.digest)')
             if [ -n "${digest}" ]; then
+              govuln_arg=""
+              if [ "${family_name}" = "beam_go_sdk" ]; then
+                govuln_arg="--govulncheck-binary=/tmp/beam_go_boot"
+              fi
               python3 sdks/containers/vex/vex_manager.py scan \
                 --family="${family_name}" \
                 --ar-image="${repo}@${digest}" \
                 --ar-location="us" \
                 --trivy-image="${repo}@${digest}" \
+                ${govuln_arg} \
                 --agentic-triage \
                 --update-config \
-                --report-json="/tmp/vex-reports/${image_name}.json" || true
+                --report-json="/tmp/vex-reports/${image_name}.json"
             fi
           done
           python3 sdks/containers/vex/vex_manager.py generate --timestamp=2026-11-10T00:00:00Z
@@ -129,7 +147,7 @@ jobs:
             image_name="${entry%%:*}"
             family_name="${entry##*:}"
             repo="gcr.io/apache-beam-testing/updated_released_container_images/${image_name}"
-            digest=$(gcloud artifacts docker images describe "${repo}:${RELEASE}" --format='value(image_summary.digest)' 2>/dev/null || true)
+            digest=$(gcloud artifacts docker images describe "${repo}:${RELEASE}" --format='value(image_summary.digest)')
             if [ -n "${digest}" ]; then
               python3 sdks/containers/vex/vex_manager.py generate \
                 --family="${family_name}" \
@@ -139,7 +157,7 @@ jobs:
                 --image-uri="${repo}@${digest}" \
                 --openvex="sdks/containers/vex/openvex/${family_name}.openvex.json" \
                 --csaf="sdks/containers/vex/csaf/${family_name}.vex.json" \
-                --project="apache-beam-testing" || true
+                --project="apache-beam-testing"
             fi
           done
 

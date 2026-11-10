@@ -126,8 +126,10 @@ jobs:
       - name: Install Cosign
         run: |
           if ! command -v cosign >/dev/null 2>&1; then
-            sudo curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
-            sudo chmod +x /usr/local/bin/cosign
+            curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /tmp/cosign
+            echo "8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b  /tmp/cosign" | sha256sum -c -
+            sudo install -m 0755 /tmp/cosign /usr/local/bin/cosign
+            rm -f /tmp/cosign
           fi
       - name: Authenticate on GCP
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
@@ -136,6 +138,9 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Configure Docker credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.docker_registry }} --quiet
       - name: Generate and attach VEX statements to republished containers
         run: |
           python3 -m pip install pyyaml
@@ -151,7 +156,7 @@ jobs:
             image_name="${entry%%:*}"
             family_name="${entry##*:}"
             repo="gcr.io/apache-beam-testing/updated_released_container_images/${image_name}"
-            digest=$(gcloud artifacts docker images describe "${repo}:${release}" --format='value(image_summary.digest)' 2>/dev/null || true)
+            digest=$(gcloud artifacts docker images describe "${repo}:${release}" --format='value(image_summary.digest)')
             if [ -n "${digest}" ]; then
               python3 sdks/containers/vex/vex_manager.py generate \
                 --family="${family_name}" \
@@ -161,7 +166,7 @@ jobs:
                 --image-uri="${repo}@${digest}" \
                 --openvex="sdks/containers/vex/openvex/${family_name}.openvex.json" \
                 --csaf="sdks/containers/vex/csaf/${family_name}.vex.json" \
-                --project="apache-beam-testing" || true
+                --project="apache-beam-testing"
             fi
           done
 
