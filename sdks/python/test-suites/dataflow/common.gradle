@@ -450,7 +450,9 @@ def tensorRTTests = tasks.create("tensorRTtests") {
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
-    "region": "us-central1",
+    "region": "us-west1",
+    "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
+    "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
     "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
     "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
     "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8_trt11.trt",
@@ -474,7 +476,9 @@ def vllmBaseArgMap = [
   "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
   "sdk_location": files(configurations.distTarBall.files).singleFile,
   "project": "apache-beam-testing",
-  "region": "us-central1",
+  "region": "us-west1",
+  "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
+  "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
   "disk_size_gb": 75
 ]
 
