@@ -193,6 +193,18 @@ class RowTypeTest(unittest.TestCase):
         row_type.GeneratedClassRowTypeConstraint(
             fields=[('id', int), ('name', str), ('name_hash', int)]))
 
+  def test_tuple_preserved_in_row_after_serialization(self):
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create([{"a": 1, "b": 2, "h": "h1"}])
+          | beam.GroupBy(  # group_by with custom field generates a Beam Row
+              row_field=lambda x: (x["a"], x["b"]))
+          | beam.MapTuple(
+              lambda k, vs: (type(k.row_field), k.row_field)))
+
+      assert_that(res, equal_to([(tuple, (1, 2))]))
+
 
 if __name__ == '__main__':
   unittest.main()

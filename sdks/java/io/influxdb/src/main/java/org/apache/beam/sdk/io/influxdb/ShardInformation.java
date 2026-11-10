@@ -21,7 +21,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /** POJO structure for shard information. */
-class ShardInformation implements Serializable {
+final class ShardInformation implements Serializable {
 
   private double id;
   private String retentionPolicy;

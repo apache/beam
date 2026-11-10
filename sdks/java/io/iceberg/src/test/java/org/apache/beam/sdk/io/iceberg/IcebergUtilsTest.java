@@ -35,10 +35,12 @@ import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -148,6 +150,13 @@ public class IcebergUtilsTest {
       assertThat(record.getField("v"), equalTo(destValue));
     }
 
+    private Record toIcebergRecord(Type destType, String sourceValue) {
+      Schema beamSchema = Schema.of(Schema.Field.of("v", Schema.FieldType.STRING));
+      Row row = Row.withSchema(beamSchema).addValues(sourceValue).build();
+      return IcebergUtils.beamRowToIcebergRecord(
+          new org.apache.iceberg.Schema(required(0, "v", destType)), row);
+    }
+
     @Test
     public void testBoolean() {
       checkRowValueToRecordValue(Schema.FieldType.BOOLEAN, Types.BooleanType.get(), true);
@@ -224,6 +233,13 @@ public class IcebergUtilsTest {
       LocalDateTime localDateTime = LocalDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000);
       checkRowValueToRecordValue(
           Schema.FieldType.STRING, val, Types.TimestampType.withoutZone(), localDateTime);
+
+      // Schema.FieldType.STRING, with a space separating date and time
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 13:18:20.053",
+          Types.TimestampType.withoutZone(),
+          localDateTime);
     }
 
     @Test
@@ -267,6 +283,49 @@ public class IcebergUtilsTest {
           val,
           Types.TimestampType.withZone(),
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.STRING, with a space separating date and time
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 13:18:20.053+03:27",
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 09:51:20.053Z",
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+    }
+
+    @Test
+    public void testTimestampStringWithInvalidSeparator() {
+      for (String val :
+          Arrays.asList(
+              "2024-10-08 T13:18:20.053", "2024-10-0813:18:20.053", "2024-10-08  13:18:20.053")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withoutZone(), val));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+      }
+    }
+
+    @Test
+    public void testTimestampStringWithInvalidDate() {
+      for (String val :
+          Arrays.asList(
+              "2023-02-29T13:18:20",
+              "2023-02-29 13:18:20",
+              "2024-04-31T13:18:20",
+              "2024-04-31 13:18:20")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withoutZone(), val));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+      }
     }
 
     @Test
@@ -287,6 +346,17 @@ public class IcebergUtilsTest {
       BigDecimal num = BigDecimal.valueOf(123.456);
 
       checkRowValueToRecordValue(Schema.FieldType.DECIMAL, Types.DecimalType.of(6, 3), num);
+    }
+
+    @Test
+    public void testEnumeration() {
+      EnumerationType enumType = EnumerationType.create("ONE", "TWO", "THREE");
+
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(enumType),
+          enumType.valueOf("TWO"),
+          Types.StringType.get(),
+          "TWO");
     }
 
     @Test
@@ -1150,6 +1220,32 @@ public class IcebergUtilsTest {
           IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_JDBC_ALL_TYPES);
 
       assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_JDBC_ALL_TYPES));
+    }
+
+    static final EnumerationType TEST_ENUMERATION_TYPE =
+        EnumerationType.create("ONE", "TWO", "THREE");
+
+    static final Schema BEAM_SCHEMA_ENUMERATION =
+        Schema.builder()
+            .addLogicalTypeField("status", TEST_ENUMERATION_TYPE)
+            .addNullableField(
+                "optional_status", Schema.FieldType.logicalType(TEST_ENUMERATION_TYPE))
+            .build();
+
+    static final org.apache.iceberg.Schema ICEBERG_SCHEMA_ENUMERATION =
+        new org.apache.iceberg.Schema(
+            required(1, "status", Types.StringType.get()),
+            optional(2, "optional_status", Types.StringType.get()));
+
+    @Test
+    public void testEnumerationBeamSchemaToIcebergSchema() {
+      // Iceberg has no enum type, so EnumerationType fields are stored as strings. This is a
+      // one-way conversion: converting ICEBERG_SCHEMA_ENUMERATION back with
+      // icebergSchemaToBeamSchema will not recover EnumerationType, only plain STRING fields.
+      org.apache.iceberg.Schema convertedIcebergSchema =
+          IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA_ENUMERATION);
+
+      assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA_ENUMERATION));
     }
   }
 }

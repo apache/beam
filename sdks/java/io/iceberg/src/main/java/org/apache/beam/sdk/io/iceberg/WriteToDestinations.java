@@ -36,11 +36,13 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.BundleLifter;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -60,6 +62,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final String filePrefix;
   private final @Nullable Integer directWriteByteLimit;
   private final @Nullable Map<String, String> writeProperties;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
@@ -67,11 +70,28 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       @Nullable Duration triggeringFrequency,
       @Nullable Integer directWriteByteLimit,
       @Nullable Map<String, String> writeProperties) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        triggeringFrequency,
+        directWriteByteLimit,
+        writeProperties,
+        null);
+  }
+
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     this.directWriteByteLimit = directWriteByteLimit;
     this.writeProperties = writeProperties;
+    this.metadataView = metadataView;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -119,7 +139,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             dynamicDestinations,
             filePrefix,
             DEFAULT_MAX_BYTES_PER_FILE,
-            writeProperties));
+            writeProperties,
+            metadataView));
   }
 
   private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
@@ -168,7 +189,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 dynamicDestinations,
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
-                writeProperties));
+                writeProperties,
+                metadataView));
 
     PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
@@ -204,7 +226,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 dynamicDestinations,
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
-                writeProperties));
+                writeProperties,
+                metadataView));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -218,7 +241,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                     dynamicDestinations,
                     filePrefix,
                     DEFAULT_MAX_BYTES_PER_FILE,
-                    writeProperties));
+                    writeProperties,
+                    metadataView));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)

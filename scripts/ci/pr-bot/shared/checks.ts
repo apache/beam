@@ -104,9 +104,10 @@ async function getChecksByName(
 }
 
 // Returns checks we should exclude because they are flaky or not always predictive of pr mergability.
-// Currently just excludes codecov.
-function shouldExcludeCheck(check): boolean {
-  if (check.name.toLowerCase().indexOf("codecov") != -1) {
+// Currently excludes codecov and the pr-bot update check itself (which may be in_progress when checking status).
+export function shouldExcludeCheck(check: { name: string }): boolean {
+  const name = check.name.toLowerCase();
+  if (name.indexOf("codecov") != -1 || name === "process-pr-update") {
     return true;
   }
   return false;

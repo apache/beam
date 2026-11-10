@@ -91,9 +91,9 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Dependencies</h3>
  *
- * <p>User may work with any of the supported Debezium Connectors above mentioned
+ * <p>User may work with any of the supported Debezium Connectors above-mentioned
  *
- * <p>See <a href="https://debezium.io/documentation/reference/1.3/connectors/index.html">Debezium
+ * <p>See <a href="https://debezium.io/documentation/reference/3.5/connectors/index.html">Debezium
  * Connectors</a> for more info.
  */
 @SuppressWarnings({"nullness"})
@@ -147,6 +147,8 @@ public class DebeziumIO {
 
     abstract @Nullable OffsetRetainer getOffsetRetainer();
 
+    abstract @Nullable Boolean getFullMetadata();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -168,6 +170,8 @@ public class DebeziumIO {
       abstract Builder<T> setStartOffset(Map<String, Object> startOffset);
 
       abstract Builder<T> setOffsetRetainer(OffsetRetainer retainer);
+
+      abstract Builder<T> setFullMetadata(Boolean fullMetadata);
 
       abstract Read<T> build();
     }
@@ -303,6 +307,44 @@ public class DebeziumIO {
     public Read<T> withOffsetRetainer(OffsetRetainer retainer) {
       checkArgument(retainer != null, "retainer can not be null");
       return toBuilder().setOffsetRetainer(retainer).build();
+    }
+
+    /**
+     * Adds {@code op} and the remaining Debezium {@code source} fields (e.g. MySQL {@code file},
+     * {@code pos}, {@code row}, {@code ts_ms}; PostgreSQL {@code lsn}, {@code txId}, {@code ts_ms})
+     * to {@code metadata} when reading as JSON.
+     *
+     * <p>Only applies to {@link DebeziumIO#readAsJson()} / {@link
+     * SourceRecordJson.SourceRecordJsonMapper}; combining it with a custom {@link
+     * #withFormatFunction(SourceRecordMapper)} fails with an {@link IllegalArgumentException} when
+     * the transform is expanded. Default false.
+     *
+     * @param fullMetadata Whether to emit the full Debezium metadata.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withFullMetadata(boolean fullMetadata) {
+      return toBuilder().setFullMetadata(fullMetadata).build();
+    }
+
+    /**
+     * Returns the format function to use, taking {@link #withFullMetadata(boolean)} into account.
+     *
+     * @throws IllegalArgumentException if full metadata is requested but the format function is not
+     *     a {@link SourceRecordJson.SourceRecordJsonMapper}.
+     */
+    SourceRecordMapper<T> resolveFormatFunction() {
+      SourceRecordMapper<T> formatFunction = getFormatFunction();
+      if (!Boolean.TRUE.equals(getFullMetadata())) {
+        return formatFunction;
+      }
+      if (formatFunction instanceof SourceRecordJson.SourceRecordJsonMapper) {
+        @SuppressWarnings("unchecked")
+        SourceRecordMapper<T> fullMetadataMapper =
+            (SourceRecordMapper<T>) new SourceRecordJson.SourceRecordJsonMapper(true);
+        return fullMetadataMapper;
+      }
+      throw new IllegalArgumentException(
+          "withFullMetadata(true) only applies to readAsJson() / SourceRecordJsonMapper");
     }
 
     protected Schema getRecordSchema() {

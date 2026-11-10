@@ -29,7 +29,6 @@ import secrets
 import shutil
 import sqlite3
 import string
-import struct
 import tempfile
 import time
 import unittest
@@ -38,42 +37,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import requests
-
-from apache_beam.coders import Coder
-from apache_beam.coders.coder_impl import CoderImpl
-
-
-class BigEndianIntegerCoderImpl(CoderImpl):
-  """Coder implementation for big-endian integers used in cross-language tests.
-
-  This is needed because Java's BigEndianIntegerCoder falls back to the generic
-  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
-  Python's FnApiRunner needs to know how to decode it.
-  """
-  def encode_to_stream(self, value, stream, nested):
-    stream.write(struct.pack('>i', value))
-
-  def decode_from_stream(self, stream, nested):
-    return struct.unpack('>i', stream.read(4))[0]
-
-
-class BigEndianIntegerCoder(Coder):
-  def get_impl(self):
-    return BigEndianIntegerCoderImpl()
-
-
-# Register the coder with the fallback URN used by the Java SDK for this coder.
-# This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder in integration tests.
-Coder.register_urn(
-    'beam:coders:javasdk:0.1',
-    None, lambda payload, components, context: BigEndianIntegerCoder())
-
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytds
+import requests
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
@@ -81,6 +49,10 @@ from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
 
+try:
+  from google.cloud import firestore
+except ImportError:
+  firestore = None
 try:
   from google.cloud import secretmanager
 except ImportError:
@@ -97,10 +69,13 @@ from testcontainers.postgres import PostgresContainer
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import get_table_schema_from_string
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.utils import retry
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
@@ -166,13 +141,104 @@ def temp_spanner_table(project, prefix='temp_spanner_db_'):
 
 
 @contextlib.contextmanager
-def temp_bigquery_table(project, prefix='yaml_bq_it_'):
+def temp_firestore_collection(
+    project='apache-beam-testing',
+    database='firestoredb',
+    prefix='yaml_firestore_it_'):
+  """Context manager for an isolated Firestore collection used in YAML ITs.
+
+  Uses the shared Beam test project and the ``firestoredb`` database, matching
+  the Java Firestore integration tests.
+
+  Args:
+    project (str): GCP project id.
+    database (str): Firestore database id.
+    prefix (str): Prefix for the temporary collection name.
+
+  Yields:
+    dict: Keys ``PROJECT``, ``DATABASE``, and ``COLLECTION``.
+  """
+  if firestore is None:
+    raise RuntimeError("google-cloud-firestore is not installed.")
+
+  client = firestore.Client(project=project, database=database)
+  collection_id = f'{prefix}{uuid.uuid4().hex}'
+  logging.info(
+      'Using Firestore collection %s in project %s database %s',
+      collection_id,
+      project,
+      database)
+  try:
+    yield {
+        'PROJECT': project,
+        'DATABASE': database,
+        'COLLECTION': collection_id,
+    }
+  finally:
+    logging.info('Deleting documents in Firestore collection %s', collection_id)
+    collection_ref = client.collection(collection_id)
+    batch = client.batch()
+    pending = 0
+    for doc in collection_ref.stream():
+      batch.delete(doc.reference)
+      pending += 1
+      if pending >= 400:
+        batch.commit()
+        batch = client.batch()
+        pending = 0
+    if pending:
+      batch.commit()
+
+
+class AssertBigQueryQueryEqual(beam.PTransform):
+  """Asserts that a BigQuery SQL query returns exactly the expected rows.
+
+  Used by CDC YAML ITs: Storage Read (ReadFromBigQuery table:) does not see
+  unapplied CDC UPSERTs, while a query job applies them (same approach as
+  xlang_bigqueryio_it_test.BigqueryFullResultMatcher).
+  """
+  def __init__(self, project, query, expected):
+    self._project = project
+    self._query = query
+    self._expected = expected
+
+  def expand(self, pcoll):
+    project = self._project
+    query = self._query
+    expected = [dict(row) for row in self._expected]
+
+    def _verify(_):
+      # Local import: google-cloud-bigquery is a gcp_test extra.
+      from google.cloud import bigquery as gcbq
+      client = gcbq.Client(project=project)
+      actual = [dict(row.items()) for row in client.query(query).result()]
+
+      # Compare as sorted JSON for stable, type-tolerant equality.
+      def _key(row):
+        return json.dumps(row, sort_keys=True, default=str)
+
+      if sorted(actual, key=_key) != sorted(expected, key=_key):
+        raise AssertionError(
+            'BigQuery query %r returned %r, expected %r' %
+            (query, actual, expected))
+      return _
+
+    return pcoll | beam.Map(_verify)
+
+
+@contextlib.contextmanager
+def temp_bigquery_table(
+    project,
+    prefix='yaml_bq_it_',
+    use_colon_table_spec=False,
+    table_schema=None,
+    primary_key=None):
   """Context manager to create and clean up a temporary BigQuery dataset.
 
   Creates a unique temporary BigQuery dataset within the specified project.
   It yields a placeholder table name string within that dataset (e.g.,
   'project.dataset_id.tmp_table'). The actual table is expected to be
-  created by the test using this context.
+  created by the test using this context, unless ``table_schema`` is set.
 
   Upon exiting the context, the temporary dataset and all its contents
   (including any tables created within it) are deleted.
@@ -181,21 +247,64 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
     project (str): The Google Cloud project ID.
     prefix (str): A prefix to use for the temporary dataset name.
       Defaults to 'yaml_bq_it_'.
+    use_colon_table_spec (bool): If True, yield ``project:dataset.tmp_table``.
+      Defaults to False (``project.dataset.tmp_table``).
+    table_schema (str|None): Optional BigQuery schema string
+      (``name:TYPE,...``). When set, creates ``tmp_table`` before yield.
+    primary_key (list|None): Optional primary-key column names. Requires
+      ``table_schema``. Primary-key columns are created as REQUIRED.
 
   Yields:
     str: The full path for a temporary BigQuery table within the created
     dataset.
          Example: 'my-project.yaml_bq_it_a1b2c3d4e5f6...tmp_table'
   """
-  bigquery_client = BigQueryWrapper()
+  if primary_key and not table_schema:
+    raise ValueError('primary_key requires table_schema')
+  options = PipelineOptions()
+  options.view_as(GoogleCloudOptions).project = project
+  bigquery_client = BigQueryWrapper.from_pipeline_options(options)
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
+  table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}.{dataset_id}.tmp_table'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):
@@ -272,6 +381,15 @@ def temp_mongodb_table():
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
+
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    @retry.with_exponential_backoff(num_retries=5, initial_delay_secs=1)
+    def _wait_for_mongo():
+      mongo_client = mongo_container.get_connection_client()
+      mongo_client.admin.command('ping')
+
+    _wait_for_mongo()
 
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
@@ -395,6 +513,41 @@ def temp_mysql_database():
         f"password={mysql_container.password}")
 
     yield jdbc_url
+
+
+@contextlib.contextmanager
+def snowflake_fixture():
+  options = PipelineOptions().get_all_options()
+
+  required = [
+      'server_name',
+      'username',
+      'password',
+      'staging_bucket_name',
+      'storage_integration_name',
+      'database',
+      'schema',
+      'table',
+  ]
+
+  missing = [name for name in required if not options.get(name)]
+  if missing:
+    raise unittest.SkipTest(
+        'Snowflake YAML integration test requires external configuration: ' +
+        ', '.join(missing))
+
+  yield {
+      'SERVER_NAME': options['server_name'],
+      'USERNAME': options['username'],
+      'PASSWORD': options['password'],
+      'STAGING_BUCKET_NAME': options['staging_bucket_name'],
+      'STORAGE_INTEGRATION_NAME': options['storage_integration_name'],
+      'DATABASE': options['database'],
+      'SCHEMA': options['schema'],
+      'TABLE': options['table'],
+      'WAREHOUSE': options.get('warehouse'),
+      'ROLE': options.get('role'),
+  }
 
 
 @contextlib.contextmanager
@@ -562,28 +715,28 @@ def temp_postgres_database_with_secret_manager(
 
     _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
     try:
-      secret_client.get_secret(request={'name': secret_path})
-    except Exception:
-      secret_client.create_secret(
+      try:
+        secret_client.get_secret(request={'name': secret_path})
+      except Exception:
+        secret_client.create_secret(
+            request={
+                'parent': project_path,
+                'secret_id': secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+
+      secret_client.add_secret_version(
           request={
-              'parent': project_path,
-              'secret_id': secret_id,
-              'secret': {
-                  'replication': {
-                      'automatic': {}
-                  }
+              'parent': secret_path,
+              'payload': {
+                  'data': postgres_container.password.encode('utf-8')
               }
           })
 
-    secret_client.add_secret_version(
-        request={
-            'parent': secret_path,
-            'payload': {
-                'data': postgres_container.password.encode('utf-8')
-            }
-        })
-
-    try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
       with engine.begin() as connection:
@@ -619,6 +772,41 @@ def temp_postgres_database_with_secret_manager(
         secret_client.delete_secret(request={'name': secret_path})
       except Exception as err:
         _LOGGER.warning("Could not delete GCP secret %s: %s", secret_path, err)
+
+
+@contextlib.contextmanager
+def cloudsql_postgres_fixture():
+  """Context manager to provide a PostgreSQL testcontainer database for testing."""
+  default_port = 5432
+  with PostgresContainer(port=default_port) as postgres_container:
+    try:
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (id INTEGER, name VARCHAR(255), score FLOAT);"
+            ))
+
+      jdbc_url = (
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
+
+      yield {
+          'JDBC_URL': jdbc_url,
+          'DRIVER_CLASS_NAME': 'org.postgresql.Driver',
+          'USERNAME': postgres_container.username,
+          'PASSWORD': postgres_container.password,
+          'DATABASE': postgres_container.dbname,
+          'TABLE': 'tmp_table',
+      }
+    except (psycopg2.Error, Exception) as err:
+      logging.error(
+          "Error interacting with temporary Postgres DB in cloudsql_postgres_fixture: %s",
+          err)
+      raise err
 
 
 @contextlib.contextmanager
@@ -955,7 +1143,7 @@ def temp_ibm_mq_server():
 
     yield {
         'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
-        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'USERNAME': 'app',
         'PASSWORD': 'admin123',
         'SOURCE_QUEUE': 'DEV.QUEUE.1',
@@ -1045,6 +1233,63 @@ def temp_delta_table():
     commit_file = os.path.join(log_dir, "00000000000000000000.json")
     with open(commit_file, "w") as f:
       f.write(commit_content)
+    yield temp_dir
+
+
+@contextlib.contextmanager
+def temp_delta_cdc_table():
+  try:
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0 commit
+    table_data = pa.table({"name": ["a", "b"]})
+    write_deltalake(
+        temp_dir,
+        table_data,
+        mode="overwrite",
+        configuration={"delta.enableChangeDataFeed": "true"})
+
+    # Version 1 commit
+    table_data_1 = pa.table({"name": ["c"]})
+    write_deltalake(temp_dir, table_data_1, mode="append")
+
+    yield temp_dir
+
+
+@contextlib.contextmanager
+def temp_delta_cdc_table_with_updates():
+  try:
+    from deltalake import DeltaTable
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  # The CDC sink needs a non-null key.
+  schema = pa.schema([
+      pa.field("id", pa.int64(), nullable=False),
+      pa.field("item", pa.string()),
+      pa.field("qty", pa.int64()),
+  ])
+
+  def orders(*rows):
+    return pa.Table.from_pylist([dict(zip(schema.names, row)) for row in rows],
+                                schema=schema)
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0: three new orders.
+    write_deltalake(
+        temp_dir,
+        orders((1, "apple", 3), (2, "pear", 5), (3, "plum", 2)),
+        configuration={"delta.enableChangeDataFeed": "true"})
+    # Versions 1 to 3: update order 1, delete order 2, add order 4.
+    table = DeltaTable(temp_dir)
+    table.update(updates={"qty": "4"}, predicate="id = 1")
+    table.delete("id = 2")
+    write_deltalake(temp_dir, orders((4, "kiwi", 1)), mode="append")
+
     yield temp_dir
 
 
@@ -1227,11 +1472,27 @@ def create_test_methods(spec):
                 'apache_beam.yaml.yaml_provider.standard_providers',
                 lambda: providers))
         for fixture in spec.get('fixtures', []):
-          vars[fixture['name']] = stack.enter_context(
+          fixture_callable = (
               python_callable.PythonCallableWithSource.
-              load_from_fully_qualified_name(fixture['type'])(
-                  **yaml_transform.SafeLineLoader.strip_metadata(
-                      fixture.get('config', {}))))
+              load_from_fully_qualified_name(fixture['type']))
+          fixture_config = yaml_transform.SafeLineLoader.strip_metadata(
+              fixture.get('config', {}))
+          for attempt in range(3):
+            try:
+              vars[fixture['name']] = stack.enter_context(
+                  fixture_callable(**fixture_config))
+              break
+            except unittest.SkipTest:
+              raise
+            except Exception as exn:
+              if attempt == 2:
+                raise
+              _LOGGER.warning(
+                  'Fixture %s setup failed (attempt %d/3): %s',
+                  fixture['name'],
+                  attempt + 1,
+                  exn)
+              time.sleep(5)
         for pipeline_spec in spec['pipelines']:
           try:
             with beam.Pipeline(options=PipelineOptions(

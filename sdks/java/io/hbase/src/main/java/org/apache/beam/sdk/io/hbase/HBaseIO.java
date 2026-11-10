@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
@@ -186,6 +187,33 @@ public class HBaseIO {
 
   /** Disallow construction of utility class. */
   private HBaseIO() {}
+
+  /**
+   * Collects a teardown failure. The first one is the one the caller ends up seeing; later ones are
+   * attached to it as suppressed, so nothing is lost and nothing replaces the original.
+   */
+  @VisibleForTesting
+  static Throwable appendSuppressed(@Nullable Throwable existingFailure, Throwable newFailure) {
+    if (existingFailure == null) {
+      return newFailure;
+    }
+    existingFailure.addSuppressed(newFailure);
+    return existingFailure;
+  }
+
+  /**
+   * Rethrows a failure collected by {@link #appendSuppressed}, preserving its type where it can.
+   */
+  @VisibleForTesting
+  static void rethrowCloseFailure(Throwable failure) throws IOException {
+    if (failure instanceof IOException) {
+      throw (IOException) failure;
+    }
+    if (failure instanceof RuntimeException) {
+      throw (RuntimeException) failure;
+    }
+    throw new IOException(failure);
+  }
 
   /**
    * Creates an uninitialized {@link HBaseIO.Read}. Before use, the {@code Read} must be initialized
@@ -492,7 +520,7 @@ public class HBaseIO {
     }
   }
 
-  private static class HBaseReader extends BoundedSource.BoundedReader<Result> {
+  static class HBaseReader extends BoundedSource.BoundedReader<Result> {
     private HBaseSource source;
     private Connection connection;
     private ResultScanner scanner;
@@ -549,13 +577,27 @@ public class HBaseIO {
     @Override
     public void close() throws IOException {
       LOG.debug("Closing reader after reading {} records.", recordsReturned);
+      // Release everything even if an earlier step throws, and keep the first failure: a
+      // connection left behind here outlives the reader.
+      Throwable failure = null;
       if (scanner != null) {
-        scanner.close();
+        try {
+          scanner.close();
+        } catch (Exception e) {
+          failure = appendSuppressed(failure, e);
+        }
         scanner = null;
       }
       if (connection != null) {
-        connection.close();
+        try {
+          connection.close();
+        } catch (Exception e) {
+          failure = appendSuppressed(failure, e);
+        }
         connection = null;
+      }
+      if (failure != null) {
+        rethrowCloseFailure(failure);
       }
     }
 
@@ -732,7 +774,7 @@ public class HBaseIO {
 
     private final String tableId;
 
-    private class HBaseWriterFn extends DoFn<Mutation, Void> {
+    class HBaseWriterFn extends DoFn<Mutation, Void> {
 
       HBaseWriterFn(Write write) {
         checkNotNull(write.tableId, "tableId");
@@ -765,13 +807,27 @@ public class HBaseIO {
 
       @Teardown
       public void tearDown() throws Exception {
+        // BufferedMutator.close() performs a flush, so a failed final batch is an expected way
+        // for this to throw. Release the connection anyway, and keep the flush failure.
+        Throwable failure = null;
         if (mutator != null) {
-          mutator.close();
+          try {
+            mutator.close();
+          } catch (Exception e) {
+            failure = appendSuppressed(failure, e);
+          }
           mutator = null;
         }
         if (connection != null) {
-          connection.close();
+          try {
+            connection.close();
+          } catch (Exception e) {
+            failure = appendSuppressed(failure, e);
+          }
           connection = null;
+        }
+        if (failure != null) {
+          rethrowCloseFailure(failure);
         }
       }
 
@@ -900,7 +956,7 @@ public class HBaseIO {
     private final String tableId;
 
     /** Function to write row mutations to a hbase table. */
-    private class WriteRowMutationsFn extends DoFn<KV<byte[], RowMutations>, Integer> {
+    class WriteRowMutationsFn extends DoFn<KV<byte[], RowMutations>, Integer> {
 
       public WriteRowMutationsFn(WriteRowMutations writeRowMutations) {
         checkNotNull(writeRowMutations.tableId, "tableId");
@@ -930,13 +986,26 @@ public class HBaseIO {
 
       @Teardown
       public void tearDown() throws Exception {
-
+        // HBaseSharedConnection.close() is a reference-count decrement, not an ordinary close.
+        // Skipping it strands the entry in the static pool for the lifetime of the JVM, so it has
+        // to run even when the table fails to close.
+        Throwable failure = null;
         if (table != null) {
-          table.close();
+          try {
+            table.close();
+          } catch (Exception e) {
+            failure = appendSuppressed(failure, e);
+          }
           table = null;
         }
-
-        HBaseSharedConnection.close(configuration);
+        try {
+          HBaseSharedConnection.close(configuration);
+        } catch (Exception e) {
+          failure = appendSuppressed(failure, e);
+        }
+        if (failure != null) {
+          rethrowCloseFailure(failure);
+        }
       }
 
       @ProcessElement

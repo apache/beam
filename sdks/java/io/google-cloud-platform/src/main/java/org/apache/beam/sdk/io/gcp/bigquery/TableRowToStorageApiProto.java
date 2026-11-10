@@ -552,6 +552,9 @@ public class TableRowToStorageApiProto {
         hashCodes.add(tableSchemaHash(name, tableFieldSchema.getFieldsList()));
       }
     }
+    if (hashCodes.isEmpty()) {
+      return SCHEMA_HASH_FUNCTION.hashInt(0);
+    }
     return Hashing.combineOrdered(hashCodes);
   }
 
@@ -845,6 +848,41 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
+  private static final List<String> TABLE_ROW_MODEL_FIELDS =
+      ImmutableList.copyOf(new TableRow().getClassInfo().getNames());
+  private static final boolean TABLE_ROW_HAS_ONLY_F =
+      TABLE_ROW_MODEL_FIELDS.size() == 1 && TABLE_ROW_MODEL_FIELDS.contains("f");
+
+  private static Map<String, Object> unknownFieldMap(TableRow row, String key) {
+    // Model fields need GenericData's reflective access and its setter/removal semantics.
+    return TABLE_ROW_MODEL_FIELDS.contains(key) ? row : row.getUnknownKeys();
+  }
+
+  private static void setUnknownField(TableRow row, String key, Object value) {
+    if (TABLE_ROW_MODEL_FIELDS.contains(key)) {
+      row.set(key, value);
+    } else {
+      row.getUnknownKeys().put(key, value);
+    }
+  }
+
+  private static boolean isUnknownMapEmpty(Map<?, ?> map) {
+    if (TABLE_ROW_HAS_ONLY_F && map instanceof TableRow) {
+      TableRow row = (TableRow) map;
+      // A non-null model field counts as an entry, even when its cell list is empty.
+      return row.getUnknownKeys().isEmpty() && row.getF() == null;
+    }
+    // Preserve Map implementations and any future TableRow model fields.
+    return map.isEmpty();
+  }
+
+  /**
+   * Given a BigQuery row map, returns a protocol-buffer message for the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
+   */
   public static @Nullable DynamicMessage messageFromMap(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -880,13 +918,12 @@ public class TableRowToStorageApiProto {
           BigQuerySchemaUtil.isProtoCompatible(key)
               ? key
               : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
-      @Nullable
-      FieldDescriptor fieldDescriptor =
+      @Nullable FieldDescriptor fieldDescriptor =
           (descriptor == null) ? null : descriptor.findFieldByName(protoFieldName);
 
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
-          unknownFields.set(key, entry.getValue());
+          setUnknownField(unknownFields, key, entry.getValue());
         }
         if (ignoreUnknownValues) {
           continue;
@@ -969,15 +1006,16 @@ public class TableRowToStorageApiProto {
               TableRow nestedUnknown = new TableRow();
               if (fieldDescriptor.isRepeated()) {
                 ((List<TableRow>)
-                        unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>()))
+                        unknownFieldMap(unknownFields, key)
+                            .computeIfAbsent(key, k -> new ArrayList<TableRow>()))
                     .add(nestedUnknown);
                 return nestedUnknown;
               }
-              return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
+              return (TableRow)
+                  unknownFieldMap(unknownFields, key).computeIfAbsent(key, k -> nestedUnknown);
             };
 
-        @Nullable
-        Object value =
+        @Nullable Object value =
             messageValueFromFieldValue(
                 fieldSchemaInformation,
                 fieldDescriptor,
@@ -992,17 +1030,19 @@ public class TableRowToStorageApiProto {
         // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
         // supplier (in case we encounter unknown nested fields). If the placeholder comes out
         // to be empty, we should clean it up
-        if ((fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
-                && unknownFields != null)
-            && ((unknownFields.get(key) instanceof Map
-                    && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) // single struct, empty
-                || (unknownFields.get(key)
-                        instanceof List // repeated struct, empty list or list with empty structs
-                    && (((List<?>) unknownFields.get(key)).isEmpty()
-                        || ((List<?>) unknownFields.get(key))
-                            .stream()
-                                .allMatch(row -> row == null || ((Map<?, ?>) row).isEmpty()))))) {
-          unknownFields.remove(key);
+        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+            && unknownFields != null) {
+          Map<String, Object> parentUnknown = unknownFieldMap(unknownFields, key);
+          Object nestedUnknown = parentUnknown.get(key);
+          if ((nestedUnknown instanceof Map && isUnknownMapEmpty((Map<?, ?>) nestedUnknown))
+              || (nestedUnknown instanceof List
+                  && (((List<?>) nestedUnknown).isEmpty()
+                      || ((List<?>) nestedUnknown)
+                          .stream()
+                              .allMatch(
+                                  row -> row == null || isUnknownMapEmpty((Map<?, ?>) row))))) {
+            parentUnknown.remove(key);
+          }
         }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
@@ -1041,7 +1081,8 @@ public class TableRowToStorageApiProto {
       return null;
     }
     try {
-      return Preconditions.checkArgumentNotNull(builder).build();
+      DynamicMessage.Builder nonNullBuilder = Preconditions.checkArgumentNotNull(builder);
+      return allowMissingRequiredFields ? nonNullBuilder.buildPartial() : nonNullBuilder.build();
     } catch (Exception e) {
       throw new SchemaDoesntMatchException(
           "Couldn't convert schema for " + schemaInformation.getFullName(), e);
@@ -1052,6 +1093,10 @@ public class TableRowToStorageApiProto {
    * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String, ErrorCollector)} via {@link
    * Long#toHexString}.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
@@ -1079,8 +1124,11 @@ public class TableRowToStorageApiProto {
   /**
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
-  @SuppressWarnings("nullness")
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -1095,7 +1143,7 @@ public class TableRowToStorageApiProto {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
       if (descriptor == null) {
-        // This only happens if we are recursively finding unknwon field names. We don't support
+        // This only happens if we are recursively finding unknown field names. We don't support
         // this for list cells
         // (all we have is field position in that case) so just bail out.
         return null;
@@ -1124,7 +1172,10 @@ public class TableRowToStorageApiProto {
       if (unknownFields != null) {
         List<TableCell> unknownValues = Lists.newArrayListWithExpectedSize(cells.size());
         for (int i = 0; i < cells.size(); ++i) {
-          unknownValues.add(new TableCell().setV(null));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell nullCell = new TableCell().setV(null);
+          unknownValues.add(nullCell);
         }
         unknownFields.setF(unknownValues);
       }
@@ -1141,8 +1192,10 @@ public class TableRowToStorageApiProto {
                   return null;
                 }
                 TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
-                @Nullable
-                TableRow nested = (TableRow) localUnknownFields.getF().get(finalIndex).getV();
+                // TODO(reuvenlax): We should probably assume a List instead of a TableRow if the
+                // field is repeated.
+                @Nullable TableRow nested =
+                    (TableRow) localUnknownFields.getF().get(finalIndex).getV();
                 if (nested == null) {
                   nested = new TableRow();
                   localUnknownFields.getF().set(finalIndex, new TableCell().setV(nested));
@@ -1150,8 +1203,7 @@ public class TableRowToStorageApiProto {
                 return nested;
               };
 
-          @Nullable
-          Object value =
+          @Nullable Object value =
               messageValueFromFieldValue(
                   fieldSchemaInformation,
                   fieldDescriptor,
@@ -1186,15 +1238,19 @@ public class TableRowToStorageApiProto {
       // If there are unknown fields, copy them into the output.
       if (unknownFields != null) {
         for (int i = cellsToProcess; i < cells.size(); ++i) {
-          unknownFields.getF().set(i, new TableCell().setV(cells.get(i).get("v")));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell unknownCell = new TableCell().setV(cells.get(i).get("v"));
+          unknownFields.getF().set(i, unknownCell);
         }
       }
 
       if (!collectedExceptions.isEmpty()) {
         return null;
       }
+
       try {
-        return builder.build();
+        return allowMissingRequiredFields ? builder.buildPartial() : builder.build();
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
             "Could convert schema for " + schemaInformation.getFullName(), e);
@@ -1463,6 +1519,31 @@ public class TableRowToStorageApiProto {
       // nothing to do here
       return tableRowProto;
     }
+    try {
+      return mergeNewFields(
+          tableRowProto,
+          wrapDescriptorProto(descriptorProto),
+          TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false),
+          schemaInformation,
+          unknownFields,
+          ignoreUnknownValues);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static ByteString mergeNewFields(
+      ByteString tableRowProto,
+      Descriptor descriptor,
+      Descriptor descriptorIgnoreRequired,
+      SchemaInformation schemaInformation,
+      TableRow unknownFields,
+      boolean ignoreUnknownValues)
+      throws TableRowToStorageApiProto.SchemaConversionException {
+    if (unknownFields == null || unknownFields.isEmpty()) {
+      // nothing to do here
+      return tableRowProto;
+    }
     // check if unknownFields contains repeated struct, merge
     boolean hasRepeatedStruct =
         unknownFields.entrySet().stream()
@@ -1472,13 +1553,6 @@ public class TableRowToStorageApiProto {
                         && !((List<?>) entry.getValue()).isEmpty()
                         && ((List<?>) entry.getValue()).get(0) instanceof TableRow);
     if (!hasRepeatedStruct) {
-      Descriptor descriptorIgnoreRequired = null;
-      try {
-        descriptorIgnoreRequired =
-            TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, false, false);
-      } catch (DescriptorValidationException e) {
-        throw new RuntimeException(e);
-      }
       ByteString unknownFieldsProto =
           Preconditions.checkArgumentNotNull(
                   messageFromTableRow(
@@ -1495,13 +1569,7 @@ public class TableRowToStorageApiProto {
       return tableRowProto.concat(unknownFieldsProto);
     }
 
-    DynamicMessage message = null;
-    Descriptor descriptor = null;
-    try {
-      descriptor = wrapDescriptorProto(descriptorProto);
-    } catch (DescriptorValidationException e) {
-      throw new RuntimeException(e);
-    }
+    DynamicMessage message;
     try {
       message = DynamicMessage.parseFrom(descriptor, tableRowProto);
     } catch (InvalidProtocolBufferException e) {
@@ -1547,9 +1615,8 @@ public class TableRowToStorageApiProto {
 
   private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
-      @Nullable
-          FieldDescriptor
-              fieldDescriptor, // Null in the case of recursively finding missing fields.
+      @Nullable FieldDescriptor
+          fieldDescriptor, // Null in the case of recursively finding missing fields.
       @Nullable Object bqValue,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
@@ -1674,8 +1741,7 @@ public class TableRowToStorageApiProto {
               .build();
 
     } else {
-      @Nullable
-      ThrowingBiFunction<String, Object, @Nullable Object> converter =
+      @Nullable ThrowingBiFunction<String, Object, @Nullable Object> converter =
           TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType());
       if (converter == null) {
         throw new RuntimeException("Unknown type " + schemaInformation.getType());

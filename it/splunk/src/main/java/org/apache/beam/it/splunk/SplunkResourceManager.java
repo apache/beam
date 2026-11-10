@@ -60,7 +60,7 @@ import org.testcontainers.utility.DockerImageName;
  * <p>Note: The Splunk TestContainer will only run on M1 Mac's if the Docker version is >= 4.16.0
  * and the "Use Rosetta for x86/amd64 emulation on Apple Silicon" setting is enabled.
  */
-public class SplunkResourceManager extends TestContainerResourceManager<SplunkContainer>
+public final class SplunkResourceManager extends TestContainerResourceManager<SplunkContainer>
     implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(SplunkResourceManager.class);

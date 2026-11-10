@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +59,7 @@ import org.slf4j.LoggerFactory;
  * of KV(TableDestination, WriteTables.Result) where the destination label is parsed and replaced to
  * TableDestination objects.
  */
-@SuppressWarnings({"nullness"})
-public class UpdateSchemaDestination<DestinationT>
+public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
     extends DoFn<
         Iterable<KV<DestinationT, WriteTables.Result>>,
         Iterable<KV<TableDestination, WriteTables.Result>>> {
@@ -116,12 +116,13 @@ public class UpdateSchemaDestination<DestinationT>
   }
 
   TableDestination getTableWithDefaultProject(DestinationT destination) {
-    if (dynamicDestinations.getPipelineOptions() == null) {
+    PipelineOptions pipelineOptions = dynamicDestinations.getPipelineOptions();
+    if (pipelineOptions == null) {
       throw new IllegalStateException(
           "Unexpected null pipeline option for DynamicDestination object. "
               + "Need to call setSideInputAccessorFromProcessContext(context) before use it.");
     }
-    BigQueryOptions options = dynamicDestinations.getPipelineOptions().as(BigQueryOptions.class);
+    BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
     TableDestination tableDestination = dynamicDestinations.getTable(destination);
     TableReference tableReference = tableDestination.getTableReference();
 
@@ -229,13 +230,13 @@ public class UpdateSchemaDestination<DestinationT>
     jobManager.waitForDone();
   }
 
-  private BigQueryHelpers.PendingJob startZeroLoadJob(
+  private @Nullable BigQueryHelpers.PendingJob startZeroLoadJob(
       BigQueryServices.JobService jobService,
       DatasetService datasetService,
       String jobIdPrefix,
       TableReference tableReference,
-      TimePartitioning timePartitioning,
-      Clustering clustering,
+      @Nullable TimePartitioning timePartitioning,
+      @Nullable Clustering clustering,
       @Nullable TableSchema schema,
       BigQueryIO.Write.WriteDisposition writeDisposition,
       BigQueryIO.Write.CreateDisposition createDisposition,
@@ -243,7 +244,6 @@ public class UpdateSchemaDestination<DestinationT>
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(tableReference)
-            .setSchema(schema)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
@@ -275,12 +275,14 @@ public class UpdateSchemaDestination<DestinationT>
     // no need to update schema ahead if provided schema already matches destination schema
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
-    if (destinationTable.getSchema() == null
-        || destinationTable.getSchema().isEmpty()
-        || destinationTable.getSchema().equals(schema)
-        || schema == null) {
+    TableSchema destinationSchema = destinationTable.getSchema();
+    if (destinationSchema == null
+        || destinationSchema.isEmpty()
+        || schema == null
+        || destinationSchema.equals(schema)) {
       return null;
     }
+    loadConfig.setSchema(schema);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }

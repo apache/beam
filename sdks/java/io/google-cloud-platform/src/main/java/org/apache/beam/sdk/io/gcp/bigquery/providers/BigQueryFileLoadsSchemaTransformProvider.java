@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
@@ -45,9 +45,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @Internal
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryFileLoadsSchemaTransformProvider
@@ -77,7 +74,7 @@ public class BigQueryFileLoadsSchemaTransformProvider
 
   public static class BigQueryFileLoadsSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
-    private BigQueryServices testBigQueryServices = null;
+    private @Nullable BigQueryServices testBigQueryServices = null;
 
     private final BigQueryWriteConfiguration configuration;
 
@@ -113,17 +110,19 @@ public class BigQueryFileLoadsSchemaTransformProvider
               // reason.
               .withAvroFormatFunction(dynamicDestinations.getAvroFilterFormatFunction(false));
 
-      if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
-        CreateDisposition createDisposition =
-            CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
-        write = write.withCreateDisposition(createDisposition);
+      if (configuration.getCreateDisposition() != null
+          && !configuration.getCreateDisposition().isEmpty()) {
+        write =
+            write.withCreateDisposition(
+                CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase()));
       }
-      if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
-        WriteDisposition writeDisposition =
-            WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
-        write = write.withWriteDisposition(writeDisposition);
+      if (configuration.getWriteDisposition() != null
+          && !configuration.getWriteDisposition().isEmpty()) {
+        write =
+            write.withWriteDisposition(
+                WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase()));
       }
-      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+      if (configuration.getKmsKey() != null && !configuration.getKmsKey().isEmpty()) {
         write = write.withKmsKey(configuration.getKmsKey());
       }
       if (testBigQueryServices != null) {

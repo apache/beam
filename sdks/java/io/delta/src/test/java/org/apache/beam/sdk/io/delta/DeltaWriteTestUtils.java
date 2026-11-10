@@ -31,11 +31,14 @@ import io.delta.kernel.engine.Engine;
 import io.delta.kernel.internal.data.GenericRow;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
+import io.delta.kernel.types.IntegerType;
 import io.delta.kernel.types.LongType;
 import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import io.delta.kernel.utils.CloseableIterable;
 import io.delta.kernel.utils.CloseableIterator;
@@ -50,10 +53,9 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.Instant;
 
 /** Utility class for writing test commits (appends and CDC actions) to Delta tables in tests. */
-final class DeltaWriteTestUtils {
+public final class DeltaWriteTestUtils {
 
   private DeltaWriteTestUtils() {}
 
@@ -134,16 +136,62 @@ final class DeltaWriteTestUtils {
 
       @Override
       public int getInt(int rowId) {
+        if (dataType instanceof DateType) {
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.LocalDate) {
+            return (int) ((java.time.LocalDate) val).toEpochDay();
+          }
+        }
         return rows.get(rowId).getInt32(fieldIndex);
       }
 
       @Override
+      @SuppressWarnings("PatternMatchingInstanceof") // Not available as spotless is on still Java11
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
-          Instant instant = rows.get(rowId).getDateTime(fieldIndex).toInstant();
-          return instant.getMillis() * 1000L;
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.Instant) {
+            java.time.Instant inst = (java.time.Instant) val;
+            return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
+          } else {
+            throw new RuntimeException(
+                "Unexpected value for field " + rowId + " of type 'TimestampType': " + val);
+          }
+        }
+        if (dataType instanceof TimestampNTZType) {
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.LocalDateTime) {
+            java.time.Instant inst =
+                ((java.time.LocalDateTime) val).toInstant(java.time.ZoneOffset.UTC);
+            return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
+          }
         }
         return rows.get(rowId).getInt64(fieldIndex);
+      }
+
+      @Override
+      public double getDouble(int rowId) {
+        return rows.get(rowId).getDouble(fieldIndex);
+      }
+
+      @Override
+      public float getFloat(int rowId) {
+        return rows.get(rowId).getFloat(fieldIndex);
+      }
+
+      @Override
+      public short getShort(int rowId) {
+        return rows.get(rowId).getInt16(fieldIndex);
+      }
+
+      @Override
+      public byte getByte(int rowId) {
+        return rows.get(rowId).getByte(fieldIndex);
+      }
+
+      @Override
+      public byte[] getBinary(int rowId) {
+        return rows.get(rowId).getBytes(fieldIndex);
       }
 
       @Override
@@ -165,7 +213,7 @@ final class DeltaWriteTestUtils {
    * @return the list of names of the written Parquet data files
    * @throws Exception if any error occurs during write or commit
    */
-  static List<String> writeAppendCommit(
+  public static List<String> writeAppendCommit(
       Engine engine,
       String tablePath,
       long expectedVersion,
@@ -262,7 +310,7 @@ final class DeltaWriteTestUtils {
    * @param cdcWriteSchema the schema used for writing the CDC files
    * @throws Exception if any error occurs during write or commit
    */
-  static void writeCdcCommit(
+  public static void writeCdcCommit(
       Engine engine,
       String tablePath,
       long expectedVersion,
@@ -371,6 +419,101 @@ final class DeltaWriteTestUtils {
   }
 
   /**
+   * Writes a metadata-only Delta commit (i.e. a commit without any data files) that sets the schema
+   * of the table.
+   *
+   * <p>If {@code expectedVersion} is 0, a new table is created with the given schema, with Change
+   * Data Feed and column mapping (name mode) enabled. Otherwise, the schema of the existing table
+   * is evolved to the given schema.
+   *
+   * <p>Note on why this is metadata-only: The Delta Lake Kernel API only supports schema evolution
+   * for tables that have column mapping enabled, but it does not yet support writing data into such
+   * tables.
+   *
+   * <p>When evolving the schema, the given schema must preserve the field metadata (column mapping
+   * IDs and physical names) of existing columns, for example, by deriving the new schema from the
+   * schema of the latest snapshot. Fields without such metadata are considered to be new columns.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to write to
+   * @param expectedVersion the expected version of the commit to be created
+   * @param timestamp the timestamp of the commit file
+   * @param deltaSchema the new schema of the Delta table
+   * @throws Exception if any error occurs during commit
+   */
+  public static void writeSchemaCommit(
+      Engine engine, String tablePath, long expectedVersion, long timestamp, StructType deltaSchema)
+      throws Exception {
+
+    Table table = Table.forPath(engine, tablePath);
+    TransactionBuilder txnBuilder;
+    if (expectedVersion == 0) {
+      Map<String, String> tableProperties = new HashMap<>();
+      tableProperties.put("delta.enableChangeDataFeed", "true");
+      tableProperties.put("delta.columnMapping.mode", "name");
+      txnBuilder =
+          table
+              .createTransactionBuilder(engine, "DeltaTestUtils", Operation.CREATE_TABLE)
+              .withTableProperties(engine, tableProperties);
+    } else {
+      txnBuilder =
+          table.createTransactionBuilder(engine, "DeltaTestUtils", Operation.MANUAL_UPDATE);
+    }
+    Transaction txn = txnBuilder.withSchema(engine, deltaSchema).build(engine);
+
+    TransactionCommitResult result = txn.commit(engine, CloseableIterable.emptyIterable());
+    org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
+    setCommitFileTimestamp(tablePath, expectedVersion, timestamp);
+  }
+
+  /**
+   * Writes a metadata-only Delta commit (i.e. a commit without any data files) that sets the given
+   * table properties of an existing table.
+   *
+   * <p>For example, this can be used to enable column mapping on an existing table by setting
+   * {@code delta.columnMapping.mode} to {@code name}.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to write to
+   * @param expectedVersion the expected version of the commit to be created
+   * @param timestamp the timestamp of the commit file
+   * @param tableProperties the table properties to set
+   * @throws Exception if any error occurs during commit
+   */
+  public static void writeTablePropertiesCommit(
+      Engine engine,
+      String tablePath,
+      long expectedVersion,
+      long timestamp,
+      Map<String, String> tableProperties)
+      throws Exception {
+
+    Transaction txn =
+        Table.forPath(engine, tablePath)
+            .createTransactionBuilder(engine, "DeltaTestUtils", Operation.MANUAL_UPDATE)
+            .withTableProperties(engine, tableProperties)
+            .build(engine);
+
+    TransactionCommitResult result = txn.commit(engine, CloseableIterable.emptyIterable());
+    org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
+    setCommitFileTimestamp(tablePath, expectedVersion, timestamp);
+  }
+
+  /**
+   * Sets the modification time of the commit file of the given version, which determines the
+   * timestamp of the commit, to the given timestamp. This is only supported for local tables.
+   */
+  private static void setCommitFileTimestamp(String tablePath, long version, long timestamp) {
+    if (!tablePath.startsWith("gs://")
+        && !tablePath.startsWith("s3://")
+        && !tablePath.startsWith("hdfs://")) {
+      File commitFile =
+          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", version));
+      commitFile.setLastModified(timestamp);
+    }
+  }
+
+  /**
    * Sets up a Delta table with two commit versions containing test rows.
    *
    * <p>Version 0 is committed at timestamp 100000000000L with rows ["row-1", "row-2"]. Version 1 is
@@ -397,5 +540,34 @@ final class DeltaWriteTestUtils {
         engine, tablePath, 1L, 200000000000L, deltaSchema, java.util.Arrays.asList(row3));
 
     return java.util.Arrays.asList(row1, row2, row3);
+  }
+
+  /**
+   * Sets up a Delta table with two metadata-only commit versions where a column is dropped, which
+   * is a non-additive schema change.
+   *
+   * <p>Version 0 is committed at timestamp 100000000000L and creates the table with schema {@code
+   * (name STRING, age INTEGER)}. Version 1 is committed at timestamp 200000000000L and drops the
+   * {@code age} column, resulting in schema {@code (name STRING)}.
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to create
+   * @throws Exception if any error occurs during commit
+   */
+  static void setupDroppedColumnTable(Engine engine, String tablePath) throws Exception {
+    // Commit version 0
+    writeSchemaCommit(
+        engine,
+        tablePath,
+        0L,
+        100000000000L,
+        new StructType().add("name", StringType.STRING).add("age", IntegerType.INTEGER));
+
+    // Commit version 1. The new schema keeps the existing 'name' field of the latest schema of the
+    // table to preserve its column mapping metadata.
+    StructType latestSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    writeSchemaCommit(
+        engine, tablePath, 1L, 200000000000L, new StructType().add(latestSchema.get("name")));
   }
 }

@@ -392,8 +392,7 @@ class ChangelogScanner
         for (Map.Entry<StructLike, List<ChangelogScanTask>> tasksInPartition :
             tasksPerSpec.getValue().entrySet()) {
           StructLike partition = tasksInPartition.getKey();
-          @Nullable
-          Set<SerializableChangelogTask.Type> partitionChangeTypes =
+          @Nullable Set<SerializableChangelogTask.Type> partitionChangeTypes =
               changeTypesInPartition.typesFor(specId, partition);
 
           // If this partition has only uni-directional changes, output to UNIDIRECTIONAL and bypass
@@ -466,8 +465,7 @@ class ChangelogScanner
           .add(type);
     }
 
-    @Nullable
-    Set<SerializableChangelogTask.Type> typesFor(Integer specId, StructLike partition) {
+    @Nullable Set<SerializableChangelogTask.Type> typesFor(Integer specId, StructLike partition) {
       if (!changeTypesPerPartition.containsKey(specId)) {
         return null;
       }
@@ -499,15 +497,13 @@ class ChangelogScanner
       this.overlapUpper = overlapUpper;
     }
 
-    @Nullable
-    Row overlapLowerRow(org.apache.beam.sdk.schemas.Schema idSchema) {
+    @Nullable Row overlapLowerRow(org.apache.beam.sdk.schemas.Schema idSchema) {
       return this.overlapLower == null
           ? null
           : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapLower);
     }
 
-    @Nullable
-    Row overlapUpperRow(org.apache.beam.sdk.schemas.Schema idSchema) {
+    @Nullable Row overlapUpperRow(org.apache.beam.sdk.schemas.Schema idSchema) {
       return this.overlapUpper == null
           ? null
           : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapUpper);

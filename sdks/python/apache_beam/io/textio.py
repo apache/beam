@@ -321,7 +321,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           if self._escapechar is not None and self._is_escaped(read_buffer,
                                                                next_delim):
             # Skip an escaped delimiter.
-            current_pos = next_delim + delimiter_len + 1
+            current_pos = next_delim + delimiter_len
             continue
           else:
             # Found a delimiter. Accepting that as the next delimiter.

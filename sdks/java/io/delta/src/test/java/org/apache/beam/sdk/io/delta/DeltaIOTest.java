@@ -25,6 +25,7 @@ import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.DateType;
 import io.delta.kernel.types.DoubleType;
+import io.delta.kernel.types.FieldMetadata;
 import io.delta.kernel.types.FloatType;
 import io.delta.kernel.types.IntegerType;
 import io.delta.kernel.types.LongType;
@@ -32,6 +33,7 @@ import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +51,8 @@ import org.apache.beam.sdk.io.delta.DeltaIO.ReadRows;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -62,7 +66,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -519,6 +522,7 @@ public class DeltaIOTest {
                 new StructField("boolean", BooleanType.BOOLEAN, false),
                 new StructField("binary", BinaryType.BINARY, false),
                 new StructField("timestamp", TimestampType.TIMESTAMP, false),
+                new StructField("timestamp_ntz", TimestampNTZType.TIMESTAMP_NTZ, false),
                 new StructField("date", DateType.DATE, false),
                 new StructField("array", new ArrayType(StringType.STRING, true), false),
                 new StructField(
@@ -542,8 +546,9 @@ public class DeltaIOTest {
             .addField("double", Schema.FieldType.DOUBLE)
             .addField("boolean", Schema.FieldType.BOOLEAN)
             .addField("binary", Schema.FieldType.BYTES)
-            .addField("timestamp", Schema.FieldType.DATETIME)
-            .addField("date", Schema.FieldType.DATETIME)
+            .addField("timestamp", Schema.FieldType.logicalType(Timestamp.MICROS))
+            .addField("timestamp_ntz", Schema.FieldType.logicalType(SqlTypes.DATETIME))
+            .addField("date", Schema.FieldType.logicalType(SqlTypes.DATE))
             .addField("array", Schema.FieldType.iterable(Schema.FieldType.STRING))
             .addField("map", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32))
             .addField("struct", Schema.FieldType.row(nestedSchema))
@@ -909,7 +914,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -920,15 +926,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -986,7 +997,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -997,7 +1009,7 @@ public class DeltaIOTest {
 
     Row cdcRow =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-3", "insert", 1L, new Instant(123456789000L))
+            .addValues("row-3", "insert", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     Row appendRow = Row.withSchema(tableSchema).addValues("row-3").build();
@@ -1063,7 +1075,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -1074,15 +1087,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1147,7 +1165,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -1158,15 +1177,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1450,7 +1474,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -1461,15 +1486,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1532,7 +1562,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -1543,15 +1574,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(200000000000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(200000000000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(200000000000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(200000000000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(200000000000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(200000000000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1645,7 +1681,8 @@ public class DeltaIOTest {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -1656,15 +1693,20 @@ public class DeltaIOTest {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1", "update_preimage", 1L, new Instant(200000000000L))
+            .addValues(
+                "row-1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(200000000000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "update_postimage", 1L, new Instant(200000000000L))
+            .addValues(
+                "row-1-updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(200000000000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-2", "delete", 1L, new Instant(200000000000L))
+            .addValues("row-2", "delete", 1L, java.time.Instant.ofEpochMilli(200000000000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1691,15 +1733,20 @@ public class DeltaIOTest {
     // 4. Write parquet files for Version 3 (commit with updates and deletes)
     Row cdcRow4 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-3", "update_preimage", 3L, new Instant(400000000000L))
+            .addValues(
+                "row-3", "update_preimage", 3L, java.time.Instant.ofEpochMilli(400000000000L))
             .build();
     Row cdcRow5 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-3-updated", "update_postimage", 3L, new Instant(400000000000L))
+            .addValues(
+                "row-3-updated",
+                "update_postimage",
+                3L,
+                java.time.Instant.ofEpochMilli(400000000000L))
             .build();
     Row cdcRow6 =
         Row.withSchema(cdcWriteSchema)
-            .addValues("row-1-updated", "delete", 3L, new Instant(400000000000L))
+            .addValues("row-1-updated", "delete", 3L, java.time.Instant.ofEpochMilli(400000000000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(
@@ -1749,6 +1796,202 @@ public class DeltaIOTest {
   }
 
   @Test
+  public void testReadChangesNonAdditiveSchemaChangeBetweenVersionsThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-schema-evolution-versions");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name, age) and version 1 drops the column 'age'.
+    DeltaWriteTestUtils.setupDroppedColumnTable(engine, tableDir.getAbsolutePath());
+
+    org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
+    IllegalArgumentException expandEx =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                p.apply(
+                    DeltaIO.readChanges()
+                        .from(tableDir.getAbsolutePath())
+                        .withStartVersion(0L)
+                        .withEndVersion(1L)));
+    Assert.assertTrue(
+        expandEx
+            .getMessage()
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
+
+    writePipeline
+        .apply(Create.of(tableDir.getAbsolutePath()))
+        .apply(ParDo.of(new CreateCDCReadTasksDoFn(null, 0L, null, 1L, null)));
+    org.apache.beam.sdk.Pipeline.PipelineExecutionException doFnEx =
+        Assert.assertThrows(
+            org.apache.beam.sdk.Pipeline.PipelineExecutionException.class,
+            () -> writePipeline.run().waitUntilFinish());
+    Assert.assertTrue(
+        doFnEx
+            .getCause()
+            .getMessage()
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
+  }
+
+  @Test
+  public void testReadChangesNonAdditiveSchemaChangeBetweenTimestampsThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-schema-evolution-timestamps");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 (committed at timestamp 100000000000L) creates the table with schema (name, age)
+    // and version 1 (committed at timestamp 200000000000L) drops the column 'age'.
+    DeltaWriteTestUtils.setupDroppedColumnTable(engine, tableDir.getAbsolutePath());
+
+    String startTimestamp = java.time.Instant.ofEpochMilli(100000000000L).toString();
+    String endTimestamp = java.time.Instant.ofEpochMilli(250000000000L).toString();
+
+    org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
+    IllegalArgumentException expandEx =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                p.apply(
+                    DeltaIO.readChanges()
+                        .from(tableDir.getAbsolutePath())
+                        .withStartTimestamp(startTimestamp)
+                        .withEndTimestamp(endTimestamp)));
+    Assert.assertTrue(
+        expandEx
+            .getMessage()
+            .contains(
+                "the table schema at version 0 is not compatible with the table schema at the end "
+                    + "version 1"));
+  }
+
+  @Test
+  public void testReadChangesColumnAddedAndDroppedWithinRangeThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-column-added-and-dropped");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name), version 1 adds a column 'age', and version 2
+    // drops the column 'age' again. Hence, the schemas at the start and end versions match.
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 0L, 100000000000L, new StructType().add("name", StringType.STRING));
+    StructType initialSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 1L, 200000000000L, initialSchema.add("age", IntegerType.INTEGER, true));
+    DeltaWriteTestUtils.writeSchemaCommit(engine, tablePath, 2L, 300000000000L, initialSchema);
+
+    // Expanding the transform succeeds since it only verifies the schemas at the start and end
+    // versions. Planning the read tasks fails since it verifies all schema changes within the
+    // range, and data written with the schema at version 1 can't be read using the schema at the
+    // end version, which doesn't contain the column 'age'.
+    readPipeline.apply(
+        DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(2L));
+    org.apache.beam.sdk.Pipeline.PipelineExecutionException doFnEx =
+        Assert.assertThrows(
+            org.apache.beam.sdk.Pipeline.PipelineExecutionException.class,
+            () -> readPipeline.run().waitUntilFinish());
+    Assert.assertTrue(
+        doFnEx
+            .getCause()
+            .getMessage()
+            .contains(
+                "the table schema at version 1 is not compatible with the table schema at the end "
+                    + "version 2"));
+  }
+
+  @Test
+  public void testReadChangesAddedNullableColumnBetweenVersions() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-added-nullable-column");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name) and inserts two rows.
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tablePath,
+        0L,
+        100000000000L,
+        new StructType().add("name", StringType.STRING),
+        java.util.Arrays.asList(
+            Row.withSchema(tableSchema).addValues("row-1").build(),
+            Row.withSchema(tableSchema).addValues("row-2").build()));
+
+    // Version 1 enables column mapping, which the Delta Lake Kernel API requires for schema
+    // evolution. This is a metadata-only schema change.
+    DeltaWriteTestUtils.writeTablePropertiesCommit(
+        engine,
+        tablePath,
+        1L,
+        200000000000L,
+        Collections.singletonMap("delta.columnMapping.mode", "name"));
+
+    // Version 2 adds a nullable column 'age', which is an additive schema change.
+    StructType latestSchema =
+        Table.forPath(engine, tablePath).getLatestSnapshot(engine).getSchema();
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 2L, 300000000000L, latestSchema.add("age", IntegerType.INTEGER, true));
+
+    // All changes are read using the schema at the end version, so the rows that were inserted
+    // before the column 'age' was added get null values for it.
+    PCollection<Row> output =
+        readPipeline.apply(
+            DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(2L));
+    Assert.assertEquals(
+        Schema.FieldType.INT32.withNullable(true), output.getSchema().getField("age").getType());
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind, Name, and Age", ParDo.of(new FormatValueKindNameAndAge()));
+    PAssert.that(formattedOutput).containsInAnyOrder("INSERT:row-1:null", "INSERT:row-2:null");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesMetadataOnlySchemaChangeBetweenVersions() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-metadata-only-schema-change");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // Version 0 creates the table with schema (name).
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine, tablePath, 0L, 100000000000L, new StructType().add("name", StringType.STRING));
+
+    // Version 1 only adds a comment to the existing column, which is a metadata-only schema change.
+    // The existing field metadata of the column (column mapping ID and physical name) is preserved.
+    Table table = Table.forPath(engine, tablePath);
+    StructField nameField = table.getLatestSnapshot(engine).getSchema().get("name");
+    FieldMetadata metadataWithComment =
+        FieldMetadata.builder()
+            .fromMetadata(nameField.getMetadata())
+            .putString("comment", "The name.")
+            .build();
+    DeltaWriteTestUtils.writeSchemaCommit(
+        engine,
+        tablePath,
+        1L,
+        200000000000L,
+        new StructType().add("name", StringType.STRING, metadataWithComment));
+
+    // Sanity check that the Delta schemas of the two versions differ (in their field metadata).
+    Assert.assertNotEquals(
+        table.getSnapshotAsOfVersion(engine, 0L).getSchema(),
+        table.getSnapshotAsOfVersion(engine, 1L).getSchema());
+
+    // Reading changes across the metadata-only schema change succeeds, both when expanding the
+    // transform and when planning read tasks in CreateCDCReadTasksDoFn. The output is empty since
+    // the table does not contain any data.
+    PCollection<Row> output =
+        readPipeline.apply(
+            DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(1L));
+    PAssert.that(output).empty();
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testS3SchemeRegistrationWithAnonymousCredentials() {
     org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
     conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
@@ -1774,16 +2017,33 @@ public class DeltaIOTest {
     }
   }
 
+  private static final class FormatValueKindNameAndAge extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(
+          valueKind.name() + ":" + row.getString("name") + ":" + row.getInt32("age"));
+    }
+  }
+
   private static final class FormatRowWithMetadata extends DoFn<Row, String> {
     @ProcessElement
     public void process(@Element Row row, OutputReceiver<String> out) {
-      out.output(
-          String.format(
-              "%s:%s:v%d:t%d",
-              row.getString("name"),
-              row.getString(DeltaIO.CHANGE_TYPE_COLUMN),
-              row.getInt64(DeltaIO.COMMIT_VERSION_COLUMN),
-              row.getDateTime(DeltaIO.COMMIT_TIMESTAMP_COLUMN).getMillis()));
+      Object tsVal = row.getValue(DeltaIO.COMMIT_TIMESTAMP_COLUMN);
+      if (tsVal instanceof java.time.Instant) {
+        long millis = ((java.time.Instant) tsVal).toEpochMilli();
+        out.output(
+            String.format(
+                "%s:%s:v%d:t%d",
+                row.getString("name"),
+                row.getString(DeltaIO.CHANGE_TYPE_COLUMN),
+                row.getInt64(DeltaIO.COMMIT_VERSION_COLUMN),
+                millis));
+      } else {
+        throw new RuntimeException(
+            "Expected 'COMMIT_TIMESTAMP_COLUMN' to be of type 'java.time.Instant' but received: "
+                + tsVal);
+      }
     }
   }
 
@@ -1811,10 +2071,15 @@ public class DeltaIOTest {
   private static final class FormatRowTimestampMetadata extends DoFn<Row, String> {
     @ProcessElement
     public void process(@Element Row row, OutputReceiver<String> out) {
-      out.output(
-          row.getString("name")
-              + ":"
-              + row.getDateTime(DeltaIO.COMMIT_TIMESTAMP_COLUMN).getMillis());
+      Object tsVal = row.getValue(DeltaIO.COMMIT_TIMESTAMP_COLUMN);
+      if (tsVal instanceof java.time.Instant) {
+        long millis = ((java.time.Instant) tsVal).toEpochMilli();
+        out.output(row.getString("name") + ":" + millis);
+      } else {
+        throw new RuntimeException(
+            "Expected 'COMMIT_TIMESTAMP_COLUMN' to be of type 'java.time.Instant' but received: "
+                + tsVal);
+      }
     }
   }
 }

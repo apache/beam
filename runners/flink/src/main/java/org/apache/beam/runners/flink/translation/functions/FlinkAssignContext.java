@@ -26,7 +26,7 @@ import org.joda.time.Instant;
 
 /** {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for Flink functions. */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
-class FlinkAssignContext<InputT, W extends BoundedWindow>
+final class FlinkAssignContext<InputT, W extends BoundedWindow>
     extends WindowFn<InputT, W>.AssignContext {
   private final WindowedValue<InputT> value;
 

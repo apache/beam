@@ -511,7 +511,7 @@ public class View {
     }
   }
 
-  private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
+  private static final class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
     private final boolean hasDefault;
     private final @Nullable Coder<T> valueCoder;
     private final byte @Nullable [] defaultValue;
@@ -697,7 +697,9 @@ public class View {
       return new AsMap<>(inMemory);
     }
 
-    /** @deprecated this method simply returns this AsMap unmodified */
+    /**
+     * @deprecated this method simply returns this AsMap unmodified
+     */
     @Deprecated()
     public AsMap<K, V> withSingletonValues() {
       return this;

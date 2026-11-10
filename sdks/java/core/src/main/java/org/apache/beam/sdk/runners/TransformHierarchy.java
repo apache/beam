@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
 public class TransformHierarchy {
   private static final Logger LOG = LoggerFactory.getLogger(TransformHierarchy.class);
 
-  private final Node root;
+  private Node root;
   private final Map<Node, PInput> unexpandedInputs;
   private final Map<PCollection<?>, Node> producers;
 
@@ -76,7 +76,24 @@ public class TransformHierarchy {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
-    root = new Node(resourceHints);
+    root = new Node(resourceHints, "");
+    current = root;
+  }
+
+  /**
+   * Names the root of this hierarchy. Callers that derive full transform names from {@code
+   * getCurrent().getFullName()}, as {@link org.apache.beam.sdk.Pipeline} does, thereby prefix the
+   * full name of every transform (and of every {@link PCollection} named after one) subsequently
+   * added with {@code rootName + "/"}, which lets the names of independently constructed
+   * hierarchies be kept disjoint.
+   *
+   * <p>May only be called while the hierarchy is still empty.
+   */
+  public void setRootName(String rootName) {
+    checkState(
+        root.parts.isEmpty() && current == root && unexpandedInputs.isEmpty(),
+        "Cannot name the root of a TransformHierarchy that already contains transforms");
+    root = new Node(root.resourceHints, rootName);
     current = root;
   }
 
@@ -264,12 +281,13 @@ public class TransformHierarchy {
 
     /**
      * Creates the root-level node. The root level node has a null enclosing node, a null transform,
-     * an empty map of inputs, an empty map of outputs, and a name equal to the empty string.
+     * an empty map of inputs, an empty map of outputs, and the given name (the empty string unless
+     * {@link TransformHierarchy#setRootName} was used).
      */
-    private Node(ResourceHints resourceHints) {
+    private Node(ResourceHints resourceHints, String fullName) {
       this.enclosingNode = null;
       this.transform = null;
-      this.fullName = "";
+      this.fullName = fullName;
       this.inputs = Collections.emptyMap();
       this.outputs = Collections.emptyMap();
       this.resourceHints = resourceHints;

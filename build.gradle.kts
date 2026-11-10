@@ -21,9 +21,7 @@ import java.util.TreeMap
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.1"
-  // Enable gradle-based release management
-  id("net.researchgate.release") version "2.8.1"
+  id("org.nosphere.apache.rat") version "0.11.0"
   id("org.apache.beam.module")
   id("org.sonarqube") version "3.0"
 }
@@ -48,6 +46,7 @@ tasks.rat {
     "**/test.avsc",
     "**/logical-types.avsc",
     "**/user.avsc",
+    "**/*.avro",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
@@ -201,6 +200,9 @@ tasks.rat {
     "sdks/java/container/license_scripts/manual_licenses",
     "sdks/python/container/license_scripts/manual_licenses",
 
+    // Ignore third-party notices bundled in resources
+    "**/resources/NOTICES",
+
     // Ignore autogenrated proto files.
     "sdks/typescript/src/apache_beam/proto/**/*.ts",
 
@@ -287,7 +289,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:prism:java:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
-  dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
   dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
@@ -319,11 +320,9 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
-  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
-  dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
   dependsOn("sdks:java:ml:inference:remote:build")
   dependsOn("sdks:java:ml:inference:openai:build")
@@ -361,6 +360,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:jdbc:build")
   dependsOn(":sdks:java:io:jms:build")
   dependsOn(":sdks:java:io:kafka:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:kafka:upgrade:build")
   dependsOn(":sdks:java:extensions:kafka-factories:build")
   dependsOn(":sdks:java:io:kudu:build")
@@ -392,10 +392,10 @@ tasks.register("flinkPreCommit") {
 tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:preCommit")
   dependsOn(":sdks:java:extensions:sql:buildDependents")
-  dependsOn(":sdks:java:extensions:sql:datacatalog:build")
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -440,7 +440,6 @@ tasks.register("javaAvroVersionsTest") {
 tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
-  dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
   dependsOn(":sdks:java:extensions:sql:iceberg:integrationTest")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
@@ -494,7 +493,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
   dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
@@ -511,7 +509,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
   dependsOn(":sdks:python:container:py313:docker")
@@ -525,6 +522,10 @@ tasks.register("pythonLintPreCommit") {
 tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
+
+val changesLanguagePattern = "Java|Python|Go|Kotlin|TypeScript|YAML"
+val changesRunnerPattern = "Dataflow|Flink|Jet|Kafka-Stream|Prism|Spark"
+val changesTagPattern = "$changesLanguagePattern|$changesRunnerPattern"
 
 tasks.register("formatChanges") {
   group = "formatting"
@@ -580,6 +581,7 @@ tasks.register("formatChanges") {
           "## Highlights",
           "## I/Os",
           "## New Features / Improvements",
+          "## Improvements",
           "## Breaking Changes",
           "## Deprecations",
           "## Bugfixes",
@@ -606,6 +608,7 @@ tasks.register("formatChanges") {
         }
 
         // Only add sections that actually exist with content
+        val bracketedTagRegex = Regex("\\[(?:$changesTagPattern)(?:/(?:$changesTagPattern))*\\]")
         for (section in expectedSections) {
           if (sectionContent.containsKey(section)) {
             formattedLines.add("")
@@ -623,15 +626,9 @@ tasks.register("formatChanges") {
 
             // Format content according to template rules
             val formattedContent = content.map { line ->
-              // Convert SDK language references from [Language] to (Language)
-              line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript|YAML)[^\\]]*)\\]")) { matchResult ->
-                val languages = matchResult.groupValues[1]
-                // Only convert if it's clearly a language reference (not a link or other content)
-                if (languages.matches(Regex(".*(?:Java|Python|Go|Kotlin|TypeScript|YAML).*"))) {
-                  "($languages)"
-                } else {
-                  matchResult.value
-                }
+              // Convert SDK language and runner references from [Language]/[Runner] to (Language)/(Runner)
+              line.replace(bracketedTagRegex) { matchResult ->
+                "(${matchResult.value.substring(1, matchResult.value.length - 1)})"
               }
             }
 
@@ -648,7 +645,7 @@ tasks.register("formatChanges") {
     }
 
     // Write formatted content back
-    changesFile.writeText(formattedLines.joinToString("\n"))
+    changesFile.writeText(formattedLines.joinToString("\n") + "\n")
     println("CHANGES.md has been formatted according to template structure")
   }
 }
@@ -727,6 +724,9 @@ tasks.register("validateChanges") {
     items.put(lastline, item)
     println("Starting validation from line ${i+1}")
 
+    val bracketedTagRegex = Regex("\\[(?:$changesTagPattern)(?:/(?:$changesTagPattern))*\\]")
+    val linkRegex = Regex("\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)")
+
     items.forEach { (i, line) ->
       if (line.startsWith("* ")) {
         println("Checking line ${i+1}: $line")
@@ -735,17 +735,13 @@ tasks.register("validateChanges") {
         if (line.startsWith("* [comment]:")) {
           println("  Skipping comment line")
         } else {
-          // Rule 1: Check if language references use parentheses instead of brackets
-          val languagePattern = "\\[(Java|Python|Go|Kotlin|TypeScript|YAML)(?:/(?:Java|Python|Go|Kotlin|TypeScript|YAML))*\\]"
-          val languageRegex = Regex(languagePattern)
-
-          // Check if there's a language reference in brackets
-          val matches = languageRegex.findAll(line).toList()
+          // Rule 1: Check if language or runner references use parentheses instead of brackets
+          val matches = bracketedTagRegex.findAll(line).toList()
           if (matches.isNotEmpty()) {
             for (match in matches) {
               val matchText = match.value
               val matchPosition = match.range.first
-              println("  Found language reference: $matchText at position $matchPosition")
+              println("  Found bracketed language/runner reference: $matchText at position $matchPosition")
 
               // Check if this is part of an issue link or URL
               val beforeMatch = if (matchPosition > 0) line.substring(0, matchPosition) else ""
@@ -756,24 +752,21 @@ tasks.register("validateChanges") {
               println("  Is part of link: $isPartOfLink")
 
               if (!isPartOfLink) {
-                val error = "Line ${i+1}: Language references should use parentheses () instead of brackets []: $line"
+                val error = "Line ${i+1}: Language/runner references should use parentheses () instead of brackets []: $line"
                 println("  Adding error: $error")
                 errors.add(error)
               }
             }
           } else {
-            println("  No bracketed language reference found")
+            println("  No bracketed language/runner reference found")
           }
 
-          // Rule 2: Check if each entry has an issue link
-          val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
-          val issueLinkRegex = Regex(issueLinkPattern)
+          // Rule 2: Check if each entry links an issue or a PR
+          val hasLink = linkRegex.containsMatchIn(line)
+          println("  Has issue link: $hasLink")
 
-          val hasIssueLink = issueLinkRegex.containsMatchIn(line)
-          println("  Has issue link: $hasIssueLink")
-
-          if (!hasIssueLink) {
-            val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
+          if (!hasLink) {
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry must end with a reference to an Issue or a PR, for example: ([#X](https://github.com/apache/beam/issues/X)): $line"
             println("  Adding error: $error")
             errors.add(error)
           }
@@ -791,23 +784,12 @@ tasks.register("validateChanges") {
   }
 }
 
-tasks.register("python310PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py310:azureIntegrationTest")
-  // TODO: https://github.com/apache/beam/issues/22651
-  // The default container uses Python 3.10. The goal here is to
-  // duild Docker images for TensorRT tests during run time for python versions
-  // other than 3.10 and add these tests in other python postcommit suites.
-  dependsOn(":sdks:python:test-suites:dataflow:py310:inferencePostCommitIT")
-}
 
 tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py311:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
 }
 
@@ -834,12 +816,12 @@ tasks.register("python314PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:portable:py314:preCommitPy314")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py314:sparkValidatesRunner")
 }
 
@@ -863,15 +845,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py310:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py310:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py310:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py311:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py311:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py311:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py310:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py310:jest")
+  dependsOn(":sdks:python:test-suites:tox:py311:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py311:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {
@@ -980,20 +962,6 @@ project.tasks.register("generateManagedIOPage") {
   dependsOn(":sdks:python:generateManagedIOPage")
 }
 
-// Configure the release plugin to do only local work; the release manager determines what, if
-// anything, to push. On failure, the release manager can reset the branch without pushing.
-release {
-  revertOnFail = false
-  tagTemplate = "v${version}"
-  // workaround from https://github.com/researchgate/gradle-release/issues/281#issuecomment-466876492
-  release {
-    with (propertyMissing("git") as net.researchgate.release.GitAdapter.GitConfig) {
-      requireBranch = "release-.*|master"
-      pushToRemote = ""
-    }
-  }
-}
-
 // Reports linkage errors across multiple Apache Beam artifact ids.
 //
 // To use (from the root of project):
@@ -1010,7 +978,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.15")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.16")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

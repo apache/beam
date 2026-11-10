@@ -27,7 +27,9 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class MonitoringInfoTestUtil {
-  /** @return A basic MonitoringInfoMetricName to test. */
+  /**
+   * @return A basic MonitoringInfoMetricName to test.
+   */
   public static MonitoringInfoMetricName testElementCountName() {
     HashMap labels = new HashMap<String, String>();
     labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "testPCollection");
@@ -36,7 +38,9 @@ public class MonitoringInfoTestUtil {
     return name;
   }
 
-  /** @return A basic MonitoringInfo which matches the testElementCountName. */
+  /**
+   * @return A basic MonitoringInfo which matches the testElementCountName.
+   */
   public static MonitoringInfo testElementCountMonitoringInfo(long value) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);

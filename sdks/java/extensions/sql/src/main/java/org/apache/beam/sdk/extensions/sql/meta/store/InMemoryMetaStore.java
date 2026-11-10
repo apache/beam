@@ -89,8 +89,8 @@ public class InMemoryMetaStore implements MetaStore {
       return;
     }
     // check if there is a nested metastore that supports this table
-    @Nullable
-    InMemoryMetaStore nestedMemoryMetastore = (InMemoryMetaStore) providers.get(getTableType());
+    @Nullable InMemoryMetaStore nestedMemoryMetastore =
+        (InMemoryMetaStore) providers.get(getTableType());
     if (nestedMemoryMetastore != null) {
       nestedMemoryMetastore.validateTableType(table);
     } else {
@@ -128,6 +128,11 @@ public class InMemoryMetaStore implements MetaStore {
   @Override
   public boolean supportsPartitioning(Table table) {
     return getProvider(table.getType()).supportsPartitioning(table);
+  }
+
+  @Override
+  public boolean supportsPrimaryKey(Table table) {
+    return getProvider(table.getType()).supportsPrimaryKey(table);
   }
 
   /**

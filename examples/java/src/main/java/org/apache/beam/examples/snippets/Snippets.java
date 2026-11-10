@@ -737,6 +737,7 @@ public class Snippets {
     // each other) will be merged.
     return Arrays.asList(new IntervalWindow(c.timestamp(), gapDuration));
   }
+
   // [END CustomSessionWindow1]
 
   // [START CustomSessionWindow2]
@@ -767,6 +768,7 @@ public class Snippets {
       }
       return Arrays.asList(new IntervalWindow(c.timestamp(), dataDrivenGap));
     }
+
     // [END CustomSessionWindow3]
 
     // [START CustomSessionWindow4]
@@ -1251,6 +1253,7 @@ public class Snippets {
         return OffsetRange.Coder.of();
       }
     }
+
     // [END SDF_BasicExample]
 
     @SuppressWarnings("unused")
@@ -1360,6 +1363,7 @@ public class Snippets {
         return new MyCustomWatermarkEstimator(oldState);
       }
     }
+
     // [END SDF_CustomWatermarkEstimator]
 
     @SuppressWarnings("unused")

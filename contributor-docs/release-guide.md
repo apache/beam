@@ -310,7 +310,7 @@ Note: Only these variables need to be set in your local repository: RELEASE_VER,
        (cd release/src/main/scripts && ./verify_release_build.sh)
        ```
     4. Trigger all Github Action jobs from the PR created by the previous step.
-       For GitHub Action jobs, they should be triggered by the pull_request_target event of a specific placeholder file
+       For GitHub Action jobs, they should be triggered by the pull_request event of a specific placeholder file
        added to the PR (`release/trigger_all_tests.json`), so no additional action should be needed.
   **NOTE**
   The GitHub Action jobs triggered by this script often run for several hours, and concurrency issues may cause some to fail. These, and any flaky tests, should be retried. Test failures related to unreleased container images (e.g., see https://github.com/apache/beam/pull/34381#issuecomment-2745245273) can be temporarily ignored, but these workflows must be revisited after the container images are released.
@@ -582,7 +582,7 @@ with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
     RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
-    for pyver in 3.10 3.11 3.12 3.13 3.14; do
+    for pyver in 3.11 3.12 3.13 3.14; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -698,7 +698,8 @@ as an example.
 
 > **NOTE**
 > Make sure to include any breaking changes, even to `@Experimental`
-> features, all major features and bug fixes, and all known issues.
+> features, all major features and impactful user-facing bug fixes, and all known issues.
+> Minor or internal changes that do not affect public API functionality (e.g., test-only changes, typos, CI/build fixes, internal refactors, or fixes to regressions introduced within the same release) do not need to be listed in `CHANGES.md` or the release blog post.
 
 **Template:**
 
@@ -741,15 +742,32 @@ as an example.
     * Support for X source added (Java) ([#X](https://github.com/apache/beam/issues/X)).
     {$TOPICS}
 
-    ### New Features / Improvements
+    ### Improvements
+
+    #### New Feature
 
     * X feature added (Python) ([#X](https://github.com/apache/beam/issues/X)).
-    * Y feature added (Java) [#Y](https://github.com/apache/beam/issues/Y).
+    * Y feature added (Java) ([#Y](https://github.com/apache/beam/issues/Y)).
+
+    #### Performance
+
+    * Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
+    * Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
 
     ### Breaking Changes
 
+    #### Package upgrades
+
+    * Upgraded X dependency to major version Y ([#X](https://github.com/apache/beam/issues/X)).
+
+    #### API changes
+
     * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
     * Y behavior was changed ([#Y](https://github.com/apache/beam/issues/Y)).
+
+    #### Upgrade compatibility
+
+    * Streaming pipeline state/coder compatibility change Z ([#Z](https://github.com/apache/beam/issues/Z)).
 
     ### Deprecations
 
@@ -779,7 +797,7 @@ as an example.
 Use the content of the blog post as the description of the release.
 
 You may now also uncheck the "draft" checkbox.
-This allows it to be visible to non-committers, and makes the assets publically accessible.
+This allows it to be visible to non-committers, and makes the assets publicly accessible.
 
 Be sure the release is still marked as a pre-release (not as latest).
 
@@ -1013,7 +1031,7 @@ If the issue persists, create an infrastructure ticket for assistance (e.g., htt
 Once the tag is uploaded, update the page with the final release tag, and publish the release notes to Github.
 
 * From the [Beam release page on Github](https://github.com/apache/beam/releases)
-find and open the release for the final RC tag for for editing.
+find and open the release for the final RC tag for editing.
 * Update the release with the final version tag created above.
 * Set this version as the latest release, and publish it.
 
@@ -1351,7 +1369,7 @@ Please review and vote on the release candidate #1 for the version 2.XX.1. Given
 
 ### Revert a commit on a release branch
 
-The recomended approach is to use `git revert`, for example,
+The recommended approach is to use `git revert`, for example,
 ```bash
 git checkout origin/release-2.62.0
 git revert 41215a3116b5e866d1e5b017611a479eeee72df1
@@ -1360,4 +1378,4 @@ git push origin HEAD:release-2.62.0
 
 ### How to create a cherry-pick
 
-More detailes are at https://cwiki.apache.org/confluence/display/BEAM/Git+Tips#GitTips-Howtocreateacherry-pickpullrequestforanongoingreleasebranch
+More details are at https://cwiki.apache.org/confluence/display/BEAM/Git+Tips#GitTips-Howtocreateacherry-pickpullrequestforanongoingreleasebranch

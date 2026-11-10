@@ -28,4 +28,20 @@ public class OptionsImposter {
   public static Duration maxCommitDelay(Options options) {
     return options.maxCommitDelay();
   }
+
+  public static boolean withCommitStats(Options options) {
+    return options.withCommitStats();
+  }
+
+  public static CommitResponse createCommitResponse(com.google.spanner.v1.CommitResponse proto) {
+    return new CommitResponse(proto);
+  }
+
+  public static Boolean withExcludeTxnFromChangeStreams(Options options) {
+    return options.withExcludeTxnFromChangeStreams();
+  }
+
+  public static String tag(Options options) {
+    return options.tag();
+  }
 }

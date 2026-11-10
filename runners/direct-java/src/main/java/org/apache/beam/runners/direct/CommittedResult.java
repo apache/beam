@@ -24,9 +24,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /** A {@link TransformResult} that has been committed. */
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 abstract class CommittedResult<ExecutableT> {
   /** Returns the {@link AppliedPTransform} that produced this result. */
   public abstract ExecutableT getExecutable();

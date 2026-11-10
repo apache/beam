@@ -180,8 +180,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    * @return updated wrapper for the cross-language transform.
    */
   public PythonExternalTransform<InputT, OutputT> withArgs(@NonNull Object... args) {
-    @Nullable
-    Object @NonNull [] result = Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
+    @Nullable Object @NonNull [] result =
+        Arrays.copyOf(this.argsArray, this.argsArray.length + args.length);
     System.arraycopy(args, 0, result, this.argsArray.length, args.length);
     this.argsArray = result;
     return this;

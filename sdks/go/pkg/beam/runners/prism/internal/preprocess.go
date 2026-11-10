@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -446,6 +447,15 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		transformSet[tid] = true
 	}
 
+	// Any ParDo in the stage can register bundle finalization callbacks, not only the
+	// transforms that consume the stage's inputs, so every one of them must be checked.
+	for _, tid := range stg.transforms {
+		if requestsFinalization(comps.GetTransforms()[tid]) {
+			stg.finalize = true
+			break
+		}
+	}
+
 	// Now we can see which consumers (inputs) aren't covered by the producers (outputs).
 	mainInputs := map[string]string{}
 	var sideInputs []engine.LinkID
@@ -462,14 +472,12 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 			t := comps.GetTransforms()[link.Transform]
 
 			var sis map[string]*pipepb.SideInput
+			timeSorted := false
 			switch t.GetSpec().GetUrn() {
 			case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
 				pardo := &pipepb.ParDoPayload{}
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
-				}
-				if pardo.GetRequestsFinalization() {
-					stg.finalize = true
 				}
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
@@ -477,12 +485,20 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
 					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}
+				timeSorted = pardo.GetRequiresTimeSortedInput()
 				sis = pardo.GetSideInputs()
 			}
 			if _, ok := sis[link.Local]; ok {
 				sideInputs = append(sideInputs, engine.LinkID{Transform: link.Transform, Global: link.Global, Local: link.Local})
 			} else {
 				mainInputs[link.Global] = link.Global
+				if timeSorted {
+					// Elements are sorted once they can no longer be preceded by
+					// non-late data, which depends on the main input's allowed lateness.
+					stg.timeSortedInput = true
+					ws := comps.GetWindowingStrategies()[comps.GetPcollections()[link.Global].GetWindowingStrategyId()]
+					stg.timeSortedAllowedLateness = time.Duration(ws.GetAllowedLateness()) * time.Millisecond
+				}
 			}
 		}
 	}
@@ -533,6 +549,20 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		}
 	}
 	return nil
+}
+
+// requestsFinalization reports whether t is a ParDo, or a stage of an expanded splittable
+// DoFn, whose payload requests bundle finalization. computeFacts has already rejected
+// undecodable ParDo payloads, so a payload that does not decode reports false.
+func requestsFinalization(t *pipepb.PTransform) bool {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
+		pardo := &pipepb.ParDoPayload{}
+		err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo)
+		return err == nil && pardo.GetRequestsFinalization()
+	default:
+		return false
+	}
 }
 
 // greedyFusion produces a pipeline as tightly fused as possible.
@@ -640,6 +670,9 @@ func greedyFusion(topological []string, comps *pipepb.Components, facts *fusionF
 			}
 			if stageEnvs[pID] != stageEnvs[cID] {
 				continue // Not the same environment.
+			}
+			if stageEnvs[pID] == "" {
+				continue // Runner transforms (e.g. GroupByKey) don't fuse, since a runner stage executes a single transform.
 			}
 			if forcedRoots[cID] {
 				continue // Forced root.

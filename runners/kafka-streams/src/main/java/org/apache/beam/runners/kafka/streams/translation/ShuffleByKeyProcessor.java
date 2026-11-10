@@ -17,10 +17,12 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
@@ -39,11 +41,13 @@ import org.slf4j.LoggerFactory;
  * <p>Watermark reports are relabelled here with the reporting instance's real partition identity.
  * This is the point at which a report stops being delivered in-process and starts crossing a topic:
  * upstream of it a transform forwards to its fused children, which see exactly one instance of it,
- * so the report names a single source. The {@link GroupByKeyBroadcastPartitioner} on the sink below
+ * so the report names a single source. The {@link KStreamsPayloadPartitioner} on the sink below
  * fans each report out to <em>every</em> partition, so a downstream task instead sees a report from
  * every instance of the upstream transform, and has to be able to tell them apart to know when it
  * has heard from all of them. The transform id is left alone, so the report still names the
  * transform that produced it.
+ *
+ * <p>Flush markers are readdressed here too; see {@link #flushTargets}.
  */
 class ShuffleByKeyProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
@@ -57,6 +61,9 @@ class ShuffleByKeyProcessor
 
   private int upstreamPartition;
 
+  /** Partitions of the repartition topic. */
+  private final int downstreamPartitionCount;
+
   // Reports this shuffle as finished once it has written the terminal watermark to the repartition
   // topic. The downstream side reading that topic reports separately, which is why the pipeline
   // waits for every processor rather than the first.
@@ -67,10 +74,12 @@ class ShuffleByKeyProcessor
   ShuffleByKeyProcessor(
       Coder<Object> keyCoder,
       int upstreamPartitionCount,
+      int downstreamPartitionCount,
       String nodeName,
       TerminationTracker terminationTracker) {
     this.keyCoder = keyCoder;
     this.upstreamPartitionCount = upstreamPartitionCount;
+    this.downstreamPartitionCount = downstreamPartitionCount;
     this.terminationReporter = new TerminationReporter(terminationTracker, nodeName);
   }
 
@@ -114,6 +123,16 @@ class ShuffleByKeyProcessor
         throw new RuntimeException("Failed to encode shuffle key", e);
       }
       ctx.forward(record.withKey(encodedKey));
+    } else if (payload.isFlush()) {
+      // Forwarded once: the sink's partitioner makes Kafka Streams write a copy to each target.
+      // Fanning in, an instance may have nothing to address.
+      Set<Integer> targets =
+          flushTargets(upstreamPartition, upstreamPartitionCount, downstreamPartitionCount);
+      if (!targets.isEmpty()) {
+        ctx.forward(
+            new Record<byte[], KStreamsPayload<?>>(
+                record.key(), KStreamsPayload.flush(targets), record.timestamp()));
+      }
     } else {
       WatermarkPayload report = payload.asWatermark();
       ctx.forward(
@@ -127,6 +146,20 @@ class ShuffleByKeyProcessor
               record.timestamp()));
       terminationReporter.watermarkEmitted(ctx, report.getWatermarkMillis());
     }
+  }
+
+  /**
+   * Downstream partitions {@code [i*D/U, (i+1)*D/U)} for upstream partition {@code i}. Over all
+   * {@code i} these cover each downstream partition once, and do not change on a rebalance.
+   */
+  static Set<Integer> flushTargets(int upstreamPartition, int upstreamCount, int downstreamCount) {
+    long from = (long) upstreamPartition * downstreamCount / upstreamCount;
+    long to = ((long) upstreamPartition + 1) * downstreamCount / upstreamCount;
+    ImmutableSet.Builder<Integer> targets = ImmutableSet.builder();
+    for (long partition = from; partition < to; partition++) {
+      targets.add((int) partition);
+    }
+    return targets.build();
   }
 
   private static <T> T checkInitialized(@Nullable T value) {

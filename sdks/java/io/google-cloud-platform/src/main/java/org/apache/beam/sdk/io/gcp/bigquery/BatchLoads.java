@@ -135,7 +135,11 @@ class BatchLoads<DestinationT, ElementT>
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
   static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
+  // The number of times a failed load or copy job is retried in place before the bundle is failed.
+  // A bounded pipeline keeps this low because the runner can just rerun the failed bundle; an
+  // unbounded pipeline retries far more, because failing a bundle in streaming is expensive.
   static final int DEFAULT_MAX_RETRY_JOBS = 3;
+  static final int DEFAULT_MAX_RETRY_JOBS_UNBOUNDED = 1000;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
@@ -162,12 +166,12 @@ class BatchLoads<DestinationT, ElementT>
   private long maxBytesPerPartition;
   private int numFileShards;
   private @Nullable Duration triggeringFrequency;
-  private ValueProvider<String> customGcsTempLocation;
+  private @Nullable ValueProvider<String> customGcsTempLocation;
   private @Nullable ValueProvider<String> loadJobProjectId;
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
-  private final String tempDataset;
+  private final @Nullable String tempDataset;
   private final BadRecordRouter badRecordRouter;
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
   private Coder<TableDestination> tableDestinationCoder;
@@ -181,7 +185,7 @@ class BatchLoads<DestinationT, ElementT>
       boolean singletonTable,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       Coder<DestinationT> destinationCoder,
-      ValueProvider<String> customGcsTempLocation,
+      @Nullable ValueProvider<String> customGcsTempLocation,
       @Nullable ValueProvider<String> loadJobProjectId,
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
@@ -189,7 +193,7 @@ class BatchLoads<DestinationT, ElementT>
       @Nullable String kmsKey,
       boolean clusteringEnabled,
       boolean useAvroLogicalTypes,
-      String tempDataset,
+      @Nullable String tempDataset,
       BadRecordRouter badRecordRouter,
       ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
     bigQueryServices = new BigQueryServicesImpl();
@@ -249,7 +253,7 @@ class BatchLoads<DestinationT, ElementT>
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
   }
 
-  public void setTriggeringFrequency(Duration triggeringFrequency) {
+  public void setTriggeringFrequency(@Nullable Duration triggeringFrequency) {
     this.triggeringFrequency = triggeringFrequency;
   }
 
@@ -285,6 +289,7 @@ class BatchLoads<DestinationT, ElementT>
     PipelineOptions options = Preconditions.checkArgumentNotNull(maybeOptions);
     // We will use a BigQuery load job -- validate the temp location.
     String tempLocation;
+    ValueProvider<String> customGcsTempLocation = this.customGcsTempLocation;
     if (customGcsTempLocation == null) {
       tempLocation = options.getTempLocation();
     } else {
@@ -424,7 +429,7 @@ class BatchLoads<DestinationT, ElementT>
             .apply("ExtractTempTables", Values.create())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination<DestinationT>(
+                        new UpdateSchemaDestination<>(
                             bigQueryServices,
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
@@ -530,7 +535,7 @@ class BatchLoads<DestinationT, ElementT>
             .apply("ReifyRenameInput", new ReifyAsIterable<>())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination<DestinationT>(
+                        new UpdateSchemaDestination<>(
                             bigQueryServices,
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
@@ -592,6 +597,8 @@ class BatchLoads<DestinationT, ElementT>
                       @ProcessElement
                       public void getTempFilePrefix(ProcessContext c) {
                         String tempLocationRoot;
+                        ValueProvider<String> customGcsTempLocation =
+                            BatchLoads.this.customGcsTempLocation;
                         if (customGcsTempLocation != null && customGcsTempLocation.get() != null) {
                           tempLocationRoot = customGcsTempLocation.get();
                         } else {

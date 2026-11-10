@@ -45,6 +45,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.jms.BytesMessage;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.QueueBrowser;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
@@ -61,16 +71,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import javax.jms.BytesMessage;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.QueueBrowser;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQMessage;
 import org.apache.activemq.util.Callback;
@@ -90,6 +90,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
@@ -190,9 +191,23 @@ public class JmsIOTest {
     }
   }
 
+  /**
+   * ActiveMQ stops the connection shortly after an authentication failure. With the default async
+   * vm:// transport, that stop can overtake the error reply on a slow machine, and the client sees
+   * "peer ... stopped." instead of the authentication error. A synchronous transport delivers the
+   * reply first.
+   */
+  private ConnectionFactory connectionFactoryForAuthFailure() {
+    return connectionFactoryClass == ActiveMQConnectionFactory.class
+        ? new ActiveMQConnectionFactory(String.format("%s:%d?async=false", brokerUrl, brokerPort))
+        : connectionFactory;
+  }
+
   @Test
   public void testAuthenticationRequired() {
-    pipeline.apply(JmsIO.read().withConnectionFactory(connectionFactory).withQueue(QUEUE));
+    // A topic produces one source, avoiding races between concurrent authentication failures.
+    pipeline.apply(
+        JmsIO.read().withConnectionFactory(connectionFactoryForAuthFailure()).withTopic(TOPIC));
     String errorMessage =
         this.connectionFactoryClass == ActiveMQConnectionFactory.class
             ? "User name [null] or password is invalid."
@@ -204,8 +219,8 @@ public class JmsIOTest {
   public void testAuthenticationWithBadPassword() {
     pipeline.apply(
         JmsIO.read()
-            .withConnectionFactory(connectionFactory)
-            .withQueue(QUEUE)
+            .withConnectionFactory(connectionFactoryForAuthFailure())
+            .withTopic(TOPIC)
             .withUsername(USERNAME)
             .withPassword("BAD"));
 
@@ -360,7 +375,7 @@ public class JmsIOTest {
     JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
 
     // start the reader and move to the first record
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
     Set<ByteBuffer> uniqueIds = new HashSet<>();
     uniqueIds.add(ByteBuffer.wrap(reader.getCurrentRecordId()));
 
@@ -493,6 +508,10 @@ public class JmsIOTest {
     assertEquals(100, count);
   }
 
+  private boolean startWithRetry(UnboundedSource.UnboundedReader reader) throws IOException {
+    return reader.start() || advanceWithRetry(reader);
+  }
+
   private boolean advanceWithRetry(UnboundedSource.UnboundedReader reader) throws IOException {
     for (int attempt = 0; attempt < 10; attempt++) {
       if (reader.advance()) {
@@ -516,7 +535,7 @@ public class JmsIOTest {
     UnboundedJmsReader reader = setupReaderForTest();
 
     // start the reader and move to the first record
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
 
     // consume 3 messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
@@ -551,7 +570,7 @@ public class JmsIOTest {
     UnboundedJmsReader reader = setupReaderForTest();
 
     // start the reader and move to the first record
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
 
     // consume 2 message (NB: start already consumed the first message)
     assertTrue(advanceWithRetry(reader));
@@ -567,8 +586,8 @@ public class JmsIOTest {
     assertEquals(1, jmsMark.getMessages().size());
 
     // consume two more messages after checkpoint made
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     // the messages are still pending in the queue (no ACK yet)
     assertEquals(10, count(QUEUE));
@@ -581,10 +600,33 @@ public class JmsIOTest {
   }
 
   @Test
+  public void testRestoredCheckpointMarkFinalizedAfterReaderRecreation() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+    assertTrue(startWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+
+    JmsCheckpointMark mark = (JmsCheckpointMark) reader.getCheckpointMark();
+    assertEquals(10, count(QUEUE));
+
+    // the runner encodes the mark and recreates the reader from it
+    JmsIO.UnboundedJmsSource<?> source = (JmsIO.UnboundedJmsSource<?>) reader.getCurrentSource();
+    JmsCheckpointMark restored = CoderUtils.clone(source.getCheckpointMarkCoder(), mark);
+    reader.close();
+    UnboundedJmsReader recreated = source.createReader(PipelineOptionsFactory.create(), restored);
+    assertTrue(startWithRetry(recreated));
+
+    // finalizing the restored copy acks the messages read by the original reader
+    restored.finalizeCheckpoint();
+
+    assertEquals(7, count(QUEUE));
+  }
+
+  @Test
   public void testCheckpointMarkAndFinalizeSeparatelyIndividualAcknowledge() throws Exception {
     UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
 
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
     assertTrue(advanceWithRetry(reader));
     assertTrue(advanceWithRetry(reader));
 
@@ -595,8 +637,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(3, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
@@ -609,7 +651,7 @@ public class JmsIOTest {
   public void testCheckpointMarkAndFinalizeSeparatelyClientAcknowledgeUnsafe() throws Exception {
     UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE);
 
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
     assertTrue(advanceWithRetry(reader));
     assertTrue(advanceWithRetry(reader));
 
@@ -620,8 +662,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(1, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
@@ -746,7 +788,7 @@ public class JmsIOTest {
     JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
 
     // consume half the messages (NB: start already consumed the first message)
     for (int i = 0; i < (messagesToProcess / 2) - 1; i++) {
@@ -846,7 +888,7 @@ public class JmsIOTest {
     JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
-    assertTrue(reader.start());
+    assertTrue(startWithRetry(reader));
 
     // consume 3 more messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
@@ -1115,7 +1157,7 @@ public class JmsIOTest {
             new Class[] {proxyInterface},
             (proxy, method, args) -> {
               Object result = method.invoke(target, args);
-              if (method.getName().equals(methodName)) {
+              if (result != null && method.getName().equals(methodName)) {
                 result = resultTransformer.apply((MethodArgT) result);
               }
               return result;

@@ -129,6 +129,7 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
+
 def portableValidatesRunnerTask(String name, String mode, boolean checkpointing, boolean docker) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
@@ -257,6 +258,7 @@ def flinkJobServerJvmArgs() {
 [validatesPortableRunnerDocker, validatesPortableRunnerBatchDataSet, validatesPortableRunnerBatch, validatesPortableRunnerStreaming, validatesPortableRunnerStreamingCheckpoint].each { task ->
   task.configure {
     jvmArgs += flinkJobServerJvmArgs()
+    systemProperty "beam.validatesRunner.parallelThreads", "1"
   }
 }
 
@@ -350,8 +352,14 @@ tasks.register("miniCluster", Jar) {
     exclude "**/FlinkPipelineRunner*"
     exclude "**/PortablePipelineJarUtils*"
   }
+  shadowJar {
+    exclude 'META-INF/services/java.net.spi.InetAddressResolverProvider'
+  }
   manifest {
-    attributes('Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint')
+    attributes([
+        'Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint',
+        'Multi-Release': 'true'
+    ])
   }
   zip64 true // jar needs to contain more than 65535 files
 }

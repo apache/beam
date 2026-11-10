@@ -53,14 +53,16 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 	var result strings.Builder
 	result.WriteString("^")
 
-	for i := 0; i < len(pattern); i++ {
-		c := pattern[i]
+	// Scan rune by rune so multi-byte characters are handled correctly.
+	runes := []rune(pattern)
+	for i := 0; i < len(runes); i++ {
+		c := runes[i]
 		switch c {
 		case '*':
 			// Check for ** (double asterisk)
-			if i+1 < len(pattern) && pattern[i+1] == '*' {
+			if i+1 < len(runes) && runes[i+1] == '*' {
 				// Check if followed by / (e.g., "**/" matches zero or more path segments)
-				if i+2 < len(pattern) && pattern[i+2] == '/' {
+				if i+2 < len(runes) && runes[i+2] == '/' {
 					// **/ matches "" or "something/" or "a/b/c/"
 					result.WriteString("(?:.*/)?")
 					i += 2 // Skip the second * and the /
@@ -77,26 +79,26 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 		case '[':
 			// Character class - find the closing bracket
 			j := i + 1
-			if j < len(pattern) && pattern[j] == '!' {
+			if j < len(runes) && runes[j] == '!' {
 				j++
 			}
-			if j < len(pattern) && pattern[j] == ']' {
+			if j < len(runes) && runes[j] == ']' {
 				j++
 			}
-			for j < len(pattern) && pattern[j] != ']' {
+			for j < len(runes) && runes[j] != ']' {
 				j++
 			}
-			if j >= len(pattern) {
+			if j >= len(runes) {
 				return nil, fmt.Errorf("syntax error: unclosed '[' in pattern %q", pattern)
 			} else {
 				// Copy the character class, converting ! to ^ for negation
 				result.WriteByte('[')
-				content := pattern[i+1 : j]
+				content := runes[i+1 : j]
 				if len(content) > 0 && content[0] == '!' {
 					result.WriteByte('^')
 					content = content[1:]
 				}
-				result.WriteString(content)
+				result.WriteString(string(content))
 				result.WriteByte(']')
 				i = j
 			}

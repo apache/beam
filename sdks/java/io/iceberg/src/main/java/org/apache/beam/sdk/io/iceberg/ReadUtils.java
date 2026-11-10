@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -49,6 +50,8 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetReader;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -130,6 +133,10 @@ public class ReadUtils {
     return maybeApplyFilter(records, scanConfig, requiredSchema);
   }
 
+  /**
+   * Returns the first snapshot to read, or null to start from the earliest one. When from_timestamp
+   * is set, null means that no snapshot was committed at or after it.
+   */
   public static @Nullable Long getFromSnapshotInclusive(Table table, IcebergScanConfig scanConfig) {
     @Nullable StartingStrategy startingStrategy = scanConfig.getStartingStrategy();
     boolean isStreaming = MoreObjects.firstNonNull(scanConfig.getStreaming(), false);
@@ -142,7 +149,8 @@ public class ReadUtils {
     // 2. fetch from from_timestamp
     @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
     if (fromTimestamp != null) {
-      fromSnapshot = SnapshotUtil.oldestAncestorAfter(table, fromTimestamp).snapshotId();
+      @Nullable Snapshot snapshot = SnapshotUtil.oldestAncestorAfter(table, fromTimestamp);
+      return snapshot != null ? snapshot.snapshotId() : null;
     }
     // 3. get current snapshot if starting_strategy is LATEST
     if (fromSnapshot == null && startingStrategy.equals(StartingStrategy.LATEST)) {
@@ -169,16 +177,44 @@ public class ReadUtils {
     return fromSnapshot;
   }
 
+  /**
+   * Returns true if the range holds no snapshot and none can still arrive. A batch read looks at
+   * the snapshots committed so far. A streaming read can only be empty once its to_timestamp has
+   * passed, since until then new commits can still fall in its range. Snapshot bounds never make a
+   * range empty, because they must name existing snapshots.
+   */
+  public static boolean isEmptyRange(Table table, IcebergScanConfig scanConfig) {
+    if (scanConfig.getFromSnapshotInclusive() != null || scanConfig.getToSnapshot() != null) {
+      return false;
+    }
+    @Nullable Long toTimestamp = scanConfig.getToTimestamp();
+    if (MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
+        && (toTimestamp == null || !hasPassed(toTimestamp))) {
+      return false;
+    }
+    @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
+    @Nullable Snapshot first =
+        fromTimestamp != null
+            ? SnapshotUtil.oldestAncestorAfter(table, fromTimestamp)
+            : SnapshotUtil.oldestAncestor(table);
+    return first == null || (toTimestamp != null && first.timestampMillis() > toTimestamp);
+  }
+
+  /** Returns true if no new commit can come at or before {@code timestampMillis} anymore. */
+  public static boolean hasPassed(long timestampMillis) {
+    return timestampMillis < System.currentTimeMillis();
+  }
+
+  /**
+   * Returns the last snapshot to read: to_snapshot, or the last snapshot committed at or before
+   * to_timestamp, which is null if there is none. Null without either bound reads to the latest.
+   */
   public static @Nullable Long getToSnapshot(Table table, IcebergScanConfig scanConfig) {
-    // 1. fetch from to_snapshot
-    @Nullable Long toSnapshot = scanConfig.getToSnapshot();
-    // 2. fetch from to_timestamp
     @Nullable Long toTimestamp = scanConfig.getToTimestamp();
     if (toTimestamp != null) {
-      toSnapshot = SnapshotUtil.snapshotIdAsOfTime(table, toTimestamp);
+      return SnapshotUtil.nullableSnapshotIdAsOfTime(table, toTimestamp);
     }
-
-    return toSnapshot;
+    return scanConfig.getToSnapshot();
   }
 
   /**
@@ -217,5 +253,38 @@ public class ReadUtils {
       return CloseableIterable.filter(iterable, record -> evaluator.eval(wrapper.wrap(record)));
     }
     return iterable;
+  }
+
+  /**
+   * Adds the equality delete fields that {@code projection} lacks, under their parent structs.
+   * Fields already in {@code projection} are kept as they are, even if the table has since renamed
+   * or promoted them.
+   */
+  public static Schema withEqualityFields(
+      Schema tableSchema, Schema projection, Set<Integer> equalityFieldIds) {
+    Set<Integer> missingIds =
+        Sets.difference(equalityFieldIds, TypeUtil.getProjectedIds(projection));
+    if (missingIds.isEmpty()) {
+      return projection;
+    }
+    Types.StructType missing = TypeUtil.select(tableSchema, missingIds).asStruct();
+    return new Schema(withFields(projection.asStruct(), missing).fields());
+  }
+
+  /** Adds the fields of {@code extra} that {@code struct} lacks, recursing into shared structs. */
+  private static Types.StructType withFields(Types.StructType struct, Types.StructType extra) {
+    List<Types.NestedField> fields = Lists.newArrayList(struct.fields());
+    for (Types.NestedField field : extra.fields()) {
+      Types.@Nullable NestedField existing = struct.field(field.fieldId());
+      if (existing == null) {
+        fields.add(field);
+      } else if (existing.type().isStructType()) {
+        Types.StructType merged =
+            withFields(existing.type().asStructType(), field.type().asStructType());
+        fields.set(
+            fields.indexOf(existing), Types.NestedField.from(existing).ofType(merged).build());
+      }
+    }
+    return Types.StructType.of(fields);
   }
 }

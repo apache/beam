@@ -182,7 +182,8 @@ public class CosmosIO {
             FeedRangeInternal.convert(range.toFeedRange())
                 .trySplit(
                     document.getPartitionKeyRangeCache(), null, getCollectionObservable, splits)
-                .block().stream()
+                .block()
+                .stream()
                 .map(NormalizedRange::fromFeedRange)
                 .collect(Collectors.toList());
 

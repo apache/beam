@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -45,14 +46,33 @@ import org.junit.runners.JUnit4;
 public class ProcessManagerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
+  private static String bash(int pos) {
+    if (IS_OS_WINDOWS) {
+      switch (pos) {
+        case 0:
+          return "cmd";
+        case 1:
+          return "/c";
+      }
+    } else {
+      switch (pos) {
+        case 0:
+          return "bash";
+        case 1:
+          return "-c";
+      }
+    }
+    throw new IllegalArgumentException(String.format("Unknown pos %d", pos));
+  }
+
   @Test
   public void testRunSimpleCommand() throws IOException {
     ProcessManager processManager = ProcessManager.create();
-    processManager.startProcess("1", "bash", Collections.emptyList());
+    processManager.startProcess("1", bash(0), Collections.emptyList());
     processManager.stopProcess("1");
-    processManager.startProcess("2", "bash", Arrays.asList("-c", "ls"));
+    processManager.startProcess("2", bash(0), Arrays.asList(bash(1), "ls"));
     processManager.stopProcess("2");
-    processManager.startProcess("1", "bash", Arrays.asList("-c", "ls", "-l", "-a"));
+    processManager.startProcess("1", bash(0), Arrays.asList(bash(1), "ls", "-l", "-a"));
     processManager.stopProcess("1");
   }
 
@@ -70,9 +90,9 @@ public class ProcessManagerTest {
   @Test
   public void testDuplicateId() throws IOException {
     ProcessManager processManager = ProcessManager.create();
-    processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
+    processManager.startProcess("1", bash(0), Arrays.asList(bash(1), "ls"));
     try {
-      processManager.startProcess("1", "bash", Arrays.asList("-c", "ls"));
+      processManager.startProcess("1", bash(0), Arrays.asList(bash(1), "ls"));
       fail();
     } catch (IllegalStateException e) {
       // this is what we want
@@ -85,7 +105,7 @@ public class ProcessManagerTest {
   public void testLivenessCheck() throws IOException {
     ProcessManager processManager = ProcessManager.create();
     ProcessManager.RunningProcess process =
-        processManager.startProcess("1", "bash", Arrays.asList("-c", "sleep", "1000"));
+        processManager.startProcess("1", bash(0), Arrays.asList(bash(1), "sleep", "1000"));
     process.isAliveOrThrow();
     processManager.stopProcess("1");
     try {
@@ -102,14 +122,19 @@ public class ProcessManagerTest {
     ProcessManager.RunningProcess process =
         processManager.startProcess(
             "1",
-            "bash",
-            Arrays.asList("-c", "sleep $PARAM"),
-            Collections.singletonMap("PARAM", "-h"));
+            bash(0),
+            Arrays.asList(
+                bash(1), "exit " + (IS_OS_WINDOWS ? "%TEST_ENV_PARAM%" : "$TEST_ENV_PARAM")),
+            Collections.singletonMap("TEST_ENV_PARAM", "42"));
     for (int i = 0; i < 10 && process.getUnderlyingProcess().isAlive(); i++) {
       Thread.sleep(100);
     }
-    assertThat(process.getUnderlyingProcess().exitValue(), is(1));
-    processManager.stopProcess("1");
+    int exCode = process.getUnderlyingProcess().exitValue();
+    try {
+      assertEquals(42, exCode);
+    } finally {
+      processManager.stopProcess("1");
+    }
   }
 
   @Test
@@ -120,8 +145,8 @@ public class ProcessManagerTest {
     ProcessManager.RunningProcess process =
         processManager.startProcess(
             "1",
-            "bash",
-            Arrays.asList("-c", "echo 'testing123'"),
+            bash(0),
+            Arrays.asList(bash(1), "echo 'testing123'"),
             Collections.emptyMap(),
             outputFile);
     for (int i = 0; i < 10 && process.getUnderlyingProcess().isAlive(); i++) {
@@ -171,7 +196,7 @@ public class ProcessManagerTest {
     assertNull(ProcessManager.shutdownHook);
 
     processManager.startProcess(
-        "1", "bash", Arrays.asList("-c", "echo 'testing123'"), Collections.emptyMap());
+        "1", bash(0), Arrays.asList(bash(1), "echo 'testing123'"), Collections.emptyMap());
     // the shutdown hook will be created when process is started
     assertNotNull(ProcessManager.shutdownHook);
     // check the shutdown hook is registered
@@ -180,7 +205,7 @@ public class ProcessManagerTest {
     Runtime.getRuntime().addShutdownHook(ProcessManager.shutdownHook);
 
     processManager.startProcess(
-        "2", "bash", Arrays.asList("-c", "echo 'testing123'"), Collections.emptyMap());
+        "2", bash(0), Arrays.asList(bash(1), "echo 'testing123'"), Collections.emptyMap());
 
     processManager.stopProcess("1");
     // the shutdown hook will be not removed if there are still processes alive

@@ -147,7 +147,7 @@ abstract methods:
     `BoundedSource`.
 
 You can see a model of how to implement `BoundedSource` and the required
-abstract methods in Beam’s implementations for Cloud BigTable
+abstract methods in Beam’s implementations for Cloud Bigtable
 ([BigtableIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.java))
 and BigQuery ([BigQuerySourceBase.java](https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQuerySourceBase.java)).
 

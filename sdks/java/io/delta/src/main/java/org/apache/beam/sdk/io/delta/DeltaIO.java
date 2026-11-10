@@ -36,12 +36,15 @@ import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -197,9 +200,11 @@ public class DeltaIO {
       } else if (deltaType instanceof BinaryType) {
         return Schema.FieldType.BYTES;
       } else if (deltaType instanceof TimestampType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(Timestamp.MICROS);
+      } else if (deltaType instanceof TimestampNTZType) {
+        return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       } else if (deltaType instanceof DateType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(SqlTypes.DATE);
       } else if (deltaType instanceof ArrayType) {
         DataType elementType = ((ArrayType) deltaType).getElementType();
         return Schema.FieldType.iterable(convertToBeamFieldType(elementType));
@@ -230,7 +235,7 @@ public class DeltaIO {
       } else if (col.equals(COMMIT_VERSION_COLUMN)) {
         builder.addField(COMMIT_VERSION_COLUMN, Schema.FieldType.INT64);
       } else if (col.equals(COMMIT_TIMESTAMP_COLUMN)) {
-        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME);
+        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS));
       }
     }
     return builder.build();
@@ -341,6 +346,18 @@ public class DeltaIO {
 
       TableImpl tableImpl = (TableImpl) table;
 
+      long resolvedStartVersion;
+      Long startVersionVal = getStartVersion();
+      String startTimestampVal = getStartTimestamp();
+      if (startVersionVal != null) {
+        resolvedStartVersion = startVersionVal;
+      } else if (startTimestampVal != null) {
+        long startMillis = java.time.Instant.parse(startTimestampVal).toEpochMilli();
+        resolvedStartVersion = tableImpl.getVersionAtOrAfterTimestamp(engine, startMillis);
+      } else {
+        throw new IllegalArgumentException("Either startVersion or startTimestamp must be set.");
+      }
+
       long resolvedEndVersion;
       Long endVersionVal = getEndVersion();
       String endTimestampVal = getEndTimestamp();
@@ -353,11 +370,34 @@ public class DeltaIO {
         resolvedEndVersion = table.getLatestSnapshot(engine).getVersion();
       }
 
-      Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      if (resolvedStartVersion > resolvedEndVersion) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Resolved start version %d is greater than resolved end version %d",
+                resolvedStartVersion, resolvedEndVersion));
+      }
+
+      Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
+      Snapshot endSnapshot =
+          resolvedStartVersion == resolvedEndVersion
+              ? startSnapshot
+              : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      StructType startDeltaSchema = startSnapshot.getSchema();
       StructType deltaSchema = endSnapshot.getSchema();
-      if (deltaSchema == null) {
+      if (startDeltaSchema == null || deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
       }
+      // All changes within the range are read using the table schema at the end version, which is
+      // only supported if the range only spans additive schema changes (see DeltaSchemaUtils). Fail
+      // early here if the schema at the start version can't be read using the schema at the end
+      // version. CreateCDCReadTasksDoFn additionally verifies all schema changes within the range
+      // while reading the commits of the range.
+      DeltaSchemaUtils.checkReadCompatible(
+          startDeltaSchema,
+          resolvedStartVersion,
+          deltaSchema,
+          resolvedStartVersion,
+          resolvedEndVersion);
       Schema baseSchema = ReadRows.convertToBeamSchema(deltaSchema);
       Schema publicBeamSchema = buildPublicBeamSchema(baseSchema, getMetadataColumns());
 

@@ -53,6 +53,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,7 +62,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
-import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -386,7 +386,8 @@ public class DeltaIOIT {
             .addField("name", Schema.FieldType.STRING)
             .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
             .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
-            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .addField(
+                DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS))
             .build();
     StructType cdcWriteDeltaSchema =
         new StructType()
@@ -398,15 +399,21 @@ public class DeltaIOIT {
 
     Row cdcRow1 =
         Row.withSchema(cdcWriteSchema)
-            .addValues(0, "name_0", "delete", 1L, new Instant(123456789000L))
+            .addValues(0, "name_0", "delete", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow2 =
         Row.withSchema(cdcWriteSchema)
-            .addValues(1, "name_1", "update_preimage", 1L, new Instant(123456789000L))
+            .addValues(
+                1, "name_1", "update_preimage", 1L, java.time.Instant.ofEpochMilli(123456789000L))
             .build();
     Row cdcRow3 =
         Row.withSchema(cdcWriteSchema)
-            .addValues(1, "name_1_updated", "update_postimage", 1L, new Instant(123456789000L))
+            .addValues(
+                1,
+                "name_1_updated",
+                "update_postimage",
+                1L,
+                java.time.Instant.ofEpochMilli(123456789000L))
             .build();
 
     DeltaWriteTestUtils.writeCdcCommit(

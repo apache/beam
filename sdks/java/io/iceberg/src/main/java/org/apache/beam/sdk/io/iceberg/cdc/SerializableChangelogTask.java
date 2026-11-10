@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -45,6 +44,7 @@ import org.apache.iceberg.DeletedRowsScanTask;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
+import org.apache.iceberg.expressions.Binder;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ExpressionParser;
 
@@ -163,7 +163,10 @@ public abstract class SerializableChangelogTask {
             .setSpecId(spec.specId())
             .setStart(contentScanTask.start())
             .setLength(contentScanTask.length())
-            .setJsonExpression(ExpressionParser.toJson(contentScanTask.residual()));
+            // bound literals serialize by column type (e.g. ISO dates), which fromJson expects
+            .setJsonExpression(
+                ExpressionParser.toJson(
+                    Binder.bind(spec.schema().asStruct(), contentScanTask.residual(), false)));
 
     if (task instanceof AddedRowsScanTask) {
       AddedRowsScanTask addedRowsTask = (AddedRowsScanTask) task;
@@ -267,13 +270,10 @@ public abstract class SerializableChangelogTask {
 
   private static List<SerializableDeleteFile> toSerializableDeletes(
       List<DeleteFile> dfs, Map<Integer, PartitionSpec> specs, boolean includeMetrics) {
+    // Serialize each delete file against its own spec (looked up by its spec id): a delete file may
+    // carry a different spec id than the data file it applies to.
     return dfs.stream()
-        .map(
-            df ->
-                SerializableDeleteFile.from(
-                    df,
-                    checkStateNotNull(specs.get(df.specId())).partitionToPath(df.partition()),
-                    includeMetrics))
+        .map(df -> SerializableDeleteFile.from(df, specs, includeMetrics))
         .collect(Collectors.toList());
   }
 }

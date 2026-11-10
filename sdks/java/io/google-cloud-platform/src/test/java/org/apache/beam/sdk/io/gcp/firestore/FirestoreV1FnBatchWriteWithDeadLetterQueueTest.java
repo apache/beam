@@ -145,8 +145,7 @@ public final class FirestoreV1FnBatchWriteWithDeadLetterQueueTest
   public void nonRetryableWriteIsOutput() throws Exception {
     Write write0 = FirestoreProtoHelpers.newWrite(0);
     Write write1 =
-        FirestoreProtoHelpers.newWrite(1)
-            .toBuilder()
+        FirestoreProtoHelpers.newWrite(1).toBuilder()
             .setCurrentDocument(Precondition.newBuilder().setExists(false).build())
             .build();
 

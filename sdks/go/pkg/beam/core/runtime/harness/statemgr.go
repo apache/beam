@@ -627,6 +627,20 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 	return ch, nil
 }
 
+// Close closes all cached StateChannels.
+func (m *StateChannelManager) Close() {
+	m.mu.Lock()
+	chans := m.ports
+	m.ports = nil
+	m.mu.Unlock()
+	for _, ch := range chans {
+		ch.mu.Lock()
+		ch.forceRecreate = nil
+		ch.mu.Unlock()
+		ch.cancelFn()
+	}
+}
+
 type stateClient interface {
 	Send(*fnpb.StateRequest) error
 	Recv() (*fnpb.StateResponse, error)
@@ -704,7 +718,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		msg, err := c.client.Recv()
 		if err != nil {
 			c.terminateStreamOnError(err)
-			if err == io.EOF {
+			if err == io.EOF || status.Code(err) == codes.Canceled {
 				log.Warnf(ctx, "StateChannel[%v].read: closed", c.id)
 				return
 			}
@@ -750,14 +764,13 @@ func (c *StateChannel) write(ctx context.Context) {
 	}
 
 	if err == io.EOF {
-		log.Warnf(ctx, "StateChannel[%v].write EOF on send; fetching real error", c.id)
-		err = nil
-		for err == nil {
-			// Per GRPC stream documentation, if there's an EOF, we must call Recv
-			// until a non-nil error is returned, to ensure resources are cleaned up.
-			// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
-			_, err = c.client.Recv()
+		// Don't Recv here; the read loop owns the stream.
+		log.Warnf(ctx, "StateChannel[%v].write EOF on send", c.id)
+		c.mu.Lock()
+		if c.closedErr != nil {
+			err = c.closedErr
 		}
+		c.mu.Unlock()
 	}
 	log.Errorf(ctx, "StateChannel[%v].write error on send: %v", c.id, err)
 

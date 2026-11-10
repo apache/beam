@@ -225,8 +225,7 @@ public final class FirestoreV1FnPartitionQueryTest
             .build();
 
     PartitionQueryResponse expectedResponse =
-        response1
-            .toBuilder()
+        response1.toBuilder()
             .clearNextPageToken()
             .addAllPartitions(response2.getPartitionsList())
             .build();

@@ -169,6 +169,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -222,6 +223,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
+
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
 
@@ -1040,9 +1042,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String imageAndTag =
               normalizeDataflowImageAndTag(
                   containerImage.substring(containerImage.lastIndexOf("/")));
-          containerImage =
-              DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
-                  + imageAndTag;
+          containerImage = getContainerImageBaseRepository(options) + imageAndTag;
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -1364,8 +1364,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     SdkComponents portableComponents =
         SdkComponents.create(
             options,
-            defaultEnvironmentForDataflow
-                .toBuilder()
+            defaultEnvironmentForDataflow.toBuilder()
                 .addAllDependencies(getDefaultArtifacts())
                 .addAllCapabilities(Environments.getJavaCapabilities())
                 .build());
@@ -1410,8 +1409,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     SdkComponents dataflowNonPortableComponents =
         SdkComponents.create(
             options,
-            defaultEnvironmentForDataflow
-                .toBuilder()
+            defaultEnvironmentForDataflow.toBuilder()
                 .addAllDependencies(getDefaultArtifacts())
                 .addAllCapabilities(Environments.getJavaCapabilities())
                 .build());
@@ -1863,7 +1861,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return true;
       }
     }
-  };
+  }
+  ;
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
   public DataflowPipelineTranslator getTranslator() {
@@ -2722,12 +2721,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /** Construct the default Dataflow container full image URL. */
   static String getDefaultContainerImageUrl(DataflowPipelineOptions options) {
-    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     return String.format(
         "%s/%s:%s",
-        dataflowRunnerInfo.getContainerImageBaseRepository(),
+        getContainerImageBaseRepository(options),
         getDefaultContainerImageNameForJob(options),
         getDefaultContainerVersion(options));
+  }
+
+  /**
+   * Returns the base repository of the default Dataflow container images, without a trailing slash.
+   * Uses {@code --dataflowContainerBaseRepository} if set, and the repository configured in {@link
+   * DataflowRunnerInfo} otherwise.
+   */
+  @VisibleForTesting
+  static String getContainerImageBaseRepository(DataflowPipelineOptions options) {
+    String baseRepository = options.getDataflowContainerBaseRepository();
+    if (baseRepository != null) {
+      String trimmed = CharMatcher.is('/').trimTrailingFrom(baseRepository.trim());
+      if (!trimmed.isEmpty()) {
+        return trimmed;
+      }
+    }
+    return DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
   }
 
   /**

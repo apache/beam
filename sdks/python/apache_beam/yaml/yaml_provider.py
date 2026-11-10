@@ -243,6 +243,10 @@ class ExternalProvider(Provider):
             underlying_transform_identifier=urn,
             update_compatibility_version=self._managed_replacement[type])
 
+      known_fields = set(
+          self.schema_transforms()[urn].configuration_schema._fields)
+      args = {k: v for k, v in args.items() if k in known_fields}
+
       return external.SchemaAwareExternalTransform(
           urn,
           self._service,
@@ -759,6 +763,23 @@ def dicts_to_rows(o):
     return o
 
 
+def to_dict(value):
+  """Recursively converts Row, NamedTuple, or Mapping objects to dicts, omitting
+  fields with None values."""
+  if value is None:
+    return None
+  if hasattr(value, '_asdict'):
+    return {k: to_dict(v) for k, v in value._asdict().items() if v is not None}
+  elif hasattr(value, 'as_dict'):
+    return {k: to_dict(v) for k, v in value.as_dict().items() if v is not None}
+  elif isinstance(value, (list, tuple)):
+    return [to_dict(v) for v in value]
+  elif isinstance(value, Mapping):
+    return {k: to_dict(v) for k, v in value.items() if v is not None}
+  else:
+    return value
+
+
 def _unify_element_with_schema(element, target_schema):
   """Convert an element to match the target schema, preserving existing
     fields only."""
@@ -828,11 +849,6 @@ class YamlProviders:
       self._elements = elements
 
     def expand(self, pcoll):
-      def to_dict(row):
-        # filter None when comparing
-        temp_dict = {k: v for k, v in row._asdict().items() if v is not None}
-        return dict(temp_dict.items())
-
       return assert_that(
           pcoll | beam.Map(to_dict),
           equal_to([to_dict(e) for e in dicts_to_rows(self._elements)]))
@@ -1120,7 +1136,7 @@ class YamlProviders:
     @staticmethod
     def _parse_duration(value, name):
       time_units = {
-          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 24
       }
       value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
       # Default to seconds if time unit suffix is not defined

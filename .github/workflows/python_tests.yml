@@ -33,7 +33,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login}}'
   cancel-in-progress: true
 
 jobs:
@@ -97,7 +97,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         params: [
-          { "py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
           { "py_ver": "3.12", "tox_env": "py312" },
           { "py_ver": "3.13", "tox_env": "py313" },
@@ -140,7 +139,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-24.04, main], macos-latest, windows-latest]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7

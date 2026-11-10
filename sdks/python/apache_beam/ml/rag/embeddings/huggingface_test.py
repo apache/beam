@@ -16,6 +16,7 @@
 
 """Tests for apache_beam.ml.rag.embeddings.huggingface."""
 
+import importlib.util
 import io
 import os
 import shutil
@@ -33,6 +34,7 @@ from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.testing import test_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -232,6 +234,60 @@ class HuggingfaceImageEmbeddingsTest(unittest.TestCase):
             equal_to(expected, equals_fn=chunk_approximately_equals))
     finally:
       shutil.rmtree(artifact_location)
+
+
+class HuggingfaceEmbeddingsJobSubmissionTest(unittest.TestCase):
+  """Tests that sentence-transformers is only used when executing pipelines.
+
+  sentence-transformers should only be needed for loading the model when the
+  pipeline is executed (for example, on the workers), but not for constructing
+  and submitting the pipeline. These tests don't require sentence-transformers
+  to be installed.
+  """
+  def setUp(self):
+    self.artifact_location = tempfile.mkdtemp(prefix='hf_job_submission_')
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def _construct_and_serialize_pipeline(self, items, embedder):
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create(items)
+        | MLTransform(write_artifact_location=self.artifact_location).
+        with_transform(embedder))
+    # Serializes the pipeline, as done during job submission, and deserializes
+    # it again. Deserializing fails if the pipeline references (i.e. requires)
+    # a module that can't be imported.
+    beam.Pipeline.from_runner_api(
+        pipeline.to_runner_api(), pipeline.runner, pipeline.options)
+
+  def test_importing_module_does_not_import_sentence_transformers(self):
+    # Executes the module in a new module object, i.e. without replacing the
+    # already imported module.
+    spec = importlib.util.find_spec(HuggingfaceTextEmbeddings.__module__)
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      spec.loader.exec_module(importlib.util.module_from_spec(spec))
+    self.assertEqual(attempted_imports, [])
+
+  def test_text_embeddings_job_submission_does_not_use_sentence_transformers(
+      self):
+    items = [Chunk(content=Content(text="This is a test sentence."), id="1")]
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      embedder = HuggingfaceTextEmbeddings(
+          model_name="sentence-transformers/all-MiniLM-L6-v2")
+      self._construct_and_serialize_pipeline(items, embedder)
+    self.assertEqual(attempted_imports, [])
+
+  @unittest.skipIf(not PIL_AVAILABLE, "PIL not available")
+  def test_image_embeddings_job_submission_does_not_use_sentence_transformers(
+      self):
+    items = [EmbeddableItem.from_image(_create_png_bytes(), id="img1")]
+    with test_utils.block_imports('sentence_transformers') as attempted_imports:
+      embedder = HuggingfaceImageEmbeddings(model_name="clip-ViT-B-32")
+      self._construct_and_serialize_pipeline(items, embedder)
+    self.assertEqual(attempted_imports, [])
 
 
 def _create_png_bytes():

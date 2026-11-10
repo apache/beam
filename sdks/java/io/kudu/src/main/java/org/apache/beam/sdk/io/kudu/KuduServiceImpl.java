@@ -74,7 +74,7 @@ class KuduServiceImpl<T> implements KuduService<T> {
   }
 
   /** Writer storing an entity into Apache Kudu table. */
-  class WriterImpl implements Writer<T> {
+  final class WriterImpl implements Writer<T> {
     private final KuduIO.FormatFunction<T> formatFunction;
     private KuduClient client;
     private KuduSession session;

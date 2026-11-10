@@ -251,8 +251,7 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   public RequestResponseIO<RequestT, ResponseT> withCache(Cache.Pair<RequestT, ResponseT> pair) {
     return new RequestResponseIO<>(
-        rrioConfiguration
-            .toBuilder()
+        rrioConfiguration.toBuilder()
             .setCacheRead(pair.getRead())
             .setCacheWrite(pair.getWrite())
             .build(),
@@ -294,13 +293,13 @@ public class RequestResponseIO<RequestT, ResponseT>
      * {@link PCollection} of the original {@link RequestT}s and associated {@link ResponseT}, null
      * if no association persists in the cache.
      */
-    abstract @Nullable PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>>
-        getCacheRead();
+    abstract @Nullable
+        PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> getCacheRead();
 
     /** Writes {@link RequestT} and {@link ResponseT} associations to a cache. */
-    abstract @Nullable PTransform<
-            PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
-        getCacheWrite();
+    abstract @Nullable
+        PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
+            getCacheWrite();
 
     abstract Builder<RequestT, ResponseT> toBuilder();
 

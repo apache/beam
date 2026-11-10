@@ -96,6 +96,11 @@
   logoUrl: images/logos/powered-by/credit-karma.png
   linkUrl: case-studies/creditkarmainsights/index.html
   linkText: Learn more
+- text: Apache Beam lets us build explainability once and run it across every model in our portfolio. We own the execution, the debuggability, and the scale — without paying for idle infrastructure between runs.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/credit-karma.png
+  linkUrl: case-studies/creditkarmaexplainability/index.html
+  linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/blank.jpg

@@ -17,6 +17,8 @@ limitations under the License.
 
 # Apache Beam Prism Runner Roadmap
 
+_Last updated on Aug 2026._
+
 The goal for the Prism runner is to provide a good default onboarding experience for Apache Beam.
 
 * Prism should be able to execute any Beam pipeline that can execute on a local machine.

@@ -41,10 +41,19 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
       "If set, attempts to produce a pipeline compatible with this prior version of the Beam SDK."
           + " This string should be interpreted and compared per https://semver.org/."
           + " See, for example, https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline.")
-  @Nullable
-  String getUpdateCompatibilityVersion();
+  @Nullable String getUpdateCompatibilityVersion();
 
   void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
+
+  /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, a default
+   * number of splits will be chosen.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
 
   static boolean updateCompatibilityVersionLessThan(PipelineOptions options, String version) {
     if (options == null) {

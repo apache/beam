@@ -185,8 +185,7 @@ class EFOShardSubscribersPool {
    * it is better to poll again instead of having {@link EFOKinesisReader#advance()} signalling
    * false to Beam. Otherwise, Beam would poll again later, which would introduce unnecessary delay.
    */
-  @Nullable
-  KinesisRecord getNextRecord() throws IOException {
+  @Nullable KinesisRecord getNextRecord() throws IOException {
     while (true) {
       if (!isStopped && subscriptionError != null) {
         // Stop the pool to cancel all subscribers and prevent new subscriptions.

@@ -30,10 +30,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.index.qual.NonNegative;
@@ -466,14 +470,72 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   /**
    * The OpenTelemetry properties that will be appended to the set of system properties for SDK
-   * harness instances. Property names must be specified without the 'otel.' prefix.
+   * harness instances.
+   *
+   * <p>Property values may contain inline secret placeholders formatted as {@code
+   * ${type:<secret_type>;<secret_param>:<value>}} (see {@link Secret#parseSecretOption(String)}),
+   * which are resolved on the worker before setting system properties. For example: {@code
+   * otel.exporter.otlp.metrics.headers=api-key=${type:GcpSecret;version_name:projects/my-project/secrets/my-secret/versions/latest}}.
+   * Secret parameter values may contain {@code ':'} (such as ARNs or URLs), but cannot contain
+   * {@code ';'} or {@code '}'}.
    */
   @Description(
       "The OpenTelemetry properties that will be appended to the set of system properties for SDK "
-          + "harness instances. Property names must be specified without the 'otel.' prefix.")
+          + "harness instances. Property values may reference secrets using "
+          + "${type:<secret_type>;<secret_param>:<value>} (parameter values cannot contain ';' or '}').")
   Map<String, String> getOpenTelemetryProperties();
 
   void setOpenTelemetryProperties(Map<String, String> value);
+
+  static void configureOpenTelemetry(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, resolveOpenTelemetryPropertyValue(v));
+            }
+          });
+      if (System.getProperty("otel.service.instance.id") == null) {
+        String instanceId = UUID.randomUUID().toString();
+        System.setProperty("otel.service.instance.id", instanceId);
+      }
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
+    }
+  }
+
+  /**
+   * Resolves any inline {@code ${...}} secret placeholders in an OpenTelemetry property value using
+   * {@link Secret#parseSecretOption(String)}.
+   */
+  @VisibleForTesting
+  static String resolveOpenTelemetryPropertyValue(String value) {
+    Matcher matcher = GlobalOpenTelemetryFactory.SECRET_PLACEHOLDER_PATTERN.matcher(value);
+    if (!matcher.find()) {
+      return value;
+    }
+    // Use StringBuffer for Java 8 compatibility with Matcher#appendReplacement.
+    StringBuffer resolved = new StringBuffer();
+    do {
+      String secretOption = checkStateNotNull(matcher.group(1));
+      String secretValue = Secret.parseSecretOption(secretOption).getString(true);
+      if (secretValue == null) {
+        throw new IllegalStateException(
+            "Resolved secret value cannot be null for secret option: " + secretOption);
+      }
+      // Trim surrounding whitespace/newlines commonly stored in Secret Manager payloads and quote
+      // regex replacement metacharacters ('$' and '\') so they are not interpreted as group refs.
+      matcher.appendReplacement(resolved, Matcher.quoteReplacement(secretValue.trim()));
+    } while (matcher.find());
+    matcher.appendTail(resolved);
+    return resolved.toString();
+  }
 
   @JsonIgnore
   @Hidden
@@ -483,6 +545,8 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   void setOpenTelemetry(OpenTelemetry value);
 
   class GlobalOpenTelemetryFactory implements DefaultValueFactory<OpenTelemetry> {
+    private static final Pattern SECRET_PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
+
     @Override
     public OpenTelemetry create(PipelineOptions options) {
       return GlobalOpenTelemetry.get();

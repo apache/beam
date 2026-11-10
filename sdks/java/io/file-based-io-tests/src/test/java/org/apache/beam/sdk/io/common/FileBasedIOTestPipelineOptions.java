@@ -38,8 +38,7 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   void setCompressionType(String compressionType);
 
   @Description("Number of files this test will create during the write phase.")
-  @Nullable
-  Integer getNumberOfShards();
+  @Nullable Integer getNumberOfShards();
 
   void setNumberOfShards(@Nullable Integer value);
 

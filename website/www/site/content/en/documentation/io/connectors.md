@@ -342,7 +342,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromkinesis">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetokinesis">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -429,10 +433,17 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jms/JmsIO.html">native</a>
     </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.xlang.io.html#apache_beam.transforms.xlang.io.ReadFromJms">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromjms">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetojms">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -649,7 +660,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigTableIO (<a href="/performance/bigtable">metrics</a>)</td>
+    <td>BigtableIO (<a href="/performance/bigtable">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -716,7 +727,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromsnowflake">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetosnowflake">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -741,7 +756,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <br>
-      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspanner">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetospanner">write</a>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspanner">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetospanner">write</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#readfromspannercdc">read CDC</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -790,7 +805,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/debeziumio">via X-language</a>
     </td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdebezium">read</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -1032,7 +1051,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromfirestore">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetofirestore">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -1322,18 +1345,25 @@ This table provides a consolidated, at-a-glance overview of the available built-
   <tr>
     <td>Delta Lake</td>
     <td class="present">✔</td>
-    <td class="present">✘</td>
+    <td class="absent">✘</td>
     <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">native</a>
     </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdelta">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#readfromdeltacdc">read CDC</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
-    <td class="absent">✔</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>
@@ -1346,84 +1376,18 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <th>Connector Name</th>
     <th>Source Supported</th>
     <th>Sink Supported</th>
-    <th>Java</th>
-    <th>Python</th>
-    <th>Go</th>
-    <th>Typescript</th>
-    <th>Yaml</th>
+    <th>Language</th>
     <th>Batch Supported</th>
     <th>Streaming Supported</th>
   </tr>
 
   <tr>
     <td>
-      <a href="https://github.com/google/hana-bq-beam-connector">SAP Hana to Google BigQuery</a>
+      <a href="https://cloud.google.com/bigtable/docs/hbase-dataflow-java">Cloud Bigtable (HBase based)</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td class="present">✔</td>
-    <td class="absent">✘</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://github.com/esakik/beam-mysql-connector">MySQL</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="present">✔</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      <br>
-      <a href="https://beam.apache.org/releases/yamldoc/current/#readfrommysql">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetomysql">write</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="absent">✘</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://github.com/Refinitiv/trep-websockets-beam-io">TrepWsIO</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="absent">✘</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td class="present">✔</td>
-    <td class="present">✔</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://github.com/kineticadb/kinetica-connector-beam">KineticaDB</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="present">✔</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td>Java</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
@@ -1433,65 +1397,47 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td>Java</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
   <tr>
     <td>
-      <a href="https://github.com/314e/beam-pyodbc-connector">Pyodbc</a>
+      <a href="https://github.com/kineticadb/kinetica-connector-beam">KineticaDB</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td>Java</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
-      <a href="https://github.com/amient/goconnect">Go Connect</a>
+      <a href="https://github.com/google/hana-bq-beam-connector">SAP Hana to Google BigQuery</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+    <td>Java</td>
+    <td class="present">✔</td>
     <td class="absent">✘</td>
-    <td class="absent">✘</td>
-    <td class="present">
-      ✔
-      native
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/Refinitiv/trep-websockets-beam-io">TrepWsIO</a>
     </td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td>Java</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
   <tr>
     <td>
-      <a href="https://github.com/tinybirdco/tinybird-beam">Tinybird</a>
+      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
     </td>
-    <td class="absent">✘</td>
     <td class="present">✔</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">✔</td>
+    <td>Python</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
   </tr>
@@ -1501,50 +1447,59 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td>Python</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
-      <a href="https://cloud.google.com/bigtable/docs/hbase-dataflow-java">Cloud Bigtable (HBase based)</a>
+      <a href="https://github.com/esakik/beam-mysql-connector">MySQL</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td>Python</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
     <td>
-      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
+      <a href="https://github.com/314e/beam-pyodbc-connector">Pyodbc</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
-    <td>Not available</td>
-    <td class="present">
-      ✔
-      native
+    <td>Python</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/tinybirdco/tinybird-beam">Tinybird</a>
     </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td>Python</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/amient/goconnect">Go Connect</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>Go</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfrommysql">MySQL, PostgreSQL, Oracle, SQL Server</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>Yaml</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
   </tr>
 </table>
 </div>

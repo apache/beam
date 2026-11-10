@@ -77,7 +77,13 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         toJsonString(Preconditions.checkArgumentNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        false);
+  }
+
+  public BigQueryStorageStreamSource<T> withFromQuery() {
+    return new BigQueryStorageStreamSource<>(
+        readSession, readStream, jsonTableSchema, parseFn, outputCoder, bqServices, true);
   }
 
   @Override
@@ -106,13 +112,13 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    */
   public BigQueryStorageStreamSource<T> fromExisting(ReadStream newReadStream) {
     return new BigQueryStorageStreamSource<>(
-        readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+        readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices, fromQuery);
   }
 
   public BigQueryStorageStreamSource<T> fromExisting(
       SerializableFunction<SchemaAndRecord, T> parseFn) {
     return new BigQueryStorageStreamSource<>(
-        readSession, readStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+        readSession, readStream, jsonTableSchema, parseFn, outputCoder, bqServices, fromQuery);
   }
 
   private final ReadSession readSession;
@@ -121,6 +127,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   private final SerializableFunction<SchemaAndRecord, T> parseFn;
   private final Coder<T> outputCoder;
   private final BigQueryServices bqServices;
+  private final boolean fromQuery;
 
   private BigQueryStorageStreamSource(
       ReadSession readSession,
@@ -128,13 +135,19 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      boolean fromQuery) {
     this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
     this.readStream = Preconditions.checkArgumentNotNull(readStream, "stream");
     this.jsonTableSchema = Preconditions.checkArgumentNotNull(jsonTableSchema, "jsonTableSchema");
     this.parseFn = Preconditions.checkArgumentNotNull(parseFn, "parseFn");
     this.outputCoder = Preconditions.checkArgumentNotNull(outputCoder, "outputCoder");
     this.bqServices = Preconditions.checkArgumentNotNull(bqServices, "bqServices");
+    this.fromQuery = fromQuery;
+  }
+
+  public boolean getFromQuery() {
+    return fromQuery;
   }
 
   @Override

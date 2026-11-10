@@ -68,8 +68,7 @@ final class OverlapRange {
   }
 
   /** Converts a Beam Row (overlap bound) back to an Iceberg {@link StructLike}. */
-  @Nullable
-  StructLike toStructLike(@Nullable Row beamBound) {
+  @Nullable StructLike toStructLike(@Nullable Row beamBound) {
     if (beamBound == null) {
       return null;
     }

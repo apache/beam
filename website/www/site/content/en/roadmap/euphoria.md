@@ -17,6 +17,8 @@ limitations under the License.
 
 # Euphoria API
 
+**Note** Euphoria is deprecated and scheduled for removal in a future release.
+
 Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at [WordCount example](/documentation/sdks/java/euphoria/#wordcount-example).
 
 - Issues: [dsl-euphoria](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-euphoria) / [BEAM-3900](https://issues.apache.org/jira/browse/BEAM-3900)

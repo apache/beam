@@ -99,7 +99,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
    *
    * @param <T> Type of objects that will be read by the reader.
    */
-  private static class XMLReader<T> extends FileBasedReader<T> {
+  private static final class XMLReader<T> extends FileBasedReader<T> {
     // The amount of bytes read from the channel to memory when determining the starting offset of
     // the first record in a bundle. After matching to starting offset of the first record the
     // remaining bytes read to this buffer and the bytes still not read from the channel are used to

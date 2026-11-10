@@ -27,6 +27,7 @@ import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -141,7 +142,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.common.utils.AppInfoParser;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
@@ -934,9 +935,14 @@ public class KafkaIO {
 
         if (config.redistribute != null) {
           builder.setRedistributed(config.redistribute);
-          if (config.redistributeNumKeys != null) {
-            builder.setRedistributeNumKeys((int) config.redistributeNumKeys);
-          }
+          int redistributeNumKeys =
+              config.redistributeNumKeys == null ? 0 : config.redistributeNumKeys;
+          // As in Read#withRedistribute, 0 means the number of keys was not set. Python always
+          // sends a value, and a Redistribute with no limit creates one key per record.
+          builder.setRedistributeNumKeys(
+              config.redistribute && redistributeNumKeys == 0
+                  ? DEFAULT_REDISTRIBUTE_NUM_KEYS
+                  : redistributeNumKeys);
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
@@ -1662,31 +1668,6 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      if (!ConsumerSpEL.hasOffsetsForTimes()) {
-        LOG.warn(
-            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
-                + "may not be supported in next release of Apache Beam. "
-                + "Please upgrade your Kafka client version.",
-            AppInfoParser.getVersion());
-      }
-      if (getStartReadTime() != null) {
-        checkArgument(
-            ConsumerSpEL.hasOffsetsForTimes(),
-            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is "
-                + AppInfoParser.getVersion()
-                + ". If you are building with maven, set \"kafka.clients.version\" "
-                + "maven property to 0.10.1.0 or newer.");
-      }
-      if (getStopReadTime() != null) {
-        checkArgument(
-            ConsumerSpEL.hasOffsetsForTimes(),
-            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
-                + "current version of Kafka Client is "
-                + AppInfoParser.getVersion()
-                + ". If you are building with maven, set \"kafka.clients.version\" "
-                + "maven property to 0.10.1.0 or newer.");
-      }
       if (isCommitOffsetsInFinalizeEnabled()) {
         checkArgument(
             getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
@@ -1921,8 +1902,7 @@ public class KafkaIO {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
-                kafkaRead
-                    .toBuilder()
+                kafkaRead.toBuilder()
                     .setKeyCoder(keyCoder)
                     .setValueCoder(valueCoder)
                     .build()
@@ -2252,7 +2232,7 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderConsumer<K, V>
       extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
-    @Nullable Tracer tracer = null;
+    private transient @MonotonicNonNull Tracer tracer = null;
 
     @Setup
     public void setup(PipelineOptions options) {
@@ -2305,6 +2285,7 @@ public class KafkaIO {
       Span span =
           Preconditions.checkArgumentNotNull(tracer)
               .spanBuilder("KafkaIO.Read")
+              .setSpanKind(SpanKind.CONSUMER)
               .setParent(context)
               .startSpan();
       try (Scope ignored = span.makeCurrent()) {
@@ -2317,6 +2298,18 @@ public class KafkaIO {
 
   static class OpenTelemetryHeaderPropagator<K, V>
       extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
+    transient @MonotonicNonNull Tracer tracer = null;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      // inject tracer via options
+      io.opentelemetry.api.OpenTelemetry openTelemetry =
+          options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      if (openTelemetry != null) {
+        tracer = openTelemetry.getTracer("KafkaIO");
+      }
+    }
+
     ProducerRecord<K, V> injectTraceContext(ProducerRecord<K, V> message) {
       org.apache.kafka.common.header.internals.RecordHeaders headers =
           new org.apache.kafka.common.header.internals.RecordHeaders(message.headers());
@@ -2341,7 +2334,17 @@ public class KafkaIO {
     @ProcessElement
     public void processElement(
         @Element ProducerRecord<K, V> element, OutputReceiver<ProducerRecord<K, V>> receiver) {
-      receiver.output(injectTraceContext(element));
+      Span span =
+          Preconditions.checkArgumentNotNull(tracer)
+              .spanBuilder("KafkaIO.Write")
+              .setSpanKind(SpanKind.PRODUCER)
+              .setParent(Context.current())
+              .startSpan();
+      try (Scope ignored = span.makeCurrent()) {
+        receiver.output(injectTraceContext(element));
+      } finally {
+        span.end();
+      }
     }
   }
 
@@ -2442,8 +2445,7 @@ public class KafkaIO {
     byte @Nullable [] value;
 
     @SchemaFieldNumber("6")
-    @Nullable
-    List<KafkaHeader> headers;
+    @Nullable List<KafkaHeader> headers;
 
     @SchemaFieldNumber("7")
     int timestampTypeId;
@@ -2615,12 +2617,12 @@ public class KafkaIO {
     abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
-        getExtractOutputTimestampFn();
+    abstract @Nullable
+        SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
-        getCreateWatermarkEstimatorFn();
+    abstract @Nullable
+        SerializableFunction<Instant, WatermarkEstimator<Instant>> getCreateWatermarkEstimatorFn();
 
     @Pure
     abstract boolean isCommitOffsetEnabled();
@@ -3100,14 +3102,6 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      if (!ConsumerSpEL.hasOffsetsForTimes()) {
-        LOG.warn(
-            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
-                + "may not be supported in next release of Apache Beam. "
-                + "Please upgrade your Kafka client version.",
-            AppInfoParser.getVersion());
-      }
-
       if (isCommitOffsetEnabled()) {
         if (configuredKafkaCommit()) {
           LOG.info(
@@ -3298,8 +3292,8 @@ public class KafkaIO {
     public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
-        getProducerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
     @Pure
     public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
@@ -3308,8 +3302,8 @@ public class KafkaIO {
     public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
-        getPublishTimestampFunction();
+    public abstract @Nullable
+        KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
@@ -3326,8 +3320,8 @@ public class KafkaIO {
     public abstract int getNumShards();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
-        getConsumerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
 
     @Pure
     public abstract BadRecordRouter getBadRecordRouter();
@@ -3506,7 +3500,6 @@ public class KafkaIO {
      *     written by the same job.
      */
     public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
-      KafkaExactlyOnceSink.ensureEOSSupport();
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
       return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
@@ -3558,7 +3551,6 @@ public class KafkaIO {
         checkArgument(
             getBadRecordErrorHandler() instanceof DefaultErrorHandler,
             "BadRecordErrorHandling isn't supported with Kafka Exactly Once writing");
-        KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
         //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
@@ -4109,9 +4101,8 @@ public class KafkaIO {
       Long timestamp =
           row.getSchema().hasField(FIELD_TIMESTAMP) ? row.getInt64(FIELD_TIMESTAMP) : null;
 
-      boolean hasHeaders = ConsumerSpEL.hasHeaders();
       Iterable<Header> headers = Collections.emptyList();
-      if (hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+      if (row.getSchema().hasField(FIELD_HEADERS)) {
         Iterable<Row> headerRows = row.getArray(FIELD_HEADERS);
         if (headerRows != null) {
           List<Header> headerList = new ArrayList<>();
@@ -4123,16 +4114,9 @@ public class KafkaIO {
           }
           headers = headerList;
         }
-      } else if (!hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
-        // Log warning when headers are present but Kafka client doesn't support them
-        LOG.warn(
-            "Dropping headers from Kafka record because the Kafka client version "
-                + "does not support headers (requires Kafka 0.11+).");
       }
 
-      return hasHeaders
-          ? new ProducerRecord<>(topic, partition, timestamp, key, value, headers)
-          : new ProducerRecord<>(topic, partition, timestamp, key, value);
+      return new ProducerRecord<>(topic, partition, timestamp, key, value, headers);
     }
   }
 

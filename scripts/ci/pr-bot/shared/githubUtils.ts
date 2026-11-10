@@ -30,7 +30,28 @@ export function getGitHubClient() {
       "No github token provided - process.env['GITHUB_TOKEN'] must be set."
     );
   }
-  return new Octokit({ auth });
+  const octokit = new Octokit({ auth });
+  octokit.hook.wrap("request", async (request: any, options: any) => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await request(options);
+      } catch (err: any) {
+        const status = err && err.status;
+        if (
+          attempt < 3 &&
+          (status === 500 || status === 502 || status === 503 || status === 504)
+        ) {
+          console.log(
+            `Transient GitHub API error (HTTP ${status}), retrying (attempt ${attempt}/3)...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          continue;
+        }
+        throw err;
+      }
+    }
+  });
+  return octokit;
 }
 
 export async function addPrComment(pullNumber: number, body: string) {
@@ -40,6 +61,31 @@ export async function addPrComment(pullNumber: number, body: string) {
     issue_number: pullNumber,
     body,
   });
+}
+
+export async function requestPrReviewers(
+  pullNumber: number,
+  reviewers: string[],
+  githubClient?: any
+) {
+  if (!reviewers || reviewers.length === 0) {
+    return;
+  }
+  const client = githubClient || getGitHubClient();
+  for (const reviewer of reviewers) {
+    try {
+      await client.rest.pulls.requestReviewers({
+        owner: REPO_OWNER,
+        repo: REPO,
+        pull_number: pullNumber,
+        reviewers: [reviewer],
+      });
+    } catch (err) {
+      console.log(
+        `Unable to request review from ${reviewer} on PR ${pullNumber} (best effort): ${err}`
+      );
+    }
+  }
 }
 
 export async function nextActionReviewers(
@@ -122,4 +168,12 @@ function removeNextActionLabel(existingLabels: Label[]): string[] {
         label.name != "Next Action: Author"
     )
     .map((label) => label.name);
+}
+
+export function hasLabel(pull: any, labelName: string): boolean {
+  return (pull?.labels || []).some(
+    (label: any) =>
+      (typeof label === "string" ? label : label?.name || "").toLowerCase() ===
+      labelName.toLowerCase()
+  );
 }

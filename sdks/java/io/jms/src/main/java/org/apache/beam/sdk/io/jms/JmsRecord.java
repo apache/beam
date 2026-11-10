@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.jms;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import jakarta.jms.Destination;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
-import javax.jms.Destination;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public abstract class UdfImplReflectiveFunctionBase implements Function {
   /** Method that implements the function. */
   public final Method method;
+
   /** Types of parameter for the function call. */
   public final List<FunctionParameter> parameters;
 

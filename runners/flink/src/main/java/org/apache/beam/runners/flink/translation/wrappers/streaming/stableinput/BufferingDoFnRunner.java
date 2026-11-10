@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -55,7 +56,7 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
       DoFnRunner<InputT, OutputT> doFnRunner,
@@ -112,29 +113,42 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
   private final DoFnRunner<InputT, OutputT> underlying;
+
   /** A union list state which contains all to-be-acknowledged snapshot ids. */
   private final ListState<CheckpointIdentifier> notYetAcknowledgedSnapshots;
+
   /** A factory for constructing new BufferingElementsHandler scoped by an internal id. */
   private final BufferingElementsHandlerFactory bufferingElementsHandlerFactory;
+
   /** The maximum number of buffers for data of not yet acknowledged checkpoints. */
   final int numCheckpointBuffers;
+
+  /** Minimum timestamp for each checkpoint buffer. */
+  private final long[] minTimestampPerBuffer;
+
   /** The current active state id which, on checkpoint, is linked to a checkpoint id. */
   int currentStateIndex;
+
   /** The current handler used for buffering. */
   private BufferingElementsHandler currentBufferingElementsHandler;
+
   /** Minimum timestamp of all buffered elements. */
   private volatile long minBufferedElementTimestamp;
+
   /** The associated keyed state backend. */
   private final @Nullable KeyedStateBackend keyedStateBackend;
+
   /**
    * Locker that must be held (if present) before buffering an element. If non-null, we must
    * manually set a key to the state backend.
    */
   private final @Nullable Supplier<Locker> locker;
+
   /**
    * A selector of key. When non-null, this must be set to the keyed state backend before buffering.
    */
   private final @Nullable Function<InputT, Object> keySelector;
+
   /** Callable to notify about possibility to flush bundle. */
   private final @Nullable Runnable finishBundleCallback;
 
@@ -176,6 +190,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           }
         };
     this.numCheckpointBuffers = initializeState(maxConcurrentCheckpoints);
+    this.minTimestampPerBuffer = new long[numCheckpointBuffers];
+    Arrays.fill(this.minTimestampPerBuffer, Long.MAX_VALUE);
     this.currentBufferingElementsHandler =
         bufferingElementsHandlerFactory.get(rotateAndGetStateIndex());
     this.keyedStateBackend = keyedStateBackend;
@@ -217,8 +233,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
-    minBufferedElementTimestamp =
-        Math.min(elem.getTimestamp().getMillis(), minBufferedElementTimestamp);
+    final long elemTimestamp = elem.getTimestamp().getMillis();
+    minTimestampPerBuffer[currentStateIndex] =
+        Math.min(minTimestampPerBuffer[currentStateIndex], elemTimestamp);
+    minBufferedElementTimestamp = Math.min(elemTimestamp, minBufferedElementTimestamp);
     try (Locker lock = locker != null ? locker.get() : null) {
       if (keySelector != null) {
         keyedStateBackend.setCurrentKey(keySelector.apply(elem.getValue()));
@@ -238,8 +256,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       TimeDomain timeDomain,
       CausedByDrain causedByDrain) {
 
-    minBufferedElementTimestamp =
-        Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);
+    final long outputTimestampInMillis = outputTimestamp.getMillis();
+    minTimestampPerBuffer[currentStateIndex] =
+        Math.min(minTimestampPerBuffer[currentStateIndex], outputTimestampInMillis);
+    minBufferedElementTimestamp = Math.min(outputTimestampInMillis, minBufferedElementTimestamp);
     try (Locker lock = locker != null ? locker.get() : null) {
       if (keySelector != null) {
         keyedStateBackend.setCurrentKey(key);
@@ -280,8 +300,9 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   public void checkpointCompleted(long checkpointId) throws Exception {
     List<CheckpointIdentifier> allToAck = gatherToBeAcknowledgedCheckpoints(checkpointId);
     for (CheckpointIdentifier toBeAcked : allToAck) {
+      final int toBeAckedId = toBeAcked.internalId;
       BufferingElementsHandler bufferingElementsHandler =
-          bufferingElementsHandlerFactory.get(toBeAcked.internalId);
+          bufferingElementsHandlerFactory.get(toBeAckedId);
       try (Locker lock = locker != null ? locker.get() : null) {
         final Iterator<BufferedElement> iterator =
             bufferingElementsHandler.getElements().iterator();
@@ -297,9 +318,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           underlying.finishBundle();
         }
         bufferingElementsHandler.clear();
+        minTimestampPerBuffer[toBeAckedId] = Long.MAX_VALUE;
       }
     }
-    minBufferedElementTimestamp = Long.MAX_VALUE;
+    minBufferedElementTimestamp = Arrays.stream(minTimestampPerBuffer).min().orElse(Long.MAX_VALUE);
   }
 
   public long getOutputWatermarkHold() {

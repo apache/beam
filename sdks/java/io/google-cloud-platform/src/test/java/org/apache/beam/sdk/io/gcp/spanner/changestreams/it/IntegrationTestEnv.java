@@ -119,52 +119,50 @@ public class IntegrationTestEnv extends ExternalResource {
 
   @Override
   protected void after() {
-    for (String changeStream : changeStreams) {
-      try {
-        if (this.isPostgres) {
-          databaseAdminClient
-              .updateDatabaseDdl(
-                  instanceId,
-                  databaseId,
-                  Collections.singletonList("DROP CHANGE STREAM \"" + changeStream + "\""),
-                  null)
-              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-        } else {
-          databaseAdminClient
-              .updateDatabaseDdl(
-                  instanceId,
-                  databaseId,
-                  Collections.singletonList("DROP CHANGE STREAM " + changeStream),
-                  null)
-              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    if (isPlacementTable) {
+      for (String changeStream : changeStreams) {
+        try {
+          if (this.isPostgres) {
+            databaseAdminClient
+                .updateDatabaseDdl(
+                    instanceId,
+                    databaseId,
+                    Collections.singletonList("DROP CHANGE STREAM \"" + changeStream + "\""),
+                    null)
+                .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          } else {
+            databaseAdminClient
+                .updateDatabaseDdl(
+                    instanceId,
+                    databaseId,
+                    Collections.singletonList("DROP CHANGE STREAM " + changeStream),
+                    null)
+                .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          }
+        } catch (Exception e) {
+          LOG.error("Failed to drop change stream {}. Skipping...", changeStream, e);
         }
-      } catch (Exception e) {
-        LOG.error("Failed to drop change stream {}. Skipping...", changeStream, e);
       }
-    }
 
-    for (String table : tables) {
-      try {
-        if (this.isPostgres) {
-          databaseAdminClient
-              .updateDatabaseDdl(
-                  instanceId,
-                  databaseId,
-                  Collections.singletonList("DROP TABLE \"" + table + "\""),
-                  null)
-              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-        } else {
-          databaseAdminClient
-              .updateDatabaseDdl(
-                  instanceId, databaseId, Collections.singletonList("DROP TABLE " + table), null)
-              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-        }
-      } catch (Exception e) {
-        if (isPlacementTable) {
+      for (String table : tables) {
+        try {
+          if (this.isPostgres) {
+            databaseAdminClient
+                .updateDatabaseDdl(
+                    instanceId,
+                    databaseId,
+                    Collections.singletonList("DROP TABLE \"" + table + "\""),
+                    null)
+                .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          } else {
+            databaseAdminClient
+                .updateDatabaseDdl(
+                    instanceId, databaseId, Collections.singletonList("DROP TABLE " + table), null)
+                .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          }
+        } catch (Exception e) {
           // Drop placement table requires all rows deleted and garbage collected.
           LOG.info("Failed to drop table {}. Skipping...", table, e);
-        } else {
-          LOG.error("Failed to drop table {}. Skipping...", table, e);
         }
       }
     }

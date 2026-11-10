@@ -45,7 +45,7 @@ func UnpackProto(data *protobuf.Any, ret proto.Message) error {
 
 // PackProto encodes a proto message and wraps into a BytesValue.
 func PackProto(in proto.Message) (*protobuf.Any, error) {
-	b, err := proto.Marshal(in)
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(in)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func UnpackBytes(data *protobuf.Any) ([]byte, error) {
 func PackBytes(in []byte) (*protobuf.Any, error) {
 	var buf protobufw.BytesValue
 	buf.Value = in
-	b, err := proto.Marshal(&buf)
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(&buf)
 	if err != nil {
 		return nil, err
 	}

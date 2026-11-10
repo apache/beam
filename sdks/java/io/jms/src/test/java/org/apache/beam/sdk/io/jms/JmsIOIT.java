@@ -23,6 +23,13 @@ import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.QueueBrowser;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
@@ -34,13 +41,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.QueueBrowser;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQTextMessage;
 import org.apache.beam.sdk.PipelineResult;
@@ -90,7 +90,7 @@ import org.junit.runners.Parameterized;
  * </pre>
  *
  * The default values for each parameter are: - jmsBrokerHost: amqp://localhost - jmsBrokerPort:
- * 5672 - localJmsBrokerEnabled: true - readTimeout: 30
+ * 5672 - localJmsBrokerEnabled: true - readTimeout: 60
  */
 @RunWith(Parameterized.class)
 public class JmsIOIT implements Serializable {
@@ -120,7 +120,7 @@ public class JmsIOIT implements Serializable {
     void setLocalJmsBrokerEnabled(boolean isEnabled);
 
     @Description("JMS Read Timeout in seconds")
-    @Default.Integer(30)
+    @Default.Integer(60)
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);

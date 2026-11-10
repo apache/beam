@@ -44,8 +44,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
  * PTransform}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -101,13 +100,13 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       this.groupingMap = new HashMap<>();
     }
 
-    private Coder<K> getKeyCoder(Coder<KV<K, V>> coder) {
+    private static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> coder) {
       checkState(
           coder instanceof KvCoder,
           "%s requires a coder of class %s."
               + " This is an internal error; this is checked during pipeline construction"
               + " but became corrupted.",
-          getClass().getSimpleName(),
+          GroupByKeyOnlyEvaluator.class.getSimpleName(),
           KvCoder.class.getSimpleName());
       @SuppressWarnings("unchecked")
       Coder<K> keyCoder = ((KvCoder<K, V>) coder).getKeyCoder();

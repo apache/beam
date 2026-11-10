@@ -44,7 +44,10 @@ from apache_beam.utils.timestamp import Timestamp
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsio import GcsIO
+  if not GCS_INSTALLED:
+    GcsIO = None
 except ImportError:
   GcsIO = None
 

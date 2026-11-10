@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:11 as build
+FROM debian:12 as build
 ARG FLUTTER_VERSION=3.10.4
 ARG BUILD_COMMIT_HASH
 ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
@@ -28,7 +28,9 @@ ARG BUILD_COMMIT_SECONDS_SINCE_EPOCH
 COPY . /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y wget xz-utils git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget xz-utils git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\

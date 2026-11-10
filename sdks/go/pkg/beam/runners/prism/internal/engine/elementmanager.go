@@ -315,6 +315,15 @@ func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func(
 	ss.inprogressKeys = set[string]{}
 }
 
+// StageRequiresTimeSortedInput marks the given stateful stage as requiring its
+// input sorted by event time. Data is held until the watermark passes its
+// timestamp plus the input's allowed lateness, then processed in timestamp order.
+func (em *ElementManager) StageRequiresTimeSortedInput(ID string, allowedLateness time.Duration) {
+	ss := em.stages[ID]
+	ss.requiresTimeSortedInput = true
+	ss.timeSortedAllowedLateness = allowedLateness
+}
+
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
 // processed by key.
 func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTimerID) {
@@ -458,6 +467,9 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 			// Check each advanced stage, to see if it's able to execute based on the watermark.
 			for stageID := range advanced {
 				ss := em.stages[stageID]
+				if adj := ss.releaseDelayedResiduals(em, emNow); adj != 0 {
+					em.addPending(adj)
+				}
 				watermark, ready, ptimeEventsReady, injectedReady := ss.bundleReady(em, emNow)
 				if injectedReady {
 					ss.mu.Lock()
@@ -549,7 +561,7 @@ func (em *ElementManager) DumpStages() string {
 		if upS == "" {
 			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
 		}
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject, "delayedResiduals", ss.delayedResiduals))
 
 		var outputConsumers, sideConsumers []string
 		for _, col := range ss.outputIDs {
@@ -794,6 +806,24 @@ type Residuals struct {
 
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
 // back out to their windows.
+// partitionResiduals splits residuals into those that return to pending at
+// once and those to park, grouped by the processing time they become
+// schedulable per their SDK requested resume delay.
+func partitionResiduals(emNow mtime.Time, data []Residual) (immediate []Residual, delayed map[mtime.Time][]Residual) {
+	for _, r := range data {
+		if r.Delay <= 0 {
+			immediate = append(immediate, r)
+			continue
+		}
+		if delayed == nil {
+			delayed = map[mtime.Time][]Residual{}
+		}
+		fireAt := emNow.Add(r.Delay)
+		delayed[fireAt] = append(delayed[fireAt], r)
+	}
+	return immediate, delayed
+}
+
 func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) []element {
 	var unprocessedElements []element
 	for _, residual := range residuals {
@@ -935,21 +965,34 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
+	// Single processing time sample for this persist, for timer rebasing and
+	// residual delays alike. processTimeEvents requires the refresh lock.
+	em.refreshCond.L.Lock()
+	emNow := em.processingTimeNow()
+	em.refreshCond.L.Unlock()
+
 	// Triage timers into their time domains for scheduling.
 	// EventTime timers are handled with normal elements,
 	// ProcessingTime timers need to be scheduled into the processing time based queue.
-	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage)
+	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage, emNow)
 
-	// TODO(https://github.com/apache/beam/issues/39446)
-	// Return unprocessed to this stage's pending
-	// TODO sort out pending element watermark holds for process continuation residuals.
-	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
-
-	// Add unprocessed back to the pending stack.
+	// A residual with an SDK requested resume delay is parked until that
+	// processing time arrives; the rest return to pending immediately.
+	immediate, delayed := partitionResiduals(emNow, residuals.Data)
+	unprocessedElements := reElementResiduals(immediate, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
-		// TODO actually reschedule based on the residuals delay...
 		count := stage.AddPending(em, unprocessedElements)
 		em.addPending(count)
+	}
+	for fireAt, rs := range delayed {
+		elems := reElementResiduals(rs, inputInfo, rb)
+		if len(elems) == 0 {
+			continue
+		}
+		stage.parkResiduals(fireAt, elems)
+		em.addPending(len(elems))
+		// Schedules the release and, under a real-time clock, the wake-up.
+		ptRefreshes.insert(fireAt)
 	}
 	// Clear out the inprogress elements associated with the completed bundle.
 	// Must be done after adding the new pending elements to avoid an incorrect
@@ -1035,7 +1078,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 }
 
 // triageTimers prepares received timers for eventual firing, as well as rebasing processing time timers as needed.
-func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState) (map[mtime.Time]int, set[mtime.Time]) {
+func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState, emNow mtime.Time) (map[mtime.Time]int, set[mtime.Time]) {
 	// Process each timer family in the order we received them, so we can filter to the last one.
 	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
 	// The last timer set for each combination is the next one we're keeping.
@@ -1044,10 +1087,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		tag string
 		win typex.Window
 	}
-	em.refreshCond.L.Lock()
-	emNow := em.processingTimeNow()
-	em.refreshCond.L.Unlock()
-
 	var pendingEventTimers []element
 	var pendingProcessingTimers []fireElement
 	stageRefreshTimes := set[mtime.Time]{}
@@ -1245,6 +1284,11 @@ type stageState struct {
 	inprogress map[string]elements                  // inprogress elements by active bundles, keyed by bundle
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
+	// Residual elements parked until the processing time they become schedulable,
+	// per the SDK's requested resume delay. Parked elements pin the input
+	// watermark like pending elements until they are released.
+	delayedResiduals map[mtime.Time][]element
+
 	// Fields for stateful stages which need to be per key.
 	pendingByKeys          map[string]*dataAndTimers                             // pending input elements by Key, if stateful.
 	inprogressKeys         set[string]                                           // all keys that are assigned to bundles.
@@ -1253,6 +1297,11 @@ type stageState struct {
 	stateTypeLen           map[LinkID]func([]byte) int                           // map from state to a function that will produce the total length of a single value in bytes.
 	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
 	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
+
+	// Whether the stage requires its input sorted by event time, and the
+	// allowed lateness of that input. See timeSortedDataReadyLocked.
+	requiresTimeSortedInput   bool
+	timeSortedAllowedLateness time.Duration
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
@@ -1373,6 +1422,38 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	return ss.kind.addPending(ss, em, newPending)
 }
 
+// parkResiduals defers residual elements until fireAt in processing time.
+// Parked elements pin the input watermark via minPendingTimestampLocked.
+// Callers must schedule a processing time refresh for the stage at fireAt.
+func (ss *stageState) parkResiduals(fireAt mtime.Time, elems []element) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	if ss.delayedResiduals == nil {
+		ss.delayedResiduals = map[mtime.Time][]element{}
+	}
+	ss.delayedResiduals[fireAt] = append(ss.delayedResiduals[fireAt], elems...)
+}
+
+// releaseDelayedResiduals moves parked residuals that are schedulable at
+// emNow to pending, and returns the resulting pending count adjustment.
+// Callers must hold em.refreshCond.L.
+func (ss *stageState) releaseDelayedResiduals(em *ElementManager, emNow mtime.Time) int {
+	ss.mu.Lock()
+	var due []element
+	for t, elems := range ss.delayedResiduals {
+		if t <= emNow {
+			due = append(due, elems...)
+			delete(ss.delayedResiduals, t)
+		}
+	}
+	ss.mu.Unlock()
+	if len(due) == 0 {
+		return 0
+	}
+	// The parked elements were counted when parked; report only the delta.
+	return ss.AddPending(em, due) - len(due)
+}
+
 func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
 	// Check on triggers for this key.
 	// Callers must hold em.refreshCond.L
@@ -1448,6 +1529,20 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	return count
 }
 
+// isTriggerFinished returns true if the root trigger for the given window and key
+// has finished, meaning the window is closed and no further panes will be produced.
+// Callers must hold ss.mu.
+func (ss *stageState) isTriggerFinished(window typex.Window, key string) bool {
+	if ss.strat.Trigger == nil {
+		return false
+	}
+	state, ok := ss.state[LinkID{}][window][key]
+	if !ok {
+		return false
+	}
+	return state.getTriggerState(ss.strat.Trigger).finished
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1476,6 +1571,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 	count := 0
 	for _, e := range newPending {
+		if len(e.keyBytes) > 0 && ss.isTriggerFinished(e.window, string(e.keyBytes)) {
+			// The trigger for this window and key has already finished, so the
+			// window is closed. Drop the element, matching the Java ReduceFnRunner
+			// (droppedDueToClosedWindow). Otherwise the element would be emitted
+			// in an extra pane when the watermark passes the end of the window.
+			continue
+		}
 		count++
 		if len(e.keyBytes) == 0 {
 			panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
@@ -1508,6 +1610,7 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
 	count := 0
+	owedCallbacks := 0
 	for _, e := range newPending {
 		count++
 		if len(e.keyBytes) == 0 {
@@ -1519,13 +1622,18 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 				timers: map[timerKey]timerTimes{},
 			}
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
-			if ss.keysToExpireByWindow != nil {
-				w, ok := ss.keysToExpireByWindow[e.window]
-				if !ok {
-					w = make(set[string])
-					ss.keysToExpireByWindow[e.window] = w
-				}
+		}
+		// The key owes an OnWindowExpiration callback for each window it uses.
+		// A cleared timer, with a sequence of -1, doesn't use its window.
+		if ss.keysToExpireByWindow != nil && e.sequence >= 0 {
+			w, ok := ss.keysToExpireByWindow[e.window]
+			if !ok {
+				w = make(set[string])
+				ss.keysToExpireByWindow[e.window] = w
+			}
+			if !w.present(string(e.keyBytes)) {
 				w.insert(string(e.keyBytes))
+				owedCallbacks++
 			}
 		}
 		heap.Push(&dnt.elements, e)
@@ -1552,7 +1660,9 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			}
 		}
 	}
-	return count
+	// Owed callbacks are pending too, so the job can't end before they run.
+	// Each is released when its expiry bundle persists.
+	return count + owedCallbacks
 }
 
 func (*ordinaryStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1870,6 +1980,10 @@ keysPerBundle:
 					(!dataInBundle && !dnt.elements[0].IsTimer())) { // we're about to add data to a bundle that already has a time
 				break
 			}
+			if dnt.elements[0].IsData() && !ss.timeSortedDataReadyLocked(dnt.elements[0].timestamp, watermark) {
+				// Hold data, and anything after it, until it can be time sorted.
+				break
+			}
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsData() {
 				dataInBundle = true
@@ -1936,11 +2050,28 @@ func (ss *stageState) hasBuildableDataLocked(watermark mtime.Time) bool {
 		if dnt.elements.Len() == 0 {
 			continue
 		}
-		if e := dnt.elements[0]; e.IsData() || e.timestamp <= watermark {
+		e := dnt.elements[0]
+		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) {
+			return true
+		}
+		if e.IsTimer() && e.timestamp <= watermark {
 			return true
 		}
 	}
 	return false
+}
+
+// timeSortedDataReadyLocked reports whether a data element with the given
+// timestamp may be processed at the given watermark. Data for stages that
+// require time sorted input is held until the watermark passes its timestamp
+// plus the allowed lateness, so no earlier element that isn't droppably late
+// can still arrive, and held elements are processed in timestamp order.
+// Data for other stages is always ready. Callers hold ss.mu.
+func (ss *stageState) timeSortedDataReadyLocked(ts, watermark mtime.Time) bool {
+	if !ss.requiresTimeSortedInput || watermark == mtime.MaxTimestamp {
+		return true
+	}
+	return ts.Add(ss.timeSortedAllowedLateness) <= watermark
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
@@ -2251,9 +2382,20 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	// A key stays assigned to this bundle while any primary element still
+	// carries it. Releasing it would let a residual of the same key run in a
+	// second bundle while the primary is still processing it, so both bundles
+	// would start from the same state and the last commit would drop the
+	// other's state changes.
+	primKeys := set[string]{}
+	for _, e := range prim {
+		primKeys.insert(string(e.keyBytes))
+	}
 	for _, e := range res {
-		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
-		delete(ss.inprogressKeys, string(e.keyBytes))
+		if k := string(e.keyBytes); !primKeys.present(k) {
+			delete(ss.inprogressKeysByBundle[rb.BundleID], k)
+			delete(ss.inprogressKeys, k)
+		}
 
 		if e.IsTimer() {
 			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
@@ -2290,6 +2432,13 @@ func (ss *stageState) minPendingTimestampLocked() mtime.Time {
 	}
 	for _, es := range ss.inprogress {
 		minPending = mtime.Min(minPending, es.minTimestamp)
+	}
+	// Parked residuals are pending work that is not yet schedulable, and
+	// must pin the input watermark like any other pending element.
+	for _, elems := range ss.delayedResiduals {
+		for _, e := range elems {
+			minPending = mtime.Min(minPending, e.timestamp)
+		}
 	}
 	return minPending
 }
@@ -2343,6 +2492,9 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// consumer that received data still needs scheduling, since an unadvancing
 	// watermark is otherwise the only thing that would surface it.
 	if newOut <= ss.output {
+		// Late data may have used a window that has already expired, which still
+		// owes its OnWindowExpiration callbacks.
+		ss.createOnWindowExpirationBundles(ss.output, em)
 		refreshes := ss.consumersWithNewData
 		ss.consumersWithNewData = nil
 		return refreshes
@@ -2359,8 +2511,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		for win := range wins {
 			// Clear out anything we've already used.
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2370,8 +2522,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	for _, wins := range ss.state {
 		for win := range wins {
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip collecting this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip collecting this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2404,8 +2556,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 
 // createOnWindowExpirationBundles injects bundles when windows
 // expire for all keys that were used in that window. Returns true if any
-// bundles are created, which means that the window must not yet be garbage
-// collected.
+// window has expired, which means that the output watermark must wait for
+// its bundles.
 //
 // Must be called within the stageState.mu's and the ElementManager.refreshCond
 // critical sections.
@@ -2418,9 +2570,6 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		}
 		// We can't advance the output watermark if there's garbage to collect.
 		preventDownstreamUpdate = true
-		// Hold off on garbage collecting data for these windows while these
-		// are in progress.
-		ss.inProgressExpiredWindows[win] += 1
 
 		// Produce bundle(s) for these keys and window, and inject them.
 		wm := win.MaxTimestamp()
@@ -2431,7 +2580,9 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		busyKeys := set[string]{}
 		usedKeys := set[string]{}
 		for k := range keys {
-			if ss.inprogressKeys.present(k) {
+			// A key in a bundle, or with late data still to process in this window,
+			// expires once that's done.
+			if ss.inprogressKeys.present(k) || ss.hasPendingDataLocked(k, win) {
 				busyKeys.insert(k)
 				continue
 			}
@@ -2448,7 +2599,17 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 				elmBytes:      nil,
 			})
 		}
-		em.addPending(len(toProcess))
+		if len(toProcess) == 0 {
+			// Every key is busy, so there's no bundle to build. The window keeps all
+			// its keys, and expires once one of them is done.
+			continue
+		}
+		// Hold off on garbage collecting data for these windows while these
+		// are in progress. Only a bundle that gets built counts, since its
+		// persist is what releases this.
+		ss.inProgressExpiredWindows[win] += 1
+		// statefulStageKind.addPending already counted these callbacks as
+		// pending, when their keys first used the window.
 		ss.watermarkHolds.Add(wm, 1)
 		ss.makeInProgressBundle(
 			func() string { return rb.BundleID },
@@ -2474,6 +2635,21 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		}
 	}
 	return preventDownstreamUpdate
+}
+
+// hasPendingDataLocked reports whether the key has data to process in the window.
+// Callers hold ss.mu.
+func (ss *stageState) hasPendingDataLocked(key string, win typex.Window) bool {
+	dnt, ok := ss.pendingByKeys[key]
+	if !ok {
+		return false
+	}
+	for _, e := range dnt.elements {
+		if e.IsData() && e.window == win {
+			return true
+		}
+	}
+	return false
 }
 
 // bundleReady returns the maximum allowed watermark for this stage, and whether

@@ -67,7 +67,8 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+public final class UnboundedSourceWrapper<
+        OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
     implements BeamStoppableFunction,
         CheckpointListener,
@@ -77,6 +78,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
   private final String stepName;
+
   /** Keep the options so that we can initialize the localReaders. */
   private final SerializablePipelineOptions serializedOptions;
 
@@ -129,6 +131,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   /** Pending checkpoints which have not been acknowledged yet. */
   private transient LinkedHashMap<Long, List<CheckpointMarkT>> pendingCheckpoints;
+
   /** Keep a maximum of 32 checkpoints for {@code CheckpointMark.finalizeCheckpoint()}. */
   private static final int MAX_NUMBER_PENDING_CHECKPOINTS = 32;
 

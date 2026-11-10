@@ -56,6 +56,7 @@ dependencies {
     implementation library.java.protobuf_java_util
     implementation library.java.protobuf_java
     implementation library.java.junit
+    testImplementation 'org.awaitility:awaitility:4.2.0'
     testImplementation library.java.mockito_inline
     testRuntimeOnly library.java.slf4j_simple
     // TODO: excluding Guava until Truth updates it to >32.1.x

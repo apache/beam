@@ -50,7 +50,7 @@ looks:
       folder: 32
       test_name:
         - id: YQ2W3wdNnBXMgDgpzCRbmQWMHjyPvZny
-          title: Read BigTable RunTime and EstimatedCost
+          title: Read Bigtable RunTime and EstimatedCost
       date:
         - id: szvwNfPrwTtmRmMHWv3QFh6wTKxm26TF
           title: AvgOutputThroughputBytesPerSec by Date
@@ -65,7 +65,7 @@ looks:
       folder: 33
       test_name:
         - id: 2sC27RQwWy2MP9DXVHjbvTYSNFYpFvxj
-          title: Write BigTable RunTime and EstimatedCost
+          title: Write Bigtable RunTime and EstimatedCost
       date:
       - id: X22sDqD8krBQQ4mRXTFMmpKFvgkZ529g
         title: AvgInputThroughputBytesPerSec by Date

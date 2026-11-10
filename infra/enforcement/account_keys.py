@@ -28,6 +28,7 @@ from sending import SendingClient
 
 SECRET_MANAGER_LABEL = "beam-infra-secret-manager"
 IAC_DRIFT_SA_KEY = "IAC_DRIFT_SA_KEY"
+ACCOUNT_KEYS_POLICY = "ACCOUNT_KEYS_POLICY"
 
 class AuthorizedUser(TypedDict):
     email: str
@@ -385,8 +386,8 @@ class AccountKeysPolicyComplianceCheck:
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
-            title = f"[{IAC_DRIFT_SA_KEY}] Action Required: Unauthorized Service Accounts Detected"
-            body = f"Unauthorized Service Accounts Report\n\n"
+            title = f"[{ACCOUNT_KEYS_POLICY}] Action Required: Service Account Policy Drift"
+            body = f"Service Account Policy Drift Report\n\n"
             body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
             for issue in general_issues:
                 body += f"- {issue}\n"
@@ -423,8 +424,8 @@ class AccountKeysPolicyComplianceCheck:
 
         if general_issues:
             self.logger.info("Printing general compliance announcement...")
-            title = f"[IAC_DRIFT_SA_KEY] Action Required: Unauthorized Service Accounts Detected"
-            body = f"Unauthorized Service Accounts Report\n\n"
+            title = f"[{ACCOUNT_KEYS_POLICY}] Action Required: Service Account Policy Drift"
+            body = f"Service Account Policy Drift Report\n\n"
             body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
             for issue in general_issues:
                 body += f"- {issue}\n"

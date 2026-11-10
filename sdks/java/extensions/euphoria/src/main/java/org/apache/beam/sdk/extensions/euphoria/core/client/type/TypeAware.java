@@ -28,7 +28,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * are chained together and type of input(s) equals to types of previous transform output(s). Source
  * transforms needs to know which type of elements are producing explicitly.
  */
-/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+/**
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Deprecated
 public class TypeAware {
 

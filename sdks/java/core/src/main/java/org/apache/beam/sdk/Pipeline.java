@@ -129,6 +129,7 @@ import org.slf4j.LoggerFactory;
 })
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
+
   /**
    * Thrown during execution of a {@link Pipeline}, whenever user code within that {@link Pipeline}
    * throws an exception.
@@ -524,7 +525,7 @@ public class Pipeline {
 
   private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
-  private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+  protected Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;

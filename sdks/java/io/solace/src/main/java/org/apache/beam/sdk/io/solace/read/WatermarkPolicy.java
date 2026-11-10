@@ -52,6 +52,7 @@ class WatermarkPolicy<T> implements Serializable {
   private WatermarkPolicy(WatermarkParameters<T> watermarkParameters) {
     this.watermarkParameters = watermarkParameters;
   }
+
   /**
    * Returns the current watermark.
    *
@@ -94,8 +95,7 @@ class WatermarkPolicy<T> implements Serializable {
       return;
     }
     watermarkParameters =
-        watermarkParameters
-            .toBuilder()
+        watermarkParameters.toBuilder()
             .setLastSavedWatermark(
                 Ordering.natural()
                     .max(

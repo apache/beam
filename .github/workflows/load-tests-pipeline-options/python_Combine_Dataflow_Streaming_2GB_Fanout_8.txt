@@ -26,5 +26,4 @@
 --fanout=8
 --top_count=20
 --streaming
---experiments=use_runner_v2
 --runner=DataflowRunner

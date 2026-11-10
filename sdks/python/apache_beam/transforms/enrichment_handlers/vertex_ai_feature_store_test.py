@@ -15,8 +15,12 @@
 # limitations under the License.
 #
 import unittest
+from unittest import mock
 
 try:
+  from google.api_core.exceptions import NotFound
+  from google.api_core.exceptions import PermissionDenied
+
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import \
       VertexAIFeatureStoreLegacyEnrichmentHandler
@@ -37,6 +41,42 @@ class TestVertexAIFeatureStoreHandlerInit(unittest.TestCase):
           feature_view_name='feature_view',
           row_key='row_key',
           client_options={'api_endpoint': 'region@google.com'},
+      )
+
+  @mock.patch(
+      'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.'
+      'aiplatform.gapic.FeatureOnlineStoreAdminServiceClient')
+  def test_permission_denied_online_store(self, mock_admin_client):
+    mock_admin_client.return_value.get_feature_online_store.side_effect = (
+        PermissionDenied('permission denied'))
+    with self.assertLogs(
+        'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store',
+        level='WARNING') as logs:
+      _ = VertexAIFeatureStoreEnrichmentHandler(
+          project='project',
+          location='location',
+          api_endpoint='location@google.com',
+          feature_store_name='feature_store',
+          feature_view_name='feature_view',
+          row_key='row_key',
+      )
+    self.assertIn('insufficient admin permission', logs.output[0])
+
+  @mock.patch(
+      'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.'
+      'aiplatform.gapic.FeatureOnlineStoreAdminServiceClient')
+  def test_raise_error_feature_store_not_found_online_store(
+      self, mock_admin_client):
+    mock_admin_client.return_value.get_feature_online_store.side_effect = (
+        NotFound('not found'))
+    with self.assertRaises(NotFound):
+      _ = VertexAIFeatureStoreEnrichmentHandler(
+          project='project',
+          location='location',
+          api_endpoint='location@google.com',
+          feature_store_name='feature_store',
+          feature_view_name='feature_view',
+          row_key='row_key',
       )
 
   def test_raise_error_duplicate_api_endpoint_legacy_store(self):

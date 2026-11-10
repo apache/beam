@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
+
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -40,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -58,7 +61,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
@@ -71,6 +73,9 @@ public class ArtifactStagingService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ArtifactStagingService.class);
+
+  private static final Pattern WINDOWS_INVALID_CHARS =
+      Pattern.compile("[<>:\"/\\\\|?*\\x00-\\x1F]");
 
   private final ArtifactDestinationProvider destinationProvider;
 
@@ -223,13 +228,17 @@ public class ArtifactStagingService
     }
 
     synchronized void aquire(int permits) throws Exception {
-      while (usedPermits >= totalPermits) {
-        if (exception != null) {
-          throw exception;
-        }
+      while (exception == null && usedPermits >= totalPermits) {
         this.wait();
       }
+      checkException();
       usedPermits += permits;
+    }
+
+    synchronized void checkException() throws Exception {
+      if (exception != null) {
+        throw exception;
+      }
     }
 
     synchronized void release(int permits) {
@@ -277,18 +286,25 @@ public class ArtifactStagingService
           chunk = bytesQueue.take();
         }
         dest.getOutputStream().close();
-        return originalArtifact
-            .toBuilder()
+        return originalArtifact.toBuilder()
             .setTypeUrn(dest.getTypeUrn())
             .setTypePayload(dest.getTypePayload())
             .build();
-      } catch (IOException | InterruptedException exn) {
+      } catch (Exception exn) {
         // As this thread will no longer be draining the queue, we don't want to get stuck writing
-        // to it.
+        // to it. This must happen for unchecked exceptions as well: getDestination can throw e.g.
+        // InvalidPathException, and leaving the error unset would block the producer forever.
         totalPendingBytes.setException(exn);
+        // Free a producer already blocked in put; its next aquire observes the exception.
+        bytesQueue.clear();
         LOG.error("Exception staging artifacts", exn);
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (exn instanceof IOException) {
           throw (IOException) exn;
+        } else if (exn instanceof RuntimeException) {
+          throw (RuntimeException) exn;
         } else {
           throw new RuntimeException(exn);
         }
@@ -421,8 +437,16 @@ public class ArtifactStagingService
                 }
               }
             } catch (Exception exn) {
-              LOG.error("Error submitting.", exn);
+              if (exn instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               onError(exn);
+              // Terminate the stream towards the client, which would otherwise wait forever.
+              responseObserver.onError(
+                  Status.INTERNAL
+                      .withDescription("Error staging artifacts: " + exn)
+                      .withCause(exn)
+                      .asException());
             }
             break;
 
@@ -506,10 +530,16 @@ public class ArtifactStagingService
         } catch (InvalidProtocolBufferException exn) {
           throw new RuntimeException(exn);
         }
-        // Limit to the last contiguous alpha-numeric sequence. In particular, this will exclude
+        // Limit to the last contiguous valid windows path chars. In particular, this will exclude
         // all path separators.
-        List<String> components = Splitter.onPattern("[^A-Za-z-_.]]").splitToList(path);
-        String base = components.get(components.size() - 1);
+        String base =
+            WINDOWS_INVALID_CHARS
+                .splitAsStream(path)
+                .reduce((first, second) -> second)
+                .orElse("artifact");
+        if (IS_OS_WINDOWS) {
+          environment = WINDOWS_INVALID_CHARS.matcher(environment).replaceAll("_");
+        }
         return clip(
             String.format("%s-%s-%s", idGenerator.getId(), clip(environment, 25), base), 100);
       }

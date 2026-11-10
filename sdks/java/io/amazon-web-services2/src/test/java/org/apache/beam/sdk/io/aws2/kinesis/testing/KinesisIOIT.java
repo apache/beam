@@ -79,8 +79,7 @@ public class KinesisIOIT implements Serializable {
     void setKinesisStream(String value);
 
     @Description("Kinesis consumer ARN - set if want to test EFO")
-    @Nullable
-    String getConsumerArn();
+    @Nullable String getConsumerArn();
 
     void setConsumerArn(@Nullable String value);
 
@@ -104,8 +103,7 @@ public class KinesisIOIT implements Serializable {
 
     @Description(
         "Create EFO consumer with the given name. If set, consumer ARN conf will be ignored.")
-    @Nullable
-    String getCreateConsumerWithName();
+    @Nullable String getCreateConsumerWithName();
 
     void setCreateConsumerWithName(@Nullable String createConsumerWithName);
   }

@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 )
 
@@ -84,5 +85,67 @@ func TestUseAutomatedExpansionService(t *testing.T) {
 	target := ":sdks:java:extensions:someservice:shadowJar"
 	if got, want := UseAutomatedJavaExpansionService(target), autoJavaNamespace+Separator+target; got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestHandlerParamsInputsOutputsOrder(t *testing.T) {
+	in0 := &graph.Node{}
+	in1 := &graph.Node{}
+	in2 := &graph.Node{}
+	out0 := &graph.Node{}
+	out1 := &graph.Node{}
+
+	p := &HandlerParams{
+		Req: &jobpb.ExpansionRequest{Namespace: "ns"},
+		edge: &graph.MultiEdge{
+			Input: []*graph.Inbound{
+				{From: in0},
+				{From: in1},
+				{From: in2},
+			},
+			Output: []*graph.Outbound{
+				{To: out0},
+				{To: out1},
+			},
+		},
+		ext: &graph.ExternalTransform{
+			InputsMap: map[string]int{
+				"table_c": 2,
+				"table_a": 0,
+				"table_b": 1,
+			},
+			OutputsMap: map[string]int{
+				"out_b": 1,
+				"out_a": 0,
+			},
+		},
+	}
+
+	for iter := 0; iter < 20; iter++ {
+		ins := p.Inputs()
+		wantInLocals := []string{"table_a", "table_b", "table_c"}
+		for i, wantLocal := range wantInLocals {
+			if ins[i].Index != i || ins[i].Local != wantLocal {
+				t.Fatalf("iter %d: Inputs()[%d] = {Index: %d, Local: %q}, want {Index: %d, Local: %q}",
+					iter, i, ins[i].Index, ins[i].Local, i, wantLocal)
+			}
+		}
+
+		outs := p.Outputs()
+		wantOutLocals := []string{"out_a", "out_b"}
+		for i, wantLocal := range wantOutLocals {
+			if outs[i].Index != i || outs[i].Local != wantLocal {
+				t.Fatalf("iter %d: Outputs()[%d] = {Index: %d, Local: %q}, want {Index: %d, Local: %q}",
+					iter, i, outs[i].Index, outs[i].Local, i, wantLocal)
+			}
+		}
+	}
+
+	// Verify that a subset/sparse OutputsMap (such as when SetOutputCoder
+	// rewrites OutputsMap to a single entry at index > 0) does not panic.
+	p.ext.OutputsMap = map[string]int{graph.UnnamedOutputTag: 1}
+	outs := p.Outputs()
+	if len(outs) != 1 || outs[0].Index != 1 || outs[0].Local != graph.UnnamedOutputTag {
+		t.Fatalf("Outputs() with non-zero index = %v, want single entry at Index 1", outs)
 	}
 }

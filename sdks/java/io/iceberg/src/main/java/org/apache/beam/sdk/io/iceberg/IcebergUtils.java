@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -27,6 +29,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.chrono.IsoChronology;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
@@ -84,7 +91,28 @@ public class IcebergUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
           .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
+          .put(EnumerationType.IDENTIFIER, Types.StringType.get())
           .build();
+
+  private static final DateTimeFormatter TIMESTAMP_SPACE_FORMATTER =
+      new DateTimeFormatterBuilder()
+          .parseCaseInsensitive()
+          .append(ISO_LOCAL_DATE)
+          .appendLiteral(' ')
+          .append(ISO_LOCAL_TIME)
+          .toFormatter()
+          .withResolverStyle(ResolverStyle.STRICT)
+          .withChronology(IsoChronology.INSTANCE);
+
+  private static final DateTimeFormatter TIMESTAMPTZ_SPACE_FORMATTER =
+      new DateTimeFormatterBuilder()
+          .append(TIMESTAMP_SPACE_FORMATTER)
+          .parseLenient()
+          .appendOffsetId()
+          .parseStrict()
+          .toFormatter()
+          .withResolverStyle(ResolverStyle.STRICT)
+          .withChronology(IsoChronology.INSTANCE);
 
   private static Schema.FieldType icebergTypeToBeamFieldType(
       final Type type, @Nullable String updateCompatibilityVersion) {
@@ -389,7 +417,14 @@ public class IcebergUtils {
         rec.setField(name, getIcebergTimestampValue(val, ts.shouldAdjustToUTC()));
         break;
       case STRING:
-        Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
+        Object beamValue = value.getValue(name);
+        if (beamValue instanceof EnumerationType.Value) { // EnumerationType
+          EnumerationType enumType =
+              value.getSchema().getField(name).getType().getLogicalType(EnumerationType.class);
+          rec.setField(name, enumType.toString((EnumerationType.Value) beamValue));
+        } else { // FieldType.STRING, or a String-backed PassThroughLogicalType
+          Optional.ofNullable((String) beamValue).ifPresent(v -> rec.setField(name, v));
+        }
         break;
       case UUID:
         Optional.ofNullable(value.getBytes(name))
@@ -482,7 +517,12 @@ public class IcebergUtils {
       } else if (beamValue instanceof Long) { // FieldType.INT64
         return DateTimeUtil.timestamptzFromMicros((Long) beamValue);
       } else if (beamValue instanceof String) { // FieldType.STRING
-        return OffsetDateTime.parse((String) beamValue).withOffsetSameInstant(ZoneOffset.UTC);
+        String value = (String) beamValue;
+        OffsetDateTime offsetDateTime =
+            hasSpaceSeparator(value)
+                ? OffsetDateTime.parse(value, TIMESTAMPTZ_SPACE_FORMATTER)
+                : OffsetDateTime.parse(value);
+        return offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC);
       } else {
         throw new UnsupportedOperationException(
             "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
@@ -501,11 +541,18 @@ public class IcebergUtils {
     } else if (beamValue instanceof Long) { // FieldType.INT64
       return DateTimeUtil.timestampFromMicros((Long) beamValue);
     } else if (beamValue instanceof String) { // FieldType.STRING
-      return LocalDateTime.parse((String) beamValue);
+      String value = (String) beamValue;
+      return hasSpaceSeparator(value)
+          ? LocalDateTime.parse(value, TIMESTAMP_SPACE_FORMATTER)
+          : LocalDateTime.parse(value);
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
     }
+  }
+
+  private static boolean hasSpaceSeparator(String timestamp) {
+    return timestamp.length() > 10 && timestamp.charAt(10) == ' ';
   }
 
   /** Converts a {@link StructLike} to a Beam {@link Row}. */

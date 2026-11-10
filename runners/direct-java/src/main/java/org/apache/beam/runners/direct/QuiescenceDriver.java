@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,9 +50,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "keyfor",
-  "nullness"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+  "keyfor"
+})
 class QuiescenceDriver implements ExecutionDriver {
   private static final Logger LOG = LoggerFactory.getLogger(QuiescenceDriver.class);
 
@@ -228,7 +229,7 @@ class QuiescenceDriver implements ExecutionDriver {
           // Pull all available work off of the queue, then schedule it all, so this loop
           // terminates
           while (!pendingRootEntry.getValue().isEmpty()) {
-            CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
+            CommittedBundle<?> bundle = checkStateNotNull(pendingRootEntry.getValue().poll());
             bundles.add(bundle);
           }
           for (CommittedBundle<?> bundle : bundles) {
@@ -299,7 +300,8 @@ class QuiescenceDriver implements ExecutionDriver {
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         pendingWork.offer(
             WorkUpdate.fromBundle(
-                outputBundle, graph.getPerElementConsumers(outputBundle.getPCollection())));
+                outputBundle,
+                graph.getPerElementConsumers(checkStateNotNull(outputBundle.getPCollection()))));
       }
       Optional<? extends CommittedBundle<?>> unprocessedInputs =
           committedResult.getUnprocessedInputs();
@@ -307,7 +309,8 @@ class QuiescenceDriver implements ExecutionDriver {
         if (inputBundle.getPCollection() == null) {
           // TODO: Split this logic out of an if statement
           synchronized (pendingRootBundles) {
-            pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs.get());
+            checkStateNotNull(pendingRootBundles.get(result.getTransform()))
+                .offer(unprocessedInputs.get());
           }
         } else {
           pendingWork.offer(
@@ -319,12 +322,12 @@ class QuiescenceDriver implements ExecutionDriver {
         state.set(ExecutorState.ACTIVE);
       }
       synchronized (inflightBundles) {
-        inflightBundles.compute(
-            result.getTransform(),
-            (k, v) -> {
-              v.remove(inputBundle);
-              return v.isEmpty() ? null : v;
-            });
+        Collection<CommittedBundle<?>> remaining =
+            checkStateNotNull(inflightBundles.get(result.getTransform()));
+        remaining.remove(inputBundle);
+        if (remaining.isEmpty()) {
+          inflightBundles.remove(result.getTransform());
+        }
       }
       outstandingWork.decrementAndGet();
       return committedResult;

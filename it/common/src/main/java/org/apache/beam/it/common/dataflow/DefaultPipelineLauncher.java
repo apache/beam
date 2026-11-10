@@ -71,6 +71,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   private static final String READ_PIPELINE_NAME_OVERWRITE = "readPipelineNameOverride";
   private static final String WRITE_PIPELINE_NAME_OVERWRITE = "writePipelineNameOverride";
   private static final Pattern JOB_ID_PATTERN = Pattern.compile("Submitted job: (\\S+)");
+
   /** Namespace for Beam provided pipeline metrics (set up by Metrics transform). */
   public static final String BEAM_METRICS_NAMESPACE = "BEAM_METRICS";
 
@@ -197,10 +198,17 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     return metrics.getDistributions();
   }
 
+  /**
+   * Returns the {@link PipelineResult} associated with the given jobId, or null if the job was not
+   * launched through this launcher.
+   */
+  public static @Nullable PipelineResult getPipelineResult(String jobId) {
+    return MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
+  }
+
   /** Pull Beam pipeline defined metrics given the jobId. */
   public Long getBeamMetric(String jobId, PipelineMetricsType metricType, String metricName) {
-    PipelineResult pipelineResult =
-        MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
+    PipelineResult pipelineResult = getPipelineResult(jobId);
     if (pipelineResult != null) {
       MetricQueryResults metrics =
           pipelineResult
@@ -442,8 +450,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
 
     // add pipeline options from beamTestPipelineOptions system property to preserve the
     // pipeline options already set in TestPipeline.
-    @Nullable
-    String beamTestPipelineOptions =
+    @Nullable String beamTestPipelineOptions =
         System.getProperty(
             org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
     if (!Strings.isNullOrEmpty(beamTestPipelineOptions)) {

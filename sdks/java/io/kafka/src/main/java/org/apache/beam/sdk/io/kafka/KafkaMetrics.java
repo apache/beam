@@ -78,7 +78,8 @@ public interface KafkaMetrics {
     private static final Map<String, Histogram> LATENCY_HISTOGRAMS =
         new ConcurrentHashMap<String, Histogram>();
 
-    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();;
+    abstract ConcurrentHashMap<String, ConcurrentLinkedQueue<Duration>> perTopicRpcLatencies();
+    ;
 
     abstract ConcurrentHashMap<MetricName, Long> perTopicPartitionBacklogs();
 

@@ -113,6 +113,7 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
       implements ProjectionProducer<PTransform<PBegin, PCollection<Row>>> {
     /** The schema of the input data. */
     private final Schema schema;
+
     /** The fields to be projected. */
     private final FieldAccessDescriptor fieldAccessDescriptor;
 

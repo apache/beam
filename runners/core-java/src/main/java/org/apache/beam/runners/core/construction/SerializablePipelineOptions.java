@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Holds a {@link PipelineOptions} in JSON serialized form and calls {@link
  * FileSystems#setDefaultPipelineOptions(PipelineOptions)} on construction or on deserialization.
  */
-public class SerializablePipelineOptions implements Serializable {
+public final class SerializablePipelineOptions implements Serializable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));

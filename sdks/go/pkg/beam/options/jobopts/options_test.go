@@ -149,14 +149,36 @@ func TestGetPipelineResourceHints(t *testing.T) {
 	hints.Set("accelerator=pedal_to_the_metal")
 	hints.Set("beam:resources:novel_execution:v1=jaguar")
 	hints.Set("min_ram=1GB")
+	hints.Set("cpu_count=1")
+	hints.Set("beam:resources:cpu_count:v1=4")
+	hints.Set("max_active_bundles_per_worker=1")
+	hints.Set("beam:resources:max_active_bundles_per_worker:v1=2")
 	ResourceHints = hints
+	defer func() { ResourceHints = nil }()
 
-	want := resource.NewHints(resource.ParseMinRAM("1GB"), resource.Accelerator("pedal_to_the_metal"), stringHint{
+	want := resource.NewHints(resource.ParseMinRAM("1GB"), resource.Accelerator("pedal_to_the_metal"), resource.ParseCPUCount("4"), resource.MaxActiveBundlesPerWorker(2), stringHint{
 		urn:   "beam:resources:novel_execution:v1",
 		value: "jaguar",
 	})
-	if got := GetPipelineResourceHints(); !got.Equal(want) {
+	got := GetPipelineResourceHints()
+	if !got.Equal(want) {
 		t.Errorf("GetPipelineResourceHints() = %v, want %v", got, want)
+	}
+
+	// Equal only compares payloads, so validate standard hints were parsed into
+	// their typed representations, which have portable option strings.
+	opts, omitted := got.OptionStrings()
+	wantOpts := []string{
+		"accelerator=pedal_to_the_metal",
+		"cpu_count=4",
+		"max_active_bundles_per_worker=2",
+		"min_ram=1000000000B",
+	}
+	if !reflect.DeepEqual(opts, wantOpts) {
+		t.Errorf("GetPipelineResourceHints().OptionStrings() opts = %v, want %v", opts, wantOpts)
+	}
+	if wantOmitted := []string{"beam:resources:novel_execution:v1"}; !reflect.DeepEqual(omitted, wantOmitted) {
+		t.Errorf("GetPipelineResourceHints().OptionStrings() omitted = %v, want %v", omitted, wantOmitted)
 	}
 }
 

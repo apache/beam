@@ -52,7 +52,7 @@ docker push us-central1-docker.pkg.dev/<MY_PROJECT>/<MY_REPOSITORY>/beam_python3
 You can build a docker image if your local environment has Java, Python, Golang
 and Docker installation. Try
 `./gradlew :sdks:python:container:py<PYTHON_VERSION>:docker`. For example,
-`:sdks:python:container:py310:docker` builds `apache/beam_python3.10_sdk`
+`:sdks:python:container:py311:docker` builds `apache/beam_python3.11_sdk`
 locally if successful. You can follow this guide building a custom image from
 a VM if the build fails in your local environment.
 
@@ -249,10 +249,10 @@ Run the Gradle task to start Docker image build. This will take several minutes.
 You can run `:sdks:python:container:py<PYTHON_VERSION>:docker` to build an image
 for different Python version.
 See [the supported Python version list](https://github.com/apache/beam/tree/master/sdks/python/container).
-For example, `py310` is for Python 3.10.
+For example, `py311` is for Python 3.11.
 
 ```shell
-./gradlew :sdks:python:container:py310:docker
+./gradlew :sdks:python:container:py311:docker
 ```
 
 If the build is successful, you can see the built image locally.

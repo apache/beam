@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -83,7 +84,8 @@ public class BigQueryManagedIT {
 
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-  private static final String BIG_QUERY_DATASET_ID = "bigquery_managed_" + System.nanoTime();
+  private static final String BIG_QUERY_DATASET_ID =
+      TEMP_DATASET_PREFIX + "managed_" + System.nanoTime();
 
   private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("str"));
 
@@ -184,7 +186,8 @@ public class BigQueryManagedIT {
       long mod = i;
       String dest = destinations.get(i);
       List<Row> writtenRows =
-          BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM `%s`", dest), PROJECT, true, true)
+          BQ_CLIENT
+              .queryUnflattened(String.format("SELECT * FROM `%s`", dest), PROJECT, true, true)
               .stream()
               .map(tableRow -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tableRow))
               .collect(Collectors.toList());

@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
   "argument",
   "return"
 })
-public class SchemasUtils {
+public final class SchemasUtils {
 
   /* Logger for class.*/
   private static final Logger LOG = LoggerFactory.getLogger(SchemasUtils.class);

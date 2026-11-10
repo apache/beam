@@ -322,6 +322,14 @@ func TestGlobToRegex(t *testing.T) {
 		{"file.txt", "file.txt", true},
 		{"file.txt", "fileXtxt", false},
 		{"file(1).txt", "file(1).txt", true},
+
+		// Multi-byte characters must be preserved
+		{"résumé.txt", "résumé.txt", true},
+		{"résumé.txt", "resume.txt", false},
+		{"résumé/*.txt", "résumé/file.txt", true},
+		{"*/résumé.txt", "dir/résumé.txt", true},
+		{"*.txt", "résumé.txt", true},
+		{"ïé.txt", "ïé.txt", true},
 	}
 
 	for _, tt := range tests {

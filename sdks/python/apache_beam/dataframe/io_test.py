@@ -46,9 +46,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  from google.api_core.exceptions import GoogleAPICallError
+  from apitools.base.py.exceptions import HttpError
 except ImportError:
-  GoogleAPICallError = None
+  HttpError = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -492,15 +492,10 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out2.csv*')))
 
 
-@unittest.skipIf(
-    GoogleAPICallError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
-    try:
-      bigquery.TableFieldSchema
-    except AttributeError:
-      raise ValueError('Please install GCP Dependencies.')
     fields = [
         bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
         bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),

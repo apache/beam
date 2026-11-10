@@ -81,6 +81,7 @@ class DirectTransformExecutor<T> implements TransformExecutor {
 
   /** The transform that will be evaluated. */
   private final AppliedPTransform<?, ?, ?> transform;
+
   /** The inputs this {@link DirectTransformExecutor} will deliver to the transform. */
   private final CommittedBundle<T> inputBundle;
 
@@ -118,8 +119,8 @@ class DirectTransformExecutor<T> implements TransformExecutor {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
         enforcements.add(enforcement);
       }
-      @Nullable
-      TransformEvaluator<T> evaluator = evaluatorRegistry.forApplication(transform, inputBundle);
+      @Nullable TransformEvaluator<T> evaluator =
+          evaluatorRegistry.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do

@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
@@ -135,18 +136,30 @@ public class StreamingModeExecutionContextTest {
 
   private StreamingModeExecutionContext createExecutionContext(
       DataflowWorkerHarnessOptions options, StreamingGlobalConfigHandle configHandle) {
+    return createExecutionContext(
+        options,
+        configHandle,
+        new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .build()
+            .forComputation("comp"));
+  }
+
+  private StreamingModeExecutionContext createExecutionContext(
+      DataflowWorkerHarnessOptions options,
+      StreamingGlobalConfigHandle configHandle,
+      ReaderCache readerCache,
+      WindmillStateCache.ForComputation stateCache) {
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     return new StreamingModeExecutionContext(
         counterSet,
         COMPUTATION_ID,
-        new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
+        readerCache,
         stateNameMap,
-        WindmillStateCache.builder()
-            .setSizeMb(options.getWorkerCacheMb())
-            .build()
-            .forComputation("comp"),
+        stateCache,
         StreamingStepMetricsContainer.createRegistry(),
         new DataflowExecutionStateTracker(
             ExecutionStateSampler.newForTest(),
@@ -158,11 +171,11 @@ public class StreamingModeExecutionContextTest {
         executionStateRegistry,
         configHandle,
         Long.MAX_VALUE,
-        /*throwExceptionOnLargeOutput=*/ false,
+        /* throwExceptionOnLargeOutput= */ false,
         new HotKeyLogger(),
-        /*hotKeyLoggingEnabled=*/ false,
-        /*stepName=*/ "stepName",
-        /*systemName=*/ "systemName",
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ "stepName",
+        /* systemName= */ "systemName",
         StreamingCounters.create(),
         StreamingEngineFailureTracker.create(10, 10),
         "sourceBytesProcessCounterName",
@@ -243,10 +256,11 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
-    Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
+    assertEquals(1, result.workItemCommits().size());
+    Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+    Windmill.Timer timer = commitRequest.getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
     assertThat(timer.getType(), equalTo(Windmill.Timer.Type.WATERMARK));
@@ -497,9 +511,10 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
+    assertEquals(1, result.workItemCommits().size());
+    assertEquals(1234, result.workItemCommits().get(0).getSourceBacklogBytes());
   }
 
   @Test
@@ -866,7 +881,7 @@ public class StreamingModeExecutionContextTest {
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
-    executionContext.flushState();
+    executionContext.flushStateAndReset();
 
     // Verify timerInternals is poisoned
     try {
@@ -939,5 +954,80 @@ public class StreamingModeExecutionContextTest {
     assertFalse(context.advance());
     assertFalse(transitionListenerCalled.get());
     verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testInvalidateCachesOnKeyCommitTooLargeException() throws Exception {
+    ReaderCache mockReaderCache = mock(ReaderCache.class);
+    WindmillStateCache.ForComputation mockStateCache =
+        spy(
+            WindmillStateCache.builder()
+                .setSizeMb(options.getWorkerCacheMb())
+                .build()
+                .forComputation("comp"));
+    FakeGlobalConfigHandle fakeConfigHandle =
+        new FakeGlobalConfigHandle(
+            StreamingGlobalConfig.builder()
+                .setOperationalLimits(
+                    OperationalLimits.builder().setMaxWorkItemCommitBytes(50).build())
+                .build());
+
+    StreamingModeExecutionContext context =
+        createExecutionContext(options, fakeConfigHandle, mockReaderCache, mockStateCache);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    ByteString key = ByteString.copyFromUtf8("large_key");
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(key)
+            .setShardingKey(123L)
+            .setWorkToken(1L)
+            .setCacheToken(2L)
+            .build();
+    Work work =
+        createMockWork(workItem, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+    when(mockHandle.getWorkBatch()).thenReturn(ImmutableList.of(work));
+
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext = context.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        context.getStepContext(operationContext);
+
+    context.start(
+        work,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
+
+    // Set a timer that generates commit output exceeding the 50-byte limit.
+    stepContext
+        .timerInternals()
+        .setTimer(
+            TimerData.of(
+                new StateNamespaceForTest(
+                    "large_timer_namespace_to_exceed_commit_limit_bytes_threshold"),
+                new Instant(5000),
+                new Instant(5000),
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.NORMAL));
+
+    context.finishKey();
+    ExecuteWorkResult result = context.flushStateAndReset();
+
+    // Verify commit was truncated due to KeyCommitTooLargeException.
+    assertEquals(1, result.workItemCommits().size());
+    Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+    assertTrue(commitRequest.getExceedsMaxWorkItemCommitBytes());
+
+    // Verify caches were invalidated.
+    verify(mockStateCache)
+        .invalidate(eq(work.getShardedKey().key()), eq(work.getShardedKey().shardingKey()));
+    verify(mockReaderCache)
+        .invalidateReader(eq(WindmillComputationKey.create(COMPUTATION_ID, work.getShardedKey())));
   }
 }

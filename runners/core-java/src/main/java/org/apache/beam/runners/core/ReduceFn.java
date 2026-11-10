@@ -61,6 +61,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     public abstract InputT value();
 
     public abstract CausedByDrain causedByDrain();
+
     /** Return the timestamp associated with the value. */
     public abstract Instant timestamp();
   }
@@ -78,6 +79,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     public abstract PaneInfo paneInfo();
 
     public abstract CausedByDrain causedByDrain();
+
     /** Output the given value in the current window. */
     public abstract void output(OutputT value);
   }

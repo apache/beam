@@ -129,8 +129,10 @@ public class IsmSideInputReader implements SideInputReader {
 
   private final ExecutorService executorService;
   private final Set<TupleTag<?>> singletonMaterializedTags;
+
   /** A map from tuple tag to non-empty IsmReaders. */
   @VisibleForTesting final Map<TupleTag<?>, List<IsmReader<?>>> tagToIsmReaderMap;
+
   /**
    * A map from tuple tag to empty IsmReaders. Even though this is unused, we want to maintain a
    * strong reference so that it is retained in memory so the logical reference cache keeps a

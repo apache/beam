@@ -23,6 +23,7 @@ import static org.apache.beam.runners.direct.DirectWriteViewVisitor.DIRECT_WRITE
 import static org.apache.beam.runners.direct.MultiStepCombine.DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN;
 import static org.apache.beam.runners.direct.ParDoMultiOverrideFactory.DIRECT_STATEFUL_PAR_DO_URN;
 import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
@@ -56,8 +57,7 @@ import org.slf4j.LoggerFactory;
  * implementations based on the type of {@link PTransform} of the application.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class TransformEvaluatorRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
@@ -181,7 +181,7 @@ class TransformEvaluatorRegistry {
           toThrow.addSuppressed(e);
         }
       }
-      throw toThrow;
+      throw checkStateNotNull(toThrow);
     }
   }
 }

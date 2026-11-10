@@ -149,7 +149,7 @@ public class BigtableReadSchemaTransformProvider
 
       public abstract Builder setProjectId(String projectId);
 
-      public abstract Builder setFlatten(Boolean flatten);
+      public abstract Builder setFlatten(@Nullable Boolean flatten);
 
       /** Builds a {@link BigtableReadSchemaTransformConfiguration} instance. */
       public abstract BigtableReadSchemaTransformConfiguration build();

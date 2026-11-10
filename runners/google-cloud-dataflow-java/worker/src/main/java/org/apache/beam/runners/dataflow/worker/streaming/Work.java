@@ -25,7 +25,6 @@ import java.util.EnumMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -554,7 +553,7 @@ public final class Work implements RefreshableWork {
 
     @Override
     public int hashCode() {
-      return Objects.hash(high, low);
+      return 31 * Long.hashCode(high) + Long.hashCode(low);
     }
 
     @Override

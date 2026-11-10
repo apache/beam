@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes;
+import org.apache.beam.sdk.extensions.sql.impl.parser.TableClause;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
@@ -53,6 +54,7 @@ public class CatalogSchema implements Schema {
   private final JdbcConnection connection;
   private final Catalog catalog;
   private final Map<String, BeamCalciteSchema> subSchemas = new HashMap<>();
+
   /**
    * Creates a Calcite {@link Schema} representing a {@link CatalogManager}. This will typically be
    * the root node of a pipeline.
@@ -177,7 +179,7 @@ public class CatalogSchema implements Schema {
 
   @Override
   public @Nullable BeamCalciteSchema getSubSchema(@Nullable String name) {
-    if (name == null) {
+    if (name == null || TableClause.decode(name) != null) {
       return null;
     }
 

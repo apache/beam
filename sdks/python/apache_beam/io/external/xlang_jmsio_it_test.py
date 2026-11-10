@@ -141,7 +141,7 @@ class _BaseJmsIOTest(unittest.TestCase):
       result = p.run()
       subscriber.start()
       try:
-        subscriber.join(timeout=20)
+        subscriber.join(timeout=60)
       finally:
         stop_event.set()
         publisher.join()
@@ -306,7 +306,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
         cls.expansion_service_obj = BeamJarExpansionService(
             'sdks:java:io:messaging-expansion-service:shadowJar',
             classpath=[
-                'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25',
+                'com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25',
                 'org.json:json:20251224'
             ])
         cls.expansion_service = cls.expansion_service_obj.__enter__()
@@ -327,7 +327,7 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
       uri += '&' + connection_param
     return {
         'server_uri': uri,
-        'connection_factory_class_name': 'com.ibm.mq.jms.MQConnectionFactory',
+        'connection_factory_class_name': 'com.ibm.mq.jakarta.jms.MQConnectionFactory',
         'username': 'app',
         'password': 'admin123'
     }
@@ -336,8 +336,8 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
     container = self.broker.get_wrapped_container()
     cmd = (
         f'for i in $(seq 0 {count-1}); do '
-        f'echo "test message: $i" | /opt/mqm/samp/bin/amqsput {source_queue} QM1 >/dev/null 2>&1; '
-        f'done')
+        f'echo "test message: $i"; '
+        f'done | /opt/mqm/samp/bin/amqsput {source_queue} QM1 >/dev/null 2>&1')
     container.exec_run(['sh', '-c', cmd])
 
   def browse_queue(self, sink_queue):

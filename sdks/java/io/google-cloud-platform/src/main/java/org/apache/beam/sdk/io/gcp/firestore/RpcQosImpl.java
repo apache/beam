@@ -72,6 +72,7 @@ final class RpcQosImpl implements RpcQos {
           .stream()
           .map(Code::getNumber)
           .collect(ImmutableSet.toImmutableSet());
+
   /**
    * The target minimum number of requests per samplePeriodMs, even if no requests succeed. Must be
    * greater than 0, else we could throttle to zero. Because every decision is probabilistic, there
@@ -375,6 +376,9 @@ final class RpcQosImpl implements RpcQos {
     @Override
     public boolean awaitSafeToProceed(Instant instant) throws InterruptedException {
       state.checkActive();
+      if (!options.isShouldThrottleRampup()) {
+        return super.awaitSafeToProceed(instant);
+      }
       Optional<Duration> shouldThrottle = writeRampUp.shouldThrottle(instant);
       if (shouldThrottle.isPresent()) {
         Duration throttleDuration = shouldThrottle.get();
@@ -391,7 +395,10 @@ final class RpcQosImpl implements RpcQos {
     public <ElementT extends Element<?>> FlushBufferImpl<ElementT> newFlushBuffer(
         Instant instantSinceEpoch) {
       state.checkActive();
-      int availableWriteCountBudget = writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch);
+      int availableWriteCountBudget =
+          options.isShouldThrottleRampup()
+              ? writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch)
+              : Integer.MAX_VALUE;
       int nextBatchMaxCount = wb.nextBatchMaxCount(instantSinceEpoch);
       int batchMaxCount =
           Ints.min(

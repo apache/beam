@@ -31,6 +31,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 from typing import Any
 
+from apache_beam.coders import coder_impl
 from apache_beam.transforms import window
 
 if TYPE_CHECKING:
@@ -110,3 +111,7 @@ class _FilteringIterable(object):
   def __reduce__(self):
     # Pickle self as an already filtered list.
     return list, (list(self), )
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _FilteringIterable)

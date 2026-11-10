@@ -132,4 +132,50 @@ describe("ReviewersForLabel", function () {
       assert.throws(() => reviewersForGo.assignNextReviewer([]));
     });
   });
+
+  describe("getBackupReviewer()", function () {
+    it("should pick the next least recently assigned reviewer from the label without updating timestamps", function () {
+      const dateOfLastReviewAssignment = {
+        testReviewer1: 10,
+        testReviewer2: 20,
+        testReviewer3: 30,
+      };
+      let reviewersForGo = new ReviewersForLabel("Go", {
+        dateOfLastReviewAssignment: { ...dateOfLastReviewAssignment },
+      });
+
+      const backup = reviewersForGo.getBackupReviewer(
+        ["testReviewer1", "testReviewer2", "testReviewer3"],
+        "testReviewer1",
+        ["fallback1"]
+      );
+      assert.equal(backup, "testReviewer2");
+      assert.deepEqual(
+        reviewersForGo.dateOfLastReviewAssignment,
+        dateOfLastReviewAssignment
+      );
+    });
+
+    it("should fall back to fallbackReviewers when label only has one available reviewer", function () {
+      const dateOfLastReviewAssignment = {
+        testReviewer1: 10,
+        fallback1: 50,
+        fallback2: 15,
+      };
+      let reviewersForSpanner = new ReviewersForLabel("spanner", {
+        dateOfLastReviewAssignment: { ...dateOfLastReviewAssignment },
+      });
+
+      const backup = reviewersForSpanner.getBackupReviewer(
+        ["testReviewer1"],
+        "testReviewer1",
+        ["testReviewer1", "fallback1", "fallback2"]
+      );
+      assert.equal(backup, "fallback2");
+      assert.deepEqual(
+        reviewersForSpanner.dateOfLastReviewAssignment,
+        dateOfLastReviewAssignment
+      );
+    });
+  });
 });

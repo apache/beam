@@ -31,7 +31,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.TranslatorProvider
  * An implementation of {@link TranslatorProvider} which allows to stack other {@link
  * TranslatorProvider TranslatorProviders} in order given on construction time.
  */
-/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+/**
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Deprecated
 public class CompositeProvider implements TranslatorProvider {
 

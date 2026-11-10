@@ -47,6 +47,11 @@ task run(type: Exec, dependsOn: installGcpTest) {
             dependsOn ':sdks:python:sdist'
             loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
         }
+        if (!loadTestArgs.contains('--sdk_container_image') && !loadTestArgs.contains('--worker_harness_container_image')) {
+            loadTestArgs +=" --sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:${project.sdk_version}"
+        }
+    } else if (loadTestArgs.contains('--environment_type=DOCKER') && !loadTestArgs.contains('--environment_config')) {
+        loadTestArgs +=" --environment_config=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:${project.sdk_version}"
     }
 
     String requirementsTxtFileArg = project.findProperty(requirementsTxtFileProperty) ?: null

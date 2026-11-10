@@ -35,8 +35,7 @@ import org.joda.time.Instant;
 interface CommittedBundle<T> extends Bundle<T, PCollection<T>> {
   /** Returns the PCollection that the elements of this bundle belong to. */
   @Override
-  @Nullable
-  PCollection<T> getPCollection();
+  @Nullable PCollection<T> getPCollection();
 
   /**
    * Returns the key that was output in the most recent {@code GroupByKey} in the execution of this
@@ -71,6 +70,7 @@ interface CommittedBundle<T> extends Bundle<T, PCollection<T>> {
    */
   @Override
   Instant getSynchronizedProcessingOutputWatermark();
+
   /**
    * Return a new {@link CommittedBundle} that is like this one, except calls to {@link
    * #getElements()} will return the provided elements. This bundle is unchanged.

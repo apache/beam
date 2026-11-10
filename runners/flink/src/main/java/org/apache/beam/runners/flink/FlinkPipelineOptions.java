@@ -209,7 +209,9 @@ public interface FlinkPipelineOptions
           + "Defaults to the flink cluster's state.backend configuration.")
   Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
 
-  /** @deprecated Please use setStateBackend below. */
+  /**
+   * @deprecated Please use setStateBackend below.
+   */
   @Deprecated
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 
@@ -366,6 +368,37 @@ public interface FlinkPipelineOptions
   void setFasterCopy(Boolean fasterCopy);
 
   @Description(
+      "Batch only. Prefix every record exchanged or sorted by Flink with its encoded length, so "
+          + "that Flink can copy records (e.g. when spilling sorted data to disk) without "
+          + "decoding and re-encoding them. Has no effect in streaming mode. "
+          + "Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getLengthPrefixBatchRecords();
+
+  void setLengthPrefixBatchRecords(Boolean lengthPrefixBatchRecords);
+
+  @Description(
+      "Batch only. Decode the values of records sent to GroupByKey and Combine operators lazily, "
+          + "so that records are passed from the network to Flink's sorter without decoding and "
+          + "re-encoding their values. Has no effect in streaming mode, nor in batch mode unless "
+          + "--useDataStreamForBatch is set. Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getLazyBatchGroupingInputs();
+
+  void setLazyBatchGroupingInputs(Boolean lazyBatchGroupingInputs);
+
+  @Description(
+      "Batch only. Use a dedicated operator for the final step of GroupByKey and Combine in the "
+          + "global window with the default trigger. It relies on Flink sorting the input by key "
+          + "and does not use keyed state or timers. Has no effect in streaming mode, nor in "
+          + "batch mode unless --useDataStreamForBatch is set. "
+          + "Enabled by default; set to false to disable.")
+  @Default.Boolean(true)
+  Boolean getSortedBatchCombine();
+
+  void setSortedBatchCombine(Boolean sortedBatchCombine);
+
+  @Description(
       "Directory containing Flink YAML configuration files. "
           + "These properties will be set to all jobs submitted to Flink and take precedence "
           + "over configurations in FLINK_CONF_DIR.")
@@ -379,6 +412,17 @@ public interface FlinkPipelineOptions
   Long getFileInputSplitMaxSizeMB();
 
   void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
+
+  @Description(
+      "Static split assignment threshold in MiB per source reader for bounded sources in Flink "
+          + "DataStream mode. The default of 0 always uses lazy assignment. A positive value "
+          + "selects static round-robin assignment for sources with a known, positive estimate "
+          + "below the threshold and lazy assignment otherwise. Any negative value always uses "
+          + "static assignment.")
+  @Default.Long(0)
+  Long getSourceStaticSplitThresholdMb();
+
+  void setSourceStaticSplitThresholdMb(Long thresholdMb);
 
   @Description(
       "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"

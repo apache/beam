@@ -16,11 +16,16 @@
 package bigqueryio
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"google.golang.org/api/option"
 )
 
 func TestNewQualifiedTableName(t *testing.T) {
@@ -147,4 +152,159 @@ func Test_mustInferSchema(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWithQuotaProject(t *testing.T) {
+	qo := QueryOptions{}
+	if err := WithQuotaProject("quota-project")(&qo); err != nil {
+		t.Fatalf("WithQuotaProject() returned err: %v", err)
+	}
+	if got, want := qo.QuotaProject, "quota-project"; got != want {
+		t.Errorf("qo.QuotaProject = %q, want %q", got, want)
+	}
+}
+
+func TestClientOptions(t *testing.T) {
+	if got := clientOptions(QueryOptions{}); len(got) != 0 {
+		t.Errorf("clientOptions(no quota) = %v, want none", got)
+	}
+	got := clientOptions(QueryOptions{QuotaProject: "quota-project"})
+	if want := []option.ClientOption{option.WithQuotaProject("quota-project")}; !reflect.DeepEqual(got, want) {
+		t.Errorf("clientOptions(with quota) = %v, want %v", got, want)
+	}
+}
+
+func TestQueryFn_passesQuotaProjectToClient(t *testing.T) {
+	var gotProject string
+	var gotOpts []option.ClientOption
+	errStop := errors.New("stop")
+	defer func(orig func(context.Context, string, ...option.ClientOption) (*bigquery.Client, error)) {
+		newClient = orig
+	}(newClient)
+	newClient = func(_ context.Context, project string, opts ...option.ClientOption) (*bigquery.Client, error) {
+		gotProject, gotOpts = project, opts
+		return nil, errStop
+	}
+
+	fn := &queryFn{Project: "project", Options: QueryOptions{QuotaProject: "quota-project"}}
+	if err := fn.ProcessElement(context.Background(), nil, nil); !errors.Is(err, errStop) {
+		t.Fatalf("ProcessElement() err = %v, want %v", err, errStop)
+	}
+	if gotProject != "project" {
+		t.Errorf("client project = %q, want %q", gotProject, "project")
+	}
+	if want := []option.ClientOption{option.WithQuotaProject("quota-project")}; !reflect.DeepEqual(gotOpts, want) {
+		t.Errorf("client options = %v, want %v", gotOpts, want)
+	}
+}
+
+// queryFnOf returns the queryFn in pipeline p.
+func queryFnOf(t *testing.T, p *beam.Pipeline) *queryFn {
+	t.Helper()
+	edges, _, err := p.Build()
+	if err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
+	for _, e := range edges {
+		if e.DoFn != nil {
+			if fn, ok := e.DoFn.Recv.(*queryFn); ok {
+				return fn
+			}
+		}
+	}
+	t.Fatal("no queryFn in pipeline")
+	return nil
+}
+
+func TestReadAndQuery_passQuotaProjectToQueryFn(t *testing.T) {
+	type quotaSchema struct {
+		Name bigquery.NullString `bigquery:"name"`
+	}
+	beam.RegisterType(reflect.TypeOf((*quotaSchema)(nil)).Elem())
+	typ := reflect.TypeOf(quotaSchema{})
+
+	p, s := beam.NewPipelineWithRoot()
+	Read(s, "project", "project:dataset.table", typ, WithQuotaProject("quota-project"))
+	if got := queryFnOf(t, p).Options.QuotaProject; got != "quota-project" {
+		t.Errorf("Read: queryFn.Options.QuotaProject = %q, want %q", got, "quota-project")
+	}
+
+	p, s = beam.NewPipelineWithRoot()
+	Query(s, "project", "SELECT 1", typ, WithQuotaProject("quota-project"))
+	if got := queryFnOf(t, p).Options.QuotaProject; got != "quota-project" {
+		t.Errorf("Query: queryFn.Options.QuotaProject = %q, want %q", got, "quota-project")
+	}
+}
+
+func TestWithQueryParameters(t *testing.T) {
+	t.Run("WithQueryParameters sets parameters correctly", func(t *testing.T) {
+		params := []bigquery.QueryParameter{
+			{Name: "param1", Value: "value1"},
+			{Name: "param2", Value: 42},
+		}
+
+		opt := WithQueryParameters(params...)
+		queryOpts := &QueryOptions{}
+		if err := opt(queryOpts); err != nil {
+			t.Fatalf("WithQueryParameters() failed: %v", err)
+		}
+
+		if len(queryOpts.parameters) != 2 {
+			t.Errorf("Expected 2 parameters, got %d", len(queryOpts.parameters))
+		}
+
+		if queryOpts.parameters[0].Name != "param1" {
+			t.Errorf("Expected param1, got %s", queryOpts.parameters[0].Name)
+		}
+
+		if queryOpts.parameters[0].Value != "value1" {
+			t.Errorf("Expected value1, got %s", queryOpts.parameters[0].Value)
+		}
+
+		if queryOpts.parameters[1].Name != "param2" {
+			t.Errorf("Expected param2, got %s", queryOpts.parameters[1].Name)
+		}
+
+		if queryOpts.parameters[1].Value != 42 {
+			t.Errorf("Expected 42, got %v", queryOpts.parameters[1].Value)
+		}
+	})
+}
+
+func TestRead_queryOnlyOptions(t *testing.T) {
+	type readSchema struct {
+		Name bigquery.NullString `bigquery:"name"`
+	}
+	beam.RegisterType(reflect.TypeOf((*readSchema)(nil)).Elem())
+	typ := reflect.TypeOf(readSchema{})
+
+	mustPanic := func(t *testing.T, opt func(*QueryOptions) error) {
+		t.Helper()
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Read() with query-only option does not panic")
+			} else if !strings.Contains(fmt.Sprint(r), "only supported by Query") {
+				t.Errorf("Read() panicked with unexpected value: %v", r)
+			}
+		}()
+		_, s := beam.NewPipelineWithRoot()
+		Read(s, "project", "project:dataset.table", typ, opt)
+	}
+
+	t.Run("UseStandardSQL panics", func(t *testing.T) {
+		mustPanic(t, UseStandardSQL())
+	})
+	t.Run("WithQueryParameters panics", func(t *testing.T) {
+		mustPanic(t, WithQueryParameters(bigquery.QueryParameter{Name: "p", Value: 1}))
+	})
+	t.Run("WithQuotaProject does not panic", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Read() with WithQuotaProject panicked: %v", r)
+			}
+		}()
+		_, s := beam.NewPipelineWithRoot()
+		Read(s, "project", "project:dataset.table", typ, WithQuotaProject("quota-project"))
+	})
 }

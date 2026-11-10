@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /** Standard {@link org.apache.beam.sdk.io.Source} Metrics. */
@@ -69,6 +70,10 @@ public class SourceMetrics {
   }
 
   /** Gauge for source backlog in bytes. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "A Gauge is a handle onto one metric cell, not a value. A copy would send the reading nowhere.")
   public static Gauge backlogBytes() {
     return BACKLOG_BYTES_GAUGE;
   }
@@ -84,6 +89,10 @@ public class SourceMetrics {
   }
 
   /** Gauge for source backlog in elements. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "A Gauge is a handle onto one metric cell, not a value. A copy would send the reading nowhere.")
   public static Gauge backlogElements() {
     return BACKLOG_ELEMENTS_GAUGE;
   }

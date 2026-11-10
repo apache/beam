@@ -30,6 +30,8 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multiset;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,8 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   private final Counter rejectedByBroker =
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_rejected_by_broker");
 
+  private final Multiset<String> messageIdsToAck = HashMultiset.create();
+
   // We use a state variable to force a shuffling and ensure the cardinality of the processing
   @SuppressWarnings("UnusedVariable")
   @StateId("current_key")
@@ -82,6 +86,20 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
         submissionMode,
         producersMapCardinality,
         publishLatencyMetrics);
+  }
+
+  @StartBundle
+  @Override
+  public void startBundle() {
+    super.startBundle();
+    messageIdsToAck.clear();
+  }
+
+  @Teardown
+  @Override
+  public void teardown() {
+    super.teardown();
+    messageIdsToAck.clear();
   }
 
   @ProcessElement
@@ -105,6 +123,10 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
       return;
     }
 
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+      messageIdsToAck.add(record.getMessageId());
+    }
+
     // The publish method will retry, let's send a failure message if all the retries fail
     try {
       solaceSessionServiceWithProducer()
@@ -113,7 +135,8 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
               record,
               getDestinationFn().apply(record),
               shouldPublishLatencyMetrics(),
-              getDeliveryMode());
+              getDeliveryMode(),
+              getBundleResultsQueue());
       sentToBroker.inc();
     } catch (Exception e) {
       rejectedByBroker.inc();
@@ -127,12 +150,16 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
                       e.getMessage()))
               .setLatencyNanos(System.nanoTime())
               .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      getBundleResultsQueue().add(errorPublish);
     }
   }
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) {
-    publishResults(BeamContextWrapper.of(context));
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+      waitForAcks(BeamContextWrapper.of(context), messageIdsToAck);
+    } else {
+      publishResults(BeamContextWrapper.of(context), null);
+    }
   }
 }

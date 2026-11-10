@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class DefaultJobBundleFactory implements JobBundleFactory {
+public final class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
@@ -111,6 +111,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final Semaphore availableCachesSemaphore;
   private final LinkedBlockingDeque<EnvironmentCacheAndLock> availableCaches;
   private final boolean loadBalanceBundles;
+
   /** Clients which were evicted due to environment expiration but still had pending references. */
   private final Set<WrappedSdkHarnessClient> evictedActiveClients;
 
