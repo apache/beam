@@ -1,0 +1,4270 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://beam.apache.org/vex/beam_multi_lang_and_tools",
+  "author": "Apache Beam Project",
+  "role": "vendor",
+  "timestamp": "2026-11-10T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2007-3476"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2007-3477"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2008-1687"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2008-1688"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2009-3546"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2018-20673"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2018-20712"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-32256"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-27943"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-1972"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-39327"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-4039"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2023-51596"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-31047"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-53589"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-0840"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-11082"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-11083"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1178"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1179"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1352"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1365"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-1372"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-50422"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-5244"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-5245"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66862"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66863"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66864"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66865"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66866"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69647"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69648"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69649"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69650"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-69652"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-7545"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-7546"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-102010"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-109282"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-114690"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-114691"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-115456"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18220"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-19774"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-3441"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-3442"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4647"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-62289"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-6846"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-81893"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-84448"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-84449"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-84450"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-85218"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90801"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90803"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90804"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-90828"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-95619"
+      },
+      "timestamp": "2026-11-10T00:00:00Z",
+      "products": [
+        {
+          "@id": "docker.io/apache/beam_typescript_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_yaml_sdk"
+        },
+        {
+          "@id": "docker.io/apache/beam_prism"
+        },
+        {
+          "@id": "docker.io/apache/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism"
+        },
+        {
+          "@id": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook"
+        },
+        {
+          "@id": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+    }
+  ]
+}

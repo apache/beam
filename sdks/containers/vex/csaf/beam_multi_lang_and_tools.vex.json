@@ -1,0 +1,5586 @@
+{
+  "document": {
+    "Category": "csaf_vex",
+    "csaf_version": "2.0",
+    "title": "Apache Beam Project VEX for beam_multi_lang_and_tools",
+    "publisher": {
+      "category": "vendor",
+      "name": "Apache Beam Project",
+      "namespace": "https://beam.apache.org",
+      "contact_details": "https://beam.apache.org/community/contact-us/"
+    },
+    "tracking": {
+      "id": "apache-beam-vex-beam_multi_lang_and_tools",
+      "status": "final",
+      "version": "1",
+      "initial_release_date": "2026-11-10T00:00:00Z",
+      "current_release_date": "2026-11-10T00:00:00Z"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "product_version",
+        "name": "docker.io/apache/beam_typescript_sdk",
+        "product": {
+          "name": "docker.io/apache/beam_typescript_sdk",
+          "product_id": "product_1"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "docker.io/apache/beam_yaml_sdk",
+        "product": {
+          "name": "docker.io/apache/beam_yaml_sdk",
+          "product_id": "product_2"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "docker.io/apache/beam_prism",
+        "product": {
+          "name": "docker.io/apache/beam_prism",
+          "product_id": "product_3"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "docker.io/apache/beam-jupyterlab-notebook",
+        "product": {
+          "name": "docker.io/apache/beam-jupyterlab-notebook",
+          "product_id": "product_4"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk",
+        "product": {
+          "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk",
+          "product_id": "product_5"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_typescript_sdk",
+          "product_id": "product_6"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk",
+        "product": {
+          "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_typescript_sdk",
+          "product_id": "product_7"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_typescript_sdk",
+          "product_id": "product_8"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk",
+        "product": {
+          "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk",
+          "product_id": "product_9"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_yaml_sdk",
+          "product_id": "product_10"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk",
+        "product": {
+          "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_yaml_sdk",
+          "product_id": "product_11"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_yaml_sdk",
+          "product_id": "product_12"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism",
+        "product": {
+          "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam_prism",
+          "product_id": "product_13"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam_prism",
+          "product_id": "product_14"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism",
+        "product": {
+          "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam_prism",
+          "product_id": "product_15"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam_prism",
+          "product_id": "product_16"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook",
+        "product": {
+          "name": "gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook",
+          "product_id": "product_17"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/gcr.io/updated_released_container_images/beam-jupyterlab-notebook",
+          "product_id": "product_18"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook",
+        "product": {
+          "name": "us.gcr.io/apache-beam-testing/updated_released_container_images/beam-jupyterlab-notebook",
+          "product_id": "product_19"
+        }
+      },
+      {
+        "category": "product_version",
+        "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook",
+        "product": {
+          "name": "us-docker.pkg.dev/apache-beam-testing/us.gcr.io/updated_released_container_images/beam-jupyterlab-notebook",
+          "product_id": "product_20"
+        }
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2007-3476",
+      "title": "VEX assessment for CVE-2007-3476 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2007-3476 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2007-3477",
+      "title": "VEX assessment for CVE-2007-3477 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2007-3477 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2008-1687",
+      "title": "VEX assessment for CVE-2008-1687 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2008-1687 exploitability assessment",
+          "text": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2008-1688",
+      "title": "VEX assessment for CVE-2008-1688 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2008-1688 exploitability assessment",
+          "text": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU m4 is a build-time macro processor pulled in by autotools/compiler dependencies in the base OS layer and is never invoked at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2009-3546",
+      "title": "VEX assessment for CVE-2009-3546 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2009-3546 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2018-20673",
+      "title": "VEX assessment for CVE-2018-20673 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2018-20673 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2018-20712",
+      "title": "VEX assessment for CVE-2018-20712 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2018-20712 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2021-32256",
+      "title": "VEX assessment for CVE-2021-32256 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2021-32256 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2022-27943",
+      "title": "VEX assessment for CVE-2022-27943 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2022-27943 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2023-1972",
+      "title": "VEX assessment for CVE-2023-1972 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2023-1972 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2023-39327",
+      "title": "VEX assessment for CVE-2023-39327 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2023-39327 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2023-4039",
+      "title": "VEX assessment for CVE-2023-4039 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2023-4039 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2023-51596",
+      "title": "VEX assessment for CVE-2023-51596 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2023-51596 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2024-31047",
+      "title": "VEX assessment for CVE-2024-31047 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2024-31047 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2024-53589",
+      "title": "VEX assessment for CVE-2024-53589 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2024-53589 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-0840",
+      "title": "VEX assessment for CVE-2025-0840 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-0840 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-11082",
+      "title": "VEX assessment for CVE-2025-11082 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-11082 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-11083",
+      "title": "VEX assessment for CVE-2025-11083 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-11083 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-1178",
+      "title": "VEX assessment for CVE-2025-1178 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-1178 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-1179",
+      "title": "VEX assessment for CVE-2025-1179 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-1179 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-1352",
+      "title": "VEX assessment for CVE-2025-1352 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-1352 exploitability assessment",
+          "text": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-1365",
+      "title": "VEX assessment for CVE-2025-1365 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-1365 exploitability assessment",
+          "text": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-1372",
+      "title": "VEX assessment for CVE-2025-1372 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-1372 exploitability assessment",
+          "text": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "elfutils DWARF/ELF inspection utilities (eu-readelf, eu-stack) are not executed at runtime by the Apache Beam SDK harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-50422",
+      "title": "VEX assessment for CVE-2025-50422 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-50422 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-5244",
+      "title": "VEX assessment for CVE-2025-5244 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-5244 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-5245",
+      "title": "VEX assessment for CVE-2025-5245 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-5245 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-66862",
+      "title": "VEX assessment for CVE-2025-66862 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-66862 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-66863",
+      "title": "VEX assessment for CVE-2025-66863 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-66863 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-66864",
+      "title": "VEX assessment for CVE-2025-66864 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-66864 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-66865",
+      "title": "VEX assessment for CVE-2025-66865 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-66865 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-66866",
+      "title": "VEX assessment for CVE-2025-66866 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-66866 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-69647",
+      "title": "VEX assessment for CVE-2025-69647 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-69647 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-69648",
+      "title": "VEX assessment for CVE-2025-69648 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-69648 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-69649",
+      "title": "VEX assessment for CVE-2025-69649 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-69649 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-69650",
+      "title": "VEX assessment for CVE-2025-69650 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-69650 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-69652",
+      "title": "VEX assessment for CVE-2025-69652 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-69652 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-7545",
+      "title": "VEX assessment for CVE-2025-7545 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-7545 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2025-7546",
+      "title": "VEX assessment for CVE-2025-7546 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2025-7546 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-102010",
+      "title": "VEX assessment for CVE-2026-102010 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-102010 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-109282",
+      "title": "VEX assessment for CVE-2026-109282 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-109282 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-114690",
+      "title": "VEX assessment for CVE-2026-114690 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-114690 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-114691",
+      "title": "VEX assessment for CVE-2026-114691 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-114691 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-115456",
+      "title": "VEX assessment for CVE-2026-115456 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-115456 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-18220",
+      "title": "VEX assessment for CVE-2026-18220 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-18220 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-19774",
+      "title": "VEX assessment for CVE-2026-19774 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-19774 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-3441",
+      "title": "VEX assessment for CVE-2026-3441 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-3441 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-3442",
+      "title": "VEX assessment for CVE-2026-3442 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-3442 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-4647",
+      "title": "VEX assessment for CVE-2026-4647 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-4647 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-62289",
+      "title": "VEX assessment for CVE-2026-62289 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-62289 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-6846",
+      "title": "VEX assessment for CVE-2026-6846 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-6846 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-81893",
+      "title": "VEX assessment for CVE-2026-81893 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-81893 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-84448",
+      "title": "VEX assessment for CVE-2026-84448 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-84448 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-84449",
+      "title": "VEX assessment for CVE-2026-84449 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-84449 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-84450",
+      "title": "VEX assessment for CVE-2026-84450 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-84450 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-85218",
+      "title": "VEX assessment for CVE-2026-85218 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-85218 exploitability assessment",
+          "text": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Bluetooth and desktop image-rendering libraries present in the upstream Debian language base image are not loaded or executed by the Apache Beam SDK worker harness.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-90801",
+      "title": "VEX assessment for CVE-2026-90801 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-90801 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-90803",
+      "title": "VEX assessment for CVE-2026-90803 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-90803 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-90804",
+      "title": "VEX assessment for CVE-2026-90804 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-90804 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-90828",
+      "title": "VEX assessment for CVE-2026-90828 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-90828 exploitability assessment",
+          "text": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "GNU binutils CLI utilities (objdump, readelf, nm, ld, strip) and libbfd are build-time tools inherited from the base OS image and are never invoked on untrusted ELF inputs by the Beam SDK harness at runtime.",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2026-95619",
+      "title": "VEX assessment for CVE-2026-95619 in beam_multi_lang_and_tools",
+      "notes": [
+        {
+          "category": "description",
+          "title": "CVE-2026-95619 exploitability assessment",
+          "text": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot)."
+        }
+      ],
+      "product_status": {
+        "known_not_affected": [
+          "product_1",
+          "product_2",
+          "product_3",
+          "product_4",
+          "product_5",
+          "product_6",
+          "product_7",
+          "product_8",
+          "product_9",
+          "product_10",
+          "product_11",
+          "product_12",
+          "product_13",
+          "product_14",
+          "product_15",
+          "product_16",
+          "product_17",
+          "product_18",
+          "product_19",
+          "product_20"
+        ]
+      },
+      "threats": [
+        {
+          "category": "impact",
+          "details": "gcc-12 compiler binaries and C++ demangler CLI utilities are inherited from the Debian build layer and are not invoked at runtime by the Apache Beam SDK worker harness (/opt/apache/beam/boot).",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ],
+      "flags": [
+        {
+          "label": "vulnerable_code_not_in_execute_path",
+          "product_ids": [
+            "product_1",
+            "product_2",
+            "product_3",
+            "product_4",
+            "product_5",
+            "product_6",
+            "product_7",
+            "product_8",
+            "product_9",
+            "product_10",
+            "product_11",
+            "product_12",
+            "product_13",
+            "product_14",
+            "product_15",
+            "product_16",
+            "product_17",
+            "product_18",
+            "product_19",
+            "product_20"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -104,3 +104,56 @@ jobs:
           --no-daemon \
           --no-parallel
 
+  attach-vex:
+    needs: build
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    steps:
+      - name: Checkout master for VEX definitions
+        uses: actions/checkout@v7
+        with:
+          ref: master
+          repository: apache/beam
+          persist-credentials: false
+      - name: Install Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+      - name: Authenticate on GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Generate and attach VEX statements to republished containers
+        run: |
+          python3 -m pip install pyyaml
+          python3 sdks/containers/vex/vex_manager.py generate
+          for entry in \
+            "beam_go_sdk:beam_go_sdk" \
+            "beam_python3.11_sdk:beam_python_sdk" \
+            "beam_python3.12_sdk:beam_python_sdk" \
+            "beam_python3.13_sdk:beam_python_sdk" \
+            "beam_java11_sdk:beam_java_sdk" \
+            "beam_java17_sdk:beam_java_sdk" \
+            "beam_java21_sdk:beam_java_sdk"; do
+            image_name="${entry%%:*}"
+            family_name="${entry##*:}"
+            repo="gcr.io/apache-beam-testing/updated_released_container_images/${image_name}"
+            digest=$(gcloud artifacts docker images describe "${repo}:${release}" --format='value(image_summary.digest)' 2>/dev/null || true)
+            if [ -n "${digest}" ]; then
+              python3 sdks/containers/vex/vex_manager.py generate \
+                --family="${family_name}" \
+                --extra-uri="${repo}" \
+                --extra-digest="${digest}"
+              python3 sdks/containers/vex/vex_manager.py attach \
+                --image-uri="${repo}@${digest}" \
+                --openvex="sdks/containers/vex/openvex/${family_name}.openvex.json" \
+                --csaf="sdks/containers/vex/csaf/${family_name}.vex.json" \
+                --project="apache-beam-testing" || true
+            fi
+          done
+
+
