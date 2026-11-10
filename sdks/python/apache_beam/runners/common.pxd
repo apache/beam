@@ -19,6 +19,7 @@ cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.utils.windowed_value cimport WindowedBatch
+from apache_beam.utils.windowed_value cimport create as windowed_value_create
 from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from libc.stdint cimport int64_t
