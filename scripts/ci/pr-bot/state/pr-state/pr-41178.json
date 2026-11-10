@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "no-matching-label": "shunping"
+  },
   "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
