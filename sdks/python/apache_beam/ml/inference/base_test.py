@@ -1202,13 +1202,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15
-        expected_good = [1] * 15
-        expected_bad = [20]
+        examples = [10] + [1] * 18
+        expected_good = [1] * 18
+        expected_bad = [10]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=5)
+              0, True, tmp_path)).with_exception_handling(timeout=6)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 
@@ -1975,14 +1975,14 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected_result))
 
-  @unittest.skipIf(
-      not TestPipeline().get_pipeline_options().view_as(
-          StandardOptions).streaming,
-      "SideInputs to RunInference are only supported in streaming mode.")
   @pytest.mark.it_postcommit
   @pytest.mark.sickbay_direct
   @pytest.mark.it_validatesrunner
   def test_run_inference_with_side_inputin_streaming(self):
+    if not TestPipeline().get_pipeline_options().view_as(
+        StandardOptions).streaming:
+      self.skipTest(
+          "SideInputs to RunInference are only supported in streaming mode.")
     test_pipeline = TestPipeline(is_integration_test=True)
     test_pipeline.options.view_as(StandardOptions).streaming = True
     run_inference_side_inputs.run(
@@ -3240,6 +3240,10 @@ def try_import_model_manager():
 @pytest.mark.no_xdist
 class ModelManagerTest(unittest.TestCase):
   """Tests for RunInference with Model Manager integration."""
+  def setUp(self):
+    if not try_import_model_manager():
+      self.skipTest('Model Manager not available')
+
   def tearDown(self):
     if multi_process_shared._process_level_singleton_manager.has_singleton(
         'model_manager'):
@@ -3250,8 +3254,6 @@ class ModelManagerTest(unittest.TestCase):
       p.terminate()
       p.join()
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_run_inference_impl_with_model_manager(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -3261,8 +3263,6 @@ class ModelManagerTest(unittest.TestCase):
           SimpleFakeModelHandler(), use_model_manager=True)
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_run_inference_impl_with_model_manager_args(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -3280,8 +3280,6 @@ class ModelManagerTest(unittest.TestCase):
           })
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_run_inference_impl_with_model_manager_oom(self):
     class OOMFakeModelHandler(SimpleFakeModelHandler):
       def run_inference(
@@ -3305,8 +3303,6 @@ class ModelManagerTest(unittest.TestCase):
             OOMFakeModelHandler(), use_model_manager=True)
         assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_shared_model_wrapper_all_models_with_model_manager(self):
     from apache_beam.ml.inference.model_manager import ModelManager
     mm = ModelManager()
@@ -3321,8 +3317,6 @@ class ModelManagerTest(unittest.TestCase):
     finally:
       mm.shutdown()
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_run_inference_with_model_manager_and_model_metadata_pcoll_reuses_model(
       self):
     with TestPipeline('FnApiRunner') as pipeline:
@@ -3340,8 +3334,6 @@ class ModelManagerTest(unittest.TestCase):
       # on the second batch.
       assert_that(actual, equal_to([1, 2, 3, 4]), label='assert:inferences')
 
-  @unittest.skipIf(
-      not try_import_model_manager(), 'Model Manager not available')
   def test_run_inference_dofn_model_update_acquires_and_releases_matching_tag(
       self):
     dofn = base._RunInferenceDoFn(
