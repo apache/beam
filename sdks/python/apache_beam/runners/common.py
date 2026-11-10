@@ -1150,16 +1150,21 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.SetupContextParam):
         args_for_process_batch[i] = self._setup_context_values[p][1]
 
-    kwargs_for_process_batch = kwargs_for_process_batch or {}
-
     if additional_kwargs:
-      kwargs_for_process_batch.update(additional_kwargs)
+      if kwargs_for_process_batch:
+        kwargs_for_process_batch = kwargs_for_process_batch.copy()
+        kwargs_for_process_batch.update(additional_kwargs)
+      else:
+        kwargs_for_process_batch = additional_kwargs
+
+    if kwargs_for_process_batch:
+      results = self.process_batch_method(
+          *args_for_process_batch, **kwargs_for_process_batch)
+    else:
+      results = self.process_batch_method(*args_for_process_batch)
 
     self.output_handler.handle_process_batch_outputs(
-        windowed_batch,
-        self.process_batch_method(
-            *args_for_process_batch, **kwargs_for_process_batch),
-        self.threadsafe_watermark_estimator)
+        windowed_batch, results, self.threadsafe_watermark_estimator)
 
   @staticmethod
   def _try_split(
@@ -1716,22 +1721,14 @@ class _OutputHandler(OutputHandler):
             (object_type, results))
 
     if results is None:
-      if self.per_element_output_counter is not None:
-        self.per_element_output_counter.add_input(0)
-      return
+      results = []
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      if isinstance(result, TaggedOutput):
-        tag = result.tag
-        if not isinstance(tag, str):
-          raise TypeError('In %s, tag %s is not a string' % (self, tag))
-        result = result.value
-      else:
-        tag = None
+      tag, result = self._handle_tagged_output(result)
 
       if not self._process_yields_batches:
         # process yields elements
