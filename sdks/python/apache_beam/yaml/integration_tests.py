@@ -1496,8 +1496,7 @@ def create_test_methods(spec):
                   exn)
               time.sleep(5)
         for pipeline_spec in spec['pipelines']:
-          time.sleep(0.002)
-          vars['NOW_MS'] = int(time.time() * 1000)
+          vars['NOW_MS'] = int(time.time() * 1000) + 1000
           try:
             with beam.Pipeline(options=PipelineOptions(
                 pickle_library='cloudpickle',
