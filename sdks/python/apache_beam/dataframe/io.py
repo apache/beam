@@ -484,7 +484,8 @@ class _TruncatingFileHandle(object):
     self._empty = self._splitter.empty_buffer()
     self._done = False
     self._header, self._buffer = self._splitter.read_header(self._underlying)
-    self._buffer_start_pos = len(self._header)
+    self._header_len = len(self._header)
+    self._buffer_start_pos = self._header_len
     self._iterator = None
     start = self._tracker.current_restriction().start
     # Seek to first delimiter after the start position.
@@ -575,7 +576,8 @@ class _TruncatingFileHandle(object):
       self._buffer_start_pos += len(res)
     else:
       offset = self._tracker.current_restriction().stop - self._buffer_start_pos
-      if offset <= 0:
+      if (offset < 0 or
+          self._tracker.current_restriction().stop <= self._header_len):
         res = self._empty
       else:
         rest, _ = self._splitter.read_to_record_boundary(
