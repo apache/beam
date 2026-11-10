@@ -139,16 +139,21 @@ func getLocalJar(url string) (string, error) {
 	return jarPath, nil
 }
 
+// validatePath checks that an archive entry name, when joined with dest,
+// resolves to a location strictly inside dest. On success it returns the
+// cleaned destination path for the entry.
 func validatePath(dest, filename string) (string, error) {
-	destPath := filepath.Join(dest, filename)
-	cleanDest := filepath.Clean(dest)
-	cleanPath := filepath.Clean(destPath)
+	if !filepath.IsLocal(filename) {
+		return "", fmt.Errorf("file path %q is not a local path within destination directory %q", filename, dest)
+	}
 
-	rel, err := filepath.Rel(cleanDest, cleanPath)
-	if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+	cleanDest := filepath.Clean(dest)
+	destPath := filepath.Join(cleanDest, filename)
+
+	if !strings.HasPrefix(destPath, cleanDest+string(filepath.Separator)) {
 		return "", fmt.Errorf("file path %q is outside destination directory %q", filename, dest)
 	}
-	return cleanPath, nil
+	return destPath, nil
 }
 
 func extractJar(source, dest string) error {
@@ -156,36 +161,52 @@ func extractJar(source, dest string) error {
 	if err != nil {
 		return fmt.Errorf("error opening jar for extractJar(%s,%s): %w", source, dest, err)
 	}
+	defer reader.Close()
 
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return fmt.Errorf("error creating directory %s in extractJar(%s,%s): %w", dest, source, dest, err)
 	}
 
 	for _, file := range reader.File {
-		fileName, err := validatePath(dest, file.Name)
-		if err != nil {
-			return fmt.Errorf("error validating file path (%s, %s): %w", dest, file.Name, err)
-		}
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(fileName, 0700)
-			continue
-		}
-
-		sf, err := file.Open()
-		if err != nil {
-			return fmt.Errorf("error opening source file %s: %w", file.Name, err)
-		}
-		defer sf.Close()
-
-		df, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
-		if err != nil {
-			return fmt.Errorf("error opening destination file %s: %w", fileName, err)
-		}
-		defer df.Close()
-
-		if _, err := io.Copy(df, sf); err != nil {
+		if err := extractZipEntry(file, dest); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// extractZipEntry writes a single archive entry beneath dest, after validating
+// that the entry's path cannot escape dest. Handles are scoped to this call so
+// they are released after each entry rather than at the end of extraction.
+func extractZipEntry(file *zip.File, dest string) error {
+	fileName, err := validatePath(dest, file.Name)
+	if err != nil {
+		return fmt.Errorf("error validating file path (%s, %s): %w", dest, file.Name, err)
+	}
+	if file.FileInfo().IsDir() {
+		if err := os.MkdirAll(fileName, 0700); err != nil {
+			return fmt.Errorf("error creating directory %s: %w", fileName, err)
+		}
+		return nil
+	}
+
+	sf, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("error opening source file %s: %w", file.Name, err)
+	}
+	defer sf.Close()
+
+	df, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	if err != nil {
+		return fmt.Errorf("error opening destination file %s: %w", fileName, err)
+	}
+
+	if _, err := io.Copy(df, sf); err != nil {
+		df.Close()
+		return fmt.Errorf("error writing destination file %s: %w", fileName, err)
+	}
+	if err := df.Close(); err != nil {
+		return fmt.Errorf("error closing destination file %s: %w", fileName, err)
 	}
 	return nil
 }

@@ -16,6 +16,7 @@
 package expansionx
 
 import (
+	"archive/zip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -259,18 +260,131 @@ func TestValidatePath(t *testing.T) {
 	}{
 		{"valid simple file", "Foo.class", false},
 		{"valid nested file", "org/apache/beam/Foo.class", false},
+		{"valid nested directory", "META-INF/", false},
+		{"valid file with internal dot segments", "org/./apache/../beam/Foo.class", false},
 		{"traversal attack", "../../etc/passwd", true},
 		{"partial directory prefix attack", "../cache_evil/evil.sh", true},
 		{"parent directory traversal", "..", true},
+		{"parent directory traversal with separator", "../", true},
 		{"nested traversal attack", "foo/bar/../../../etc/passwd", true},
+		{"absolute path", "/etc/passwd", true},
+		{"empty name", "", true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validatePath(dest, tc.filename)
+			got, err := validatePath(dest, tc.filename)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("validatePath(%q, %q) error = %v, wantErr %v", dest, tc.filename, err, tc.wantErr)
+				t.Fatalf("validatePath(%q, %q) error = %v, wantErr %v", dest, tc.filename, err, tc.wantErr)
+			}
+			if err == nil && !strings.HasPrefix(got, dest+string(filepath.Separator)) {
+				t.Errorf("validatePath(%q, %q) = %q, which is not inside %q", dest, tc.filename, got, dest)
 			}
 		})
+	}
+}
+
+// zipEntry is a single named entry in a test archive. A name with a trailing
+// slash denotes a directory.
+type zipEntry struct {
+	name, body string
+}
+
+// writeTestZip creates a zip archive at path containing entries in order.
+func writeTestZip(t *testing.T, path string, entries []zipEntry) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("failed to create zip %q: %v", path, err)
+	}
+	defer f.Close()
+	zw := zip.NewWriter(f)
+	for _, e := range entries {
+		w, err := zw.Create(e.name)
+		if err != nil {
+			t.Fatalf("failed to add entry %q: %v", e.name, err)
+		}
+		if _, err := w.Write([]byte(e.body)); err != nil {
+			t.Fatalf("failed to write entry %q: %v", e.name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("failed to close zip: %v", err)
+	}
+}
+
+func TestExtractJar_ZipSlip(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry string
+	}{
+		{"parent traversal", "../evil.txt"},
+		{"deep parent traversal", "../../../evil.txt"},
+		{"nested then traversal", "a/b/../../../evil.txt"},
+		{"absolute path", "/evil.txt"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dest := filepath.Join(root, "extract")
+			jar := filepath.Join(root, "evil.jar")
+			writeTestZip(t, jar, []zipEntry{
+				{"safe.txt", "ok"},
+				{tc.entry, "pwned"},
+			})
+
+			if err := extractJar(jar, dest); err == nil {
+				t.Errorf("extractJar succeeded on archive with entry %q, want error", tc.entry)
+			}
+
+			// Nothing may have been written anywhere outside dest.
+			var escaped []string
+			filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+				if err != nil || info.IsDir() || p == jar {
+					return nil
+				}
+				if !strings.HasPrefix(p, dest+string(filepath.Separator)) {
+					escaped = append(escaped, p)
+				}
+				return nil
+			})
+			if len(escaped) > 0 {
+				t.Errorf("extractJar wrote files outside destination: %v", escaped)
+			}
+			if _, err := os.Stat(filepath.Join(root, "evil.txt")); err == nil {
+				t.Errorf("extractJar wrote %q outside destination", filepath.Join(root, "evil.txt"))
+			}
+		})
+	}
+}
+
+func TestExtractJar_Valid(t *testing.T) {
+	root := t.TempDir()
+	dest := filepath.Join(root, "extract")
+	jar := filepath.Join(root, "good.jar")
+	// Mirror a real jar layout, which includes explicit directory entries
+	// ahead of the files they contain.
+	writeTestZip(t, jar, []zipEntry{
+		{"META-INF/", ""},
+		{"META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n"},
+		{"org/", ""},
+		{"org/apache/", ""},
+		{"org/apache/beam/", ""},
+		{"org/apache/beam/Foo.class", "class"},
+		{"org/./apache/beam/Bar.class", "class"},
+	})
+
+	if err := extractJar(jar, dest); err != nil {
+		t.Fatalf("extractJar failed on valid archive: %v", err)
+	}
+	for _, want := range []string{
+		"META-INF/MANIFEST.MF",
+		"org/apache/beam/Foo.class",
+		"org/apache/beam/Bar.class",
+	} {
+		if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(want))); err != nil {
+			t.Errorf("expected extracted file %q: %v", want, err)
+		}
 	}
 }
