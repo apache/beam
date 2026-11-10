@@ -888,8 +888,7 @@ class PerWindowInvoker(DoFnInvoker):
             residual = self._invoke_process_per_window(
                 windowed_value_create(
                     windowed_value.value,
-                    windowed_value.timestamp_micros,
-                    (w, ),
+                    windowed_value.timestamp_micros, (w, ),
                     windowed_value.pane_info),
                 additional_args,
                 additional_kwargs)
@@ -916,8 +915,7 @@ class PerWindowInvoker(DoFnInvoker):
         self._invoke_process_per_window(
             windowed_value_create(
                 windowed_value.value,
-                windowed_value.timestamp_micros,
-                (w, ),
+                windowed_value.timestamp_micros, (w, ),
                 windowed_value.pane_info),
             additional_args,
             additional_kwargs)
