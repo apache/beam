@@ -42,8 +42,9 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.vendored_calcite_1_40_0
   implementation library.java.jackson_databind
+  implementation library.java.joda_time
 
-  testImplementation library.java.joda_time
+  testImplementation project(":sdks:java:extensions:sql:jdbc")
   testImplementation library.java.junit
   testImplementation library.java.google_api_services_bigquery
   testImplementation "org.apache.iceberg:iceberg-api:1.9.2"

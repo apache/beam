@@ -256,16 +256,24 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
     end: End of window as seconds since Unix epoch.
   """
   def __lt__(self, other):
+    if isinstance(other, IntervalWindow):
+      if self._end_micros != other._end_micros:
+        return self._end_micros < other._end_micros
+      return hash(self) < hash(other)
     if self.end != other.end:
       return self.end < other.end
     return hash(self) < hash(other)
 
   def intersects(self, other: 'IntervalWindow') -> bool:
-    return other.start < self.end or self.start < other.end
+    return (
+        other._start_micros < self._end_micros or
+        self._start_micros < other._end_micros)
 
   def union(self, other: 'IntervalWindow') -> 'IntervalWindow':
-    return IntervalWindow(
-        min(self.start, other.start), max(self.end, other.end))
+    w = IntervalWindow(None, None)
+    w._start_micros = min(self._start_micros, other._start_micros)
+    w._end_micros = max(self._end_micros, other._end_micros)
+    return w
 
 
 V = TypeVar("V")

@@ -28,6 +28,7 @@ from typing import cast
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.utils import retry_with_backoff
+from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 
 # pylint: disable=ungrouped-imports
 try:
@@ -194,11 +195,8 @@ class MilvusTestHelpers:
               "milvus db container started successfully on %s.", info.uri)
           break
         except Exception as e:
-          stdout_logs = stderr_logs = ""
-          if vector_db_container is not None:
-            raw_out, raw_err = vector_db_container.get_logs()
-            stdout_logs = raw_out.decode("utf-8")
-            stderr_logs = raw_err.decode("utf-8")
+          stdout_logs, stderr_logs = cleanup_testcontainer_on_retry(
+              vector_db_container)
           _LOGGER.warning(
               "Retry %d/%d: Failed to start Milvus DB container. Reason: %s. "
               "STDOUT logs:\n%s\nSTDERR logs:\n%s",
