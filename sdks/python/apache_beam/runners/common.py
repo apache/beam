@@ -1711,14 +1711,22 @@ class _OutputHandler(OutputHandler):
             (object_type, results))
 
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_yields_batches:
         # process yields elements
