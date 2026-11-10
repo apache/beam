@@ -19,8 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.concurrent.BlockingQueue;
-import org.apache.beam.sdk.io.solace.data.Solace;
+import java.util.Queue;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
 import org.apache.beam.sdk.metrics.Counter;
@@ -41,12 +40,31 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final BlockingQueue<PublishResult> publishResultsQueue;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(BlockingQueue<PublishResult> publishResultsQueue) {
-    this.publishResultsQueue = publishResultsQueue;
+  public PublishResultHandler() {}
+
+  public static Object correlationKey(
+      @Nullable String messageId,
+      @Nullable Long publishMonotonicNanos,
+      Queue<PublishResult> publishResultsQueue) {
+    return new PublishCorrelationKey(messageId, publishMonotonicNanos, publishResultsQueue);
+  }
+
+  private static final class PublishCorrelationKey {
+    private final @Nullable String messageId;
+    private final @Nullable Long publishMonotonicNanos;
+    private final Queue<PublishResult> publishResultsQueue;
+
+    private PublishCorrelationKey(
+        @Nullable String messageId,
+        @Nullable Long publishMonotonicNanos,
+        Queue<PublishResult> publishResultsQueue) {
+      this.messageId = messageId;
+      this.publishMonotonicNanos = publishMonotonicNanos;
+      this.publishResultsQueue = publishResultsQueue;
+    }
   }
 
   @Override
@@ -60,16 +78,18 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
   }
 
   private void processKey(Object key, boolean isPublished, @Nullable JCSMPException cause) {
+    if (!(key instanceof PublishCorrelationKey)) {
+      LOG.warn(
+          "SolaceIO.Write: Received publication callback with unexpected correlation key: {}", key);
+      return;
+    }
+    PublishCorrelationKey correlationKey = (PublishCorrelationKey) key;
     PublishResult.Builder resultBuilder = PublishResult.builder();
-    String messageId;
-    if (key == null) {
-      messageId = "";
-    } else if (key instanceof Solace.CorrelationKey) {
-      messageId = ((Solace.CorrelationKey) key).getMessageId();
-      long latencyNanos = calculateLatency((Solace.CorrelationKey) key);
+    String messageId = correlationKey.messageId != null ? correlationKey.messageId : "";
+    Long publishMonotonicNanos = correlationKey.publishMonotonicNanos;
+    if (publishMonotonicNanos != null) {
+      long latencyNanos = System.nanoTime() - publishMonotonicNanos;
       resultBuilder = resultBuilder.setLatencyNanos(latencyNanos);
-    } else {
-      messageId = key.toString();
     }
 
     resultBuilder = resultBuilder.setMessageId(messageId).setPublished(isPublished);
@@ -87,14 +107,6 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     }
 
     PublishResult publishResult = resultBuilder.build();
-    // Static reference, it receives all callbacks from all publications
-    // from all threads
-    publishResultsQueue.add(publishResult);
-  }
-
-  private static long calculateLatency(Solace.CorrelationKey key) {
-    long currentMillis = System.nanoTime();
-    long publishMillis = key.getPublishMonotonicNanos();
-    return currentMillis - publishMillis;
+    correlationKey.publishResultsQueue.add(publishResult);
   }
 }

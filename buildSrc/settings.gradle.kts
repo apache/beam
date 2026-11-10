@@ -15,14 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+pluginManagement {
+  val parentProperties = java.util.Properties().apply {
+    val file = file("../gradle.properties")
+    if (file.exists()) {
+      file.inputStream().use { load(it) }
+    }
+  }
 
-plugins {
-  id 'base'
-  id 'org.apache.beam.module'
+  val mavenCentralMirrorUrl = parentProperties.getProperty("mavenCentralMirrorUrl")
+  val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+  val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
+
+  repositories {
+    if (useMirror) {
+      maven { url = uri(mavenCentralMirrorUrl!!) }
+    }
+    gradlePluginPortal()
+  }
 }
-applyDockerNature()
-applyPythonNature()
-
-pythonVersion = '3.10'
-
-apply from: "../common.gradle"

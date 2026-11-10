@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
@@ -54,13 +55,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDelete;
@@ -481,11 +481,14 @@ public class IncrementalChangelogSourceTest {
                         "id", 2L, "data", "b", "metadata", ImmutableMap.of("source", "x")))));
     org.apache.iceberg.Schema sourceSchema = table.schema().select("metadata.source");
     EqualityDeleteWriter<Record> writer =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {4}, sourceSchema, null)
-            .newEqDeleteWriter(
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {4})
+            .equalityDeleteRowSchema(sourceSchema)
+            .build()
+            .newEqualityDeleteWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table.io().newOutputFile(file.location() + ".deletes.parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 null);
     try (writer) {
       writer.write(
@@ -683,6 +686,91 @@ public class IncrementalChangelogSourceTest {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void batchReadWithNoSnapshotInRangeIsEmpty() throws Exception {
+    TableIdentifier emptyTableId = TableIdentifier.of("default", testName.getMethodName() + "_e");
+    warehouse.createTable(emptyTableId, CDC_SCHEMA, null, tableProperties());
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records(1L, "one"));
+    long firstCommit = table.currentSnapshot().timestampMillis();
+
+    PCollection<Row> noSnapshots =
+        pipeline.apply(
+            "Read Table Without Snapshots",
+            IcebergIO.readRows(catalogConfig()).from(emptyTableId).withCdc());
+    PCollection<Row> noSnapshotsFromNow =
+        pipeline.apply(
+            "Read Table Without Snapshots From Now",
+            IcebergIO.readRows(catalogConfig())
+                .from(emptyTableId)
+                .withCdc()
+                .fromTimestamp(System.currentTimeMillis()));
+    PCollection<Row> afterLatest =
+        pipeline.apply(
+            "Read After Latest Snapshot",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .fromTimestamp(firstCommit + 1));
+    PCollection<Row> beforeFirst =
+        pipeline.apply(
+            "Read Before First Snapshot",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .toTimestamp(firstCommit - 1));
+
+    PAssert.that(noSnapshots).empty();
+    PAssert.that(noSnapshotsFromNow).empty();
+    PAssert.that(afterLatest).empty();
+    PAssert.that(beforeFirst).empty();
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void timestampWindowWithNoCommitsReadsNothing() throws Exception {
+    assertTimestampWindowWithNoCommitsReadsNothing(false);
+  }
+
+  @Test
+  public void timestampWindowWithNoCommitsReadsNothingWhenStreaming() throws Exception {
+    assertTimestampWindowWithNoCommitsReadsNothing(true);
+  }
+
+  private void assertTimestampWindowWithNoCommitsReadsNothing(boolean streaming) throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records(1L, "one"));
+    long first = table.currentSnapshot().timestampMillis();
+    Thread.sleep(25);
+    commitAppend(table, "s2.parquet", records(2L, "two"));
+    long second = table.currentSnapshot().timestampMillis();
+
+    PCollection<Row> betweenCommits =
+        pipeline.apply(
+            "Read Between Commits",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .streaming(streaming)
+                .fromTimestamp(first + 1)
+                .toTimestamp(second - 1));
+    PCollection<Row> beforeFirstCommit =
+        pipeline.apply(
+            "Read Before First Commit",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .streaming(streaming)
+                .fromTimestamp(first - 20)
+                .toTimestamp(first - 10));
+
+    PAssert.that(betweenCommits).empty();
+    PAssert.that(beforeFirstCommit).empty();
+    pipeline.run().waitUntilFinish();
+  }
+
   private DataFile commitOverwrite(
       Table table, String fileName, DataFile replaced, Record... replacements) throws IOException {
     DataFile file =
@@ -697,14 +785,16 @@ public class IncrementalChangelogSourceTest {
     return TableIdentifier.of("default", testName.getMethodName());
   }
 
+  private IcebergCatalogConfig catalogConfig() {
+    return IcebergCatalogConfig.builder()
+        .setCatalogName("name")
+        .setCatalogProperties(ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+        .build();
+  }
+
   private IcebergScanConfig.Builder baseConfigBuilder(Table table, TableIdentifier tableId) {
     return IcebergScanConfig.builder()
-        .setCatalogConfig(
-            IcebergCatalogConfig.builder()
-                .setCatalogName("name")
-                .setCatalogProperties(
-                    ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-                .build())
+        .setCatalogConfig(catalogConfig())
         .setTableIdentifier(tableId)
         .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
         .setUseCdc(true);
@@ -729,11 +819,12 @@ public class IncrementalChangelogSourceTest {
 
   private void commitPositionDelete(Table table, DataFile file, long position) throws IOException {
     PositionDeleteWriter<Record> writer =
-        new GenericAppenderFactory(table.schema(), table.spec())
-            .newPosDeleteWriter(
+        new GenericFileWriterFactory.Builder(table)
+            .build()
+            .newPositionDeleteWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table.io().newOutputFile(file.location() + ".deletes.parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 file.partition());
     try (writer) {
       writer.write(PositionDelete.<Record>create().set(file.location(), position));

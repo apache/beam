@@ -141,7 +141,7 @@ class _BaseJmsIOTest(unittest.TestCase):
       result = p.run()
       subscriber.start()
       try:
-        subscriber.join(timeout=20)
+        subscriber.join(timeout=60)
       finally:
         stop_event.set()
         publisher.join()
@@ -336,8 +336,8 @@ class IbmMqJmsIOTest(_BaseJmsIOTest):
     container = self.broker.get_wrapped_container()
     cmd = (
         f'for i in $(seq 0 {count-1}); do '
-        f'echo "test message: $i" | /opt/mqm/samp/bin/amqsput {source_queue} QM1 >/dev/null 2>&1; '
-        f'done')
+        f'echo "test message: $i"; '
+        f'done | /opt/mqm/samp/bin/amqsput {source_queue} QM1 >/dev/null 2>&1')
     container.exec_run(['sh', '-c', cmd])
 
   def browse_queue(self, sink_queue):

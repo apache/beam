@@ -51,6 +51,73 @@ tasks.validatesStructuredStreamingRunnerBatch {
   }
 }
 
+tasks.register("validatesStructuredStreamingRunnerStreaming", Test) {
+  applyStructuredStreamingValidatesRunnerSetup(it, ["--streaming": "true", "--streamingStopAfterIdleBatches": "5"], [
+    // Side inputs
+    'org.apache.beam.sdk.testing.UsesSideInputs',
+    // Unbounded
+    'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+    // State and Timers
+    'org.apache.beam.sdk.testing.UsesProcessingTimeTimers',
+    'org.apache.beam.sdk.testing.UsesLoopingTimer',
+    'org.apache.beam.sdk.testing.UsesMultimapState',
+    // Windowing
+    'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+    // Ordering
+    'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+    // SDF
+    'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
+    // Exceeds Java heap space
+    'org.apache.beam.sdk.testing.LargeKeys$Above100MB',
+  ])
+
+  filter {
+    // TODO(https://github.com/apache/beam/issues/36841): merging windows
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributeAfterSessionsAndGroupByKey'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSessionsAndGroupByKey'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testMergingWindowing'
+
+    // TODO(https://github.com/apache/beam/issues/36841): side inputs, PAssert.thatSingleton and Combine.globally with defaults
+    excludeTestsMatching 'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits'
+    excludeTestsMatching 'org.apache.beam.sdk.io.CountingSourceTest.testUnboundedSourceSplits'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testIsEqualTo'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testNotEqualTo'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFalse'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFalseDefaultReasonString'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFailsForEmptyPCollection'
+    excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFailsForNonSingletonPCollection'
+
+    // TODO(https://github.com/apache/beam/issues/40949): ParDo with additional outputs
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAllAttemptedMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedBoundedTrieMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedCounterMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedDistributionMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedStringSetMetrics'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombining'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultiplePCollectionsHavingMultipleConsumers'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoEmptyWithTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithEmptyTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithOnlyTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoTaggedOutputWithTimestamp'
+    excludeTestsMatching 'org.apache.beam.sdk.values.PCollectionTupleTest.testComposePCollectionTuple'
+
+    // TODO(https://github.com/apache/beam/issues/36841): PeriodicImpulse uses a splittable DoFn
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithShuffle'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithoutShuffle'
+
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+  }
+}
+
 tasks.validatesRunner.dependsOn(validatesStructuredStreamingRunnerBatch)
 
 // Exclude legacy DStream-based streaming tests (under runners/spark/translation/streaming)

@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
-import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,13 +132,6 @@ public abstract class SessionService implements Serializable {
   public abstract MessageProducer getInitializedProducer(SubmissionMode mode);
 
   /**
-   * Returns the {@link Queue<PublishResult>} instance associated with this session, with the
-   * asynchronously received callbacks from Solace for message publications. The queue
-   * implementation has to be thread-safe for production use-cases.
-   */
-  public abstract BlockingQueue<PublishResult> getPublishedResultsQueue();
-
-  /**
    * Override this method and provide your specific properties, including all those related to
    * authentication, and possibly others too.
    *
@@ -196,11 +187,11 @@ public abstract class SessionService implements Serializable {
     if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
       props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
     }
-    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+    if (props.getProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS) == null) {
       // Outgoing messages will have a sender timestamp field populated
       props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
     }
-    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+    if (props.getProperty(JCSMPProperties.PUB_MULTI_THREAD) == null) {
       // Make XMLProducer safe to access from several threads. This is the default value, setting
       // it just in case.
       props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);
