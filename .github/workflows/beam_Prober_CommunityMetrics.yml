@@ -17,7 +17,9 @@ name: Community Metrics Prober
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    # Avoid running over the weekend or early on Monday when there may not have been recent GitHub activity.
+    - cron: '0 18 * * 1'
+    - cron: '0 */6 * * 2-5'
   workflow_dispatch:
 
 # Setting explicit permissions for the action

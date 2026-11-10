@@ -131,11 +131,15 @@ class ProberTests {
     // synced activity within 8 hours (480m) and both within 48 hours (2880m) to
     // avoid false positives during quiet overnight/weekend issue windows.
     assert minStalenessMinutes <= 480 :
-      "Input data is stale (min staleness): ${minStalenessMinutes} minutes\n" +
+      "Community metrics sync appears stalled: neither GitHub Issues (gh_issue_sync) nor GitHub Pull Requests (gh_pr_sync) " +
+        "has recorded any updated activity within the last 8 hours (480 minutes); the most recently updated source was last synced " +
+        "${minStalenessMinutes} minutes ago.\n" +
         "See: ${grafanaEndpoint}/d/data-freshness"
 
     assert maxStalenessMinutes <= 2880 :
-      "Input data is stale (max staleness): ${maxStalenessMinutes} minutes\n" +
+      "At least one community metrics source (GitHub Issues gh_issue_sync or GitHub Pull Requests gh_pr_sync) " +
+        "has not recorded any updated activity within the last 48 hours (2880 minutes); the least recently updated source was last synced " +
+        "${maxStalenessMinutes} minutes ago.\n" +
         "See: ${grafanaEndpoint}/d/data-freshness"
   }
 }
