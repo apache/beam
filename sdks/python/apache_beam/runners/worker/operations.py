@@ -1222,14 +1222,23 @@ class PGBKOperation(Operation):
 
   def flush(self, target):
     # type: (int) -> None
-    limit = self.size - target
-    if limit <= 0:
+    if target <= 0:
+      for (key, windows), vs in self.table.items():
+        self.output(
+            windowed_value_create((key, [v.value[1] for v in vs]),
+                                  vs[0].timestamp_micros,
+                                  windows,
+                                  vs[0].pane_info))
+      self.table.clear()
+      self.size = 0
       return
+
     keys_to_delete = []
-    for ix, (kw, vs) in enumerate(self.table.items()):
-      if ix >= limit:
+    for kw, vs in self.table.items():
+      if self.size <= target:
         break
       keys_to_delete.append(kw)
+      self.size -= len(vs)
       key, windows = kw
       output_value = [v.value[1] for v in vs]
       windowed_value = windowed_value_create((key, output_value),
@@ -1239,7 +1248,6 @@ class PGBKOperation(Operation):
       self.output(windowed_value)
     for kw in keys_to_delete:
       del self.table[kw]
-    self.size -= len(keys_to_delete)
 
 
 class PGBKCVOperation(Operation):
