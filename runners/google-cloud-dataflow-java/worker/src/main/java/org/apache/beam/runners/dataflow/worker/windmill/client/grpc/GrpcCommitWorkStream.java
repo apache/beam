@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.PrintWriter;
 import java.time.Duration;
@@ -154,11 +153,16 @@ final class GrpcCommitWorkStream
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, StreamAndRequest> entry : pending.entrySet()) {
         CommitWorkPhysicalStreamHandler requestHandler = entry.getValue().handler;
-        checkState(requestHandler != currentPhysicalStream);
-        if (requestHandler != null && closingPhysicalStreams.contains(requestHandler)) {
-          LOG.debug(
-              "Not resending request that is active on background half-closing physical stream.");
-          continue;
+        if (requestHandler != null) {
+          if (requestHandler == currentPhysicalStream) {
+            LOG.debug("Not resending request that is active on current physical stream.");
+            continue;
+          }
+          if (closingPhysicalStreams.contains(requestHandler)) {
+            LOG.debug(
+                "Not resending request that is active on background half-closing physical stream.");
+            continue;
+          }
         }
         long id = entry.getKey();
         PendingRequest request = entry.getValue().request;

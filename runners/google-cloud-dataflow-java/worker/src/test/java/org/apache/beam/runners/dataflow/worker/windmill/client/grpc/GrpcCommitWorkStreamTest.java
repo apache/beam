@@ -652,6 +652,81 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
+  public void testCommitWorkItem_multiplePhysicalStreams_oldStreamFailsWhileNewStreamHasPending()
+      throws Exception {
+    TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
+    GrpcCommitWorkStream commitWorkStream =
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo1 = waitForConnectionAndConsumeHeader();
+
+    // Send 15 requests on stream 1 so the 15th request lands in a higher hash bucket (bucket 15)
+    // than the 16th request (bucket 0) in the underlying ConcurrentHashMap.
+    Map<Integer, CompletableFuture<Windmill.CommitStatus>> stream1Futures = new HashMap<>();
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      for (int i = 1; i <= 15; i++) {
+        CompletableFuture<Windmill.CommitStatus> future = new CompletableFuture<>();
+        stream1Futures.put(i, future);
+        assertTrue(batcher.commitWorkItem(COMPUTATION_ID, createTestCommit(i), future::complete));
+      }
+    }
+
+    Windmill.StreamingCommitWorkRequest request1 = streamInfo1.requests.take();
+    assertThat(request1.getCommitChunkList()).hasSize(15);
+
+    // Complete requests 1..14 on stream 1, leaving request 15 in-flight on stream 1.
+    Windmill.StreamingCommitResponse.Builder partialResponse =
+        Windmill.StreamingCommitResponse.newBuilder();
+    for (int i = 1; i <= 14; i++) {
+      partialResponse.addRequestId(i);
+    }
+    streamInfo1.responseObserver.onNext(partialResponse.build());
+    for (int i = 1; i <= 14; i++) {
+      assertThat(stream1Futures.get(i).get()).isEqualTo(Windmill.CommitStatus.OK);
+    }
+    assertFalse(stream1Futures.get(15).isDone());
+
+    // Trigger physical stream handover to stream 2.
+    assertTrue(triggeredExecutor.unblockNextFuture());
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
+    fakeService.expectNoMoreStreams();
+    assertNull(streamInfo1.onDone.get());
+
+    // Send request 16 on stream 2 and keep it in-flight (unacknowledged) while stream 1 fails.
+    Windmill.WorkItemCommitRequest workItemCommitRequest16 = createTestCommit(16);
+    CompletableFuture<Windmill.CommitStatus> commitStatusFuture16 = new CompletableFuture<>();
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(
+              COMPUTATION_ID, workItemCommitRequest16, commitStatusFuture16::complete));
+    }
+    Windmill.StreamingCommitWorkRequest request2 = streamInfo2.requests.take();
+    assertThat(request2.getCommitChunkList()).hasSize(1);
+    assertThat(request2.getCommitChunk(0).getRequestId()).isEqualTo(16L);
+
+    // Fail stream 1 while stream 2 has request 16 active in pending.
+    // Request 15 from stream 1 must be resent on stream 2 without throwing IllegalStateException
+    // when iterating over active request 16 on stream 2.
+    streamInfo1.responseObserver.onError(new RuntimeException("test error"));
+
+    Windmill.StreamingCommitWorkRequest resentRequest = streamInfo2.requests.take();
+    assertThat(resentRequest.getCommitChunkList()).hasSize(1);
+    assertThat(resentRequest.getCommitChunk(0).getRequestId()).isEqualTo(15L);
+    Windmill.WorkItemCommitRequest parsedResent =
+        Windmill.WorkItemCommitRequest.parseFrom(
+            resentRequest.getCommitChunk(0).getSerializedWorkItemCommit());
+    assertThat(parsedResent).isEqualTo(createTestCommit(15));
+
+    streamInfo2.responseObserver.onNext(
+        Windmill.StreamingCommitResponse.newBuilder().addRequestId(15).addRequestId(16).build());
+    assertThat(stream1Futures.get(15).get()).isEqualTo(Windmill.CommitStatus.OK);
+    assertThat(commitStatusFuture16.get()).isEqualTo(Windmill.CommitStatus.OK);
+
+    commitWorkStream.halfClose();
+    streamInfo2.responseObserver.onCompleted();
+    assertTrue(commitWorkStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
+  @Test
   public void testCommitWorkItem_multiplePhysicalStreams_newStreamFailsWhileEmpty()
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
