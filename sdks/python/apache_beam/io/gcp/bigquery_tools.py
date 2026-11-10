@@ -1756,7 +1756,7 @@ class RowAsDictJsonCoder(coders.Coder):
           '%s. %s. Row: %r' % (e, JSON_COMPLIANCE_ERROR, table_row))
 
   def decode(self, encoded_table_row):
-    return json.loads(encoded_table_row)
+    return json.loads(encoded_table_row.decode('utf-8'))
 
   def to_type_hint(self):
     return Any
