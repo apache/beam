@@ -23,6 +23,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_join
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -209,6 +210,29 @@ class YamlJoinTest(unittest.TestCase):
                   name1='blackberry',
                   category='dry')
           ]))
+
+
+class YamlJoinUnitTest(unittest.TestCase):
+  def test_parse_fields_wildcard(self):
+    fields = dict(f='*', q=['name'], c=dict(cat='category'))
+    self.assertEqual(
+        yaml_join._parse_fields(['f', 'q', 'c'], fields),
+        ['f.*', 'q.name AS name', 'c.category AS cat'])
+
+  def test_parse_fields_invalid_value(self):
+    with self.assertRaisesRegex(
+        ValueError, r'the value must either be a list, dict, or "\*"'):
+      yaml_join._parse_fields(['f', 'q'], dict(f=123))
+
+  def test_validate_equalities_empty_list(self):
+    self.assertFalse(yaml_join._is_connected([], 2))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      f_pcoll = p | 'f' >> beam.Create(FRUITS)
+      q_pcoll = p | 'q' >> beam.Create(QUANTITIES)
+      with self.assertRaisesRegex(
+          ValueError, 'The provided equalities do not connect all of'):
+        yaml_join._validate_equalities([], dict(f=f_pcoll, q=q_pcoll))
 
 
 if __name__ == '__main__':
