@@ -82,6 +82,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
