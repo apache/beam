@@ -211,7 +211,18 @@ func launchSDKProcess() error {
 		defer cleanupFunc()
 	}
 
-	dir := filepath.Join(*semiPersistDir, "staged")
+	// Download and install from a per-container directory, so that SDK
+	// containers for different environments sharing the same semi-persistent
+	// volume cannot overwrite each other's fixed-name artifacts
+	// (requirements.txt, extra_packages.txt, etc.) before installing them.
+	semiPersist := filepath.Join(*semiPersistDir, *id)
+	dir := filepath.Join(semiPersist, "staged")
+	// Remove this worker's directory on exit so that it does not accumulate on
+	// runners that reuse the environment for multiple pipelines. Only a direct
+	// child of semiPersistDir is ever removed.
+	if filepath.Dir(semiPersist) == filepath.Clean(*semiPersistDir) {
+		defer os.RemoveAll(semiPersist)
+	}
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
@@ -229,6 +240,8 @@ func launchSDKProcess() error {
 	// would also be possible to install the SDK in the Dockerfile.
 	fileNames := make([]string, len(files))
 	requirementsFiles := []string{requirementsFile}
+	sharedDir := filepath.Join(*semiPersistDir, "staged")
+	os.MkdirAll(sharedDir, 0755)
 	for i, v := range files {
 		name, _ := artifact.MustExtractFilePayload(v)
 		logger.Printf(ctx, "Found artifact: %s", name)
@@ -236,6 +249,13 @@ func launchSDKProcess() error {
 
 		if v.RoleUrn == artifact.URNPipRequirementsFile {
 			requirementsFiles = append(requirementsFiles, name)
+		}
+		// Keep the shared <semi_persist_dir>/staged layout for user code (e.g.
+		// --files_to_stage files); the per-container copy in dir is installed.
+		shared := filepath.Join(sharedDir, name)
+		os.Remove(shared)
+		if err := os.Link(filepath.Join(dir, name), shared); err != nil {
+			logger.Warnf(ctx, "Failed to link %s into %s: %v", name, sharedDir, err)
 		}
 	}
 
