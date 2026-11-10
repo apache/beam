@@ -32,6 +32,8 @@ import pandas as pd
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
 
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
+
 
 class DeferredBase(object):
 
@@ -491,7 +493,7 @@ def args_to_kwargs(base_type, removed_method=False, removed_args=None):
            running Pandas version.
   """
   def wrap(func):
-    if removed_method:
+    if removed_method or not hasattr(base_type, func.__name__):
       # Do no processing, let Beam function itself raise the error if called.
       return func
 
@@ -566,12 +568,12 @@ def with_docs_from(base_type, name=None, removed_method=False):
   version of Pandas.
   """
   def wrap(func):
-    if removed_method:
+    fn_name = name or func.__name__
+    if removed_method or not hasattr(base_type, fn_name):
       func.__doc__ = (
           "This method has been removed in the current version of Pandas.")
       return func
 
-    fn_name = name or func.__name__
     orig_doc = getattr(base_type, fn_name).__doc__
     if orig_doc is None:
       return func
@@ -659,7 +661,7 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
            running Pandas version.
   """
   def wrap(func):
-    if removed_method:
+    if removed_method or not hasattr(base_type, func.__name__):
       return func
 
     base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
@@ -690,8 +692,10 @@ def populate_defaults(base_type, removed_method=False, removed_args=None):
     # to mean that copy is the value of copy_on_write. Since
     # copy_on_write will always be true for Beam, just fill it
     # in here. In pandas 1, the default was True anyway.
+    # In pandas 3, Copy-on-Write is permanently enabled and methods
+    # either omit copy or set it to None.
     if 'copy' in arg_to_default and arg_to_default['copy'] is None:
-      arg_to_default['copy'] = True
+      arg_to_default['copy'] = None if PD_VERSION >= (3, 0) else True
 
     @functools.wraps(func)
     def wrapper(**kwargs):
