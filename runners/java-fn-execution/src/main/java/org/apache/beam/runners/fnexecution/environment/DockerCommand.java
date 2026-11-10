@@ -88,20 +88,21 @@ class DockerCommand {
   public String runImage(String imageTag, List<String> dockerOpts, List<String> args)
       throws IOException, TimeoutException, InterruptedException {
     checkArgument(!imageTag.isEmpty(), "Docker image tag required");
-    // Pull the image from docker repo. This will be no-op if the image already exists.
-    try {
-      runShortCommand(
-          ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build(),
-          pullTimeout);
-    } catch (IOException | TimeoutException | InterruptedException e) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Unable to pull docker image {}", imageTag, e);
-      } else {
-        LOG.warn("Unable to pull docker image {}", imageTag, e);
+    if (!isImagePresentLocally(imageTag)) {
+      // Pull the image from docker repo if it does not already exist locally.
+      try {
+        runShortCommand(
+            ImmutableList.<String>builder().add(dockerExecutable).add("pull").add(imageTag).build(),
+            pullTimeout);
+      } catch (IOException | TimeoutException | InterruptedException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Unable to pull docker image {}", imageTag, e);
+        } else {
+          LOG.warn("Unable to pull docker image {}", imageTag, e);
+        }
       }
     }
-    // TODO: Validate args?
-    return runShortCommand(
+    List<String> runCommand =
         ImmutableList.<String>builder()
             .add(dockerExecutable)
             .add("run")
@@ -109,7 +110,31 @@ class DockerCommand {
             .addAll(dockerOpts)
             .add(imageTag)
             .addAll(args)
-            .build());
+            .build();
+    try {
+      return runShortCommand(runCommand);
+    } catch (TimeoutException e) {
+      LOG.warn("Timed out starting docker container for image {}, retrying once", imageTag, e);
+      return runShortCommand(runCommand);
+    }
+  }
+
+  private boolean isImagePresentLocally(String imageTag) {
+    try {
+      runShortCommand(
+          ImmutableList.<String>builder()
+              .add(dockerExecutable)
+              .add("image")
+              .add("inspect")
+              .add(imageTag)
+              .build());
+      return true;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    } catch (IOException | TimeoutException e) {
+      return false;
+    }
   }
 
   /**
