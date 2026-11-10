@@ -505,6 +505,46 @@ atomized in instants hammered around the
         if not line:
           break
 
+  def test_close_after_flush(self):
+    # fileio.WriteToFiles flushes the sink and then closes the file.
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      with self.subTest(compression_type=compression_type):
+        file_name = self._create_temp_file()
+        with open(file_name, 'wb') as f:
+          writeable = CompressedFile(f, compression_type)
+          writeable.write(self.content)
+          writeable.flush()
+          writeable.close()
+
+        with open(file_name, 'rb') as f:
+          readable = CompressedFile(
+              f, compression_type, read_size=self.read_block_size)
+          self.assertEqual(readable.read(), self.content)
+
+  def test_write_after_flush(self):
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      with self.subTest(compression_type=compression_type):
+        file_name = self._create_temp_file()
+        with open(file_name, 'wb') as f:
+          writeable = CompressedFile(f, compression_type)
+          writeable.write(self.content[:10])
+          writeable.flush()
+          writeable.write(self.content[10:])
+          writeable.close()
+
+        with open(file_name, 'rb') as f:
+          readable = CompressedFile(
+              f, compression_type, read_size=self.read_block_size)
+          self.assertEqual(readable.read(), self.content)
+
   def test_concatenated_compressed_file(self):
     # The test apache_beam.io.textio_test.test_read_gzip_concat
     # does not encounter the problem in the Beam 2.13 and earlier
