@@ -353,24 +353,6 @@ func (th *timerHandler) add(key timerKey, newFire fireElement) {
 
 }
 
-func (th *timerHandler) removeFromFire(key timerKey, oldTimer fireElement) {
-	byKeys := th.toFire[oldTimer.firing]
-	timers := byKeys[string(oldTimer.timer.keyBytes)]
-	timers.remove(key)
-
-	// Clean up timers.
-	if len(timers) == 0 {
-		th.timerKeySetPool.Put(timers)
-		delete(byKeys, string(oldTimer.timer.keyBytes))
-	}
-	if len(byKeys) > 0 {
-		return
-	}
-	th.userKeysSetPool.Put(byKeys)
-	delete(th.toFire, oldTimer.firing)
-	th.order.Remove(oldTimer.firing)
-}
-
 func (th *timerHandler) replace(key timerKey, oldTimer, newTimer fireElement) {
 	byKeys := th.toFire[oldTimer.firing]
 	timers := byKeys[string(oldTimer.timer.keyBytes)]
@@ -395,23 +377,6 @@ func (th *timerHandler) replace(key timerKey, oldTimer, newTimer fireElement) {
 func (th *timerHandler) Persist(fire mtime.Time, timer element, holdChanges map[mtime.Time]int) int {
 	timers := th.timers(timer)
 	key := timerKey{family: timer.family, tag: timer.tag, window: timer.window}
-	if timer.sequence < 0 {
-		oldTimer, ok := timers[key]
-		if !ok {
-			if len(timers) == 0 {
-				delete(th.nextFiring, string(timer.keyBytes))
-				th.firingMapPool.Put(timers)
-			}
-			return 0
-		}
-		th.removeTimer(string(timer.keyBytes), key)
-		th.removeFromFire(key, oldTimer)
-		holdChanges[oldTimer.timer.holdTimestamp] -= 1
-		if holdChanges[oldTimer.timer.holdTimestamp] == 0 {
-			delete(holdChanges, oldTimer.timer.holdTimestamp)
-		}
-		return -1
-	}
 	newTimer := fireElement{firing: fire, timer: timer}
 	if oldTimer, ok := timers[key]; ok {
 		// Update with the new times

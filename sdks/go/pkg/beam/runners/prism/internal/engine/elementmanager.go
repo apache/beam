@@ -1109,19 +1109,16 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			elm.family = tentativeKey.Family
 
 			if stage.processingTimeTimersFamilies[elm.family] {
-				var newTimerFire mtime.Time
-				if elm.sequence >= 0 {
-					// Conditionally rebase processing time or always rebase?
-					newTimerFire = rebaseProcessingTime(emNow, elm.timestamp)
-					elm.timestamp = elm.holdTimestamp // Processing Time always uses the hold timestamp as the resulting event time.
-
-					// Add pending Processing timers to the stage's processing time store & schedule event in the manager.
-					stageRefreshTimes.insert(newTimerFire)
-				}
+				// Conditionally rebase processing time or always rebase?
+				newTimerFire := rebaseProcessingTime(emNow, elm.timestamp)
+				elm.timestamp = elm.holdTimestamp // Processing Time always uses the hold timestamp as the resulting event time.
 				pendingProcessingTimers = append(pendingProcessingTimers, fireElement{
 					firing: newTimerFire,
 					timer:  elm,
 				})
+
+				// Add pending Processing timers to the stage's processing time store & schedule event in the manager.
+				stageRefreshTimes.insert(newTimerFire)
 			} else {
 				pendingEventTimers = append(pendingEventTimers, elm)
 			}
