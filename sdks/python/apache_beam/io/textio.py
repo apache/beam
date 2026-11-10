@@ -1095,10 +1095,7 @@ try:
         as opposed to the entire file being a valid JSON object or list.
         Defaults to True if orient is 'records' (unlike Pandas).
       **kwargs: Extra arguments passed to `pandas.Dataframe.to_json`
-        (see below). Unlike pandas, ``double_precision`` defaults to 15
-        (the maximum pandas supports) rather than 10, to avoid silently
-        rounding floats to 10 decimal places. Floats that need 16-17
-        significant digits to round-trip exactly may still be rounded.
+        (see below).
     """
     from apache_beam.dataframe.io import WriteViaPandas
     if num_shards is not None:
@@ -1108,7 +1105,9 @@ try:
     if lines is None:
       lines = orient == 'records'
     # pandas defaults to double_precision=10, which silently rounds floats to
-    # 10 decimal places. Use pandas' maximum unless the caller overrides it.
+    # 10 decimal places. Use pandas' maximum (15) unless the caller overrides
+    # it. Floats that need 16-17 significant digits to round-trip exactly may
+    # still be rounded.
     kwargs.setdefault('double_precision', 15)
     return 'WriteToJson' >> WriteViaPandas(
         'json', path, orient=orient, lines=lines, **kwargs)
