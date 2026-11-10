@@ -232,6 +232,23 @@ func TestTimerHandler(t *testing.T) {
 			elemTagWin(userKey1, eventTime2, holdTime1, "", iw2),
 			elemTagWin(userKey1, eventTime2, holdTime1, "", iw3),
 		},
+	}, {
+		name: "clearExistingTimer",
+		insert: []fireElement{
+			fireElem(fireTime1, userKey1, eventTime1, holdTime1),
+			{firing: fireTime2, timer: element{window: glo, sequence: -1, transform: tid, family: family, keyBytes: userKey1}},
+		},
+		wantHolds:  map[mtime.Time]int{},
+		onFire:     fireTime3,
+		wantTimers: nil,
+	}, {
+		name: "clearUnsetTimer",
+		insert: []fireElement{
+			{firing: fireTime1, timer: element{window: glo, sequence: -1, transform: tid, family: family, keyBytes: userKey1}},
+		},
+		wantHolds:  map[mtime.Time]int{},
+		onFire:     fireTime3,
+		wantTimers: nil,
 	},
 	}
 
