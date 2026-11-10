@@ -175,6 +175,35 @@ def _annotation_namespaces(fn):
   return getattr(target, '__globals__', {}), localns
 
 
+def _is_valid_type_hint(hint):
+  """Whether a resolved annotation only contains valid type hint components.
+
+  A string annotation can resolve to an object that is not a type, e.g. a
+  protobuf enum (an ``EnumTypeWrapper`` instance) used as
+  ``Mapping[str, 'schema_pb2.FeatureType']``. Beam's composite type hints
+  reject such parameters, so these annotations must not be resolved.
+  """
+  if hint is None or hint is Ellipsis:
+    return True
+  if isinstance(hint, (list, tuple)):
+    # Callable parameter lists, e.g. the [int] in Callable[[int], str].
+    return all(_is_valid_type_hint(h) for h in hint)
+  origin = get_origin(hint)
+  if origin is Literal:
+    # Literal arguments are values, not types.
+    return True
+  args = get_args(hint)
+  if origin is typing.Annotated:
+    args = args[:1]  # The remaining arguments are metadata.
+  if args:
+    return all(_is_valid_type_hint(arg) for arg in args)
+  try:
+    validate_composite_type_param(hint, 'Resolved type annotation')
+  except TypeError:
+    return False
+  return True
+
+
 def _resolve_annotation(annotation, globalns, localns):
   if not _contains_forward_ref(annotation):
     return annotation
@@ -186,12 +215,17 @@ def _resolve_annotation(annotation, globalns, localns):
 
   one_hint.__annotations__ = {'value': annotation}
   try:
-    return typing.get_type_hints(
+    resolved = typing.get_type_hints(
         one_hint, globalns=globalns, localns=localns,
         include_extras=True)['value']
   except (AttributeError, NameError, SyntaxError, TypeError):
     # convert_to_beam_type maps unresolved strings and ForwardRefs to Any.
     return annotation
+  if not _is_valid_type_hint(resolved):
+    # The annotation names something that is not a type. Keep it unresolved
+    # so that convert_to_beam_type maps it to Any, as for unresolved names.
+    return annotation
+  return resolved
 
 
 def get_signature(func):
