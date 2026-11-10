@@ -30,6 +30,8 @@ on:
         required: false
   schedule:
   - cron: "0 6 * * 1"
+permissions:
+  contents: read
 env:
   docker_registry: gcr.io
   release: "${{ github.event.inputs.RELEASE || '2.77.0' }}"
@@ -107,6 +109,9 @@ jobs:
   attach-vex:
     needs: build
     runs-on: [self-hosted, ubuntu-24.04, main]
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout master for VEX definitions
         uses: actions/checkout@v7
@@ -119,7 +124,11 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.7.0
+        run: |
+          if ! command -v cosign >/dev/null 2>&1; then
+            sudo curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
+            sudo chmod +x /usr/local/bin/cosign
+          fi
       - name: Authenticate on GCP
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:

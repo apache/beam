@@ -62,13 +62,14 @@ jobs:
         with:
           go-version: "1.24.x"
 
-      - name: Install Trivy, govulncheck, and Cosign
-        uses: sigstore/cosign-installer@v3.7.0
-
-      - name: Install scanner dependencies
+      - name: Install scanner and signing dependencies
         run: |
           python3 -m pip install pyyaml
           go install golang.org/x/vuln/cmd/govulncheck@latest
+          if ! command -v cosign >/dev/null 2>&1; then
+            sudo curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
+            sudo chmod +x /usr/local/bin/cosign
+          fi
           if ! command -v trivy >/dev/null 2>&1; then
             curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
           fi
