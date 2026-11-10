@@ -2151,7 +2151,7 @@ public class BigtableIOTest {
     assertEquals("change-stream-name", readChangeStream.getChangeStreamName());
     assertEquals(startTime, readChangeStream.getStartTime());
     assertEquals(Duration.standardMinutes(1), readChangeStream.getBacklogReplicationAdjustment());
-    assertEquals(Duration.standardMinutes(1), readChangeStream.getReadChangeStreamTimeout());
+    assertEquals(Duration.standardMinutes(1), readChangeStream.getReadChangeStreamTimeout().get());
     assertEquals(false, readChangeStream.getCreateOrUpdateMetadataTable());
     assertEquals(
         BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS,
