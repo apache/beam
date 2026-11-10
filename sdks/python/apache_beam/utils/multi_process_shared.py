@@ -416,7 +416,10 @@ class MultiProcessShared(Generic[T]):
                 self._manager = manager
               except retryable_exceptions:
                 # The server is no longer good, assume it died.
-                os.unlink(address_file)
+                try:
+                  os.unlink(address_file)
+                except FileNotFoundError:
+                  pass
 
     return self._manager
 
@@ -446,14 +449,14 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
-    manager = self._get_manager(create_if_missing=False)
-    if manager is None:
-      return
     try:
-      manager.unsafe_hard_delete_singleton(self._tag)
+      manager = self._get_manager(create_if_missing=False)
+      if manager is not None:
+        manager.unsafe_hard_delete_singleton(self._tag)
     except (EOFError, OSError, BrokenPipeError):
       # Expected when a spawned server process exits via os._exit(0) before
-      # sending an RPC reply.
+      # sending an RPC reply, or removes its address file while another
+      # caller is still connecting to it.
       pass
     finally:
       self._manager = None
