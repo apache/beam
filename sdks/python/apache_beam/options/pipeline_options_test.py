@@ -22,6 +22,7 @@
 import json
 import logging
 import os
+import sys
 import unittest
 
 import hamcrest as hc
@@ -41,6 +42,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
+from apache_beam.options.pipeline_options import _find_positions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -494,6 +496,23 @@ class PipelineOptionsTest(unittest.TestCase):
         add_extra_args_fn=add_extra_options, retain_unknown_options=True)
     self.assertEqual(result['unknown_option'], 'some_value')
     self.assertEqual(result['extra_positional'], 'other')
+
+  def test_retain_unknown_options_from_sys_argv(self):
+    # Without flags, the options are read from sys.argv.
+    argv = ['prog', '--unknown_option', '--job_name=foo', 'bar']
+    with mock.patch.object(sys, 'argv', argv):
+      options = PipelineOptions()
+      result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_find_positions(self):
+    flags = ['--a', '--known=1', 'x', '--b', 'x']
+    self.assertEqual(
+        _find_positions(['--a', 'x', '--b', 'x'], flags), [0, 2, 3, 4])
+    # An arg that is not in the flags gets no position, and the search for
+    # the next arg still starts after the last one found.
+    self.assertEqual(_find_positions(['--a', '--c', 'x'], flags), [0, None, 2])
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
