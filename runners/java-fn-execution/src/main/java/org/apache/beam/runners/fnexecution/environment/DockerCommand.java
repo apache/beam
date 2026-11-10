@@ -119,19 +119,18 @@ class DockerCommand {
     }
   }
 
-  private boolean isImagePresentLocally(String imageTag) {
+  private boolean isImagePresentLocally(String imageTag) throws InterruptedException {
     try {
       runShortCommand(
           ImmutableList.<String>builder()
               .add(dockerExecutable)
               .add("image")
               .add("inspect")
+              .add("-f")
+              .add("{{.Id}}")
               .add(imageTag)
               .build());
       return true;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return false;
     } catch (IOException | TimeoutException e) {
       return false;
     }
