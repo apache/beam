@@ -43,7 +43,9 @@ dependencies {
   permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
   implementation project(path: ":sdks:java:extensions:sql")
   implementation library.java.vendored_guava_32_1_2_jre
-
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 task runExpansionService (type: JavaExec) {

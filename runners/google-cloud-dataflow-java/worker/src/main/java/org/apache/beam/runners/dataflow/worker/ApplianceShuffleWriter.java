@@ -57,7 +57,14 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
   @Override
   @SuppressWarnings("Finalize")
   protected void finalize() {
-    destroy();
+    destroySynchronized();
+  }
+
+  public synchronized void destroySynchronized() {
+    if (nativePointer != 0L) {
+      destroy();
+      nativePointer = 0L;
+    }
   }
 
   /** Native methods for interacting with the underlying native shuffle writer code. */

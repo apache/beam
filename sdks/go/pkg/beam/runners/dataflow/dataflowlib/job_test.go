@@ -290,6 +290,7 @@ func TestTranslate(t *testing.T) {
 	opts := &JobOptions{
 		Project:                        "test-project",
 		Name:                           "test-job",
+		DataflowServiceOptions:         []string{"enable_prime", "enable_google_cloud_profiler"},
 		DiskProvisionedIops:            4000,
 		DiskProvisionedThroughputMibps: 200,
 		WorkerHash:                     "worker-sha256-hash",
@@ -312,6 +313,28 @@ func TestTranslate(t *testing.T) {
 	}
 	if wp.DiskProvisionedThroughputMibps != 200 {
 		t.Errorf("DiskProvisionedThroughputMibps = %v, want 200", wp.DiskProvisionedThroughputMibps)
+	}
+
+	var recoveredOptions struct {
+		Options dataflowOptions `json:"options"`
+	}
+	if err := json.Unmarshal(job.Environment.SdkPipelineOptions, &recoveredOptions); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+	if recoveredOptions.Options.Project != "test-project" {
+		t.Errorf("Options.Project = %q, want %q", recoveredOptions.Options.Project, "test-project")
+	}
+	if recoveredOptions.Options.JobName != "test-job" {
+		t.Errorf("Options.JobName = %q, want %q", recoveredOptions.Options.JobName, "test-job")
+	}
+	if diff := cmp.Diff([]string{"enable_prime", "enable_google_cloud_profiler"}, recoveredOptions.Options.DataflowServiceOptions); diff != "" {
+		t.Errorf("Options.DataflowServiceOptions diff (-want +got):\n%s", diff)
+	}
+	if recoveredOptions.Options.DiskProvisionedIops != 4000 {
+		t.Errorf("Options.DiskProvisionedIops = %v, want 4000", recoveredOptions.Options.DiskProvisionedIops)
+	}
+	if recoveredOptions.Options.DiskProvisionedThroughputMibps != 200 {
+		t.Errorf("Options.DiskProvisionedThroughputMibps = %v, want 200", recoveredOptions.Options.DiskProvisionedThroughputMibps)
 	}
 
 	// Verify worker package has Sha256

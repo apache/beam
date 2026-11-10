@@ -31,7 +31,6 @@ import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
@@ -67,29 +66,36 @@ public abstract class JcsmpSessionService extends SessionService {
   }
 
   @Override
-  public void connect() {
+  public synchronized void connect() {
     retryCallableManager.retryCallable(
         this::connectReadSession, ImmutableSet.of(JCSMPException.class));
   }
 
   @Override
-  public void close() {
+  public synchronized void close() {
     retryCallableManager.retryCallable(
-        () -> {
-          if (messageReceiver != null) {
-            messageReceiver.close();
-          }
-          if (jcsmpSession != null) {
-            checkStateNotNull(jcsmpSession).closeSession();
-          }
-          return 0;
-        },
-        ImmutableSet.of(IOException.class));
+        this::closeSessionResources, ImmutableSet.of(IOException.class));
+  }
+
+  private synchronized int closeSessionResources() throws IOException {
+    if (messageProducer != null) {
+      messageProducer.close();
+      messageProducer = null;
+    }
+    if (messageReceiver != null) {
+      messageReceiver.close();
+      messageReceiver = null;
+    }
+    if (jcsmpSession != null) {
+      checkStateNotNull(jcsmpSession).closeSession();
+      jcsmpSession = null;
+    }
+    return 0;
   }
 
   @Override
-  public MessageReceiver getReceiver() {
-    if (this.messageReceiver == null) {
+  public synchronized MessageReceiver getReceiver() {
+    if (this.messageReceiver == null || this.jcsmpSession == null || this.jcsmpSession.isClosed()) {
       this.messageReceiver =
           retryCallableManager.retryCallable(
               this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
@@ -99,8 +105,11 @@ public abstract class JcsmpSessionService extends SessionService {
   }
 
   @Override
-  public MessageProducer getInitializedProducer(SubmissionMode submissionMode) {
-    if (this.messageProducer == null || this.messageProducer.isClosed()) {
+  public synchronized MessageProducer getInitializedProducer(SubmissionMode submissionMode) {
+    if (this.messageProducer == null
+        || this.messageProducer.isClosed()
+        || this.jcsmpSession == null
+        || this.jcsmpSession.isClosed()) {
       Callable<MessageProducer> create = () -> createXMLMessageProducer(submissionMode);
       this.messageProducer =
           retryCallableManager.retryCallable(create, ImmutableSet.of(JCSMPException.class));
@@ -108,16 +117,16 @@ public abstract class JcsmpSessionService extends SessionService {
     return checkStateNotNull(this.messageProducer);
   }
 
-  private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
+  private synchronized MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
       throws JCSMPException, IOException {
 
-    if (jcsmpSession == null) {
+    if (jcsmpSession == null || jcsmpSession.isClosed()) {
       connectWriteSession(submissionMode);
     }
 
-    @SuppressWarnings("nullness")
+    JCSMPSession session = checkStateNotNull(jcsmpSession);
     Callable<XMLMessageProducer> initProducer =
-        () -> Objects.requireNonNull(jcsmpSession).getMessageProducer(new PublishResultHandler());
+        () -> session.getMessageProducer(new PublishResultHandler());
 
     XMLMessageProducer producer =
         retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
@@ -127,7 +136,7 @@ public abstract class JcsmpSessionService extends SessionService {
     return new SolaceMessageProducer(producer);
   }
 
-  private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
+  private synchronized MessageReceiver createFlowReceiver() throws JCSMPException, IOException {
     Queue queue = checkStateNotNull(queue(), "SolaceIO.Read: Queue is not set.");
 
     ConsumerFlowProperties flowProperties = new ConsumerFlowProperties();
@@ -136,13 +145,14 @@ public abstract class JcsmpSessionService extends SessionService {
 
     EndpointProperties endpointProperties = new EndpointProperties();
     endpointProperties.setAccessType(EndpointProperties.ACCESSTYPE_NONEXCLUSIVE);
-    if (jcsmpSession != null) {
+    JCSMPSession session = jcsmpSession;
+    if (session != null && !session.isClosed()) {
       return new SolaceMessageReceiver(
-          createFlowReceiver(jcsmpSession, flowProperties, endpointProperties));
+          createFlowReceiver(session, flowProperties, endpointProperties));
     }
     throw new IOException(
         "SolaceIO.Read: Could not create a receiver from the Jcsmp session: session object is"
-            + " null.");
+            + " null or closed.");
   }
 
   // The `@SuppressWarning` is needed here, because the checkerframework reports an error for the
@@ -157,28 +167,31 @@ public abstract class JcsmpSessionService extends SessionService {
     return jcsmpSession.createFlow(null, flowProperties, endpointProperties);
   }
 
-  private int connectReadSession() throws JCSMPException {
-    if (jcsmpSession == null) {
-      jcsmpSession = createReadSessionObject();
+  private synchronized int connectReadSession() throws JCSMPException {
+    JCSMPSession session = jcsmpSession;
+    if (session == null || session.isClosed()) {
+      session = createReadSessionObject();
+      jcsmpSession = session;
     }
-    jcsmpSession.connect();
+    session.connect();
     return 0;
   }
 
-  private int connectWriteSession(SubmissionMode mode) throws JCSMPException {
-    if (jcsmpSession == null) {
-      jcsmpSession = createWriteSessionObject(mode);
+  private synchronized int connectWriteSession(SubmissionMode mode) throws JCSMPException {
+    JCSMPSession session = jcsmpSession;
+    if (session == null || session.isClosed()) {
+      session = createWriteSessionObject(mode);
+      jcsmpSession = session;
     }
-    jcsmpSession.connect();
+    session.connect();
     return 0;
   }
 
-  private JCSMPSession createReadSessionObject() throws InvalidPropertiesException {
+  JCSMPSession createReadSessionObject() throws InvalidPropertiesException {
     return JCSMPFactory.onlyInstance().createSession(jcsmpProperties());
   }
 
-  private JCSMPSession createWriteSessionObject(SubmissionMode mode)
-      throws InvalidPropertiesException {
+  JCSMPSession createWriteSessionObject(SubmissionMode mode) throws InvalidPropertiesException {
     return JCSMPFactory.onlyInstance().createSession(initializeWriteSessionProperties(mode));
   }
 }

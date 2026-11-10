@@ -28,6 +28,7 @@ from apache_beam.coders import coders
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -153,6 +154,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         self.client = self.container.get_client()
         break
       except Exception as e:
+        cleanup_testcontainer_on_retry(getattr(self, 'container', None))
         if i == self.retries - 1:
           _LOGGER.error(
               'Unable to start redis container for BigQuery '

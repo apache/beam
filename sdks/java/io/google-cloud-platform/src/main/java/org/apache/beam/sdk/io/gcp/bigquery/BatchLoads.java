@@ -135,7 +135,11 @@ class BatchLoads<DestinationT, ElementT>
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
   static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
+  // The number of times a failed load or copy job is retried in place before the bundle is failed.
+  // A bounded pipeline keeps this low because the runner can just rerun the failed bundle; an
+  // unbounded pipeline retries far more, because failing a bundle in streaming is expensive.
   static final int DEFAULT_MAX_RETRY_JOBS = 3;
+  static final int DEFAULT_MAX_RETRY_JOBS_UNBOUNDED = 1000;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
