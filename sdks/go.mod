@@ -25,7 +25,7 @@ go 1.26.0
 toolchain go1.26.2
 
 require (
-	cloud.google.com/go/bigquery v1.86.1
+	cloud.google.com/go/bigquery v1.86.2
 	cloud.google.com/go/bigtable v1.58.0
 	cloud.google.com/go/datastore v1.28.1
 	cloud.google.com/go/profiler v0.7.1
@@ -100,7 +100,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.39.1-0.20260819172001-e6e3fd93e4be // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
