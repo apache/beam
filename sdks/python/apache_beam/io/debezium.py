@@ -149,6 +149,9 @@ class ReadFromDebezium(PTransform):
         :param connection_properties: properties of the debezium
                                       connection passed as string
                                       with format [propertyName=property;]*
+                                      Set ``provide.transaction.metadata=true``
+                                      to add a ``transaction`` key to records
+                                      and emit transaction BEGIN/END records.
         :param start_offset: starting offset to resume the connector from
                              a previously seen position. Provided as a list
                              of "key=value" strings, where numeric values are

@@ -16,6 +16,7 @@
 package engine
 
 import (
+	"bytes"
 	"container/heap"
 	"context"
 	"fmt"
@@ -895,3 +896,236 @@ func TestStatefulStageKind_buildEventTimeBundle_OverwrittenTimerSameFiringDiffer
 		t.Fatalf("watermarkHolds.counts = %v, want empty", got)
 	}
 }
+
+func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
+	lpBytesDec := func(r io.Reader) []byte {
+		var buf bytes.Buffer
+		tr := io.TeeReader(r, &buf)
+		l, err := coder.DecodeVarInt(tr)
+		if err != nil {
+			t.Fatalf("DecodeVarInt: %v", err)
+		}
+		if _, err := io.CopyN(io.Discard, tr, l); err != nil {
+			t.Fatalf("CopyN: %v", err)
+		}
+		return buf.Bytes()
+	}
+	readAll := func(r io.Reader) []byte {
+		b, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		return b
+	}
+
+	unkeyedInfo := PColInfo{
+		GlobalID:    "unkeyed",
+		WindowCoder: WinGlobal,
+		WDec:        exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+		WEnc:        exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+		EDec:        readAll,
+	}
+	keyedInfo := PColInfo{
+		GlobalID:    "keyed",
+		WindowCoder: WinGlobal,
+		WDec:        exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+		WEnc:        exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+		EDec:        readAll,
+		KeyDec:      lpBytesDec,
+	}
+
+	glo := window.GlobalWindow{}
+	keyBytes := []byte{1, 'k'}
+
+	encodeWindowed := func(info PColInfo, ts mtime.Time, payload []byte) []byte {
+		var buf bytes.Buffer
+		if err := exec.EncodeWindowedValueHeader(info.WEnc, []typex.Window{glo}, ts, typex.NoFiringPane(), &buf); err != nil {
+			t.Fatalf("EncodeWindowedValueHeader: %v", err)
+		}
+		buf.Write(payload)
+		return buf.Bytes()
+	}
+
+	encodeTimerSet := func(tag string, firing, hold mtime.Time) []byte {
+		var buf bytes.Buffer
+		buf.Write(keyBytes)
+		coder.EncodeVarInt(int64(len(tag)), &buf)
+		buf.WriteString(tag)
+		if err := keyedInfo.WEnc.Encode([]typex.Window{glo}, &buf); err != nil {
+			t.Fatalf("WEnc.Encode: %v", err)
+		}
+		buf.WriteByte(0)
+		coder.EncodeEventTime(firing, &buf)
+		coder.EncodeEventTime(hold, &buf)
+		if err := coder.EncodePane(typex.NoFiringPane(), &buf); err != nil {
+			t.Fatalf("EncodePane: %v", err)
+		}
+		return buf.Bytes()
+	}
+
+	encodeTimerClear := func(tag string) []byte {
+		var buf bytes.Buffer
+		buf.Write(keyBytes)
+		coder.EncodeVarInt(int64(len(tag)), &buf)
+		buf.WriteString(tag)
+		if err := keyedInfo.WEnc.Encode([]typex.Window{glo}, &buf); err != nil {
+			t.Fatalf("WEnc.Encode: %v", err)
+		}
+		buf.WriteByte(1)
+		return buf.Bytes()
+	}
+
+	for _, enableRTC := range []bool{true, false} {
+		t.Run(fmt.Sprintf("eventTimeTimerClearsProcessingTimeTimer/enableRTC=%v", enableRTC), func(t *testing.T) {
+			ctx, cancelFn := context.WithCancelCause(context.Background())
+			defer cancelFn(nil)
+
+			em := NewElementManager(Config{EnableRTC: enableRTC})
+			em.AddStage("impulse", nil, []string{"src_in"}, nil)
+			em.AddStage("src", []string{"src_in"}, []string{"dofn_in"}, nil)
+			em.AddStage("dofn", []string{"dofn_in"}, []string{"sink_in"}, nil)
+			em.StageStateful("dofn", nil)
+			em.StageProcessingTimeTimers("dofn", map[string]bool{"pt": true})
+			em.AddStage("sink", []string{"sink_in"}, nil, nil)
+			em.Impulse("impulse")
+
+			coders := map[string]PColInfo{
+				"src_in":  unkeyedInfo,
+				"dofn_in": keyedInfo,
+				"sink_in": unkeyedInfo,
+			}
+
+			var bundSeq int
+			ch := em.Bundles(ctx, cancelFn, func() string {
+				bundSeq++
+				return fmt.Sprintf("b%d", bundSeq)
+			})
+
+			var etFired, ptFired, sinkBundles int
+			for rb := range ch {
+				switch rb.StageID {
+				case "src":
+					td := TentativeData{}
+					td.WriteData("dofn_in", encodeWindowed(keyedInfo, mtime.FromMilliseconds(1), []byte{1, 'k', 1, 'v'}))
+					em.PersistBundle(rb, coders, td, unkeyedInfo, Residuals{})
+				case "dofn":
+					blocks, _ := em.DataAndTimerInputForBundle(rb, keyedInfo)
+					if len(blocks) != 1 {
+						t.Fatalf("dofn bundle %v blocks = %d, want 1", rb, len(blocks))
+					}
+					td := TentativeData{}
+					switch blocks[0].Kind {
+					case BlockData:
+						td.WriteTimers("dofn", "et", encodeTimerSet("", mtime.FromMilliseconds(10), mtime.FromMilliseconds(10)))
+						td.WriteTimers("dofn", "pt", encodeTimerSet("", mtime.Now().Add(time.Hour), mtime.FromMilliseconds(5)))
+					case BlockTimer:
+						switch blocks[0].Family {
+						case "et":
+							etFired++
+							td.WriteTimers("dofn", "pt", encodeTimerClear(""))
+							td.WriteData("sink_in", encodeWindowed(unkeyedInfo, mtime.FromMilliseconds(10), []byte("event_fired")))
+						case "pt":
+							ptFired++
+							t.Errorf("cleared processing-time timer fired in bundle %v", rb)
+						default:
+							t.Fatalf("unexpected timer family %q", blocks[0].Family)
+						}
+					default:
+						t.Fatalf("unexpected block kind %v", blocks[0].Kind)
+					}
+					em.PersistBundle(rb, coders, td, keyedInfo, Residuals{})
+				case "sink":
+					sinkBundles++
+					em.PersistBundle(rb, coders, TentativeData{}, unkeyedInfo, Residuals{})
+				default:
+					t.Fatalf("unexpected stage %q", rb.StageID)
+				}
+			}
+
+			if err := context.Cause(ctx); err != nil {
+				t.Errorf("pipeline canceled with error: %v", err)
+			}
+			if etFired != 1 {
+				t.Errorf("etFired = %d, want 1", etFired)
+			}
+			if ptFired != 0 {
+				t.Errorf("ptFired = %d, want 0", ptFired)
+			}
+			if sinkBundles != 1 {
+				t.Errorf("sinkBundles = %d, want 1", sinkBundles)
+			}
+			if got := em.livePending.Load(); got != 0 {
+				t.Errorf("livePending = %d, want 0", got)
+			}
+			dofn := em.stages["dofn"]
+			if got := dofn.processingTimeTimers.Peek(); got != mtime.MaxTimestamp {
+				t.Errorf("processingTimeTimers.Peek() = %v, want %v", got, mtime.MaxTimestamp)
+			}
+			if got := dofn.watermarkHolds.Min(); got != mtime.MaxTimestamp {
+				t.Errorf("watermarkHolds.Min() = %v, want %v", got, mtime.MaxTimestamp)
+			}
+		})
+	}
+
+	t.Run("clearUnsetProcessingTimeTimer", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
+		defer cancelFn(nil)
+
+		em := NewElementManager(Config{EnableRTC: true})
+		em.AddStage("impulse", nil, []string{"src_in"}, nil)
+		em.AddStage("src", []string{"src_in"}, []string{"dofn_in"}, nil)
+		em.AddStage("dofn", []string{"dofn_in"}, nil, nil)
+		em.StageStateful("dofn", nil)
+		em.StageProcessingTimeTimers("dofn", map[string]bool{"pt": true})
+		em.Impulse("impulse")
+
+		coders := map[string]PColInfo{
+			"src_in":  unkeyedInfo,
+			"dofn_in": keyedInfo,
+		}
+
+		var bundSeq int
+		ch := em.Bundles(ctx, cancelFn, func() string {
+			bundSeq++
+			return fmt.Sprintf("b%d", bundSeq)
+		})
+
+		var dataBundles, ptFired int
+		for rb := range ch {
+			switch rb.StageID {
+			case "src":
+				td := TentativeData{}
+				td.WriteData("dofn_in", encodeWindowed(keyedInfo, mtime.FromMilliseconds(1), []byte{1, 'k', 1, 'v'}))
+				em.PersistBundle(rb, coders, td, unkeyedInfo, Residuals{})
+			case "dofn":
+				blocks, _ := em.DataAndTimerInputForBundle(rb, keyedInfo)
+				td := TentativeData{}
+				switch blocks[0].Kind {
+				case BlockData:
+					dataBundles++
+					td.WriteTimers("dofn", "pt", encodeTimerClear(""))
+				case BlockTimer:
+					ptFired++
+					t.Errorf("unset processing-time timer fired after clear in bundle %v", rb)
+				}
+				em.PersistBundle(rb, coders, td, keyedInfo, Residuals{})
+			default:
+				t.Fatalf("unexpected stage %q", rb.StageID)
+			}
+		}
+
+		if err := context.Cause(ctx); err != nil {
+			t.Errorf("pipeline canceled with error: %v", err)
+		}
+		if dataBundles != 1 {
+			t.Errorf("dataBundles = %d, want 1", dataBundles)
+		}
+		if ptFired != 0 {
+			t.Errorf("ptFired = %d, want 0", ptFired)
+		}
+		if got := em.livePending.Load(); got != 0 {
+			t.Errorf("livePending = %d, want 0", got)
+		}
+	})
+}
+
