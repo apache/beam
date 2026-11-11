@@ -135,6 +135,17 @@ class MessageFromStringTest(unittest.TestCase):
     call_args = client.messages.create.call_args
     self.assertEqual(call_args.kwargs['max_tokens'], 1024)
 
+  def test_does_not_mutate_inference_args(self):
+    # RunInference reuses the same inference_args dict for every batch.
+    client = mock.MagicMock()
+    client.messages.create.return_value = _make_fake_response("ok")
+    inference_args = {'max_tokens': 2048, 'temperature': 0.5}
+    message_from_string(_TEST_MODEL, ['a'], client, inference_args)
+    message_from_string(_TEST_MODEL, ['b'], client, inference_args)
+    self.assertEqual(inference_args, {'max_tokens': 2048, 'temperature': 0.5})
+    for call_args in client.messages.create.call_args_list:
+      self.assertEqual(call_args.kwargs['max_tokens'], 2048)
+
 
 class MessageFromConversationTest(unittest.TestCase):
   def test_sends_conversation(self):
@@ -149,6 +160,17 @@ class MessageFromConversationTest(unittest.TestCase):
     self.assertEqual(len(results), 1)
     call_args = client.messages.create.call_args
     self.assertEqual(call_args.kwargs['messages'], convo)
+
+  def test_does_not_mutate_inference_args(self):
+    client = mock.MagicMock()
+    client.messages.create.return_value = _make_fake_response("ok")
+    convo = [{"role": "user", "content": "hi"}]
+    inference_args = {'max_tokens': 2048}
+    message_from_conversation(_TEST_MODEL, [convo], client, inference_args)
+    message_from_conversation(_TEST_MODEL, [convo], client, inference_args)
+    self.assertEqual(inference_args, {'max_tokens': 2048})
+    for call_args in client.messages.create.call_args_list:
+      self.assertEqual(call_args.kwargs['max_tokens'], 2048)
 
 
 class AnthropicModelHandlerTest(unittest.TestCase):

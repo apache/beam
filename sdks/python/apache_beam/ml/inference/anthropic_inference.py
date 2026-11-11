@@ -116,6 +116,7 @@ def message_from_string(
     inference_args: additional arguments passed to the messages.create call.
       Common args include 'max_tokens', 'system', 'temperature', 'top_p'.
   """
+  inference_args = dict(inference_args)
   max_tokens = inference_args.pop('max_tokens', 1024)
   responses = []
   for prompt in batch:
@@ -146,6 +147,7 @@ def message_from_conversation(
     client: the Anthropic client instance.
     inference_args: additional arguments passed to the messages.create call.
   """
+  inference_args = dict(inference_args)
   max_tokens = inference_args.pop('max_tokens', 1024)
   responses = []
   for messages in batch:
