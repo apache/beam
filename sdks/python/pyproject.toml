@@ -29,9 +29,10 @@ requires = [
     "grpcio-tools==1.78.0; python_version >= '3.14'",
     "mypy-protobuf==3.5.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
-    "distlib==0.4.3",
+    "distlib==0.4.4",
     # Numpy headers
-    "numpy>=1.14.3,<2.5.0", # Update setup.py as well.
+    "numpy>=1.23.2,<2.6.0; python_version >= '3.12'", # Update setup.py as well.
+    "numpy>=1.23.2,<2.5.0; python_version < '3.12'",
     # having cython here will create wheels that are platform dependent.
     "cython>=3.2.6,<4",
     ## deps for generating external transform wrappers:

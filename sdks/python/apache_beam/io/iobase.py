@@ -1189,9 +1189,12 @@ class WriteImpl(ptransform.PTransform):
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
         keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
+      # pcoll.windowing checks pcoll.producer which may be absent when expand()
+      # is called directly (e.g. in tests)
+      if pcoll.producer is None or not keyed_pcoll.windowing.is_default():
+        keyed_pcoll = keyed_pcoll | core.WindowInto(window.GlobalWindows())
       write_result_coll = (
           keyed_pcoll
-          | core.WindowInto(window.GlobalWindows())
           | core.GroupByKey()
           | 'WriteBundles' >> core.ParDo(
               _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
@@ -1200,9 +1203,10 @@ class WriteImpl(ptransform.PTransform):
           "*** WriteImpl min_shards undef so it's 1, and we write per Bundle")
       min_shards = 1
 
+      if pcoll.producer is None or not pcoll.windowing.is_default():
+        pcoll = pcoll | core.WindowInto(window.GlobalWindows())
       write_result_coll = (
           pcoll
-          | core.WindowInto(window.GlobalWindows())
           | 'WriteBundles' >> core.ParDo(
               _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
           | 'Pair' >> core.Map(lambda x: (None, x))

@@ -32,8 +32,7 @@ Below are some highlights for the project as a whole.
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go,
 and every Beam runner. Portability is currently supported on the
-[DataFlow](/documentation/runners/dataflow), [Flink](/documentation/runners/flink/), [Jet](/documentation/runners/jet), [Nemo](/documentation/runners/nemo), [Prism](/documentation/runners/prism/), [Spark](/documentation/runners/spark/), and [Twister2](/documentation/runners/Twister2)
-runners.
+[DataFlow](/documentation/runners/dataflow), [Flink](/documentation/runners/flink/), [Jet](/documentation/runners/jet), [Prism](/documentation/runners/prism/), and [Spark](/documentation/runners/spark/) runners.
 
 See the details on the [Portability Roadmap](/roadmap/portability/)
 
@@ -69,12 +68,12 @@ Learn more from the [Beam Element Extended Metadata Design Doc](https://s.apache
 
 The Go SDK is not actively being developed beyond bugfixes due to lack of contributors. If you'd like to help move this forward again, see the [Go SDK's Roadmap](/roadmap/go-sdk)
 
-## Python 3 support
+## Python SDK
 
-As of Apache Beam 2.75.0, we support python version from 3.10 uptil Python 3.14. Supporting new Python 3 minor version is in our roadmap.
+As of Apache Beam 2.78.0, we support Python 3.11, 3.12, 3.13 and 3.14.
 
 See details on
-the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
+the [Python SDK's Roadmap](/roadmap/python-sdk/).
 
 ## Java support
 

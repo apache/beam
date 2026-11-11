@@ -109,7 +109,7 @@ public class GcsUtilIT {
 
   @Parameters(name = "{0}")
   public static Iterable<String> data() {
-    return Arrays.asList("use_gcsutil_v1", "use_gcsutil_v2");
+    return Arrays.asList("disable_gcsutil_v2", "use_gcsutil_v2");
   }
 
   @Parameter public String experiment;
@@ -1342,6 +1342,9 @@ public class GcsUtilIT {
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    // These options are built from scratch, so the experiment set in setUp() has to be carried
+    // over, otherwise GcsUtil picks its default (V2) rather than the V1 this test exercises.
+    options.as(ExperimentalOptions.class).setExperiments(Collections.singletonList(experiment));
     // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
     // with a bucket default key).
     assertNotNull(options.getTempRoot());

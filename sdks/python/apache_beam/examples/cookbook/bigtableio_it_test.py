@@ -35,6 +35,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.utils import retry
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -106,13 +107,13 @@ class BigtableIOWriteTest(unittest.TestCase):
 
   """
   DEFAULT_TABLE_PREFIX = "python-test"
-  instance_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  cluster_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
   LOCATION_ID = "us-east1-b"
 
   def setUp(self):
+    self.instance_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    self.cluster_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    self.table_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
     try:
       from google.cloud.bigtable import enums
       self.STORAGE_TYPE = enums.StorageType.HDD
@@ -136,8 +137,17 @@ class BigtableIOWriteTest(unittest.TestCase):
           self.cluster_id,
           self.LOCATION_ID,
           default_storage_type=self.STORAGE_TYPE)
-      operation = self.instance.create(clusters=[cluster])
-      operation.result(timeout=300)  # Wait up to 5 min.
+
+      @retry.with_exponential_backoff(
+          num_retries=3,
+          initial_delay_secs=5,
+          retry_filter=retry.
+          retry_on_server_errors_timeout_or_quota_issues_filter)
+      def _create_instance():
+        operation = self.instance.create(clusters=[cluster])
+        operation.result(timeout=300)  # Wait up to 5 min.
+
+      _create_instance()
 
     self.table = self.instance.table(self.table_id)
 

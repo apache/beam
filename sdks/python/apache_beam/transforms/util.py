@@ -33,6 +33,7 @@ import time
 import uuid
 from collections.abc import Callable
 from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
@@ -82,6 +83,7 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.secret import AwsSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
 from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import Secret
@@ -94,6 +96,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    'AwsSecret',
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
@@ -759,28 +762,57 @@ class _BatchSizeEstimator(object):
         self._data)
 
 
+def _unit_element_size(unused_element):
+  return 1
+
+
+def _element_size_and_weight(element, element_size_fn, max_batch_weight):
+  """Returns the contribution of an element to the size and weight of a batch.
+
+  Without max_batch_weight, element_size_fn determines the size of a batch.
+  With max_batch_weight, the size of a batch is its number of elements, and
+  element_size_fn determines its weight.
+  """
+  if max_batch_weight is None:
+    return element_size_fn(element), 0
+  return 1, element_size_fn(element)
+
+
 class _GlobalWindowsBatchingDoFn(DoFn):
-  def __init__(self, batch_size_estimator, element_size_fn):
+  def __init__(
+      self, batch_size_estimator, element_size_fn, max_batch_weight=None):
     self._batch_size_estimator = batch_size_estimator
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
 
   def start_bundle(self):
     self._batch = []
     self._running_batch_size = 0
+    self._running_batch_weight = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
     # The first emit often involves non-trivial setup.
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
-    element_size = self._element_size_fn(element)
-    if self._running_batch_size + element_size > self._target_batch_size:
+    element_size, element_weight = _element_size_and_weight(
+        element, self._element_size_fn, self._max_batch_weight)
+    would_exceed_size = (
+        self._running_batch_size + element_size > self._target_batch_size)
+    would_exceed_weight = (
+        self._max_batch_weight is not None and
+        self._running_batch_weight + element_weight > self._max_batch_weight)
+    # Never emit an empty batch: an element that exceeds the limits on its own
+    # is emitted in a batch by itself.
+    if self._batch and (would_exceed_size or would_exceed_weight):
       with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
+      self._running_batch_weight = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
     self._batch.append(element)
     self._running_batch_size += element_size
+    self._running_batch_weight += element_weight
 
   def finish_bundle(self):
     if self._batch:
@@ -797,15 +829,18 @@ class _SizedBatch():
   def __init__(self):
     self.elements = []
     self.size = 0
+    self.weight = 0
 
 
 class _WindowAwareBatchingDoFn(DoFn):
 
   _MAX_LIVE_WINDOWS = 10
 
-  def __init__(self, batch_size_estimator, element_size_fn):
+  def __init__(
+      self, batch_size_estimator, element_size_fn, max_batch_weight=None):
     self._batch_size_estimator = batch_size_estimator
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
 
   def start_bundle(self):
     self._batches = collections.defaultdict(_SizedBatch)
@@ -815,8 +850,15 @@ class _WindowAwareBatchingDoFn(DoFn):
 
   def process(self, element, window=DoFn.WindowParam):
     batch = self._batches[window]
-    element_size = self._element_size_fn(element)
-    if batch.size + element_size > self._target_batch_size:
+    element_size, element_weight = _element_size_and_weight(
+        element, self._element_size_fn, self._max_batch_weight)
+    would_exceed_size = batch.size + element_size > self._target_batch_size
+    would_exceed_weight = (
+        self._max_batch_weight is not None and
+        batch.weight + element_weight > self._max_batch_weight)
+    # Never emit an empty batch: an element that exceeds the limits on its own
+    # is emitted in a batch by itself.
+    if batch.elements and (would_exceed_size or would_exceed_weight):
       with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
             batch.elements, window.max_timestamp(), (window, ))
@@ -825,6 +867,7 @@ class _WindowAwareBatchingDoFn(DoFn):
 
     self._batches[window].elements.append(element)
     self._batches[window].size += element_size
+    self._batches[window].weight += element_weight
 
     if len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, batch = max(
@@ -947,6 +990,173 @@ def _pardo_stateful_batch_elements(
   return _StatefulBatchElementsDoFn()
 
 
+def _pardo_stateful_weighted_batch_elements(
+    input_coder: coders.Coder,
+    batch_size_estimator: _BatchSizeEstimator,
+    max_buffering_duration_secs: int,
+    element_size_fn: Callable[[Any], Any],
+    max_batch_weight: Optional[int] = None,
+    clock=time.time):
+  """Like _pardo_stateful_batch_elements, but honors element_size_fn.
+
+  Without max_batch_weight, element_size_fn determines the contribution of each
+  element to the batch size, as in the non-stateful implementation. With
+  max_batch_weight, the batch size is the number of elements, and
+  max_batch_weight limits the total element_size_fn of a batch.
+
+  This DoFn only adds a 'weight' state to the state and timers of the DoFn of
+  _pardo_stateful_batch_elements, and keeps its transform label, to minimize the
+  impact on the update compatibility of streaming pipelines. Pipelines that do
+  not set element_size_fn keep using _pardo_stateful_batch_elements.
+  """
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
+  # The sum of element_size_fn over the buffered elements.
+  WEIGHT_STATE = ReadModifyWriteStateSpec(
+      'weight', coders.FastPrimitivesCoder())
+  BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
+  BATCH_ESTIMATOR_STATE = ReadModifyWriteStateSpec(
+      'batch_estimator', coders.PickleCoder())
+
+  def batch_size(count, weight):
+    # The size of a batch, in the unit of the batch sizes of the estimator.
+    return weight if max_batch_weight is None else count
+
+  def exceeds_limits(count, weight, target_size):
+    return batch_size(count, weight) > target_size or (
+        max_batch_weight is not None and weight > max_batch_weight)
+
+  def reaches_limits(count, weight, target_size):
+    return batch_size(count, weight) >= target_size or (
+        max_batch_weight is not None and weight >= max_batch_weight)
+
+  class _StatefulWeightedBatchElementsDoFn(DoFn):
+    def default_label(self):
+      # Matches the label of the DoFn of _pardo_stateful_batch_elements, so that
+      # setting element_size_fn doesn't change the transform names of a
+      # pipeline, which streaming pipeline updates rely on.
+      return '_StatefulBatchElementsDoFn'
+
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      window_timer.set(window.end)
+      # Drop the fixed key since we don't care about it
+      value = element[1]
+      element_weight = element_size_fn(value)
+      target_size = batch_size_state.read()
+      # Should only happen on the first element
+      if target_size is None:
+        batch_estimator = batch_size_estimator
+        target_size = batch_estimator.next_batch_size()
+        batch_size_state.write(target_size)
+        batch_estimator_state.write(batch_estimator)
+
+      count = count_state.read()
+      weight = weight_state.read() or 0
+      if count and exceeds_limits(
+          count + 1, weight + element_weight, target_size):
+        # Emit the buffered elements first, so that adding this element
+        # doesn't make the batch exceed the limits. An element that exceeds
+        # the limits on its own is emitted in a batch by itself below.
+        yield from self.flush_batch(
+            element_state,
+            count_state,
+            weight_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+        count, weight = 0, 0
+        target_size = batch_size_state.read()
+
+      element_state.add(value)
+      count_state.add(1)
+      count += 1
+      weight += element_weight
+      weight_state.write(weight)
+
+      if count == 1 and max_buffering_duration_secs > 0:
+        # First element in batch, start buffering timer
+        buffering_timer.set(clock() + max_buffering_duration_secs)
+
+      if reaches_limits(count, weight, target_size):
+        yield from self.flush_batch(
+            element_state,
+            count_state,
+            weight_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          weight_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        weight_state=DoFn.StateParam(WEIGHT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          weight_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    def flush_batch(
+        self,
+        element_state,
+        count_state,
+        weight_state,
+        batch_size_state,
+        batch_estimator_state,
+        buffering_timer):
+      batch = [element for element in element_state.read()]
+      if not batch:
+        return
+      size = batch_size(len(batch), weight_state.read() or 0)
+      element_state.clear()
+      count_state.clear()
+      weight_state.clear()
+      batch_estimator = batch_estimator_state.read()
+      with batch_estimator.record_time(size):
+        yield batch
+      batch_size_state.write(batch_estimator.next_batch_size())
+      batch_estimator_state.write(batch_estimator)
+      buffering_timer.clear()
+
+  return _StatefulWeightedBatchElementsDoFn()
+
+
 class SharedKey():
   """A class that holds a per-process UUID used to key elements for streaming
   BatchElements.
@@ -995,6 +1205,99 @@ class WithLengthBucketKey(DoFn):
     length = self._length_fn(element)
     bucket = self._get_bucket(length)
     yield ((self.key, bucket), element)
+
+
+def _validate_num_shards(num_shards: Any) -> Any:
+  """Validates a ``num_shards`` spec for ``WithBatchKey`` / ``BatchElements``.
+
+  Accepts an int (uniform shard count), a mapping from batch key to shard count
+  (keys absent from the mapping get 1 shard), or a callable from batch key to
+  shard count. Returns the normalized spec (``None`` becomes ``1``).
+  """
+  if num_shards is None:
+    return 1
+  if isinstance(num_shards, bool):
+    raise ValueError('num_shards must be an int, mapping, or callable.')
+  if isinstance(num_shards, int):
+    if num_shards < 1:
+      raise ValueError(f'num_shards ({num_shards}) must be >= 1.')
+    return num_shards
+  if isinstance(num_shards, Mapping):
+    bad = {
+        k: v
+        for k, v in num_shards.items()
+        if not (isinstance(v, int) and not isinstance(v, bool) and v >= 1)
+    }
+    if bad:
+      raise ValueError(
+          f'num_shards mapping values must be ints >= 1; got {bad}.')
+    return dict(num_shards)
+  if callable(num_shards):
+    return num_shards
+  raise ValueError(
+      'num_shards must be an int, a mapping from key to int, or a callable '
+      f'from key to int; got {type(num_shards).__name__}.')
+
+
+class WithBatchKey(DoFn):
+  """Keys elements with a deterministic string key for cross-worker stateful
+  batching in ``BatchElements(key_fn=...)``.
+
+  Unlike ``WithSharedKey`` and ``WithLengthBucketKey`` (which include a
+  per-worker UUID so elements remain worker-local), ``WithBatchKey`` omits any
+  worker UUID so that elements sharing the same key across all upstream workers
+  shuffle to the same downstream worker and are grouped into homogeneous
+  batches (e.g., for LLM prefix caching).
+
+  ``num_shards`` bounds hot-key fanout: when a key resolves to ``n > 1``
+  shards, a random suffix ``:<shard>`` in ``[0, n)`` is appended so that key is
+  spread across at most ``n`` workers. It may be
+
+    * an ``int`` -- the same shard count for every key;
+    * a ``Mapping[key, int]`` -- per-key shard counts for a known skewed
+      distribution (e.g. ``{'default_system_prompt': 8}``); keys not in the
+      mapping get 1 shard;
+    * a ``Callable[[key], int]`` -- computed per key (e.g. from a frequency
+      table loaded at ``setup``).
+
+  The mapping / callable is looked up with the raw ``key_fn`` result first and
+  its ``str()`` form second, so either may be used as the mapping key.
+  """
+  def __init__(self, key_fn: Callable[[Any], Any], num_shards: Any = 1):
+    self._key_fn = key_fn
+    self._num_shards = _validate_num_shards(num_shards)
+
+  def _shards_for(self, raw_key: Any, key: str) -> int:
+    spec = self._num_shards
+    if isinstance(spec, int):
+      return spec
+    if isinstance(spec, Mapping):
+      try:
+        n = spec.get(raw_key)
+      except TypeError:  # Unhashable key; only its str() form can match.
+        n = None
+      if n is None:
+        n = spec.get(key, 1)
+      return n
+    n = spec(raw_key)
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+      raise ValueError(
+          f'num_shards callable returned {n!r} for key {key!r}; expected an '
+          'int >= 1.')
+    return n
+
+  def process(self, element):
+    raw_key = self._key_fn(element)
+    key = str(raw_key) if raw_key is not None else ''
+    num_shards = self._shards_for(raw_key, key)
+    if num_shards > 1:
+      key = f'{key}:{random.randrange(num_shards)}'
+    yield (key, element)
+
+
+# Buffering applied by BatchElements(key_fn=...) when max_batch_duration_secs is
+# unset, so incomplete per-key batches still flush in streaming pipelines.
+_DEFAULT_KEYED_MAX_BUFFERING_SECS = 1.0
 
 
 @typehints.with_input_types(T)
@@ -1048,7 +1351,15 @@ class BatchElements(PTransform):
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
-        a varying number of elements.
+        a varying number of elements. If max_batch_weight is set, the size of a
+        batch is its number of elements instead, and element_size_fn gives the
+        weight of an element.
+    max_batch_weight: (optional) the largest total weight of a batch, where the
+        weight of an element is given by element_size_fn, which must be set.
+        This bounds batches by both their number of elements, between
+        min_batch_size and max_batch_size, and their total weight, e.g. their
+        number of tokens. An element that exceeds max_batch_weight on its own
+        is emitted in a batch by itself.
     variance: (optional) the permitted (relative) amount of deviation from the
         (estimated) ideal batch size used to produce a wider base for
         linear interpolation
@@ -1059,12 +1370,32 @@ class BatchElements(PTransform):
     length_fn: (optional) a callable mapping an element to its length (int).
         When set together with bucket_boundaries, enables length-aware bucketed
         keying on the stateful path so that elements of similar length are
-        routed to the same batch, reducing padding waste.
+        routed to the same batch, reducing padding waste. Ignored, with a
+        warning, if max_batch_duration_secs is not set.
     bucket_boundaries: (optional) a sorted list of positive boundary values
         for length bucketing. Boundaries are lower-inclusive (bisect_right
         semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
         [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
         length_fn is set. Requires length_fn.
+    key_fn: (optional) a callable mapping an element to a grouping key. When
+        set, elements are keyed via ``WithBatchKey`` (without a per-worker UUID)
+        and batched by the same stateful implementation used for
+        ``max_batch_duration_secs``, so elements sharing a key are routed to
+        the same worker and batched together (e.g., for LLM prefix caching).
+        Batch sizes still adapt between ``min_batch_size`` and
+        ``max_batch_size``, and ``element_size_fn`` / ``max_batch_weight`` are
+        honored per key. Incomplete batches are flushed after
+        ``max_batch_duration_secs``, or after 1 second when it is unset, so
+        low-traffic keys still make progress in streaming pipelines. Cannot be
+        combined with ``length_fn``.
+    num_shards: (optional) bounds hot-key fanout when ``key_fn`` is set: an
+        ``int`` applied to every key, a ``Mapping[key, int]`` giving per-key
+        shard counts for a known skewed distribution (unlisted keys get 1), or
+        a ``Callable[[key], int]``. Each key is spread across at most that
+        many random sub-keys / workers. Defaults to 1, which serves each key
+        on one worker at a time, so a hot key's throughput does not grow with
+        the number of workers; give hot keys more shards when the key
+        distribution is skewed. See ``WithBatchKey``.
   """
   _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
 
@@ -1077,12 +1408,21 @@ class BatchElements(PTransform):
       target_batch_duration_secs_including_fixed_cost=None,
       max_batch_duration_secs=None,
       *,
-      element_size_fn=lambda x: 1,
+      element_size_fn=None,
+      max_batch_weight=None,
       variance=0.25,
       clock=time.time,
       record_metrics=True,
       length_fn=None,
-      bucket_boundaries=None):
+      bucket_boundaries=None,
+      key_fn=None,
+      num_shards=1):
+    if max_batch_weight is not None:
+      if element_size_fn is None:
+        raise ValueError('max_batch_weight requires element_size_fn to be set.')
+      if max_batch_weight < 1:
+        raise ValueError(
+            f'max_batch_weight must be >= 1, got {max_batch_weight}')
     if bucket_boundaries is not None and length_fn is None:
       raise ValueError('bucket_boundaries requires length_fn to be set.')
     if bucket_boundaries is not None:
@@ -1091,6 +1431,19 @@ class BatchElements(PTransform):
         raise ValueError(
             'bucket_boundaries must be a non-empty sorted list of '
             'positive values.')
+    if length_fn is not None and max_batch_duration_secs is None:
+      _LOGGER.warning(
+          'BatchElements ignores length_fn and bucket_boundaries unless '
+          'max_batch_duration_secs is set.')
+    if key_fn is not None and not callable(key_fn):
+      raise ValueError('key_fn must be callable.')
+    if key_fn is not None and length_fn is not None:
+      # Both pick the state key: key_fn routes by key across workers, length_fn
+      # buckets by length within a worker.
+      raise ValueError('key_fn cannot be combined with length_fn.')
+    num_shards = _validate_num_shards(num_shards)
+    if num_shards != 1 and key_fn is None:
+      raise ValueError('num_shards requires key_fn to be set.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1102,6 +1455,7 @@ class BatchElements(PTransform):
         clock=clock,
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
+    self._max_batch_weight = max_batch_weight
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
     self._length_fn = length_fn
@@ -1109,9 +1463,41 @@ class BatchElements(PTransform):
       self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
     else:
       self._bucket_boundaries = bucket_boundaries
+    self._key_fn = key_fn
+    self._num_shards = num_shards
+
+  def _stateful_batching_dofn(self, coder, max_buffering_duration_secs):
+    if self._element_size_fn is None:
+      return _pardo_stateful_batch_elements(
+          coder,
+          self._batch_size_estimator,
+          max_buffering_duration_secs,
+          self._clock)
+    return _pardo_stateful_weighted_batch_elements(
+        coder,
+        self._batch_size_estimator,
+        max_buffering_duration_secs,
+        self._element_size_fn,
+        self._max_batch_weight,
+        self._clock)
 
   def expand(self, pcoll):
-    if getattr(pcoll.pipeline.runner, 'is_streaming', False):
+    if self._key_fn is not None:
+      coder = coders.registry.get_coder(pcoll)
+      # Without a buffering timer an incomplete batch in a streaming global
+      # window would only be flushed when the batch fills up.
+      buffering_secs = (
+          self._max_batch_dur if self._max_batch_dur is not None else
+          _DEFAULT_KEYED_MAX_BUFFERING_SECS)
+      # WithBatchKey omits the per-worker UUID, so the stateful DoFn groups
+      # each key across workers instead of within one worker.
+      return (
+          pcoll
+          | ParDo(WithBatchKey(self._key_fn,
+                               self._num_shards)).with_output_types(
+                                   tuple[str, pcoll.element_type])
+          | ParDo(self._stateful_batching_dofn(coder, buffering_secs)))
+    elif getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
@@ -1121,21 +1507,21 @@ class BatchElements(PTransform):
       else:
         keying_dofn = WithSharedKey()
       return pcoll | ParDo(keying_dofn) | ParDo(
-          _pardo_stateful_batch_elements(
-              coder,
-              self._batch_size_estimator,
-              self._max_batch_dur,
-              self._clock))
+          self._stateful_batching_dofn(coder, self._max_batch_dur))
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
       return pcoll | ParDo(
           _GlobalWindowsBatchingDoFn(
-              self._batch_size_estimator, self._element_size_fn))
+              self._batch_size_estimator,
+              self._element_size_fn or _unit_element_size,
+              self._max_batch_weight))
     else:
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
-              self._batch_size_estimator, self._element_size_fn))
+              self._batch_size_estimator,
+              self._element_size_fn or _unit_element_size,
+              self._max_batch_weight))
 
 
 class _SortAndBatchElementsDoFn(DoFn):
@@ -2156,7 +2542,9 @@ class Regex(object):
   def all_matches(pcoll, regex):
     """
     Returns all matches (groups) if zero or more characters at the beginning
-    of string match the regular expression.
+    of string match the regular expression. Each output is a list of the
+    entire match followed by every group of the regex, with None for a group
+    that did not participate in the match.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -2166,7 +2554,7 @@ class Regex(object):
     def _process(element):
       m = regex.match(element)
       if m:
-        yield [m.group(ix) for ix in range(m.lastindex + 1)]
+        yield [m.group(), *m.groups()]
 
     return pcoll | FlatMap(_process)
 

@@ -136,6 +136,40 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
         kmsKey);
   }
 
+  /**
+   * Returns the location of the query's result table, which is also where the export job runs.
+   *
+   * <p>Uses the same resolution as {@link BigQueryQueryHelper#executeQuery} (explicit location, or
+   * the location of the first referenced table). If that yields nothing and the user supplied a
+   * temp dataset, falls back to that dataset's location. Does not run the query or create any
+   * resources.
+   */
+  @Nullable String getQueryLocation(BigQueryOptions bqOptions) throws Exception {
+    try (BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+      @Nullable String resolved =
+          BigQueryQueryHelper.resolveQueryLocation(
+              bqServices,
+              datasetService,
+              bqOptions,
+              dryRunJobStats,
+              query.get(),
+              flattenResults,
+              useLegacySql,
+              location);
+      if (resolved == null && tempDatasetId != null) {
+        String project = tempProjectId;
+        if (project == null) {
+          project =
+              bqOptions.getBigQueryProject() == null
+                  ? bqOptions.getProject()
+                  : bqOptions.getBigQueryProject();
+        }
+        resolved = datasetService.getDataset(project, tempDatasetId).getLocation();
+      }
+      return resolved;
+    }
+  }
+
   void cleanupTempResource(BigQueryOptions bqOptions, String stepUuid) throws Exception {
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(tempDatasetId);
     String project = tempProjectId;

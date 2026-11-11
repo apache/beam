@@ -81,6 +81,7 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable Long maxTimeToRun;
       private @Nullable List<String> startOffset;
       private @Nullable String offsetStoragePath;
+      private @Nullable Boolean fullMetadata;
 
       public void setConnectionProperties(@Nullable List<String> connectionProperties) {
         this.connectionProperties = connectionProperties;
@@ -100,6 +101,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setOffsetStoragePath(@Nullable String offsetStoragePath) {
         this.offsetStoragePath = offsetStoragePath;
+      }
+
+      public void setFullMetadata(@Nullable Boolean fullMetadata) {
+        this.fullMetadata = fullMetadata;
       }
     }
 
@@ -159,6 +164,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
         readTransform =
             readTransform.withOffsetRetainer(
                 FileSystemOffsetRetainer.of(configuration.offsetStoragePath));
+      }
+
+      if (Boolean.TRUE.equals(configuration.fullMetadata)) {
+        readTransform = readTransform.withFullMetadata(true);
       }
 
       return readTransform;

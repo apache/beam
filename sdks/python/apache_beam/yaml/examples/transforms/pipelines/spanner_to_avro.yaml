@@ -26,9 +26,9 @@ pipeline:
     - type: ReadFromSpanner
       name: ReadShipments
       config:
-        project_id: 'apache-beam-testing'
-        instance_id: 'shipment-test'
-        database_id: 'shipment'
+        project: 'apache-beam-testing'
+        instance: 'shipment-test'
+        database: 'shipment'
         query: 'SELECT * FROM shipments'
     # Step 2: Write successful records out to GCS avro files
     - type: WriteToAvro

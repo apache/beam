@@ -21,6 +21,7 @@
 
 import datetime
 import unittest
+import zoneinfo
 
 import pytz
 from google.protobuf import duration_pb2
@@ -85,6 +86,10 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual(
         Timestamp.from_utc_datetime(
             datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)),
+        Timestamp(0))
+    self.assertEqual(
+        Timestamp.from_utc_datetime(
+            datetime.datetime(1970, 1, 1, tzinfo=zoneinfo.ZoneInfo("UTC"))),
         Timestamp(0))
     with self.assertRaisesRegex(ValueError, r'UTC'):
       Timestamp.from_utc_datetime(

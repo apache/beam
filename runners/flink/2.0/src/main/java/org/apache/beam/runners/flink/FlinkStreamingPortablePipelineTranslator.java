@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.util.construction.ExecutableStageTranslation.g
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -131,13 +130,7 @@ import org.apache.flink.util.OutputTag;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class FlinkStreamingPortablePipelineTranslator
+public final class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext> {
 

@@ -42,7 +42,8 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
 
   @Description(
       "Watermark delay in milliseconds applied to event timestamps of streaming sources "
-          + "(streaming mode only).")
+          + "(streaming mode only). Must be under one day for end of stream global window results "
+          + "to complete.")
   @Default.Long(0)
   long getWatermarkDelayMillis();
 

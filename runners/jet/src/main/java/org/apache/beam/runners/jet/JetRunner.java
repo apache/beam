@@ -24,7 +24,6 @@ import com.hazelcast.jet.Job;
 import com.hazelcast.jet.config.JobConfig;
 import com.hazelcast.jet.core.DAG;
 import com.hazelcast.map.IMap;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,13 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Jet specific implementation of Beam's {@link PipelineRunner}. */
-@SuppressFBWarnings(
-    value = "CT_CONSTRUCTOR_THROW",
-    justification =
-        "Pre-existing finding, not triaged yet."
-            + " Making the class final or moving the throwing code"
-            + " into a static factory method may fix it.")
-public class JetRunner extends PipelineRunner<PipelineResult> {
+public final class JetRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
 

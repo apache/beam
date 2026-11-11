@@ -542,8 +542,7 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
         bigquery_table=self.bq_table,
     )
     annotations = transform.annotations()
-    self.assertIn("model_identifier", annotations)
-    self.assertEqual(annotations["model_identifier"], "")
+    self.assertNotIn("model_identifier", annotations)
 
   def test_run_inference_monitoring_outlet_shadows_model_identifier(self):
     class DummyMonitoring(beam.PTransform):
@@ -572,7 +571,7 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
     ]
     self.assertTrue(len(outlet_transforms) > 0)
     for t in outlet_transforms:
-      self.assertEqual(t.annotations.get("model_identifier"), b"")
+      self.assertFalse(t.annotations.get("model_identifier"))
 
   @mock.patch(
       "apache_beam.ml.inference.vertex_ai_model_monitoring_v2.WriteToBigQuery")

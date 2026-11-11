@@ -36,8 +36,9 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
   void setDataSize(String dataSize);
 
   // Set the return type to be String since reading from the command line (user input will be like
-  // "1,2,55" which represent TPC-DS query1, query3, query55)
-  @Description("The queries numbers, read user input as string, numbers separated by commas")
+  // "1,2,55" which represent TPC-DS query1, query3, query55, or "supported" / "all")
+  @Description(
+      "The queries numbers, read user input as string, numbers separated by commas, or 'supported' / 'all'")
   String getQueries();
 
   void setQueries(String queries);

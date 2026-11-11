@@ -26,6 +26,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -174,6 +177,55 @@ public class SpannerIOReadChangeStreamTest {
               .getIncludeReplicas()
               .getReplicaSelections(0)
               .getLocation());
+    }
+
+    @Test
+    public void testDefaultRetrySettings() {
+      assertNull(spannerConfig.getRetryableCodes());
+      assertNull(spannerConfig.getExecuteStreamingSqlRetrySettings());
+      SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
+      SpannerConfig metadataSpannerConfig =
+          MetadataSpannerConfigFactory.create(
+              changeStreamSpannerConfig, TEST_METADATA_INSTANCE, TEST_METADATA_DATABASE);
+      ImmutableSet<Code> expectedRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
+      RetrySettings expectedRetrySettings =
+          RetrySettings.newBuilder()
+              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(5))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(5))
+              .build();
+      assertEquals(expectedRetryableCodes, changeStreamSpannerConfig.getRetryableCodes());
+      assertEquals(expectedRetryableCodes, metadataSpannerConfig.getRetryableCodes());
+      assertEquals(
+          expectedRetrySettings, changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings());
+      assertEquals(
+          expectedRetrySettings, metadataSpannerConfig.getExecuteStreamingSqlRetrySettings());
+    }
+
+    @Test
+    public void testCustomRetrySettings() {
+      ImmutableSet<Code> customRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE);
+      RetrySettings customRetrySettings =
+          RetrySettings.newBuilder()
+              .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(10))
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(10))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(10))
+              .build();
+      spannerConfig =
+          spannerConfig
+              .withRetryableCodes(customRetryableCodes)
+              .withExecuteStreamingSqlRetrySettings(customRetrySettings);
+      readChangeStream = readChangeStream.withSpannerConfig(spannerConfig);
+      SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
+      SpannerConfig metadataSpannerConfig =
+          MetadataSpannerConfigFactory.create(
+              changeStreamSpannerConfig, TEST_METADATA_INSTANCE, TEST_METADATA_DATABASE);
+      assertEquals(customRetryableCodes, changeStreamSpannerConfig.getRetryableCodes());
+      assertEquals(customRetryableCodes, metadataSpannerConfig.getRetryableCodes());
+      assertEquals(
+          customRetrySettings, changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings());
+      assertEquals(
+          customRetrySettings, metadataSpannerConfig.getExecuteStreamingSqlRetrySettings());
     }
   }
 

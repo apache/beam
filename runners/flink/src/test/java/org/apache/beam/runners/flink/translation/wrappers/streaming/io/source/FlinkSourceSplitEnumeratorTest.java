@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
@@ -43,9 +44,11 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.connector.testutils.source.reader.TestingSplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 /** Unit tests for the Flink source split enumerators. */
 public class FlinkSourceSplitEnumeratorTest {
@@ -53,6 +56,31 @@ public class FlinkSourceSplitEnumeratorTest {
   private static final long STATIC_SPLIT_THRESHOLD_MB = 6144L;
   private static final int SOURCE_PARALLELISM = 2;
   private static final int REQUESTED_SPLITS = 4;
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testLazyInitializationRejectsNullResultWithoutError() throws Exception {
+    SplitEnumeratorContext<FlinkSourceSplit<String>> context =
+        Mockito.mock(SplitEnumeratorContext.class);
+    Mockito.doAnswer(
+            invocation -> {
+              BiConsumer<ArrayList<FlinkSourceSplit<String>>, Throwable> callback =
+                  invocation.getArgument(1);
+              callback.accept(null, null);
+              return null;
+            })
+        .when(context)
+        .callAsync(Mockito.any(), Mockito.any());
+    try (LazyFlinkSourceSplitEnumerator<String> enumerator =
+        new LazyFlinkSourceSplitEnumerator<>(
+            context,
+            TestEstimatedSizeBoundedSource.create(1L, 1),
+            FlinkPipelineOptions.defaults(),
+            1)) {
+      IllegalStateException thrown = assertThrows(IllegalStateException.class, enumerator::start);
+      assertTrue(thrown.getMessage().contains("returned null without an error"));
+    }
+  }
 
   @Test
   public void testSelectsAssignmentModeFromEstimatedSizeAndConfiguration() throws Exception {

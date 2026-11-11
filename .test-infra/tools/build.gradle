@@ -40,6 +40,15 @@ task removeStaleSpannerResources(type: Exec) {
   commandLine './stale_spanner_cleaner.sh'
 }
 
+task testStaleGcsBucketsCleaner(type: Exec) {
+  commandLine 'bash', '-c', 'python3 -m pip install -r requirements.txt && python3 -m unittest test_stale_gcs_buckets_cleaner.py'
+}
+
+task removeStaleGcsBuckets(type: Exec) {
+  dependsOn tasks.testStaleGcsBucketsCleaner
+  commandLine 'python3', 'stale_gcs_buckets_cleaner.py', '--delete'
+}
+
 task runStaleCleaner(type: Exec) {
   commandLine 'bash', '-c', 'pip install -r requirements.txt && python3 stale_cleaner.py'
 }
@@ -50,5 +59,6 @@ task cleanupOtherStaleResources {
   finalizedBy tasks.removeStaleCbtInstances
   finalizedBy tasks.removeStaleK8sWorkload
   finalizedBy tasks.removeStaleSpannerResources
+  finalizedBy tasks.removeStaleGcsBuckets
   finalizedBy tasks.runStaleCleaner
 }

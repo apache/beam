@@ -567,6 +567,86 @@ class BatchElementsTest(unittest.TestCase):
               'a' * 7,
           ]))
 
+  def test_sized_batches_oversized_element(self):
+    # An element that exceeds the batch size on its own is emitted in a batch
+    # by itself, instead of after an empty batch.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'], reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10, max_batch_size=10, element_size_fn=len)
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(20, ), (1, 1)]))
+
+  def test_sized_windowed_batches_oversized_element(self):
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'], reshuffle=False)
+          | beam.Map(lambda e: window.TimestampedValue(e, 1))
+          | beam.WindowInto(window.FixedWindows(10))
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(20, ), (1, 1)]))
+
+  def test_max_batch_weight(self):
+    # Batches have at most 3 elements, with a total length of at most 10.
+    # The first batch of a bundle is limited by its number of elements, as the
+    # estimator replays its size as the next target.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create([1, 1, 1, 4, 4, 4, 1, 20, 1], reshuffle=False)
+          | beam.Map(lambda length: 'a' * length)
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(res, equal_to([(1, 1, 1), (4, 4), (4, 1), (20, ), (1, )]))
+
+  def test_max_batch_weight_windowed(self):
+    # As above, the first batch of the bundle is limited by its number of
+    # elements.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create([(1, 11), (1, 11), (1, 11), (1, 11), (4, 1), (4, 1),
+                         (4, 1)],
+                        reshuffle=False)
+          | beam.MapTuple(
+              lambda length, ts: window.TimestampedValue('a' * length, ts))
+          | beam.WindowInto(window.FixedWindows(10))
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_weight=10,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: tuple(len(e) for e in batch)))
+      assert_that(
+          res,
+          equal_to([
+              (4, 4),
+              (4, ),  # Elements in [0, 10)
+              (1, 1, 1),
+              (1, ),  # Elements in [10, 20)
+          ]))
+
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError, 'requires element_size_fn'):
+      util.BatchElements(max_batch_weight=10)
+
+  def test_max_batch_weight_must_be_positive(self):
+    with self.assertRaisesRegex(ValueError, 'must be >= 1'):
+      util.BatchElements(max_batch_weight=0, element_size_fn=len)
+
   def test_target_duration(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
@@ -879,6 +959,93 @@ class BatchElementsTest(unittest.TestCase):
           | beam.Map(len))
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
+  def test_stateful_sized_batches(self):
+    # The stateful implementation used to ignore element_size_fn.
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['aaaaa'] * 6)
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              element_size_fn=len)
+          | beam.Map(len))
+      assert_that(res, equal_to([2, 2, 2]))
+
+  def test_stateful_max_batch_weight(self):
+    def batch_lengths(label, elements):
+      return (
+          p
+          | f'Create{label}' >> beam.Create(elements)
+          | f'Batch{label}' >> util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_duration_secs=100,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | f'Len{label}' >> beam.Map(len))
+
+    with TestPipeline('FnApiRunner') as p:
+      # At most 2 elements of length 4 fit within max_batch_weight.
+      assert_that(
+          batch_lengths('Heavy', ['aaaa'] * 6),
+          equal_to([2, 2, 2]),
+          label='CheckHeavy')
+      # At most 3 elements fit within max_batch_size.
+      assert_that(
+          batch_lengths('Light', ['a'] * 7),
+          equal_to([3, 3, 1]),
+          label='CheckLight')
+
+  def test_stateful_max_batch_weight_oversized_element(self):
+    with TestPipeline('FnApiRunner') as p:
+      res = (
+          p
+          | beam.Create(['a' * 20, 'a', 'a'])
+          | util.BatchElements(
+              min_batch_size=3,
+              max_batch_size=3,
+              max_batch_duration_secs=100,
+              max_batch_weight=10,
+              element_size_fn=len)
+          | beam.Map(lambda batch: sorted(len(e) for e in batch)))
+
+      def check(batches):
+        # Whatever the order of the elements, the oversized element is emitted
+        # in a batch by itself, and no batch is empty.
+        assert [20] in batches, batches
+        assert all(batches), batches
+        assert sorted(sum(batches, [])) == [1, 1, 20], batches
+
+      assert_that(res, check)
+
+  def test_stateful_element_size_fn_keeps_state_and_label(self):
+    # Setting element_size_fn only adds a 'weight' state, and keeps the
+    # transform names, to minimize the impact on the update compatibility of
+    # streaming pipelines.
+    def stateful_transforms(**kwargs):
+      p = beam.Pipeline()
+      batch_elements = util.BatchElements(max_batch_duration_secs=100, **kwargs)
+      _ = p | beam.Create(['a']) | 'Batch' >> batch_elements
+      transforms = {}
+      for transform in p.to_runner_api().components.transforms.values():
+        if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+          payload = proto_utils.parse_Bytes(
+              transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+          if payload.state_specs:
+            transforms[transform.unique_name] = set(payload.state_specs)
+      return transforms
+
+    state = {'values', 'count', 'batch_size', 'batch_estimator'}
+    label = 'Batch/ParDo(_StatefulBatchElementsDoFn)'
+    self.assertEqual(stateful_transforms(), {label: state})
+    self.assertEqual(
+        stateful_transforms(element_size_fn=len), {label: state | {'weight'}})
+    self.assertEqual(
+        stateful_transforms(element_size_fn=len, max_batch_weight=10),
+        {label: state | {'weight'}})
+
   def test_length_bucket_assignment(self):
     """WithLengthBucketKey assigns correct bucket indices."""
     boundaries = [10, 50, 100]
@@ -956,12 +1123,15 @@ class BatchElementsTest(unittest.TestCase):
 
   def test_length_fn_without_stateful_is_ignored(self):
     """length_fn without max_batch_duration_secs uses non-stateful path."""
+    with self.assertLogs(util.__name__, level='WARNING') as logs:
+      batch_elements = util.BatchElements(
+          min_batch_size=3, max_batch_size=3, length_fn=len)
+    self.assertIn('ignores length_fn', logs.output[0])
     with TestPipeline() as p:
       res = (
           p
           | beam.Create(['a', 'bb', 'ccc'])
-          | util.BatchElements(
-              min_batch_size=3, max_batch_size=3, length_fn=len)
+          | batch_elements
           | beam.Map(len))
       assert_that(res, equal_to([3]))
 
@@ -1110,6 +1280,166 @@ class BatchElementsTest(unittest.TestCase):
 
       checks = batches | beam.Map(check_batch_homogeneity)
       assert_that(checks, is_not_empty())
+
+  def test_batch_elements_key_fn_groups_homogeneous_batches(self):
+    """BatchElements with key_fn batches each key separately."""
+    elements = ['sysA:q1', 'sysB:q1', 'sysA:q2', 'sysB:q2', 'sysA:q3']
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=2,
+              max_batch_duration_secs=1.0,
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      def check_homogeneous(batch_list):
+        flattened = []
+        for b in batch_list:
+          prefixes = {s.split(':', 1)[0] for s in b}
+          assert len(prefixes) == 1, f'Mixed prefixes in batch: {b}'
+          assert len(b) <= 2, f'Batch exceeded max_batch_size: {b}'
+          flattened.extend(b)
+        assert sorted(flattened) == sorted(elements)
+
+      assert_that(batches, check_homogeneous)
+
+  def test_with_batch_key_num_shards(self):
+    """WithBatchKey appends a bounded random shard suffix to the key."""
+    dofn = util.WithBatchKey(key_fn=lambda d: d['cat'], num_shards=4)
+    element = {'cat': 'math', 'q': '1+1'}
+    out = list(dofn.process(element))
+    self.assertEqual(len(out), 1)
+    key, val = out[0]
+    self.assertIs(val, element)
+    self.assertTrue(key.startswith('math:'))
+    shard = int(key.split(':', 1)[1])
+    self.assertIn(shard, range(4))
+
+  def test_with_batch_key_num_shards_mapping_handles_skew(self):
+    """A per-key shard mapping fans out only the listed hot keys."""
+    dofn = util.WithBatchKey(
+        key_fn=lambda d: d['cat'], num_shards={
+            'hot': 4, 'warm': 2
+        })
+    hot_keys = {list(dofn.process({'cat': 'hot'}))[0][0] for _ in range(200)}
+    warm_keys = {list(dofn.process({'cat': 'warm'}))[0][0] for _ in range(200)}
+    cold_keys = {list(dofn.process({'cat': 'cold'}))[0][0] for _ in range(200)}
+    self.assertEqual(hot_keys, {f'hot:{i}' for i in range(4)})
+    self.assertEqual(warm_keys, {'warm:0', 'warm:1'})
+    # Keys absent from the mapping are not sharded at all.
+    self.assertEqual(cold_keys, {'cold'})
+
+  def test_with_batch_key_num_shards_mapping_matches_str_key(self):
+    """Mapping lookup falls back to the str() form of the key."""
+    dofn = util.WithBatchKey(key_fn=lambda d: d['tenant'], num_shards={'7': 3})
+    keys = {list(dofn.process({'tenant': 7}))[0][0] for _ in range(100)}
+    self.assertEqual(keys, {'7:0', '7:1', '7:2'})
+    # An unhashable key can still match by its str() form.
+    dofn = util.WithBatchKey(key_fn=lambda d: d['ids'], num_shards={'[1]': 2})
+    keys = {list(dofn.process({'ids': [1]}))[0][0] for _ in range(100)}
+    self.assertEqual(keys, {'[1]:0', '[1]:1'})
+
+  def test_with_batch_key_num_shards_callable(self):
+    """A callable computes the shard count per key."""
+    dofn = util.WithBatchKey(
+        key_fn=lambda s: s, num_shards=lambda k: 3 if k == 'hot' else 1)
+    hot_keys = {list(dofn.process('hot'))[0][0] for _ in range(100)}
+    self.assertEqual(hot_keys, {'hot:0', 'hot:1', 'hot:2'})
+    self.assertEqual(list(dofn.process('cold')), [('cold', 'cold')])
+    for bad_count in (0, True, 2.0):
+      bad = util.WithBatchKey(
+          key_fn=lambda s: s, num_shards=lambda k, n=bad_count: n)
+      with self.assertRaises(ValueError):
+        list(bad.process('x'))
+
+  def test_batch_elements_key_fn_validation(self):
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn='not_callable')
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards=0)
+    with self.assertRaises(ValueError):
+      util.BatchElements(num_shards=2)
+    with self.assertRaises(ValueError):
+      util.BatchElements(num_shards={'a': 2})
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards={'a': 0})
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards='4')
+    # key_fn and length_fn both choose the state key.
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, length_fn=len)
+    # Valid specs.
+    util.BatchElements(key_fn=len, num_shards={'a': 2})
+    util.BatchElements(key_fn=len, num_shards=lambda k: 2)
+    util.BatchElements(
+        key_fn=len, max_batch_weight=10, element_size_fn=lambda x: 1)
+
+  def test_batch_elements_key_fn_uses_stateful_batching(self):
+    """Keyed batching reuses the stateful DoFn and always has a flush timer."""
+    def buffering_secs(**kwargs):
+      with mock.patch.object(
+          util,
+          '_pardo_stateful_batch_elements',
+          wraps=util._pardo_stateful_batch_elements) as stateful:
+        p = beam.Pipeline()
+        _ = p | beam.Create(['a']) | util.BatchElements(key_fn=len, **kwargs)
+      self.assertEqual(stateful.call_count, 1)
+      # (coder, batch_size_estimator, max_buffering_duration_secs, clock)
+      return stateful.call_args[0][2]
+
+    self.assertEqual(buffering_secs(), 1.0)
+    self.assertEqual(buffering_secs(max_batch_duration_secs=2.5), 2.5)
+
+  def test_batch_elements_key_fn_honors_batch_size_estimator(self):
+    """Batch sizes adapt from min_batch_size rather than max_batch_size."""
+    elements = [f'k:{i}' for i in range(5)]
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=10000,
+              max_batch_duration_secs=100,
+              clock=FakeClock(),
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      # The estimator starts at min_batch_size, so the first batch for the key
+      # is emitted as soon as it holds one element.
+      def check_not_one_batch(batch_list):
+        assert len(batch_list) > 1, batch_list
+        assert sorted(e for b in batch_list for e in b) == sorted(elements)
+
+      assert_that(batches, check_not_one_batch)
+
+  def test_batch_elements_key_fn_with_max_batch_weight(self):
+    """Keyed batches are bounded by weight as well as homogeneous."""
+    elements = ['a:xx', 'b:xx', 'a:xx', 'a:xx', 'b:xx', 'a:xxxxx']
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              element_size_fn=lambda s: len(s.split(':', 1)[1]),
+              max_batch_weight=4,
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      def check(batch_list):
+        flattened = []
+        for b in batch_list:
+          assert len({s.split(':', 1)[0] for s in b}) == 1, b
+          weight = sum(len(s.split(':', 1)[1]) for s in b)
+          # An element heavier than max_batch_weight is batched by itself.
+          assert weight <= 4 or len(b) == 1, b
+          flattened.extend(b)
+        assert sorted(flattened) == sorted(elements), flattened
+
+      assert_that(batches, check)
 
   def test_global_batching_dofn_single_vs_multiple_bundles(self):
     # This test directly verifies how bundling affects the batch sizes produced by
@@ -2853,6 +3183,22 @@ class RegexTest(unittest.TestCase):
       expected_result = [["x x", "x", "x"], ["y y", "y", "y"],
                          ["z z", "z", "z"]]
       assert_that(result, equal_to(expected_result))
+
+  def test_all_matched_returns_every_group(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(["ab"]))
+      assert_that(
+          pcol | 'nested groups' >> util.Regex.all_matches("((a)(b))"),
+          equal_to([["ab", "ab", "a", "b"]]),
+          label='CheckNestedGroups')
+      assert_that(
+          pcol | 'optional group' >> util.Regex.all_matches("(a)(c)?"),
+          equal_to([["a", "a", None]]),
+          label='CheckOptionalGroup')
+      assert_that(
+          pcol | 'no groups' >> util.Regex.all_matches("a+"),
+          equal_to([["a"]]),
+          label='CheckNoGroups')
 
   def test_match_group_kv(self):
     with TestPipeline() as p:

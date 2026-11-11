@@ -174,15 +174,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   /**
    * Batching limit for rewrite ops which will copy data.
    *
-   * @deprecated Only applicable to GcsUtil V1. Not applicable to GcsUtil V2 (enabled with the
-   *     {@code use_gcsutil_v2} experiment), which does not batch rewrites; use {@link
-   *     #getGcsMaxConcurrentRewrites} to tune copy/move concurrency there instead.
+   * @deprecated Only applicable to GcsUtil V1 (selected with the {@code disable_gcsutil_v2}
+   *     experiment). Not applicable to GcsUtil V2 (the default), which does not batch rewrites; use
+   *     {@link #getGcsMaxConcurrentRewrites} to tune copy/move concurrency there instead.
    */
   @Deprecated
   @Description(
-      "Batching limit for rewrite ops which will copy data. Deprecated: NOT applicable to GcsUtil"
-          + " V2 (enabled with the use_gcsutil_v2 experiment); use gcsMaxConcurrentRewrites"
-          + " instead.")
+      "Batching limit for rewrite ops which will copy data. Deprecated: only applicable to"
+          + " GcsUtil V1 (selected with the disable_gcsutil_v2 experiment), NOT to GcsUtil V2 (the"
+          + " default); use gcsMaxConcurrentRewrites instead.")
   @Nullable Integer getGcsRewriteDataOpBatchLimit();
 
   /**
@@ -193,14 +193,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   /**
    * Maximum number of files rewritten concurrently when copying or moving files. If unset, a
-   * default of 32 is used.
+   * default of 128 is used.
    *
-   * <p>Only applicable to GcsUtil V2, which is enabled with the {@code use_gcsutil_v2} experiment.
+   * <p>Only applicable to GcsUtil V2, which is the default. Ignored when falling back to GcsUtil V1
+   * with the {@code disable_gcsutil_v2} experiment.
    */
   @Description(
       "Maximum number of files rewritten concurrently when copying or moving files in GCS."
-          + " If unset, defaults to 32. Only applicable to GcsUtil V2 (enabled with the"
-          + " use_gcsutil_v2 experiment).")
+          + " If unset, defaults to 128. Only applicable to GcsUtil V2 (the default); ignored"
+          + " with the disable_gcsutil_v2 experiment.")
   @Nullable Integer getGcsMaxConcurrentRewrites();
 
   void setGcsMaxConcurrentRewrites(@Nullable Integer maxConcurrentRewrites);

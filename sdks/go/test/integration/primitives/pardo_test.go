@@ -65,6 +65,11 @@ func TestParDoBundleFinalizer(t *testing.T) {
 			want:       BundleFinalizerProcess,
 		},
 		{
+			name:       "InProcessElementAfterFusedParDo",
+			pipelineFn: ParDoBundleFinalizerAfterFusedParDo,
+			want:       BundleFinalizerProcess,
+		},
+		{
 			name:       "InFinishBundle",
 			pipelineFn: ParDoFinishBundleFinalizer,
 			want:       BundleFinalizerFinish,

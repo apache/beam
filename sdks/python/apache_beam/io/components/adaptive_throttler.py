@@ -131,12 +131,12 @@ class ReactiveThrottler(AdaptiveThrottler):
   system recovery. capture the timestamp of the attempted request, then execute
   the request code. On a success, call successful_request(timestamp) to report
   the success to the throttler. This flow looks like the following:
-  
+
   def remote_call():
     throttler.throttle()
 
     try:
-      timestamp = time.time()
+      timestamp = time.time() * 1000
       result = make_request()
       throttler.successful_request(timestamp)
       return result

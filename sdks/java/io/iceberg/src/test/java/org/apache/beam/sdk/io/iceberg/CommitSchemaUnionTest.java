@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHa
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.Table;
@@ -117,7 +119,32 @@ public class CommitSchemaUnionTest {
     return CollectDistinctSchemas.SchemaGroup.of(json(schema), count, nullFreeColumns);
   }
 
+  /** {@code count} files, each under a folder per key, e.g. dt=2024-01-15/ for key dt. */
+  private static CollectDistinctSchemas.SchemaGroup filesUnder(
+      Schema schema, long count, String... partitionKeysInPath) {
+    return CollectDistinctSchemas.SchemaGroup.of(
+        json(schema), count, Collections.emptyList(), Arrays.asList(partitionKeysInPath));
+  }
+
+  private static final Schema PARTITIONED =
+      new Schema(
+          required(1, "id", Types.LongType.get()), required(2, "dt", Types.StringType.get()));
+
+  private TableIdentifier partitionedByDt() {
+    TableIdentifier id = missing();
+    catalog.createTable(
+        id, PARTITIONED, PartitionSpec.builderFor(PARTITIONED).identity("dt").build());
+    return id;
+  }
+
   private long commit(
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(commitVerdict(config, handling, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdict(
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
       CollectDistinctSchemas.SchemaGroup... schemas) {
@@ -744,11 +771,59 @@ public class CommitSchemaUnionTest {
 
   // ---- create path
 
+  /** Files under dt=.../ folders, with no dt column: required dt stays required. */
+  @Test
+  public void testRequiredPartitionColumnSuppliedByThePathIsNotRelaxed() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+    int before = catalog.loadTable(id).schema().schemaId();
+
+    long schemaId =
+        commitTo(
+            id,
+            ADDITION_ONLY,
+            IncompatibleSchemaHandling.FAIL_PIPELINE,
+            NO_CREATION,
+            filesUnder(file, 3, "dt"));
+
+    assertEquals(before, schemaId);
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isRequired());
+  }
+
+  /** Files with no dt=... folder would read dt as null, so dt must still become optional. */
+  @Test
+  public void testRequiredPartitionColumnWithoutAPathValueStillNeedsRelaxation() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+
+    assertThrows(
+        IncompatibleSchemaException.class,
+        () ->
+            commitTo(
+                id,
+                ADDITION_ONLY,
+                IncompatibleSchemaHandling.FAIL_PIPELINE,
+                NO_CREATION,
+                filesUnder(file, 3)));
+    commitTo(id, ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION, filesUnder(file, 3));
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isOptional());
+  }
+
   private TableIdentifier missing() {
     return TableIdentifier.of("default", testName.getMethodName() + "_new");
   }
 
   private long commitTo(
+      TableIdentifier id,
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.NewTableSettings creation,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(
+        commitVerdictTo(id, config, handling, creation, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdictTo(
       TableIdentifier id,
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
@@ -948,14 +1023,17 @@ public class CommitSchemaUnionTest {
   @Test
   public void testMissingTableWithoutSchemasIsNotCreated() {
     TableIdentifier id = missing();
-    long result =
+    SchemaCommitVerdict result =
         CommitSchemaUnion.commit(
             catalog,
             id,
             new ArrayList<>(),
             settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
             CommitSchemaUnion.DEFAULT_COMMITTER);
-    assertEquals(CommitSchemaUnion.NO_TABLE, result);
+    assertTrue(result.refused());
+    assertEquals(
+        "the table does not exist and no file schema was read to create it from",
+        result.getRefusal());
     assertFalse(catalog.tableExists(id));
   }
 
@@ -1123,15 +1201,17 @@ public class CommitSchemaUnionTest {
     assertFalse(catalog.tableExists(id));
 
     // nothing valid to seed from: routed, and no table
-    long none =
-        commitTo(
+    SchemaCommitVerdict none =
+        commitVerdictTo(
             id,
             ALL,
             IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
             NO_CREATION,
             files(dotted, 1),
             files(caseDuplicate, 2));
-    assertEquals(CommitSchemaUnion.NO_TABLE, none);
+    assertTrue(none.refused());
+    assertEquals(
+        "the table does not exist and every file schema read was refused", none.getRefusal());
     assertFalse(catalog.tableExists(id));
 
     // the valid schema alone seeds the table

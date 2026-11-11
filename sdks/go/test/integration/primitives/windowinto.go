@@ -235,7 +235,9 @@ func TriggerAfterProcessingTimeNotTriggered(s beam.Scope) {
 		}, 10.0)
 }
 
-// TriggerAfterProcessingTime tests the AfterProcessingTime Trigger. It fires output panes once 't' processing time has passed
+// TriggerAfterProcessingTime tests the AfterProcessingTime Trigger. It fires output panes once 't' processing time has passed.
+// Since the trigger is not repeated, it finishes after the first firing and closes the window, so the
+// element arriving after the firing (4.0) is dropped.
 // Not yet supported by the flink runner:
 // java.lang.UnsupportedOperationException: Advancing Processing time is not supported by the Flink Runner.
 func TriggerAfterProcessingTime(s beam.Scope) {
@@ -250,7 +252,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Second)),
-		}, 6.0, 4.0)
+		}, 6.0)
 }
 
 // TriggerRepeat tests the repeat trigger. As of now is it is configure to take only one trigger as a subtrigger.

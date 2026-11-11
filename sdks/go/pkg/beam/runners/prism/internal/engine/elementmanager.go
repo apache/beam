@@ -315,6 +315,15 @@ func (em *ElementManager) StageStateful(ID string, stateTypeLen map[LinkID]func(
 	ss.inprogressKeys = set[string]{}
 }
 
+// StageRequiresTimeSortedInput marks the given stateful stage as requiring its
+// input sorted by event time. Data is held until the watermark passes its
+// timestamp plus the input's allowed lateness, then processed in timestamp order.
+func (em *ElementManager) StageRequiresTimeSortedInput(ID string, allowedLateness time.Duration) {
+	ss := em.stages[ID]
+	ss.requiresTimeSortedInput = true
+	ss.timeSortedAllowedLateness = allowedLateness
+}
+
 // StageOnWindowExpiration marks the given stage as stateful, which means elements are
 // processed by key.
 func (em *ElementManager) StageOnWindowExpiration(stageID string, timer StaticTimerID) {
@@ -1100,6 +1109,10 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			elm.family = tentativeKey.Family
 
 			if stage.processingTimeTimersFamilies[elm.family] {
+				if elm.sequence < 0 {
+					pendingProcessingTimers = append(pendingProcessingTimers, fireElement{timer: elm})
+					continue
+				}
 				// Conditionally rebase processing time or always rebase?
 				newTimerFire := rebaseProcessingTime(emNow, elm.timestamp)
 				elm.timestamp = elm.holdTimestamp // Processing Time always uses the hold timestamp as the resulting event time.
@@ -1288,6 +1301,11 @@ type stageState struct {
 	stateTypeLen           map[LinkID]func([]byte) int                           // map from state to a function that will produce the total length of a single value in bytes.
 	bundlesToInject        []RunBundle                                           // bundlesToInject are triggered bundles that will be injected by the watermark loop to avoid premature pipeline termination.
 	bundlePanes            map[string]map[typex.Window]map[string]typex.PaneInfo // PaneInfo snapshot for bundles, from BundleID -> window -> userKey
+
+	// Whether the stage requires its input sorted by event time, and the
+	// allowed lateness of that input. See timeSortedDataReadyLocked.
+	requiresTimeSortedInput   bool
+	timeSortedAllowedLateness time.Duration
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
@@ -1515,6 +1533,20 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 	return count
 }
 
+// isTriggerFinished returns true if the root trigger for the given window and key
+// has finished, meaning the window is closed and no further panes will be produced.
+// Callers must hold ss.mu.
+func (ss *stageState) isTriggerFinished(window typex.Window, key string) bool {
+	if ss.strat.Trigger == nil {
+		return false
+	}
+	state, ok := ss.state[LinkID{}][window][key]
+	if !ok {
+		return false
+	}
+	return state.getTriggerState(ss.strat.Trigger).finished
+}
+
 // addPending for aggregate stages behaves likes stateful stages, but don't need to handle timers or a separate window
 // expiration condition.
 func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1543,6 +1575,13 @@ func (*aggregateStageKind) addPending(ss *stageState, em *ElementManager, newPen
 
 	count := 0
 	for _, e := range newPending {
+		if len(e.keyBytes) > 0 && ss.isTriggerFinished(e.window, string(e.keyBytes)) {
+			// The trigger for this window and key has already finished, so the
+			// window is closed. Drop the element, matching the Java ReduceFnRunner
+			// (droppedDueToClosedWindow). Otherwise the element would be emitted
+			// in an extra pane when the watermark passes the end of the window.
+			continue
+		}
 		count++
 		if len(e.keyBytes) == 0 {
 			panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
@@ -1575,6 +1614,7 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		ss.pendingByKeys = map[string]*dataAndTimers{}
 	}
 	count := 0
+	owedCallbacks := 0
 	for _, e := range newPending {
 		count++
 		if len(e.keyBytes) == 0 {
@@ -1586,13 +1626,18 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 				timers: map[timerKey]timerTimes{},
 			}
 			ss.pendingByKeys[string(e.keyBytes)] = dnt
-			if ss.keysToExpireByWindow != nil {
-				w, ok := ss.keysToExpireByWindow[e.window]
-				if !ok {
-					w = make(set[string])
-					ss.keysToExpireByWindow[e.window] = w
-				}
+		}
+		// The key owes an OnWindowExpiration callback for each window it uses.
+		// A cleared timer, with a sequence of -1, doesn't use its window.
+		if ss.keysToExpireByWindow != nil && e.sequence >= 0 {
+			w, ok := ss.keysToExpireByWindow[e.window]
+			if !ok {
+				w = make(set[string])
+				ss.keysToExpireByWindow[e.window] = w
+			}
+			if !w.present(string(e.keyBytes)) {
 				w.insert(string(e.keyBytes))
+				owedCallbacks++
 			}
 		}
 		heap.Push(&dnt.elements, e)
@@ -1619,7 +1664,9 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 			}
 		}
 	}
-	return count
+	// Owed callbacks are pending too, so the job can't end before they run.
+	// Each is released when its expiry bundle persists.
+	return count + owedCallbacks
 }
 
 func (*ordinaryStageKind) addPending(ss *stageState, em *ElementManager, newPending []element) int {
@@ -1937,6 +1984,10 @@ keysPerBundle:
 					(!dataInBundle && !dnt.elements[0].IsTimer())) { // we're about to add data to a bundle that already has a time
 				break
 			}
+			if dnt.elements[0].IsData() && !ss.timeSortedDataReadyLocked(dnt.elements[0].timestamp, watermark) {
+				// Hold data, and anything after it, until it can be time sorted.
+				break
+			}
 			e := heap.Pop(&dnt.elements).(element)
 			if e.IsData() {
 				dataInBundle = true
@@ -2003,11 +2054,28 @@ func (ss *stageState) hasBuildableDataLocked(watermark mtime.Time) bool {
 		if dnt.elements.Len() == 0 {
 			continue
 		}
-		if e := dnt.elements[0]; e.IsData() || e.timestamp <= watermark {
+		e := dnt.elements[0]
+		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) {
+			return true
+		}
+		if e.IsTimer() && e.timestamp <= watermark {
 			return true
 		}
 	}
 	return false
+}
+
+// timeSortedDataReadyLocked reports whether a data element with the given
+// timestamp may be processed at the given watermark. Data for stages that
+// require time sorted input is held until the watermark passes its timestamp
+// plus the allowed lateness, so no earlier element that isn't droppably late
+// can still arrive, and held elements are processed in timestamp order.
+// Data for other stages is always ready. Callers hold ss.mu.
+func (ss *stageState) timeSortedDataReadyLocked(ts, watermark mtime.Time) bool {
+	if !ss.requiresTimeSortedInput || watermark == mtime.MaxTimestamp {
+		return true
+	}
+	return ts.Add(ss.timeSortedAllowedLateness) <= watermark
 }
 
 // buildEventTimeBundle for aggregation stages, processes all elements that are within the watermark for completed windows.
@@ -2318,9 +2386,20 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	// A key stays assigned to this bundle while any primary element still
+	// carries it. Releasing it would let a residual of the same key run in a
+	// second bundle while the primary is still processing it, so both bundles
+	// would start from the same state and the last commit would drop the
+	// other's state changes.
+	primKeys := set[string]{}
+	for _, e := range prim {
+		primKeys.insert(string(e.keyBytes))
+	}
 	for _, e := range res {
-		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
-		delete(ss.inprogressKeys, string(e.keyBytes))
+		if k := string(e.keyBytes); !primKeys.present(k) {
+			delete(ss.inprogressKeysByBundle[rb.BundleID], k)
+			delete(ss.inprogressKeys, k)
+		}
 
 		if e.IsTimer() {
 			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
@@ -2417,6 +2496,9 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// consumer that received data still needs scheduling, since an unadvancing
 	// watermark is otherwise the only thing that would surface it.
 	if newOut <= ss.output {
+		// Late data may have used a window that has already expired, which still
+		// owes its OnWindowExpiration callbacks.
+		ss.createOnWindowExpirationBundles(ss.output, em)
 		refreshes := ss.consumersWithNewData
 		ss.consumersWithNewData = nil
 		return refreshes
@@ -2433,8 +2515,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 		for win := range wins {
 			// Clear out anything we've already used.
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2444,8 +2526,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	for _, wins := range ss.state {
 		for win := range wins {
 			if ss.strat.EarliestCompletion(win) < newOut {
-				// If the expiry is in progress, skip collecting this window.
-				if ss.inProgressExpiredWindows[win] > 0 {
+				// If the expiry is in progress or still owed, skip collecting this window.
+				if ss.inProgressExpiredWindows[win] > 0 || ss.keysToExpireByWindow[win] != nil {
 					continue
 				}
 				delete(wins, win)
@@ -2478,8 +2560,8 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 
 // createOnWindowExpirationBundles injects bundles when windows
 // expire for all keys that were used in that window. Returns true if any
-// bundles are created, which means that the window must not yet be garbage
-// collected.
+// window has expired, which means that the output watermark must wait for
+// its bundles.
 //
 // Must be called within the stageState.mu's and the ElementManager.refreshCond
 // critical sections.
@@ -2492,9 +2574,6 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		}
 		// We can't advance the output watermark if there's garbage to collect.
 		preventDownstreamUpdate = true
-		// Hold off on garbage collecting data for these windows while these
-		// are in progress.
-		ss.inProgressExpiredWindows[win] += 1
 
 		// Produce bundle(s) for these keys and window, and inject them.
 		wm := win.MaxTimestamp()
@@ -2505,7 +2584,9 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		busyKeys := set[string]{}
 		usedKeys := set[string]{}
 		for k := range keys {
-			if ss.inprogressKeys.present(k) {
+			// A key in a bundle, or with late data still to process in this window,
+			// expires once that's done.
+			if ss.inprogressKeys.present(k) || ss.hasPendingDataLocked(k, win) {
 				busyKeys.insert(k)
 				continue
 			}
@@ -2522,7 +2603,17 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 				elmBytes:      nil,
 			})
 		}
-		em.addPending(len(toProcess))
+		if len(toProcess) == 0 {
+			// Every key is busy, so there's no bundle to build. The window keeps all
+			// its keys, and expires once one of them is done.
+			continue
+		}
+		// Hold off on garbage collecting data for these windows while these
+		// are in progress. Only a bundle that gets built counts, since its
+		// persist is what releases this.
+		ss.inProgressExpiredWindows[win] += 1
+		// statefulStageKind.addPending already counted these callbacks as
+		// pending, when their keys first used the window.
 		ss.watermarkHolds.Add(wm, 1)
 		ss.makeInProgressBundle(
 			func() string { return rb.BundleID },
@@ -2548,6 +2639,21 @@ func (ss *stageState) createOnWindowExpirationBundles(newOut mtime.Time, em *Ele
 		}
 	}
 	return preventDownstreamUpdate
+}
+
+// hasPendingDataLocked reports whether the key has data to process in the window.
+// Callers hold ss.mu.
+func (ss *stageState) hasPendingDataLocked(key string, win typex.Window) bool {
+	dnt, ok := ss.pendingByKeys[key]
+	if !ok {
+		return false
+	}
+	for _, e := range dnt.elements {
+		if e.IsData() && e.window == win {
+			return true
+		}
+	}
+	return false
 }
 
 // bundleReady returns the maximum allowed watermark for this stage, and whether

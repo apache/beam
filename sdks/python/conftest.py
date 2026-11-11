@@ -18,11 +18,11 @@
 """Pytest configuration and custom hooks."""
 
 import gc
+import math
 import os
 import sys
 import threading
 import time
-from types import SimpleNamespace
 
 import pytest
 
@@ -150,6 +150,32 @@ def enhance_mock_stability():
   time.sleep(0.05)
 
 
+def _configure_testcontainers_timeouts():
+  """Applies TC_* environment settings to testcontainers' global config.
+
+  testcontainers 4.x computes its wait timeout as ``max_tries * sleep_time``
+  from ``testcontainers_config``. It reads ``TC_MAX_TRIES`` and
+  ``TC_POOLING_INTERVAL`` itself, but not ``TC_TIMEOUT`` or ``TC_SLEEP_TIME``,
+  which Beam's CI workflows set. Translate them here so that the effective
+  timeout is at least ``TC_TIMEOUT`` seconds.
+  """
+  from testcontainers.core.config import testcontainers_config
+
+  sleep_time = float(
+      os.getenv("TC_SLEEP_TIME") or os.getenv("TC_POOLING_INTERVAL") or "1")
+  timeout = float(os.getenv("TC_TIMEOUT", "120"))
+  max_tries = int(os.getenv("TC_MAX_TRIES", "0"))
+
+  testcontainers_config.sleep_time = sleep_time
+  testcontainers_config.max_tries = max(
+      max_tries, math.ceil(timeout / sleep_time))
+  print(
+      "Set testcontainers max_tries=%d, sleep_time=%s (timeout=%ss)" % (
+          testcontainers_config.max_tries,
+          testcontainers_config.sleep_time,
+          testcontainers_config.timeout))
+
+
 def pytest_configure(config):
   """Saves options added in pytest_addoption for later use.
   This is necessary since pytest-xdist workers do not have the
@@ -159,14 +185,8 @@ def pytest_configure(config):
   # for the entire test session.
   print("\n--- Applying global testcontainers timeout configuration ---")
   try:
-    from testcontainers.core import waiting_utils
-    waiting_utils.config = SimpleNamespace(
-        timeout=int(os.getenv("TC_TIMEOUT", "120")),
-        max_tries=int(os.getenv("TC_MAX_TRIES", "120")),
-        sleep_time=float(os.getenv("TC_SLEEP_TIME", "1")),
-    )
-    print("Successfully set waiting utils config")
-  except ModuleNotFoundError:
+    _configure_testcontainers_timeouts()
+  except ImportError:
     print("The testcontainers library is not installed.")
 
   TestPipeline.pytest_test_pipeline_options = config.getoption(

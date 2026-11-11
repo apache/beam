@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
 import org.junit.rules.TemporaryFolder;
 
@@ -152,5 +154,16 @@ public final class StreamingTestUtils {
     options.setMaxBatchDurationMillis(200);
     options.setCheckpointDir(checkpointPath);
     return options;
+  }
+
+  /** Rows of a state variable of the query of the only leaf, checkpointed under 0. */
+  static long stateRows(String checkpoint, String stateVarName) {
+    return SparkSession.active()
+        .read()
+        .format("statestore")
+        .option("path", new File(checkpoint, "0").getAbsolutePath())
+        .option("stateVarName", stateVarName)
+        .load()
+        .count();
   }
 }

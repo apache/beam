@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.sql.Dataset;
@@ -179,7 +180,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
         } catch (StreamingQueryException e) {
           LOG.error("Streaming query {} terminated with an exception.", query.id(), e);
           stop();
-          throw new RuntimeException(e);
+          throw new Pipeline.PipelineExecutionException(e.getCause() != null ? e.getCause() : e);
         }
       }
     }

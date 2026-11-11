@@ -72,7 +72,8 @@ class MLTransformStdOutTest(unittest.TestCase):
     mltransform_compute_and_apply_vocabulary()
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_mltransform_compute_and_apply_vocab()
-    self.assertEqual(predicted, expected)
+    # Print order from the pipeline is not guaranteed.
+    self.assertCountEqual(predicted, expected)
 
   def test_mltransform_scale_to_0_1(self, mock_stdout):
     mltransform_scale_to_0_1()
@@ -84,7 +85,8 @@ class MLTransformStdOutTest(unittest.TestCase):
     mltransform_compute_and_apply_vocabulary_with_scalar()
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_mltransform_compute_and_apply_vocabulary_with_scalar()
-    self.assertEqual(predicted, expected)
+    # Print order from the pipeline is not guaranteed.
+    self.assertCountEqual(predicted, expected)
 
 
 if __name__ == '__main__':

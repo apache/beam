@@ -261,22 +261,33 @@ public class JsonToRow {
       return this.toBuilder().setNullBehavior(nullBehavior).build();
     }
 
+    Schema getErrorSchema() {
+      if (getExtendedErrorInfo()) {
+        if (LINE_FIELD_NAME.equals(getLineFieldName())
+            && ERROR_FIELD_NAME.equals(getErrorFieldName())) {
+          return ERROR_ROW_WITH_ERR_MSG_SCHEMA;
+        }
+        return Schema.of(
+            Field.of(getLineFieldName(), FieldType.STRING),
+            Field.of(getErrorFieldName(), FieldType.STRING));
+      } else {
+        if (LINE_FIELD_NAME.equals(getLineFieldName())) {
+          return ERROR_ROW_SCHEMA;
+        }
+        return Schema.of(Field.of(getLineFieldName(), FieldType.STRING));
+      }
+    }
+
     @Override
     public ParseResult expand(PCollection<String> jsonStrings) {
+      Schema errorSchema = getErrorSchema();
 
       PCollectionTuple result =
           jsonStrings.apply(
-              ParDo.of(ParseWithError.create(this))
+              ParDo.of(ParseWithError.create(this, errorSchema))
                   .withOutputTags(PARSED_LINE, TupleTagList.of(PARSE_ERROR)));
 
-      PCollection<Row> failures;
-
-      if (getExtendedErrorInfo()) {
-        failures =
-            result.get(PARSE_ERROR).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA);
-      } else {
-        failures = result.get(PARSE_ERROR).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA);
-      }
+      PCollection<Row> failures = result.get(PARSE_ERROR).setRowSchema(errorSchema);
 
       return ParseResult.resultBuilder()
           .setCallingPipeline(jsonStrings.getPipeline())
@@ -292,18 +303,28 @@ public class JsonToRow {
 
       public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
 
+      public abstract Schema getErrorSchema();
+
       public abstract Builder toBuilder();
 
       @AutoValue.Builder
       public abstract static class Builder {
         public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
 
+        public abstract Builder setErrorSchema(Schema value);
+
         public abstract ParseWithError build();
       }
 
       public static ParseWithError create(JsonToRowWithErrFn jsonToRowWithErrFn) {
+        return create(jsonToRowWithErrFn, jsonToRowWithErrFn.getErrorSchema());
+      }
+
+      public static ParseWithError create(
+          JsonToRowWithErrFn jsonToRowWithErrFn, Schema errorSchema) {
         return new AutoValue_JsonToRow_JsonToRowWithErrFn_ParseWithError.Builder()
             .setJsonToRowWithErrFn(jsonToRowWithErrFn)
+            .setErrorSchema(errorSchema)
             .build();
       }
 
@@ -317,14 +338,14 @@ public class JsonToRow {
             output
                 .get(PARSE_ERROR)
                 .output(
-                    Row.withSchema(ERROR_ROW_WITH_ERR_MSG_SCHEMA)
+                    Row.withSchema(getErrorSchema())
                         .addValue(element)
                         .addValue(ex.getMessage())
                         .build());
           } else {
             output
                 .get(PARSE_ERROR)
-                .output(Row.withSchema(ERROR_ROW_SCHEMA).addValue(element).build());
+                .output(Row.withSchema(getErrorSchema()).addValue(element).build());
           }
           return;
         }

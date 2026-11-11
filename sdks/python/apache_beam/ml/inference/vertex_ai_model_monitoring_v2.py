@@ -347,7 +347,6 @@ class VertexModelMonitoringV2(
 
   def annotations(self) -> dict[str, Any]:
     return {
-        'model_identifier': '',
         **super().annotations(),
     }
 

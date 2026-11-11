@@ -23,9 +23,11 @@ import pytest
 
 import apache_beam as beam
 from apache_beam import runners
+from apache_beam import typehints
 from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -33,7 +35,9 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
+from apache_beam.transforms import userstate
 from apache_beam.transforms.core import Create
+from apache_beam.utils import proto_utils
 
 
 class TranslationsTest(unittest.TestCase):
@@ -457,6 +461,49 @@ class TranslationsTest(unittest.TestCase):
         'RecursiveCombine/A/B/Packed[Sum_CombinePerKey, '
         'C_Sum_CombinePerKey, C_D_Sum_CombinePerKey]/Pack',
         optimized_stage_names)
+
+  def test_timer_family_coder_with_unknown_key_coder(self):
+    class TimerDoFn(beam.DoFn):
+      TIMER = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+      def process(self, element, timer=beam.DoFn.TimerParam(TIMER)):
+        timer.set(0)
+
+      @userstate.on_timer(TIMER)
+      def on_timer(self):
+        pass
+
+    pipeline = beam.Pipeline()
+    # The pickled coder used for Any keys isn't one the runner knows.
+    _ = (
+        pipeline
+        | Create([('a', 1)])
+        | beam.Map(lambda x: x).with_output_types(
+            typehints.KV[typehints.Any, int])
+        | beam.ParDo(TimerDoFn()))
+    context, stages = translations.create_and_optimize_stages(
+        pipeline.to_runner_api(), [translations.setup_timer_mapping],
+        known_runner_urns=frozenset())
+    timer_coder_ids = [
+        timer_family_spec.timer_family_coder_id for stage in stages
+        for transform in stage.transforms
+        if transform.spec.urn == common_urns.primitives.PAR_DO.urn
+        for timer_family_spec in proto_utils.parse_Bytes(
+            transform.spec.payload,
+            beam_runner_api_pb2.ParDoPayload).timer_family_specs.values()
+    ]
+    self.assertEqual(len(timer_coder_ids), 1)
+
+    timer_coder = context.components.coders[timer_coder_ids[0]]
+    self.assertEqual(
+        context.components.coders[timer_coder.component_coder_ids[0]].spec.urn,
+        common_urns.coders.LENGTH_PREFIX.urn)
+    safe_timer_coder = context.components.coders[context.safe_coders[
+        timer_coder_ids[0]]]
+    self.assertEqual(
+        context.components.coders[
+            safe_timer_coder.component_coder_ids[0]].spec.urn,
+        common_urns.coders.BYTES.urn)
 
 
 if __name__ == '__main__':

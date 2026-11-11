@@ -959,6 +959,52 @@ class TestGCSIO(unittest.TestCase):
         self.gcs.is_soft_delete_enabled("gs://beam_without_soft_delete/tmp"))
 
 
+_TPC_UNIVERSE_DOMAIN = "example-tpc.goog"
+
+
+@unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
+# Disable mTLS auto-detection, which is incompatible with non-default
+# universe domains and may be enabled on developer machines.
+@mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "false"})
+class TestCreateStorageClientUniverseDomain(unittest.TestCase):
+  """Tests for Trusted Partner Cloud (TPC) universe domain support."""
+  def _create_client(self, mock_get_service_credentials, universe_domain):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project", universe_domain=universe_domain))
+    return gcsio.create_storage_client(
+        PipelineOptions(["--project=test-project"]))
+
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_default_universe_domain(self, mock_get_service_credentials):
+    os.environ.pop("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
+    client = self._create_client(
+        mock_get_service_credentials, _DEFAULT_UNIVERSE_DOMAIN)
+    self.assertEqual(client.universe_domain, _DEFAULT_UNIVERSE_DOMAIN)
+    self.assertEqual(
+        client._connection.API_BASE_URL, "https://storage.googleapis.com")
+
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_universe_domain_from_env_var(self, mock_get_service_credentials):
+    os.environ["GOOGLE_CLOUD_UNIVERSE_DOMAIN"] = _TPC_UNIVERSE_DOMAIN
+    client = self._create_client(
+        mock_get_service_credentials, _TPC_UNIVERSE_DOMAIN)
+    self.assertEqual(client.universe_domain, _TPC_UNIVERSE_DOMAIN)
+    self.assertEqual(
+        client._connection.API_BASE_URL,
+        "https://storage.%s" % _TPC_UNIVERSE_DOMAIN)
+
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_universe_domain_from_credentials(self, mock_get_service_credentials):
+    os.environ.pop("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
+    client = self._create_client(
+        mock_get_service_credentials, _TPC_UNIVERSE_DOMAIN)
+    self.assertEqual(client.universe_domain, _TPC_UNIVERSE_DOMAIN)
+    self.assertEqual(
+        client._connection.API_BASE_URL,
+        "https://storage.%s" % _TPC_UNIVERSE_DOMAIN)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

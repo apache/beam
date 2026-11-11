@@ -1199,6 +1199,30 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.drop_duplicates(subset=['brand', 'style'], keep=False),
         df)
 
+  def test_duplicates_with_nan(self):
+    df = pd.DataFrame({
+        'a': [1.0, 1.0, np.nan, np.nan, 2.0, 3.0, 0.0, -0.0],
+        'b': ['x', 'x', 'y', 'y', None, 'z', 'w', 'w'],
+    })
+
+    self._run_test(lambda df: df.drop_duplicates(keep=False), df)
+    self._run_test(lambda df: df.duplicated(keep=False), df)
+    self._run_test(lambda df: df.drop_duplicates(subset=['b'], keep=False), df)
+
+    s = pd.Series([1.0, 1.0, np.nan, 2.0], name='a')
+    self._run_test(lambda s: s.drop_duplicates(keep=False), s)
+    self._run_test(lambda s: s.duplicated(keep=False), s)
+    self._run_test(lambda s: s.nunique(), s)
+    self._run_test(lambda s: s.nunique(dropna=False), s)
+
+    s_unnamed = pd.Series([1.0, 1.0, np.nan, 2.0])
+    self._run_test(lambda s: s.drop_duplicates(keep=False), s_unnamed)
+    self._run_test(lambda s: s.duplicated(keep=False), s_unnamed)
+
+  def test_nunique_categorical_with_unused_categories(self):
+    s = pd.Series(['a', 'b', 'a'], dtype=pd.CategoricalDtype(['a', 'b', 'c']))
+    self._run_test(lambda s: s.nunique(), s)
+
   @parameterized.expand([
       (
           lambda base: base.from_dict({
@@ -2190,6 +2214,12 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda s: s.agg(['mean']), s)
     self._run_test(lambda s: s.agg('mean'), s)
 
+  def test_series_agg_list_keeps_name(self):
+    s = pd.Series(list(range(16)), name='x')
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['std', 'var']), s)
+
   def test_dataframe_agg_modes(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
@@ -2607,6 +2637,17 @@ class BeamSpecificTest(unittest.TestCase):
 
     # Verify that the result is the same as conventional duplicated
     self.assert_frame_data_equivalent(result, df.duplicated())
+
+  def test_series_duplicated_keep_any(self):
+    df = pd.DataFrame({
+        'brand': ['Yum Yum', 'Yum Yum', 'Indomie', 'Indomie', 'Indomie'],
+        'style': ['cup', 'cup', 'cup', 'pack', 'pack'],
+        'rating': [4, 4, 3.5, 15, 5]
+    })
+
+    result = self._evaluate(lambda df: df.brand.duplicated(keep='any'), df)
+
+    self.assert_frame_data_equivalent(result, df.brand.duplicated())
 
   def test_get_dummies_not_categoricaldtype(self):
     # Should not work because series is not a CategoricalDtype type

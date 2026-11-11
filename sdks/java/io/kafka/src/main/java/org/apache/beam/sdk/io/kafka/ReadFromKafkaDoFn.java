@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -65,6 +63,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalN
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -316,7 +315,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @MonotonicNonNull LoadingCache<KafkaSourceDescriptor, Consumer<byte[], byte[]>>
       pollConsumerCache;
 
-  // Valid between bundle start and bundle finish.
+  // Initialized in setup() and closed in teardown().
   private transient @Nullable Deserializer<K> keyDeserializerInstance = null;
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
@@ -447,9 +446,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       return new UnsplittableRestrictionTracker<>(new OffsetRangeTracker(restriction));
     }
 
-    // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
-    // so we want to minimize the amount of connections that we start and track with Kafka. Another
-    // point is that it has a memoized backlog, and this should make that more reusable estimations.
+    // Offset estimators are cached per topic-partition so that the latest known end offset updated
+    // by processElement() can be reused across restrictionTracker() and getSize() calls.
     final AtomicLong latestOffsetEstimator =
         latestOffsetEstimatorCache.getUnchecked(kafkaSourceDescriptor);
     return new UnsplittableRestrictionTracker<>(
@@ -578,11 +576,13 @@ abstract class ReadFromKafkaDoFn<K, V>
                       rawRecord.topic(),
                       rawRecord.partition(),
                       rawRecord.offset(),
-                      ConsumerSpEL.getRecordTimestamp(rawRecord),
-                      ConsumerSpEL.getRecordTimestampType(rawRecord),
-                      ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                      ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                      ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                      rawRecord.timestamp(),
+                      KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal()),
+                      rawRecord.headers(),
+                      keyDeserializerInstance.deserialize(
+                          rawRecord.topic(), rawRecord.headers(), rawRecord.key()),
+                      valueDeserializerInstance.deserialize(
+                          rawRecord.topic(), rawRecord.headers(), rawRecord.value()));
               int recordSize =
                   (rawRecord.key() == null ? 0 : rawRecord.key().length)
                       + (rawRecord.value() == null ? 0 : rawRecord.value().length);
@@ -641,8 +641,8 @@ abstract class ReadFromKafkaDoFn<K, V>
 
         final long estimatedBacklogBytes =
             (long)
-                (BigDecimal.valueOf(Math.max(expectedOffset, latestOffsetEstimator.get()))
-                        .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
+                (UnsignedLong.fromLongBits(
+                            Math.max(expectedOffset, latestOffsetEstimator.get()) - expectedOffset)
                         .doubleValue()
                     * avgRecordSize.get());
         backlogBytes.set(estimatedBacklogBytes);
@@ -721,7 +721,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         keyDeserializerInstance = null;
       }
     } catch (Exception anyException) {
-      LOG.warn("Fail to close resource during finishing bundle.", anyException);
+      LOG.warn("Failed to close resource during teardown.", anyException);
     }
     if (checkStopReadingFn != null) {
       checkStopReadingFn.teardown();

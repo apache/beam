@@ -27,6 +27,23 @@ import (
 )
 
 func Test_preprocessor_preProcessGraph(t *testing.T) {
+	// A runner GroupByKey directly into another.
+	gbks := func() *pipepb.Components {
+		gbk := func(in, out string) *pipepb.PTransform {
+			return &pipepb.PTransform{
+				UniqueName: "gbk_" + in,
+				Spec:       &pipepb.FunctionSpec{Urn: urns.TransformGBK},
+				Inputs:     map[string]string{"i0": in},
+				Outputs:    map[string]string{"i0": out},
+			}
+		}
+		return &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"gbk1": gbk("coll1", "coll2"),
+				"gbk2": gbk("coll2", "coll3"),
+			},
+		}
+	}
 	tests := []struct {
 		name  string
 		input *pipepb.Components
@@ -147,6 +164,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in": "coll1",
 						},
@@ -159,6 +177,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in1": "coll1",
 							"in2": "coll2",
@@ -172,6 +191,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 			wantStages: []*stage{
 				{
 					transforms:   []string{"e2", "e3"}, // e1 is ignored
+					envID:        "env1",
 					primaryInput: "coll1",
 					internalCols: []string{"coll2", "coll3"},
 				},
@@ -195,6 +215,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in": "coll1",
 						},
@@ -207,6 +228,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in1": "coll1",
 							"in2": "coll2",
@@ -217,6 +239,15 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name:  "runnerTransformsInOwnStages",
+			input: gbks(),
+			wantStages: []*stage{
+				{transforms: []string{"gbk1"}, primaryInput: "coll1",
+					outputs: []link{{Transform: "gbk1", Local: "i0", Global: "coll2"}}},
+				{transforms: []string{"gbk2"}, primaryInput: "coll2", internalCols: []string{"coll3"}},
+			},
+			wantComponents: gbks(),
 		},
 	}
 	for _, test := range tests {
@@ -785,6 +816,71 @@ func TestComputeFacts(t *testing.T) {
 			}
 			if d := cmp.Diff(test.want, got, cmp.AllowUnexported(), cmpopts.EquateEmpty(), cmpopts.SortSlices(linkLess)); d != "" {
 				t.Errorf("computeFacts diff (-want, +got):\n%v", d)
+			}
+		})
+	}
+}
+
+func TestFinalizeStage_RequestsFinalization(t *testing.T) {
+	pardo := func(urn string, finalize bool) *pipepb.FunctionSpec {
+		return &pipepb.FunctionSpec{
+			Urn:     urn,
+			Payload: protox.MustEncode(&pipepb.ParDoPayload{RequestsFinalization: finalize}),
+		}
+	}
+	// first consumes the stage input n0; second is fused after it and consumes n1.
+	stageOf := func(first, second *pipepb.FunctionSpec) *pipepb.Components {
+		return &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"first": {
+					Spec:    first,
+					Inputs:  map[string]string{"i0": "n0"},
+					Outputs: map[string]string{"o0": "n1"},
+				},
+				"second": {
+					Spec:    second,
+					Inputs:  map[string]string{"i0": "n1"},
+					Outputs: map[string]string{"o0": "n2"},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name         string
+		comps        *pipepb.Components
+		wantFinalize bool
+	}{
+		{
+			name:  "no_transform_requests_finalization",
+			comps: stageOf(&pipepb.FunctionSpec{Urn: urns.TransformAssignWindows}, pardo(urns.TransformParDo, false)),
+		}, {
+			name:         "transform_at_stage_input",
+			comps:        stageOf(pardo(urns.TransformParDo, true), pardo(urns.TransformParDo, false)),
+			wantFinalize: true,
+		}, {
+			name:         "pardo_fused_after_another_transform",
+			comps:        stageOf(pardo(urns.TransformParDo, false), pardo(urns.TransformParDo, true)),
+			wantFinalize: true,
+		}, {
+			name:         "sdf_process_fused_after_another_transform",
+			comps:        stageOf(pardo(urns.TransformParDo, false), pardo(urns.TransformProcessSizedElements, true)),
+			wantFinalize: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			topological := []string{"first", "second"}
+			facts, err := computeFacts(topological, test.comps)
+			if err != nil {
+				t.Fatalf("computeFacts() = %v", err)
+			}
+			stg := &stage{transforms: topological}
+			if err := finalizeStage(stg, test.comps, facts); err != nil {
+				t.Fatalf("finalizeStage() = %v", err)
+			}
+			if stg.finalize != test.wantFinalize {
+				t.Errorf("stage.finalize = %v, want %v", stg.finalize, test.wantFinalize)
 			}
 		})
 	}

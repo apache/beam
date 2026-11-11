@@ -3497,7 +3497,8 @@ class GroupByKey(PTransform):
       from apache_beam.transforms.util import GroupByEncryptedKey
       from apache_beam.transforms.util import Secret
 
-      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      secret = Secret.parse_secret_option(
+          replace_with_gbek_secret, pcoll.pipeline._options)
       return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
 
     from apache_beam.transforms.trigger import DataLossReason

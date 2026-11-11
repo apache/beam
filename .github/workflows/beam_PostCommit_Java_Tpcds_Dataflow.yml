@@ -17,7 +17,7 @@ name: PostCommit Java Tpcds Dataflow
 
 on:
   schedule:
-    - cron: '30 4/6 * * *'
+    - cron: '30 4/8 * * *'
   pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Tpcds_Dataflow.json']
   workflow_dispatch:
@@ -54,8 +54,8 @@ env:
     --dataSize=1GB 
     --sourceType=PARQUET 
     --dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned 
-    --resultsDirectory=gs://beam-tpcds/results/dataflow/ 
-    --tpcParallel=1
+    --resultsDirectory=gs://temp-storage-for-perf-tests/tpcds/results/dataflow
+    --tpcParallel=4
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   tpcdsBigQueryArgs: |
@@ -71,7 +71,7 @@ env:
     --baseInfluxMeasurement=tpcds 
     --exportSummaryToInfluxDB=true 
     --influxRetentionPolicy=forever 
-  tpcdsQueriesArg: 3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96
+  tpcdsQueriesArg: supported
     
 jobs:
   beam_PostCommit_Java_Tpcds_Dataflow:

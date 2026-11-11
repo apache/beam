@@ -870,8 +870,7 @@ public class CommitDeltasTest {
    * An injected commit failure must carry operator-triage context and leave NO snapshot (strict
    * ascending order halts W1 behind the failing W0); a second run re-feeds the same inputs and
    * commits both windows, proving the failure left the files intact. (The DirectRunner fails fast
-   * rather than retrying {@code @RequiresStableInput} bundles, so the in-run retry is an IT
-   * concern.)
+   * rather than retrying bundles, so the in-run retry is an IT concern.)
    */
   @Test
   public void commitFailureCarriesTriageContextAndRetryRunCommitsInOrder() {

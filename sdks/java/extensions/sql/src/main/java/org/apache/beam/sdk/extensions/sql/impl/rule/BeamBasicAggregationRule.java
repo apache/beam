@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
@@ -61,7 +62,8 @@ public class BeamBasicAggregationRule extends RelOptRule {
     RelNode relNode = call.rel(1);
 
     if (aggregate.getGroupType() != Aggregate.Group.SIMPLE) {
-      return;
+      throw new SqlConversionException(
+          "GROUP BY " + aggregate.getGroupType() + " is not supported.");
     }
 
     if (relNode instanceof Project || relNode instanceof Calc || relNode instanceof Filter) {

@@ -31,6 +31,7 @@ import shutil
 import struct
 import sys
 import tempfile
+from unittest import SkipTest
 
 import numpy as np
 
@@ -184,6 +185,68 @@ def block_imports(*packages):
   finally:
     sys.meta_path.remove(blocker)
     sys.modules.update(hidden_modules)
+
+
+def require_linux_docker():
+  """Raises ``unittest.SkipTest`` unless Docker can run Linux containers.
+
+  Intended for tests that start containers via testcontainers, e.g. from
+  ``setUpClass``. Such tests need a reachable Docker daemon running Linux
+  containers. Some environments have no daemon at all (e.g. GitHub macOS
+  runners), while others only run Windows containers (e.g. GitHub Windows
+  runners).
+  """
+  try:
+    import docker
+    client = docker.from_env()
+    try:
+      os_type = client.info().get('OSType')
+    finally:
+      client.close()
+  except Exception as e:  # pylint: disable=broad-except
+    raise SkipTest(f'Docker is not available: {e}')
+  if os_type != 'linux':
+    raise SkipTest(
+        f'Docker daemon runs {os_type} containers; '
+        'Linux containers are required.')
+
+
+def cleanup_testcontainer_on_retry(container):
+  """Best-effort cleanup of a failed testcontainers instance before retrying.
+
+  Fetches container logs and stops the container if it was created, and removes
+  any orphaned ``testcontainers-ryuk-<session_id>`` container left behind if
+  ``Reaper._create_instance()`` failed before setting ``Reaper._instance``.
+
+  Returns:
+    A ``(stdout_logs, stderr_logs)`` tuple of decoded log strings.
+  """
+  stdout_logs = stderr_logs = ""
+  if container is None:
+    return stdout_logs, stderr_logs
+  if getattr(container, "_container", None) is not None:
+    try:
+      raw_out, raw_err = container.get_logs()
+      stdout_logs = raw_out.decode("utf-8", errors="replace")
+      stderr_logs = raw_err.decode("utf-8", errors="replace")
+    except Exception:  # pylint: disable=broad-except
+      pass
+    try:
+      container.stop()
+    except Exception:  # pylint: disable=broad-except
+      pass
+  try:
+    from testcontainers.core.container import Reaper
+    if getattr(Reaper, "_instance", None) is None:
+      docker_client = container.get_docker_client()
+      session_id = docker_client.client.api.headers.get("x-tc-sid")
+      if session_id:
+        ryuk_container = docker_client.client.containers.get(
+            f"testcontainers-ryuk-{session_id}")
+        ryuk_container.remove(force=True)
+  except Exception:  # pylint: disable=broad-except
+    pass
+  return stdout_logs, stderr_logs
 
 
 @retry.with_exponential_backoff(

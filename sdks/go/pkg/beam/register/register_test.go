@@ -351,6 +351,141 @@ func TestFunction(t *testing.T) {
 	}
 }
 
+// anonymousStruct is a type alias, so the struct type stays unnamed and has no
+// type key to register it under in the runtime type registry.
+type anonymousStruct = struct {
+	Counter  *int64 `beam:"counter"`
+	RandData *struct {
+		Flip *bool   `beam:"flip"`
+		Word *string `beam:"word"`
+	} `beam:"rand_data"`
+	Meta AnonymousStructMeta `beam:"meta"`
+}
+
+// AnonymousStructMeta is only used as a field of anonymousStruct.
+type AnonymousStructMeta struct {
+	Source string
+}
+
+type AnonymousStructReturn struct {
+	Count int64
+}
+
+func anonymousStructFunction(a *anonymousStruct) AnonymousStructReturn {
+	return AnonymousStructReturn{Count: *a.Counter}
+}
+
+// anonymousStructResult is unnamed too, with a different shape from
+// anonymousStruct, so that its schema registration comes from its own test.
+type anonymousStructResult = struct {
+	Word  string `json:"word"`
+	Count int64  `json:"count"`
+}
+
+func anonymousStructResultFunction(word string) anonymousStructResult {
+	return anonymousStructResult{Word: word, Count: int64(len(word))}
+}
+
+type AnonymousStructDoFn1x1 struct{}
+
+func (fn *AnonymousStructDoFn1x1) ProcessElement(a *anonymousStruct) AnonymousStructReturn {
+	return AnonymousStructReturn{Count: *a.Counter}
+}
+
+func registerWithoutPanic(t *testing.T, name string, register func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("%v panicked: %v", name, r)
+		}
+	}()
+	register()
+}
+
+func checkTypeRegistered(t *testing.T, rt reflect.Type) {
+	t.Helper()
+	key, ok := runtime.TypeKey(rt)
+	if !ok {
+		t.Fatalf("runtime.TypeKey(%v) failed, want a registrable type", rt)
+	}
+	if _, ok := runtime.LookupType(key); !ok {
+		t.Errorf("runtime.LookupType(%q) = false, want true", key)
+	}
+	checkSchemaRegistered(t, rt)
+}
+
+func checkSchemaRegistered(t *testing.T, rt reflect.Type) {
+	t.Helper()
+	// Need to call FromType so that the registry will reconcile its registrations
+	if _, err := schema.FromType(rt); err != nil {
+		t.Errorf("schema.FromType(%v) failed: %v", rt, err)
+	}
+	if !schema.Registered(rt) {
+		t.Errorf("schema.Registered(%v) = false, want true", rt)
+	}
+}
+
+func TestFunction_AnonymousStructParameter(t *testing.T) {
+	registerWithoutPanic(t, "Function1x1", func() {
+		Function1x1[*anonymousStruct, AnonymousStructReturn](anonymousStructFunction)
+	})
+
+	// The unnamed parameter type has no type key, but it is still registered
+	// with the schema registry, along with the named struct type it contains.
+	checkSchemaRegistered(t, reflect.TypeOf(anonymousStruct{}))
+	checkSchemaRegistered(t, reflect.TypeOf(AnonymousStructMeta{}))
+	checkTypeRegistered(t, reflect.TypeOf(AnonymousStructReturn{}))
+
+	f := reflectx.MakeFunc(anonymousStructFunction)
+	if _, ok := f.(*caller1x1[*anonymousStruct, AnonymousStructReturn]); !ok {
+		t.Fatalf("reflectx.MakeFunc(anonymousStructFunction) = %T, want *caller1x1", f)
+	}
+	counter := int64(7)
+	if got, want := f.Call([]any{&anonymousStruct{Counter: &counter}})[0].(AnonymousStructReturn).Count, counter; got != want {
+		t.Errorf("Registered function call: got %v, want %v", got, want)
+	}
+}
+
+func TestFunction_AnonymousStructReturn(t *testing.T) {
+	registerWithoutPanic(t, "Function1x1", func() {
+		Function1x1[string, anonymousStructResult](anonymousStructResultFunction)
+	})
+
+	checkSchemaRegistered(t, reflect.TypeOf(anonymousStructResult{}))
+
+	f := reflectx.MakeFunc(anonymousStructResultFunction)
+	if _, ok := f.(*caller1x1[string, anonymousStructResult]); !ok {
+		t.Fatalf("reflectx.MakeFunc(anonymousStructResultFunction) = %T, want *caller1x1", f)
+	}
+	want := anonymousStructResult{Word: "beam", Count: 4}
+	if got := f.Call([]any{"beam"})[0].(anonymousStructResult); got != want {
+		t.Errorf("Registered function call: got %v, want %v", got, want)
+	}
+}
+
+func TestRegister_AnonymousStructParameter(t *testing.T) {
+	registerWithoutPanic(t, "DoFn1x1", func() {
+		DoFn1x1[*anonymousStruct, AnonymousStructReturn](&AnonymousStructDoFn1x1{})
+	})
+
+	checkTypeRegistered(t, reflect.TypeOf(AnonymousStructDoFn1x1{}))
+	checkTypeRegistered(t, reflect.TypeOf(AnonymousStructReturn{}))
+	checkSchemaRegistered(t, reflect.TypeOf(anonymousStruct{}))
+
+	m, ok := reflectx.WrapMethods(&AnonymousStructDoFn1x1{})
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(AnonymousStructDoFn1x1{}), no registered entry found")
+	}
+	pe, ok := m["ProcessElement"]
+	if !ok {
+		t.Fatalf("reflectx.WrapMethods(AnonymousStructDoFn1x1{}), no registered ProcessElement method found")
+	}
+	counter := int64(7)
+	if got, want := pe.Call([]any{&anonymousStruct{Counter: &counter}})[0].(AnonymousStructReturn).Count, counter; got != want {
+		t.Errorf("Wrapped ProcessElement call: got %v, want %v", got, want)
+	}
+}
+
 type elementProcessor struct {
 	inFV exec.FullValue
 }

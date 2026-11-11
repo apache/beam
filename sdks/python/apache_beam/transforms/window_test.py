@@ -51,6 +51,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 
 def context(element, timestamp):
@@ -356,6 +357,18 @@ class WindowTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([('key', [[[0]]]), ('key', [[[2]]]), ('key', [[[4]]])]))
+
+  def test_interval_window_lt_intersects_union(self):
+    w1 = IntervalWindow(10, 20)
+    w2 = IntervalWindow(15, 25)
+    w3 = IntervalWindow(30, 40)
+    self.assertTrue(w1 < w2)
+    self.assertFalse(w2 < w1)
+    self.assertTrue(w1.intersects(w2))
+    u = w1.union(w3)
+    self.assertEqual(u, IntervalWindow(10, 40))
+    self.assertEqual(u.start, Timestamp(10))
+    self.assertEqual(u.end, Timestamp(40))
 
 
 class RunnerApiTest(unittest.TestCase):

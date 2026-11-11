@@ -167,6 +167,8 @@ public final class BeamTableUtils {
           return Float.valueOf(raw);
         case DOUBLE:
           return Double.valueOf(raw);
+        case DECIMAL:
+          return new BigDecimal(raw);
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", type));

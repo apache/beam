@@ -563,6 +563,45 @@ public final class RpcQosTest {
   }
 
   @Test
+  public void rampupThrottlingDisabled_initialBatchSizeIgnoresWorkerCount() {
+    RpcQosOptions options =
+        RpcQosOptions.newBuilder()
+            .withHintMaxNumWorkers(10000)
+            .withBatchInitialCount(500)
+            .withRampupThrottlingDisabled()
+            .build();
+    RpcQosImpl qos = new RpcQosImpl(options, random, sleeper, counterFactory, distributionFactory);
+    RpcWriteAttemptImpl attempt = qos.newWriteAttempt(RPC_ATTEMPT_CONTEXT);
+    FlushBufferImpl<Element<Object>> buffer = attempt.newFlushBuffer(Instant.EPOCH);
+    assertEquals(500, buffer.nextBatchMaxCount);
+  }
+
+  @Test
+  public void rampupThrottlingDisabled_writesDoNotWaitForRampUpBudget()
+      throws InterruptedException {
+    RpcQosOptions options =
+        RpcQosOptions.newBuilder()
+            .withHintMaxNumWorkers(10000)
+            .withRampupThrottlingDisabled()
+            .build();
+    RpcQos qos = new RpcQosImpl(options, random, sleeper, counterFactory, distributionFactory);
+
+    // with ramp-up throttling enabled, the budget of 1 write per second would be exhausted after
+    // the first successful request within the same second
+    Instant now = Instant.EPOCH;
+    for (int i = 0; i < 10; i++) {
+      RpcWriteAttempt attempt = qos.newWriteAttempt(RPC_ATTEMPT_CONTEXT);
+      assertTrue(attempt.awaitSafeToProceed(now));
+      attempt.recordRequestStart(now, 500);
+      attempt.recordWriteCounts(now, 500, 0);
+      attempt.recordRequestSuccessful(now);
+    }
+
+    verify(sleeper, times(0)).sleep(anyLong());
+    verify(counterThrottlingMs, times(0)).inc(anyLong());
+  }
+
+  @Test
   public void isCodeRetryable() {
     doTest_isCodeRetryable(Code.ABORTED, true);
     doTest_isCodeRetryable(Code.ALREADY_EXISTS, false);

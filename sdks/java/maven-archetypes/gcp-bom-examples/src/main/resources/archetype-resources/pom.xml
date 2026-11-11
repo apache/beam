@@ -254,42 +254,6 @@
       </dependencies>
     </profile>
     <profile>
-      <id>twister2-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-twister2</artifactId>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>nemo-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.nemo</groupId>
-          <artifactId>nemo-compiler-frontend-beam</artifactId>
-          <version>${nemo.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-log4j12</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
       <id>jet-runner</id>
       <dependencies>
         <dependency>

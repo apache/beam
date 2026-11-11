@@ -27,11 +27,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongSupplier;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,14 +81,20 @@ public final class BeamReaderCache {
 
   /**
    * Returns the reader for {@code key} positioned at {@code startEpoch}, reusing the cached one if
-   * it is there, restoring from the durable mark otherwise. A zero length durable mark means a
-   * fresh start. {@code committedEpoch} supplies the epoch Spark last committed, -1 if unknown.
+   * it is there, restoring from the durable mark otherwise. A sibling scan of the same batch in the
+   * same query run {@code runId} gets a detached reader restored from {@code startEpoch}. Sibling
+   * scans read independently, their batches agree only when the source yields the same records up
+   * to the same cut, a deadline cut can differ per sibling, see #40786. A zero length durable mark
+   * means a fresh start. {@code committedEpoch} supplies the epoch Spark last committed, -1 if
+   * unknown.
    *
    * @throws IllegalStateException if {@code startEpoch > 0} and no durable mark exists
    */
   public static <T> CachedReader<T> acquire(
       String key,
       long startEpoch,
+      long endEpoch,
+      @Nullable String runId,
       UnboundedSource<T, ?> source,
       PipelineOptions options,
       long idleTimeoutMillis,
@@ -98,20 +105,27 @@ public final class BeamReaderCache {
     closeIdle();
     synchronized (lock(key)) {
       CachedReader<?> existing = READERS.get(key);
+      boolean detached = false;
+      boolean sentinelEmitted = false;
       if (existing != null) {
-        if (existing.beginBatch(startEpoch)) {
+        if (existing.beginBatch(startEpoch, runId)) {
           existing.finalizePendingMark(key);
           @SuppressWarnings("unchecked") // one source per key, its element type never changes
           CachedReader<T> reused = (CachedReader<T>) existing;
           return reused;
         }
-        LOG.info(
-            "Cached Beam reader {} is at epoch {}, batch starts at {}, restoring from the durable"
-                + " mark.",
-            key,
-            existing.positionEpoch(),
-            startEpoch);
-        invalidate(key);
+        if (existing.isSibling(startEpoch, endEpoch, runId)) {
+          detached = true;
+          sentinelEmitted = existing.sentinelDone();
+        } else {
+          LOG.info(
+              "Cached Beam reader {} is at epoch {}, batch starts at {}, restoring from the durable"
+                  + " mark.",
+              key,
+              existing.positionEpoch(),
+              startEpoch);
+          invalidate(key);
+        }
       }
       byte[] codedMark = restorer.restore();
       if (codedMark == null && startEpoch > 0) {
@@ -122,7 +136,8 @@ public final class BeamReaderCache {
         codedMark = null;
       }
       LOG.info(
-          "Creating Beam reader {} at epoch {} ({} mark).",
+          "Creating {}Beam reader {} at epoch {} ({} mark).",
+          detached ? "detached " : "",
           key,
           startEpoch,
           codedMark == null ? "no" : "restored");
@@ -132,9 +147,13 @@ public final class BeamReaderCache {
               startEpoch,
               codedMark,
               idleTimeoutMillis,
-              committedEpoch);
-      created.beginBatch(startEpoch);
-      READERS.put(key, created);
+              committedEpoch,
+              detached,
+              sentinelEmitted);
+      created.beginBatch(startEpoch, runId);
+      if (!detached) {
+        READERS.put(key, created);
+      }
       return created;
     }
   }
@@ -230,25 +249,37 @@ public final class BeamReaderCache {
     private final UnboundedReader<T> reader;
     private final long idleTimeoutMillis;
     private final LongSupplier committedEpoch;
+    private final boolean detached;
     private boolean started;
+    private boolean exhausted;
+    private boolean positionExhausted;
+    private boolean doneEligible;
+    private boolean doneWritten;
+    private boolean sentinelEmitted;
+    private boolean sentinelDone;
     private boolean inBatch;
     private boolean moved;
     private long positionEpoch;
     private byte @Nullable [] positionMark;
     private @Nullable CheckpointMark pendingMark;
     private long lastUsedMillis;
+    private @Nullable String runId;
 
     CachedReader(
         UnboundedReader<T> reader,
         long positionEpoch,
         byte @Nullable [] positionMark,
         long idleTimeoutMillis,
-        LongSupplier committedEpoch) {
+        LongSupplier committedEpoch,
+        boolean detached,
+        boolean sentinelEmitted) {
       this.reader = reader;
       this.positionEpoch = positionEpoch;
       this.positionMark = positionMark;
       this.idleTimeoutMillis = idleTimeoutMillis;
       this.committedEpoch = committedEpoch;
+      this.detached = detached;
+      this.sentinelEmitted = sentinelEmitted;
       this.lastUsedMillis = System.currentTimeMillis();
     }
 
@@ -256,13 +287,41 @@ public final class BeamReaderCache {
       return reader;
     }
 
+    boolean isDetached() {
+      return detached;
+    }
+
     public synchronized boolean startOrAdvance() throws IOException {
       moved = true;
-      if (!started) {
-        started = true;
-        return reader.start();
+      boolean hasElement = started ? reader.advance() : reader.start();
+      started = true;
+      if (!hasElement && !reader.getWatermark().isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+        exhausted = true;
       }
-      return reader.advance();
+      return hasElement;
+    }
+
+    /**
+     * Claims the one time end of stream sentinel for this reader once the driver has seen every
+     * split done.
+     */
+    public synchronized boolean claimSentinel(boolean emitSentinel) {
+      if (!emitSentinel || sentinelEmitted) {
+        return false;
+      }
+      sentinelEmitted = true;
+      return true;
+    }
+
+    synchronized boolean sentinelDone() {
+      return sentinelDone;
+    }
+
+    /**
+     * Whether a committed batch exhausted this reader and its done marker has not been written yet.
+     */
+    synchronized boolean shouldWriteDone() {
+      return doneEligible && !doneWritten;
     }
 
     /**
@@ -282,15 +341,29 @@ public final class BeamReaderCache {
     }
 
     /**
-     * Claims the reader for a batch starting at {@code epoch}, false if it cannot continue there.
+     * Claims the reader for a batch starting at {@code epoch} in query run {@code runId}, false if
+     * it cannot continue there.
      */
-    synchronized boolean beginBatch(long epoch) {
-      if (positionEpoch != epoch || moved) {
+    synchronized boolean beginBatch(long epoch, @Nullable String runId) {
+      if (inBatch || positionEpoch != epoch || moved) {
         return false;
       }
+      doneEligible |= positionExhausted;
+      sentinelDone |= sentinelEmitted;
       inBatch = true;
+      this.runId = runId;
       lastUsedMillis = System.currentTimeMillis();
       return true;
+    }
+
+    /**
+     * Whether this entry is in or just finished the batch from {@code startEpoch} to {@code
+     * endEpoch} of query run {@code runId}.
+     */
+    synchronized boolean isSibling(long startEpoch, long endEpoch, @Nullable String runId) {
+      return runId != null
+          && runId.equals(this.runId)
+          && ((inBatch && positionEpoch == startEpoch) || (!inBatch && positionEpoch == endEpoch));
     }
 
     /** Records a completed batch, the reader is positioned at {@code endEpoch} from now on. */
@@ -298,6 +371,8 @@ public final class BeamReaderCache {
       positionEpoch = endEpoch;
       positionMark = codedMark;
       pendingMark = mark;
+      positionExhausted = exhausted;
+      doneWritten |= doneEligible;
       moved = false;
       inBatch = false;
       lastUsedMillis = System.currentTimeMillis();
