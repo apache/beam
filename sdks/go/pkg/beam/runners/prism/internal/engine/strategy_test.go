@@ -550,6 +550,26 @@ func TestTriggers_isReady(t *testing.T) {
 				{triggerInput{emNow: 5500, newElementCount: 1}, true},  // ElmCount = 2, fire ElmCount trigger
 			},
 		}, {
+			name: "afterSynchronizedProcessingTime",
+			trig: &TriggerAfterSynchronizedProcessingTime{},
+			inputs: []io{
+				{triggerInput{emNow: mtime.FromTime(time.Time{}), newElementCount: 1}, false},
+				{triggerInput{emNow: mtime.FromTime(time.Time{}), newElementCount: 1}, false},
+				{triggerInput{emNow: 1000, newElementCount: 1}, true},
+				{triggerInput{emNow: 2000, newElementCount: 1}, false},
+			},
+		}, {
+			name: "afterSynchronizedProcessingTime_Repeated",
+			trig: &TriggerRepeatedly{&TriggerAfterSynchronizedProcessingTime{}},
+			inputs: []io{
+				{triggerInput{emNow: mtime.FromTime(time.Time{}), newElementCount: 1}, false},
+				{triggerInput{emNow: mtime.FromTime(time.Time{}), newElementCount: 1}, false},
+				{triggerInput{emNow: 1000, newElementCount: 1}, true},
+				{triggerInput{emNow: 1000, newElementCount: 1}, false},
+				{triggerInput{emNow: 2000, newElementCount: 1}, true},
+				{triggerInput{emNow: 2000, newElementCount: 1}, false},
+			},
+		}, {
 			name: "default",
 			trig: &TriggerDefault{},
 			inputs: []io{

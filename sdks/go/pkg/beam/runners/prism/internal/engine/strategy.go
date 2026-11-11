@@ -732,15 +732,39 @@ func (t *TriggerAfterProcessingTime) String() string {
 
 // TriggerAfterSynchronizedProcessingTime is supposed to fires once when processing
 // time across multiple workers synchronizes with the first element's processing time.
-// It is a no-op in the current prism single-node architecture, because we only have
-// one worker/machine. Therefore, the trigger just fires once it receives the data.
+// In the current prism single-node architecture, it fires once it receives data after
+// processing time has advanced past the initial clock time (or previous firing time).
 type TriggerAfterSynchronizedProcessingTime struct{}
 
-func (t *TriggerAfterSynchronizedProcessingTime) onElement(triggerInput, *StateData) {}
+func (t *TriggerAfterSynchronizedProcessingTime) onElement(input triggerInput, state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+
+	if ts.extra == nil {
+		ts.extra = afterProcessingTimeState{
+			emNow:              input.emNow,
+			firingTime:         mtime.FromTime(time.Time{}) + 1,
+			endOfWindowReached: input.endOfWindowReached,
+		}
+	} else {
+		s, _ := ts.extra.(afterProcessingTimeState)
+		s.emNow = input.emNow
+		s.endOfWindowReached = input.endOfWindowReached
+		ts.extra = s
+	}
+
+	state.setTriggerState(t, ts)
+}
 
 func (t *TriggerAfterSynchronizedProcessingTime) shouldFire(state *StateData) bool {
 	ts := state.getTriggerState(t)
-	return !ts.finished
+	if ts.extra == nil || ts.finished {
+		return false
+	}
+	s := ts.extra.(afterProcessingTimeState)
+	return s.emNow >= s.firingTime
 }
 
 func (t *TriggerAfterSynchronizedProcessingTime) onFire(state *StateData) {
@@ -753,7 +777,21 @@ func (t *TriggerAfterSynchronizedProcessingTime) onFire(state *StateData) {
 }
 
 func (t *TriggerAfterSynchronizedProcessingTime) reset(state *StateData) {
-	delete(state.Trigger, t)
+	ts := state.getTriggerState(t)
+	if ts.extra != nil {
+		if ts.extra.(afterProcessingTimeState).endOfWindowReached {
+			delete(state.Trigger, t)
+			return
+		}
+	}
+
+	ts.finished = false
+	if ts.extra != nil {
+		s := ts.extra.(afterProcessingTimeState)
+		s.firingTime = s.emNow + 1
+		ts.extra = s
+	}
+	state.setTriggerState(t, ts)
 }
 
 func (t *TriggerAfterSynchronizedProcessingTime) String() string {
