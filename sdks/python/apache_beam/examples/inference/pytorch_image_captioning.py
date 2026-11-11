@@ -45,6 +45,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms import window
 
 from google.api_core.exceptions import NotFound
@@ -619,8 +620,15 @@ def run(
     if known_args.mode == 'streaming':
       try:
         result.cancel()
-        result.wait_until_finish(
-            duration=600000)  # up to 10 min to settle cancel
+        # wait_until_finish raises on CANCELLED. Same settle approach as
+        # TestDataflowRunner.wait_until_in_state(CANCELLED).
+        start_time = time.time()
+        while time.time() - start_time <= 600:
+          job_state = result.state
+          if (result.is_in_terminal_state() or
+              job_state == PipelineState.CANCELLED):
+            break
+          time.sleep(5)
       except Exception:
         logging.debug("Failed to cancel pipeline result.", exc_info=True)
       cleanup_pubsub_resources(
