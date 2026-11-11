@@ -59,6 +59,16 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Checkout setup-gh-cli-linux action
+        uses: actions/checkout@v7
+        with:
+          ref: 'master'
+          persist-credentials: false
+          sparse-checkout: .github/actions/setup-gh-cli-linux
+
+      - name: Install GitHub CLI
+        uses: ./.github/actions/setup-gh-cli-linux
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
