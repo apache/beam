@@ -576,6 +576,14 @@ class _TruncatingFileHandle(object):
       self._buffer_start_pos += len(res)
     else:
       offset = self._tracker.current_restriction().stop - self._buffer_start_pos
+      # If offset < 0, _buffer_start_pos is already past stop (no records here).
+      # In __init__, a restriction [start, ...) skips the record that start
+      # falls into when start > _header_len. Thus, when offset == 0
+      # (_buffer_start_pos == stop):
+      # - If stop <= _header_len, the next restriction [stop, ...) does not skip
+      #   the first record, so this restriction must return empty.
+      # - If stop > _header_len, the next restriction [stop, ...) skips the
+      #   record starting at stop, so this restriction must read it.
       if (offset < 0 or
           self._tracker.current_restriction().stop <= self._header_len):
         res = self._empty
