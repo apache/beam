@@ -1203,13 +1203,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [10] + [1] * 18
+        examples = [15] + [1] * 18
         expected_good = [1] * 18
-        expected_bad = [10]
+        expected_bad = [15]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=6)
+              0, True, tmp_path)).with_exception_handling(timeout=8)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 

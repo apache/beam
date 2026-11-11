@@ -71,11 +71,7 @@ try:
 except ImportError:
   resource = None  # type: ignore[assignment]
 
-try:
-  # pylint: disable=wrong-import-order, wrong-import-position
-  from apache_beam.ml.inference.model_manager import ModelManager
-except ImportError:
-  ModelManager = None  # type: ignore[assignment]
+ModelManager: Any = None
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
 _NANOSECOND_TO_MICROSECOND = 1_000
