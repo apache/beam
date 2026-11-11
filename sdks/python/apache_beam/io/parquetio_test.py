@@ -421,6 +421,45 @@ class TestParquet(unittest.TestCase):
             | Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
+  def test_read_as_rows_with_nested_structs(self):
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'nested.parquet')
+      pq.write_table(
+          pa.table({
+              'name': ['a', 'b'],
+              'address': [{
+                  'city': 'SF', 'zip': 1
+              }, None],
+              'history': [[{
+                  'city': 'NY', 'zip': 2
+              }, None], []],
+          }),
+          path)
+
+      def address_values(address):
+        return address and (address.city, address.zip)
+
+      def summarize(row):
+        history = [address_values(address) for address in row.history]
+        return row.name, address_values(row.address), history
+
+      with TestPipeline() as p:
+        readback = p | ReadFromParquet(path, as_rows=True) | Map(summarize)
+        assert_that(
+            readback,
+            equal_to([
+                ('a', ('SF', 1), [('NY', 2), None]),
+                ('b', None, []),
+            ]))
+
+      # Reading part of a struct leaves its other fields empty.
+      with TestPipeline() as p:
+        readback = (
+            p
+            | ReadFromParquet(path, as_rows=True, columns=['address.city'])
+            | Map(lambda row: address_values(row.address)))
+        assert_that(readback, equal_to([('SF', None), None]))
+
   def test_write_with_nullable_fields_missing_data(self):
     """Test WriteToParquet with nullable fields where some fields are missing.
     

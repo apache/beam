@@ -19,7 +19,9 @@
 
 import logging
 import unittest
+from collections.abc import Sequence
 from typing import Any
+from typing import NamedTuple
 from typing import Optional
 
 import pyarrow as pa
@@ -79,6 +81,25 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
                     'bar': i / 100, 'baz': str(i)
                 } for i in range(100)
             ]),
+        }),
+    },
+    {
+        'batch_typehint': pa.Table,
+        'element_typehint': row_type.RowTypeConstraint.from_fields([
+            ('foo', Optional[int]),
+            (
+                'nested_list',
+                Optional[Sequence[Optional[
+                    row_type.RowTypeConstraint.from_fields([
+                        ("bar", Optional[float]),  # noqa: F821
+                        ("baz", Optional[str]),  # noqa: F821
+                    ])]]]),
+        ]),
+        'batch': pa.Table.from_pydict({
+            'foo': pa.array(range(100), type=pa.int64()),
+            'nested_list': pa.array([[{
+                'bar': i / 100, 'baz': str(i)
+            }, None] if i % 13 else None for i in range(100)]),
         }),
     },
     {
@@ -190,6 +211,72 @@ class ArrowBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+class Address(NamedTuple):
+  city: Optional[str]
+  zip: Optional[int]
+
+
+class Person(NamedTuple):
+  address: Optional[Address]
+  history: Optional[Sequence[Optional[Address]]]
+
+
+@pytest.mark.uses_pyarrow
+class ArrowBatchConverterNestedRowsTest(unittest.TestCase):
+  BATCH = pa.Table.from_pydict({
+      'address': [{
+          'city': 'SF', 'zip': 1
+      }, None],
+      'history': [[{
+          'city': 'NY', 'zip': 2
+      }, None], None],
+  })
+
+  def test_explode_batch_builds_nested_rows(self):
+    address_type = row_type.RowTypeConstraint.from_fields([
+        ('city', Optional[str]),
+        ('zip', Optional[int]),
+    ])
+    converter = BatchConverter.from_typehints(
+        element_type=row_type.RowTypeConstraint.from_fields([
+            ('address', Optional[address_type]),
+            ('history', Optional[Sequence[Optional[address_type]]]),
+        ]),
+        batch_type=pa.Table)
+
+    first, second = converter.explode_batch(self.BATCH)
+
+    address = address_type.user_type
+    self.assertIsInstance(first.address, address)
+    self.assertEqual(first.address, address(city='SF', zip=1))
+    self.assertEqual(first.history, [address(city='NY', zip=2), None])
+    self.assertIsNone(second.address)
+    self.assertIsNone(second.history)
+
+  def test_explode_batch_builds_nested_user_types(self):
+    converter = BatchConverter.from_typehints(
+        element_type=Person, batch_type=pa.Table)
+
+    first, second = converter.explode_batch(self.BATCH)
+
+    self.assertEqual(
+        first,
+        Person(
+            address=Address(city='SF', zip=1),
+            history=[Address(city='NY', zip=2), None]))
+    self.assertIsInstance(first.address, Address)
+    self.assertEqual(second, Person(address=None, history=None))
+
+  def test_explode_array_batch_builds_rows(self):
+    converter = BatchConverter.from_typehints(
+        element_type=Address, batch_type=pa.Array)
+
+    exploded = list(converter.explode_batch(self.BATCH.column('address')))
+
+    self.assertEqual(exploded, [Address(city='SF', zip=1), None])
+    self.assertIsInstance(exploded[0], Address)
 
 
 class ArrowBatchConverterErrorsTest(unittest.TestCase):
