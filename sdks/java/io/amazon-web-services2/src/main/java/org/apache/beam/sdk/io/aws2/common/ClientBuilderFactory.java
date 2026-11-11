@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
+import org.apache.beam.sdk.io.aws2.options.AwsOptionsResolver;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -158,9 +159,10 @@ public interface ClientBuilderFactory {
 
     @Override
     public void checkConfiguration(ClientConfiguration config, @Nullable AwsOptions options) {
-      Region region = valueOrElse(config.region(), options, AwsOptions::getAwsRegion);
+      Region region = valueOrElse(config.region(), options, AwsOptionsResolver::region);
       AwsCredentialsProvider credentials =
-          valueOrElse(config.credentialsProvider(), options, AwsOptions::getAwsCredentialsProvider);
+          valueOrElse(
+              config.credentialsProvider(), options, AwsOptionsResolver::credentialsProvider);
       checkState(region != null, "No AWS region available");
       checkState(
           credentials != null && credentials.resolveCredentials() != null,
@@ -172,10 +174,11 @@ public interface ClientBuilderFactory {
         BuilderT builder, ClientConfiguration config, @Nullable AwsOptions options) {
       checkNotNull(config, "ClientConfiguration cannot be null!");
 
-      Region region = valueOrElse(config.region(), options, AwsOptions::getAwsRegion);
+      Region region = valueOrElse(config.region(), options, AwsOptionsResolver::region);
       AwsCredentialsProvider credentials =
-          valueOrElse(config.credentialsProvider(), options, AwsOptions::getAwsCredentialsProvider);
-      URI endpoint = valueOrElse(config.endpoint(), options, AwsOptions::getEndpoint);
+          valueOrElse(
+              config.credentialsProvider(), options, AwsOptionsResolver::credentialsProvider);
+      URI endpoint = valueOrElse(config.endpoint(), options, AwsOptionsResolver::endpoint);
 
       setOptional(credentials, builder::credentialsProvider);
       setOptional(region, builder::region);
@@ -279,7 +282,10 @@ public interface ClientBuilderFactory {
     }
 
     @Nullable
-    private <T, X> T valueOrElse(@Nullable T value, @Nullable X other, Function<X, T> transform) {
+    private <T, X> T valueOrElse(
+        @Nullable T value,
+        @Nullable X other,
+        Function<X, ? extends @org.checkerframework.checker.nullness.qual.Nullable T> transform) {
       return value != null ? value : (other != null ? transform.apply(other) : null);
     }
 
