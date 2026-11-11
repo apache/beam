@@ -259,10 +259,14 @@ class MetricsContainer(object):
 
   def _get_typed_metric_name(self, cell_type, metric_name):
     if not isinstance(metric_name, str):
-      typed_name = metric_name._typed_metric_names.get(cell_type)
+      try:
+        cache = metric_name._typed_metric_names
+      except AttributeError:
+        cache = metric_name._typed_metric_names = {}
+      typed_name = cache.get(cell_type)
       if typed_name is None:
         typed_name = _TypedMetricName(cell_type, metric_name)
-        metric_name._typed_metric_names[cell_type] = typed_name
+        cache[cell_type] = typed_name
       return typed_name
     return _TypedMetricName(cell_type, metric_name)
 
