@@ -71,14 +71,9 @@ jobs:
             const { owner, repo } = context.repo;
             const prNumber = Number(process.env.PR_NUMBER);
             const MARKER = '<!-- beam-ci-failure-summary -->';
-            const EXCLUDED = new Set([
-              'process-pr-update',
-              'gemini enterprise pr review',
-              'summarize pr check failures',
-            ]);
             const FAILING = new Set(['failure', 'timed_out', 'action_required', 'startup_failure']);
-            const SIGNAL_RE = /^> Task :[\w:-]+ FAILED\b|^FAILURE: Build failed|^\* What went wrong:|^Execution failed for task|\bspotless(?:Apply|Check|Java)\b|\bCheckstyle violations?\b|\bUnapproved licenses\b|:(?:\d+:)?\s*(?:fatal )?error:|^Error compiling Cython file:|^={3,}\s*(?:FAILURES|ERRORS|short test summary info)\s*={3,}|^FAILED\s+\S+|^E\s{2,}\S+|^\w*(?:Error|Exception):\s+\S+|^---\s*FAIL:\s+\S+|\.go:\d+:\d+:|\b(?:\w+\.)+\w+\s+>\s+\w+.*\s+FAILED$|^##\[error\]/i;
-            const NOISE_RE = /^##\[error\](?:Process completed with exit code \d+\.?|The operation was canceled\.?|Job failed\.?)$/i;
+            const SIGNAL_RE = /^> Task :[\w:-]+ FAILED$|>\s+[\w[\]=., -]+\s+FAILED$|^\[ant:checkstyle\]|The following files had format violations:|SpotBugs rule violations|^FAILURE: Build failed|^\* What went wrong:|^Execution failed for task|:(?:\d+:)?\s*(?:fatal )?error:|^Error compiling Cython file:|^={3,}\s*(?:FAILURES|ERRORS|short test summary info)\s*={3,}|^FAILED\s+\S+|^E\s{2,}\S+|^(?:Caused by:\s+)?[\w.]*(?:Error|Exception):\s+\S+|^---\s*FAIL:\s+\S+|\.go:\d+:\d+:|^##\[error\]/i;
+            const NOISE_RE = /^##\[error\](?:Process completed with exit code \d+\.?|The operation was canceled\.?|Job failed\.?)$|^\s*<\/?(?:table|tr|td|th|div|a|img)\b/i;
 
             async function upsertSticky(body) {
               const comments = await github.paginate(github.rest.issues.listComments, {
@@ -101,7 +96,7 @@ jobs:
             const latestByName = new Map();
             for (const c of allRuns) {
               const low = (c.name || '').trim().toLowerCase();
-              if (!low || low.includes('codecov') || low.includes('pr failure summary') || EXCLUDED.has(low)) continue;
+              if (!low || low === 'summarize pr check failures') continue;
               const ts = Date.parse(c.completed_at || c.started_at || '') || 0;
               const prev = latestByName.get(c.name);
               if (!prev || ts > prev.ts || (ts === prev.ts && c.id > prev.c.id)) {
@@ -117,9 +112,12 @@ jobs:
 
             if (failed.length === 0) {
               const shaUrl = `https://github.com/${owner}/${repo}/commit/${headSha}`;
+              const passText = deduped.length === 1
+                ? '✅ **1 CI check is passing**'
+                : `✅ **All ${deduped.length} CI checks are passing**`;
               const msg = inProgress > 0
                 ? `${MARKER}\n⏳ **0 failed checks so far** on [\`${headSha.slice(0, 7)}\`](${shaUrl}) (${inProgress} of ${deduped.length} check(s) still running). Comment \`/summarize-failures\` again once checks finish.`
-                : `${MARKER}\n✅ **All ${deduped.length} CI checks are passing** on commit [\`${headSha.slice(0, 7)}\`](${shaUrl}).`;
+                : `${MARKER}\n${passText} on commit [\`${headSha.slice(0, 7)}\`](${shaUrl}).`;
               await upsertSticky(msg);
               core.setOutput('has_failures', 'false');
               return;
