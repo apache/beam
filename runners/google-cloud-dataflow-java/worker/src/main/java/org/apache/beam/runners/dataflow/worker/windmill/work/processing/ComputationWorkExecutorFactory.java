@@ -54,6 +54,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -166,7 +168,7 @@ final class ComputationWorkExecutorFactory {
       MapTask mapTask,
       Nodes.ParallelInstructionNode readNode,
       Coder<?> readCoder,
-      ReadOperation readOperation,
+      OutputReceiver receiver,
       MapTaskExecutor mapTaskExecutor,
       String counterName) {
     NameContext nameContext =
@@ -175,7 +177,7 @@ final class ComputationWorkExecutorFactory {
             readNode.getParallelInstruction().getOriginalName(),
             readNode.getParallelInstruction().getSystemName(),
             readNode.getParallelInstruction().getName());
-    readOperation.receivers[0].addOutputCounter(
+    receiver.addOutputCounter(
         counterName,
         new OutputObjectAndByteCounter(
                 new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
@@ -227,13 +229,38 @@ final class ComputationWorkExecutorFactory {
 
     // If using a custom source, count bytes read for autoscaling.
     if (isCustomSource(readNode)) {
-      trackAutoscalingBytesRead(
-          mapTask,
-          readNode,
-          readCoder,
-          readOperation,
-          mapTaskExecutor,
-          computationState.sourceBytesProcessCounterName());
+      if (readOperation.receivers != null) {
+        for (OutputReceiver receiver : readOperation.receivers) {
+          if (receiver != null) {
+            trackAutoscalingBytesRead(
+                mapTask,
+                readNode,
+                readCoder,
+                receiver,
+                mapTaskExecutor,
+                computationState.sourceBytesProcessCounterName());
+          }
+        }
+      }
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+        if (parDoOp.shouldReportBytesRead() && parDoOp.receivers != null) {
+          for (OutputReceiver receiver : parDoOp.receivers) {
+            if (receiver != null) {
+              Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder(receiver);
+              if (bytesReadCoder != null) {
+                trackAutoscalingBytesRead(
+                    mapTask,
+                    readNode,
+                    bytesReadCoder,
+                    receiver,
+                    mapTaskExecutor,
+                    computationState.sourceBytesProcessCounterName());
+              }
+            }
+          }
+        }
+      }
     }
 
     ComputationWorkExecutor.Builder executionStateBuilder =
