@@ -16,7 +16,7 @@
 name: PR Failure Summary
 
 on:
-  issue_comment:
+  issue_comment: # zizmor: ignore[dangerous-triggers] safe: never checks out PR code and runs Gemini with tools disabled
     types: [created]
   workflow_dispatch:
     inputs:
