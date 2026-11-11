@@ -1720,13 +1720,7 @@ class _OutputHandler(OutputHandler):
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      if isinstance(result, TaggedOutput):
-        tag = result.tag
-        if not isinstance(tag, str):
-          raise TypeError('In %s, tag %s is not a string' % (self, tag))
-        result = result.value
-      else:
-        tag = None
+      tag, result = self._handle_tagged_output(result)
 
       if not self._process_yields_batches:
         # process yields elements
@@ -1782,13 +1776,7 @@ class _OutputHandler(OutputHandler):
         windowed_input_batch.as_empty_windowed_value()
         if self._process_batch_yields_elements else None)
     for result in results:
-      if isinstance(result, TaggedOutput):
-        tag = result.tag
-        if not isinstance(tag, str):
-          raise TypeError('In %s, tag %s is not a string' % (self, tag))
-        result = result.value
-      else:
-        tag = None
+      tag, result = self._handle_tagged_output(result)
 
       if not self._process_batch_yields_elements:
         # process_batch yields batches
