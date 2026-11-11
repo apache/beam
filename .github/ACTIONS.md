@@ -90,6 +90,13 @@ Phrases self-assign, close, or manage labels on an issue:
 | `.remove-labels` | Remove comma separated labels to the issue (e.g. `remove-labels l1, 'l2 with spaces'`) |
 | `.set-labels` | Sets comma separated labels to the issue and removes any other labels (e.g. `set-labels l1, 'l2 with spaces'`) |
 
+#### Pull Request Automation
+Phrases available as comments on an open Pull Request:
+| Phrase | Effect |
+|--------|--------|
+| `/summarize-failures` | Trigger `PR Failure Summary` (`pr_failure_summary.yml`) to cluster failing check logs and post/refresh the sticky CI failure summary comment |
+| `/gemini review` | Trigger `Gemini Enterprise Code Review` (`gemini_code_review.yml`) on the PR |
+
 ## Security Model
 
 For information on the Beam CI security model, see https://cwiki.apache.org/confluence/display/BEAM/CI+Security+Model

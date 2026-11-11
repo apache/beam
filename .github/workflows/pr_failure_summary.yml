@@ -1,0 +1,121 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PR Failure Summary
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Optional Pull Request number to summarize (leave blank to sweep open PRs)'
+        required: false
+        type: string
+
+permissions: read-all
+
+concurrency:
+  group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number || 'sweep' }}
+  cancel-in-progress: false
+
+jobs:
+  find-failed-prs:
+    name: Discover PRs Ready for Failure Summary
+    if: >-
+      github.repository == 'apache/beam' &&
+      (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/summarize-failures')
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+      statuses: read
+      issues: write
+      pull-requests: write
+    outputs:
+      has_targets: ${{ steps.discover.outputs.has_targets }}
+      target_prs: ${{ steps.discover.outputs.target_prs }}
+    steps:
+      - name: Checkout CI scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'master' }}
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+
+      - name: Find open PRs with completed check failures
+        id: discover
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_PR_NUMBER: ${{ github.event.issue.number || inputs.pr_number || '' }}
+        run: |
+          set -euo pipefail
+          DISCOVERY_JSON="$(python3 scripts/ci/pr_failure_summary.py discover)"
+          echo "has_targets=$(printf '%s' "${DISCOVERY_JSON}" | jq -r '.hasTargets')" >> "${GITHUB_OUTPUT}"
+          echo "target_prs=$(printf '%s' "${DISCOVERY_JSON}" | jq -c '.targetPrs')" >> "${GITHUB_OUTPUT}"
+
+  summarize-failures:
+    name: Summarize PR Check Failures
+    needs: find-failed-prs
+    if: needs.find-failed-prs.outputs.has_targets == 'true'
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+      statuses: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout CI scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'master' }}
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+
+      - name: Setup Node.js for Gemini CLI
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Cluster failed check logs and post sticky PR summary
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_PRS_JSON: ${{ needs.find-failed-prs.outputs.target_prs }}
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
+          GOOGLE_CLOUD_LOCATION: 'global'
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-argon' }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/pr_failure_summary.py summarize
