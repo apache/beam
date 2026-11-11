@@ -146,6 +146,7 @@
 * (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
 * (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
+* (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
