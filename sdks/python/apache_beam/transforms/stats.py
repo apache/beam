@@ -940,14 +940,14 @@ class ApproximateQuantilesCombineFn(CombineFn):
     """
     if not quantile_state.spec.weighted:
       quantile_state.unbuffered_elements.append(element)
-      if (len(quantile_state.unbuffered_elements) >=
-          quantile_state.spec.buffer_size):
+      if (len(quantile_state.unbuffered_elements)
+          >= quantile_state.spec.buffer_size):
         quantile_state._add_unbuffered((), self._offset)
       return quantile_state
     quantile_state.unbuffered_elements.append(element[0])
     quantile_state.unbuffered_weights.append(element[1])
-    if (len(quantile_state.unbuffered_elements) >=
-        quantile_state.spec.buffer_size):
+    if (len(quantile_state.unbuffered_elements)
+        >= quantile_state.spec.buffer_size):
       quantile_state._add_unbuffered_weighted((), self._offset)
     return quantile_state
 
