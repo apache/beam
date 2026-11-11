@@ -159,7 +159,7 @@ cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   @cython.locals(c=CoderImpl)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
 
-  @cython.locals(c=CoderImpl)
+  @cython.locals(c=CoderImpl, i=int, last=int, num_coders=int)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
 
@@ -255,7 +255,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
   cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
 
-  @cython.locals(c=CoderImpl)
+  @cython.locals(c=CoderImpl, i=int, last=int, num_coders=int)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
   @cython.locals(timestamp=libc.stdint.int64_t)

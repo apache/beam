@@ -1189,8 +1189,9 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     values = self._extract_components(value)
     estimated_size = 0
     observables = []  # type: Observables
-    last = self._num_coders - 1
-    for i in range(0, self._num_coders):
+    num_coders = len(self._coder_impls)
+    last = num_coders - 1
+    for i in range(0, num_coders):
       c = self._coder_impls[i]  # type cast
       child_size, child_observables = (
           c.get_estimated_size_and_observables(
@@ -1306,9 +1307,8 @@ class SequenceCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     # type: (Sequence, create_OutputStream, bool) -> None
     # Compatible with Java's IterableLikeCoder.
-    if self._write_state is None and (type(value) is tuple or
-                                      type(value) is list or
-                                      hasattr(value, '__len__')):
+    if self._write_state is None and (type(value) is tuple or type(value)
+                                      is list or hasattr(value, '__len__')):
       out.write_bigendian_int32(len(value))
       for elem in value:
         self._elem_coder.encode_to_stream(elem, out, True)
