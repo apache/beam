@@ -71,7 +71,11 @@ try:
 except ImportError:
   resource = None  # type: ignore[assignment]
 
-ModelManager: Any = None
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  from apache_beam.ml.inference.model_manager import ModelManager
+except ImportError:
+  ModelManager = None  # type: ignore[assignment]
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
 _NANOSECOND_TO_MICROSECOND = 1_000
@@ -2083,7 +2087,7 @@ class _SharedModelWrapper():
     self.loader_func = loader_func
     if not self.use_model_manager and len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
-          _ModelRoutingStrategy,
+          lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
           always_proxy=True,
           spawn_process=True).acquire()
@@ -2199,7 +2203,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),
           tag='model_manager',
-          always_proxy=False).acquire()
+          always_proxy=True).acquire()
       model_wrapper = _SharedModelWrapper(
           model_manager,
           self._cur_tag,
@@ -2213,7 +2217,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
                                            self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
-                OOMProtectedFn(self._model_handler.load_model),
+                self._model_handler.load_model,
                 tag=copy_tag,
                 always_proxy=True,
                 spawn_process=True).acquire())
