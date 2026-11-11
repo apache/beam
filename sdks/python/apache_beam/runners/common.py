@@ -65,6 +65,7 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils.windowed_value import create as windowed_value_create
 
 if TYPE_CHECKING:
   from apache_beam.io.iobase import RestrictionProgress
@@ -855,18 +856,17 @@ class PerWindowInvoker(DoFnInvoker):
       additional_args=None,
       additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
-    if not additional_args:
-      additional_args = []
-    if not additional_kwargs:
-      additional_kwargs = {}
-
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
-    residuals = []
     if self.is_splittable:
+      if not additional_args:
+        additional_args = []
+      if not additional_kwargs:
+        additional_kwargs = {}
+      residuals = []
       if restriction is None:
         # This may be a SDF invoked as an ordinary DoFn on runners that don't
         # understand SDF.  See, e.g. BEAM-11472.
@@ -886,8 +886,10 @@ class PerWindowInvoker(DoFnInvoker):
                 windowed_value, additional_kwargs, i):
               break
             residual = self._invoke_process_per_window(
-                WindowedValue(
-                    windowed_value.value, windowed_value.timestamp, (w, )),
+                windowed_value_create(
+                    windowed_value.value,
+                    windowed_value.timestamp_micros, (w, ),
+                    windowed_value.pane_info),
                 additional_args,
                 additional_kwargs)
             if residual:
@@ -907,17 +909,20 @@ class PerWindowInvoker(DoFnInvoker):
           self.current_window_index = None
           self.threadsafe_restriction_tracker = None
           self.threadsafe_watermark_estimator = None
+      return residuals
     elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_process_per_window(
-            WindowedValue(
-                windowed_value.value, windowed_value.timestamp, (w, )),
+            windowed_value_create(
+                windowed_value.value,
+                windowed_value.timestamp_micros, (w, ),
+                windowed_value.pane_info),
             additional_args,
             additional_kwargs)
     else:
       self._invoke_process_per_window(
           windowed_value, additional_args, additional_kwargs)
-    return residuals
+    return ()
 
   def invoke_process_batch(
       self,
@@ -990,7 +995,7 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs,
   ):
     # type: (...) -> Optional[SplitResultResidual]
-    if self.has_cached_window_args:
+    if self.has_cached_window_args and not additional_args:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
     else:
@@ -1000,10 +1005,11 @@ class PerWindowInvoker(DoFnInvoker):
       else:
         window = GlobalWindow()
       side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
+      if additional_args:
+        side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process, side_inputs)
-      if not self.recalculate_window_args:
+      if not self.recalculate_window_args and not additional_args:
         self.args_for_process, self.kwargs_for_process = (
             args_for_process, kwargs_for_process)
         self.has_cached_window_args = True
