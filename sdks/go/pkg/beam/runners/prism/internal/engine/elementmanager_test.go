@@ -1128,4 +1128,3 @@ func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
 		}
 	})
 }
-
