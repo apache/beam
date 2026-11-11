@@ -390,6 +390,12 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
 
 class RunInferenceBaseTest(unittest.TestCase):
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        p.terminate()
+        p.join(timeout=2)
+
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
