@@ -21,6 +21,7 @@
 
 # ruff: noqa: UP006
 import functools
+import sys
 import typing
 import unittest
 
@@ -399,6 +400,52 @@ class IOTypeHintsTest(unittest.TestCase):
     # Previously raised a TypeError while computing the type hints.
     th = Map(fn, {}).get_type_hints()
     self.assertEqual(th.input_types, ((int, typehints.Mapping[str, Any]), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_future_annotation_unconvertible_falls_back_to_any(
+      self):
+    # collections.abc.Generator needs three arguments to convert to a Beam
+    # type hint; with one it falls back to Any instead of raising.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'from collections.abc import Generator\n'
+        'def gen(x: int) -> Generator[int]:\n'
+        '  yield x\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['gen'])
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_from_callable_future_annotations_with_typevar_and_newtype(self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'T = typing.TypeVar("T")\n'
+        'UserId = typing.NewType("UserId", int)\n'
+        'def fn(xs: list[T], user: UserId) -> T:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((List[TypeVariable('T')], Any), {}))
+    self.assertEqual(th.output_types, ((TypeVariable('T'), ), {}))
+
+  @unittest.skipIf(
+      sys.version_info < (3, 12), 'The type statement requires Python 3.12+')
+  def test_from_callable_future_annotations_with_type_alias(self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'type IntList = list[int]\n'
+        'def fn(xs: IntList) -> int:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((List[int], ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
   def test_from_callable_partial_with_string_annotations(self):

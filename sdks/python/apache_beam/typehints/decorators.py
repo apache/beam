@@ -175,31 +175,21 @@ def _annotation_namespaces(fn):
   return getattr(target, '__globals__', {}), localns
 
 
-def _is_valid_type_hint(hint):
-  """Whether a resolved annotation only contains valid type hint components.
+def _is_convertible_type_hint(hint):
+  """Whether a resolved annotation converts to a valid Beam type hint.
 
-  A string annotation can resolve to an object that is not a type, e.g. a
-  protobuf enum (an ``EnumTypeWrapper`` instance) used as
-  ``Mapping[str, 'schema_pb2.FeatureType']``. Beam's composite type hints
-  reject such parameters, so these annotations must not be resolved.
+  A string annotation can resolve to something Beam cannot represent, e.g. a
+  protobuf enum (an ``EnumTypeWrapper`` instance, not a type) used as
+  ``Mapping[str, 'schema_pb2.FeatureType']``, or a typing construct that
+  convert_to_beam_type does not support, such as ``Generator[int]``. The
+  converted hint is validated (rather than the resolved annotation) so that
+  TypeVars, NewTypes and ``type`` aliases, which convert to valid hints, are
+  still resolved.
   """
-  if hint is None or hint is Ellipsis:
-    return True
-  if isinstance(hint, (list, tuple)):
-    # Callable parameter lists, e.g. the [int] in Callable[[int], str].
-    return all(_is_valid_type_hint(h) for h in hint)
-  origin = get_origin(hint)
-  if origin is Literal:
-    # Literal arguments are values, not types.
-    return True
-  args = get_args(hint)
-  if origin is typing.Annotated:
-    args = args[:1]  # The remaining arguments are metadata.
-  if args:
-    return all(_is_valid_type_hint(arg) for arg in args)
   try:
-    validate_composite_type_param(hint, 'Resolved type annotation')
-  except TypeError:
+    validate_composite_type_param(
+        convert_to_beam_type(hint), 'Resolved type annotation')
+  except (TypeError, ValueError):
     return False
   return True
 
@@ -221,9 +211,9 @@ def _resolve_annotation(annotation, globalns, localns):
   except (AttributeError, NameError, SyntaxError, TypeError):
     # convert_to_beam_type maps unresolved strings and ForwardRefs to Any.
     return annotation
-  if not _is_valid_type_hint(resolved):
-    # The annotation names something that is not a type. Keep it unresolved
-    # so that convert_to_beam_type maps it to Any, as for unresolved names.
+  if not _is_convertible_type_hint(resolved):
+    # Keep the annotation unresolved so that convert_to_beam_type maps it to
+    # Any, as it did before string annotations were resolved.
     return annotation
   return resolved
 
