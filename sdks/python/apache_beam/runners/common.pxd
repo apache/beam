@@ -163,6 +163,7 @@ cdef class _OutputHandler(OutputHandler):
                                watermark_estimator=*)
 
   @cython.locals(windowed_value=WindowedValue,
+                 empty_windowed_value=WindowedValue,
                  windowed_batch=WindowedBatch,
                  output_element_count=int64_t)
   cpdef handle_process_batch_outputs(self, WindowedBatch input_batch, results,

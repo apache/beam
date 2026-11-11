@@ -1717,7 +1717,9 @@ class _OutputHandler(OutputHandler):
             (object_type, results))
 
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
@@ -1771,9 +1773,14 @@ class _OutputHandler(OutputHandler):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     output_element_count = 0
+    empty_windowed_value = (
+        windowed_input_batch.as_empty_windowed_value()
+        if self._process_batch_yields_elements else None)
     for result in results:
       tag, result = self._handle_tagged_output(result)
 
@@ -1801,7 +1808,7 @@ class _OutputHandler(OutputHandler):
         assert isinstance(windowed_input_batch, HomogeneousWindowedBatch)
 
         windowed_value = self._maybe_propagate_windowing_info(
-            windowed_input_batch.as_empty_windowed_value(), result)
+            empty_windowed_value, result)
 
         output_element_count += 1
 
