@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.parser.TableClause;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
@@ -139,9 +140,13 @@ public class BeamCalciteSchema implements Schema {
 
   private static BeamSqlTable derive(BeamSqlTable table, TableClause clause) {
     try {
-      return clause.role() == TableClause.Role.READ
-          ? table.forRead(clause.options())
-          : table.forWrite(clause.options());
+      @Nullable ChangeRange changes = clause.changes();
+      if (clause.role() == TableClause.Role.WRITE) {
+        return table.forWrite(clause.options());
+      }
+      return changes != null
+          ? table.forChanges(changes, clause.options())
+          : table.forRead(clause.options());
     } catch (RuntimeException e) {
       throw new IllegalArgumentException(
           String.format("Cannot resolve %s: %s", clause.encode(), e.getMessage()), e);

@@ -739,6 +739,13 @@ class PTransformTest(unittest.TestCase):
       grouped = flattened | 'D' >> beam.GroupByKey() | SortLists
       assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
+  def test_partition_applied_to_list(self):
+    # https://github.com/apache/beam/issues/19154
+    partitions = [0, 1, 2, 3, 4] | beam.Partition(lambda e, n: e % n, 2)
+    self.assertCountEqual([0, 2, 4], partitions[0])
+    self.assertCountEqual([1, 3], partitions[1])
+    self.assertCountEqual([1, 3], partitions['1'])
+
   @pytest.mark.it_validatesrunner
   def test_flatten_pcollections(self):
     with TestPipeline() as pipeline:

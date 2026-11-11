@@ -127,7 +127,11 @@ pre-commit run --all-files
 ### CHANGES.md
 ```bash
 ./gradlew formatChanges
+./gradlew validateChanges
 ```
+- Only add entries for user-facing changes; skip minor or internal changes that do not affect public API behavior (e.g., test-only updates, typos/docs, CI/build changes, internal refactors, or fixes to unreleased changes).
+- Follow the template at the top of `CHANGES.md`.
+- End each entry with an issue or PR link: `([#X](https://github.com/apache/beam/issues/X))`.
 
 ## Release Cycle
 - Minor releases every 6 weeks

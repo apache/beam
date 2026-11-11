@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import java.util.HashSet;
-import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -32,6 +30,8 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multiset;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +65,7 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   private final Counter rejectedByBroker =
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_rejected_by_broker");
 
-  private final Set<String> messageIdsToAck = new HashSet<>();
+  private final Multiset<String> messageIdsToAck = HashMultiset.create();
 
   // We use a state variable to force a shuffling and ensure the cardinality of the processing
   @SuppressWarnings("UnusedVariable")
@@ -92,6 +92,13 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   @Override
   public void startBundle() {
     super.startBundle();
+    messageIdsToAck.clear();
+  }
+
+  @Teardown
+  @Override
+  public void teardown() {
+    super.teardown();
     messageIdsToAck.clear();
   }
 
@@ -128,7 +135,8 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
               record,
               getDestinationFn().apply(record),
               shouldPublishLatencyMetrics(),
-              getDeliveryMode());
+              getDeliveryMode(),
+              getBundleResultsQueue());
       sentToBroker.inc();
     } catch (Exception e) {
       rejectedByBroker.inc();
@@ -142,7 +150,7 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
                       e.getMessage()))
               .setLatencyNanos(System.nanoTime())
               .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      getBundleResultsQueue().add(errorPublish);
     }
   }
 

@@ -935,9 +935,14 @@ public class KafkaIO {
 
         if (config.redistribute != null) {
           builder.setRedistributed(config.redistribute);
-          if (config.redistributeNumKeys != null) {
-            builder.setRedistributeNumKeys((int) config.redistributeNumKeys);
-          }
+          int redistributeNumKeys =
+              config.redistributeNumKeys == null ? 0 : config.redistributeNumKeys;
+          // As in Read#withRedistribute, 0 means the number of keys was not set. Python always
+          // sends a value, and a Redistribute with no limit creates one key per record.
+          builder.setRedistributeNumKeys(
+              config.redistribute && redistributeNumKeys == 0
+                  ? DEFAULT_REDISTRIBUTE_NUM_KEYS
+                  : redistributeNumKeys);
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
