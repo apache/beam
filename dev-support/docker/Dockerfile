@@ -75,8 +75,19 @@ RUN pip3 install --break-system-packages distlib==0.3.9 yapf==0.43.0 pytest plug
 # Install Go
 ###
 ENV DOWNLOAD_GO_VERSION=1.26.10
-RUN wget https://golang.org/dl/go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz
+# Match the toolchain to the architecture of the image being built. ubuntu:24.04
+# is multi-arch, so on Apple Silicon and other arm64 hosts this image is arm64
+# and an amd64-only toolchain would not be executable inside it (#20983).
+# TARGETARCH is provided automatically by BuildKit; fall back to the image's own
+# architecture when building with the legacy builder.
+ARG TARGETARCH
+RUN set -eux; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    wget -q "https://go.dev/dl/go${DOWNLOAD_GO_VERSION}.linux-${arch}.tar.gz" \
+        -O /tmp/go.tar.gz; \
+    tar -C /usr/local -xzf /tmp/go.tar.gz; \
+    rm -f /tmp/go.tar.gz; \
+    /usr/local/go/bin/go version
 ENV GOROOT /usr/local/go
 ENV PATH $PATH:$GOROOT/bin
 
