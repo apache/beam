@@ -30,7 +30,7 @@ on:
 permissions: read-all
 
 concurrency:
-  group: gemini-code-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+  group: gemini-code-review-${{ github.event_name }}-${{ github.actor }}-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
