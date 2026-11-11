@@ -904,8 +904,9 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       release_event.wait(timeout=10)
       return mock_res
 
-    with patch.object(
-        rm, '_execute_pipeline_fragment', side_effect=fake_execute):
+    with patch.object(rm,
+                      '_execute_pipeline_fragment',
+                      side_effect=fake_execute):
       async_result = None
       try:
         async_result = ib.compute(pcoll, blocking=False)
