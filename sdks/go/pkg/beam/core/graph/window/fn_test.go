@@ -16,9 +16,17 @@
 package window
 
 import (
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
+
+func init() {
+	RegisterWindowFn[*testWindowFn]()
+}
 
 func TestEquals(t *testing.T) {
 	tests := []struct {
@@ -81,6 +89,24 @@ func TestEquals(t *testing.T) {
 			NewSlidingWindows(10*time.Millisecond, 100*time.Millisecond),
 			false,
 		},
+		{
+			"custom equal",
+			NewCustom(&testWindowFn{BucketSize: 3000}),
+			NewCustom(&testWindowFn{BucketSize: 3000}),
+			true,
+		},
+		{
+			"custom inequal",
+			NewCustom(&testWindowFn{BucketSize: 3000}),
+			NewCustom(&testWindowFn{BucketSize: 5000}),
+			false,
+		},
+		{
+			"custom vs fixed",
+			NewCustom(&testWindowFn{BucketSize: 3000}),
+			NewFixedWindows(3 * time.Second),
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -88,5 +114,54 @@ func TestEquals(t *testing.T) {
 				t.Errorf("(%v).Equals(%v) got %v, want %v", test.fnOne, test.fnTwo, got, want)
 			}
 		})
+	}
+}
+
+// testWindowFn is a minimal custom WindowFn for testing.
+type testWindowFn struct {
+	BucketSize int64
+}
+
+func (f *testWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	bucket := typex.EventTime(f.BucketSize)
+	// Euclidean remainder; correct floor for negative ts.
+	start := ts - ((ts%bucket)+bucket)%bucket
+	end := start + bucket
+	return []typex.Window{IntervalWindow{Start: start, End: end}}
+}
+
+func TestNewCustom(t *testing.T) {
+	fn := NewCustom(&testWindowFn{BucketSize: 3000})
+	if fn.Kind != CustomWindows {
+		t.Errorf("NewCustom().Kind = %v, want %v", fn.Kind, CustomWindows)
+	}
+	if fn.CustomFn == nil {
+		t.Fatal("NewCustom().CustomFn is nil")
+	}
+}
+
+func TestNewCustomPanicsOnNil(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewCustom(nil) did not panic")
+		}
+	}()
+	NewCustom(nil)
+}
+
+func TestCustomCoder(t *testing.T) {
+	fn := NewCustom(&testWindowFn{BucketSize: 3000})
+	got := fn.Coder()
+	want := coder.NewIntervalWindow()
+	if got.Kind != want.Kind {
+		t.Errorf("Coder().Kind = %v, want %v", got.Kind, want.Kind)
+	}
+}
+
+func TestCustomString(t *testing.T) {
+	fn := NewCustom(&testWindowFn{BucketSize: 3000})
+	s := fn.String()
+	if !strings.HasPrefix(s, "CUS[") {
+		t.Errorf("String() = %q, want prefix CUS[", s)
 	}
 }
