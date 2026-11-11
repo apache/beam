@@ -776,8 +776,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
-        partitions = p | beam.Create(
-            [partition_1, partition_2], reshuffle=False)
+        partitions = p | beam.Create([partition_1, partition_2],
+                                     reshuffle=False)
         _ = (
             partitions
             | beam.ParDo(
