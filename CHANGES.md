@@ -151,6 +151,7 @@
 ## Security Fixes
 
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Updated the Go toolchain used to build the SDK container `boot` binaries and the Go SDK to go1.26.10, which fixes the Go standard library CVEs reported against go1.26.2 ([#41056](https://github.com/apache/beam/issues/41056)).
 
 ## Known Issues
 
