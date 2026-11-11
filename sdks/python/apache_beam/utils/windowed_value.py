@@ -254,9 +254,12 @@ class WindowedValue(object):
     return NotImplemented
 
   def __hash__(self):
+    windows = (
+        self.windows if isinstance(self.windows, tuple) else tuple(
+            self.windows))
     return ((hash(self.value) & 0xFFFFFFFFFFFFFFF) + 3 *
             (self.timestamp_micros & 0xFFFFFFFFFFFFFF) + 7 *
-            (hash(tuple(self.windows)) & 0xFFFFFFFFFFFFF) + 11 *
+            (hash(windows) & 0xFFFFFFFFFFFFF) + 11 *
             (hash(self.pane_info) & 0xFFFFFFFFFFFFF))
 
   def with_value(self, new_value):
@@ -372,12 +375,15 @@ class HomogeneousWindowedBatch(WindowedBatch):
   def from_windowed_values(
       windowed_values: Sequence[WindowedValue], *,
       produce_fn: Callable) -> Iterable['WindowedBatch']:
-    grouped = collections.defaultdict(lambda: [])
+    grouped = collections.defaultdict(list)
     for wv in windowed_values:
-      grouped[wv.with_value(None)].append(wv.value)
+      windows = (
+          wv.windows if isinstance(wv.windows, tuple) else tuple(wv.windows))
+      grouped[(wv.timestamp_micros, windows, wv.pane_info)].append(wv.value)
 
-    for key, values in grouped.items():
-      yield HomogeneousWindowedBatch(key.with_value(produce_fn(values)))
+    for (ts_micros, windows, pane_info), values in grouped.items():
+      yield HomogeneousWindowedBatch(
+          create(produce_fn(values), ts_micros, windows, pane_info))
 
 
 try:

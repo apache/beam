@@ -145,8 +145,12 @@ public class StateFetchingIteratorsTest {
 
       // Test on a partially accessed iterable
       iterable = create(5, expected);
-      iterable.append(Ints.asList(42, 43));
+      // Access the iterator to load the first block into the cache so that the cache is partially
+      // populated with nextToken != null before calling append. Without this call, the cache is
+      // empty and append would return early at the existing == null check instead of exercising
+      // the partial cache eviction logic.
       Boolean ignored = iterable.iterator().hasNext();
+      iterable.append(Ints.asList(42, 43));
       // The append is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -176,8 +180,12 @@ public class StateFetchingIteratorsTest {
 
       // Test on a partially accessed iterable
       iterable = create(5, expected);
-      iterable.remove(toRemove);
+      // Access the iterator to load the first block into the cache so that the cache is partially
+      // populated with nextToken != null before calling remove. Without this call, the cache is
+      // empty and remove would return early at the existing == null check instead of exercising
+      // the partial cache eviction logic.
       Boolean ignored = iterable.iterator().hasNext();
+      iterable.remove(toRemove);
       // The remove is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
