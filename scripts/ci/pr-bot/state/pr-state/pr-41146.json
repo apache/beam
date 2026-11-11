@@ -1,9 +1,11 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "go": "jrmccluskey"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false,
-  "reviewersAssignedAt": 0
+  "reviewersAssignedAt": 1794424240787
 }
