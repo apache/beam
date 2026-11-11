@@ -52,7 +52,7 @@ public final class ExceptionUtils {
    */
   public static boolean hasCause(
       @Nullable Throwable throwable, Class<? extends Throwable> exceptionClass) {
-    return hasAnyCause(throwable, exceptionClass::isInstance);
+    return hasMatchingCause(throwable, exceptionClass::isInstance);
   }
 
   /**
@@ -63,12 +63,13 @@ public final class ExceptionUtils {
       @Nullable Throwable throwable,
       Class<? extends Throwable> exceptionClass1,
       Class<? extends Throwable> exceptionClass2) {
-    return hasAnyCause(
+    return hasMatchingCause(
         throwable, t -> exceptionClass1.isInstance(t) || exceptionClass2.isInstance(t));
   }
 
   /** Returns whether {@code throwable} or any of its causes matches the given {@code predicate}. */
-  public static boolean hasAnyCause(@Nullable Throwable throwable, Predicate<Throwable> predicate) {
+  public static boolean hasMatchingCause(
+      @Nullable Throwable throwable, Predicate<Throwable> predicate) {
     if (throwable == null) {
       return false;
     }

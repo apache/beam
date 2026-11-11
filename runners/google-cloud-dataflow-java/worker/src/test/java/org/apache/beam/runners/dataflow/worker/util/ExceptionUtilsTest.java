@@ -53,7 +53,7 @@ public class ExceptionUtilsTest {
     assertThat(ExceptionUtils.hasCause(null, CustomExceptionA.class)).isFalse();
     assertThat(ExceptionUtils.hasCause(null, CustomExceptionA.class, CustomExceptionB.class))
         .isFalse();
-    assertThat(ExceptionUtils.hasAnyCause(null, t -> true)).isFalse();
+    assertThat(ExceptionUtils.hasMatchingCause(null, t -> true)).isFalse();
   }
 
   @Test
@@ -121,11 +121,15 @@ public class ExceptionUtilsTest {
   }
 
   @Test
-  public void hasAnyCause_customPredicate() {
+  public void hasMatchingCause_customPredicate() {
     RuntimeException exception = new RuntimeException("message containing secret_needle");
-    assertThat(ExceptionUtils.hasAnyCause(exception, t -> t.getMessage().contains("secret_needle")))
+    assertThat(
+            ExceptionUtils.hasMatchingCause(
+                exception, t -> t.getMessage().contains("secret_needle")))
         .isTrue();
-    assertThat(ExceptionUtils.hasAnyCause(exception, t -> t.getMessage().contains("other_needle")))
+    assertThat(
+            ExceptionUtils.hasMatchingCause(
+                exception, t -> t.getMessage().contains("other_needle")))
         .isFalse();
   }
 }
