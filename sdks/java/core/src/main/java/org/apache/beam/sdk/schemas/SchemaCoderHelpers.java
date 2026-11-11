@@ -80,13 +80,20 @@ class SchemaCoderHelpers {
       this.isDateTime = logicalType.getBaseType().equals(FieldType.DATETIME);
     }
 
-    @Override
-    public void encode(InputT value, OutputStream outStream) throws CoderException, IOException {
+    private BaseT toBaseType(InputT value) {
+      if (value == null) {
+        return null;
+      }
       BaseT baseType = logicalType.toBaseType(value);
-      if (isDateTime) {
+      if (isDateTime && baseType != null) {
         baseType = (BaseT) ((ReadableInstant) baseType).toInstant();
       }
-      baseTypeCoder.encode(baseType, outStream);
+      return baseType;
+    }
+
+    @Override
+    public void encode(InputT value, OutputStream outStream) throws CoderException, IOException {
+      baseTypeCoder.encode(toBaseType(value), outStream);
     }
 
     @Override
@@ -114,22 +121,23 @@ class SchemaCoderHelpers {
 
     @Override
     public Object structuralValue(InputT value) {
+      BaseT baseValue = toBaseType(value);
       if (baseTypeCoder.consistentWithEquals()) {
-        return logicalType.toBaseType(value);
+        return baseValue;
       } else {
-        return baseTypeCoder.structuralValue(logicalType.toBaseType(value));
+        return baseTypeCoder.structuralValue(baseValue);
       }
     }
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(InputT value) {
-      return baseTypeCoder.isRegisterByteSizeObserverCheap(logicalType.toBaseType(value));
+      return baseTypeCoder.isRegisterByteSizeObserverCheap(toBaseType(value));
     }
 
     @Override
     public void registerByteSizeObserver(InputT value, ElementByteSizeObserver observer)
         throws Exception {
-      baseTypeCoder.registerByteSizeObserver(logicalType.toBaseType(value), observer);
+      baseTypeCoder.registerByteSizeObserver(toBaseType(value), observer);
     }
   }
 
