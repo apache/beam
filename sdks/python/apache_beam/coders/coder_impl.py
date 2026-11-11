@@ -1800,7 +1800,8 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     self._window_coder_impl = window_coder_impl
 
   def encode_to_stream(self, value, stream, nested):
-    _TIMESTAMP_CODER_IMPL.encode_to_stream(value.max_timestamp(), stream, nested)
+    _TIMESTAMP_CODER_IMPL.encode_to_stream(
+        value.max_timestamp(), stream, nested)
     self._window_coder_impl.encode_to_stream(value, stream, nested)
 
   def decode_from_stream(self, stream, nested):
