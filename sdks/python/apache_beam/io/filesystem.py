@@ -89,9 +89,15 @@ class CompressionTypes(object):
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = 'uncompressed'
 
-  _VALID_TYPES = frozenset((AUTO, BZIP2, DEFLATE, GZIP, ZSTD, LZMA, UNCOMPRESSED))
-  _MIME_TYPES = {BZIP2: 'application/x-bz2', DEFLATE: 'application/x-deflate',
-                 GZIP: 'application/x-gzip', ZSTD: 'application/zstd', LZMA: 'application/lzma'}
+  _VALID_TYPES = frozenset(
+      (AUTO, BZIP2, DEFLATE, GZIP, ZSTD, LZMA, UNCOMPRESSED))
+  _MIME_TYPES = {
+      BZIP2: 'application/x-bz2',
+      DEFLATE: 'application/x-deflate',
+      GZIP: 'application/x-gzip',
+      ZSTD: 'application/zstd',
+      LZMA: 'application/lzma'
+  }
   _BY_SUFFIX = (('.bz2', BZIP2), ('.deflate', DEFLATE), ('.gz', GZIP),
                 ('.zst', ZSTD), ('.zstd', ZSTD), ('.xz', LZMA), ('.lzma', LZMA))
 
