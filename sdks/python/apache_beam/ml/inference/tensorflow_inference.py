@@ -18,7 +18,6 @@
 # pytype: skip-file
 
 import enum
-import os
 import sys
 from collections.abc import Callable
 from collections.abc import Iterable
@@ -234,15 +233,6 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def set_environment_vars(self):
-    super().set_environment_vars()
-    if 'TF_USE_LEGACY_KERAS' not in self._env_vars:
-      keras_name = getattr(tf.keras, '__name__', '')
-      if keras_name.startswith('tf_keras'):
-        os.environ['TF_USE_LEGACY_KERAS'] = '1'
-      elif keras_name.startswith('keras'):
-        os.environ['TF_USE_LEGACY_KERAS'] = '0'
-
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
                                         tf.Module]):
@@ -385,12 +375,3 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_TF_Tensor'
-
-  def set_environment_vars(self):
-    super().set_environment_vars()
-    if 'TF_USE_LEGACY_KERAS' not in self._env_vars:
-      keras_name = getattr(tf.keras, '__name__', '')
-      if keras_name.startswith('tf_keras'):
-        os.environ['TF_USE_LEGACY_KERAS'] = '1'
-      elif keras_name.startswith('keras'):
-        os.environ['TF_USE_LEGACY_KERAS'] = '0'

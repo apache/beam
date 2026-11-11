@@ -1188,6 +1188,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
+  @pytest.mark.no_xdist
   @unittest.skipIf(
       sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
