@@ -23,7 +23,6 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
-import csv
 import functools
 import io
 import itertools
@@ -153,18 +152,24 @@ def read_from_csv(
         on_bad_lines='skip')
 
   def parse_record(header, record, dtypes):
-    expected = len(next(csv.reader([header], delimiter=sep)))
-    actual = len(next(csv.reader(io.StringIO(record), delimiter=sep)))
-    if actual != expected:
-      raise ValueError(f'Expected {expected} fields, got {actual}.')
-    return pd.read_csv(
+    columns = list(dtypes)
+    fields = pd.read_csv(
+        io.StringIO(record), header=None, sep=sep, comment=comment, dtype=str)
+    if len(fields.columns) != len(columns):
+      raise ValueError(
+          f'Expected {len(columns)} fields, got {len(fields.columns)}.')
+    df = pd.read_csv(
         io.StringIO(header + record), sep=sep, comment=comment, dtype=dtypes)
+    if list(df.columns) != columns:
+      raise ValueError(
+          f'The file header {list(df.columns)} does not match {columns}.')
+    return df
 
   def parse_file(lines, proxy):
     dtypes = proxy.dtypes.drop(filename_column, errors='ignore').to_dict()
     header = None
-    for record in _join_quoted_lines(lines):
-      if not record.strip() or (comment and record.startswith(comment)):
+    for record in _join_quoted_lines(lines, comment):
+      if not record.strip():
         continue
       if header is None:
         header = record
@@ -211,10 +216,20 @@ def read_from_json(
           good_lines.append(line)
       except ValueError:
         pass
+    if not good_lines:
+      raise ValueError(
+          f'Found no JSON objects in the first {_SAMPLE_SIZE} lines '
+          'of the first file, so the column types are unknown.')
     return read_json(''.join(good_lines))
 
   def parse_record(line, proxy):
-    return read_json(line).reindex(columns=proxy.columns).astype(proxy.dtypes)
+    value = json.loads(line)
+    if not isinstance(value, dict):
+      raise ValueError('Expected a JSON object.')
+    unknown_fields = set(value) - set(proxy.columns)
+    if unknown_fields:
+      raise ValueError(f'Unknown fields {sorted(unknown_fields)}.')
+    return read_json(line).reindex(columns=proxy.columns)
 
   def parse_file(lines, proxy):
     for line in lines:
@@ -228,13 +243,16 @@ def read_from_json(
 _SAMPLE_SIZE = 100
 
 
-def _join_quoted_lines(lines):
+def _join_quoted_lines(lines, comment=None):
   """Joins lines so that a quoted csv field with newlines stays in one record.
 
   A record is complete when it has an even number of quote characters.
+  Comment lines between records are skipped.
   """
   record = ''
   for line in lines:
+    if not record and comment and line.startswith(comment):
+      continue
     record += line
     if record.count('"') % 2 == 0:
       yield record
@@ -284,10 +302,16 @@ class _ReadFilesWithErrors(beam.PTransform):
           io.TextIOWrapper(handle, encoding='utf-8', errors='replace'))[:0]
     if self._filename_column:
       proxy[self._filename_column] = ''
+    # Use the string dtype for text columns, as ReadFromCsv and ReadFromJson
+    # do, so that they get a str type in the output schema.
+    for column, dtype in proxy.dtypes.items():
+      if dtype == object:
+        proxy[column] = proxy[column].astype(pd.StringDtype())
 
     results = (
         root
         | beam_io.fileio.MatchFiles(self._path)
+        | beam.Reshuffle()
         | beam_io.fileio.ReadMatches()
         | beam.ParDo(self._read_file, proxy).with_outputs(
             'errors', main='good'))
@@ -324,11 +348,12 @@ class _ReadFilesWithErrors(beam.PTransform):
     for record, parse in self._parse_file(decoded_lines(), proxy):
       try:
         df = parse()
+        if self._filename_column:
+          df[self._filename_column] = path
+        df = df.astype(proxy.dtypes)
       except Exception as exn:  # pylint: disable=broad-except
         yield error(record, exn)
         continue
-      if self._filename_column:
-        df[self._filename_column] = path
       yield df
     yield from decode_errors
 

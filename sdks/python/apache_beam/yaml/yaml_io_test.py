@@ -20,8 +20,10 @@ import io
 import json
 import logging
 import os
+import shutil
 import tempfile
 import unittest
+from typing import Optional
 
 import fastavro
 import mock
@@ -1064,6 +1066,7 @@ class YamlKafkaTest(unittest.TestCase):
 class YamlFileErrorHandlingTest(unittest.TestCase):
   def setUp(self):
     self.temp_dir = tempfile.mkdtemp()
+    self.addCleanup(shutil.rmtree, self.temp_dir)
 
   def write_file(self, name, content):
     path = os.path.join(self.temp_dir, name)
@@ -1087,8 +1090,9 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
   def test_read_csv_with_error_handling(self):
     path = self.write_file(
         'input.csv',
+        b'# a "comment\n'
         b'name,count\n'
-        b'a,1\n'
+        b'a,1 # inline, comment\n'
         b'"b\nwith newline",2\n'
         b'c,not_a_number\n'
         b'd,4,extra\n'
@@ -1098,7 +1102,9 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
     # 'not_a_number' record fails type conversion.
     with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
       p, result = self.read_with_errors(
-          'ReadFromCsv', path, 'filename_column: source')
+          'ReadFromCsv', path, 'comment: "#"\n          filename_column: source')
+    self.assertEqual(
+        result['good'].element_type.get_type_for('name'), Optional[str])
     with p:
       assert_that(
           result['good'],
@@ -1123,9 +1129,13 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
         'input.json',
         b'{"name": "a", "count": 1}\n'
         b'{"name": "b", "count": \n'
-        b'[1, 2]\n'
+        b'[{"name": "c", "count": 3}]\n'
+        b'{"name": "c", "unknown": 3}\n'
         b'{"name": "d", "count": 4}\n')
-    p, result = self.read_with_errors('ReadFromJson', path)
+    # Infer the columns from the first line only, so that the 'unknown'
+    # field is not one of the columns.
+    with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
+      p, result = self.read_with_errors('ReadFromJson', path)
     with p:
       assert_that(
           result['good'],
@@ -1138,7 +1148,8 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
           result['errors'] | beam.Map(lambda e: e.element.record),
           equal_to([
               '{"name": "b", "count": \n',
-              '[1, 2]\n',
+              '[{"name": "c", "count": 3}]\n',
+              '{"name": "c", "unknown": 3}\n',
           ]),
           label='CheckErrors')
 
