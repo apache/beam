@@ -82,11 +82,13 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
+* (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 
 ## Improvements
 
@@ -100,6 +102,7 @@
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
 * [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
+* [Beam SQL] Added `CHANGES(table [, start [, end]])` to read a table's changes in `FROM`, starting with Iceberg tables ([#40982](https://github.com/apache/beam/issues/40982)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 
@@ -132,6 +135,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed cross-language `ReadFromKafka(redistribute=True)` creating one key per record when `redistribute_num_keys` is not set. It now uses the KafkaIO default of 32768 keys, as Java `withRedistribute()` does. On Flink the per-record keys left timer state that grew until the job ran out of memory ([#41103](https://github.com/apache/beam/issues/41103)).
 * (Python/YAML) Beam YAML `generic` filters now accept `>=`, `<=`, `==` and `!=`; previously only `<` and `>` were recognized ([#41043](https://github.com/apache/beam/issues/41043)).
 * (Python) Fixed batched DoFns whose input must be rebatched into a `pyarrow.Table` with more than one column, which failed with `ArrowInvalid: Column 1 ... expected length N but got length 0`. This affected, for example, Beam YAML `ReadFromCsv` or `ReadFromJson` followed directly by `WriteToParquet` ([#41042](https://github.com/apache/beam/issues/41042)).
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
@@ -139,6 +143,8 @@
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
+* (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
+* (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 

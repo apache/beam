@@ -19,16 +19,20 @@ package org.apache.beam.io.debezium;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.GsonBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.annotations.SerializedName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -57,6 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *         <li>schema - Database Schema (for MySQL, the binlog file name)
  *         <li>table - Table name
  *       </ul>
+ *   <li>transaction - {@link #loadTransaction}: the Debezium {@code transaction} block of the
+ *       change event ({@code id}, {@code total_order} and {@code data_collection_order}). The key
+ *       is absent unless the connector has {@code provide.transaction.metadata=true}
  * </ul>
  *
  * <h3>Full metadata</h3>
@@ -75,6 +82,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ul>
  *
  * <p>By default ({@code fullMetadata = false}) the output only contains the six keys above.
+ *
+ * <h3>Transaction metadata</h3>
+ *
+ * <p>When the connector has {@code provide.transaction.metadata=true}, Debezium also emits a {@code
+ * BEGIN} and an {@code END} event around the change events of each transaction. These have no
+ * {@code source}, {@code before} or {@code after}, so they are mapped to their own payload instead
+ * ({@link #loadTransactionEvent}): {@code status}, {@code id}, {@code ts_ms}, {@code event_count}
+ * and {@code data_collections}.
  *
  * <h3>Usage Example</h3>
  *
@@ -98,10 +113,17 @@ public class SourceRecordJson {
    * existing metadata key), so they are never added as full metadata extras.
    */
   private static final Set<String> RESERVED_METADATA_KEYS =
-      ImmutableSet.of("connector", "version", "name", "db", "database", "schema", "table", "op");
+      ImmutableSet.of(
+          "connector", "version", "name", "db", "database", "schema", "table", "op", "transaction");
+
+  private static final String SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME =
+      "io.debezium.connector.common.TransactionMetadataKey";
+
+  private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
   private final @Nullable Struct value;
   private final @Nullable Event event;
+  private final @Nullable TransactionEvent transactionEvent;
   private final Map<String, Object> metadataExtras;
 
   /**
@@ -128,14 +150,21 @@ public class SourceRecordJson {
     this.value = (Struct) sourceRecord.value();
 
     if (this.value == null) {
-      this.event = new Event(null, null, null);
+      this.event = new Event(null, null, null, null);
+      this.transactionEvent = null;
+      this.metadataExtras = Collections.emptyMap();
+    } else if (isTransactionMetadataEvent(sourceRecord.keySchema())) {
+      this.event = null;
+      this.transactionEvent = this.loadTransactionEvent();
       this.metadataExtras = Collections.emptyMap();
     } else {
       Event.Metadata metadata = this.loadMetadata();
       Event.Before before = this.loadBefore();
       Event.After after = this.loadAfter();
+      Event.Transaction transaction = this.loadTransaction();
 
-      this.event = new Event(metadata, before, after);
+      this.event = new Event(metadata, before, after, transaction);
+      this.transactionEvent = null;
       this.metadataExtras =
           fullMetadata && metadata != null ? this.loadMetadataExtras() : Collections.emptyMap();
     }
@@ -252,11 +281,63 @@ public class SourceRecordJson {
   }
 
   /**
+   * Extracts the transaction field within SourceRecord, set when the connector has {@code
+   * provide.transaction.metadata=true}.
+   *
+   * @return Transaction
+   */
+  private Event.Transaction loadTransaction() {
+    @Nullable Struct transaction;
+    try {
+      transaction = (Struct) this.value.get("transaction");
+    } catch (DataException e) {
+      return null;
+    }
+    if (transaction == null) {
+      return null;
+    }
+
+    return new Event.Transaction(
+        getStringOrNull(transaction, "id"),
+        getInt64OrNull(transaction, "total_order"),
+        getInt64OrNull(transaction, "data_collection_order"));
+  }
+
+  /**
+   * Extracts the payload of a transaction BEGIN/END event.
+   *
+   * @return TransactionEvent
+   */
+  private TransactionEvent loadTransactionEvent() {
+    @Nullable List<TransactionEvent.DataCollection> dataCollections = null;
+    @Nullable List<Struct> dataCollectionStructs = getArrayOrNull(this.value, "data_collections");
+    if (dataCollectionStructs != null) {
+      dataCollections = new ArrayList<>();
+      for (Struct dataCollection : dataCollectionStructs) {
+        dataCollections.add(
+            new TransactionEvent.DataCollection(
+                getStringOrNull(dataCollection, "data_collection"),
+                getInt64OrNull(dataCollection, "event_count")));
+      }
+    }
+
+    return new TransactionEvent(
+        getStringOrNull(this.value, "status"),
+        getStringOrNull(this.value, "id"),
+        getInt64OrNull(this.value, "ts_ms"),
+        getInt64OrNull(this.value, "event_count"),
+        dataCollections);
+  }
+
+  /**
    * Transforms the extracted data to a JSON string.
    *
    * @return JSON String
    */
   public String toJson() {
+    if (this.transactionEvent != null) {
+      return this.transactionEvent.toJson();
+    }
     return this.event.toJson(this.metadataExtras);
   }
 
@@ -291,6 +372,7 @@ public class SourceRecordJson {
     private final SourceRecordJson.Event.Metadata metadata;
     private final SourceRecordJson.Event.Before before;
     private final SourceRecordJson.Event.After after;
+    private final SourceRecordJson.Event.Transaction transaction;
 
     /**
      * Event Initializer.
@@ -298,14 +380,17 @@ public class SourceRecordJson {
      * @param metadata Metadata retrieved from SourceRecord
      * @param before Before data retrieved from SourceRecord
      * @param after After data retrieved from SourceRecord
+     * @param transaction Transaction block retrieved from SourceRecord
      */
     public Event(
         SourceRecordJson.Event.Metadata metadata,
         SourceRecordJson.Event.Before before,
-        SourceRecordJson.Event.After after) {
+        SourceRecordJson.Event.After after,
+        SourceRecordJson.Event.Transaction transaction) {
       this.metadata = metadata;
       this.before = before;
       this.after = after;
+      this.transaction = transaction;
     }
 
     /**
@@ -319,23 +404,25 @@ public class SourceRecordJson {
 
     /**
      * Transforms the Event to a JSON string, appending the given extra keys to {@code metadata}
-     * after {@code table}.
+     * after {@code table}. The {@code transaction} key is omitted when the record has none.
      *
      * @param extras Additional metadata keys, in iteration order
      * @return JSON String
      */
     String toJson(Map<String, Object> extras) {
-      Gson gson = new GsonBuilder().serializeNulls().create();
+      JsonObject tree = GSON.toJsonTree(this).getAsJsonObject();
+      if (transaction == null) {
+        tree.remove("transaction");
+      }
       if (extras.isEmpty() || metadata == null) {
-        return gson.toJson(this);
+        return GSON.toJson(tree);
       }
       // Gson can't flatten a map into an object, so append the extras to the metadata tree.
-      JsonObject tree = gson.toJsonTree(this).getAsJsonObject();
       JsonObject metadataJson = tree.getAsJsonObject("metadata");
       for (Map.Entry<String, Object> extra : extras.entrySet()) {
-        metadataJson.add(extra.getKey(), gson.toJsonTree(extra.getValue()));
+        metadataJson.add(extra.getKey(), GSON.toJsonTree(extra.getValue()));
       }
-      return gson.toJson(tree);
+      return GSON.toJson(tree);
     }
 
     /** Depicts the metadata within a SourceRecord. It has valuable fields. */
@@ -401,5 +488,122 @@ public class SourceRecordJson {
         this.fields = fields;
       }
     }
+
+    /** Depicts the transaction field within SourceRecord. */
+    @SuppressWarnings("unused") // Unused params are validated as JSON
+    static class Transaction implements Serializable {
+      private final @Nullable String id;
+
+      @SerializedName("total_order")
+      private final @Nullable Long totalOrder;
+
+      @SerializedName("data_collection_order")
+      private final @Nullable Long dataCollectionOrder;
+
+      /**
+       * Transaction Initializer.
+       *
+       * @param id Transaction id
+       * @param totalOrder Position of the event among all events of the transaction
+       * @param dataCollectionOrder Position of the event among the events of its data collection
+       */
+      public Transaction(
+          @Nullable String id, @Nullable Long totalOrder, @Nullable Long dataCollectionOrder) {
+        this.id = id;
+        this.totalOrder = totalOrder;
+        this.dataCollectionOrder = dataCollectionOrder;
+      }
+    }
+  }
+
+  /** Depicts a transaction BEGIN/END SourceRecord as a TransactionEvent to be mapped as JSON. */
+  @SuppressWarnings("unused") // Unused params are validated as JSON
+  static class TransactionEvent implements Serializable {
+    private final @Nullable String status;
+    private final @Nullable String id;
+
+    @SerializedName("ts_ms")
+    private final @Nullable Long tsMs;
+
+    @SerializedName("event_count")
+    private final @Nullable Long eventCount;
+
+    @SerializedName("data_collections")
+    private final @Nullable List<DataCollection> dataCollections;
+
+    /**
+     * TransactionEvent Initializer.
+     *
+     * @param status {@code BEGIN} or {@code END}
+     * @param id Transaction id
+     * @param tsMs Time the transaction began or ended, in milliseconds
+     * @param eventCount Number of events in the transaction, only set on {@code END}
+     * @param dataCollections Number of events per data collection, only set on {@code END}
+     */
+    public TransactionEvent(
+        @Nullable String status,
+        @Nullable String id,
+        @Nullable Long tsMs,
+        @Nullable Long eventCount,
+        @Nullable List<DataCollection> dataCollections) {
+      this.status = status;
+      this.id = id;
+      this.tsMs = tsMs;
+      this.eventCount = eventCount;
+      this.dataCollections = dataCollections;
+    }
+
+    /**
+     * Transforms the TransactionEvent to a JSON string.
+     *
+     * @return JSON String
+     */
+    public String toJson() {
+      return GSON.toJson(this);
+    }
+
+    /** Depicts an entry of the data_collections field within SourceRecord. */
+    @SuppressWarnings("unused") // Unused params are validated as JSON
+    static class DataCollection implements Serializable {
+      @SerializedName("data_collection")
+      private final @Nullable String dataCollection;
+
+      @SerializedName("event_count")
+      private final @Nullable Long eventCount;
+
+      /**
+       * DataCollection Initializer.
+       *
+       * @param dataCollection Data collection (table) name
+       * @param eventCount Number of events of the transaction in this data collection
+       */
+      public DataCollection(@Nullable String dataCollection, @Nullable Long eventCount) {
+        this.dataCollection = dataCollection;
+        this.eventCount = eventCount;
+      }
+    }
+  }
+
+  /**
+   * Whether the record is a transaction BEGIN/END event, emitted when {@code
+   * provide.transaction.metadata} is enabled. These are identified by their key schema name.
+   */
+  private static boolean isTransactionMetadataEvent(@Nullable Schema keySchema) {
+    return keySchema != null && SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME.equals(keySchema.name());
+  }
+
+  /** Returns the string field's value, or null if the struct's schema has no such field. */
+  private static @Nullable String getStringOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getString(name) : null;
+  }
+
+  /** Returns the int64 field's value, or null if the struct's schema has no such field. */
+  private static @Nullable Long getInt64OrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getInt64(name) : null;
+  }
+
+  /** Returns the array field's value, or null if the struct's schema has no such field. */
+  private static <T> @Nullable List<T> getArrayOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getArray(name) : null;
   }
 }

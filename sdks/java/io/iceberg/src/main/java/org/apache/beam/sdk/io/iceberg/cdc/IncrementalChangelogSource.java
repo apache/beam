@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.ReadUtils;
@@ -206,6 +207,9 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
             .getCatalogConfig()
             .catalog()
             .loadTable(IcebergUtils.parseTableIdentifier(scanConfig.getTableIdentifier()));
+    if (ReadUtils.isEmptyRange(table, scanConfig)) {
+      return input.apply("Create Snapshot Range", Create.empty(VarLongCoder.of()));
+    }
     checkStateNotNull(
         table.currentSnapshot(),
         "Table %s does not have any snapshots to read from.",

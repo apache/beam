@@ -25,6 +25,7 @@ import itertools
 import operator
 import random
 from collections.abc import Iterable
+from collections.abc import Sized
 from typing import Any
 from typing import TypeVar
 from typing import Union
@@ -176,7 +177,9 @@ class CountCombineFn(core.CombineFn):
     return accumulator + 1
 
   def add_inputs(self, accumulator, elements):
-    return accumulator + len(list(elements))
+    if isinstance(elements, Sized):
+      return accumulator + len(elements)
+    return accumulator + sum(1 for _ in elements)
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators)
@@ -498,21 +501,24 @@ class TopCombineFn(core.CombineFn):
   def merge_accumulators(self, accumulators, *args, **kwargs):
     result_heap = None
     holds_comparables = None
+    use_comparables = self._compare is not operator.lt or bool(self._key)
+    n = self._n
     for accumulator in accumulators:
       holds_comparables, heap = accumulator
-      if self._compare is not operator.lt or self._key:
+      if use_comparables:
         heap = self._hydrated_heap(heap)
         holds_comparables = True
       else:
         assert not holds_comparables
 
       if result_heap is None:
-        result_heap = heap
+        result_heap = list(heap)
       else:
         for comparable in heap:
-          _, result_heap = self.add_input(
-              (holds_comparables, result_heap),
-              comparable.value if holds_comparables else comparable)
+          if len(result_heap) < n:
+            heapq.heappush(result_heap, comparable)
+          else:
+            heapq.heappushpop(result_heap, comparable)
 
     assert result_heap is not None and holds_comparables is not None
     return (holds_comparables, result_heap)
@@ -646,10 +652,18 @@ class SampleCombineFn(core.CombineFn):
     return self._top_combiner.create_accumulator()
 
   def add_input(self, heap, element):
-    # Before passing elements to the Top combiner, we pair them with random
-    # numbers. The elements with the n largest random number "keys" will be
-    # selected for the output.
-    return self._top_combiner.add_input(heap, (random.random(), element))
+    # Pair elements with random numbers and maintain the n largest random
+    # number "keys" directly in the Top combiner's heap for the output.
+    n = self._top_combiner._n
+    if n <= 0:
+      return heap
+    inner_heap = heap[1]
+    r = random.random()
+    if len(inner_heap) < n:
+      heapq.heappush(inner_heap, (r, element))
+    elif r > inner_heap[0][0]:
+      heapq.heapreplace(inner_heap, (r, element))
+    return heap
 
   def merge_accumulators(self, heaps):
     return self._top_combiner.merge_accumulators(heaps)
@@ -811,7 +825,7 @@ class ToListCombineFn(core.CombineFn):
     return accumulator
 
   def merge_accumulators(self, accumulators):
-    return sum(accumulators, [])
+    return list(itertools.chain.from_iterable(accumulators))
 
   def extract_output(self, accumulator):
     return accumulator
@@ -825,10 +839,11 @@ class ConcatListCombineFn(core.CombineFn):
     return []
 
   def add_input(self, accumulator, element):
-    return accumulator + element
+    accumulator.extend(element)
+    return accumulator
 
   def merge_accumulators(self, accumulators):
-    return sum(accumulators, [])
+    return list(itertools.chain.from_iterable(accumulators))
 
   def extract_output(self, accumulator):
     return accumulator

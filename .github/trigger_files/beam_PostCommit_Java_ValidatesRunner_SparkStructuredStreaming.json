@@ -13,5 +13,6 @@
   "https://github.com/apache/beam/issues/40120": "cancel() returns the observed state",
   "https://github.com/apache/beam/issues/40427": "Spark ValidatesRunner tests run serially",
   "https://github.com/apache/beam/pull/40281": "noting that PR #40281 should run this test",
-  "https://github.com/apache/beam/issues/36841": "Spark 4 streaming Impulse and PAssert"
+  "https://github.com/apache/beam/issues/36841": "Spark 4 streaming Impulse and PAssert",
+  "https://github.com/apache/beam/issues/40950": "Redistribute translated like Reshuffle"
 }

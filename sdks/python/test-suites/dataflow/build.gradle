@@ -36,12 +36,6 @@ task mongodbioIT {
   }
 }
 
-task chicagoTaxiExample {
-  getVersionsAsList('dataflow_chicago_taxi_example_task_py_versions').each {
-    dependsOn.add("sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:chicagoTaxiExample")
-  }
-}
-
 task validatesRunnerBatchTests {
   getVersionsAsList('dataflow_validates_runner_batch_tests').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
