@@ -255,7 +255,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef libc.stdint.uint64_t _to_normal_time(self, libc.stdint.int64_t value)
   cdef libc.stdint.int64_t _from_normal_time(self, libc.stdint.uint64_t value)
 
-  @cython.locals(c=CoderImpl, i=int, last=int, num_coders=int)
+  @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
   @cython.locals(timestamp=libc.stdint.int64_t)
