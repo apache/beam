@@ -38,6 +38,7 @@ from typing import get_origin
 import pyarrow as pa
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
@@ -320,8 +321,16 @@ def _from_arrow_value_fn(typ) -> Optional[Callable[[Any], Any]]:
     return _row_from_dict_fn(
         typ, [(field.name, field.type) for field in dataclasses.fields(typ)])
 
-  origin = get_origin(typ)
-  args = get_args(typ)
+  # BatchConverter.from_typehints normalizes typing hints to Beam ones.
+  if isinstance(typ, typehints.UnionConstraint):
+    origin, args = Union, tuple(typ.union_types)
+  elif isinstance(typ,
+                  (typehints.ListConstraint,
+                   typehints.ABCSequenceTypeConstraint,
+                   typehints.IterableTypeConstraint)):
+    origin, args = list, (typ.inner_type, )
+  else:
+    origin, args = get_origin(typ), get_args(typ)
   if origin is Union:
     not_none = [arg for arg in args if arg is not type(None)]
     return _from_arrow_value_fn(not_none[0]) if len(not_none) == 1 else None

@@ -278,6 +278,26 @@ class ArrowBatchConverterNestedRowsTest(unittest.TestCase):
     self.assertEqual(exploded, [Address(city='SF', zip=1), None])
     self.assertIsInstance(exploded[0], Address)
 
+  @parameterized.expand([
+      (
+          'optional',
+          Optional[Address],
+          'address', [Address(city='SF', zip=1), None]),
+      (
+          'sequence',
+          Optional[Sequence[Optional[Address]]],
+          'history', [[Address(city='NY', zip=2), None], None]),
+  ])
+  def test_explode_array_batch_builds_nested_rows(
+      self, _, element_type, column, expected):
+    # from_typehints normalizes these hints to Beam type constraints.
+    converter = BatchConverter.from_typehints(
+        element_type=element_type, batch_type=pa.Array)
+
+    exploded = list(converter.explode_batch(self.BATCH.column(column)))
+
+    self.assertEqual(exploded, expected)
+
 
 class ArrowBatchConverterErrorsTest(unittest.TestCase):
   @parameterized.expand([
