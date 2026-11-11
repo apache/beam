@@ -21,6 +21,7 @@
 import dataclasses
 import importlib
 import sys
+import threading
 import time
 import unittest
 from concurrent.futures import TimeoutError
@@ -886,29 +887,41 @@ class InteractiveBeamComputeTest(unittest.TestCase):
 
   def test_async_computation_result_cancel(self):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # A stream that never finishes to test cancellation
-    pcoll = p | beam.Create([1]) | beam.Map(lambda x: time.sleep(100))
+    pcoll = p | beam.Create([1])
     ib.watch(locals())
     self.env.track_user_pipelines()
 
-    async_result = ib.compute(pcoll, blocking=False)
-    self.assertIsInstance(async_result, AsyncComputationResult)
+    rm = self.env.get_recording_manager(p)
+    started_event = threading.Event()
+    release_event = threading.Event()
 
-    # Give it a moment to start
-    time.sleep(0.1)
+    def fake_execute(pcolls_to_compute, async_res, runner=None, options=None):
+      mock_res = MagicMock()
+      mock_res.state = PipelineState.RUNNING
+      if async_res:
+        async_res.set_pipeline_result(mock_res)
+      started_event.set()
+      release_event.wait(timeout=10)
+      return mock_res
 
-    # Mock the pipeline result's cancel method
-    mock_pipeline_result = MagicMock()
-    mock_pipeline_result.state = PipelineState.RUNNING
-    async_result.set_pipeline_result(mock_pipeline_result)
+    with patch.object(
+        rm, '_execute_pipeline_fragment', side_effect=fake_execute):
+      async_result = None
+      try:
+        async_result = ib.compute(pcoll, blocking=False)
+        self.assertIsInstance(async_result, AsyncComputationResult)
+        self.assertTrue(started_event.wait(timeout=5))
 
-    self.assertTrue(async_result.cancel())
-    mock_pipeline_result.cancel.assert_called_once()
+        mock_pipeline_result = async_result._pipeline_result
+        self.assertTrue(async_result.cancel())
+        mock_pipeline_result.cancel.assert_called_once()
 
-    # The future should be cancelled eventually by the runner
-    # This part is hard to test without deeper runner integration
-    with self.assertRaises(TimeoutError):
-      async_result.result(timeout=1)  # It should not complete successfully
+        with self.assertRaises(TimeoutError):
+          async_result.result(timeout=0.2)
+      finally:
+        release_event.set()
+        if async_result is not None:
+          async_result.wait_for_completion(timeout=5)
 
   @patch(
       'apache_beam.runners.interactive.recording_manager.RecordingManager.'
