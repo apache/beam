@@ -194,8 +194,7 @@ class AsyncComputationResult:
       return False
 
     self._cancel_requested = True
-    if self._cancel_button is not None:
-      self._cancel_button.disabled = True
+    self._cancel_button.disabled = True
     self.update_display('Attempting to cancel...')
 
     if self._pipeline_result:

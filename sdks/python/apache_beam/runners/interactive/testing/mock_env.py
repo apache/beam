@@ -49,11 +49,11 @@ def isolated_env(cls: type[unittest.TestCase]):
         self.env_patchers.append(self.ipython_patcher)
 
       # self.current_env IS interactive_environment.current_env() in tests.
-      self.current_env = InteractiveEnvironment()
       self.ie_patcher = patch(
-          f'{interactive_path}.interactive_environment.current_env',
-          return_value=self.current_env)
+          f'{interactive_path}.interactive_environment.current_env')
       self.m_current_env = self.ie_patcher.start()
+      self.current_env = InteractiveEnvironment()
+      self.m_current_env.return_value = self.current_env
       self.env_patchers.append(self.ie_patcher)
 
       # Patches dataproc cluster creation and deletion.
