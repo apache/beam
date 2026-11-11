@@ -114,7 +114,7 @@ wait_for_port() {
   local name=$3
   local logfile=$4
   local elapsed=0
-  while [ $elapsed -lt 60 ]; do
+  while [ $elapsed -lt 180 ]; do
     if ! kill -0 "$srv_pid" >/dev/null 2>&1; then
       echo "$name expansion service (pid $srv_pid) exited prematurely. Logs:"
       cat "$logfile" || true
@@ -127,7 +127,7 @@ wait_for_port() {
     sleep 1
     elapsed=$((elapsed + 1))
   done
-  echo "Timed out waiting 60s for $name expansion service @ $port. Logs:"
+  echo "Timed out waiting 180s for $name expansion service @ $port. Logs:"
   cat "$logfile" || true
   return 1
 }
