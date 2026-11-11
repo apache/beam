@@ -12,13 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Clusters failing GitHub Actions checks and posts a sticky PR summary."""
+"""Clusters failing GitHub Actions checks on a PR and posts a sticky summary."""
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from datetime import timezone
-import hashlib
 import html
 import json
 import os
@@ -32,7 +30,6 @@ import urllib.parse
 import urllib.request
 
 STICKY_MARKER = '<!-- beam-ci-failure-summary -->'
-STATE_RE = re.compile(r'<!-- beam-ci-failure-summary-state:(\{.*?\}) -->')
 RUN_JOB_RE = re.compile(r'/actions/runs/(\d+)/job/(\d+)')
 NEXT_LINK_RE = re.compile(r'<([^>]+)>\s*;\s*rel="next"')
 TS_ANSI_RE = re.compile(
@@ -59,10 +56,8 @@ SIGNAL_RE = re.compile(
 EXCLUDED_CHECKS = {
     'process-pr-update',
     'gemini enterprise pr review',
-    'discover prs ready for failure summary',
     'summarize pr check failures',
 }
-PASSING = {'success', 'skipped', 'neutral'}
 FAILING = {'failure', 'timed_out', 'action_required', 'startup_failure'}
 MAX_COMMENT_CHARS = 62_000
 MAX_LOG_SAMPLES = 24
@@ -136,7 +131,6 @@ def download_job_log(token, repo, job_id):
   opener = urllib.request.build_opener(_StripAuthRedirect)
   try:
     with opener.open(req, timeout=30) as resp:
-      # Read up to 12 MB, keeping the tail 1.5 MB where errors/summaries appear.
       tail, read_bytes = bytearray(), 0
       while read_bytes < 12 * 1024 * 1024:
         chunk = resp.read(65536)
@@ -185,17 +179,10 @@ def evaluate_checks(check_runs):
       if c.get('status') == 'completed' and c.get('conclusion') in FAILING
   ],
                   key=lambda c: c.get('name', ''))
-  last_done = max((_iso_ts(c.get('completed_at')) for c in deduped), default=0.0)
-  sig = ('all-green' if not failed else hashlib.sha256(','.join(
-      f"{c['id']}:{c.get('conclusion')}"
-      for c in failed).encode()).hexdigest()[:16])
   return {
       'total': len(deduped),
       'in_progress': len(in_progress),
-      'all_completed': bool(deduped) and not in_progress,
-      'last_completed_ts': last_done,
       'failed': failed,
-      'sig': sig,
   }
 
 
@@ -434,32 +421,21 @@ def _safe_fence(text):
   return f'{fence}text\n{text.strip()}\n{fence}'
 
 
-def _state_header(sha, status, sig):
-  state = json.dumps({'sha': sha, 'status': status, 'sig': sig})
-  return f'{STICKY_MARKER}\n<!-- beam-ci-failure-summary-state:{state} -->'
-
-
-def parse_sticky_state(body):
-  if STICKY_MARKER not in (body or ''):
-    return None
-  m = STATE_RE.search(body)
-  if not m:
-    return None
-  try:
-    return json.loads(m.group(1))
-  except json.JSONDecodeError:
-    return None
-
-
-def render_passing_comment(repo, sha, total):
+def render_no_failures_comment(repo, sha, eval_info):
   commit_url = f'https://github.com/{repo}/commit/{sha}'
+  if eval_info['in_progress']:
+    return (
+        f'{STICKY_MARKER}\n'
+        f"⏳ **0 failed checks so far** on [`{sha[:7]}`]({commit_url}) "
+        f"({eval_info['in_progress']} of {eval_info['total']} check(s) still running). "
+        f'Comment `/summarize-failures` again once checks finish.')
   return (
-      f'{_state_header(sha, "passing", "all-green")}\n'
-      f'✅ **All {total} CI checks are passing** on latest commit '
-      f'[`{sha[:7]}`]({commit_url}). *(Previous failure summary cleared.)*')
+      f'{STICKY_MARKER}\n'
+      f"✅ **All {eval_info['total']} CI checks are passing** on commit "
+      f'[`{sha[:7]}`]({commit_url}).')
 
 
-def render_failure_comment(repo, sha, sig, eval_info, clusters, ai_result):
+def render_failure_comment(repo, sha, eval_info, clusters, ai_result):
   ai_by_id = {
       c.get('id'): c
       for c in (ai_result or {}).get('clusters', []) if isinstance(c, dict)
@@ -470,7 +446,7 @@ def render_failure_comment(repo, sha, sig, eval_info, clusters, ai_result):
       f" *({eval_info['in_progress']} check(s) still running)*"
       if eval_info['in_progress'] else '')
   lines = [
-      _state_header(sha, 'failing', sig),
+      STICKY_MARKER,
       '## 🔍 CI Failure Summary',
       '',
       f"❌ **{failed_n} failed check{'s' if failed_n != 1 else ''}** "
@@ -537,160 +513,97 @@ def render_failure_comment(repo, sha, sig, eval_info, clusters, ai_result):
 
   lines += [
       '---',
-      '*💡 Push a fix or re-run failed jobs and this comment updates automatically '
-      '(or comment `/summarize-failures` to refresh).*',
+      '*💡 Comment `/summarize-failures` to refresh this summary after new commits or re-runs.*',
   ]
   body = '\n'.join(lines)
   return body if len(body) <= MAX_COMMENT_CHARS else body[:MAX_COMMENT_CHARS - 80] + '\n\n*(Truncated)*'
 
 
-def find_sticky_comment(token, repo, pr_num):
+def upsert_sticky_comment(token, repo, pr_num, body):
   comments = gh_paginate(token, f'repos/{repo}/issues/{pr_num}/comments?per_page=100')
-  matches = [c for c in comments if STICKY_MARKER in c.get('body', '')]
-  return matches[-1] if matches else None
-
-
-def upsert_sticky_comment(token, repo, pr_num, body, existing=None):
-  existing = existing or find_sticky_comment(token, repo, pr_num)
+  existing = next((c for c in reversed(comments) if STICKY_MARKER in c.get('body', '')), None)
   if existing:
     gh_api(token, f"repos/{repo}/issues/comments/{existing['id']}", 'PATCH', {'body': body})
   else:
     gh_api(token, f'repos/{repo}/issues/{pr_num}/comments', 'POST', {'body': body})
 
 
-def discover_prs(token, repo, target_pr=''):
-  if target_pr.strip():
-    pr, _ = gh_api(token, f'repos/{repo}/pulls/{int(target_pr)}')
-    if pr.get('state') != 'open':
-      return {'hasTargets': False, 'targetPrs': []}
-    sha = pr['head']['sha']
-    info = evaluate_checks(
-        gh_paginate(token, f'repos/{repo}/commits/{sha}/check-runs?per_page=100', 'check_runs'))
-    if not info['failed']:
-      if info['all_completed']:
-        upsert_sticky_comment(token, repo, pr['number'],
-                              render_passing_comment(repo, sha, info['total']))
-      return {'hasTargets': False, 'targetPrs': []}
-    return {'hasTargets': True, 'targetPrs': [{'number': pr['number'], 'sha': sha, 'force': True}]}
+def summarize_pr(token, repo, pr_num):
+  pr, _ = gh_api(token, f'repos/{repo}/pulls/{pr_num}')
+  sha = pr['head']['sha']
+  info = evaluate_checks(
+      gh_paginate(token, f'repos/{repo}/commits/{sha}/check-runs?per_page=100', 'check_runs'))
+  if not info['failed']:
+    upsert_sticky_comment(token, repo, pr_num, render_no_failures_comment(repo, sha, info))
+    return
 
-  now = datetime.now(timezone.utc).timestamp()
-  pulls, _ = gh_api(
-      token, f'repos/{repo}/pulls?state=open&sort=updated&direction=desc&per_page=40')
-  targets = []
-  for pr in pulls or []:
-    if pr.get('draft') or (now - _iso_ts(pr.get('updated_at')) > 48 * 3600):
-      continue
-    sha = pr['head']['sha']
-    info = evaluate_checks(
-        gh_paginate(token, f'repos/{repo}/commits/{sha}/check-runs?per_page=100', 'check_runs'))
-    if not info['all_completed'] or (now - info['last_completed_ts'] < 60):
-      continue
-    existing = find_sticky_comment(token, repo, pr['number'])
-    state = parse_sticky_state(existing['body']) if existing else None
-    if not info['failed']:
-      if state and state.get('status') == 'failing':
-        upsert_sticky_comment(token, repo, pr['number'],
-                              render_passing_comment(repo, sha, info['total']), existing)
-      continue
-    if state and state.get('sha') == sha and state.get('sig') == info['sig']:
-      continue
-    targets.append({'number': pr['number'], 'sha': sha, 'force': False})
-    if len(targets) >= 5:
-      break
-  return {'hasTargets': bool(targets), 'targetPrs': targets}
+  prelim, run_ids = [], set()
+  for c in info['failed']:
+    url = c.get('details_url') or c.get('html_url') or ''
+    m = RUN_JOB_RE.search(url)
+    run_id, job_id = (int(m.group(1)), int(m.group(2))) if m else (None, None)
+    if run_id:
+      run_ids.add(run_id)
+    prelim.append({'check': c, 'url': url, 'run_id': run_id, 'job_id': job_id})
 
+  def _fetch_run(rid):
+    run_data, _ = gh_api(token, f'repos/{repo}/actions/runs/{rid}')
+    jobs = gh_paginate(token, f'repos/{repo}/actions/runs/{rid}/jobs?per_page=100', 'jobs', 3)
+    step_map = {}
+    for j in jobs:
+      step = next((s.get('name', 'Job Execution') for s in j.get('steps', [])
+                   if s.get('conclusion') in ('failure', 'timed_out', 'cancelled')),
+                  'Job Execution')
+      step_map[j['id']] = step
+    return rid, (run_data or {}).get('name', 'GitHub Actions'), step_map
 
-def summarize_prs(token, repo, tasks):
-  for task in tasks:
-    pr, _ = gh_api(token, f"repos/{repo}/pulls/{int(task['number'])}")
-    if pr.get('state') != 'open':
-      continue
-    sha = pr['head']['sha']
-    info = evaluate_checks(
-        gh_paginate(token, f'repos/{repo}/commits/{sha}/check-runs?per_page=100', 'check_runs'))
-    existing = find_sticky_comment(token, repo, pr['number'])
-    if not task.get('force') and not info['all_completed']:
-      continue
-    if not info['failed']:
-      if info['all_completed'] and existing:
-        upsert_sticky_comment(token, repo, pr['number'],
-                              render_passing_comment(repo, sha, info['total']), existing)
-      continue
+  with ThreadPoolExecutor(max_workers=6) as pool:
+    run_meta = {rid: (wf, sm) for rid, wf, sm in pool.map(_fetch_run, list(run_ids)[:40])}
 
-    prelim, run_ids = [], set()
-    for c in info['failed']:
-      url = c.get('details_url') or c.get('html_url') or ''
-      m = RUN_JOB_RE.search(url)
-      run_id, job_id = (int(m.group(1)), int(m.group(2))) if m else (None, None)
-      if run_id:
-        run_ids.add(run_id)
-      prelim.append({'check': c, 'url': url, 'run_id': run_id, 'job_id': job_id})
+  for it in prelim:
+    wf_name, step_map = run_meta.get(it['run_id'], ('CI Check', {}))
+    it['workflow'] = wf_name
+    it['step'] = step_map.get(
+        it['job_id'], (it['check'].get('output') or {}).get('title') or 'Job Execution')
 
-    def _fetch_run(rid):
-      run_data, _ = gh_api(token, f'repos/{repo}/actions/runs/{rid}')
-      jobs = gh_paginate(token, f'repos/{repo}/actions/runs/{rid}/jobs?per_page=100', 'jobs', 3)
-      step_map = {}
-      for j in jobs:
-        step = next((s.get('name', 'Job Execution') for s in j.get('steps', [])
-                     if s.get('conclusion') in ('failure', 'timed_out', 'cancelled')),
-                    'Job Execution')
-        step_map[j['id']] = step
-      return rid, (run_data or {}).get('name', 'GitHub Actions'), step_map
+  sampled_ids = select_stratified_sample(prelim)
+  with ThreadPoolExecutor(max_workers=6) as pool:
+    logs = dict(
+        pool.map(lambda jid: (jid, download_job_log(token, repo, jid)), sampled_ids))
 
-    run_meta = {}
-    with ThreadPoolExecutor(max_workers=6) as pool:
-      for rid, wf_name, step_map in pool.map(_fetch_run, list(run_ids)[:40]):
-        run_meta[rid] = (wf_name, step_map)
+  enriched = []
+  for it in prelim:
+    c, out = it['check'], it['check'].get('output') or {}
+    fallback = '\n'.join(filter(None, [out.get('title'), out.get('summary'), out.get('text')]))
+    raw_log = logs.get(it['job_id'], '') or fallback
+    excerpt = extract_excerpt(raw_log)
+    sig_key, title, hint = classify_excerpt(it['workflow'], it['step'], excerpt)
+    enriched.append({
+        'name': c.get('name', 'Check'),
+        'url': it['url'],
+        'workflow': it['workflow'],
+        'step': it['step'],
+        'sampled': bool(it['job_id'] in sampled_ids or fallback),
+        'excerpt': excerpt,
+        'sig_key': sig_key,
+        'title': title,
+        'hint': hint,
+    })
 
-    for it in prelim:
-      wf_name, step_map = run_meta.get(it['run_id'], ('CI Check', {}))
-      it['workflow'] = wf_name
-      it['step'] = step_map.get(
-          it['job_id'], (it['check'].get('output') or {}).get('title') or 'Job Execution')
-
-    sampled_ids = select_stratified_sample(prelim)
-    with ThreadPoolExecutor(max_workers=6) as pool:
-      logs = dict(
-          pool.map(lambda jid: (jid, download_job_log(token, repo, jid)), sampled_ids))
-
-    enriched = []
-    for it in prelim:
-      c, out = it['check'], it['check'].get('output') or {}
-      fallback = '\n'.join(filter(None, [out.get('title'), out.get('summary'), out.get('text')]))
-      raw_log = logs.get(it['job_id'], '') or fallback
-      excerpt = extract_excerpt(raw_log)
-      sig_key, title, hint = classify_excerpt(it['workflow'], it['step'], excerpt)
-      enriched.append({
-          'name': c.get('name', 'Check'),
-          'url': it['url'],
-          'workflow': it['workflow'],
-          'step': it['step'],
-          'sampled': bool(it['job_id'] in sampled_ids or fallback),
-          'excerpt': excerpt,
-          'sig_key': sig_key,
-          'title': title,
-          'hint': hint,
-      })
-
-    clusters = cluster_checks(enriched)
-    files = gh_paginate(token, f"repos/{repo}/pulls/{pr['number']}/files?per_page=100", max_pages=2)
-    ai = run_gemini(pr, files, clusters, info['total'], len(info['failed']))
-    body = render_failure_comment(repo, sha, info['sig'], info, clusters, ai)
-    upsert_sticky_comment(token, repo, pr['number'], body, existing)
+  clusters = cluster_checks(enriched)
+  files = gh_paginate(token, f'repos/{repo}/pulls/{pr_num}/files?per_page=100', max_pages=2)
+  ai = run_gemini(pr, files, clusters, info['total'], len(info['failed']))
+  body = render_failure_comment(repo, sha, info, clusters, ai)
+  upsert_sticky_comment(token, repo, pr_num, body)
 
 
 def main():
-  mode = sys.argv[1] if len(sys.argv) > 1 else ''
   token = os.environ['GITHUB_TOKEN']
   repo = os.environ.get('GITHUB_REPOSITORY', 'apache/beam')
-  if not re.match(r'^[\w.-]+/[\w.-]+$', repo):
-    raise ValueError(f'Invalid GITHUB_REPOSITORY: {repo}')
-  if mode == 'discover':
-    print(json.dumps(discover_prs(token, repo, os.environ.get('TARGET_PR_NUMBER', ''))))
-  elif mode == 'summarize':
-    summarize_prs(token, repo, json.loads(os.environ.get('TARGET_PRS_JSON', '[]')))
-  else:
-    raise SystemExit(f'Usage: {sys.argv[0]} [discover|summarize]')
+  pr_num = int(os.environ['PR_NUMBER'])
+  if not re.match(r'^[\w.-]+/[\w.-]+$', repo) or pr_num <= 0:
+    raise ValueError(f'Invalid target: {repo}#{pr_num}')
+  summarize_pr(token, repo, pr_num)
 
 
 if __name__ == '__main__':

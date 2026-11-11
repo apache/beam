@@ -55,10 +55,7 @@ class PrFailureSummaryTest(unittest.TestCase):
         },
     ]
     res = pfs.evaluate_checks(checks)
-    self.assertEqual(res['total'], 1)
-    self.assertTrue(res['all_completed'])
-    self.assertEqual(res['failed'], [])
-    self.assertEqual(res['sig'], 'all-green')
+    self.assertEqual(res, {'total': 1, 'in_progress': 0, 'failed': []})
 
   def test_redacts_secrets_and_strips_exit_code_noise(self):
     log = '\n'.join([
@@ -131,25 +128,28 @@ class PrFailureSummaryTest(unittest.TestCase):
     comment = pfs.render_failure_comment(
         'apache/beam',
         'd9eccaa8d94cba',
-        'abc123',
-        {'total': 140, 'in_progress': 0, 'failed': prelim},
+        {'total': 140, 'in_progress': 2, 'failed': prelim},
         clusters,
         None,
     )
     self.assertLessEqual(len(comment), pfs.MAX_COMMENT_CHARS)
     self.assertIn('94 checks across 14 workflows', comment)
-    self.assertEqual(
-        pfs.parse_sticky_state(comment),
-        {'sha': 'd9eccaa8d94cba', 'status': 'failing', 'sig': 'abc123'})
+    self.assertIn('2 check(s) still running', comment)
 
-  def test_parses_fenced_gemini_json_and_escapes_fences(self):
+  def test_no_failures_and_gemini_json_parsing(self):
+    running_msg = pfs.render_no_failures_comment(
+        'apache/beam', 'a1b2c3d4', {'total': 10, 'in_progress': 3, 'failed': []})
+    self.assertIn('0 failed checks so far', running_msg)
+    passing_msg = pfs.render_no_failures_comment(
+        'apache/beam', 'a1b2c3d4', {'total': 10, 'in_progress': 0, 'failed': []})
+    self.assertIn('All 10 CI checks are passing', passing_msg)
+
     wrapped = json.dumps({
         'response': '```json\n{"tldr": "Fix <pxd>", "clusters": []}\n```',
     })
-    parsed = pfs.parse_gemini_output(wrapped)
-    self.assertEqual(parsed, {'tldr': 'Fix <pxd>', 'clusters': []})
-    fenced = pfs._safe_fence('line\n```\ninner\n````')
-    self.assertTrue(fenced.startswith('`````text\n'))
+    self.assertEqual(pfs.parse_gemini_output(wrapped),
+                     {'tldr': 'Fix <pxd>', 'clusters': []})
+    self.assertTrue(pfs._safe_fence('line\n```\ninner\n````').startswith('`````text\n'))
 
 
 if __name__ == '__main__':

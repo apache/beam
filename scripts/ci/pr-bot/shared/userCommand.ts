@@ -39,6 +39,12 @@ export async function processCommand(
 
   const pullNumber = payload.issue?.number || payload.pull_request?.number;
   commentText = commentText.toLowerCase();
+  if (
+    commentText.indexOf("/summarize-failures") > -1 ||
+    commentText.indexOf("/gemini review") > -1
+  ) {
+    return true;
+  }
 
   let prState = await stateClient.getPrState(pullNumber);
   if (prState.stopReviewerNotifications) {

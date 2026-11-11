@@ -16,76 +16,40 @@
 name: PR Failure Summary
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   issue_comment:
     types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'Optional Pull Request number to summarize (leave blank to sweep open PRs)'
-        required: false
-        type: string
+        description: 'Pull Request number to summarize'
+        required: true
+        type: number
 
 permissions: read-all
 
 concurrency:
-  group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number || 'sweep' }}
-  cancel-in-progress: false
+  group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number }}
+  cancel-in-progress: true
 
 jobs:
-  find-failed-prs:
-    name: Discover PRs Ready for Failure Summary
+  summarize-failures:
+    name: Summarize PR Check Failures
     if: >-
       github.repository == 'apache/beam' &&
       (
-        github.event_name == 'schedule' ||
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'issue_comment' &&
           github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/summarize-failures')
+          contains(github.event.comment.body, '/summarize-failures') &&
+          (
+            github.event.comment.user.login == github.event.issue.user.login ||
+            contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)
+          )
         )
       )
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      checks: read
-      actions: read
-      statuses: read
-      issues: write
-      pull-requests: write
-    outputs:
-      has_targets: ${{ steps.discover.outputs.has_targets }}
-      target_prs: ${{ steps.discover.outputs.target_prs }}
-    steps:
-      - name: Checkout CI scripts
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'master' }}
-          persist-credentials: false
-          sparse-checkout: scripts/ci
-
-      - name: Find open PRs with completed check failures
-        id: discover
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          TARGET_PR_NUMBER: ${{ github.event.issue.number || inputs.pr_number || '' }}
-        run: |
-          set -euo pipefail
-          DISCOVERY_JSON="$(python3 scripts/ci/pr_failure_summary.py discover)"
-          echo "has_targets=$(printf '%s' "${DISCOVERY_JSON}" | jq -r '.hasTargets')" >> "${GITHUB_OUTPUT}"
-          echo "target_prs=$(printf '%s' "${DISCOVERY_JSON}" | jq -c '.targetPrs')" >> "${GITHUB_OUTPUT}"
-
-  summarize-failures:
-    name: Summarize PR Check Failures
-    needs: find-failed-prs
-    if: needs.find-failed-prs.outputs.has_targets == 'true'
     runs-on: [self-hosted, ubuntu-24.04, main]
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: read
       checks: read
@@ -111,11 +75,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          TARGET_PRS_JSON: ${{ needs.find-failed-prs.outputs.target_prs }}
+          PR_NUMBER: ${{ github.event.issue.number || inputs.pr_number }}
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID || 'apache-beam-testing' }}
           GOOGLE_CLOUD_LOCATION: 'global'
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-argon' }}
         run: |
           set -euo pipefail
-          python3 scripts/ci/pr_failure_summary.py summarize
+          python3 scripts/ci/pr_failure_summary.py
