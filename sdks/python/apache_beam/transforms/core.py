@@ -3751,8 +3751,8 @@ class _GroupAndAggregate(PTransform):
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
         | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
             lambda key, value: tuple.__new__(
-                _dynamic_named_tuple('Result', result_fields),
-                itertools.chain(key, value))))
+                _dynamic_named_tuple('Result', result_fields), itertools.chain(
+                    key, value))))
 
 
 class Select(PTransform):
