@@ -417,8 +417,8 @@ class YamlTestingTest(unittest.TestCase):
         - type: LogForTesting
           input: [ReadFromCsv]
     '''
-    with self.assertRaisesRegex(
-        ValueError, 'Ambiguous unnamed transform ReadFromCsv'):
+    with self.assertRaisesRegex(ValueError,
+                                'Ambiguous unnamed transform ReadFromCsv'):
       yaml_testing.create_test(pipeline)
 
 
