@@ -19,8 +19,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
+	"slices"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -254,6 +257,150 @@ func TestOrderedListState(t *testing.T) {
 		want := [][]byte{cc(time2, 1)}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("OrderedList after clear_uninitialized + append:\n%v", diff)
+		}
+	})
+}
+
+func TestMultimapState(t *testing.T) {
+	wKey := []byte{}
+	uKey := []byte("userkey")
+	linkID := LinkID{
+		Transform: "dofn",
+		Local:     "mm",
+	}
+
+	sortedKeys := func(d *TentativeData) [][]byte {
+		ks := d.GetMultimapKeysState(linkID, wKey, uKey)
+		slices.SortFunc(ks, bytes.Compare)
+		return ks
+	}
+
+	t.Run("append_and_clear_one_key", func(t *testing.T) {
+		d := TentativeData{}
+		d.AppendMultimapState(linkID, wKey, uKey, []byte("a"), []byte("1"))
+		d.AppendMultimapState(linkID, wKey, uKey, []byte("a"), []byte("2"))
+		d.AppendMultimapState(linkID, wKey, uKey, []byte("b"), []byte("3"))
+
+		if diff := cmp.Diff([][]byte{[]byte("1"), []byte("2")}, d.GetMultimapState(linkID, wKey, uKey, []byte("a"))); diff != "" {
+			t.Errorf("GetMultimapState(a) (-want, +got):\n%v", diff)
+		}
+		if diff := cmp.Diff([][]byte{[]byte("3")}, d.GetMultimapState(linkID, wKey, uKey, []byte("b"))); diff != "" {
+			t.Errorf("GetMultimapState(b) (-want, +got):\n%v", diff)
+		}
+		if diff := cmp.Diff([][]byte{[]byte("a"), []byte("b")}, sortedKeys(&d)); diff != "" {
+			t.Errorf("GetMultimapKeysState before clear (-want, +got):\n%v", diff)
+		}
+
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("a"))
+		if got := d.GetMultimapState(linkID, wKey, uKey, []byte("a")); len(got) != 0 {
+			t.Errorf("GetMultimapState(a) after clear = %v, want empty", got)
+		}
+		if diff := cmp.Diff([][]byte{[]byte("3")}, d.GetMultimapState(linkID, wKey, uKey, []byte("b"))); diff != "" {
+			t.Errorf("GetMultimapState(b) after clear(a) (-want, +got):\n%v", diff)
+		}
+		if diff := cmp.Diff([][]byte{[]byte("b")}, sortedKeys(&d)); diff != "" {
+			t.Errorf("GetMultimapKeysState after clear(a) (-want, +got):\n%v", diff)
+		}
+
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("missing"))
+		if diff := cmp.Diff([][]byte{[]byte("b")}, sortedKeys(&d)); diff != "" {
+			t.Errorf("GetMultimapKeysState after clear(missing) (-want, +got):\n%v", diff)
+		}
+
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("b"))
+		if got := sortedKeys(&d); len(got) != 0 {
+			t.Errorf("GetMultimapKeysState after clear(b) = %v, want empty", got)
+		}
+		if _, ok := d.state[linkID][window.GlobalWindow{}][string(uKey)]; !ok {
+			t.Errorf("ClearMultimapState removed user key %q from tentative state", uKey)
+		}
+	})
+
+	t.Run("clear_uninitialized", func(t *testing.T) {
+		d := TentativeData{}
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("a"))
+		if d.state != nil {
+			t.Fatalf("ClearMultimapState on empty TentativeData allocated state map: %v", d.state)
+		}
+		if got := d.GetMultimapKeysState(linkID, wKey, uKey); len(got) != 0 {
+			t.Fatalf("GetMultimapKeysState on empty TentativeData = %v, want empty", got)
+		}
+
+		otherLink := LinkID{Transform: "dofn", Local: "other"}
+		d.AppendBagState(otherLink, wKey, uKey, []byte{1})
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("a"))
+		if _, ok := d.state[linkID]; ok {
+			t.Fatalf("ClearMultimapState created entry for uninitialized stateID %v", linkID)
+		}
+
+		d.AppendMultimapState(linkID, wKey, []byte("otherUser"), []byte("a"), []byte("1"))
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("a"))
+		if _, ok := d.state[linkID][window.GlobalWindow{}][string(uKey)]; ok {
+			t.Fatalf("ClearMultimapState created entry for uninitialized user key %q", uKey)
+		}
+
+		d.AppendMultimapState(linkID, wKey, uKey, []byte("a"), []byte("1"))
+		d.ClearMultimapKeysState(linkID, wKey, uKey)
+		d.ClearMultimapState(linkID, wKey, uKey, []byte("a"))
+		if got := d.GetMultimapKeysState(linkID, wKey, uKey); len(got) != 0 {
+			t.Errorf("GetMultimapKeysState after ClearMultimapKeysState = %v, want empty", got)
+		}
+	})
+
+	t.Run("keys_and_bundle_state_skip_empty_entries", func(t *testing.T) {
+		d := TentativeData{
+			state: map[LinkID]map[typex.Window]map[string]StateData{
+				linkID: {
+					window.GlobalWindow{}: {
+						string(uKey): {
+							Multimap: map[string][][]byte{
+								"nil_val":   nil,
+								"empty_val": {},
+								"active":    {[]byte("1")},
+							},
+						},
+					},
+				},
+			},
+		}
+		if diff := cmp.Diff([][]byte{[]byte("active")}, sortedKeys(&d)); diff != "" {
+			t.Errorf("GetMultimapKeysState with empty slices (-want, +got):\n%v", diff)
+		}
+
+		em := NewElementManager(Config{})
+		em.AddStage("dofn", []string{"input"}, nil, nil)
+		em.StageStateful("dofn", nil)
+		ss := em.stages["dofn"]
+		ss.inprogressKeysByBundle = map[string]set[string]{
+			"b1": {"k1": {}, "k2": {}},
+		}
+		ss.state = map[LinkID]map[typex.Window]map[string]StateData{
+			linkID: {
+				window.GlobalWindow{}: {
+					"k1": {
+						Multimap: map[string][][]byte{
+							"nil_val":   nil,
+							"empty_val": {},
+							"active":    {[]byte("v")},
+						},
+					},
+					"k2": {
+						Multimap: map[string][][]byte{
+							"nil_val":   nil,
+							"empty_val": {},
+						},
+					},
+				},
+			},
+		}
+
+		got := em.StateForBundle(RunBundle{StageID: "dofn", BundleID: "b1"})
+		wantK1 := map[string][][]byte{"active": {[]byte("v")}}
+		if diff := cmp.Diff(wantK1, got.state[linkID][window.GlobalWindow{}]["k1"].Multimap); diff != "" {
+			t.Errorf("StateForBundle k1.Multimap (-want, +got):\n%v", diff)
+		}
+		if gotK2 := got.state[linkID][window.GlobalWindow{}]["k2"].Multimap; gotK2 != nil {
+			t.Errorf("StateForBundle k2.Multimap = %v, want nil", gotK2)
 		}
 	})
 }

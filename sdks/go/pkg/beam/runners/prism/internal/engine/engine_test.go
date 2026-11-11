@@ -21,18 +21,23 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
@@ -41,6 +46,8 @@ func init() {
 	// will avoid accidentally using a different runner for
 	// the tests if I change things later.
 	beam.RegisterRunner("testlocal", execute)
+	register.DoFn4x1[state.Provider, int, string, func(string), error](&mapStateRemoveAcrossBundlesFn{})
+	register.Emitter1[string]()
 }
 
 func TestMain(m *testing.M) {
@@ -306,4 +313,82 @@ func TestProcessingTime(t *testing.T) {
 			})
 		}
 	}
+}
+
+type mapStateRemoveAcrossBundlesFn struct {
+	State state.Map[string, int]
+}
+
+func (f *mapStateRemoveAcrossBundlesFn) ProcessElement(s state.Provider, _ int, op string, emit func(string)) error {
+	switch op {
+	case "put":
+		if err := f.State.Put(s, "a", 1); err != nil {
+			return err
+		}
+		return f.State.Put(s, "b", 2)
+	case "remove_a":
+		return f.State.Remove(s, "a")
+	case "remove_b":
+		return f.State.Remove(s, "b")
+	case "keys":
+		keys, _, err := f.State.Keys(s)
+		if err != nil {
+			return err
+		}
+		sort.Strings(keys)
+		emit(fmt.Sprintf("%v", keys))
+		return nil
+	default:
+		return fmt.Errorf("unexpected op %q", op)
+	}
+}
+
+func TestMapStateRemoveAcrossBundles(t *testing.T) {
+	initRunner(t)
+
+	t.Run("keep_other_key", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		con := teststream.NewConfig()
+		con.AddElements(100, "put")
+		con.AdvanceWatermark(200)
+		con.AddElements(200, "remove_a")
+		con.AdvanceWatermark(300)
+		con.AddElements(300, "keys")
+		con.AdvanceWatermarkToInfinity()
+
+		col := teststream.Create(s, con)
+		keyed := beam.AddFixedKey(s, col)
+		got := beam.ParDo(s, &mapStateRemoveAcrossBundlesFn{
+			State: state.MakeMapState[string, int]("m"),
+		}, keyed)
+		passert.Equals(s, got, "[b]")
+
+		if _, err := executeWithT(context.Background(), t, p); err != nil {
+			t.Fatalf("pipeline failed: %v", err)
+		}
+	})
+
+	t.Run("remove_all_keys", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		con := teststream.NewConfig()
+		con.AddElements(100, "put")
+		con.AdvanceWatermark(200)
+		con.AddElements(200, "remove_a")
+		con.AdvanceWatermark(300)
+		con.AddElements(300, "remove_b")
+		con.AdvanceWatermark(400)
+		con.AddElements(400, "keys")
+		con.AdvanceWatermarkToInfinity()
+
+		col := teststream.Create(s, con)
+		keyed := beam.AddFixedKey(s, col)
+		got := beam.ParDo(s, &mapStateRemoveAcrossBundlesFn{
+			State: state.MakeMapState[string, int]("m"),
+		}, keyed)
+		passert.Equals(s, got, "[]")
+
+		if _, err := executeWithT(context.Background(), t, p); err != nil {
+			t.Fatalf("pipeline failed: %v", err)
+		}
+	})
 }
