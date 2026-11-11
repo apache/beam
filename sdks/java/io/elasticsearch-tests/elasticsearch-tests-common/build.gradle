@@ -37,6 +37,7 @@ dependencies {
   implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:elasticsearch")
+  implementation project(":runners:core-java")
   implementation library.java.slf4j_api
   implementation library.java.hamcrest
   implementation library.java.junit
