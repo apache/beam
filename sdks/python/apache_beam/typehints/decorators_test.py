@@ -359,7 +359,8 @@ class IOTypeHintsTest(unittest.TestCase):
     # tensorflow_data_validation annotates parameters with
     # Mapping[..., "schema_pb2.FeatureType"]).
     def fn(
-        mapping: typing.Mapping[str, 'descriptor_pb2.FieldDescriptorProto.Type'],
+        mapping: typing.Mapping[str,
+                                'descriptor_pb2.FieldDescriptorProto.Type'],
         values: typing.List['descriptor_pb2.FieldDescriptorProto.Type'],
         value: 'descriptor_pb2.FieldDescriptorProto.Type',
         resolved: 'int') -> 'descriptor_pb2.FieldDescriptorProto.Type':
@@ -397,8 +398,7 @@ class IOTypeHintsTest(unittest.TestCase):
 
     # Previously raised a TypeError while computing the type hints.
     th = Map(fn, {}).get_type_hints()
-    self.assertEqual(
-        th.input_types, ((int, typehints.Mapping[str, Any]), {}))
+    self.assertEqual(th.input_types, ((int, typehints.Mapping[str, Any]), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
   def test_from_callable_partial_with_string_annotations(self):
