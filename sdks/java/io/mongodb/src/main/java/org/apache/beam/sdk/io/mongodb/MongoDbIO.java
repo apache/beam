@@ -731,7 +731,11 @@ public class MongoDbIO {
       BsonDocument bucketAuto = new BsonDocument("$bucketAuto", bucketAutoConfig);
       List<BsonDocument> aggregates = new ArrayList<>();
       aggregates.add(bucketAuto);
-      AggregateIterable<Document> buckets = mongoCollection.aggregate(aggregates);
+      // $bucketAuto sorts every document in the collection, and MongoDB caps an in-memory sort at
+      // 100 MB. Servers older than 6.0 fail past that cap with "Sort exceeded memory limit" unless
+      // the request allows spilling the sort to disk
+      AggregateIterable<Document> buckets =
+          mongoCollection.aggregate(aggregates).allowDiskUse(true);
 
       for (Document bucket : buckets) {
         Document filter = new Document();

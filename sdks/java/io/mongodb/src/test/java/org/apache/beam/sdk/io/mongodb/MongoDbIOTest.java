@@ -21,11 +21,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.event.CommandListener;
+import com.mongodb.event.CommandStartedEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +42,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -205,6 +210,68 @@ public class MongoDbIOTest {
 
     List<Document> buckets = MongoDbIO.BoundedMongoDbSource.buildAutoBuckets(database, spec);
     assertEquals(10, buckets.size());
+  }
+
+  @Test
+  public void testBuildAutoBucketsAllowsDiskUse() {
+    List<BsonDocument> commands = new ArrayList<>();
+    try (MongoClient recordingClient = createCommandRecordingClient(commands)) {
+      MongoDbIO.Read spec =
+          MongoDbIO.read()
+              .withUri(MONGO_CONTAINER.getReplicaSetUrl())
+              .withDatabase(DATABASE_NAME)
+              .withCollection(COLLECTION_NAME);
+
+      MongoDbIO.BoundedMongoDbSource.buildAutoBuckets(
+          recordingClient.getDatabase(DATABASE_NAME), spec);
+    }
+
+    assertEquals(BsonBoolean.TRUE, findAggregateCommand(commands).get("allowDiskUse"));
+  }
+
+  @Test
+  public void testAggregationQueryAllowsDiskUse() {
+    List<BsonDocument> commands = new ArrayList<>();
+    try (MongoClient recordingClient = createCommandRecordingClient(commands)) {
+      MongoCollection<Document> collection =
+          recordingClient.getDatabase(DATABASE_NAME).getCollection(COLLECTION_NAME);
+
+      AggregationQuery.create()
+          .withMongoDbPipeline(Collections.emptyList())
+          .apply(collection)
+          .close();
+    }
+
+    assertEquals(BsonBoolean.TRUE, findAggregateCommand(commands).get("allowDiskUse"));
+  }
+
+  /** Creates a client that adds every command it sends to the server to {@code commands}. */
+  private static MongoClient createCommandRecordingClient(List<BsonDocument> commands) {
+    CommandListener listener =
+        new CommandListener() {
+          @Override
+          public void commandStarted(CommandStartedEvent event) {
+            // the driver frees the buffer behind getCommand() once this callback returns, so
+            // reading the original document later throws IndexOutOfBoundsException
+            synchronized (commands) {
+              commands.add(event.getCommand().clone());
+            }
+          }
+        };
+    return MongoClients.create(
+        MongoClientSettings.builder()
+            .applyConnectionString(new ConnectionString(MONGO_CONTAINER.getReplicaSetUrl()))
+            .addCommandListener(listener)
+            .build());
+  }
+
+  private static BsonDocument findAggregateCommand(List<BsonDocument> commands) {
+    synchronized (commands) {
+      return commands.stream()
+          .filter(command -> command.containsKey("aggregate"))
+          .findFirst()
+          .orElseThrow(() -> new AssertionError("no aggregate command was sent"));
+    }
   }
 
   @Test
