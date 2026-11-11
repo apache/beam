@@ -366,6 +366,7 @@ import json
 import logging
 import random
 import secrets
+import sys
 import time
 import uuid
 import warnings
@@ -1522,6 +1523,39 @@ def BigQuerySink(*args, validate=False, **kwargs):
 
 
 _KNOWN_TABLES = set()
+# Primitive scalar types that do not contain nested object references and can be
+# sized directly via sys.getsizeof without gc.get_referents traversal.
+_PRIMITIVE_SIZEOF_TYPES = (str, int, float, bool, bytes, type(None))
+
+
+def _fast_row_and_insert_id_size(row_and_insert_id):
+  """Fast-path byte size estimator for a ``(row_dict, insert_id)`` tuple.
+
+  ``objsize.get_deep_size`` traverses the Python object graph via
+  ``gc.get_referents`` and tracks visited object IDs on every call. When the row
+  is a flat ``dict`` of primitive keys and values, we can sum ``sys.getsizeof``
+  directly and fall back to ``get_deep_size`` only if nested containers or
+  non-primitive values are encountered.
+  """
+  if type(row_and_insert_id) is tuple and len(row_and_insert_id) == 2:
+    row, insert_id = row_and_insert_id
+    if type(row) is dict and type(insert_id) in _PRIMITIVE_SIZEOF_TYPES:
+      getsizeof = sys.getsizeof
+      total = getsizeof(row_and_insert_id) + getsizeof(row)
+      # objsize.get_deep_size ignores None singletons (which are not tracked by
+      # the cyclic garbage collector).
+      if insert_id is not None:
+        total += getsizeof(insert_id)
+      for k, v in row.items():
+        if not (type(k) in _PRIMITIVE_SIZEOF_TYPES and
+                type(v) in _PRIMITIVE_SIZEOF_TYPES):
+          return get_deep_size(row_and_insert_id)
+        # Avoid double-counting if a column value references the same object as
+        # insert_id, and skip None values to match get_deep_size behavior.
+        total += getsizeof(k) + (
+            getsizeof(v) if v is not None and v is not insert_id else 0)
+      return total
+  return get_deep_size(row_and_insert_id)
 
 
 class BigQueryWriteFn(DoFn):
@@ -1726,8 +1760,15 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
-    """Returns error string when the row estimated size is too big"""
-    row_byte_size = get_deep_size(row_and_insert_id)
+    """Returns the estimated row byte size and an optional error string if the
+    row exceeds ``_max_insert_payload_size``."""
+    row_byte_size = _fast_row_and_insert_id_size(row_and_insert_id)
+
+    # _fast_row_and_insert_id_size does not deduplicate shared object references
+    # across fields. If the fast estimate reaches the payload limit, re-compute
+    # with get_deep_size before rejecting the row.
+    if row_byte_size >= self._max_insert_payload_size:
+      row_byte_size = get_deep_size(row_and_insert_id)
 
     # Check if individual row exceeds size limit
     if row_byte_size >= self._max_insert_payload_size:
@@ -1744,15 +1785,20 @@ class BigQueryWriteFn(DoFn):
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
-    if callable(self.schema):
-      schema = self.schema(destination, *schema_side_inputs)
-    elif isinstance(self.schema, vp.ValueProvider):
-      schema = self.schema.get()
-    else:
-      schema = self.schema
+    # Skip per-element schema evaluation and table reference regex parsing when
+    # table creation is disabled (CREATE_NEVER) or when the canonical
+    # 'project:dataset.table' destination has already been verified.
+    if (self.create_disposition != BigQueryDisposition.CREATE_NEVER and
+        destination not in _KNOWN_TABLES):
+      if callable(self.schema):
+        schema = self.schema(destination, *schema_side_inputs)
+      elif isinstance(self.schema, vp.ValueProvider):
+        schema = self.schema.get()
+      else:
+        schema = self.schema
 
-    self._create_table_if_needed(
-        bigquery_tools.parse_table_reference(destination), schema)
+      self._create_table_if_needed(
+          bigquery_tools.parse_table_reference(destination), schema)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]

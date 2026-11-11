@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
@@ -56,6 +57,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An Iceberg table, read and written through {@link Managed}.
+ *
+ * <p>{@link #forChanges} returns an {@link IcebergChangesTable}, and {@link #forWrite} returns a
+ * copy that writes with the INSERT's {@code WITH} options.
+ */
 final class IcebergTable extends SchemaBaseBeamTable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergTable.class);
   @VisibleForTesting static final String CATALOG_PROPERTIES_FIELD = "catalog_properties";
@@ -67,18 +74,21 @@ final class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting
   static final String TRIGGERING_FREQUENCY_FIELD = "triggering_frequency_seconds";
 
+  /** The options that the SQL table sets on every Managed read and write of it. */
+  static final Map<String, String> TABLE_OPTIONS =
+      ManagedOptions.owned(
+          "the SQL table sets it",
+          "table",
+          "catalog_name",
+          "catalog_properties",
+          "config_properties");
+
   private static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
       new IcebergWriteSchemaTransformProvider();
   private static final Schema WRITE_CONFIG_SCHEMA = WRITE_PROVIDER.configurationSchema();
   private static final Map<String, String> WRITE_OWNED_OPTIONS =
       ImmutableMap.<String, String>builder()
-          .putAll(
-              ManagedOptions.owned(
-                  "the SQL table sets it",
-                  "table",
-                  "catalog_name",
-                  "catalog_properties",
-                  "config_properties"))
+          .putAll(TABLE_OPTIONS)
           .putAll(
               ManagedOptions.owned(
                   "the INSERT writes all of the table's columns", "keep", "drop", "only"))
@@ -91,10 +101,11 @@ final class IcebergTable extends SchemaBaseBeamTable {
           .putAll(ManagedOptions.owned("an INSERT has no error output", "error_handling"))
           .build();
 
-  @VisibleForTesting final String tableIdentifier;
+  final String tableIdentifier;
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   @VisibleForTesting @Nullable Integer triggeringFrequency;
   @VisibleForTesting final @Nullable List<String> partitionFields;
+  final @Nullable List<String> primaryKey;
 
   /** The options of an INSERT's {@code WITH} clause, or empty for the table itself. */
   private final Map<String, Object> writeOptions;
@@ -121,6 +132,7 @@ final class IcebergTable extends SchemaBaseBeamTable {
     }
 
     this.partitionFields = table.getPartitionFields();
+    this.primaryKey = table.getPrimaryKey();
     this.writeOptions = ImmutableMap.of();
   }
 
@@ -130,7 +142,22 @@ final class IcebergTable extends SchemaBaseBeamTable {
     this.catalogConfig = table.catalogConfig;
     this.triggeringFrequency = table.triggeringFrequency;
     this.partitionFields = table.partitionFields;
+    this.primaryKey = table.primaryKey;
     this.writeOptions = writeOptions;
+  }
+
+  /** A plain read takes no options: the SQL table and the query set every one of them. */
+  @Override
+  public BeamSqlTable forRead(Map<String, Object> options) {
+    throw new IllegalArgumentException(
+        "WITH options on an Iceberg read are only accepted with CHANGES(...), got "
+            + options.keySet());
+  }
+
+  /** Returns the table's changes for a {@code CHANGES(...)} call. */
+  @Override
+  public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+    return IcebergChangesTable.of(this, changes, options);
   }
 
   /**
@@ -170,7 +197,16 @@ final class IcebergTable extends SchemaBaseBeamTable {
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    return input.apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig()));
+    Map<String, Object> config = writeConfig();
+    checkArgument(
+        input.isBounded() == PCollection.IsBounded.BOUNDED
+            || config.containsKey(TRIGGERING_FREQUENCY_FIELD),
+        "A streaming INSERT into Iceberg table '%s' needs 'triggering_frequency_seconds', the"
+            + " number of seconds between commits. Set it in the INSERT's WITH clause, for example"
+            + " INSERT INTO t WITH ('triggering_frequency_seconds' = 60) SELECT ..., or as the"
+            + " table property 'beam.write.triggering_frequency_seconds'.",
+        tableIdentifier);
+    return input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
   }
 
   /**
@@ -203,18 +239,7 @@ final class IcebergTable extends SchemaBaseBeamTable {
       PBegin begin, BeamSqlTableFilter filter, List<String> fieldNames) {
 
     Map<String, Object> readConfig = new HashMap<>(getBaseConfig());
-
-    if (!(filter instanceof DefaultTableFilter)) {
-      IcebergFilter icebergFilter = (IcebergFilter) filter;
-      if (!icebergFilter.getSupported().isEmpty()) {
-        String expression = generateFilterExpression(getSchema(), icebergFilter.getSupported());
-        if (!expression.isEmpty()) {
-          LOG.info("Pushing down the following filter: {}", expression);
-          readConfig.put("filter", expression);
-        }
-      }
-    }
-
+    putFilter(readConfig, getSchema(), filter);
     if (!fieldNames.isEmpty()) {
       readConfig.put("keep", fieldNames);
     }
@@ -239,7 +264,8 @@ final class IcebergTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.BOUNDED;
   }
 
-  private Map<String, Object> getBaseConfig() {
+  /** The Managed configuration that identifies this table. */
+  Map<String, Object> getBaseConfig() {
     ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
     managedConfigBuilder.put("table", tableIdentifier);
     @Nullable String name = catalogConfig.getCatalogName();
@@ -257,7 +283,22 @@ final class IcebergTable extends SchemaBaseBeamTable {
     return managedConfigBuilder.build();
   }
 
-  private String generateFilterExpression(Schema schema, List<RexNode> supported) {
+  /** Adds the supported part of {@code filter} over {@code schema} to a Managed read config. */
+  static void putFilter(Map<String, Object> readConfig, Schema schema, BeamSqlTableFilter filter) {
+    if (filter instanceof DefaultTableFilter) {
+      return;
+    }
+    List<RexNode> supported = ((IcebergFilter) filter).getSupported();
+    if (!supported.isEmpty()) {
+      String expression = generateFilterExpression(schema, supported);
+      if (!expression.isEmpty()) {
+        LOG.info("Pushing down the following filter: {}", expression);
+        readConfig.put("filter", expression);
+      }
+    }
+  }
+
+  private static String generateFilterExpression(Schema schema, List<RexNode> supported) {
     final IntFunction<SqlNode> field =
         i -> new SqlIdentifier(schema.getField(i).getName(), SqlParserPos.ZERO);
 

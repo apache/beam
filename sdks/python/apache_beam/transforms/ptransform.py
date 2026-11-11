@@ -212,6 +212,9 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
     self._results_by_tag = results_by_tag
 
   def __getitem__(self, tag):
+    # Accept int tags, like DoOutputsTuple does for Partition outputs.
+    if isinstance(tag, int):
+      tag = str(tag)
     if tag not in self._results_by_tag:
       raise KeyError(
           'Tag %r is not a defined output tag of %s.' % (tag, self._deferred))

@@ -46,7 +46,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   ... FROM table1 UNION (INTERSECT etc) SELECT ...
  * </pre>
  *
- * <p>A table with a {@code WITH} clause is extracted by its name alone.
+ * <p>A table read through {@code CHANGES(...)} or with a {@code WITH} clause is extracted by its
+ * name alone.
  */
 public class TableNameExtractionUtils {
 

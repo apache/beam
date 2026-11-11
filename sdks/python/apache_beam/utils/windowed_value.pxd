@@ -58,6 +58,6 @@ cpdef WindowedValue create(
 
 cdef class _IntervalWindowBase(object):
   cdef object _start_object
-  cdef readonly int64_t _start_micros
+  cdef public int64_t _start_micros
   cdef object _end_object
-  cdef readonly int64_t _end_micros
+  cdef public int64_t _end_micros
