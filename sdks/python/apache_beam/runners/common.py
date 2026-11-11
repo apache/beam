@@ -1724,7 +1724,13 @@ class _OutputHandler(OutputHandler):
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_yields_batches:
         # process yields elements
@@ -1775,7 +1781,13 @@ class _OutputHandler(OutputHandler):
 
     output_element_count = 0
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_batch_yields_elements:
         # process_batch yields batches
@@ -1832,14 +1844,6 @@ class _OutputHandler(OutputHandler):
 
     else:
       return windowed_input_element.with_value(result)
-
-  def _handle_tagged_output(self, result):
-    if isinstance(result, TaggedOutput):
-      tag = result.tag
-      if not isinstance(tag, str):
-        raise TypeError('In %s, tag %s is not a string' % (self, tag))
-      return tag, result.value
-    return None, result
 
   def _write_value_to_tag(self, tag, windowed_value, watermark_estimator):
     if watermark_estimator is not None:

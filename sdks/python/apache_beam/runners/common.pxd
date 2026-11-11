@@ -170,7 +170,6 @@ cdef class _OutputHandler(OutputHandler):
 
   @cython.locals(windowed_value=WindowedValue)
   cdef inline WindowedValue _maybe_propagate_windowing_info(self, WindowedValue input_element, result)
-  cdef inline tuple _handle_tagged_output(self, result)
   cdef inline _write_value_to_tag(self, tag, WindowedValue windowed_value,
                                   watermark_estimator)
   cdef inline _write_batch_to_tag(self, tag, WindowedBatch windowed_batch,
