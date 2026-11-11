@@ -94,10 +94,9 @@ class BackgroundCachingJob(object):
     with self._result_lock:
       is_terminated = self._pipeline_result.state in (
           PipelineState.DONE, PipelineState.CANCELLED)
-      if is_terminated:
-        return True
+      is_triggered = self._should_end_condition_checker()
       is_cancelling = self._pipeline_result.state is PipelineState.CANCELLING
-      return is_cancelling and self._should_end_condition_checker()
+    return is_terminated or (is_triggered and is_cancelling)
 
   def is_running(self):
     with self._result_lock:

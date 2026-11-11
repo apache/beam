@@ -671,9 +671,6 @@ class RecordingTest(unittest.TestCase):
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
 class RecordingManagerTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
 
