@@ -1185,8 +1185,8 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
           self._coder_1.decode_from_stream(in_stream, nested)))
     last = self._num_coders - 1
     return self._construct_from_components([
-        self._coder_impls[i].decode_from_stream(in_stream, nested or i < last)
-        for i in range(0, self._num_coders)
+        c.decode_from_stream(in_stream, nested or i < last)
+        for i, c in enumerate(self._coder_impls)
     ])
 
   def estimate_size(self, value, nested=False):
