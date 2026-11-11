@@ -19,6 +19,7 @@ package org.apache.beam.sdk.bigqueryioperftests;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -219,8 +220,20 @@ public class BigQueryIOIT {
     PipelineResult result = pipeline.run();
     PipelineResult.State pipelineState = result.waitUntilFinish();
 
-    assertEquals(
-        sourceOptions.numRecords, readElementMetric(result, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    long actualRecords = readElementMetric(result, NAMESPACE, READ_ELEMENT_METRIC_NAME);
+    BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
+    if (method == BigQueryIO.Write.Method.STREAMING_INSERTS) {
+      // STREAMING_INSERTS uses BigQuery legacy insertAll with best-effort at-least-once
+      // deduplication and assigns random UUIDs before Reshuffle, so retried bundles can
+      // produce a small number of duplicate rows.
+      assertTrue(
+          String.format(
+              "Expected at least %d records for STREAMING_INSERTS, but read %d",
+              sourceOptions.numRecords, actualRecords),
+          actualRecords >= sourceOptions.numRecords);
+    } else {
+      assertEquals(sourceOptions.numRecords, actualRecords);
+    }
     extractAndPublishTime(result, READ_TIME_METRIC_NAME);
     // Fail the test if pipeline failed.
     assertNotEquals(PipelineResult.State.FAILED, pipelineState);
