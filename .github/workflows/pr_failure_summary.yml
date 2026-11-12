@@ -34,15 +34,7 @@ jobs:
       github.repository == 'apache/beam' &&
       (
         github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'issue_comment' &&
-          github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/summarize-failures') &&
-          (
-            github.event.comment.user.login == github.event.issue.user.login ||
-            contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.comment.author_association)
-          )
-        )
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/summarize-failures'))
       )
     concurrency:
       group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number }}
