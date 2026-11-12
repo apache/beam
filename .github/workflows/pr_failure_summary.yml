@@ -27,10 +27,6 @@ on:
 
 permissions: read-all
 
-concurrency:
-  group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number }}
-  cancel-in-progress: true
-
 jobs:
   summarize-failures:
     name: Summarize PR Check Failures
@@ -48,6 +44,9 @@ jobs:
           )
         )
       )
+    concurrency:
+      group: pr-failure-summary-${{ github.event.issue.number || inputs.pr_number }}
+      cancel-in-progress: true
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 20
     permissions:
@@ -59,15 +58,8 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout setup-gh-cli-linux action
-        uses: actions/checkout@v7
-        with:
-          ref: 'master'
-          persist-credentials: false
-          sparse-checkout: .github/actions/setup-gh-cli-linux
-
       - name: Install GitHub CLI
-        uses: ./.github/actions/setup-gh-cli-linux
+        uses: $/.github/actions/setup-gh-cli-linux
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -90,7 +82,7 @@ jobs:
           set -euo pipefail
 
           FAILED_COUNT="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json statusCheckRollup \
-            --jq '[.statusCheckRollup[]? | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "ACTION_REQUIRED" or .conclusion == "STARTUP_FAILURE")] | length')"
+            --jq '[.statusCheckRollup[]? | select((.name // .context) != "Summarize PR Check Failures" and (.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "ACTION_REQUIRED" or .conclusion == "STARTUP_FAILURE" or .state == "FAILURE" or .state == "ERROR"))] | length')"
           if [ "${FAILED_COUNT}" -eq 0 ]; then
             echo "NO_FAILURES" > gemini_response.txt
             exit 0
