@@ -48,7 +48,7 @@ jobs:
       - name: Install signal-processing-algorithms
         run: pip install signal-processing-algorithms
       - name: Install pandas, yaml, requests
-        run: pip install pandas db-dtypes "pyarrow<26" PyYAML requests
+        run: pip install pandas db-dtypes "numpy>=2.0.0,<2.5.0" PyYAML requests
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
