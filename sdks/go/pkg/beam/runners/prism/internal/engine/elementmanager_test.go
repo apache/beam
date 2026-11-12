@@ -854,6 +854,49 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 	})
 }
 
+func TestStatefulStageKind_buildEventTimeBundle_OverwrittenTimerSameFiringDifferentHold(t *testing.T) {
+	em := NewElementManager(Config{})
+	var instID uint64
+	em.nextBundID = func() string {
+		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+	}
+	em.AddStage("dofn", []string{"input"}, nil, nil)
+	em.StageStateful("dofn", nil)
+	stage := em.stages["dofn"]
+	win := window.GlobalWindow{}
+
+	// Add an event-time timer with firing=MaxTimestamp and hold=4000, followed by
+	// data at 5000 and an overwritten timer with the same firing=MaxTimestamp
+	// but updated hold=9000.
+	em.addPending(stage.AddPending(em, []element{
+		{window: win, timestamp: mtime.MaxTimestamp, holdTimestamp: 4000, family: "hold", keyBytes: []byte("k")},
+		{window: win, timestamp: 5000, elmBytes: []byte{1}, keyBytes: []byte("k")},
+		{window: win, timestamp: mtime.MaxTimestamp, holdTimestamp: 9000, family: "hold", keyBytes: []byte("k")},
+	}))
+
+	// First bundle processes the data element at 5000, which sifts the stale
+	// hold=4000 timer ahead of hold=9000 in the key's binary heap.
+	bund1, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, em.nextBundID)
+	if !ok {
+		t.Fatal("startEventTimeBundle(1) started no bundle")
+	}
+	em.PersistBundle(RunBundle{StageID: stage.ID, BundleID: bund1, Watermark: mtime.MaxTimestamp}, nil, TentativeData{}, PColInfo{}, Residuals{})
+
+	// Second bundle must skip the stale hold=4000 timer, fire the hold=9000 timer,
+	// and release hold=9000 on PersistBundle without panicking on a negative hold count for 4000.
+	bund2, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, em.nextBundID)
+	if !ok {
+		t.Fatal("startEventTimeBundle(2) started no bundle")
+	}
+	if got := stage.inprogressHoldsByBundle[bund2]; !cmp.Equal(got, map[mtime.Time]int{9000: 1}) {
+		t.Fatalf("inprogressHoldsByBundle[%v] = %v, want map[9000:1]", bund2, got)
+	}
+	em.PersistBundle(RunBundle{StageID: stage.ID, BundleID: bund2, Watermark: mtime.MaxTimestamp}, nil, TentativeData{}, PColInfo{}, Residuals{})
+	if got := stage.watermarkHolds.counts; len(got) != 0 {
+		t.Fatalf("watermarkHolds.counts = %v, want empty", got)
+	}
+}
+
 func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
 	lpBytesDec := func(r io.Reader) []byte {
 		var buf bytes.Buffer
