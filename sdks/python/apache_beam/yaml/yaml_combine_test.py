@@ -186,6 +186,21 @@ class YamlCombineTest(unittest.TestCase):
               beam.Row(b=2, biggest=[104]),
           ]))
 
+  def test_unknown_combine_fn_error(self):
+    with self.assertRaisesRegex(
+        TypeError, r"Unknown CombineFn: \{'type': 'unknown_fn'\}"):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create(DATA)
+        _ = elements | YamlTransform(
+            '''
+            type: Combine
+            config:
+              group_by: a
+              combine:
+                b: unknown_fn
+            ''')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

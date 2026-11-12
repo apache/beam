@@ -68,7 +68,7 @@ def json_schema_to_beam_schema(
     # Technically this is a valid (vacuous) schema, but as it's not generally
     # meaningful, throw an informative error instead.
     # (We could add a flag to allow this degenerate case.)
-    raise ValueError('Missing properties for {json_schema}.')
+    raise ValueError(f'Missing properties for {json_schema}.')
   required = set(json_schema.get('required', []))
   return schema_pb2.Schema(
       fields=[

@@ -394,16 +394,18 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
   if isinstance(expr, str):
     expr = {'expression': expr}
 
-  # Extract original type from upstream pcoll when doing simple mappings
-  original_type = input_schema.get(expr.get('expression'), None)
-  if expr in original_fields:
-    language = "python"
-
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
+
+  # Extract original type from upstream pcoll when doing simple mappings
+  original_type = input_schema.get(expr.get('expression'), None)
+  if expr.get('expression') in original_fields:
+    language = "python"
+
+  expr = dict(expr)
   explicit_type = expr.pop('output_type', None)
   _check_mapping_arguments(transform_name, **expr)
 
@@ -949,7 +951,7 @@ def _ExtractWindowingInfo(
       fields = {fld: fld for fld in fields}
     else:
       raise TypeError(
-          'Fields must be a mapping or iterable of strings, got {fields}')
+          f'Fields must be a mapping or iterable of strings, got {fields}')
 
   existing_fields = named_fields_from_element_type(pcoll.element_type)
   existing_field_names = {name for name, _ in existing_fields}
