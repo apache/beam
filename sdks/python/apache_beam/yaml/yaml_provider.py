@@ -1136,7 +1136,7 @@ class YamlProviders:
     @staticmethod
     def _parse_duration(value, name):
       time_units = {
-          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 24
       }
       value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
       # Default to seconds if time unit suffix is not defined

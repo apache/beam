@@ -26,10 +26,6 @@ class Repositories {
     boolean isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
     def useMirror = isCi && mirrorUrl
 
-    if (useMirror) {
-      project.logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
-    }
-
     project.repositories {
       maven { url project.rootProject.file(project.offlineRepositoryRoot) }
 

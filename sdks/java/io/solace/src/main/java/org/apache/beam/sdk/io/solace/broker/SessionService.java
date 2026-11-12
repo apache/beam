@@ -187,11 +187,11 @@ public abstract class SessionService implements Serializable {
     if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
       props.setProperty(JCSMPProperties.VPN_NAME, DEFAULT_VPN_NAME);
     }
-    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+    if (props.getProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS) == null) {
       // Outgoing messages will have a sender timestamp field populated
       props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, true);
     }
-    if (props.getProperty(JCSMPProperties.VPN_NAME) == null) {
+    if (props.getProperty(JCSMPProperties.PUB_MULTI_THREAD) == null) {
       // Make XMLProducer safe to access from several threads. This is the default value, setting
       // it just in case.
       props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, true);

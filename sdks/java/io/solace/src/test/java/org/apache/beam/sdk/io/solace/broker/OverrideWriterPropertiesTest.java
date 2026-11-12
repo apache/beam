@@ -65,4 +65,51 @@ public class OverrideWriterPropertiesTest {
         Long.valueOf(MockSessionService.ackWindowSizeForTesting),
         Long.valueOf(props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE)));
   }
+
+  @Test
+  public void testDefaultTimestampAndMultiThreadPropertiesSetWhenVpnIsProvided() {
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
+    SessionService service =
+        new SessionService() {
+          @Override
+          public void connect() {}
+
+          @Override
+          public void close() {}
+
+          @Override
+          public MessageReceiver getReceiver() {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public MessageProducer getInitializedProducer(SolaceIO.SubmissionMode mode) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public JCSMPProperties getSessionProperties() {
+            JCSMPProperties props = new JCSMPProperties();
+            props.setProperty(JCSMPProperties.VPN_NAME, "custom-vpn");
+            props.setProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS, null);
+            props.setProperty(JCSMPProperties.PUB_MULTI_THREAD, null);
+            return props;
+          }
+
+          @Override
+          public boolean equals(Object other) {
+            return this == other;
+          }
+
+          @Override
+          public int hashCode() {
+            return System.identityHashCode(this);
+          }
+        };
+
+    JCSMPProperties props = service.initializeWriteSessionProperties(mode);
+    assertEquals("custom-vpn", props.getStringProperty(JCSMPProperties.VPN_NAME));
+    assertEquals(true, props.getBooleanProperty(JCSMPProperties.GENERATE_SEND_TIMESTAMPS));
+    assertEquals(true, props.getBooleanProperty(JCSMPProperties.PUB_MULTI_THREAD));
+  }
 }

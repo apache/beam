@@ -153,7 +153,7 @@ else:
     # Generally try to cover versions released in the last two years.
     # Update python/sdks/tox.ini to cover the same pyarrow versions
     # when updating the bounds here.
-    'pyarrow>=14.0.1,<26.0.0',
+    'pyarrow>=14.0.1,<27.0.0',
   ]
 
 # must update the below "docs" and "test" for extras_require
@@ -229,9 +229,9 @@ ml_adk_dependency = [
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api>=1.36.0,<1.43',
-    'opentelemetry-sdk>=1.36.0,<1.43',
-    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
+    'opentelemetry-api>=1.36.0,<2.0',
+    'opentelemetry-sdk>=1.36.0,<2.0',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<2.0',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -433,6 +433,10 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=extensions,
+      entry_points={
+          # Experimental; see apache_beam/cli/main.py.
+          'console_scripts': ['beam = apache_beam.cli.main:main'],
+      },
       install_requires=[
           'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
@@ -472,7 +476,7 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'beartype>=0.21.0,<0.23.0',
+          'beartype>=0.21.0,<0.24.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.

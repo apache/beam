@@ -100,7 +100,6 @@ def sickbayTests = [
 
     // GroupIntoBatchesTest tests that fail:
     // Wrong number of elements in windows after GroupIntoBatches.
-    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
 
@@ -147,11 +146,9 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
     // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
     'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
-    // Prism side encoding error.
-    // java.lang.IllegalStateException: java.io.EOFException
-    'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
-    // Triggers index-out-of-bound error in Prism
+    // The stateful ParDo can't decode its keyed TestStream input.
+    // org.apache.beam.sdk.coders.CoderException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTimerSideInput',
 
     // Missing output due to processing time timer skew.

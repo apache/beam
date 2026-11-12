@@ -63,6 +63,7 @@
 
 ## Bugfixes
 
+* (Java) Improved the error message when decoding with a ProtoCoder for the raw `com.google.protobuf.Message` type (for example inferred from a generic `T extends Message`): it now explains how to fix it instead of surfacing a `NoSuchMethodException` ([#19713](https://github.com/apache/beam/issues/19713)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -81,11 +82,13 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
+* (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 
 ## Improvements
 
@@ -94,16 +97,23 @@
 ### New Feature
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline ([#40891](https://github.com/apache/beam/issues/40891)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
 * [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
+* [Beam SQL] Added `CHANGES(table [, start [, end]])` to read a table's changes in `FROM`, starting with Iceberg tables ([#40982](https://github.com/apache/beam/issues/40982)).
+* (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
+* (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 
 ### Performance
 
 * Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
 * Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Flink runner: the batch-only `--lazyBatchGroupingInputs` option is enabled by default (disable it with `--lazyBatchGroupingInputs=false`). Records sent to GroupByKey and Combine operators keep their values encoded until they are accessed, so Flink can move them from the network into its sorter without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Java) Flink runner: the batch-only `--lengthPrefixBatchRecords` option is enabled by default (disable it with `--lengthPrefixBatchRecords=false`). Each record is prefixed with its encoded length, so Flink's sorter can spill records to disk without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Java) Flink runner: the batch-only `--sortedBatchCombine` option is enabled by default (disable it with `--sortedBatchCombine=false`). GroupByKey and Combine in the global window with the default trigger then finish with a dedicated operator that relies on Flink sorting its input by key, instead of keyed state and timers ([#40607](https://github.com/apache/beam/issues/40607)).
 
 ## Breaking Changes
 
@@ -125,15 +135,27 @@
 
 ## Bugfixes
 
+* (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
+* (Python) Fixed cross-language `ReadFromKafka(redistribute=True)` creating one key per record when `redistribute_num_keys` is not set. It now uses the KafkaIO default of 32768 keys, as Java `withRedistribute()` does. On Flink the per-record keys left timer state that grew until the job ran out of memory ([#41103](https://github.com/apache/beam/issues/41103)).
+* (Python/YAML) Beam YAML `generic` filters now accept `>=`, `<=`, `==` and `!=`; previously only `<` and `>` were recognized ([#41043](https://github.com/apache/beam/issues/41043)).
+* (Python) Fixed batched DoFns whose input must be rebatched into a `pyarrow.Table` with more than one column, which failed with `ArrowInvalid: Column 1 ... expected length N but got length 0`. This affected, for example, Beam YAML `ReadFromCsv` or `ReadFromJson` followed directly by `WriteToParquet` ([#41042](https://github.com/apache/beam/issues/41042)).
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
+* (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
-* (Java) [IcebergIO] Writes that use the side input table cache now preserve vended storage credentials instead of default to worker credentials ([#XXXXX](https://github.com/apache/beam/pull/XXXXX)).
+* (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
+* (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
+* (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
+* (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
+* (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
+* (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
+* (Java) [IcebergIO] Writes that use the side input table cache now preserve vended storage credentials instead of default to worker credentials ([#41248](https://github.com/apache/beam/pull/41248)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
 
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Updated the Go toolchain used to build the SDK container `boot` binaries and the Go SDK to go1.26.10, which fixes the Go standard library CVEs reported against go1.26.2 ([#41056](https://github.com/apache/beam/issues/41056)).
 
 ## Known Issues
 
@@ -226,6 +248,7 @@
 * (Python) `VertexAIFeatureStoreEnrichmentHandler` now logs a warning instead of failing when the caller lacks permission to read the feature store metadata ([#40442](https://github.com/apache/beam/issues/40442)).
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 * (Java) Fixed BigQuery Storage Write API failure outputs returning the wrong original row after consecutive serialization errors ([#39999](https://github.com/apache/beam/pull/39999)).
+* (Java) `BigQueryIO.Write.withMaxRetryJobs` is now honored for bounded (batch) pipelines using `FILE_LOADS`, which previously always retried failed load jobs 3 times. Pipelines that never call it keep their existing defaults ([#28281](https://github.com/apache/beam/issues/28281)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
 * (Python) Fixed `AsyncWrapper` finalizing bundles before generator processing, which could drop buffered writes, and nesting iterable outputs ([#40000](https://github.com/apache/beam/pull/40000)).

@@ -152,9 +152,10 @@ task copyFmppTemplatesFromSrc(type: Copy) {
 }
 
 // config.fmpp adds Beam's rules to Calcite's grammar, Parser.jj, only at fixed hooks. There is
-// no hook that allows us to add syntax right after a table name, which is needed to set options
-// using WITH ('key' = value, ...). To get around this, the copyFmppTemplatesFromCalciteCore task
-// edits its copy of Parser.jj to add that syntax.
+// no hook that allows us to add syntax right after a table name or a table function call, which is
+// needed to set options using WITH ('key' = value, ...) and to read changes using CHANGES(...). To
+// get around this, the copyFmppTemplatesFromCalciteCore task edits its copy of Parser.jj to add
+// that syntax.
 //
 // Each entry below pairs a snippet of Calcite's grammar, the anchor, with Beam code. The task
 // inserts the code right after the anchor. Take the first entry. TableRef3, Calcite's rule for a
@@ -170,15 +171,20 @@ task copyFmppTemplatesFromSrc(type: Copy) {
 def calciteParserExtensions = [
   // Parses WITH on a table in FROM. This is the example above.
   '[ tableRef = Snapshot(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.READ)',
+  // Parses WITH after a table function call in FROM, such as CHANGES(orders, 5). A CHANGES(...)
+  // call then gets folded into the name of the table it reads, like a table with WITH.
+  'tableRef = ImplicitTableFunctionCallArgs(tableName)': 'tableRef = ChangesCallOpt(tableRef)',
+  // Rejects TABLE(CHANGES(...)), so that FROM CHANGES(...) is the one way to read changes.
+  'tableRef = TableFunctionCall()': '{ TableClause.checkNotChanges(tableRef); }',
   // Parses WITH on the INSERT target, in Calcite's SqlInsert rule, before the optional column list.
   '[ LOOKAHEAD(5) tableRef = ExtendTable(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.WRITE)',
-  // Beam gives a FROM table with WITH an alias: its own name. If the query gives it an alias too,
-  // keep only the query's. This runs at the end of TableRef3.
+  // Beam gives a FROM table with CHANGES(...) or WITH an alias: its own name. If the query gives it
+  // an alias too, keep only the query's. This runs at the end of TableRef3.
   '[ tableRef = Tablesample(tableRef) ]': '{ tableRef = TableClause.collapseImplicitAlias(tableRef); }',
   // SQL also uses WITH for common table expressions, as in WITH q AS (...) SELECT * FROM q. A
-  // reference to q can't take WITH options. They would become part of the name, and Calcite would
-  // then look for a catalog table instead of using q. addWith builds every such query, so check
-  // the references there.
+  // reference to q can't use CHANGES(...) or take WITH options. Either would become part of the
+  // name, and Calcite would then look for a catalog table instead of using q. addWith builds every
+  // such query, so check the references there.
   'JAVACODE SqlNode addWith(SqlNodeList withList, SqlNode e) {': 'TableClause.checkCteReferences(withList, e);',
   // OrderByLimitOpt attaches the ORDER BY of such a query after addWith has run, so check the
   // ORDER BY here too.

@@ -196,10 +196,9 @@ public class BeamDDLTest {
     IllegalArgumentException reservedName =
         assertThrows(
             IllegalArgumentException.class,
-            () ->
-                env.executeDdl("CREATE EXTERNAL TABLE ```t`` WITH ('k' = 1)` (id INT) TYPE test"));
+            () -> env.executeDdl("CREATE EXTERNAL TABLE `CHANGES(``t``)` (id INT) TYPE test"));
     assertEquals(
-        "Table name '`t` WITH ('k' = 1)' is reserved for WITH options.", reservedName.getMessage());
+        "Table name 'CHANGES(`t`)' is reserved for CHANGES and WITH.", reservedName.getMessage());
   }
 
   @Test

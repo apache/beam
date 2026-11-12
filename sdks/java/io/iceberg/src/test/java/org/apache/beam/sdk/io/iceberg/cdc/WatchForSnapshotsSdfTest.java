@@ -41,6 +41,9 @@ import org.apache.beam.sdk.io.iceberg.TestFixtures;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -248,6 +251,154 @@ public class WatchForSnapshotsSdfTest {
     assertEquals(seededWatermark, out.values.get(0).getTimestamp());
     assertEquals(seededWatermark.plus(Duration.millis(1L)), out.values.get(1).getTimestamp());
     assertEquals(seededWatermark.plus(Duration.millis(2L)), watermark.currentWatermark());
+  }
+
+  @Test
+  public void fromTimestampLaterThanEveryCommitStartsWithTheNextCommit() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records("one", 1L));
+    Snapshot latest = table.currentSnapshot();
+
+    WatchForSnapshotsSdf sdf =
+        new WatchForSnapshotsSdf(
+            scanConfigBuilder(table, tableId)
+                .setStreaming(true)
+                .setFromTimestamp(latest.timestampMillis() + 1)
+                .setPollInterval(Duration.millis(1L))
+                .build());
+
+    OffsetRange restriction = sdf.initialRestriction();
+    assertEquals(latest.sequenceNumber() + 1, restriction.getFrom());
+
+    RestrictionTracker<OffsetRange, Long> tracker = sdf.newTracker(restriction);
+    ManualWatermarkEstimator<Instant> watermark =
+        sdf.newWatermarkEstimator(sdf.initialWatermarkState());
+    CapturingOutputReceiver out = new CapturingOutputReceiver();
+    assertTrue(sdf.process(tracker, watermark, out).shouldResume());
+    assertThat(out.values, empty());
+
+    Thread.sleep(25);
+    commitAppend(table, "s2.parquet", records("two", 2L));
+    assertTrue(sdf.process(tracker, watermark, out).shouldResume());
+    assertThat(
+        out.values.stream().map(TimestampedValue::getValue).collect(Collectors.toList()),
+        contains(table.currentSnapshot().snapshotId()));
+  }
+
+  @Test
+  public void futureFromTimestampSkipsSnapshotsCommittedBeforeIt() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+
+    WatchForSnapshotsSdf sdf =
+        new WatchForSnapshotsSdf(
+            scanConfigBuilder(table, tableId)
+                .setStreaming(true)
+                .setFromTimestamp(Instant.now().plus(Duration.standardHours(1)).getMillis())
+                .setPollInterval(Duration.millis(1L))
+                .build());
+
+    OffsetRange restriction = sdf.initialRestriction();
+    assertEquals(1L, restriction.getFrom());
+
+    commitAppend(table, "s1.parquet", records("one", 1L));
+    CapturingOutputReceiver out = new CapturingOutputReceiver();
+    DoFn.ProcessContinuation continuation =
+        sdf.process(
+            sdf.newTracker(restriction),
+            sdf.newWatermarkEstimator(sdf.initialWatermarkState()),
+            out);
+
+    assertTrue(continuation.shouldResume());
+    assertThat(out.values, empty());
+  }
+
+  @Test
+  public void futureToTimestampKeepsReadingUntilItPasses() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records("one", 1L));
+    Snapshot first = table.currentSnapshot();
+    long end = System.currentTimeMillis() + 1500;
+
+    WatchForSnapshotsSdf sdf =
+        new WatchForSnapshotsSdf(
+            scanConfigBuilder(table, tableId)
+                .setStreaming(true)
+                .setFromTimestamp(first.timestampMillis())
+                .setToTimestamp(end)
+                .setPollInterval(Duration.millis(1L))
+                .build());
+    RestrictionTracker<OffsetRange, Long> tracker = sdf.newTracker(sdf.initialRestriction());
+    ManualWatermarkEstimator<Instant> watermark =
+        sdf.newWatermarkEstimator(sdf.initialWatermarkState());
+    CapturingOutputReceiver out = new CapturingOutputReceiver();
+
+    // Before the end, the read emits what was committed and waits for more.
+    assertTrue(sdf.process(tracker, watermark, out).shouldResume());
+    tracker = checkpoint(sdf, tracker);
+    commitAppend(table, "s2.parquet", records("two", 2L));
+    Snapshot second = table.currentSnapshot();
+    assertTrue(sdf.process(tracker, watermark, out).shouldResume());
+    tracker = checkpoint(sdf, tracker);
+
+    // Once the end has passed, the next commit ends the read without being emitted.
+    Thread.sleep(Math.max(0, end - System.currentTimeMillis()) + 10);
+    commitAppend(table, "s3.parquet", records("three", 3L));
+    assertFalse(sdf.process(tracker, watermark, out).shouldResume());
+    tracker.checkDone();
+    assertThat(
+        out.values.stream().map(TimestampedValue::getValue).collect(Collectors.toList()),
+        contains(first.snapshotId(), second.snapshotId()));
+  }
+
+  @Test
+  public void timestampWindowWithNoCommitsEmitsNothingAndStops() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records("one", 1L));
+    Snapshot first = table.currentSnapshot();
+    Thread.sleep(25);
+    commitAppend(table, "s2.parquet", records("two", 2L));
+    Snapshot second = table.currentSnapshot();
+    long[][] windows = {
+      {first.timestampMillis() + 1, second.timestampMillis() - 1},
+      {first.timestampMillis() - 20, first.timestampMillis() - 10},
+      {second.timestampMillis() + 10, second.timestampMillis() + 20}
+    };
+    // A streaming window is only empty once its end has passed.
+    Thread.sleep(30);
+
+    for (long[] window : windows) {
+      WatchForSnapshotsSdf sdf =
+          new WatchForSnapshotsSdf(
+              scanConfigBuilder(table, tableId)
+                  .setStreaming(true)
+                  .setFromTimestamp(window[0])
+                  .setToTimestamp(window[1])
+                  .build());
+
+      OffsetRange restriction = sdf.initialRestriction();
+      assertEquals(restriction.getFrom(), restriction.getTo());
+
+      CapturingOutputReceiver out = new CapturingOutputReceiver();
+      DoFn.ProcessContinuation continuation =
+          sdf.process(
+              sdf.newTracker(restriction),
+              sdf.newWatermarkEstimator(sdf.initialWatermarkState()),
+              out);
+      assertFalse(continuation.shouldResume());
+      assertThat(out.values, empty());
+    }
+  }
+
+  /** Splits off the unprocessed rest of the restriction, as a runner does when a poll resumes. */
+  private static RestrictionTracker<OffsetRange, Long> checkpoint(
+      WatchForSnapshotsSdf sdf, RestrictionTracker<OffsetRange, Long> tracker) {
+    SplitResult<OffsetRange> split = Preconditions.checkStateNotNull(tracker.trySplit(0));
+    tracker.checkDone();
+    return sdf.newTracker(split.getResidual());
   }
 
   private TableIdentifier tableId() {

@@ -181,6 +181,18 @@ class DistributionCell(MetricCell):
     # type: () -> None
     self.data = DistributionData.identity_element()
 
+  def reset_to(self, value):
+    """Atomically replaces the distribution with a single sample of value.
+
+    Like ``reset()`` followed by ``update(value)``, except that a concurrent
+    reader never sees the empty distribution in between. Useful for publishing
+    the latest value of a gauge-like quantity as a distribution whose
+    cumulative mean (sum / count) is that value.
+    """
+    ivalue = int(value)
+    with self._lock:
+      self.data = DistributionData(ivalue, 1, ivalue, ivalue)
+
   def combine(self, other):
     # type: (DistributionCell) -> DistributionCell
     result = DistributionCell()

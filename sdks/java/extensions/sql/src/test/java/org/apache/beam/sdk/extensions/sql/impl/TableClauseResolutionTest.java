@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,8 +64,8 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Resolves table references with {@code WITH} options through {@link BeamSqlEnv} and through a JDBC
- * connection.
+ * Resolves table references with {@code CHANGES(...)} and {@code WITH} through {@link BeamSqlEnv}
+ * and through a JDBC connection.
  */
 @RunWith(Parameterized.class)
 public class TableClauseResolutionTest {
@@ -77,28 +79,23 @@ public class TableClauseResolutionTest {
 
   @Parameter public String sessionType;
 
+  private InMemoryCatalogManager catalogManager;
   private Session session;
 
   @Before
   public void setUp() throws Exception {
     QUERY_ROWS.clear();
     WRITES.clear();
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager = new InMemoryCatalogManager();
     catalogManager.registerTableProvider(new ClauseTableProvider());
     catalogManager.registerTableProvider(new TestTableProvider());
-    session =
-        sessionType.equals("JDBC")
-            ? new JdbcSession(JdbcDriver.connect(catalogManager, PipelineOptionsFactory.create()))
-            : new EnvSession(
-                BeamSqlEnv.builder(catalogManager)
-                    .setPipelineOptions(PipelineOptionsFactory.create())
-                    .build());
+    session = newSession();
     session.execute("CREATE EXTERNAL TABLE orders (id BIGINT NOT NULL, name VARCHAR) TYPE clause");
     session.execute("CREATE EXTERNAL TABLE plain (id BIGINT, name VARCHAR) TYPE test");
   }
 
   @Test
-  public void eachReferenceReadsWithItsOwnOptions() throws Exception {
+  public void eachReferenceReadsWithItsOwnChangesAndOptions() throws Exception {
     assertEquals(
         Collections.singletonList(
             Arrays.asList(
@@ -108,6 +105,28 @@ public class TableClauseResolutionTest {
                 + " FROM orders WITH ('tag' = 'a') AS x"
                 + " JOIN orders WITH ('tag' = 'b') y ON x.id = y.id"
                 + " JOIN orders AS z ON y.id = z.id"));
+    assertEquals(
+        Collections.singletonList(
+            Arrays.asList(
+                changes(ChangeRange.versions(3L, null), ImmutableMap.of("tag", "a")),
+                changes(ChangeRange.all(), ImmutableMap.of()),
+                changes(ChangeRange.versions(1L, 2L), ImmutableMap.of()),
+                changes(
+                    ChangeRange.timestamps(
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        Instant.parse("2026-01-02T10:00:00.500Z")),
+                    ImmutableMap.of()),
+                changes(
+                    ChangeRange.timestamps(null, Instant.parse("2026-01-02T00:00:00Z")),
+                    ImmutableMap.of()))),
+        session.query(
+            "SELECT x.clause, c.clause, orders.clause, t.clause, e.clause"
+                + " FROM CHANGES(orders, 3) WITH ('tag' = 'a') AS x"
+                + " JOIN CHANGES(orders) AS c ON x.id = c.id"
+                + " JOIN CHANGES(orders, 1, 2) ON c.id = orders.id"
+                + " JOIN CHANGES(orders, '2026-01-01', TIMESTAMP '2026-01-02 10:00:00.5') t"
+                + " ON c.id = t.id"
+                + " JOIN CHANGES(orders, end_timestamp => '2026-01-02') e ON c.id = e.id"));
 
     session.execute("CREATE CATALOG cat TYPE 'local'");
     session.execute("USE CATALOG cat");
@@ -125,6 +144,20 @@ public class TableClauseResolutionTest {
                 + " FROM cat.db.orders WITH ('tag' = 'cat.db') a"
                 + " JOIN db.orders WITH ('tag' = 'db') b ON a.id = b.id"
                 + " JOIN orders WITH ('tag' = 'none') ON a.id = orders.id"));
+    assertEquals(
+        Collections.singletonList(
+            Arrays.asList(
+                changes(ChangeRange.versions(null, 7L), ImmutableMap.of("tag", "cat.db")),
+                changes(ChangeRange.all(), ImmutableMap.of("tag", "db")))),
+        session.query(
+            "SELECT a.clause, b.clause"
+                + " FROM CHANGES(cat.db.orders, NULL, 7) WITH ('tag' = 'cat.db') a"
+                + " JOIN CHANGES(db.orders) WITH ('tag' = 'db') b ON a.id = b.id"));
+    // The first statement of a new session on the same catalog manager.
+    assertEquals(
+        Collections.singletonList(
+            Collections.singletonList(changes(ChangeRange.versions(1L, null), ImmutableMap.of()))),
+        newSession().query("SELECT clause FROM CHANGES(orders, 1)"));
   }
 
   @Test
@@ -141,7 +174,11 @@ public class TableClauseResolutionTest {
   }
 
   @Test
-  public void unsupportedOptionsFailWithTheClauseText() {
+  public void unsupportedClausesFailWithTheClauseText() {
+    assertError(
+        "SELECT * FROM CHANGES(plain, 1)",
+        "Cannot resolve CHANGES(`plain`, start_version => 1):"
+            + " InMemoryTable does not support CHANGES(...)");
     assertError(
         "SELECT * FROM plain WITH ('tag' = 'a')",
         "Cannot resolve `plain` WITH ('tag' = 'a'):"
@@ -162,8 +199,21 @@ public class TableClauseResolutionTest {
         containsString(message));
   }
 
+  private Session newSession() {
+    return sessionType.equals("JDBC")
+        ? new JdbcSession(JdbcDriver.connect(catalogManager, PipelineOptionsFactory.create()))
+        : new EnvSession(
+            BeamSqlEnv.builder(catalogManager)
+                .setPipelineOptions(PipelineOptionsFactory.create())
+                .build());
+  }
+
   private static String read(Map<String, Object> options) {
     return "read " + options;
+  }
+
+  private static String changes(ChangeRange changes, Map<String, Object> options) {
+    return "changes " + changes + " " + options;
   }
 
   private static String write(Map<String, Object> options) {
@@ -247,7 +297,7 @@ public class TableClauseResolutionTest {
     }
   }
 
-  /** Provides tables of type {@code clause}, which support WITH options. */
+  /** Provides tables of type {@code clause}, which support CHANGES(...) and WITH. */
   private static class ClauseTableProvider extends InMemoryMetaTableProvider {
     @Override
     public String getTableType() {
@@ -261,9 +311,9 @@ public class TableClauseResolutionTest {
   }
 
   /**
-   * A table with the single row {@code (1, 'one')}. WITH options add a {@code clause} column, which
-   * reads fill with a description of them and the hook that took them, and writes record next to
-   * each row.
+   * A table with the single row {@code (1, 'one')}. CHANGES(...) and WITH add a {@code clause}
+   * column, which reads fill with a description of them and the hook that took them, and writes
+   * record next to each row.
    */
   private static class ClauseTable extends SchemaBaseBeamTable {
     private final @Nullable String clause;
@@ -281,6 +331,11 @@ public class TableClauseResolutionTest {
     @Override
     public BeamSqlTable forWrite(Map<String, Object> options) {
       return withClause(write(options));
+    }
+
+    @Override
+    public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+      return withClause(changes(changes, options));
     }
 
     private ClauseTable withClause(String clause) {

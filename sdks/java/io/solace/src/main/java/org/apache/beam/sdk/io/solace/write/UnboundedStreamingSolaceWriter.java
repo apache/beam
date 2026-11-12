@@ -95,6 +95,13 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
     messageIdsToAck.clear();
   }
 
+  @Teardown
+  @Override
+  public void teardown() {
+    super.teardown();
+    messageIdsToAck.clear();
+  }
+
   @ProcessElement
   public void processElement(
       @Element KV<Integer, Solace.Record> element,

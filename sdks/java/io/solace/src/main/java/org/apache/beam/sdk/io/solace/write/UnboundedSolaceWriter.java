@@ -112,8 +112,12 @@ public abstract class UnboundedSolaceWriter
 
   @Teardown
   public void teardown() {
-    SolaceWriteSessionsHandler.disconnectFromSolace(
-        sessionServiceFactory, producersMapCardinality, writerTransformUuid);
+    // Do not disconnect SolaceWriteSessionsHandler here: sessions in SolaceWriteSessionsHandler are
+    // shared across all DoFn instances on the worker VM, and individual DoFn instances are torn
+    // down when bundles abort during rebalancing or when idle bundle processors are evicted.
+    batchToEmit.clear();
+    bundleResultsQueue = null;
+    bundleTimestamp = null;
   }
 
   public void updateProducerIndex() {

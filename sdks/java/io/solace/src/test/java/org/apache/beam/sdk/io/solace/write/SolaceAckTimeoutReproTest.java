@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.solace.write;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.DeliveryMode;
+import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
@@ -38,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
@@ -55,6 +58,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,6 +66,11 @@ import org.junit.runners.JUnit4;
 /** Real Beam writers, producer wrapper and ACK handler; only the JCSMP transport is faked. */
 @RunWith(JUnit4.class)
 public class SolaceAckTimeoutReproTest {
+  @After
+  public void tearDownSessions() {
+    SolaceWriteSessionsHandler.closeAllSessions();
+  }
+
   @Test(timeout = 30000)
   public void acknowledgedMessagesMustNotTimeOutWhenBundlesShareASession() throws Exception {
     UnboundedBatchedSolaceWriter a =
@@ -187,6 +196,60 @@ public class SolaceAckTimeoutReproTest {
     }
   }
 
+  @Test(timeout = 30000)
+  public void teardownOfOneDoFnInstanceDuringRebalanceMustNotCloseSharedSessions()
+      throws Exception {
+    UnboundedBatchedSolaceWriter a =
+        new UnboundedBatchedSolaceWriter(
+            r -> JCSMPFactory.onlyInstance().createTopic("test/rebalance"),
+            new TestFactory(),
+            DeliveryMode.PERSISTENT,
+            SubmissionMode.HIGHER_THROUGHPUT,
+            2,
+            false);
+    UnboundedBatchedSolaceWriter b = SerializableUtils.clone(a);
+    a.startBundle();
+    b.startBundle();
+    TestSession sessionA = (TestSession) a.solaceSessionServiceWithProducer();
+    TestSession sessionB = (TestSession) b.solaceSessionServiceWithProducer();
+
+    b.addToCurrentBundle(record("B_REBALANCE"));
+    List<String> resultsB = new ArrayList<>();
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Future<?> finishingB =
+        executor.submit(
+            () -> {
+              try {
+                b.finishBundle(context(b, resultsB));
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
+    try {
+      assertTrue(
+          "B must send its message before A tears down", sessionB.bSent.await(5, TimeUnit.SECONDS));
+      // Simulate DoFn instance A being torn down during rebalancing (e.g.
+      // WorkItemCancelledException
+      // or BundleProcessor cache eviction) while B is waiting for its in-flight ACK.
+      a.teardown();
+      assertFalse("Tearing down one DoFn instance must not close session A", sessionA.closed.get());
+      assertFalse("Tearing down one DoFn instance must not close session B", sessionB.closed.get());
+
+      sessionB.aFinished.countDown();
+      finishingB.get(15, TimeUnit.SECONDS);
+      assertEquals(Collections.singletonList("B_REBALANCE"), resultsB);
+    } finally {
+      try {
+        sessionB.aFinished.countDown();
+        finishingB.cancel(true);
+        executor.shutdownNow();
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+      } finally {
+        b.teardown();
+      }
+    }
+  }
+
   @SuppressWarnings("nullness")
   private static ValueState<Integer> dummyValueState() {
     return new ValueState<Integer>() {
@@ -259,8 +322,10 @@ public class SolaceAckTimeoutReproTest {
 
   private static class TestSession extends SessionService {
     final PublishResultHandler handler = new PublishResultHandler();
+    final CountDownLatch bSent = new CountDownLatch(1);
     final CountDownLatch bAcked = new CountDownLatch(1);
     final CountDownLatch aFinished = new CountDownLatch(1);
+    final AtomicBoolean closed = new AtomicBoolean(false);
     final List<String> ackedIds = new CopyOnWriteArrayList<>();
     final MessageProducer producer =
         new SolaceMessageProducer(
@@ -270,32 +335,66 @@ public class SolaceAckTimeoutReproTest {
                     new Class<?>[] {XMLMessageProducer.class},
                     (proxy, method, args) -> {
                       if (method.getName().equals("sendMultiple")) {
+                        if (closed.get()) {
+                          throw new JCSMPException("Session is closed");
+                        }
                         JCSMPSendMultipleEntry[] entries = (JCSMPSendMultipleEntry[]) args[0];
                         int offset = (Integer) args[1];
                         int length = (Integer) args[2];
                         for (int i = offset; i < offset + length; i++) {
                           XMLMessage message = entries[i].getMessage();
-                          handler.responseReceivedEx(message.getCorrelationKey());
-                          ackedIds.add(message.getApplicationMessageId());
-                          if (message.getApplicationMessageId().equals("B")) {
-                            bAcked.countDown();
+                          String id = message.getApplicationMessageId();
+                          if (id.equals("B_REBALANCE")) {
+                            bSent.countDown();
                             assertTrue(aFinished.await(5, TimeUnit.SECONDS));
+                            if (!closed.get()) {
+                              handler.responseReceivedEx(message.getCorrelationKey());
+                              ackedIds.add(id);
+                            }
+                          } else {
+                            if (!closed.get()) {
+                              handler.responseReceivedEx(message.getCorrelationKey());
+                              ackedIds.add(id);
+                            }
+                            if (id.equals("B")) {
+                              bAcked.countDown();
+                              assertTrue(aFinished.await(5, TimeUnit.SECONDS));
+                            }
                           }
                         }
                         return length;
                       }
                       if (method.getName().equals("send")) {
+                        if (closed.get()) {
+                          throw new JCSMPException("Session is closed");
+                        }
                         XMLMessage message = (XMLMessage) args[0];
-                        handler.responseReceivedEx(message.getCorrelationKey());
-                        ackedIds.add(message.getApplicationMessageId());
-                        if (message.getApplicationMessageId().equals("B")) {
-                          bAcked.countDown();
+                        String id = message.getApplicationMessageId();
+                        if (id.equals("B_REBALANCE")) {
+                          bSent.countDown();
                           assertTrue(aFinished.await(5, TimeUnit.SECONDS));
+                          if (!closed.get()) {
+                            handler.responseReceivedEx(message.getCorrelationKey());
+                            ackedIds.add(id);
+                          }
+                        } else {
+                          if (!closed.get()) {
+                            handler.responseReceivedEx(message.getCorrelationKey());
+                            ackedIds.add(id);
+                          }
+                          if (id.equals("B")) {
+                            bAcked.countDown();
+                            assertTrue(aFinished.await(5, TimeUnit.SECONDS));
+                          }
                         }
                         return null;
                       }
                       if (method.getName().equals("isClosed")) {
-                        return false;
+                        return closed.get();
+                      }
+                      if (method.getName().equals("close")) {
+                        closed.set(true);
+                        return null;
                       }
                       throw new UnsupportedOperationException(method.getName());
                     }));
@@ -304,7 +403,9 @@ public class SolaceAckTimeoutReproTest {
     public void connect() {}
 
     @Override
-    public void close() {}
+    public void close() {
+      closed.set(true);
+    }
 
     @Override
     public MessageReceiver getReceiver() {
