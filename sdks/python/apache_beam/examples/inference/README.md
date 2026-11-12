@@ -936,11 +936,11 @@ python -m apache_beam.examples.inference.vllm_text_completion \
   --temp_location <temp gcs location> \
   --worker_harness_container_image "gcr.io/apache-beam-testing/beam-ml/vllm:latest" \
   --machine_type "n1-standard-4" \
-  --dataflow_service_options "worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx" \
+  --dataflow_service_options "worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:latest" \
   --staging_location <temp gcs location>
 ```
 
-Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
+Make sure to specify `install-nvidia-driver:latest` since vLLM requires a newer NVIDIA driver than Dataflow's default.
 
 On GPUs with about 16GiB of memory (for example NVIDIA T4), vLLM’s defaults can fail
 during engine startup with CUDA out of memory. The example therefore passes conservative
