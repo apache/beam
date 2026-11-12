@@ -366,6 +366,7 @@ import json
 import logging
 import random
 import secrets
+import sys
 import time
 import uuid
 import warnings
@@ -720,7 +721,8 @@ class _CustomBigQuerySource(BoundedSource):
       step_name=None,
       unique_id=None,
       temp_dataset=None,
-      query_priority=BigQueryQueryPriority.BATCH):
+      query_priority=BigQueryQueryPriority.BATCH,
+      quota_project_id=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -754,6 +756,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.use_json_exports = use_json_exports
     self.temp_dataset = temp_dataset
     self.query_priority = query_priority
+    self.quota_project_id = quota_project_id
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -773,12 +776,15 @@ class _CustomBigQuerySource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
         'export_file_format': export_format,
+        'quota_project_id': DisplayDataItem(
+            self._get_quota_project_id(),
+            label='BigQuery Quota Project').drop_if_none(),
         'launchesBigQueryJobs': DisplayDataItem(
             True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
-    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(self.options)
+    bq = self._create_bq_wrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -844,6 +850,23 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
+  def _get_quota_project_id(self):
+    """Returns the explicit quota project ID, else the pipeline option."""
+    quota_project_id = bigquery_tools._quota_project_id_from_options(
+        self.options)
+    return self.quota_project_id or quota_project_id
+
+  def _create_bq_wrapper(self, **kwargs):
+    """Creates a BigQueryWrapper for the API calls made by this source.
+
+    Every BigQuery client this source uses is built here, so that quota
+    attribution cannot be forgotten at an individual call site.
+    """
+    return bigquery_tools.BigQueryWrapper(
+        pipeline_options=self.options,
+        quota_project_id=self.quota_project_id,
+        **kwargs)
+
   def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path, validate=self.validate)
@@ -858,10 +881,9 @@ class _CustomBigQuerySource(BoundedSource):
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
-      bq = bigquery_tools.BigQueryWrapper(
+      bq = self._create_bq_wrapper(
           temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
+              self.temp_dataset.datasetId if self.temp_dataset else None))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -1051,7 +1073,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
       use_native_datetime: Optional[bool] = False,
-      timeout: Optional[float] = None):
+      timeout: Optional[float] = None,
+      quota_project_id: Optional[str] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1090,6 +1113,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
+    self.quota_project_id = quota_project_id
 
   def _get_project(self):
     """Returns the project that queries and exports will be billed to."""
@@ -1100,6 +1124,23 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if project:
         return project
     return self.project
+
+  def _get_quota_project_id(self):
+    """Returns the explicit quota project ID, else the pipeline option."""
+    quota_project_id = bigquery_tools._quota_project_id_from_options(
+        self.pipeline_options)
+    return self.quota_project_id or quota_project_id
+
+  def _create_bq_wrapper(self, **kwargs):
+    """Creates a BigQueryWrapper for the API calls made by this source.
+
+    Every BigQuery client this source uses is built here, so that quota
+    attribution cannot be forgotten at an individual call site.
+    """
+    return bigquery_tools.BigQueryWrapper(
+        pipeline_options=self.pipeline_options,
+        quota_project_id=self.quota_project_id,
+        **kwargs)
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
@@ -1188,14 +1229,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
         'use_native_datetime': self.use_native_datetime,
         'selected_fields': str(self.selected_fields),
         'row_restriction': str(self.row_restriction),
+        'quota_project_id': DisplayDataItem(
+            self._get_quota_project_id(),
+            label='BigQuery Quota Project').drop_if_none(),
         'launchesBigQueryJobs': DisplayDataItem(
             True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
     # Returns the pre-filtering size of the (temporary) table being read.
-    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
-        self.pipeline_options)
+    bq = self._create_bq_wrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -1242,10 +1285,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
-      bq = bigquery_tools.BigQueryWrapper(
-          temp_table_ref=(self.temp_table if self.temp_table else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(
-              self.pipeline_options))
+      bq = self._create_bq_wrapper(
+          temp_table_ref=(self.temp_table if self.temp_table else None))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -1278,7 +1319,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.row_restriction is not None:
         requested_session.read_options.row_restriction = self.row_restriction
 
-      storage_client = bq_storage.BigQueryReadClient()
+      storage_client = bigquery_tools.create_bq_storage_client(
+          self._get_quota_project_id())
       stream_count = self._get_stream_count(bq, desired_bundle_size)
 
       parent = 'projects/{}'.format(self.table_reference.projectId)
@@ -1302,8 +1344,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       self.split_result = [
           _CustomBigQueryStorageStreamSource(
-              stream.name, self.use_native_datetime, self.timeout)
-          for stream in read_session.streams
+              stream.name,
+              self.use_native_datetime,
+              self.timeout,
+              self._get_quota_project_id()) for stream in read_session.streams
       ]
 
     for source in self.split_result:
@@ -1337,10 +1381,12 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
       self,
       read_stream_name: str,
       use_native_datetime: Optional[bool] = True,
-      timeout: Optional[float] = None):
+      timeout: Optional[float] = None,
+      quota_project_id: Optional[str] = None):
     self.read_stream_name = read_stream_name
     self.use_native_datetime = use_native_datetime
     self.timeout = timeout
+    self.quota_project_id = quota_project_id
 
   def display_data(self):
     return {
@@ -1363,7 +1409,10 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
     return SourceBundle(
         weight=1.0,
         source=_CustomBigQueryStorageStreamSource(
-            self.read_stream_name, self.use_native_datetime),
+            self.read_stream_name,
+            self.use_native_datetime,
+            self.timeout,
+            self.quota_project_id),
         start_position=None,
         stop_position=None)
 
@@ -1399,7 +1448,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_arrow(self):
 
-    storage_client = bq_storage.BigQueryReadClient()
+    storage_client = bigquery_tools.create_bq_storage_client(
+        self.quota_project_id)
     read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
     if self.timeout is not None:
       read_rows_kwargs['timeout'] = self.timeout
@@ -1418,7 +1468,8 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
       yield py_row
 
   def read_avro(self):
-    storage_client = bq_storage.BigQueryReadClient()
+    storage_client = bigquery_tools.create_bq_storage_client(
+        self.quota_project_id)
     read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
     if self.timeout is not None:
       read_rows_kwargs['timeout'] = self.timeout
@@ -1472,6 +1523,39 @@ def BigQuerySink(*args, validate=False, **kwargs):
 
 
 _KNOWN_TABLES = set()
+# Primitive scalar types that do not contain nested object references and can be
+# sized directly via sys.getsizeof without gc.get_referents traversal.
+_PRIMITIVE_SIZEOF_TYPES = (str, int, float, bool, bytes, type(None))
+
+
+def _fast_row_and_insert_id_size(row_and_insert_id):
+  """Fast-path byte size estimator for a ``(row_dict, insert_id)`` tuple.
+
+  ``objsize.get_deep_size`` traverses the Python object graph via
+  ``gc.get_referents`` and tracks visited object IDs on every call. When the row
+  is a flat ``dict`` of primitive keys and values, we can sum ``sys.getsizeof``
+  directly and fall back to ``get_deep_size`` only if nested containers or
+  non-primitive values are encountered.
+  """
+  if type(row_and_insert_id) is tuple and len(row_and_insert_id) == 2:
+    row, insert_id = row_and_insert_id
+    if type(row) is dict and type(insert_id) in _PRIMITIVE_SIZEOF_TYPES:
+      getsizeof = sys.getsizeof
+      total = getsizeof(row_and_insert_id) + getsizeof(row)
+      # objsize.get_deep_size ignores None singletons (which are not tracked by
+      # the cyclic garbage collector).
+      if insert_id is not None:
+        total += getsizeof(insert_id)
+      for k, v in row.items():
+        if not (type(k) in _PRIMITIVE_SIZEOF_TYPES and
+                type(v) in _PRIMITIVE_SIZEOF_TYPES):
+          return get_deep_size(row_and_insert_id)
+        # Avoid double-counting if a column value references the same object as
+        # insert_id, and skip None values to match get_deep_size behavior.
+        total += getsizeof(k) + (
+            getsizeof(v) if v is not None and v is not insert_id else 0)
+      return total
+  return get_deep_size(row_and_insert_id)
 
 
 class BigQueryWriteFn(DoFn):
@@ -1499,7 +1583,8 @@ class BigQueryWriteFn(DoFn):
       with_batched_input=False,
       ignore_unknown_columns=False,
       max_retries=MAX_INSERT_RETRIES,
-      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
+      quota_project_id=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1552,9 +1637,12 @@ class BigQueryWriteFn(DoFn):
         backoffs (effectively retry forever).
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
+      quota_project_id: Optional GCP project ID to use for quota and billing of
+        BigQuery API requests.
     """
     self.schema = schema
     self.test_client = test_client
+    self.quota_project_id = quota_project_id
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     if write_disposition in (BigQueryDisposition.WRITE_EMPTY,
@@ -1633,7 +1721,7 @@ class BigQueryWriteFn(DoFn):
 
     if not self.bigquery_wrapper:
       self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
-          client=self.test_client)
+          client=self.test_client, quota_project_id=self.quota_project_id)
 
     (
         bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.
@@ -1672,8 +1760,15 @@ class BigQueryWriteFn(DoFn):
     _KNOWN_TABLES.add(str_table_reference)
 
   def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
-    """Returns error string when the row estimated size is too big"""
-    row_byte_size = get_deep_size(row_and_insert_id)
+    """Returns the estimated row byte size and an optional error string if the
+    row exceeds ``_max_insert_payload_size``."""
+    row_byte_size = _fast_row_and_insert_id_size(row_and_insert_id)
+
+    # _fast_row_and_insert_id_size does not deduplicate shared object references
+    # across fields. If the fast estimate reaches the payload limit, re-compute
+    # with get_deep_size before rejecting the row.
+    if row_byte_size >= self._max_insert_payload_size:
+      row_byte_size = get_deep_size(row_and_insert_id)
 
     # Check if individual row exceeds size limit
     if row_byte_size >= self._max_insert_payload_size:
@@ -1690,15 +1785,20 @@ class BigQueryWriteFn(DoFn):
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
 
-    if callable(self.schema):
-      schema = self.schema(destination, *schema_side_inputs)
-    elif isinstance(self.schema, vp.ValueProvider):
-      schema = self.schema.get()
-    else:
-      schema = self.schema
+    # Skip per-element schema evaluation and table reference regex parsing when
+    # table creation is disabled (CREATE_NEVER) or when the canonical
+    # 'project:dataset.table' destination has already been verified.
+    if (self.create_disposition != BigQueryDisposition.CREATE_NEVER and
+        destination not in _KNOWN_TABLES):
+      if callable(self.schema):
+        schema = self.schema(destination, *schema_side_inputs)
+      elif isinstance(self.schema, vp.ValueProvider):
+        schema = self.schema.get()
+      else:
+        schema = self.schema
 
-    self._create_table_if_needed(
-        bigquery_tools.parse_table_reference(destination), schema)
+      self._create_table_if_needed(
+          bigquery_tools.parse_table_reference(destination), schema)
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
@@ -1958,6 +2058,8 @@ class _StreamToBigQuery(PTransform):
       yield (key, (value, insert_id))
 
   def expand(self, input):
+    quota_project_id = bigquery_tools._quota_project_id_from_options(
+        input.pipeline.options)
     bigquery_write_fn = BigQueryWriteFn(
         schema=self.schema,
         batch_size=self.batch_size,
@@ -1971,7 +2073,8 @@ class _StreamToBigQuery(PTransform):
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
         max_retries=self._max_retries,
-        max_insert_payload_size=self._max_insert_payload_size)
+        max_insert_payload_size=self._max_insert_payload_size,
+        quota_project_id=quota_project_id)
 
     def _add_random_shard(element):
       key = element[0]
@@ -3043,6 +3146,12 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    quota_project_id (str): The GCP project ID to use for quota and billing
+      of BigQuery API requests issued by this transform, if different from
+      the project the data resides in. Falls back to the
+      ``--bigquery_quota_project_id`` pipeline option if not set. The
+      credentials used must have the ``serviceusage.services.use``
+      permission on that project.
     query_output_schema: Required when output_type is 'BEAM_ROW' and a query
       is specified. A BigQuery schema describing the query result columns,
       since the schema cannot be auto-derived from an existing table when
@@ -3143,10 +3252,12 @@ class ReadFromBigQuery(PTransform):
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
       return output_pcollection | bigquery_schema_tools.convert_to_usertype(
-          bigquery_tools.BigQueryWrapper().get_table(
-              project_id=table_details.projectId,
-              dataset_id=table_details.datasetId,
-              table_id=table_details.tableId).schema,
+          bigquery_tools.BigQueryWrapper(
+              pipeline_options=output_pcollection.pipeline.options,
+              quota_project_id=self._kwargs.get('quota_project_id')).get_table(
+                  project_id=table_details.projectId,
+                  dataset_id=table_details.datasetId,
+                  table_id=table_details.tableId).schema,
           self._kwargs.get('selected_fields', None))
     else:
       raise ValueError(
@@ -3228,7 +3339,9 @@ class ReadFromBigQuery(PTransform):
                 bigquery_dataset_labels=self.bigquery_dataset_labels,
                 *self._args,
                 **self._kwargs))
-        | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
+        | _PassThroughThenCleanupTempDatasets(
+            project_to_cleanup_pcoll,
+            quota_project_id=self._kwargs.get('quota_project_id')))
 
 
 class ReadFromBigQueryRequest:

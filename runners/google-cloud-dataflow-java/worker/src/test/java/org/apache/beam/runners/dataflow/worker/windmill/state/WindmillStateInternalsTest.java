@@ -2387,6 +2387,111 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListDeleteRangeThenAddPersist() throws Exception {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    // Clear a sub-range [2ms, 4ms) and then add an element at 2ms within that cleared range.
+    orderedListState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(2000, updates.getDeletes(0).getRange().getStart());
+    assertEquals(4000, updates.getDeletes(0).getRange().getLimit());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // Verify that the sub-range deletion for [2ms, 3ms) was removed when "hello" was added at 2ms,
+    // so clearing the rest of the 5-minute bucket [0, 2ms) and [4ms, 5m) in the next work item
+    // does not wipe out id tracking for the bucket.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochMilli(2));
+    orderedListState.clearRange(Instant.ofEpochMilli(4), Instant.ofEpochSecond(300));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+    assertBuildable(commitBuilder);
+
+    // Adding another element at 2ms in a subsequent work item should get the next id (1), not 0.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("world", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // Now clear the entire 5-minute bucket [0, 5m) and add a new element in the same work item.
+    // The delete should be processed before the add, resetting the bucket's ids to start at
+    // NEW_RANGE_MIN_ID (0) for the new element while preserving its id tracking for future adds.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochSecond(300));
+    orderedListState.add(TimestampedValue.of("afterFullClear1", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("afterFullClear1", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // A subsequent add in the same bucket should receive NEW_RANGE_MIN_ID + 1.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("afterFullClear2", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("afterFullClear2", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
   public void testOrderedListMergePendingAdds() {
     SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
     orderedListFuture.set(null);

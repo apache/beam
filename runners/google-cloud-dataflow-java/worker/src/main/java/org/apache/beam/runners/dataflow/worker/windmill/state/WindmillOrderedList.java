@@ -233,6 +233,20 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
         cleared = false;
       }
 
+      if (!pendingDeletes.isEmpty()) {
+        for (Range<Instant> range : pendingDeletes.asRanges()) {
+          Windmill.TagSortedListDeleteRequest.Builder deletesBuilder =
+              updatesBuilder.addDeletesBuilder();
+          deletesBuilder.setRange(
+              Windmill.SortedListRange.newBuilder()
+                  .setStart(WindmillTimeUtils.harnessToWindmillTimestamp(range.lowerEndpoint()))
+                  .setLimit(WindmillTimeUtils.harnessToWindmillTimestamp(range.upperEndpoint())));
+          deletesBuilder.build();
+          idTracker.remove(range);
+        }
+        pendingDeletes.clear();
+      }
+
       if (!pendingAdds.isEmpty()) {
         // TODO(reuvenlax): Once we start caching data, we should remove this line. We have it
         // here now
@@ -260,20 +274,6 @@ public class WindmillOrderedList<T> extends SimpleWindmillState implements Order
             });
         pendingAdds.clear();
         insertBuilder.build();
-      }
-
-      if (!pendingDeletes.isEmpty()) {
-        for (Range<Instant> range : pendingDeletes.asRanges()) {
-          Windmill.TagSortedListDeleteRequest.Builder deletesBuilder =
-              updatesBuilder.addDeletesBuilder();
-          deletesBuilder.setRange(
-              Windmill.SortedListRange.newBuilder()
-                  .setStart(WindmillTimeUtils.harnessToWindmillTimestamp(range.lowerEndpoint()))
-                  .setLimit(WindmillTimeUtils.harnessToWindmillTimestamp(range.upperEndpoint())));
-          deletesBuilder.build();
-          idTracker.remove(range);
-        }
-        pendingDeletes.clear();
       }
     } catch (ExecutionException | InterruptedException e) {
       throw new RuntimeException(e);

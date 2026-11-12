@@ -356,7 +356,7 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
   }
 
   @Test
-  public void testException_join_condition2() throws Exception {
+  public void testJoinWithEquiAndNonEquiCondition() throws Exception {
     String sql =
         "SELECT *  "
             + "FROM ORDER_DETAILS1 o1"
@@ -364,9 +364,21 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " on "
             + " o1.order_id = o2.site_id AND o1.price > o2.site_id";
 
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(StringContains.containsString("Non equi-join"));
-    compilePipeline(sql, pipeline);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
+                .addRows(2, 3, 3, 1, 2, 3)
+                .addRows(3, 4, 5, 2, 3, 3)
+                .getRows());
     pipeline.run();
   }
 
@@ -402,12 +414,26 @@ public class BeamCoGBKJoinRelBoundedVsBoundedTest extends BaseRelTest {
     pipeline.run();
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void testException_crossJoin() throws Exception {
+  @Test
+  public void testCrossJoin() throws Exception {
     String sql = "SELECT *  " + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
 
-    pipeline.enableAbandonedNodeEnforcement(false);
-    compilePipeline(sql, pipeline);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.builder()
+                        .addField("order_id", Schema.FieldType.INT32)
+                        .addField("site_id", Schema.FieldType.INT32)
+                        .addField("price", Schema.FieldType.INT32)
+                        .addField("order_id0", Schema.FieldType.INT32)
+                        .addField("site_id0", Schema.FieldType.INT32)
+                        .addField("price0", Schema.FieldType.INT32)
+                        .build())
+                .addRows(
+                    1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 3, 3, 1, 2, 3, 3, 4, 5, 2, 3, 3, 1, 2, 3, 2, 3, 3,
+                    2, 3, 3, 2, 3, 3, 3, 4, 5, 3, 4, 5, 1, 2, 3, 3, 4, 5, 2, 3, 3, 3, 4, 5, 3, 4, 5)
+                .getRows());
     pipeline.run();
   }
 }

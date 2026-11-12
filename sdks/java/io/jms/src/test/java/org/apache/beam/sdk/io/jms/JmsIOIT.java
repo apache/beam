@@ -90,7 +90,7 @@ import org.junit.runners.Parameterized;
  * </pre>
  *
  * The default values for each parameter are: - jmsBrokerHost: amqp://localhost - jmsBrokerPort:
- * 5672 - localJmsBrokerEnabled: true - readTimeout: 30
+ * 5672 - localJmsBrokerEnabled: true - readTimeout: 60
  */
 @RunWith(Parameterized.class)
 public class JmsIOIT implements Serializable {
@@ -120,7 +120,7 @@ public class JmsIOIT implements Serializable {
     void setLocalJmsBrokerEnabled(boolean isEnabled);
 
     @Description("JMS Read Timeout in seconds")
-    @Default.Integer(30)
+    @Default.Integer(60)
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);

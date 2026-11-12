@@ -21,7 +21,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
@@ -146,5 +148,70 @@ public class SchemaUtilsTest {
     String rendered = row.toString();
     assertTrue(rendered, rendered.contains("1"));
     assertTrue(rendered, rendered.contains("null"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersIterableThatIsNotAList() {
+    Schema schema =
+        Schema.builder().addStringField("k").addIterableField("vals", FieldType.STRING).build();
+    // A bare Iterable, which is exactly what an ITERABLE field declares.
+    Iterable<String> bare = () -> Arrays.asList("p", "q").iterator();
+    Row row = Row.withSchema(schema).attachValues("k1", bare);
+
+    // The precondition that makes this test meaningful: if the value ever starts arriving as a
+    // List, the assertion below would pass for the wrong reason.
+    assertTrue(!(row.getValue("vals") instanceof java.util.List));
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("p"));
+    assertTrue(rendered, rendered.contains("q"));
+  }
+
+  @Test
+  public void testToPrettyStringStillRendersAListArray() {
+    // Control: the ordinary List case must be unchanged.
+    Schema schema = Schema.builder().addArrayField("vals", FieldType.STRING).build();
+    Row row = Row.withSchema(schema).attachValues((Object) Arrays.asList("p", "q"));
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("p"));
+    assertTrue(rendered, rendered.contains("q"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersAnIterableThatCanOnlyBeReadOnce() {
+    Schema schema =
+        Schema.builder().addStringField("k").addIterableField("vals", FieldType.STRING).build();
+    // Hands out its iterator exactly once and fails loudly on a second attempt. Rendering asks
+    // the collection for one traversal now; asking for isEmpty(), then size(), then iterating
+    // would trip the guard below.
+    Iterable<String> onceOnly =
+        new Iterable<String>() {
+          private boolean taken = false;
+
+          @Override
+          public Iterator<String> iterator() {
+            if (taken) {
+              throw new IllegalStateException("iterated more than once");
+            }
+            taken = true;
+            return Arrays.asList("p", "q").iterator();
+          }
+        };
+    Row row = Row.withSchema(schema).attachValues("k1", onceOnly);
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("p"));
+    assertTrue(rendered, rendered.contains("q"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersAnEmptyIterableAsEmptyBrackets() {
+    Schema schema = Schema.builder().addIterableField("vals", FieldType.STRING).build();
+    Iterable<String> empty = Collections::emptyIterator;
+    Row row = Row.withSchema(schema).attachValues((Object) empty);
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("[]"));
   }
 }

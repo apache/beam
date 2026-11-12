@@ -20,6 +20,7 @@ package org.apache.beam.io.debezium;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -33,6 +34,7 @@ import java.util.Map;
 import org.apache.beam.io.debezium.DebeziumIO.ConnectorConfiguration;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.config.ConfigValue;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -233,6 +235,50 @@ public class DebeziumIOTest implements Serializable {
     KafkaSourceConsumerFn<String> fn = new KafkaSourceConsumerFn<>(MySqlConnector.class, spec);
     KafkaSourceConsumerFn.OffsetHolder restriction = fn.getInitialRestriction(null);
     assertEquals(explicitOffset, restriction.offset);
+  }
+
+  @Test
+  public void testReadAsJsonWithFullMetadata() throws Exception {
+    SourceRecord record =
+        SourceRecordJsonTest.buildEnvelopeRecord(SourceRecordJsonTest.postgresSource(), "u");
+    SourceRecordMapper<String> fn =
+        DebeziumIO.readAsJson().withFullMetadata(true).resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadAsJsonWithoutFullMetadata() {
+    DebeziumIO.Read<String> read = DebeziumIO.readAsJson();
+    assertSame(read.getFormatFunction(), read.resolveFormatFunction());
+  }
+
+  @Test
+  public void testFullMetadataWithCustomFormatFunctionThrows() {
+    DebeziumIO.Read<String> read =
+        DebeziumIO.<String>read()
+            .withFormatFunction(sourceRecord -> sourceRecord.toString())
+            .withFullMetadata(true);
+    assertThrows(IllegalArgumentException.class, read::resolveFormatFunction);
+  }
+
+  @Test
+  public void testBuildExternalWithFullMetadata() throws Exception {
+    DebeziumTransformRegistrar.ReadBuilder.Configuration config =
+        new DebeziumTransformRegistrar.ReadBuilder.Configuration();
+    config.setUsername("user");
+    config.setPassword("pass");
+    config.setHost("localhost");
+    config.setPort("3306");
+    config.setConnectorClass("MySQL");
+    config.setFullMetadata(true);
+    DebeziumIO.Read<String> read =
+        (DebeziumIO.Read<String>)
+            new DebeziumTransformRegistrar.ReadBuilder().buildExternal(config);
+    SourceRecord record =
+        SourceRecordJsonTest.buildEnvelopeRecord(SourceRecordJsonTest.postgresSource(), "u");
+    assertEquals(
+        new SourceRecordJson(record, true).toJson(),
+        read.resolveFormatFunction().mapSourceRecord(record));
   }
 
   @Test

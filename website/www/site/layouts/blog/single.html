@@ -28,14 +28,14 @@ limitations under the License. See accompanying LICENSE file.
             {{ with $authors }}
                 {{ $count := len . }}
                 {{ range $index, $authorId := . }}
-                    {{ if and (ne $index 0) (gt $count 2) (lt $index (sub $count 1))}},{{ end }}
+                    {{- if and (ne $index 0) (gt $count 2) (lt $index (sub $count 1))}},{{ end }}
                     {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
                     {{ with index $.Site.Data.authors $authorId }}
                       {{ .name }}{{ with .twitter }} [<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
-                    {{ else }}
+                    {{- else }}
                       {{ $authorId }}
-                    {{ end }}
-                {{ end }}
+                    {{- end }}
+                {{- end }}
             {{ end }}
           </span>
         </div>

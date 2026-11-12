@@ -32,6 +32,7 @@ import itertools
 import json
 import logging
 import random
+import sys
 import threading
 from dataclasses import dataclass
 from dataclasses import field
@@ -219,7 +220,7 @@ class DataInputOperation(RunnerIOOperation):
     self.consumer = next(iter(consumers.values()))
     self.splitting_lock = threading.Lock()
     self.index = -1
-    self.stop = float('inf')
+    self.stop = sys.maxsize
     self.started = False
 
   def setup(self, data_sampler=None):
@@ -246,21 +247,23 @@ class DataInputOperation(RunnerIOOperation):
 
   def process_encoded(self, encoded_windowed_values: bytes) -> None:
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
+    decode_from_stream = self.windowed_coder_impl.decode_from_stream
+    output = self.receivers[0].receive
+    splitting_lock = self.splitting_lock
     while input_stream.size() > 0:
-      with self.splitting_lock:
+      with splitting_lock:
         if self.index == self.stop - 1:
           return
         self.index += 1
       try:
-        decoded_value = self.windowed_coder_impl.decode_from_stream(
-            input_stream, True)
+        decoded_value = decode_from_stream(input_stream, True)
       except Exception as exn:
         coder = str(self.windowed_coder)
         step = self.name_context.step_name
         raise ValueError(
             f"Error decoding input stream with coder {coder} in step {step}"
         ) from exn
-      self.output(decoded_value)
+      output(decoded_value)
 
   def monitoring_infos(
       self, transform_id: str, tag_to_pcollection_id: dict[str, str]
@@ -377,7 +380,7 @@ class DataInputOperation(RunnerIOOperation):
   def reset(self) -> None:
     with self.splitting_lock:
       self.index = -1
-      self.stop = float('inf')
+      self.stop = sys.maxsize
     super().reset()
 
 
@@ -620,6 +623,17 @@ class _ConcatIterable(object):
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
+def _await_state_commit(futures) -> None:
+  # Resolve every write before reporting errors, including clears followed by
+  # appends. State futures return error responses rather than raising them.
+  responses = [future.get() for future in futures if future]
+  errors = [
+      response.error for response in responses if response and response.error
+  ]
+  if errors:
+    raise RuntimeError('\n'.join(errors))
+
+
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def __init__(
       self,
@@ -647,15 +661,16 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     self._added_elements = []
 
   def commit(self) -> None:
-    to_await = None
+    futures = []
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key)
+      futures.append(self._state_handler.clear(self._state_key))
     if self._added_elements:
-      to_await = self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), self._added_elements)
-    if to_await:
-      # To commit, we need to wait on the last state request future to complete.
-      to_await.get()
+      futures.append(
+          self._state_handler.extend(
+              self._state_key,
+              self._value_coder.get_impl(),
+              self._added_elements))
+    _await_state_commit(futures)
 
 
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
@@ -727,9 +742,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     all_futures = self._futures
     self._futures = []
 
-    for f in all_futures:
-      if f:
-        f.get()
+    _await_state_commit(all_futures)
 
 
 class RangeSet:
@@ -898,10 +911,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
               self._state_key, self._elem_coder.get_impl(), items_to_add))
       self._pending_adds = SortedDict()
 
-    if len(futures):
-      # To commit, we need to wait on every state request futures to complete.
-      for to_await in futures:
-        to_await.get()
+    _await_state_commit(futures)
 
     self._cleared = False
 
@@ -981,6 +991,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
+    self._key_coder_impl = key_coder.get_impl() if key_coder else None
+    self._window_coder_impl = window_coder.get_impl() if window_coder else None
     # A mapping of {timer_family_id: TimerInfo}
     self._timers_info: dict[str, TimerInfo] = {}
     self._all_states: dict[tuple, FnApiUserRuntimeStateTypes] = {}
@@ -991,9 +1003,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
   def get_timer(
       self, timer_spec: userstate.TimerSpec, key, window, timestamp,
       pane) -> OutputTimer:
-    assert self._timers_info[timer_spec.name].output_stream is not None
-    timer_coder_impl = self._timers_info[timer_spec.name].timer_coder_impl
-    output_stream = self._timers_info[timer_spec.name].output_stream
+    timer_info = self._timers_info[timer_spec.name]
+    assert timer_info.output_stream is not None
     return OutputTimer(
         key,
         window,
@@ -1001,8 +1012,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
         pane,
         timer_spec.time_domain,
         timer_spec.name,
-        timer_coder_impl,
-        output_stream)
+        timer_info.timer_coder_impl,
+        timer_info.output_stream)
 
   def get_state(self, *args: Any) -> FnApiUserRuntimeStateTypes:
     state_handle = self._all_states.get(args)
@@ -1023,9 +1034,9 @@ class FnApiUserStateContext(userstate.UserStateContext):
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
+                  window=self._window_coder_impl.encode(window),
                   # State keys are expected in nested encoding format
-                  key=self._key_coder.encode_nested(key))),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
@@ -1041,9 +1052,9 @@ class FnApiUserStateContext(userstate.UserStateContext):
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
+                  window=self._window_coder_impl.encode(window),
                   # State keys are expected in nested encoding format
-                  key=self._key_coder.encode_nested(key))),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
     elif isinstance(state_spec, userstate.OrderedListStateSpec):
       return SynchronousOrderedListRuntimeState(
@@ -1053,8 +1064,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
               OrderedListUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
-                  key=self._key_coder.encode_nested(key))),
+                  window=self._window_coder_impl.encode(window),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)

@@ -188,7 +188,9 @@ class NumpyBatchConverter(BatchConverter):
     if not isinstance(element_type, NumpyTypeHint.NumpyTypeConstraint):
       try:
         element_type = NumpyArray[element_type, ()]
-      except TypeError as e:
+      # NumPy 2.4.6+ can also raise a value error if given a dtype that cannot
+      # be converted into a numpy dtype.
+      except (TypeError, ValueError) as e:
         raise TypeError("Element type is not a dtype") from e
 
     if not isinstance(batch_type, NumpyTypeHint.NumpyTypeConstraint):

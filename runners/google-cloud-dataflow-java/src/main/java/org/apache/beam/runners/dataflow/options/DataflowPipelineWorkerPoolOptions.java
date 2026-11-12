@@ -137,6 +137,23 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   void setSdkContainerImage(String value);
 
   /**
+   * Base repository (registry host and path prefix) of the default Dataflow container images, e.g.
+   * {@code docker.example.com/my-prefix/cloud-dataflow/v1beta3}. If unset, the default repository
+   * of the Dataflow runner is used.
+   */
+  @Description(
+      "Base repository (registry host and path prefix) from which the Dataflow runner pulls its "
+          + "default SDK container images, e.g. "
+          + "docker.example.com/my-prefix/cloud-dataflow/v1beta3. The runner appends the image "
+          + "name and tag, e.g. <base>/beam_java17_sdk:<version>. This is also used for the "
+          + "default images of cross-language Apache Beam environments. Ignored for the Java SDK "
+          + "image if sdkContainerImage is set. If not set, the Google Cloud Dataflow default "
+          + "(gcr.io/cloud-dataflow/v1beta3) is used.")
+  @Nullable String getDataflowContainerBaseRepository();
+
+  void setDataflowContainerBaseRepository(@Nullable String value);
+
+  /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
    * workers.
    *

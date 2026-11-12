@@ -21,8 +21,10 @@
 
 import itertools
 import logging
+import queue
 import time
 import unittest
+from unittest import mock
 
 import grpc
 
@@ -106,6 +108,60 @@ class DataChannelTest(unittest.TestCase):
       factory.close()
     finally:
       server.stop(0)
+
+  def test_grpc_data_channel_preserves_input_failure(self):
+    channel = data_plane._GrpcDataChannel()
+    input_error = ValueError('injected data stream failure')
+    self.addCleanup(self.assertRaises, ValueError, channel.close)
+
+    def failed_inputs():
+      raise input_error
+      yield
+
+    with self.assertLogs(data_plane._LOGGER, level=logging.ERROR):
+      with self.assertRaises(ValueError):
+        channel._read_inputs(failed_inputs())
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
+    with self.assertRaisesRegex(RuntimeError,
+                                'Channel closed prematurely') as consumer_error:
+      list(channel.input_elements('instruction', ['input']))
+    self.assertIs(consumer_error.exception.__cause__, input_error)
+
+  def test_grpc_data_channel_premature_eof(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    channel._read_inputs(iter([]))
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
+    with self.assertRaisesRegex(RuntimeError,
+                                'Channel closed prematurely') as consumer_error:
+      list(channel.input_elements('instruction', ['input']))
+    self.assertIsNone(consumer_error.exception.__cause__)
+    self.assertTrue(consumer_error.exception.__suppress_context__)
+
+  def test_grpc_data_channel_completed_input_before_eof(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    data = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction', transform_id='input', data=b'abc')
+    end = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction', transform_id='input', is_last=True)
+    channel._read_inputs(iter([beam_fn_api_pb2.Elements(data=[data, end])]))
+    self.assertEqual(
+        list(channel.input_elements('instruction', ['input'])), [data])
+
+  def test_grpc_data_channel_input_aborted(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    channel._received['instruction'] = mock.Mock(
+        spec=data_plane.ByteLimitedQueue,
+        get=mock.Mock(side_effect=queue.Empty))
+    self.assertEqual(
+        list(channel.input_elements('instruction', ['input'], lambda: True)),
+        [])
 
   def test_in_memory_data_channel(self):
     channel = data_plane.InMemoryDataChannel()

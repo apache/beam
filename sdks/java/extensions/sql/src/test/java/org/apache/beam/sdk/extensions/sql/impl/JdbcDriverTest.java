@@ -22,9 +22,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.sql.Connection;
@@ -36,13 +38,21 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.seqgen.GenerateSequenceTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
@@ -447,6 +457,47 @@ public class JdbcDriverTest {
     assertTrue(resultSet2.next());
     assertTrue(resultSet2.next());
     assertFalse(resultSet2.next());
+  }
+
+  /** Statement.cancel() (e.g. Ctrl+C in the SQL shell) must stop a never-ending pipeline. */
+  @Test
+  public void testCancelUnboundedQuery() throws Exception {
+    TestTableProvider testTables = new TestTableProvider();
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager.registerTableProvider(testTables);
+    catalogManager.registerTableProvider(new GenerateSequenceTableProvider());
+    Connection connection = JdbcDriver.connect(catalogManager, PipelineOptionsFactory.create());
+    Statement ddl = connection.createStatement();
+    ddl.execute(
+        "CREATE EXTERNAL TABLE seq (sequence BIGINT, event_time TIMESTAMP) TYPE 'sequence'");
+    ddl.execute("CREATE EXTERNAL TABLE sink (sequence BIGINT) TYPE 'test'");
+
+    ExecutorService executor = Executors.newCachedThreadPool();
+    try {
+      Statement insert = connection.createStatement();
+      Future<?> insertRun =
+          executor.submit(() -> insert.execute("INSERT INTO sink SELECT sequence FROM seq"));
+      while (testTables.tableRows("sink").isEmpty() && !insertRun.isDone()) {
+        Thread.sleep(100);
+      }
+      assertCancels(insert, insertRun);
+
+      for (String select :
+          Arrays.asList("SELECT sequence FROM seq", "SELECT sequence FROM seq LIMIT 1000000")) {
+        Statement statement = connection.createStatement();
+        assertCancels(statement, executor.submit(() -> statement.executeQuery(select)));
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  private static void assertCancels(Statement statement, Future<?> run) throws Exception {
+    statement.cancel();
+    ExecutionException e =
+        assertThrows(ExecutionException.class, () -> run.get(30, TimeUnit.SECONDS));
+    assertThat(e.getCause(), instanceOf(SQLException.class));
+    assertThat(e.getCause().getMessage(), containsString("Statement canceled"));
   }
 
   private List<List<Object>> readResultSet(ResultSet result) throws Exception {

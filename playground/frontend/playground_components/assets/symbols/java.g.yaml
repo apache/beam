@@ -1292,9 +1292,6 @@ BeamSqlCli:
   - explainQuery
   - getMetaStore
   - metaStore
-BeamSqlDataCatalogExample: 
-  methods: 
-  - main
 BeamSqlEnv: 
   methods: 
   - addSchema
@@ -3424,22 +3421,6 @@ DaoFactory:
   - getChangeStreamDao
   - getPartitionMetadataAdminDao
   - getPartitionMetadataDao
-DataCatalogPipelineOptionsRegistrar: 
-  methods: 
-  - getPipelineOptions
-DataCatalogTableProvider: 
-  methods: 
-  - buildBeamSqlTable
-  - close
-  - create
-  - createDataCatalogClient
-  - createTable
-  - dropTable
-  - getTable
-  - getTableByFullName
-  - getTableType
-  - getTables
-  - setSchemaIfNotPresent
 DataChangeRecord: 
   methods: 
   - equals

@@ -159,10 +159,10 @@ public class CloudObjectsTest {
                       IntervalWindow.getCoder()))
               .add(ByteArrayCoder.of())
               .add(VarLongCoder.of())
-              .add(SerializableCoder.of(Record.class))
+              .add(SerializableCoder.of(TestRecord.class))
               .add(AvroCoder.generic(avroSchema))
               .add(AvroCoder.specific(AvroGeneratedUser.class))
-              .add(AvroCoder.reflect(Record.class))
+              .add(AvroCoder.reflect(TestRecord.class))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
@@ -254,7 +254,7 @@ public class CloudObjectsTest {
     }
   }
 
-  private static class Record implements Serializable {}
+  private static class TestRecord implements Serializable {}
 
   private static org.apache.avro.Schema avroSchema =
       new org.apache.avro.Schema.Parser()
@@ -286,13 +286,14 @@ public class CloudObjectsTest {
   }
 
   /** A non-custom coder with no registered translator. */
-  private static class ArbitraryCoder extends StructuredCoder<Record> {
+  private static class ArbitraryCoder extends StructuredCoder<TestRecord> {
     @Override
-    public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
+    public void encode(TestRecord value, OutputStream outStream)
+        throws CoderException, IOException {}
 
     @Override
-    public Record decode(InputStream inStream) throws CoderException, IOException {
-      return new Record();
+    public TestRecord decode(InputStream inStream) throws CoderException, IOException {
+      return new TestRecord();
     }
 
     @Override

@@ -141,6 +141,24 @@ class RetryTest(unittest.TestCase):
         500)
     self.assertEqual(len(self.clock.calls), 10)
 
+  @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
+  def test_quota_filter_preserves_http_error_with_non_json_content(self):
+    error = HttpError({'status': '403'},
+                      '<html>upstream error</html>',
+                      'https://example.test')
+
+    @retry.with_exponential_backoff(
+        clock=self.clock,
+        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter
+    )
+    def fail():
+      raise error
+
+    with self.assertRaises(HttpError) as raised:
+      fail()
+    self.assertIs(raised.exception, error)
+    self.assertEqual(self.clock.calls, [])
+
   def test_with_explicit_initial_delay(self):
     self.assertRaises(
         NotImplementedError,

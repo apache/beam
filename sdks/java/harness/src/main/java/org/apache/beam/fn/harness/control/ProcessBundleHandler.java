@@ -768,6 +768,9 @@ public class ProcessBundleHandler {
   public void shutdown() throws Exception {
     bundleProcessorCache.shutdown();
     beamFnDataClient.close();
+    if (beamFnStateGrpcClientCache != null) {
+      beamFnStateGrpcClientCache.close();
+    }
   }
 
   @VisibleForTesting

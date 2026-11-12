@@ -22,8 +22,8 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 import datetime
+from collections.abc import Sequence
 from typing import Optional
-from typing import Sequence
 
 import numpy as np
 

@@ -32,9 +32,11 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFnFactory} which returns a {@link ParDoFn} that transforms all {@code
@@ -106,5 +108,10 @@ public class PairWithConstantKeyDoFnFactory implements ParDoFnFactory {
 
     @Override
     public void abort() {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 }

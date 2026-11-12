@@ -848,6 +848,41 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
+  private static final List<String> TABLE_ROW_MODEL_FIELDS =
+      ImmutableList.copyOf(new TableRow().getClassInfo().getNames());
+  private static final boolean TABLE_ROW_HAS_ONLY_F =
+      TABLE_ROW_MODEL_FIELDS.size() == 1 && TABLE_ROW_MODEL_FIELDS.contains("f");
+
+  private static Map<String, Object> unknownFieldMap(TableRow row, String key) {
+    // Model fields need GenericData's reflective access and its setter/removal semantics.
+    return TABLE_ROW_MODEL_FIELDS.contains(key) ? row : row.getUnknownKeys();
+  }
+
+  private static void setUnknownField(TableRow row, String key, Object value) {
+    if (TABLE_ROW_MODEL_FIELDS.contains(key)) {
+      row.set(key, value);
+    } else {
+      row.getUnknownKeys().put(key, value);
+    }
+  }
+
+  private static boolean isUnknownMapEmpty(Map<?, ?> map) {
+    if (TABLE_ROW_HAS_ONLY_F && map instanceof TableRow) {
+      TableRow row = (TableRow) map;
+      // A non-null model field counts as an entry, even when its cell list is empty.
+      return row.getUnknownKeys().isEmpty() && row.getF() == null;
+    }
+    // Preserve Map implementations and any future TableRow model fields.
+    return map.isEmpty();
+  }
+
+  /**
+   * Given a BigQuery row map, returns a protocol-buffer message for the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
+   */
   public static @Nullable DynamicMessage messageFromMap(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -888,7 +923,7 @@ public class TableRowToStorageApiProto {
 
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
-          unknownFields.set(key, entry.getValue());
+          setUnknownField(unknownFields, key, entry.getValue());
         }
         if (ignoreUnknownValues) {
           continue;
@@ -971,11 +1006,13 @@ public class TableRowToStorageApiProto {
               TableRow nestedUnknown = new TableRow();
               if (fieldDescriptor.isRepeated()) {
                 ((List<TableRow>)
-                        unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>()))
+                        unknownFieldMap(unknownFields, key)
+                            .computeIfAbsent(key, k -> new ArrayList<TableRow>()))
                     .add(nestedUnknown);
                 return nestedUnknown;
               }
-              return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
+              return (TableRow)
+                  unknownFieldMap(unknownFields, key).computeIfAbsent(key, k -> nestedUnknown);
             };
 
         @Nullable Object value =
@@ -993,17 +1030,19 @@ public class TableRowToStorageApiProto {
         // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
         // supplier (in case we encounter unknown nested fields). If the placeholder comes out
         // to be empty, we should clean it up
-        if ((fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
-                && unknownFields != null)
-            && ((unknownFields.get(key) instanceof Map
-                    && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) // single struct, empty
-                || (unknownFields.get(key)
-                        instanceof List // repeated struct, empty list or list with empty structs
-                    && (((List<?>) unknownFields.get(key)).isEmpty()
-                        || ((List<?>) unknownFields.get(key))
-                            .stream()
-                                .allMatch(row -> row == null || ((Map<?, ?>) row).isEmpty()))))) {
-          unknownFields.remove(key);
+        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+            && unknownFields != null) {
+          Map<String, Object> parentUnknown = unknownFieldMap(unknownFields, key);
+          Object nestedUnknown = parentUnknown.get(key);
+          if ((nestedUnknown instanceof Map && isUnknownMapEmpty((Map<?, ?>) nestedUnknown))
+              || (nestedUnknown instanceof List
+                  && (((List<?>) nestedUnknown).isEmpty()
+                      || ((List<?>) nestedUnknown)
+                          .stream()
+                              .allMatch(
+                                  row -> row == null || isUnknownMapEmpty((Map<?, ?>) row))))) {
+            parentUnknown.remove(key);
+          }
         }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
@@ -1042,7 +1081,8 @@ public class TableRowToStorageApiProto {
       return null;
     }
     try {
-      return Preconditions.checkArgumentNotNull(builder).build();
+      DynamicMessage.Builder nonNullBuilder = Preconditions.checkArgumentNotNull(builder);
+      return allowMissingRequiredFields ? nonNullBuilder.buildPartial() : nonNullBuilder.build();
     } catch (Exception e) {
       throw new SchemaDoesntMatchException(
           "Couldn't convert schema for " + schemaInformation.getFullName(), e);
@@ -1053,6 +1093,10 @@ public class TableRowToStorageApiProto {
    * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String, ErrorCollector)} via {@link
    * Long#toHexString}.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
@@ -1080,6 +1124,10 @@ public class TableRowToStorageApiProto {
   /**
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
@@ -1202,7 +1250,7 @@ public class TableRowToStorageApiProto {
       }
 
       try {
-        return builder.build();
+        return allowMissingRequiredFields ? builder.buildPartial() : builder.build();
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
             "Could convert schema for " + schemaInformation.getFullName(), e);

@@ -75,6 +75,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -123,10 +124,13 @@ public class PAssert {
       Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
 
   // Atomic so that PAssert transforms constructed concurrently (e.g. by tests running under
-  // BeamParallelJunit4Runner) never receive duplicate names within a pipeline.
+  // BeamParallelJunit4Runner) never receive duplicate names within a pipeline. With a plain int a
+  // lost update can move the counter backwards, so a single thread can be handed a name it already
+  // used in its own pipeline, which stableUniqueNames=ERROR then rejects.
   private static final AtomicInteger assertCount = new AtomicInteger(0);
 
-  private static String nextAssertionName() {
+  @VisibleForTesting
+  static String nextAssertionName() {
     return "PAssert$" + assertCount.getAndIncrement();
   }
 

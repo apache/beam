@@ -45,7 +45,6 @@ import argparse
 import binascii
 import logging
 import unittest
-from typing import ByteString
 from typing import NamedTuple
 
 import apache_beam as beam
@@ -58,6 +57,11 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  from collections.abc import Buffer
+except ImportError:
+  from typing_extensions import Buffer
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -82,7 +86,7 @@ TestRow = NamedTuple(
     [
         ('number_column', int),
         ('boolean_column', bool),
-        ('bytes_column', ByteString),
+        ('bytes_column', Buffer),
     ])
 
 coders.registry.register_coder(TestRow, coders.RowCoder)

@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from apache_beam.io.aws.clients import client_options
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 from apache_beam.utils import retry
@@ -47,26 +48,14 @@ class Client(object):
         values. --s3_* options override the --aws_* defaults for S3.
     """
     assert boto3 is not None, 'Missing boto3 requirement'
-    if isinstance(options, pipeline_options.PipelineOptions):
-      aws_options = options.view_as(pipeline_options.AwsOptions)
-      s3_options = options.view_as(pipeline_options.S3Options)
-    else:
-      aws_options = pipeline_options.AwsOptions(flags=[], **options)
-      s3_options = pipeline_options.S3Options(flags=[], **options)
-
-    settings = aws_options.get_client_settings(s3_options)
+    s3_options = client_options.view_options(
+        options, pipeline_options.S3Options)
 
     session = boto3.session.Session()
     self.client = session.client(
         service_name='s3',
-        region_name=settings['region_name'],
         api_version=s3_options.s3_api_version,
-        use_ssl=not settings['disable_ssl'],
-        verify=settings['verify'],
-        endpoint_url=settings['endpoint_url'],
-        aws_access_key_id=settings['access_key_id'],
-        aws_secret_access_key=settings['secret_access_key'],
-        aws_session_token=settings['session_token'])
+        **client_options.get_client_kwargs(options, pipeline_options.S3Options))
 
     self._download_request = None
     self._download_stream = None

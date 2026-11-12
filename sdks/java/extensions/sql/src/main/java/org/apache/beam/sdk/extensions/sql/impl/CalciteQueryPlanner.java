@@ -239,6 +239,11 @@ public class CalciteQueryPlanner implements QueryPlanner {
           String.format("Unable to convert query %s", sqlStatement), e);
     } catch (SqlParseException | ValidationException e) {
       throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
+    } catch (RuntimeException e) {
+      if (e.getCause() instanceof SqlConversionException) {
+        throw new SqlConversionException(e.getMessage(), e.getCause());
+      }
+      throw e;
     } finally {
       planner.close();
     }

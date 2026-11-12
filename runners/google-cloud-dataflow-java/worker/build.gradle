@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 
 // Set a specific version of 'com.google.apis:google-api-services-dataflow'
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
-// 'google_clients_version' defined in BeamModulePlugin will be used as default.
+// 'library.java.google_api_services_dataflow' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'

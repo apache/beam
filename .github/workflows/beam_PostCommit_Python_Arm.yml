@@ -56,7 +56,7 @@ jobs:
     # apache-beam-testing Snapshots image tagged with sdk_version, plus an
     # aarch64 wheel from this checkout. Keep headroom for the IT suite and
     # qemu wheel build.
-    timeout-minutes: 180
+    timeout-minutes: 210
     strategy:
       fail-fast: false
       matrix:
@@ -80,7 +80,7 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
-          sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+          sudo curl -fsSL --retry 5 --retry-all-errors https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db

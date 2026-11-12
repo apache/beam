@@ -19,7 +19,13 @@
 FROM eclipse-temurin:11
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libltdl7 \
+    && (keytool -list -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit \
+      | grep -iE "emsign|emudhra" \
+      | awk -F', ' '{print $1}' \
+      | while IFS= read -r alias; do \
+          keytool -delete -noprompt -alias "${alias}" -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit; \
+        done)
 
 ADD beam-runners-flink-job-server.jar /opt/apache/beam/jars/
 ADD flink-job-server.sh /opt/apache/beam/

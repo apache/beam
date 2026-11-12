@@ -94,6 +94,14 @@ public class DataflowClient {
 
   /** Gets the Dataflow {@link Job} with the given {@code jobId}. */
   public Job getJob(@Nonnull String jobId) throws IOException {
+    return getJob(jobId, null);
+  }
+
+  /**
+   * Gets the Dataflow {@link Job} with the given {@code jobId} using the given {@code view} (one of
+   * the {@code JOB_VIEW_*} values), or the service default view if {@code null}.
+   */
+  public Job getJob(@Nonnull String jobId, @Nullable String view) throws IOException {
     checkNotNull(jobId, "jobId");
     Jobs.Get jobsGet =
         dataflow
@@ -101,6 +109,9 @@ public class DataflowClient {
             .locations()
             .jobs()
             .get(options.getProject(), options.getRegion(), jobId);
+    if (view != null) {
+      jobsGet.setView(view);
+    }
     return jobsGet.execute();
   }
 

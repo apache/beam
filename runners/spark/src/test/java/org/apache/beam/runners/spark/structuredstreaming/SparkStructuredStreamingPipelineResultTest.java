@@ -20,13 +20,16 @@ package org.apache.beam.runners.spark.structuredstreaming;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,8 +52,8 @@ public class SparkStructuredStreamingPipelineResultTest {
   @Test
   public void testCancelRunsJobCancelHookOnce() throws Exception {
     SparkStructuredStreamingPipelineResult result = result(new CompletableFuture<>());
-    assertThat(result.cancel(), is(State.CANCELLED));
-    assertThat(result.cancel(), is(State.CANCELLED));
+    assertThat(result.cancel(), is(State.RUNNING));
+    assertThat(result.cancel(), is(State.RUNNING));
     assertThat(cancelSparkJobsCalls.get(), is(1));
   }
 
@@ -58,9 +61,30 @@ public class SparkStructuredStreamingPipelineResultTest {
   public void testCancelIsAsynchronous() throws Exception {
     CompletableFuture<Void> execution = new CompletableFuture<>();
     SparkStructuredStreamingPipelineResult result = result(execution);
-    assertThat(result.cancel(), is(State.CANCELLED));
+    assertThat(result.cancel(), is(State.RUNNING));
     assertFalse(execution.isDone());
     execution.completeExceptionally(new IllegalStateException("job cancelled"));
+    assertThat(result.getState(), is(State.CANCELLED));
     assertThat(result.waitUntilFinish(), is(State.CANCELLED));
+  }
+
+  @Test
+  public void testCancelAfterNormalCompletionReturnsDone() throws Exception {
+    CompletableFuture<Void> execution = CompletableFuture.completedFuture(null);
+    SparkStructuredStreamingPipelineResult result = result(execution);
+    assertThat(result.cancel(), is(State.DONE));
+    assertThat(cancelSparkJobsCalls.get(), is(0));
+  }
+
+  @Test
+  public void testCancelAfterExceptionalCompletionReturnsFailed() throws Exception {
+    CompletableFuture<Void> execution = new CompletableFuture<>();
+    execution.completeExceptionally(
+        UserCodeException.wrap(new IllegalStateException("pipeline failed")));
+    SparkStructuredStreamingPipelineResult result = result(execution);
+    assertThat(result.cancel(), is(State.FAILED));
+    assertThat(cancelSparkJobsCalls.get(), is(0));
+    assertThat(result.getState(), is(State.FAILED));
+    assertThrows(Pipeline.PipelineExecutionException.class, result::waitUntilFinish);
   }
 }

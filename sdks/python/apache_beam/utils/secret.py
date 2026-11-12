@@ -85,21 +85,47 @@ class Secret(abc.ABC):
     from cryptography.fernet import Fernet
     return Fernet.generate_key()
 
+  def apply_pipeline_options(self, options: Any) -> None:
+    """Configures this secret from pipeline options.
+
+    Called by :meth:`from_json` and :meth:`parse_secret_option` when pipeline
+    options are given. The default implementation does nothing; secrets that
+    need settings from pipeline options (e.g. :class:`AwsSecret`) override it.
+
+    Args:
+      options: PipelineOptions, or a dict of option names to values.
+    """
+    pass
+
   @classmethod
-  def parse_secret_option(cls, secret: str) -> 'Secret':
+  def parse_secret_option(
+      cls, secret: str, options: Optional[Any] = None) -> 'Secret':
     """Parses a secret string and returns the appropriate secret type.
 
     The secret string should be formatted like:
     'type:<secret_type>;<secret_param>:<value>'
 
+    Only the first ':' of each parameter separates the name from the value, so
+    values may contain ':' (e.g. ARNs or URLs), but not ';'.
+
     For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
     would return a GcpSecret initialized with 'my_secret/versions/latest'.
+
+    Args:
+      secret: The secret string.
+      options: Optional pipeline options, passed to
+        :meth:`apply_pipeline_options` of the returned secret.
     """
     param_map = {}
     for param in secret.split(';'):
-      parts = param.split(':')
-      if len(parts) == 2:
-        param_map[parts[0]] = parts[1]
+      if not param:
+        continue
+      if ':' not in param:
+        raise ValueError(
+            f"Invalid secret parameter '{param}', expected "
+            "'<secret_param>:<value>'")
+      key, value = param.split(':', 1)
+      param_map[key] = value
 
     if 'type' not in param_map:
       raise ValueError('Secret string must contain a valid type parameter')
@@ -108,24 +134,39 @@ class Secret(abc.ABC):
     secret_type = raw_type.lower()
     secret_manager = _SECRET_TYPE_TO_SECRET_MANAGER.get(secret_type)
     if not secret_manager:
+      supported = ', '.join(
+          getattr(cls, '__name__', cls) for cls in _SECRET_CLASSES.values())
       raise ValueError(
-          f'Invalid secret type {secret_type}, currently only '
-          'GcpSecret and GcpHsmGeneratedSecret are supported')
+          f'Invalid secret type {secret_type}, currently supported types: '
+          f'{supported}')
 
-    return cls.from_json(json.dumps(param_map), secret_manager)
+    return cls.from_json(json.dumps(param_map), secret_manager, options)
 
   @classmethod
   def from_json(
-      cls, spec: str, secret_manager: Optional[str] = None) -> 'Secret':
+      cls,
+      spec: str,
+      secret_manager: Optional[str] = None,
+      options: Optional[Any] = None) -> 'Secret':
     """Return a Secret instance based on secret_manager provider and secret specification.
 
     Args:
       spec: Secret string (raw secret or JSON specification string).
       secret_manager: Secret manager string (e.g. 'GoogleCloudSecretManager').
+      options: Optional pipeline options (PipelineOptions or a dict), passed to
+        :meth:`apply_pipeline_options` of the returned secret. For example,
+        AwsSecret uses them to get AWS credentials from AwsOptions.
 
     Returns:
       An instance of Secret.
     """
+    secret = cls._from_json(spec, secret_manager)
+    if options is not None:
+      secret.apply_pipeline_options(options)
+    return secret
+
+  @classmethod
+  def _from_json(cls, spec: str, secret_manager: Optional[str]) -> 'Secret':
     if not isinstance(spec, str):
       raise TypeError(
           f"Secret 'spec' must be a string, got {type(spec).__name__}")
@@ -162,9 +203,11 @@ class Secret(abc.ABC):
         else:
           return secret_cls(spec)
       else:
+        supported = ', '.join(
+            f"'{name}'" for name in _SECRET_TYPE_TO_SECRET_MANAGER.values())
         raise ValueError(
-            f"Unsupported secret manager: '{secret_manager_name}'. Currently supported options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'."
-        )
+            f"Unsupported secret manager: '{secret_manager_name}'. "
+            f"Currently supported options: {supported}.")
 
     # If secret_manager is not set or empty, check if spec is a JSON specification dict
     if spec_dict is not None:
@@ -269,6 +312,155 @@ class GcpSecret(Secret):
 
   def __eq__(self, secret):
     return self._version_name == getattr(secret, '_version_name', None)
+
+
+class AwsSecret(Secret):
+  """A secret manager implementation that retrieves secrets from AWS Secrets
+  Manager.
+
+  AWS credentials and connection settings (region, endpoint, SSL) come from the
+  ``--aws_*`` defaults in :class:`AwsOptions` when pipeline options are given
+  (see :meth:`apply_pipeline_options`), and otherwise from boto3's defaults
+  (e.g. environment variables, ~/.aws, or an IAM role). Connection settings
+  can be overridden per secret with keyword arguments, e.g.
+  ``AwsSecret('my-secret', region_name='us-west-2')``, or in the secret spec,
+  e.g. ``type:awssecret;name:my-secret;region_name:us-west-2``.
+  """
+  # Spec keys that identify the secret. Other spec keys are client settings.
+  _SECRET_SPEC_KEYS = frozenset({
+      'secret_id',
+      'name',
+      'arn',
+      'version_id',
+      'version',
+      'version_stage',
+      'stage',
+  })
+
+  def __init__(
+      self,
+      secret_id: str,
+      version_id: Optional[str] = None,
+      version_stage: Optional[str] = None,
+      **client_settings: Any):
+    """Initializes an AwsSecret object.
+
+    Args:
+      secret_id: The ARN or name of the secret in AWS Secrets Manager.
+      version_id: The unique identifier of the version of the secret.
+      version_stage: The staging label of the version of the secret (e.g. 'AWSCURRENT').
+      **client_settings: AWS client connection settings that override the
+        ``--aws_*`` pipeline options for this secret. Names are AwsOptions
+        setting names without the ``aws_`` prefix (e.g. ``region_name``,
+        ``endpoint_url``, ``verify``, ``disable_ssl``). Credentials cannot be
+        set here; use the ``--aws_*`` pipeline options instead.
+    """
+    super().__init__()
+    self._secret_id = secret_id
+    self._version_id = version_id
+    self._version_stage = version_stage
+    # Set by apply_pipeline_options.
+    self._aws_options: Optional[dict[str, Any]] = None
+    self._client_settings: Optional[dict[str, Any]] = None
+    if client_settings:
+      from apache_beam.io.aws.clients import client_options
+      self._client_settings = client_options.parse_connection_settings(
+          client_settings)
+
+  @classmethod
+  def from_dict(cls, spec_dict: dict[str, str]) -> 'AwsSecret':
+    """Initialize AwsSecret from a dictionary specification.
+
+    Keys other than the secret identifiers are AWS client connection settings
+    (see the ``**client_settings`` keyword arguments of :meth:`__init__`).
+    """
+    secret_id = (
+        spec_dict.get("secret_id") or spec_dict.get("name") or
+        spec_dict.get("arn"))
+    if not secret_id:
+      raise ValueError("Secret ID or name must be specified in secret spec.")
+
+    version_id = spec_dict.get("version_id") or spec_dict.get("version")
+    version_stage = spec_dict.get("version_stage") or spec_dict.get("stage")
+    client_settings = {
+        k: v
+        for k, v in spec_dict.items() if k not in cls._SECRET_SPEC_KEYS
+    }
+
+    return cls(
+        secret_id=secret_id,
+        version_id=version_id,
+        version_stage=version_stage,
+        **client_settings,
+    )
+
+  def apply_pipeline_options(self, options: Any) -> None:
+    """Uses AWS credentials and connection settings from AwsOptions.
+
+    Only the (unresolved) option values are stored; credential secret specs
+    are resolved when the secret is fetched, e.g. on workers. Settings in
+    ``client_settings`` still take precedence.
+
+    Args:
+      options: PipelineOptions, or a dict of option names to values.
+    """
+    from apache_beam.io.aws.clients import client_options
+    from apache_beam.options.pipeline_options import AwsOptions
+    aws_options = client_options.view_options(options, AwsOptions)
+    self._aws_options = aws_options.get_all_options(
+        drop_default=True, current_only=True) or None
+
+  def _get_client_kwargs(self) -> dict[str, Any]:
+    if not self._aws_options and not self._client_settings:
+      return {}
+    from apache_beam.io.aws.clients import client_options
+    # Unset settings are dropped so boto3 falls back to its own defaults.
+    return {
+        k: v
+        for k, v in client_options.get_client_kwargs(
+            self._aws_options or {}, overrides=self._client_settings).items()
+        if v is not None
+    }
+
+  def get_secret_bytes(self) -> bytes:
+    try:
+      import base64
+      import boto3
+
+      client = boto3.client('secretsmanager', **self._get_client_kwargs())
+
+      request_kwargs = {'SecretId': self._secret_id}
+      if self._version_id:
+        request_kwargs['VersionId'] = self._version_id
+      if self._version_stage:
+        request_kwargs['VersionStage'] = self._version_stage
+
+      response = client.get_secret_value(**request_kwargs)
+      if 'SecretString' in response:
+        return response['SecretString'].encode('utf-8')
+      elif 'SecretBinary' in response:
+        binary_data = response['SecretBinary']
+        if isinstance(binary_data, str):
+          return base64.b64decode(binary_data)
+        return binary_data
+      else:
+        raise ValueError(
+            f"Secret '{self._secret_id}' contains neither SecretString nor SecretBinary."
+        )
+    except Exception as e:
+      raise RuntimeError(
+          'Failed to retrieve secret bytes for secret '
+          f'{self._secret_id} with exception {e}')
+
+  def __eq__(self, other: Any) -> bool:
+    if not isinstance(other, AwsSecret):
+      return False
+    return (
+        self._secret_id == other._secret_id and
+        self._version_id == other._version_id and
+        self._version_stage == other._version_stage and
+        self._aws_options == other._aws_options and
+        self._client_settings == other._client_settings)
 
 
 class GcpHsmGeneratedSecret(Secret):
@@ -458,9 +650,11 @@ class GcpHsmGeneratedSecret(Secret):
 _SECRET_TYPE_TO_SECRET_MANAGER: dict[str, str] = {
     "gcpsecret": "GoogleCloudSecretManager",
     "gcphsmgeneratedsecret": "GoogleCloudHsmGeneratedSecretManager",
+    "awssecret": "AwsSecretsManager",
 }
 
 _SECRET_CLASSES: dict[str, Any] = {
     "googlecloudsecretmanager": "GcpSecret",
     "googlecloudhsmgeneratedsecretmanager": "GcpHsmGeneratedSecret",
+    "awssecretsmanager": "AwsSecret",
 }

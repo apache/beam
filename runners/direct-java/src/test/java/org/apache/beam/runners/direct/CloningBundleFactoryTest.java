@@ -62,10 +62,10 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void rootBundleSucceedsIgnoresCoder() {
-    WindowedValue<Record> one = WindowedValues.valueInGlobalWindow(new Record());
-    WindowedValue<Record> two = WindowedValues.valueInGlobalWindow(new Record());
-    CommittedBundle<Record> root =
-        factory.<Record>createRootBundle().add(one).add(two).commit(Instant.now());
+    WindowedValue<TestRecord> one = WindowedValues.valueInGlobalWindow(new TestRecord());
+    WindowedValue<TestRecord> two = WindowedValues.valueInGlobalWindow(new TestRecord());
+    CommittedBundle<TestRecord> root =
+        factory.<TestRecord>createRootBundle().add(one).add(two).commit(Instant.now());
 
     assertThat(root.getElements(), containsInAnyOrder(one, two));
   }
@@ -122,71 +122,71 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleEncodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
-    UncommittedBundle<Record> bundle = factory.createBundle(pc);
+    PCollection<TestRecord> pc = p.apply(Create.empty(new TestRecordNoEncodeCoder()));
+    UncommittedBundle<TestRecord> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Encode not allowed");
-    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new TestRecord()));
   }
 
   @Test
   public void bundleDecodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
-    UncommittedBundle<Record> bundle = factory.createBundle(pc);
+    PCollection<TestRecord> pc = p.apply(Create.empty(new TestRecordNoDecodeCoder()));
+    UncommittedBundle<TestRecord> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Decode not allowed");
-    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new TestRecord()));
   }
 
   @Test
   public void keyedBundleEncodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
-    UncommittedBundle<Record> bundle =
+    PCollection<TestRecord> pc = p.apply(Create.empty(new TestRecordNoEncodeCoder()));
+    UncommittedBundle<TestRecord> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Encode not allowed");
-    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new TestRecord()));
   }
 
   @Test
   public void keyedBundleDecodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
-    UncommittedBundle<Record> bundle =
+    PCollection<TestRecord> pc = p.apply(Create.empty(new TestRecordNoDecodeCoder()));
+    UncommittedBundle<TestRecord> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Decode not allowed");
-    bundle.add(WindowedValues.valueInGlobalWindow(new Record()));
+    bundle.add(WindowedValues.valueInGlobalWindow(new TestRecord()));
   }
 
-  static class Record {}
+  static class TestRecord {}
 
-  static class RecordNoEncodeCoder extends AtomicCoder<Record> {
+  static class TestRecordNoEncodeCoder extends AtomicCoder<TestRecord> {
 
     @Override
-    public void encode(Record value, OutputStream outStream) throws IOException {
+    public void encode(TestRecord value, OutputStream outStream) throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
-    public Record decode(InputStream inStream) throws IOException {
+    public TestRecord decode(InputStream inStream) throws IOException {
       return null;
     }
   }
 
-  static class RecordNoDecodeCoder extends AtomicCoder<Record> {
+  static class TestRecordNoDecodeCoder extends AtomicCoder<TestRecord> {
     @Override
-    public void encode(Record value, OutputStream outStream) throws IOException {}
+    public void encode(TestRecord value, OutputStream outStream) throws IOException {}
 
     @Override
-    public Record decode(InputStream inStream) throws IOException {
+    public TestRecord decode(InputStream inStream) throws IOException {
       throw new CoderException("Decode not allowed");
     }
   }

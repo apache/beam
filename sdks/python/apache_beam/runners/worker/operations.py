@@ -383,11 +383,14 @@ class GeneralPurposeConsumerSet(ConsumerSet):
             "This is very inefficient, consider re-structuring your pipeline "
             "or adding a DoFn to directly convert between these types.",
             InefficientExecutionWarning)
+        # produce_batch takes a sequence, and some converters read it more
+        # than once (the pyarrow Table converter reads it once per column).
         _cast_to_operation(consumer).process_batch(
             windowed_batch.with_values(
                 consumer_batch_converter.produce_batch(
-                    self.producer_batch_converter.explode_batch(
-                        windowed_batch.values))))
+                    list(
+                        self.producer_batch_converter.explode_batch(
+                            windowed_batch.values)))))
 
     self.update_counters_batch(windowed_batch)
 

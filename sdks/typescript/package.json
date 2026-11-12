@@ -1,6 +1,6 @@
 {
   "name": "apache-beam",
-  "version": "2.78.0-SNAPSHOT",
+  "version": "2.79.0-SNAPSHOT",
   "devDependencies": {
     "@google-cloud/bigquery": "^5.12.0",
     "@types/mocha": "^9.0.0",
@@ -11,7 +11,7 @@
     "eslint": "^8.15.0",
     "istanbul": "^0.4.5",
     "js-yaml": "^4.1.0",
-    "mocha": "^11.1.0",
+    "mocha": "^11.8.0",
     "prettier": "^3.1.1",
     "typedoc": "^0.23.23",
     "typescript": "4.7"
@@ -64,7 +64,7 @@
   },
   "overrides": {
     "js-yaml": "^4.1.0",
-    "serialize-javascript": "^7.0.4",
+    "serialize-javascript": "^7.1.4",
     "@tootallnate/once": "^3.0.1",
     "diff": "^8.0.3"
   }

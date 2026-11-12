@@ -24,6 +24,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import java.util.List;
@@ -250,7 +251,11 @@ public class QueryChangeStreamAction {
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
           if (record instanceof DataChangeRecord) {
-            Span span = getTracer().spanBuilder("DataChangeRecord.run").startSpan();
+            Span span =
+                getTracer()
+                    .spanBuilder("SpannerIO.DataChangeRecord")
+                    .setSpanKind(SpanKind.CONSUMER)
+                    .startSpan();
             try (Scope ignored = span.makeCurrent()) {
               maybeContinuation =
                   dataChangeRecordAction.run(

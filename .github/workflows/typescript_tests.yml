@@ -61,7 +61,7 @@ jobs:
       - name: Install node
         uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          node-version: '24'
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
@@ -103,7 +103,7 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          node-version: '24'
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
@@ -173,7 +173,7 @@ jobs:
       - name: Install node
         uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          node-version: '24'
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript

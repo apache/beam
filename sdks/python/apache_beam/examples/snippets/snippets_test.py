@@ -50,6 +50,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -1509,8 +1510,11 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
 class ValueProviderInfoTest(unittest.TestCase):
   """Tests for accessing value provider info after run."""
   def test_accessing_valueprovider_info_after_run(self):
-    with self.assertLogs(level='INFO') as log_capture:
-      snippets.accessing_valueprovider_info_after_run()
+    # Prism's loopback worker runs in this process and does not initialize
+    # RuntimeValueProvider through sdk_worker_main.
+    with mock.patch.object(RuntimeValueProvider, 'runtime_options', {}):
+      with self.assertLogs(level='INFO') as log_capture:
+        snippets.accessing_valueprovider_info_after_run()
     expected_log_message = "The string value is"
     self.assertTrue(
         any(expected_log_message in log for log in log_capture.output),

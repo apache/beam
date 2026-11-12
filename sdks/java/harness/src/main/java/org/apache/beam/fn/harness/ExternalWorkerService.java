@@ -39,6 +39,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -78,20 +79,24 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
               .withInterceptors(
                   ImmutableList.of(AddHarnessIdInterceptor.create(request.getWorkerId())));
 
-      ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub =
-          ProvisionServiceGrpc.newBlockingStub(
-              channelFactory.forDescriptor(request.getProvisionEndpoint()));
-      ProvisionApi.ProvisionInfo provisionInfo =
-          provisionStub
-              .getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build())
-              .getInfo();
+      ManagedChannel channel = channelFactory.forDescriptor(request.getProvisionEndpoint());
+      try {
+        ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub =
+            ProvisionServiceGrpc.newBlockingStub(channel);
+        ProvisionApi.ProvisionInfo provisionInfo =
+            provisionStub
+                .getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build())
+                .getInfo();
 
-      runnerCapabilites = Sets.newHashSet(provisionInfo.getRunnerCapabilitiesList());
-      if (provisionInfo.hasControlEndpoint()) {
-        controlEndpoint = provisionInfo.getControlEndpoint();
-      }
-      if (provisionInfo.hasLoggingEndpoint()) {
-        loggingEndpoint = provisionInfo.getLoggingEndpoint();
+        runnerCapabilites = Sets.newHashSet(provisionInfo.getRunnerCapabilitiesList());
+        if (provisionInfo.hasControlEndpoint()) {
+          controlEndpoint = provisionInfo.getControlEndpoint();
+        }
+        if (provisionInfo.hasLoggingEndpoint()) {
+          loggingEndpoint = provisionInfo.getLoggingEndpoint();
+        }
+      } finally {
+        channel.shutdown();
       }
     }
     // Lambda closured variables must be final.

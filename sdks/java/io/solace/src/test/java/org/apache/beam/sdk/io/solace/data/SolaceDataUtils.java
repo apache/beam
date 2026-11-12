@@ -168,6 +168,7 @@ public class SolaceDataUtils {
             ? replicationGroupMessageId
             : DEFAULT_REPLICATION_GROUP_ID;
     return new BytesXMLMessage() {
+      private @Nullable SDTMap properties = null;
 
       @Override
       public byte[] getBytes() {
@@ -367,7 +368,7 @@ public class SolaceDataUtils {
 
       @Override
       public SDTMap getProperties() {
-        return null;
+        return properties;
       }
 
       @Override
@@ -633,7 +634,9 @@ public class SolaceDataUtils {
       public void setPriority(int arg0) {}
 
       @Override
-      public void setProperties(SDTMap arg0) {}
+      public void setProperties(SDTMap arg0) {
+        this.properties = arg0;
+      }
 
       @Override
       public void setQueueNameLocation(int arg0, int arg1) {}

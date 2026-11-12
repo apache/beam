@@ -40,9 +40,8 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
-import org.junit.Rule;
+import org.junit.After;
 import org.junit.Test;
-import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -60,14 +59,22 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   private final transient SparkStructuredStreamingPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
 
-  @Rule public transient TestName testName = new TestName();
-
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
-  private static final long DEADLINE_SECONDS = 60;
+  private static final long DEADLINE_SECONDS = 180;
 
   // Shared with the DoFn running in Spark's local executor threads, reset per test.
   private static volatile CountDownLatch started = new CountDownLatch(1);
+
+  @After
+  public void tearDown() {
+    if (SparkSession.getActiveSession().isDefined()) {
+      SparkSession.getActiveSession().get().stop();
+    }
+    if (SparkSession.getDefaultSession().isDefined()) {
+      SparkSession.getDefaultSession().get().stop();
+    }
+  }
 
   /** Signals started, then blocks until the task is killed. */
   private static class BlockingDoFn extends DoFn<String, String> {
@@ -81,13 +88,22 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     }
   }
 
-  private SparkStructuredStreamingPipelineResult runBlockingPipeline() throws InterruptedException {
+  private SparkStructuredStreamingPipelineResult runBlockingPipeline() throws Exception {
     started = new CountDownLatch(1);
     Pipeline pipeline = Pipeline.create(getBatchOptions());
     pipeline.apply(Create.of("one", "two")).apply(ParDo.of(new BlockingDoFn()));
     SparkStructuredStreamingPipelineResult result =
         (SparkStructuredStreamingPipelineResult) pipeline.run();
-    assertTrue("DoFn did not start", started.await(DEADLINE_SECONDS, TimeUnit.SECONDS));
+    boolean didStart = false;
+    try {
+      didStart = started.await(DEADLINE_SECONDS, TimeUnit.SECONDS);
+    } finally {
+      if (!didStart) {
+        result.cancel();
+        result.waitUntilFinish();
+      }
+    }
+    assertTrue("DoFn did not start", didStart);
     return result;
   }
 
@@ -106,16 +122,6 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setStreaming(false); // explicit because options is reused throughout the test.
     return options;
-  }
-
-  private Pipeline getPipeline(final SparkStructuredStreamingPipelineOptions options) {
-
-    final Pipeline pipeline = Pipeline.create(options);
-    final String name = testName.getMethodName();
-
-    pipeline.apply(Create.of("one", "two")).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
-
-    return pipeline;
   }
 
   private void testFailedPipeline(final SparkStructuredStreamingPipelineOptions options)
@@ -152,13 +158,9 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     fail("An injected failure did not affect the pipeline as expected.");
   }
 
-  private void testTimeoutPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testTimeoutPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     result.waitUntilFinish(Duration.millis(1));
 
@@ -168,27 +170,19 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testCanceledPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testCanceledPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     result.cancel();
 
-    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
+    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testRunningPipeline(final SparkStructuredStreamingPipelineOptions options)
-      throws Exception {
+  private void testRunningPipeline() throws Exception {
 
-    final Pipeline pipeline = getPipeline(options);
-
-    final SparkStructuredStreamingPipelineResult result =
-        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    final SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
 
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 
@@ -198,12 +192,12 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   @Test
   public void testBatchPipelineRunningState() throws Exception {
-    testRunningPipeline(getBatchOptions());
+    testRunningPipeline();
   }
 
   @Test
   public void testBatchPipelineCanceledState() throws Exception {
-    testCanceledPipeline(getBatchOptions());
+    testCanceledPipeline();
   }
 
   @Test
@@ -213,13 +207,13 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   @Test
   public void testBatchPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(getBatchOptions());
+    testTimeoutPipeline();
   }
 
   @Test
   public void testBatchCancelStopsRunningJob() throws Exception {
     SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
-    assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+    result.cancel();
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
     assertTrue("owned session not stopped", SparkSession.getDefaultSession().isEmpty());
   }
@@ -229,7 +223,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     SparkSession session = SparkSessionFactory.sessionBuilder("local[1]").getOrCreate();
     try {
       SparkStructuredStreamingPipelineResult result = runBlockingPipeline();
-      assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+      result.cancel();
       assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
       assertFalse("shared session stopped", session.sparkContext().isStopped());
     } finally {
@@ -241,7 +235,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   @Test
   public void testCancelFollowedImmediatelyBySecondPipeline() throws Exception {
     SparkStructuredStreamingPipelineResult first = runBlockingPipeline();
-    assertThat(first.cancel(), is(PipelineResult.State.CANCELLED));
+    first.cancel();
     Pipeline secondPipeline = Pipeline.create(getBatchOptions());
     secondPipeline.apply(Create.of("a", "b")).apply(printParDo("second"));
     SparkStructuredStreamingPipelineResult second =

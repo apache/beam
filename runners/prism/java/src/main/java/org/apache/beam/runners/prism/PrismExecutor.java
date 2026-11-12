@@ -72,26 +72,33 @@ abstract class PrismExecutor {
   /** Stops the execution of the {@link Process}, created as a result of {@link #execute}. */
   void stop() {
     LOG.info("Stopping Prism...");
-    if (future != null) {
-      future.cancel(true);
-    }
-    executorService.shutdown();
+    boolean interrupted = false;
     try {
-      boolean ignored = executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException ignored) {
-      // Ignore InterruptedException during shutdown.
-    }
-    if (process == null) {
-      return;
-    }
-    if (!process.isAlive()) {
-      return;
-    }
-    process.destroy();
-    try {
-      process.waitFor();
-    } catch (InterruptedException ignored) {
-      // Ignore InterruptedException during shutdown.
+      if (future != null) {
+        future.cancel(true);
+      }
+      executorService.shutdown();
+      try {
+        boolean ignored = executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException ignored) {
+        interrupted = true;
+      }
+      if (process == null) {
+        return;
+      }
+      if (!process.isAlive()) {
+        return;
+      }
+      process.destroy();
+      try {
+        process.waitFor();
+      } catch (InterruptedException ignored) {
+        interrupted = true;
+      }
+    } finally {
+      if (interrupted) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 

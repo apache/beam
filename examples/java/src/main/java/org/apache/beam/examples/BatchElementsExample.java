@@ -68,13 +68,10 @@ public class BatchElementsExample {
     private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      List<String> batch = c.element();
-
+    public void processElement(@Element List<String> batch, OutputReceiver<String> receiver) {
       LOG.info("Batch Contents: {}", batch);
-
       for (String element : batch) {
-        c.output(element);
+        receiver.output(element);
       }
     }
   }

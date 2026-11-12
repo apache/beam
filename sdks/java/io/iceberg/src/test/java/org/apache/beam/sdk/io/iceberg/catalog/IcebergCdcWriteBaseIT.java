@@ -80,7 +80,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
@@ -89,7 +88,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
@@ -628,14 +627,15 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     record.setField("data", data);
 
     DataWriter<Record> writer =
-        new GenericAppenderFactory(table.schema(), table.spec())
+        new GenericFileWriterFactory.Builder(table)
+            .build()
             .newDataWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table
                         .io()
                         .newOutputFile(
                             table.location() + "/data/foreign-" + System.nanoTime() + ".parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 null);
     try {
       writer.write(record);
