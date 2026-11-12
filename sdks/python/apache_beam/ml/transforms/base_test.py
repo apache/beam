@@ -763,6 +763,16 @@ class TestUtilFunctions(unittest.TestCase):
     self.assertEqual(
         base._dict_output_fn(columns, input_list, embeddings), expected_output)
 
+  def test_dict_output_fn_does_not_modify_input(self):
+    input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    columns = ['a']
+    embeddings = [1.1, 3.3]
+
+    output = base._dict_output_fn(columns, input_list, embeddings)
+
+    self.assertEqual(output, [{'a': 1.1, 'b': 2}, {'a': 3.3, 'b': 4}])
+    self.assertEqual(input_list, [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}])
+
   def test_dict_input_fn_on_list_inputs(self):
     input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
     columns = ['a', 'b']

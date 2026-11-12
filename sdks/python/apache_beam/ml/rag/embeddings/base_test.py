@@ -89,6 +89,16 @@ class RAGBaseEmbeddingsTest(unittest.TestCase):
     embeddings = adapter.output_fn(self.test_chunks, mock_embeddings)
     self.assertListEqual(embeddings, expected)
 
+  def test_adapter_output_does_not_modify_input(self):
+    adapter = create_text_adapter()
+
+    results = adapter.output_fn(self.test_chunks, [[0.1, 0.2], [0.3, 0.4]])
+
+    self.assertEqual(results[0].embedding.dense_embedding, [0.1, 0.2])
+    self.assertEqual(results[1].embedding.dense_embedding, [0.3, 0.4])
+    for chunk in self.test_chunks:
+      self.assertIsNone(chunk.embedding)
+
 
 class ImageEmbeddableItemTest(unittest.TestCase):
   def test_from_image_str(self):
