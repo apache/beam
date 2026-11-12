@@ -31,6 +31,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.types.Types;
@@ -266,6 +267,120 @@ public class IcebergScanConfigTest {
         true,
         ImmutableList.of("id", "required_text"),
         "must be a timestamp-typed column");
+  }
+
+  @Test
+  public void validateAcceptsFromTimestampLaterThanEveryCommit() throws Exception {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    for (boolean streaming : new boolean[] {false, true}) {
+      cdcConfigBuilder(tableId)
+          .setStreaming(streaming)
+          .setFromTimestamp(System.currentTimeMillis())
+          .build()
+          .validate(table);
+    }
+
+    Snapshot latest = commitSnapshot(table);
+    for (boolean streaming : new boolean[] {false, true}) {
+      cdcConfigBuilder(tableId)
+          .setStreaming(streaming)
+          .setFromTimestamp(latest.timestampMillis() + 1)
+          .build()
+          .validate(table);
+    }
+  }
+
+  @Test
+  public void validateAcceptsTimestampWindowWithNoCommits() throws Exception {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    Snapshot first = commitSnapshot(table);
+    Snapshot second = commitSnapshot(table);
+    long[][] windows = {
+      {first.timestampMillis() + 1, second.timestampMillis() - 1},
+      {first.timestampMillis() - 20, first.timestampMillis() - 10},
+      {second.timestampMillis() + 10, second.timestampMillis() + 20}
+    };
+
+    for (boolean streaming : new boolean[] {false, true}) {
+      for (long[] window : windows) {
+        cdcConfigBuilder(tableId)
+            .setStreaming(streaming)
+            .setFromTimestamp(window[0])
+            .setToTimestamp(window[1])
+            .build()
+            .validate(table);
+      }
+      cdcConfigBuilder(tableId)
+          .setStreaming(streaming)
+          .setToTimestamp(first.timestampMillis() - 1)
+          .build()
+          .validate(table);
+    }
+  }
+
+  @Test
+  public void validateRejectsFromTimestampLaterThanToTimestamp() throws Exception {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    Snapshot first = commitSnapshot(table);
+    Snapshot second = commitSnapshot(table);
+    IcebergScanConfig scanConfig =
+        cdcConfigBuilder(tableId)
+            .setFromTimestamp(second.timestampMillis())
+            .setToTimestamp(first.timestampMillis())
+            .build();
+
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, () -> scanConfig.validate(table));
+    assertThat(
+        thrown.getMessage(),
+        containsString("'from_timestamp' must not be later than 'to_timestamp'"));
+  }
+
+  @Test
+  public void validateRejectsFromSnapshotOutsideCurrentLineage() throws Exception {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    Snapshot first = commitSnapshot(table);
+    Snapshot second = commitSnapshot(table);
+    table.manageSnapshots().rollbackTo(first.snapshotId()).commit();
+    commitSnapshot(table);
+
+    for (boolean streaming : new boolean[] {false, true}) {
+      IcebergScanConfig rolledBack =
+          cdcConfigBuilder(tableId)
+              .setStreaming(streaming)
+              .setFromSnapshotInclusive(second.snapshotId())
+              .build();
+      IllegalArgumentException thrown =
+          assertThrows(IllegalArgumentException.class, () -> rolledBack.validate(table));
+      assertThat(
+          thrown.getMessage(),
+          containsString(
+              String.format(
+                  "fromSnapshot '%s' is not an ancestor of the current snapshot",
+                  second.snapshotId())));
+
+      cdcConfigBuilder(tableId)
+          .setStreaming(streaming)
+          .setFromSnapshotInclusive(first.snapshotId())
+          .build()
+          .validate(table);
+    }
+  }
+
+  private IcebergScanConfig.Builder cdcConfigBuilder(TableIdentifier tableId) {
+    return scanConfigBuilder(tableId, CDC_SCHEMA).setUseCdc(true);
+  }
+
+  /** Commits an empty snapshot, then waits so the next commit gets a later timestamp. */
+  private static Snapshot commitSnapshot(Table table) throws InterruptedException {
+    table.newFastAppend().commit();
+    table.refresh();
+    Thread.sleep(25);
+    return table.currentSnapshot();
   }
 
   private void assertInvalidWatermark(

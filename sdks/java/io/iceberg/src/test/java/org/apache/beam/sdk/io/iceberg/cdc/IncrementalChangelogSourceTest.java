@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
@@ -685,6 +686,91 @@ public class IncrementalChangelogSourceTest {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void batchReadWithNoSnapshotInRangeIsEmpty() throws Exception {
+    TableIdentifier emptyTableId = TableIdentifier.of("default", testName.getMethodName() + "_e");
+    warehouse.createTable(emptyTableId, CDC_SCHEMA, null, tableProperties());
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records(1L, "one"));
+    long firstCommit = table.currentSnapshot().timestampMillis();
+
+    PCollection<Row> noSnapshots =
+        pipeline.apply(
+            "Read Table Without Snapshots",
+            IcebergIO.readRows(catalogConfig()).from(emptyTableId).withCdc());
+    PCollection<Row> noSnapshotsFromNow =
+        pipeline.apply(
+            "Read Table Without Snapshots From Now",
+            IcebergIO.readRows(catalogConfig())
+                .from(emptyTableId)
+                .withCdc()
+                .fromTimestamp(System.currentTimeMillis()));
+    PCollection<Row> afterLatest =
+        pipeline.apply(
+            "Read After Latest Snapshot",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .fromTimestamp(firstCommit + 1));
+    PCollection<Row> beforeFirst =
+        pipeline.apply(
+            "Read Before First Snapshot",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .toTimestamp(firstCommit - 1));
+
+    PAssert.that(noSnapshots).empty();
+    PAssert.that(noSnapshotsFromNow).empty();
+    PAssert.that(afterLatest).empty();
+    PAssert.that(beforeFirst).empty();
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void timestampWindowWithNoCommitsReadsNothing() throws Exception {
+    assertTimestampWindowWithNoCommitsReadsNothing(false);
+  }
+
+  @Test
+  public void timestampWindowWithNoCommitsReadsNothingWhenStreaming() throws Exception {
+    assertTimestampWindowWithNoCommitsReadsNothing(true);
+  }
+
+  private void assertTimestampWindowWithNoCommitsReadsNothing(boolean streaming) throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records(1L, "one"));
+    long first = table.currentSnapshot().timestampMillis();
+    Thread.sleep(25);
+    commitAppend(table, "s2.parquet", records(2L, "two"));
+    long second = table.currentSnapshot().timestampMillis();
+
+    PCollection<Row> betweenCommits =
+        pipeline.apply(
+            "Read Between Commits",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .streaming(streaming)
+                .fromTimestamp(first + 1)
+                .toTimestamp(second - 1));
+    PCollection<Row> beforeFirstCommit =
+        pipeline.apply(
+            "Read Before First Commit",
+            IcebergIO.readRows(catalogConfig())
+                .from(tableId)
+                .withCdc()
+                .streaming(streaming)
+                .fromTimestamp(first - 20)
+                .toTimestamp(first - 10));
+
+    PAssert.that(betweenCommits).empty();
+    PAssert.that(beforeFirstCommit).empty();
+    pipeline.run().waitUntilFinish();
+  }
+
   private DataFile commitOverwrite(
       Table table, String fileName, DataFile replaced, Record... replacements) throws IOException {
     DataFile file =
@@ -699,14 +785,16 @@ public class IncrementalChangelogSourceTest {
     return TableIdentifier.of("default", testName.getMethodName());
   }
 
+  private IcebergCatalogConfig catalogConfig() {
+    return IcebergCatalogConfig.builder()
+        .setCatalogName("name")
+        .setCatalogProperties(ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+        .build();
+  }
+
   private IcebergScanConfig.Builder baseConfigBuilder(Table table, TableIdentifier tableId) {
     return IcebergScanConfig.builder()
-        .setCatalogConfig(
-            IcebergCatalogConfig.builder()
-                .setCatalogName("name")
-                .setCatalogProperties(
-                    ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-                .build())
+        .setCatalogConfig(catalogConfig())
         .setTableIdentifier(tableId)
         .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
         .setUseCdc(true);

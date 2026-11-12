@@ -84,6 +84,10 @@ toxTask "testPy311pyarrow-25", "py311-pyarrow-25", "${posargs}"
 test.dependsOn "testPy311pyarrow-25"
 postCommitPyDep.dependsOn "testPy311pyarrow-25"
 
+toxTask "testPy311pyarrow-26", "py311-pyarrow-26", "${posargs}"
+test.dependsOn "testPy311pyarrow-26"
+postCommitPyDep.dependsOn "testPy311pyarrow-26"
+
 // Create a test task for each supported minor version of pandas.
 // Keep in sync with [testenv:py311-pandas-...] in tox.ini.
 toxTask "testPy311pandas-22", "py311-pandas-22", "${posargs}"

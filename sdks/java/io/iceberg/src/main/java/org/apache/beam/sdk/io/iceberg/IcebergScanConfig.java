@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableUtil;
@@ -507,46 +508,43 @@ public abstract class IcebergScanConfig implements Serializable {
     checkArgument(
         getToTimestamp() == null || getToSnapshot() == null,
         error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
-    @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
-    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
-    if (fromSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(fromSnapshotId),
-          error("configured starting snapshot does not exist: '%s'"),
-          fromSnapshotId);
-    }
-    if (toSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(toSnapshotId),
-          error("configured end snapshot does not exist: '%s'"),
-          toSnapshotId);
-    }
-    if (fromSnapshotId != null && toSnapshotId != null) {
+    @Nullable Long fromTimestamp = getFromTimestamp();
+    @Nullable Long toTimestamp = getToTimestamp();
+    if (fromTimestamp != null && toTimestamp != null) {
       checkArgument(
-          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
-          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
-          fromSnapshotId,
-          toSnapshotId);
+          fromTimestamp <= toTimestamp,
+          error("'from_timestamp' must not be later than 'to_timestamp'"));
     }
-
-    if (fromSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(fromSnapshotId),
-          error("configured starting snapshot does not exist: '%s'"),
-          fromSnapshotId);
-    }
-    if (toSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(toSnapshotId),
-          error("configured end snapshot does not exist: '%s'"),
-          toSnapshotId);
-    }
-    if (fromSnapshotId != null && toSnapshotId != null) {
-      checkArgument(
-          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
-          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
-          fromSnapshotId,
-          toSnapshotId);
+    if (!ReadUtils.isEmptyRange(table, this)) {
+      @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
+      @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
+      if (fromSnapshotId != null) {
+        checkArgumentNotNull(
+            table.snapshot(fromSnapshotId),
+            error("configured starting snapshot does not exist: '%s'"),
+            fromSnapshotId);
+      }
+      if (toSnapshotId != null) {
+        checkArgumentNotNull(
+            table.snapshot(toSnapshotId),
+            error("configured end snapshot does not exist: '%s'"),
+            toSnapshotId);
+      }
+      if (fromSnapshotId != null && toSnapshotId != null) {
+        checkArgument(
+            SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
+            error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
+            fromSnapshotId,
+            toSnapshotId);
+      } else if (fromSnapshotId != null) {
+        @Nullable Snapshot current = table.currentSnapshot();
+        checkArgument(
+            current != null
+                && SnapshotUtil.isAncestorOf(table, current.snapshotId(), fromSnapshotId),
+            error("fromSnapshot '%s' is not an ancestor of the current snapshot '%s'"),
+            fromSnapshotId,
+            current != null ? current.snapshotId() : null);
+      }
     }
 
     if (getPollInterval() != null) {

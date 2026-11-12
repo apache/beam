@@ -573,9 +573,7 @@ class GetCodeFromCodeObjectIdentifierTest(unittest.TestCase):
     fn = ClassWithLambdaAndRaisingAttribute.fn
     path = code_object_pickler.get_code_object_identifier(fn)
     self.assertEqual(
-        path,
-        "apache_beam.internal.code_object_pickler_test."
-        "ClassWithLambdaAndRaisingAttribute.fn.__code__")
+        path, f"{prefix}.ClassWithLambdaAndRaisingAttribute.fn.__code__")
     self.assertEqual(
         code_object_pickler.get_code_from_identifier(path), fn.__code__)
 
