@@ -89,6 +89,18 @@ import org.slf4j.LoggerFactory;
  *       GCS buckets, Lakehouse runtime catalog ({@code roles/biglake.admin}), and Dataflow.
  * </ul>
  *
+ * <h2>Initial Snapshot Migration (Before Running CDC)</h2>
+ *
+ * <p>Before running this CDC pipeline to replicate incremental changes, you can perform the initial
+ * full-table snapshot migration from the source Delta Lake table to the target GCP Lakehouse
+ * Iceberg table using the Beam SQL Shell and the companion {@code delta_to_iceberg.sql} script in
+ * this directory:
+ *
+ * <pre>{@code
+ * ./scripts/beam-sql.sh --runner dataflow --io delta --io iceberg \
+ *   -f examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/delta_to_iceberg.sql
+ * }</pre>
+ *
  * <h2>Running the Example on Dataflow Portable Runner (Example Default)</h2>
  *
  * <p>This example configures the <b>Dataflow Portable Runner</b> ({@code

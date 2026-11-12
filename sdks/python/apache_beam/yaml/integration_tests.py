@@ -268,41 +268,43 @@ def temp_bigquery_table(
   table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  if table_schema:
-    schema = get_table_schema_from_string(table_schema)
-    additional_create_parameters = None
-    if primary_key:
-      pk_columns = set(primary_key)
-      for field in schema.fields:
-        if field.name in pk_columns:
-          field.mode = 'REQUIRED'
-      additional_create_parameters = {
-          'tableConstraints': bigquery.TableConstraints(
-              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
-                  columns=list(primary_key)))
-      }
-    bigquery_client.get_or_create_table(
-        project_id=project,
-        dataset_id=dataset_id,
-        table_id=table_id,
-        schema=schema,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_APPEND',
-        additional_create_parameters=additional_create_parameters)
-    logging.info(
-        "Created table %s.%s.%s (primary_key=%s)",
-        project,
-        dataset_id,
-        table_id,
-        primary_key)
-  if use_colon_table_spec:
-    yield f'{project}:{dataset_id}.{table_id}'
-  else:
-    yield f'{project}.{dataset_id}.{table_id}'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):
@@ -713,28 +715,28 @@ def temp_postgres_database_with_secret_manager(
 
     _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
     try:
-      secret_client.get_secret(request={'name': secret_path})
-    except Exception:
-      secret_client.create_secret(
+      try:
+        secret_client.get_secret(request={'name': secret_path})
+      except Exception:
+        secret_client.create_secret(
+            request={
+                'parent': project_path,
+                'secret_id': secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+
+      secret_client.add_secret_version(
           request={
-              'parent': project_path,
-              'secret_id': secret_id,
-              'secret': {
-                  'replication': {
-                      'automatic': {}
-                  }
+              'parent': secret_path,
+              'payload': {
+                  'data': postgres_container.password.encode('utf-8')
               }
           })
 
-    secret_client.add_secret_version(
-        request={
-            'parent': secret_path,
-            'payload': {
-                'data': postgres_container.password.encode('utf-8')
-            }
-        })
-
-    try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
       with engine.begin() as connection:
@@ -1470,11 +1472,27 @@ def create_test_methods(spec):
                 'apache_beam.yaml.yaml_provider.standard_providers',
                 lambda: providers))
         for fixture in spec.get('fixtures', []):
-          vars[fixture['name']] = stack.enter_context(
+          fixture_callable = (
               python_callable.PythonCallableWithSource.
-              load_from_fully_qualified_name(fixture['type'])(
-                  **yaml_transform.SafeLineLoader.strip_metadata(
-                      fixture.get('config', {}))))
+              load_from_fully_qualified_name(fixture['type']))
+          fixture_config = yaml_transform.SafeLineLoader.strip_metadata(
+              fixture.get('config', {}))
+          for attempt in range(3):
+            try:
+              vars[fixture['name']] = stack.enter_context(
+                  fixture_callable(**fixture_config))
+              break
+            except unittest.SkipTest:
+              raise
+            except Exception as exn:
+              if attempt == 2:
+                raise
+              _LOGGER.warning(
+                  'Fixture %s setup failed (attempt %d/3): %s',
+                  fixture['name'],
+                  attempt + 1,
+                  exn)
+              time.sleep(5)
         for pipeline_spec in spec['pipelines']:
           try:
             with beam.Pipeline(options=PipelineOptions(

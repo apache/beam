@@ -402,7 +402,8 @@ public class BeamSqlCliTest {
     List<Field> columnsToAdd = Arrays.asList(col1, col2);
 
     SqlAlterTable alterTable =
-        new SqlAlterTable(POS, null, tableName, columnsToAdd, null, null, null, null, null);
+        new SqlAlterTable(
+            POS, null, tableName, columnsToAdd, null, null, null, null, null, null, false);
 
     String expectedSql =
         "ALTER TABLE `test_table` "
@@ -419,7 +420,8 @@ public class BeamSqlCliTest {
     SqlNodeList columnsToDrop = createStringList("col_to_drop_1", "col_to_drop_2");
 
     SqlAlterTable alterTable =
-        new SqlAlterTable(POS, null, tableName, null, columnsToDrop, null, null, null, null);
+        new SqlAlterTable(
+            POS, null, tableName, null, columnsToDrop, null, null, null, null, null, false);
 
     String expectedSql = "ALTER TABLE `test_table` DROP COLUMNS (`col_to_drop_1`, `col_to_drop_2`)";
     assertEquals(expectedSql, toSql(alterTable));
@@ -438,7 +440,7 @@ public class BeamSqlCliTest {
 
     SqlAlterTable alterTable =
         new SqlAlterTable(
-            POS, null, tableName, columnsToAdd, columnsToDrop, null, null, null, null);
+            POS, null, tableName, columnsToAdd, columnsToDrop, null, null, null, null, null, false);
 
     // unparses DROP before ADD
     String expectedSql =
@@ -457,7 +459,8 @@ public class BeamSqlCliTest {
     SqlNodeList partsToDrop = createStringList("p3");
 
     SqlAlterTable alterTable =
-        new SqlAlterTable(POS, null, tableName, null, null, partsToAdd, partsToDrop, null, null);
+        new SqlAlterTable(
+            POS, null, tableName, null, null, partsToAdd, partsToDrop, null, null, null, false);
 
     // unparses DROP before ADD
     String expectedSql =
@@ -476,7 +479,8 @@ public class BeamSqlCliTest {
     SqlNodeList resetProps = createStringList("prop2");
 
     SqlAlterTable alterTable =
-        new SqlAlterTable(POS, null, tableName, null, null, null, null, setProps, resetProps);
+        new SqlAlterTable(
+            POS, null, tableName, null, null, null, null, setProps, resetProps, null, false);
 
     // unparses RESET before SET
     String expectedSql = "ALTER TABLE `test_table` RESET ('prop2') SET ('prop1' = 'val1')";
@@ -496,24 +500,39 @@ public class BeamSqlCliTest {
     SqlNodeList setProps = new SqlNodeList(POS);
     setProps.add(createPropertyPair("k", "v"));
     SqlNodeList resetProps = createStringList("k_reset");
+    SqlNodeList primaryKey = SqlNodeList.of(new SqlIdentifier("c1", POS));
 
     SqlAlterTable alterTable =
         new SqlAlterTable(
-            POS, null, tableName, addCols, dropCols, addParts, dropParts, setProps, resetProps);
+            POS,
+            null,
+            tableName,
+            addCols,
+            dropCols,
+            addParts,
+            dropParts,
+            setProps,
+            resetProps,
+            primaryKey,
+            true);
 
     // Expected Order based on source code:
     // 1. DROP COLUMNS
     // 2. ADD COLUMNS
     // 3. DROP PARTITIONS
     // 4. ADD PARTITIONS
-    // 5. RESET
-    // 6. SET
+    // 5. DROP PRIMARY KEY
+    // 6. ADD PRIMARY KEY
+    // 7. RESET
+    // 8. SET
     String expectedSql =
         "ALTER TABLE `full_table` "
             + "DROP COLUMNS (`c_old`) "
             + "ADD COLUMNS (`c1` BOOLEAN NOT NULL) "
             + "DROP PARTITIONS (`p_old`) "
             + "ADD PARTITIONS (`p_new`) "
+            + "DROP PRIMARY KEY "
+            + "ADD PRIMARY KEY (`c1`) NOT ENFORCED "
             + "RESET ('k_reset') "
             + "SET ('k' = 'v')";
 

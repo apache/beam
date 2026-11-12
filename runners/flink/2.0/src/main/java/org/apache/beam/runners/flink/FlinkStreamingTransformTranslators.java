@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
+import org.apache.beam.runners.flink.translation.functions.DeterministicRebalance;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -936,7 +937,16 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataStream(context.getInput(transform));
 
-      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
+      // In batch, a reshuffle often redistributes only a few elements per sender, such as file
+      // names or splittable DoFn restrictions, where rebalance()'s random start channels leave
+      // some readers idle and overload others. Start channels derived from the sender index keep
+      // such inputs balanced.
+      DataStream<WindowedValue<KV<K, InputT>>> reshuffled =
+          context.isStreaming()
+              ? inputDataSet.rebalance()
+              : DeterministicRebalance.apply(inputDataSet, context.getOutput(transform).getName());
+
+      context.setOutputDataStream(context.getOutput(transform), reshuffled);
     }
   }
 

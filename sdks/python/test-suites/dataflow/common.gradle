@@ -347,34 +347,6 @@ task mongodbioIT {
   }
 }
 
-task installChicagoTaxiExampleRequirements {
-  dependsOn 'initializeForDataflowJob'
-
-  doLast {
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
-    }
-  }
-}
-
-task chicagoTaxiExample {
-  dependsOn 'installChicagoTaxiExampleRequirements'
-
-  doLast {
-    def gcsRoot = findProperty('gcsRoot')
-    def pipelineOptions = findProperty('pipelineOptions') ?: ""
-    pipelineOptions += " --sdk_location=\"${project.ext.sdkLocation}\""
-
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} TestDataflowRunner ${pipelineOptions}"
-    }
-  }
-}
-
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   if (project.hasProperty("testRCDependencies")) {
@@ -450,7 +422,9 @@ def tensorRTTests = tasks.create("tensorRTtests") {
     "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
-    "region": "us-central1",
+    "region": "us-west1",
+    "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
+    "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
     "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
     "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
     "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8_trt11.trt",
@@ -474,7 +448,9 @@ def vllmBaseArgMap = [
   "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
   "sdk_location": files(configurations.distTarBall.files).singleFile,
   "project": "apache-beam-testing",
-  "region": "us-central1",
+  "region": "us-west1",
+  "staging_location": "gs://temp-storage-for-end-to-end-tests/staging-it",
+  "temp_location": "gs://temp-storage-for-end-to-end-tests/temp-it",
   "disk_size_gb": 75
 ]
 

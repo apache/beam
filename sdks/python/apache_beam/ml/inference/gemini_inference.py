@@ -19,8 +19,10 @@ import logging
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 from typing import cast
 
@@ -36,6 +38,16 @@ from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import _validate_batching_args
 
 LOGGER = logging.getLogger("GeminiModelHandler")
+
+# Upper bound on the number of in-flight requests issued concurrently for a
+# single batch by the request functions in this module, which send one
+# generate_content request per input. Bounds thread usage when adaptive
+# batching produces large batches; use max_batch_size to further limit
+# per-batch concurrency.
+_MAX_CONCURRENT_REQUESTS_PER_BATCH = 32
+
+_InputT = TypeVar('_InputT')
+_OutputT = TypeVar('_OutputT')
 
 
 def _retry_on_appropriate_service_error(exception: Exception) -> bool:
@@ -57,6 +69,27 @@ def _retry_on_appropriate_service_error(exception: Exception) -> bool:
   return exception.code == 429 or exception.code >= 500
 
 
+def _fan_out(fn: Callable[[_InputT], _OutputT],
+             items: Sequence[_InputT]) -> list[_OutputT]:
+  """Applies fn to each item concurrently and returns results in input order.
+
+  The google-genai client can be shared across threads (its HTTP connection
+  pool is thread-safe and credential refreshes are guarded by a lock), so
+  per-item requests are dispatched on a bounded thread pool. If any request
+  raises, pending requests are cancelled and the first exception (in input
+  order) is propagated so Beam's retry logic can handle the batch.
+  """
+  if len(items) <= 1:
+    return [fn(item) for item in items]
+  executor = ThreadPoolExecutor(
+      max_workers=min(len(items), _MAX_CONCURRENT_REQUESTS_PER_BATCH),
+      thread_name_prefix='GeminiModelHandler')
+  try:
+    return list(executor.map(fn, items))
+  finally:
+    executor.shutdown(wait=True, cancel_futures=True)
+
+
 def generate_from_string(
     model_name: str,
     batch: Sequence[str],
@@ -64,7 +97,9 @@ def generate_from_string(
     inference_args: dict[str, Any]):
   """ Request function that expects inputs to be composed of strings, then
   sends requests to Gemini to generate text responses based on the text
-  prompts.
+  prompts. Each prompt is sent as its own generate_content request (up to
+  _MAX_CONCURRENT_REQUESTS_PER_BATCH at a time), because Gemini treats a list
+  of strings in a single request as one message and returns one response.
 
   Args:
     model_name: the Gemini model to use for the request. This model should be
@@ -73,9 +108,14 @@ def generate_from_string(
     model: the genai Client
     inference_args: any additional arguments passed to the generate_content
       call.
+
+  Returns:
+    A list with one response per prompt, in the same order as the batch.
   """
-  return model.models.generate_content(
-      model=model_name, contents=cast(Any, batch), **inference_args)
+  return _fan_out(
+      lambda prompt: model.models.generate_content(
+          model=model_name, contents=prompt, **inference_args),
+      batch)
 
 
 def generate_image_from_strings_and_images(
@@ -86,7 +126,10 @@ def generate_image_from_strings_and_images(
   """ Request function that expects inputs to be composed of lists of strings
   and PIL Image instances, then sends requests to Gemini to generate images
   based on the text prompts and contextual images. This is currently intended
-  to be used with the gemini-2.5-flash-image model (AKA Nano Banana.)
+  to be used with the gemini-2.5-flash-image model (AKA Nano Banana.) Each
+  element of the batch is sent as its own generate_content request (up to
+  _MAX_CONCURRENT_REQUESTS_PER_BATCH at a time), so every element gets its own
+  response.
 
   Args:
     model_name: the Gemini model to use for the request. This model should be
@@ -96,9 +139,14 @@ def generate_image_from_strings_and_images(
     model: the genai Client
     inference_args: any additional arguments passed to the generate_content
       call.
+
+  Returns:
+    A list with one response per element, in the same order as the batch.
   """
-  return model.models.generate_content(
-      model=model_name, contents=cast(Any, batch), **inference_args)
+  return _fan_out(
+      lambda element: model.models.generate_content(
+          model=model_name, contents=cast(Any, element), **inference_args),
+      batch)
 
 
 class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
@@ -132,9 +180,9 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     Args:
       model_name: the Gemini model to send the request to
       request_fn: the function to use to send the request. Should take the
-        model name and the parameters from request() and return the responses
-        from Gemini. The class will handle bundling the inputs and responses
-        together.
+        model name and the parameters from request() and return a list with
+        one response from Gemini per input, in the same order as the inputs.
+        The class will handle bundling the inputs and responses together.
       api_key: the Gemini Developer API key to use for the requests. Setting
         this parameter sends requests for this job to the Gemini Developer API.
         If this paramter is provided, do not set the project or location
@@ -244,9 +292,9 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       model: genai.Client,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    """ Sends a prediction request to a Gemini service containing a batch
-    of inputs and matches that input with the prediction response from
-    the endpoint as an iterable of PredictionResults.
+    """ Sends a batch of inputs to a Gemini service using the request function
+    and matches each input with its response as an iterable of
+    PredictionResults.
 
     Args:
       batch: a sequence of any values to be passed to the Gemini service.
@@ -256,11 +304,22 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
         prediction request.
 
     Returns:
-      An iterable of Predictions.
+      An iterable of Predictions, one per input.
     """
     if inference_args is None:
       inference_args = {}
-    # Wrap the responses in a list to prevent zip() call from treating the
-    # response itself as an iterable of individual responses.
-    responses = [self.request_fn(self.model_name, batch, model, inference_args)]
+    responses = self.request_fn(self.model_name, batch, model, inference_args)
+    if len(batch) == 1 and not isinstance(responses, (list, tuple)):
+      # Request functions written for single-input batches may return the
+      # response itself rather than a list of responses.
+      responses = [responses]
+    if not isinstance(responses, (list, tuple)):
+      raise ValueError(
+          'request_fn must return a list with one response per input, but '
+          f'returned a single {type(responses).__name__} for a batch of '
+          f'{len(batch)} inputs.')
+    if len(responses) != len(batch):
+      raise ValueError(
+          'request_fn must return one response per input, but returned '
+          f'{len(responses)} responses for a batch of {len(batch)} inputs.')
     return utils._convert_to_result(batch, responses, self.model_name)

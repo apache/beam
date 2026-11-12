@@ -106,8 +106,14 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
         scanConfig.getTableIdentifier(),
         TableUtil.formatVersion(table));
 
+    if (ReadUtils.isEmptyRange(table, scanConfig)) {
+      return new OffsetRange(DEFAULT_STARTING_SEQ, DEFAULT_STARTING_SEQ);
+    }
+
+    // A to_timestamp end is checked as snapshots arrive (see process), because snapshots committed
+    // before it can still arrive until it passes.
     long toSnapshotExclusiveSeq = POLL_FOREVER;
-    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
+    @Nullable Long toSnapshotId = scanConfig.getToSnapshot();
     if (toSnapshotId != null) {
       toSnapshotExclusiveSeq =
           Preconditions.checkStateNotNull(
@@ -121,7 +127,12 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     @Nullable Long fromSnapshotInclusiveId = ReadUtils.getFromSnapshotInclusive(table, scanConfig);
     long fromSnapshotInclusiveSeq;
     if (fromSnapshotInclusiveId == null) {
-      fromSnapshotInclusiveSeq = DEFAULT_STARTING_SEQ; // sequence numbers start at 1
+      // when from_timestamp is later than every commit, start with the next one
+      @Nullable Snapshot current = table.currentSnapshot();
+      fromSnapshotInclusiveSeq =
+          scanConfig.getFromTimestamp() != null && current != null
+              ? current.sequenceNumber() + 1
+              : DEFAULT_STARTING_SEQ; // sequence numbers start at 1
     } else {
       Snapshot fromSnapshotInclusive =
           Preconditions.checkArgumentNotNull(
@@ -191,17 +202,25 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
       RestrictionTracker<OffsetRange, Long> tracker,
       ManualWatermarkEstimator<Instant> watermark,
       OutputReceiver<Long> out) {
+    OffsetRange range = tracker.currentRestriction();
+    if (range.getFrom() >= range.getTo()) {
+      return ProcessContinuation.stop();
+    }
+    // Checked before loading the table, so that once to_timestamp has passed, the loaded table
+    // holds every snapshot committed before it.
+    @Nullable Long toTimestamp = scanConfig.getToTimestamp();
+    boolean endPassed = toTimestamp != null && ReadUtils.hasPassed(toTimestamp);
     Table table =
         TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
-    @Nullable Long userToSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
+    @Nullable Long userToSnapshotId = scanConfig.getToSnapshot();
     boolean bounded = userToSnapshotId != null;
 
     @Nullable Snapshot current = table.currentSnapshot();
     if (current == null) {
       // no snapshots yet.
       LOG.info("Skipping scan: table is empty with no snapshots yet");
-      return pauseOrStop(watermark, bounded);
+      return endPassed ? finish(tracker) : pauseOrStop(watermark, bounded);
     }
 
     // Resolve the upper bound: user-specified bounded mode, or "current" for unbounded.
@@ -224,7 +243,7 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     if (toSnapshotSeq < nextSeqInclusive) {
       // Nothing new since last poll.
       LOG.info("Skipping scan: nothing new since last poll.");
-      return pauseOrStop(watermark, bounded);
+      return endPassed ? finish(tracker) : pauseOrStop(watermark, bounded);
     }
 
     // Collect snapshots in [nextSeqInclusive, toSnapshotSeq] chronologically
@@ -232,9 +251,18 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     List<SnapshotInfo> fresh = snapshotsAfter(table, tableId, nextSeqInclusive, toSnapshotId);
     LOG.info("Collected snapshots: {}", fresh);
 
+    @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
     for (SnapshotInfo snap : fresh) {
+      if (toTimestamp != null && snap.getTimestampMillis() > toTimestamp) {
+        // committed after to_timestamp, like every snapshot after it
+        return finish(tracker);
+      }
       if (!tracker.tryClaim(snap.getSequenceNumber())) {
         return ProcessContinuation.stop();
+      }
+      if (fromTimestamp != null && snap.getTimestampMillis() < fromTimestamp) {
+        // from_timestamp can be in the future
+        continue;
       }
       Instant commitTs = Instant.ofEpochMilli(snap.getTimestampMillis());
       Instant ts = commitTs;
@@ -264,7 +292,13 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
           ts);
     }
 
-    return continueOrStop(bounded);
+    return endPassed ? finish(tracker) : continueOrStop(bounded);
+  }
+
+  /** Stops a read whose to_timestamp has passed, marking the rest of its restriction as done. */
+  private static ProcessContinuation finish(RestrictionTracker<OffsetRange, Long> tracker) {
+    tracker.tryClaim(tracker.currentRestriction().getTo());
+    return ProcessContinuation.stop();
   }
 
   /**

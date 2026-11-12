@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -55,4 +56,68 @@ public interface BeamSqlTable {
    * estimate the row count or rate it will return BeamTableStatistics.BOUNDED_UNKNOWN.
    */
   BeamTableStatistics getTableStatistics(PipelineOptions options);
+
+  /**
+   * Returns the table to read for one reference in FROM that has a {@code WITH} clause, such as
+   * {@code SELECT * FROM t WITH ('key' = 'value')}.
+   *
+   * <p>By default, tables reject {@code WITH}. Override this method to support it in queries
+   * reading from your connector. Override the {@link #forWrite} method to support it for INSERT
+   * targets. Return a new table that has the given options applied to it. It may have a different
+   * schema, boundedness or push-down support than this one.
+   *
+   * <p>{@code options} has the clause's keys in the order they were written. A string literal
+   * arrives as a String, an integer as a Long, any other number as a Double, TRUE or FALSE as a
+   * Boolean, and ARRAY[...] and MAP[...] as a List and a Map.
+   *
+   * <p>Planning calls this method several times per reference, so keep it cheap and don't call the
+   * catalog. Don't change this table or its {@link Table} either.
+   *
+   * <p>For an example, see {@code IcebergTable#forWrite} in sdks/java/extensions/sql/iceberg.
+   *
+   * @throws IllegalArgumentException for an unknown option key or a value of the wrong type
+   * @throws UnsupportedOperationException if this table does not support {@code WITH} for reads
+   */
+  default BeamSqlTable forRead(Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support WITH options for reads", getClass().getSimpleName()));
+  }
+
+  /**
+   * Returns the table to write for an INSERT target that has a {@code WITH} clause, such as {@code
+   * INSERT INTO t WITH ('key' = 'value') SELECT ...}. Everything in {@link #forRead} applies here
+   * too.
+   */
+  default BeamSqlTable forWrite(Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support WITH options for writes", getClass().getSimpleName()));
+  }
+
+  /**
+   * Returns the table to read for one {@code CHANGES(...)} call in FROM, such as {@code SELECT *
+   * FROM CHANGES(t, 5, 10)}: the changes committed in the {@code changes} range, read with the
+   * {@code WITH} options, if any. Both bounds are inclusive. Everything in {@link #forRead} applies
+   * here too.
+   *
+   * <p>The parser will already reject malformed bounds, such as a negative version or an invalid
+   * timestamp format. Beyond that, it's up to the CDC source to validate the range against the
+   * table. Batch and streaming reads should both follow these rules:
+   *
+   * <ul>
+   *   <li>A version bound must name a version that exists, and a start version must be the ancestor
+   *       of an end version (or equal to it). Otherwise the read should fail.
+   *   <li>A timestamp bound can be any time. The read starts at the first version committed at or
+   *       after the start, and stops at the last version committed at or before the end.
+   *   <li>A batch read that holds no versions returns no rows. Same applies to a streaming read
+   *       with a closed range.
+   *   <li>A streaming read with an open end keeps reading, even if nothing has been committed in
+   *       its range yet.
+   * </ul>
+   *
+   * @throws UnsupportedOperationException if this table does not support {@code CHANGES(...)}
+   */
+  default BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+    throw new UnsupportedOperationException(
+        String.format("%s does not support CHANGES(...)", getClass().getSimpleName()));
+  }
 }

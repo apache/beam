@@ -162,6 +162,43 @@ public class KafkaIOExternalTest {
         result);
   }
 
+  /** Builds the read the way the external transform builders do. */
+  @SuppressWarnings("AutoValueSubclassLeaked")
+  private static KafkaIO.Read<byte[], byte[]> readFromExternalConfig(
+      Boolean redistribute, Integer redistributeNumKeys) {
+    String deserializer = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
+    KafkaIO.Read.External.Configuration config = new KafkaIO.Read.External.Configuration();
+    config.setTopics(ImmutableList.of("topic1"));
+    config.setConsumerConfig(
+        ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "server1:port"));
+    config.setKeyDeserializer(deserializer);
+    config.setValueDeserializer(deserializer);
+    config.setCommitOffsetInFinalize(false);
+    config.setTimestampPolicy("ProcessingTime");
+    config.setRedistribute(redistribute);
+    config.setRedistributeNumKeys(redistributeNumKeys);
+    config.setAllowDuplicates(true);
+
+    KafkaIO.Read.Builder<byte[], byte[]> builder = new AutoValue_KafkaIO_Read.Builder<>();
+    KafkaIO.Read.Builder.setupExternalBuilder(builder, config);
+    return builder.build();
+  }
+
+  @Test
+  public void testExternalRedistributeUsesDefaultNumKeysWhenNotSet() {
+    int defaultNumKeys = KafkaIO.<byte[], byte[]>read().withRedistribute().getRedistributeNumKeys();
+    assertThat(defaultNumKeys, Matchers.greaterThan(0));
+
+    assertEquals(defaultNumKeys, readFromExternalConfig(true, 0).getRedistributeNumKeys());
+    assertEquals(defaultNumKeys, readFromExternalConfig(true, null).getRedistributeNumKeys());
+  }
+
+  @Test
+  public void testExternalRedistributeKeepsConfiguredNumKeys() {
+    assertEquals(16, readFromExternalConfig(true, 16).getRedistributeNumKeys());
+    assertEquals(0, readFromExternalConfig(false, 0).getRedistributeNumKeys());
+  }
+
   @Test
   public void testKafkaRecordToExternalKafkaRecord() throws Exception {
     RecordHeaders headers = new RecordHeaders();

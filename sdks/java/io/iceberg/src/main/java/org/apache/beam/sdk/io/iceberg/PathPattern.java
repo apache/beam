@@ -193,8 +193,8 @@ final class PathPattern implements Serializable {
   }
 
   /**
-   * Fills a table template from a path's captures, so {@code warehouse.{db}.{tbl}} with {@code
-   * db=sales, tbl=orders} gives {@code warehouse.sales.orders}.
+   * Fills a table template from a path's captures, so {@code {db}.{tbl}} with {@code db=sales,
+   * tbl=orders} gives {@code sales.orders}.
    */
   static String render(String template, Map<String, String> captures) {
     // split with -1 gives one more literal part than there are placeholders, so literals[i + 1]

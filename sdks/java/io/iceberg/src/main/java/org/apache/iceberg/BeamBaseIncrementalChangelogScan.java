@@ -72,9 +72,10 @@ public class BeamBaseIncrementalChangelogScan
               PartitionMap.class,
               PartitionMap.class,
               Map.class,
+              Map.class,
               Map.class);
       constructor.setAccessible(true);
-      return constructor.newInstance(null, null, null, null, null);
+      return constructor.newInstance(null, null, null, null, null, null);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize EMPTY DeleteFileIndex", e);
     }
@@ -616,7 +617,9 @@ public class BeamBaseIncrementalChangelogScan
       allDataGroup = allDataGroup.ignoreResiduals();
     }
 
-    String schemaString = SchemaParser.toJson(schema());
+    // as in ManifestGroup, task specs use the table schema: the residual and partition fields may
+    // reference columns outside the projection
+    String schemaString = SchemaParser.toJson(table().schema());
 
     // Cache per specId - same for all files with same specId
     Map<Integer, String> specStringCache = Maps.newHashMap();

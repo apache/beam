@@ -23,12 +23,12 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.google.ads.googleads.lib.GoogleAdsClient;
-import com.google.ads.googleads.v25.services.GoogleAdsServiceClient;
-import com.google.ads.googleads.v25.services.stub.GoogleAdsServiceStub;
+import com.google.ads.googleads.v26.services.GoogleAdsServiceClient;
+import com.google.ads.googleads.v26.services.stub.GoogleAdsServiceStub;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class MockGoogleAdsClientFactory implements GoogleAdsClientFactory {
-  static final GoogleAdsServiceStub GOOGLE_ADS_SERVICE_STUB_V25 =
+  static final GoogleAdsServiceStub GOOGLE_ADS_SERVICE_STUB_V26 =
       mock(GoogleAdsServiceStub.class, withSettings().defaultAnswer(RETURNS_DEEP_STUBS));
 
   @Override
@@ -39,8 +39,8 @@ class MockGoogleAdsClientFactory implements GoogleAdsClientFactory {
       @Nullable Long loginCustomerId) {
     GoogleAdsClient mockGoogleAdsClient =
         mock(GoogleAdsClient.class, withSettings().defaultAnswer(RETURNS_DEEP_STUBS));
-    when(mockGoogleAdsClient.getVersion25().createGoogleAdsServiceClient())
-        .thenReturn(GoogleAdsServiceClient.create(GOOGLE_ADS_SERVICE_STUB_V25));
+    when(mockGoogleAdsClient.getVersion26().createGoogleAdsServiceClient())
+        .thenReturn(GoogleAdsServiceClient.create(GOOGLE_ADS_SERVICE_STUB_V26));
     return mockGoogleAdsClient;
   }
 }

@@ -447,6 +447,7 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
+    configuration.validateModeOptions();
     return new IcebergWriteSchemaTransform(configuration);
   }
 
@@ -489,7 +490,6 @@ public class IcebergWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
-      configuration.validateModeOptions();
       return configuration.mode() == Configuration.Mode.MERGE_ON_READ
           ? expandCdc(rows)
           : expandAppend(rows);

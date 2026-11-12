@@ -98,7 +98,7 @@ PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 
-RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
+RECOMMENDED_MIN_PIP_VERSION = '26.2.2'
 try:
   _PIP_VERSION = distribution('pip').version
   if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
@@ -153,7 +153,7 @@ else:
     # Generally try to cover versions released in the last two years.
     # Update python/sdks/tox.ini to cover the same pyarrow versions
     # when updating the bounds here.
-    'pyarrow>=14.0.1,<26.0.0',
+    'pyarrow>=14.0.1,<27.0.0',
   ]
 
 # must update the below "docs" and "test" for extras_require
@@ -183,10 +183,8 @@ xgboost_dependency = [
 ml_base_core = [
     'embeddings>=0.0.4',  # 0.0.3 crashes setuptools
     'onnxruntime',
-    # onnx 1.12–1.13 cap protobuf in ways that trigger huge backtracking with
-    # Beam[gcp]+ml_test; pip can fall back to onnx 1.11 sdist which needs cmake.
-    # 1.14.1+ matches tf2onnx>=1.16 and ships manylinux wheels for py3.10.
     'onnx>=1.14.1,<2',
+    'onnxscript>=0.5.0,<1',
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
@@ -231,9 +229,9 @@ ml_adk_dependency = [
     # proto-plus<1.24 caps protobuf<5; opentelemetry-proto (via ADK) needs
     # protobuf>=5. Scoped here so the main dependency list stays broader.
     'proto-plus>=1.26.1,<2',
-    'opentelemetry-api>=1.36.0,<1.43',
-    'opentelemetry-sdk>=1.36.0,<1.43',
-    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<1.43',
+    'opentelemetry-api>=1.36.0,<2.0',
+    'opentelemetry-sdk>=1.36.0,<2.0',
+    'opentelemetry-exporter-otlp-proto-http>=1.36.0,<2.0',
     # protobuf>=5 (ADK/OTel); tf2onnx 1.16.x pins protobuf~=3.20 only.
     'tf2onnx>=1.17.0,<1.18',
 ]
@@ -355,7 +353,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.10'
+python_requires = '>=3.11'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
@@ -435,6 +433,10 @@ if __name__ == '__main__':
           ]
       },
       ext_modules=extensions,
+      entry_points={
+          # Experimental; see apache_beam/cli/main.py.
+          'console_scripts': ['beam = apache_beam.cli.main:main'],
+      },
       install_requires=[
           'cryptography>=50.0.0',
           'fastavro>=0.23.6,<2',
@@ -466,7 +468,7 @@ if __name__ == '__main__':
           #
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
-          'protobuf>=3.20.3,<7.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
+          'protobuf>=3.20.3,<8.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
           'requests>=2.32.4,<3.0.0',
@@ -628,9 +630,6 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p310_ml_test': [
-            'datatable',
-          ] + ml_base + qdrant_dependency,
           # xgboost_dependency includes datatable, which only has wheels for
           # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
           'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
@@ -703,12 +702,16 @@ if __name__ == '__main__':
           ],
           'tfrecord': ['crcmod>=1.7,<2.0'],
           'onnx': [
-              'onnxruntime==1.13.1',
-              'torch==1.13.1',
-              'tensorflow==2.11.0',
-              'tf2onnx==1.17.0',
-              'skl2onnx==1.13',
-              'transformers==4.25.1',  # tensorflow transient dep
+              # Keep in line with the py311-onnx-* environments in tox.ini.
+              'onnx>=1.16.0,<2',
+              'onnxruntime>=1.19.0,<2',
+              # Converters for producing ONNX models from scikit-learn,
+              # TensorFlow and PyTorch models.
+              'skl2onnx>=1.17.0,<2',
+              'tf2onnx>=1.17.0,<1.18',
+              'tensorflow>=2.18.0,<2.22',
+              'torch>=2.3.0,<2.12.0',
+              'onnxscript>=0.5.0,<1',
               'absl-py>=0.12.0'
           ],
           'xgboost': xgboost_dependency,
