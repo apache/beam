@@ -136,11 +136,13 @@ def _parse_fields(tables, fields):
               f'Invalid column "{v}" in "fields". Column name must be a str.')
         output_fields.append(f'{input}.{v} AS {k}')
         named_columns.add(k)
+    elif cols == '*':
+      output_fields.append(f'{input}.*')
     else:
       raise ValueError(
           f'{error_prefix} '
           f'For every input key in fields, '
-          f'the value must either be a list or dict.')
+          f'the value must either be a list, dict, or "*".')
   for table in tables:
     if table not in fields.keys():
       output_fields.append(f'{table}.*')
@@ -157,6 +159,8 @@ def _is_connected(edge_list, expected_node_count):
         if u != v:
           graph[u].add(v)
 
+  if not graph:
+    return False
   visited = set()
   stack = [next(iter(graph))]
   while stack:

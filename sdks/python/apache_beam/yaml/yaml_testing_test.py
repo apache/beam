@@ -395,6 +395,32 @@ class YamlTestingTest(unittest.TestCase):
     self.assertGreaterEqual(len(test_spec['expected_inputs'][0]['elements']), 3)
     yaml_testing.run_test(pipeline, test_spec)
 
+  def test_validate_test_spec_invalid_attr_type(self):
+    with self.assertRaisesRegex(
+        TypeError, "mock_inputs .* must be a list, got <class 'dict'>"):
+      yaml_testing.validate_test_spec(
+          dict(
+              mock_inputs=dict(name='MyRead'),
+              expected_outputs=[dict(name='Out', elements=[])]))
+
+  def test_create_test_ambiguous_unnamed_transform(self):
+    pipeline = '''
+    pipeline:
+      type: composite
+      transforms:
+        - type: ReadFromCsv
+          config:
+            path: a.csv
+        - type: ReadFromCsv
+          config:
+            path: b.csv
+        - type: LogForTesting
+          input: [ReadFromCsv]
+    '''
+    with self.assertRaisesRegex(ValueError,
+                                'Ambiguous unnamed transform ReadFromCsv'):
+      yaml_testing.create_test(pipeline)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
