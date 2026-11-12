@@ -136,6 +136,7 @@
 ## Bugfixes
 
 * (Java) Fixed `MongoDbIO` reads with `withBucketAuto(true)` or an `AggregationQuery` failing on large collections with `Sort exceeded memory limit of 104857600 bytes` on MongoDB servers older than 6.0. The connector now sets `allowDiskUse` on its aggregations, as the Python and Go connectors do ([#26495](https://github.com/apache/beam/issues/26495)).
+* (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
 * (Python) Fixed cross-language `ReadFromKafka(redistribute=True)` creating one key per record when `redistribute_num_keys` is not set. It now uses the KafkaIO default of 32768 keys, as Java `withRedistribute()` does. On Flink the per-record keys left timer state that grew until the job ran out of memory ([#41103](https://github.com/apache/beam/issues/41103)).
 * (Python/YAML) Beam YAML `generic` filters now accept `>=`, `<=`, `==` and `!=`; previously only `<` and `>` were recognized ([#41043](https://github.com/apache/beam/issues/41043)).
 * (Python) Fixed batched DoFns whose input must be rebatched into a `pyarrow.Table` with more than one column, which failed with `ArrowInvalid: Column 1 ... expected length N but got length 0`. This affected, for example, Beam YAML `ReadFromCsv` or `ReadFromJson` followed directly by `WriteToParquet` ([#41042](https://github.com/apache/beam/issues/41042)).
@@ -148,6 +149,7 @@
 * (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
+* (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

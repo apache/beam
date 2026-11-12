@@ -69,6 +69,7 @@ spec:
     matchLabels:
       name: datanode
   serviceName: "hadoop-datanodes"
+  podManagementPolicy: Parallel
   replicas: 3
   template:
     metadata:
@@ -111,6 +112,26 @@ spec:
   - image: gcr.io/apache-beam-testing/kubernetes-hadoop:3.3.4
     imagePullPolicy: Always
     name: namenode
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        DOMAIN_SUFFIX="hadoop-datanodes.${NODE_NAMESPACE:-default}.svc.cluster.local"
+        for ((i=0; i<${DATANODE_COUNT:-3}; i++)); do
+          HOST="datanode-${i}.${DOMAIN_SUFFIX}"
+          echo "Waiting for SSH on ${HOST}..."
+          for attempt in $(seq 1 60); do
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 "${HOST}" true 2>/dev/null; then
+              echo "${HOST} is ready."
+              break
+            fi
+            if [ "${attempt}" -eq 60 ]; then
+              echo "Timed out waiting for SSH on ${HOST}" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+        done
+        exec /opt/bootstrap.sh -d
     env:
       - name: NODE_TYPE
         value: namenode
@@ -120,6 +141,11 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: metadata.namespace
+    readinessProbe:
+      tcpSocket:
+        port: 9000
+      initialDelaySeconds: 5
+      periodSeconds: 5
     ports:
       - name: sshd
         containerPort: 22
