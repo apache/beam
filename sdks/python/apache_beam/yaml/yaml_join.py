@@ -16,6 +16,7 @@
 #
 
 """This module defines the Join operation."""
+import collections
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -136,11 +137,13 @@ def _parse_fields(tables, fields):
               f'Invalid column "{v}" in "fields". Column name must be a str.')
         output_fields.append(f'{input}.{v} AS {k}')
         named_columns.add(k)
+    elif cols == '*':
+      output_fields.append(f'{input}.*')
     else:
       raise ValueError(
           f'{error_prefix} '
           f'For every input key in fields, '
-          f'the value must either be a list or dict.')
+          f'the value must either be a list, dict, or "*".')
   for table in tables:
     if table not in fields.keys():
       output_fields.append(f'{table}.*')
@@ -246,58 +249,60 @@ def _SqlJoinTransform(
     outer = tables
   else:
     outer = []
-  first_table = tables[0]
-  conditioned = [first_table]
 
-  def generate_join_type(left, right):
-    if left in outer and right in outer:
+  def generate_join_type(visited, curr_table):
+    left_in_outer = any(t in outer for t in visited)
+    right_in_outer = curr_table in outer
+    if left_in_outer and right_in_outer:
       return 'FULL'
-    if left in outer:
+    if left_in_outer:
       return 'LEFT'
-    if right in outer:
+    if right_in_outer:
       return 'RIGHT'
     if not outer:
       return type.upper()
     return 'INNER'
 
-  prev_table = tables[0]
-  join_conditions = {}
-  for i in range(1, len(tables)):
-    curr_table = tables[i]
-    join_type = generate_join_type(prev_table, curr_table)
-    join_conditions[curr_table] = f' {join_type} JOIN {curr_table}'
-    prev_table = curr_table
-
+  adj = collections.defaultdict(lambda: collections.defaultdict(list))
   for equality in equalities_in_pairs:
-    left, right = equality.keys()
-    if left in conditioned and right in conditioned:
-      t = tables[max(tables.index(left), tables.index(right))]
-      join_conditions[t] = (
-          f'{join_conditions[t]} '
-          f'AND {left}.{equality[left]} = {right}.{equality[right]}')
-    elif left in conditioned:
-      join_conditions[right] = (
-          f'{join_conditions[right]} '
-          f'ON {left}.{equality[left]} = {right}.{equality[right]}')
-      conditioned.append(right)
-    elif right in conditioned:
-      join_conditions[left] = (
-          f'{join_conditions[left]} '
-          f'ON {left}.{equality[left]} = {right}.{equality[right]}')
-      conditioned.append(left)
-    else:
-      t = tables[max(tables.index(left), tables.index(right))]
-      join_conditions[t] = (
-          f'{join_conditions[t]} '
-          f'ON {left}.{equality[left]} = {right}.{equality[right]}')
-      conditioned.append(t)
+    u, v = equality.keys()
+    cond = f'{u}.{equality[u]} = {v}.{equality[v]}'
+    adj[u][v].append(cond)
+    adj[v][u].append(cond)
+
+  first_table = tables[0]
+  visited = [first_table]
+  visited_set = {first_table}
+  join_clauses = []
+
+  while len(visited) < len(tables):
+    candidates = []
+    for u in visited:
+      for v in adj[u]:
+        if v not in visited_set and v not in candidates:
+          candidates.append(v)
+    candidates.sort(key=lambda t: tables.index(t))
+    curr_table = candidates[0]
+
+    conditions = []
+    for prev in visited:
+      if prev in adj[curr_table]:
+        for c in adj[curr_table][prev]:
+          if c not in conditions:
+            conditions.append(c)
+
+    join_type = generate_join_type(visited, curr_table)
+    on_clause = ' AND '.join(conditions)
+    join_clauses.append(f' {join_type} JOIN {curr_table} ON {on_clause}')
+
+    visited.append(curr_table)
+    visited_set.add(curr_table)
 
   if fields:
     selects = ', '.join(_parse_fields(tables, fields))
   else:
     selects = '*'
-  query = f'SELECT {selects} FROM {first_table}'
-  query += ' '.join(condition for condition in join_conditions.values())
+  query = f'SELECT {selects} FROM {first_table}' + ''.join(join_clauses)
   return pcolls | sql_transform_constructor(query)
 
 
