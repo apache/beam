@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/internal/rangeio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -134,6 +136,40 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 	return output.Body, nil
 }
 
+// OpenSeekable reads ranges guarded by the ETag observed when opening the object.
+func (f *fs) OpenSeekable(ctx context.Context, filename string) (filesystem.ReaderAtCloser, error) {
+	bucket, key, err := parseURI(filename)
+	if err != nil {
+		return nil, err
+	}
+	attrs, err := f.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		return nil, fmt.Errorf("error opening object %s: %w", filename, err)
+	}
+	if strings.EqualFold(strings.TrimSpace(aws.ToString(attrs.ContentEncoding)), "gzip") {
+		return nil, fmt.Errorf("%s has gzip content encoding: %w", filename, filesystem.ErrNotSeekable)
+	}
+	if attrs.ContentLength == nil || *attrs.ContentLength < 0 || aws.ToString(attrs.ETag) == "" {
+		return nil, fmt.Errorf("missing size or ETag for positional reads: %s", filename)
+	}
+	size := *attrs.ContentLength
+	return rangeio.New(ctx, size, func(ctx context.Context, off, length int64) (io.ReadCloser, error) {
+		output, err := f.client.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket), Key: aws.String(key), IfMatch: attrs.ETag,
+			Range: aws.String(fmt.Sprintf("bytes=%d-%d", off, off+length-1)),
+		})
+		if err != nil {
+			return nil, err
+		}
+		expected := fmt.Sprintf("bytes %d-%d/%d", off, off+length-1, size)
+		if aws.ToString(output.ContentRange) != expected {
+			output.Body.Close()
+			return nil, fmt.Errorf("unexpected content range for %s: got %q, want %q", filename, aws.ToString(output.ContentRange), expected)
+		}
+		return output.Body, nil
+	}), nil
+}
+
 // OpenWrite returns a new io.WriteCloser to write contents to the file. The caller must call Close
 // on the returned io.WriteCloser when done writing.
 func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
@@ -232,6 +268,7 @@ func (f *fs) Copy(ctx context.Context, oldpath, newpath string) error {
 
 // Compile time check for interface implementations.
 var (
+	_ filesystem.SeekableOpener     = (*fs)(nil)
 	_ filesystem.LastModifiedGetter = (*fs)(nil)
 	_ filesystem.Remover            = (*fs)(nil)
 	_ filesystem.Copier             = (*fs)(nil)

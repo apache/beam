@@ -97,6 +97,21 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	return nil, os.ErrNotExist
 }
 
+type readerAtCloser struct{ *bytes.Reader }
+
+func (*readerAtCloser) Close() error { return nil }
+
+// OpenSeekable opens a snapshot of a memory file for positional reads.
+func (f *fs) OpenSeekable(_ context.Context, filename string) (filesystem.ReaderAtCloser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if v, ok := f.m[normalize(filename)]; ok {
+		// Write accepts caller-owned slices, so isolate this reader from mutations.
+		return &readerAtCloser{bytes.NewReader(bytes.Clone(v.Data))}, nil
+	}
+	return nil, os.ErrNotExist
+}
+
 func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
 	return &commitWriter{key: filename, instance: f}, nil
 }
@@ -157,6 +172,7 @@ func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
 
 // Compile time check for interface implementations.
 var (
+	_ filesystem.SeekableOpener     = (*fs)(nil)
 	_ filesystem.LastModifiedGetter = ((*fs)(nil))
 	_ filesystem.Remover            = ((*fs)(nil))
 	_ filesystem.Renamer            = ((*fs)(nil))

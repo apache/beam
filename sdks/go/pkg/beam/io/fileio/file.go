@@ -18,9 +18,11 @@ package fileio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -39,6 +41,9 @@ type FileMetadata struct {
 	Path         string
 	Size         int64
 	LastModified time.Time
+	// ReadSeekEfficient reports whether the filesystem supports positional reads.
+	// OpenSeekable can still reject an individual file, for example due to encoding.
+	ReadSeekEfficient bool
 }
 
 // compressionType is the type of compression used to compress a file.
@@ -81,6 +86,53 @@ func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 	}
 
 	return newDecompressionReader(rc, comp)
+}
+
+// OpenSeekable opens an uncompressed file for concurrent positional reads.
+// It returns an error wrapping filesystem.ErrNotSeekable when metadata does not
+// advertise the capability, compression is enabled, or the filesystem/file does
+// not support it. Callers may fall back to Read to buffer such files.
+// The returned reader owns the filesystem and closes it on Close. ctx must
+// remain valid for subsequent reads. Files must remain unchanged between matching
+// and opening so that Metadata.Size describes the opened contents. Object-store
+// reads are pinned at open time; local files must not be modified in place.
+//
+// On object stores, ReadAt calls generally issue individual range requests.
+// Callers should coalesce small reads and use bounded concurrency to hide request
+// latency.
+func (f ReadableFile) OpenSeekable(ctx context.Context) (filesystem.ReaderAtCloser, error) {
+	comp := f.Compression
+	if comp == compressionAuto {
+		comp = compressionFromExt(f.Metadata.Path)
+	}
+	if !f.Metadata.ReadSeekEfficient || comp != compressionUncompressed {
+		return nil, fmt.Errorf("positional reads unavailable for %s: %w", f.Metadata.Path, filesystem.ErrNotSeekable)
+	}
+	fs, err := filesystem.New(ctx, f.Metadata.Path)
+	if err != nil {
+		return nil, err
+	}
+	opener, ok := fs.(filesystem.SeekableOpener)
+	if !ok {
+		return nil, errors.Join(fmt.Errorf("filesystem for %s does not support positional reads: %w", f.Metadata.Path, filesystem.ErrNotSeekable), fs.Close())
+	}
+	reader, err := opener.OpenSeekable(ctx, f.Metadata.Path)
+	if err != nil {
+		return nil, errors.Join(err, fs.Close())
+	}
+	return &ownedReaderAt{ReaderAtCloser: reader, fs: fs}, nil
+}
+
+type ownedReaderAt struct {
+	filesystem.ReaderAtCloser
+	fs   filesystem.Interface
+	once sync.Once
+	err  error
+}
+
+func (r *ownedReaderAt) Close() error {
+	r.once.Do(func() { r.err = errors.Join(r.ReaderAtCloser.Close(), r.fs.Close()) })
+	return r.err
 }
 
 // compressionFromExt detects the compression of a file based on its extension. If the extension is
