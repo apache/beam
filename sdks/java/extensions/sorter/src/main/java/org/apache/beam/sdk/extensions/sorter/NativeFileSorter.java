@@ -206,15 +206,18 @@ final class NativeFileSorter {
 
   private @Nullable KV<byte[], byte[]> readKeyValueOrFail(InputStream inputStream) {
     try {
-      @Nullable KV<byte[], byte[]> kv = readKeyValue(inputStream);
+      @Nullable KV<byte[], byte[]> kv = readKeyValue(inputStream); // null at end of file
       if (kv == null) {
         // The block is used up: release its file handle now
         inputStream.close();
       }
       return kv;
-    } catch (EOFException e) {
-      return null;
     } catch (IOException e) {
+      try {
+        inputStream.close();
+      } catch (IOException closeError) {
+        e.addSuppressed(closeError);
+      }
       throw new IllegalStateException(e);
     }
   }
