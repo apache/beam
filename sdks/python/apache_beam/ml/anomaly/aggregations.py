@@ -215,7 +215,7 @@ class MajorityVote(LabelAggregation):
     **kwargs: Additional keyword arguments to pass to the base
       `LabelAggregation` class.
   """
-  def __init__(self, tie_breaker=DEFAULT_NORMAL_LABEL, **kwargs):
+  def __init__(self, tie_breaker=None, **kwargs):
     self._tie_breaker = tie_breaker
 
     def inner(predictions: Iterable[int]) -> int:
@@ -225,7 +225,7 @@ class MajorityVote(LabelAggregation):
       elif counters[self._normal_label] > counters[self._outlier_label]:
         vote = self._normal_label
       else:
-        vote = self._tie_breaker
+        vote = self._tie_breaker if self._tie_breaker is not None else self._normal_label
       return vote
 
     super().__init__(agg_func=inner, **kwargs)
