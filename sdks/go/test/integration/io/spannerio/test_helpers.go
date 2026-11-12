@@ -18,7 +18,6 @@ package spannerio
 import (
 	"context"
 	"fmt"
-	"google.golang.org/api/option/internaloption"
 	"regexp"
 	"testing"
 
@@ -29,6 +28,7 @@ import (
 	instancepb "cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -36,17 +36,22 @@ import (
 )
 
 const (
-	spannerImage = "cloud-spanner-emulator/emulator:latest"
+	// spannerImage must be fully qualified with the gcr.io registry - the
+	// image is not published to Docker Hub, so an unqualified reference
+	// resolves there instead and fails with a misleading "pull access
+	// denied" error.
+	spannerImage = "gcr.io/cloud-spanner-emulator/emulator:latest"
 	maxRetries   = 5
 )
 
 var (
-	spannerHost    = "localhost:9010"
 	spannerPorts   = []string{"9010/tcp", "9020/tcp"}
 	validDBPattern = regexp.MustCompile("^projects/(?P<project>[^/]+)/instances/(?P<instance>[^/]+)/databases/(?P<database>[^/]+)$")
 )
 
-func setUpTestContainer(ctx context.Context, t *testing.T) string {
+// setUpSpannerEmulator starts a real Cloud Spanner emulator as a Docker
+// testcontainer and returns its endpoint.
+func setUpSpannerEmulator(ctx context.Context, t *testing.T) string {
 	t.Helper()
 
 	container := containers.NewContainer(
