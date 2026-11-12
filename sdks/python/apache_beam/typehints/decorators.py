@@ -186,6 +186,21 @@ def _is_convertible_type_hint(hint):
   TypeVars, NewTypes and ``type`` aliases, which convert to valid hints, are
   still resolved.
   """
+  if hint is None or hint is Ellipsis:
+    return True
+  origin = get_origin(hint)
+  if origin is Literal:
+    # Literal arguments are values, not types.
+    return True
+  args = get_args(hint)
+  if origin is typing.Annotated:
+    args = args[:1]  # The remaining arguments are metadata.
+  for arg in args:
+    # A list is a Callable parameter list, e.g. the [int] in
+    # Callable[[int], str].
+    for inner in (arg if isinstance(arg, list) else [arg]):
+      if not _is_convertible_type_hint(inner):
+        return False
   try:
     validate_composite_type_param(
         convert_to_beam_type(hint), 'Resolved type annotation')
