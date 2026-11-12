@@ -23,7 +23,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.ref.Cleaner;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
@@ -51,6 +54,10 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.encryption.EncryptedKey;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.FileIOParser;
+import org.apache.iceberg.io.StorageCredential;
+import org.apache.iceberg.io.SupportsStorageCredentials;
+import org.apache.iceberg.rest.credentials.CredentialParser;
+import org.apache.iceberg.rest.credentials.ImmutableCredential;
 import org.apache.iceberg.util.JsonUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -59,8 +66,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A serializable, lightweight representation of an Iceberg {@link Table}'s declarative metadata.
  *
  * <p>Captures the table's schemas, partition specs, sort orders, location, properties, identifier,
- * encrypted keys, and serialized {@link FileIO} configuration. Suitable for broadcasting across
- * worker nodes via Beam's side-input mechanism.
+ * encrypted keys, and serialized {@link FileIO} configuration and storage credentials. Suitable for
+ * broadcasting across worker nodes via Beam's side-input mechanism.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -105,6 +112,13 @@ public abstract class SerializableTableSpec implements Serializable {
   @SchemaFieldNumber("12")
   public abstract long getLastUpdatedMillis();
 
+  /**
+   * The storage credentials the table's {@link FileIO} holds, such as those a REST catalog vends,
+   * as {@link CredentialParser} JSON.
+   */
+  @SchemaFieldNumber("13")
+  public abstract @Nullable List<String> getStorageCredentialJsons();
+
   private transient volatile @MonotonicNonNull Map<Integer, Schema> cachedSchemas;
   private transient volatile @MonotonicNonNull Map<Integer, PartitionSpec> cachedPartitionSpecs;
   private transient volatile @MonotonicNonNull Map<Integer, SortOrder> cachedSortOrders;
@@ -113,6 +127,13 @@ public abstract class SerializableTableSpec implements Serializable {
   private transient volatile @MonotonicNonNull List<EncryptedKey> cachedEncryptedKeys;
 
   private static volatile @MonotonicNonNull SchemaCoder<SerializableTableSpec> cachedCoder;
+
+  /** The {@link FileIO}s that specs share, keyed by FileIO JSON and storage credentials. */
+  private static final Map<KV<String, @Nullable List<String>>, SharedFileIO> SHARED_FILE_IOS =
+      new HashMap<>();
+
+  /** Releases a spec's shared {@link FileIO} once the spec is unreachable. */
+  private static final Cleaner CLEANER = Cleaner.create();
 
   @SchemaIgnore
   public Map<Integer, Schema> getSchemas() {
@@ -245,6 +266,10 @@ public abstract class SerializableTableSpec implements Serializable {
   /**
    * Returns a cached {@link FileIO} instance for this table, configured with the provided Hadoop
    * {@link Configuration} if supported.
+   *
+   * <p>Specs with the same {@link #getFileIoJson()} and storage credentials share one instance,
+   * because each side input update decodes new copies of every spec. The shared instance is closed
+   * once no spec that uses it is reachable.
    */
   @SchemaIgnore
   public FileIO getFileIO(@Nullable Configuration conf) {
@@ -253,11 +278,11 @@ public abstract class SerializableTableSpec implements Serializable {
       synchronized (this) {
         local = cachedFileIO;
         if (local == null) {
-          cachedFileIO =
-              local =
-                  conf != null
-                      ? FileIOParser.fromJson(getFileIoJson(), conf)
-                      : FileIOParser.fromJson(getFileIoJson());
+          KV<String, @Nullable List<String>> key =
+              KV.of(getFileIoJson(), getStorageCredentialJsons());
+          SharedFileIO shared = acquireSharedFileIO(key, conf);
+          CLEANER.register(this, () -> release(key, shared));
+          cachedFileIO = local = shared.fileIO;
         }
       }
     }
@@ -265,6 +290,62 @@ public abstract class SerializableTableSpec implements Serializable {
       CatalogUtil.configureHadoopConf(local, conf);
     }
     return local;
+  }
+
+  private SharedFileIO acquireSharedFileIO(
+      KV<String, @Nullable List<String>> key, @Nullable Configuration conf) {
+    synchronized (SHARED_FILE_IOS) {
+      SharedFileIO shared = SHARED_FILE_IOS.get(key);
+      if (shared == null) {
+        shared = new SharedFileIO(newFileIO(conf));
+        SHARED_FILE_IOS.put(key, shared);
+      }
+      shared.specs++;
+      return shared;
+    }
+  }
+
+  private FileIO newFileIO(@Nullable Configuration conf) {
+    FileIO fileIO =
+        conf != null
+            ? FileIOParser.fromJson(getFileIoJson(), conf)
+            : FileIOParser.fromJson(getFileIoJson());
+    List<String> credentialJsons = getStorageCredentialJsons();
+    if (credentialJsons != null && fileIO instanceof SupportsStorageCredentials) {
+      ((SupportsStorageCredentials) fileIO)
+          .setCredentials(
+              credentialJsons.stream()
+                  .map(CredentialParser::fromJson)
+                  .map(c -> StorageCredential.create(c.prefix(), c.config()))
+                  .collect(Collectors.toList()));
+    }
+    return fileIO;
+  }
+
+  /**
+   * Closes a shared {@link FileIO} after the last spec that uses it becomes unreachable. For vended
+   * credentials that expire, closing also cancels the refresh that GCSFileIO and S3FileIO schedule.
+   * Otherwise that refresh keeps the FileIO alive and, given a refresh endpoint, keeps calling the
+   * catalog for a FileIO nothing uses.
+   */
+  private static void release(KV<String, @Nullable List<String>> key, SharedFileIO shared) {
+    synchronized (SHARED_FILE_IOS) {
+      if (--shared.specs > 0) {
+        return;
+      }
+      SHARED_FILE_IOS.remove(key);
+    }
+    shared.fileIO.close();
+  }
+
+  /** A {@link FileIO} and the number of reachable specs that use it. */
+  private static class SharedFileIO {
+    private final FileIO fileIO;
+    private int specs;
+
+    private SharedFileIO(FileIO fileIO) {
+      this.fileIO = fileIO;
+    }
   }
 
   @SchemaIgnore
@@ -319,9 +400,28 @@ public abstract class SerializableTableSpec implements Serializable {
 
     public abstract Builder setLastUpdatedMillis(long lastUpdatedMillis);
 
+    public abstract Builder setStorageCredentialJsons(
+        @Nullable List<String> storageCredentialJsons);
+
+    /** Sets the {@link FileIO} JSON and any storage credentials the {@link FileIO} holds. */
     @SchemaIgnore
     public Builder setFileIO(FileIO fileIO) {
-      return setFileIoJson(FileIOParser.toJson(fileIO));
+      List<StorageCredential> credentials =
+          fileIO instanceof SupportsStorageCredentials
+              ? ((SupportsStorageCredentials) fileIO).credentials()
+              : Collections.emptyList();
+      List<String> parsedCredentials =
+          credentials.stream()
+              .map(
+                  c ->
+                      CredentialParser.toJson(
+                          ImmutableCredential.builder()
+                              .prefix(c.prefix())
+                              .config(c.config())
+                              .build()))
+              .collect(Collectors.toList());
+      return setFileIoJson(FileIOParser.toJson(fileIO))
+          .setStorageCredentialJsons(parsedCredentials.isEmpty() ? null : parsedCredentials);
     }
 
     public abstract SerializableTableSpec build();
@@ -393,7 +493,7 @@ public abstract class SerializableTableSpec implements Serializable {
         .setOrderId(table.sortOrder().orderId())
         .setSortOrdersJson(sortOrdersJson.build())
         .setProperties(table.properties())
-        .setFileIoJson(FileIOParser.toJson(table.io()))
+        .setFileIO(table.io())
         .setEncryptedKeyJsons(encryptedKeyJsons)
         .setLastUpdatedMillis(lastUpdatedMillis)
         .build();
