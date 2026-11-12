@@ -19,12 +19,10 @@ package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.JCSMPProperties;
-import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
-import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 
 @AutoValue
 public abstract class MockEmptySessionService extends SessionService {
@@ -47,11 +45,6 @@ public abstract class MockEmptySessionService extends SessionService {
 
   @Override
   public MessageProducer getInitializedProducer(SubmissionMode mode) {
-    throw new UnsupportedOperationException(exceptionMessage);
-  }
-
-  @Override
-  public BlockingQueue<PublishResult> getPublishedResultsQueue() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

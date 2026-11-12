@@ -35,10 +35,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFnFactory} that creates a system {@link ParDoFn} responsible for transforming
@@ -157,5 +159,10 @@ public class ToIsmRecordForMultimapDoFnFactory implements ParDoFnFactory {
 
     @Override
     public void abort() {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 }

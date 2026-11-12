@@ -211,6 +211,44 @@ def require_linux_docker():
         'Linux containers are required.')
 
 
+def cleanup_testcontainer_on_retry(container):
+  """Best-effort cleanup of a failed testcontainers instance before retrying.
+
+  Fetches container logs and stops the container if it was created, and removes
+  any orphaned ``testcontainers-ryuk-<session_id>`` container left behind if
+  ``Reaper._create_instance()`` failed before setting ``Reaper._instance``.
+
+  Returns:
+    A ``(stdout_logs, stderr_logs)`` tuple of decoded log strings.
+  """
+  stdout_logs = stderr_logs = ""
+  if container is None:
+    return stdout_logs, stderr_logs
+  if getattr(container, "_container", None) is not None:
+    try:
+      raw_out, raw_err = container.get_logs()
+      stdout_logs = raw_out.decode("utf-8", errors="replace")
+      stderr_logs = raw_err.decode("utf-8", errors="replace")
+    except Exception:  # pylint: disable=broad-except
+      pass
+    try:
+      container.stop()
+    except Exception:  # pylint: disable=broad-except
+      pass
+  try:
+    from testcontainers.core.container import Reaper
+    if getattr(Reaper, "_instance", None) is None:
+      docker_client = container.get_docker_client()
+      session_id = docker_client.client.api.headers.get("x-tc-sid")
+      if session_id:
+        ryuk_container = docker_client.client.containers.get(
+            f"testcontainers-ryuk-{session_id}")
+        ryuk_container.remove(force=True)
+  except Exception:  # pylint: disable=broad-except
+    pass
+  return stdout_logs, stderr_logs
+
+
 @retry.with_exponential_backoff(
     num_retries=3, retry_filter=retry.retry_on_beam_io_error_filter)
 def delete_files(file_paths):

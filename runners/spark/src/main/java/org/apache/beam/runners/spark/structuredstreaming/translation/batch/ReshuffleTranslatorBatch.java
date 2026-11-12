@@ -21,6 +21,7 @@ import static org.apache.spark.sql.functions.col;
 
 import java.io.IOException;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,14 +30,19 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.internal.SQLConf;
 
 class ReshuffleTranslatorBatch<K, V>
-    extends TransformTranslator<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>> {
+    extends TransformTranslator<
+        PCollection<KV<K, V>>,
+        PCollection<KV<K, V>>,
+        PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>>> {
 
   ReshuffleTranslatorBatch() {
     super(0.1f);
   }
 
   @Override
-  protected void translate(Reshuffle<K, V> transform, Context cxt) throws IOException {
+  protected void translate(
+      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> transform, Context cxt)
+      throws IOException {
     Dataset<WindowedValue<KV<K, V>>> input = cxt.getDataset(cxt.getInput());
     cxt.putDataset(cxt.getOutput(), input.repartition(col("value.key")));
   }

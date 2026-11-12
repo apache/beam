@@ -67,7 +67,10 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: '3.11'
+          # tensor_rt:latest runs Python 3.12; steps that use it submit with 3.12.
+          python-version: |
+            3.11
+            3.12
       - name: Package Python SDK using Gradle
         run: ./gradlew :sdks:python:sdist -PpythonVersion=3.11
       - name: Configure Docker for Artifact Registry
@@ -125,7 +128,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_6 }} --mode=streaming --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-streaming-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
       - name: run Pytorch Sentiment Batch using Hugging Face distilbert-base-uncased model
@@ -136,7 +139,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_7 }} --mode=batch --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
       - name: run Pytorch Vision Classification with Resnet 101
@@ -191,7 +194,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_5 }} --job_name=benchmark-tests-pytorch-imagenet-python-gpu-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu-${{env.NOW_UTC}}.txt' \
       - name: run Table Row Inference Sklearn Batch
@@ -378,7 +381,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.mltransform_image_embedding_benchmark \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/transforms/mltransform_embedding_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_16 }} --artifact_location=gs://temp-storage-for-perf-tests/loadtests/mltransform_image_embedding_gpu/artifacts-${{env.NOW_UTC}} --job_name=benchmark-tests-mltransform-image-embedding-gpu-batch-${{env.NOW_UTC}}'
       - name: run MLTransform Text Embedding Batch
@@ -389,7 +392,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.mltransform_text_embedding_benchmark \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/transforms/mltransform_embedding_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_17 }} --output=gs://temp-storage-for-perf-tests/loadtests/mltransform_text_embedding/results-${{env.NOW_UTC}} --artifact_location=gs://temp-storage-for-perf-tests/loadtests/mltransform_text_embedding/artifacts-${{env.NOW_UTC}} --job_name=benchmark-tests-mltransform-text-embedding-batch-${{env.NOW_UTC}}'
       - name: run MLTransform Image Embedding CPU Batch

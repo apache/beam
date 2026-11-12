@@ -671,6 +671,9 @@ func greedyFusion(topological []string, comps *pipepb.Components, facts *fusionF
 			if stageEnvs[pID] != stageEnvs[cID] {
 				continue // Not the same environment.
 			}
+			if stageEnvs[pID] == "" {
+				continue // Runner transforms (e.g. GroupByKey) don't fuse, since a runner stage executes a single transform.
+			}
 			if forcedRoots[cID] {
 				continue // Forced root.
 			}
