@@ -22,12 +22,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -90,13 +93,7 @@ public final class WorkFailureProcessor {
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
   private static boolean isOutOfMemoryError(@Nullable Throwable t) {
-    while (t != null) {
-      if (t instanceof OutOfMemoryError) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
+    return ExceptionUtils.hasCause(t, OutOfMemoryError.class);
   }
 
   public void logAndProcessFailureBatch(
@@ -167,6 +164,17 @@ public final class WorkFailureProcessor {
       LOG.info(
           "Execution of work for computation '{}' on sharding key '{}' for work token '{}' exceeded commit size limits. "
               + "Work will be retried locally in smaller batches.",
+          computationId,
+          work.getWorkItem().getShardingKey(),
+          work.getWorkItem().getWorkToken());
+      return RetryEvaluation.RETRY_LOCALLY;
+    }
+
+    if (ExceptionUtils.hasCause(
+        parsedException, WorkCancellingException.class, WorkItemCancelledException.class)) {
+      LOG.debug(
+          "Execution of work for computation '{}' on sharding key '{}' for work token '{}' failed"
+              + " due to work cancellation in bundle. Work will be retried locally.",
           computationId,
           work.getWorkItem().getShardingKey(),
           work.getWorkItem().getWorkToken());
