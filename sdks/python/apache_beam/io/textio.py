@@ -1104,6 +1104,11 @@ try:
       kwargs['file_naming'] = file_naming
     if lines is None:
       lines = orient == 'records'
+    # pandas defaults to double_precision=10, which silently rounds floats to
+    # 10 decimal places. Use pandas' maximum (15) unless the caller overrides
+    # it. Floats that need 16-17 significant digits to round-trip exactly may
+    # still be rounded.
+    kwargs.setdefault('double_precision', 15)
     return 'WriteToJson' >> WriteViaPandas(
         'json', path, orient=orient, lines=lines, **kwargs)
 
