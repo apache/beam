@@ -364,11 +364,6 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
         yaml_provider._join_url_or_filepath(None, 'a/b.yaml'), 'a/b.yaml')
 
 
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
-
-
 class YamlProvidersCreateTest(unittest.TestCase):
   def test_create_mixed_types(self):
     with beam.Pipeline() as p:
@@ -483,3 +478,8 @@ class FlattenSchemaUnificationTest(unittest.TestCase):
     from apache_beam.typehints.schemas import named_fields_from_element_type
     fields_dict = dict(named_fields_from_element_type(unified))
     self.assertIn(fields_dict['id'], (Any, Optional[Any]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
