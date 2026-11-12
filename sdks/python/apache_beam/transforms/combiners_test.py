@@ -59,6 +59,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import typehints
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
@@ -563,15 +564,25 @@ class CombineTest(unittest.TestCase):
           res_iter | 'SortIter' >> Map(sorted),
           equal_to([[1, 2, 3]]),
           label='IterDefault')
+      assert_that(
+          res_iter
+          | 'GetTimestamp' >> Map(lambda _, ts=beam.DoFn.TimestampParam: ts),
+          equal_to([window.GlobalWindow().end]),
+          label="EndOfWindowTimesetamp")
+      hc.assert_that(
+          res_iter.element_type, hc.equal_to(typehints.Iterable[int]))
 
       res_list = pcoll | 'ToList' >> combine.ToList()
       assert_that(
           res_list | 'SortList' >> Map(sorted),
           equal_to([[1, 2, 3]]),
           label='ListDefault')
+      hc.assert_that(res_list.element_type, hc.equal_to(typehints.List[int]))
 
       res_dict = pcoll_pairs | 'ToDict' >> combine.ToDict()
       assert_that(res_dict, equal_to([{'a': 1, 'b': 2}]), label='DictDefault')
+      hc.assert_that(
+          res_dict.element_type, hc.equal_to(typehints.Dict[str, int]))
 
       # Without defaults
       res_iter_wo = (
@@ -580,12 +591,20 @@ class CombineTest(unittest.TestCase):
           res_iter_wo | 'SortIterWo' >> Map(sorted),
           equal_to([[1, 2, 3]]),
           label='IterWoDefault')
+      assert_that(
+          res_iter_wo
+          | 'GetTimestampWo' >> Map(lambda _, ts=beam.DoFn.TimestampParam: ts),
+          equal_to([window.GlobalWindow().end]),
+          label="EndOfWindowTimesetampWoDefault")
+      hc.assert_that(
+          res_iter_wo.element_type, hc.equal_to(typehints.Iterable[int]))
 
       res_list_wo = pcoll | 'ToListWo' >> combine.ToList().without_defaults()
       assert_that(
           res_list_wo | 'SortListWo' >> Map(sorted),
           equal_to([[1, 2, 3]]),
           label='ListWoDefault')
+      hc.assert_that(res_list_wo.element_type, hc.equal_to(typehints.List[int]))
 
       res_dict_wo = (
           pcoll_pairs | 'ToDictWo' >> combine.ToDict().without_defaults())
@@ -593,6 +612,8 @@ class CombineTest(unittest.TestCase):
           res_dict_wo, equal_to([{
               'a': 1, 'b': 2
           }]), label='DictWoDefault')
+      hc.assert_that(
+          res_dict_wo.element_type, hc.equal_to(typehints.Dict[str, int]))
 
   def test_to_iterable_to_list_to_dict_empty(self):
     with TestPipeline() as p:
@@ -666,15 +687,22 @@ class CombineTest(unittest.TestCase):
 
       res_iter = (
           timestamped_elems
-          | 'ToIter' >> combine.ToIterable().without_defaults()
-          | 'SortIter' >> Map(sorted))
-      assert_that(res_iter, equal_to([[1, 2], [3, 4]]), label='WindowedIter')
+          | 'ToIter' >> combine.ToIterable().without_defaults())
+      assert_that(
+          res_iter | 'SortIter' >> Map(sorted),
+          equal_to([[1, 2], [3, 4]]),
+          label='WindowedIter')
+      hc.assert_that(
+          res_iter.element_type, hc.equal_to(typehints.Iterable[int]))
 
       res_list = (
           timestamped_elems
-          | 'ToList' >> combine.ToList().without_defaults()
-          | 'SortList' >> Map(sorted))
-      assert_that(res_list, equal_to([[1, 2], [3, 4]]), label='WindowedList')
+          | 'ToList' >> combine.ToList().without_defaults())
+      assert_that(
+          res_list | 'SortList' >> Map(sorted),
+          equal_to([[1, 2], [3, 4]]),
+          label='WindowedList')
+      hc.assert_that(res_list.element_type, hc.equal_to(typehints.List[int]))
 
       res_dict = (
           timestamped_pairs | 'ToDict' >> combine.ToDict().without_defaults())
@@ -686,6 +714,8 @@ class CombineTest(unittest.TestCase):
               'c': 3, 'd': 4
           }]),
           label='WindowedDict')
+      hc.assert_that(
+          res_dict.element_type, hc.equal_to(typehints.Dict[str, int]))
 
   def test_combine_globally_with_default(self):
     with TestPipeline() as p:

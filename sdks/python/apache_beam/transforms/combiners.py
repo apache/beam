@@ -800,36 +800,52 @@ class ToSingleElementCollection(CombinerWithoutDefaults):
     raise NotImplementedError
 
   def _expand(self, pcoll, post_process):
-    if pcoll.windowing.is_default():
+    if pcoll.is_bounded and pcoll.windowing.windowfn == window.GlobalWindows():
+      # TODO(BEAM-20043): Remove the Map once PCollections used in
+      # side inputs no longer have their elment types mangled by
+      # DataflowRunner.side_input_visitor().
+      side_input = pvalue.AsIter(pcoll | core.Map(lambda x: x))
+
+      timestamped = lambda s: window.TimestampedValue(
+          post_process(s), window.GlobalWindow().end)
+
       if self.has_defaults:
-        return (
-            pcoll.pipeline
-            | 'DoOnce' >> core.Create([None])
-            | core.Map(lambda _, s: post_process(s), pvalue.AsIter(pcoll)))
+        process = lambda _, s: [timestamped(post_process(s))]
+
       else:
 
-        def _if_non_empty(unused_elem, s):
+        def process(unused_elem, s):
+          # Yields iff s is non-empty.
           for _ in s:
-            yield post_process(s)
+            yield timestamped(post_process(s))
             break
 
-        return (
-            pcoll.pipeline
-            | 'DoOnce' >> core.Create([None])
-            | core.FlatMap(_if_non_empty, pvalue.AsIter(pcoll)))
+      result = (
+          pcoll.pipeline
+          | 'DoOnce' >> core.Create([None])
+          | 'AsSingleValue' >> core.FlatMap(process, side_input)
+          # Avoid inferrring a type here so that the outer transform type
+          # takes precedence.
+          .with_output_types(Any))
+
+      result._windowing = pcoll.windowing
+      return result
+
     else:
       if self.has_defaults:
         raise ValueError(
             'Default values are not yet supported in %s() if the '
-            'output PCollection is not windowed by GlobalWindows. '
-            'Instead, use %s().without_defaults() to output '
-            'an empty PCollection if the input PCollection is empty.' %
+            'input PCollection is not windowed by GlobalWindows and bounded. '
+            'Instead, use %s().without_defaults().' %
             (self.__class__.__name__, self.__class__.__name__))
       return (
           pcoll
           | 'KeyWithVoid' >> core.ParDo(core._KeyWithNone())
           | core.GroupByKey()
-          | core.MapTuple(lambda _, vs: post_process(vs)))
+          | 'ToValue' >> core.MapTuple(lambda _, vs: post_process(vs))
+          # Avoid inferrring a type here so that the outer transform type
+          # takes precedence.
+          .with_output_types(Any))
 
 
 @with_input_types(T)
@@ -853,6 +869,13 @@ class ToList(ToSingleElementCollection):
   machine.
   """
   def expand(self, pcoll):
+    if pcoll.pipeline.options.is_compat_version_prior_to('2.77.8'):
+      if self.has_defaults:
+        return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+      else:
+        return pcoll | self.label >> core.CombineGlobally(
+            ToListCombineFn()).without_defaults()
+
     return self._expand(pcoll, list)
 
 
@@ -904,6 +927,13 @@ class ToDict(ToSingleElementCollection):
   machine.
   """
   def expand(self, pcoll):
+    if pcoll.pipeline.options.is_compat_version_prior_to('2.77.8'):
+      if self.has_defaults:
+        return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+      else:
+        return pcoll | self.label >> core.CombineGlobally(
+            ToDictCombineFn()).without_defaults()
+
     return self._expand(pcoll, dict)
 
 
