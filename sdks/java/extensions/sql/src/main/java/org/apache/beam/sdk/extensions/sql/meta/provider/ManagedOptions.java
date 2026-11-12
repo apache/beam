@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -24,18 +24,23 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Checks the options of a {@code WITH} clause against a Managed configuration schema. */
-final class ManagedOptions {
+/**
+ * Checks the options of a {@code WITH} clause against a Managed configuration schema, for table
+ * providers that read or write through Beam's {@code Managed} transforms.
+ */
+@Internal
+public final class ManagedOptions {
   private ManagedOptions() {}
 
   /** Maps each key to {@code reason}, why {@code WITH} cannot set it. */
-  static Map<String, String> owned(String reason, String... keys) {
+  public static Map<String, String> owned(String reason, String... keys) {
     ImmutableMap.Builder<String, String> owned = ImmutableMap.builder();
     for (String key : keys) {
       owned.put(key, reason);
@@ -50,7 +55,7 @@ final class ManagedOptions {
    * @param use what the options configure, for error messages
    * @throws IllegalArgumentException for an owned or unknown key, or a value of the wrong type
    */
-  static Map<String, Object> check(
+  public static Map<String, Object> check(
       Map<String, Object> options, Schema configSchema, Map<String, String> owned, String use) {
     ImmutableMap.Builder<String, Object> checked = ImmutableMap.builder();
     for (Map.Entry<String, Object> option : options.entrySet()) {
