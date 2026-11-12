@@ -1640,6 +1640,26 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result), sorted(self.lines))
 
+  def test_write_pipeline_output_timestamps_in_global_window(self):
+    # Output timestamped past the end of the global window is dropped, or fails
+    # the job, when it is grouped downstream (#41245).
+    def output_timestamp(unused_path, ts=beam.DoFn.TimestampParam):
+      # Emit the timestamp as a value, so assert_that can group it either way.
+      return beam.window.TimestampedValue(ts, 0)
+
+    for num_shards in (0, 3):
+      with TestPipeline() as pipeline:
+        timestamps = (
+            pipeline
+            | beam.core.Create(self.lines)
+            | 'Write' >> WriteToText(
+                self.path + '-%d' % num_shards, num_shards=num_shards)
+            | beam.Map(output_timestamp))
+        assert_that(
+            timestamps,
+            equal_to([beam.window.GlobalWindow().max_timestamp()] *
+                     max(num_shards, 1)))
+
   def test_write_pipeline_auto_compression(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | beam.core.Create(self.lines)
