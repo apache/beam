@@ -82,7 +82,7 @@ def main(argv):
     signal.signal(signal.SIGTERM, cleanup)
     signal.signal(signal.SIGINT, cleanup)
     # blocking main thread forever.
-    signal.pause()
+    server.wait_for_termination()
 
 
 if __name__ == '__main__':

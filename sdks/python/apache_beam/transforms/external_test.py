@@ -407,11 +407,10 @@ Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'.
         external._sanitize_java_traceback(error_string))
 
   def test_lazy_default_environment_initialization(self):
-    with mock.patch.object(
-        expansion_service.environments.Environment,
-        'from_options',
-        wraps=expansion_service.environments.Environment.from_options
-    ) as mock_from_options:
+    with mock.patch.object(expansion_service.environments.Environment,
+                           'from_options',
+                           wraps=expansion_service.environments.Environment.
+                           from_options) as mock_from_options:
       servicer = expansion_service.ExpansionServiceServicer()
       mock_from_options.assert_not_called()
       self.assertIsNone(servicer._default_environment)
