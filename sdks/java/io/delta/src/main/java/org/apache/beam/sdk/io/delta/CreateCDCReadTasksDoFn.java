@@ -120,6 +120,15 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
         resolvedStartVersion == resolvedEndVersion
             ? startSnapshot
             : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+    // Changes are only recorded while Change Data Feed is enabled. It has to be enabled at the
+    // start version, and every change of the table configuration within the range is verified
+    // while reading the commits of the range below.
+    DeltaChangeDataFeedUtils.checkEnabled(
+        tablePath,
+        resolvedStartVersion,
+        startSnapshot.getTableProperties(),
+        resolvedStartVersion,
+        resolvedEndVersion);
     io.delta.kernel.types.StructType startSchema = startSnapshot.getSchema();
     io.delta.kernel.types.StructType endSchema = endSnapshot.getSchema();
     if (startSchema == null || endSchema == null) {
@@ -171,10 +180,19 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
           // example, a column that was added and then dropped again. Since tasks are only emitted
           // after all commits of the range were read, no tasks are emitted if this check fails.
           if (metadataIdx >= 0 && !batch.getColumnVector(metadataIdx).isNullAt(i)) {
-            io.delta.kernel.types.StructType schemaAtVersion =
-                Metadata.fromColumnVector(batch.getColumnVector(metadataIdx), i).getSchema();
+            Metadata metadata = Metadata.fromColumnVector(batch.getColumnVector(metadataIdx), i);
             DeltaSchemaUtils.checkReadCompatible(
-                schemaAtVersion, version, endSchema, resolvedStartVersion, resolvedEndVersion);
+                metadata.getSchema(), version, endSchema, resolvedStartVersion, resolvedEndVersion);
+            // The table configuration also applies from this version on. If it disabled Change
+            // Data Feed, the changes of this version were not recorded. Since Change Data Feed was
+            // enabled at the start version, checking every configuration change within the range
+            // verifies that it was enabled for every version of the range.
+            DeltaChangeDataFeedUtils.checkEnabled(
+                tablePath,
+                version,
+                metadata.getConfiguration(),
+                resolvedStartVersion,
+                resolvedEndVersion);
           }
 
           CommitActionsInfo info =
