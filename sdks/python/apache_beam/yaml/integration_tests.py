@@ -1449,6 +1449,8 @@ def replace_recursive(spec, vars):
   # callable in the if branch above instead of checking lambda here.
   elif isinstance(
       spec, str) and '{' in spec and '{\n' not in spec and 'lambda' not in spec:
+    if spec.startswith('{') and spec.endswith('}') and spec[1:-1] in vars:
+      return vars[spec[1:-1]]
     try:
       return spec.format(**vars)
     except Exception as exn:
@@ -1622,6 +1624,7 @@ def create_test_methods(spec):
                   exn)
               time.sleep(5)
         for pipeline_spec in spec['pipelines']:
+          vars['NOW_MS'] = int(time.time() * 1000) + 1000
           try:
             with beam.Pipeline(options=PipelineOptions(
                 pickle_library='cloudpickle',
