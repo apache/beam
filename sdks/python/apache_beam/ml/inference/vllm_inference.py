@@ -38,8 +38,12 @@ from openai import AsyncOpenAI
 from openai import OpenAI
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import prefix_batching
+from apache_beam.ml.inference.autoscaling_metrics import AutoscalingMetricConfig
+from apache_beam.ml.inference.autoscaling_metrics import PrometheusNumLoadedModelsPublisher
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.prefix_batching import PrefixBatchingConfig
 from apache_beam.utils import subprocess_server
 
 try:
@@ -58,6 +62,11 @@ __all__ = [
     'VLLMCompletionsModelHandler',
     'VLLMChatModelHandler',
 ]
+
+# vLLM's Prometheus counter of completed requests and gauge of in-flight
+# requests, fed into PrometheusNumLoadedModelsPublisher.
+_VLLM_COMPLETED_REQUESTS_METRIC = 'vllm:request_success_total'
+_VLLM_RUNNING_REQUESTS_METRIC = 'vllm:num_requests_running'
 
 
 @dataclass(frozen=True)
@@ -148,7 +157,9 @@ class _VLLMModelServer():
       model_name: str,
       vllm_server_kwargs: dict[str, Optional[str]],
       dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
-      use_dynamo: bool = False):
+      use_dynamo: bool = False,
+      autoscaling_config: Optional[AutoscalingMetricConfig] = None,
+      model_identifier: Optional[str] = None):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
     self._dynamo_frontend_kwargs = dynamo_frontend_kwargs or {}
@@ -161,6 +172,10 @@ class _VLLMModelServer():
     self._server_port: int = -1
     self._server_process_lock = threading.RLock()
     self._use_dynamo = use_dynamo
+    self._autoscaling_config = autoscaling_config
+    self._model_identifier = model_identifier
+    self._num_loaded_models_publisher: Optional[
+        PrometheusNumLoadedModelsPublisher] = None
 
     self.start_server()
 
@@ -182,6 +197,13 @@ class _VLLMModelServer():
       pass
 
   def _stop_processes(self) -> None:
+    if self._num_loaded_models_publisher is not None:
+      publisher = self._num_loaded_models_publisher
+      self._num_loaded_models_publisher = None
+      try:
+        publisher.stop()
+      except Exception:  # pylint: disable=broad-except
+        pass
     self._stop_process(self._dynamo_process)
     self._stop_process(self._server_process)
     self._stop_process(self._etcd_process)
@@ -322,6 +344,20 @@ class _VLLMModelServer():
           self._dynamo_process, _ = start_process(server_cmd)
 
       self.check_connectivity(retries)
+      # In Dynamo mode _server_port is dynamo.frontend, which only exposes
+      # dynamo_frontend_* metrics rather than vLLM's engine metrics, so we
+      # only publish the autoscaling capacity signal for native vLLM servers.
+      if (not self._use_dynamo and self._autoscaling_config is not None and
+          self._num_loaded_models_publisher is None):
+        port = self._server_port  # Plain int so the closure does not hold self.
+        self._num_loaded_models_publisher = PrometheusNumLoadedModelsPublisher(
+            metrics_port_fn=lambda: port,
+            completed_metric=_VLLM_COMPLETED_REQUESTS_METRIC,
+            running_metric=_VLLM_RUNNING_REQUESTS_METRIC,
+            model_identifier=self._model_identifier,
+            model_name=self._model_name,
+            config=self._autoscaling_config)
+        self._num_loaded_models_publisher.start()
 
   def get_server_port(self) -> int:
     if not self._server_started:
@@ -370,11 +406,14 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
-      max_batch_duration_secs: Optional[int] = None,
+      max_batch_duration_secs: Optional[float] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
-      batch_bucket_boundaries: Optional[list[int]] = None):
+      batch_bucket_boundaries: Optional[list[int]] = None,
+      prefix_batching_config: Optional[PrefixBatchingConfig] = None,
+      enable_autoscaling_metric: bool = True,
+      autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -414,7 +453,8 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
-        a batch before emitting; used in streaming contexts.
+        a batch before emitting; used in streaming contexts. Defaults to 1.0s
+        when ``prefix_batching_config`` is set.
       max_batch_weight: optional. the maximum total weight of a batch. Cannot
         be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight) of
@@ -425,15 +465,31 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets. Cannot be used together with
         max_batch_weight.
+      prefix_batching_config: optional :class:`PrefixBatchingConfig`. When set,
+        prompts sharing a leading prefix are routed to the same worker and
+        batched together to maximize vLLM prefix cache hits (see
+        ``apache_beam.ml.inference.prefix_batching``).
+      enable_autoscaling_metric: if True (default), publish the
+        ``num_loaded_models_<tag>`` worker capacity signal from vLLM's request
+        metrics so Dataflow's GPU autoscaler scales workers with load. Requires
+        ``RunInference(..., use_model_manager=False)`` (the default); not
+        published when ``use_dynamo=True``.
+      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
+        autoscaling signal (poll interval, multiplier, aggregation, warmup, or
+        custom ``load_signal_fn``; see
+        ``apache_beam.ml.inference.autoscaling_metrics``).
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
-        max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
-        batch_bucket_boundaries=batch_bucket_boundaries)
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        **prefix_batching.resolve_batching_kwargs(
+            prefix_batching_config,
+            prefix_batching.PromptPrefixKeyFn,
+            max_batch_duration_secs))
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, Optional[str]] = ({
         **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
@@ -442,13 +498,18 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
     }
     self._use_dynamo = use_dynamo
+    self._autoscaling_config = (
+        autoscaling_config or AutoscalingMetricConfig()
+        if enable_autoscaling_metric else None)
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(
         self._model_name,
         self._vllm_server_kwargs,
         self._dynamo_frontend_kwargs,
-        self._use_dynamo)
+        self._use_dynamo,
+        autoscaling_config=self._autoscaling_config,
+        model_identifier=self._model_identifier)
 
   async def _async_run_inference(
       self,
@@ -513,11 +574,14 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
-      max_batch_duration_secs: Optional[int] = None,
+      max_batch_duration_secs: Optional[float] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
-      batch_bucket_boundaries: Optional[list[int]] = None):
+      batch_bucket_boundaries: Optional[list[int]] = None,
+      prefix_batching_config: Optional[PrefixBatchingConfig] = None,
+      enable_autoscaling_metric: bool = True,
+      autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -560,7 +624,8 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
-        a batch before emitting; used in streaming contexts.
+        a batch before emitting; used in streaming contexts. Defaults to 1.0s
+        when ``prefix_batching_config`` is set.
       max_batch_weight: optional. the maximum total weight of a batch. Cannot
         be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight) of
@@ -571,15 +636,32 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets. Cannot be used together with
         max_batch_weight.
+      prefix_batching_config: optional :class:`PrefixBatchingConfig`. When set,
+        conversations sharing the same leading message prefix (typically the
+        system prompt) are routed to the same worker and batched together to
+        maximize vLLM prefix cache hits (see
+        ``apache_beam.ml.inference.prefix_batching``).
+      enable_autoscaling_metric: if True (default), publish the
+        ``num_loaded_models_<tag>`` worker capacity signal from vLLM's request
+        metrics so Dataflow's GPU autoscaler scales workers with load. Requires
+        ``RunInference(..., use_model_manager=False)`` (the default); not
+        published when ``use_dynamo=True``.
+      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
+        autoscaling signal (poll interval, multiplier, aggregation, warmup, or
+        custom ``load_signal_fn``; see
+        ``apache_beam.ml.inference.autoscaling_metrics``).
     """
     super().__init__(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
-        max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
         batch_length_fn=batch_length_fn,
-        batch_bucket_boundaries=batch_bucket_boundaries)
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        **prefix_batching.resolve_batching_kwargs(
+            prefix_batching_config,
+            prefix_batching.ChatPrefixKeyFn,
+            max_batch_duration_secs))
     self._model_name = model_name
     self._vllm_server_kwargs: dict[str, Optional[str]] = ({
         **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
@@ -590,6 +672,9 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
     self._use_dynamo = use_dynamo
+    self._autoscaling_config = (
+        autoscaling_config or AutoscalingMetricConfig()
+        if enable_autoscaling_metric else None)
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''
@@ -606,7 +691,9 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         self._model_name,
         self._vllm_server_kwargs,
         self._dynamo_frontend_kwargs,
-        self._use_dynamo)
+        self._use_dynamo,
+        autoscaling_config=self._autoscaling_config,
+        model_identifier=self._model_identifier)
 
   async def _async_run_inference(
       self,
