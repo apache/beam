@@ -38,7 +38,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.ForbiddenException;
 import org.junit.Test;
 
 public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
@@ -87,6 +89,26 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
                 .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
                 .build())
         .build();
+  }
+
+  @Override
+  public void catalogCleanup(List<Namespace> namespaces) throws IOException {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        super.catalogCleanup(namespaces);
+        return;
+      } catch (ForbiddenException e) {
+        if (attempt == 3) {
+          throw e;
+        }
+        try {
+          Thread.sleep(5000L * attempt);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Interrupted while waiting to retry BigQuery catalog cleanup", ie);
+        }
+      }
+    }
   }
 
   @Test
