@@ -407,6 +407,7 @@ def _multimodal_dict_output_fn(
     embeddings: Sequence[MultiModalEmbeddingResponse]) -> list[dict[str, Any]]:
   results = []
   for batch_idx, item in enumerate(batch):
+    item = dict(item)
     mm_embedding = embeddings[batch_idx]
     if image_column:
       item[image_column].embedding = mm_embedding.image_embedding

@@ -233,6 +233,7 @@ def _dict_output_fn(
     for col_idx, col in enumerate(columns):
       embedding_idx = batch_idx * len(columns) + col_idx
       if isinstance(item, dict):
+        item = dict(item)
         item[col] = embeddings[embedding_idx]
     result.append(item)
 

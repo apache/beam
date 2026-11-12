@@ -21,6 +21,7 @@ EmbeddableItem instances and mapping embeddings back. Adapters
 are used by EmbeddingsManager to support various input types.
 """
 
+import copy
 from collections.abc import Sequence
 
 from apache_beam.ml.rag.types import EmbeddableItem
@@ -63,6 +64,9 @@ def _add_embedding_fn(
     items: Sequence[EmbeddableItem],
     embeddings: Sequence[list[float]]) -> list[EmbeddableItem]:
   """Create Embeddings from items and embedding vectors."""
+  results = []
   for item, embedding in zip(items, embeddings):
+    item = copy.deepcopy(item)
     item.embedding = Embedding(dense_embedding=embedding)
-  return list(items)
+    results.append(item)
+  return results
