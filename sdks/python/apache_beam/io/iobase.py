@@ -854,6 +854,10 @@ class Sink(HasDisplayData):
         will only contain the result of a single successful write for a given
         bundle.
       pre_finalize_result: the result of ``pre_finalize()`` invocation.
+
+    Returns:
+      An optional iterable of strings, such as the paths of the files written,
+      which ``Write`` emits as its output ``PCollection``.
     """
     raise NotImplementedError
 
@@ -1084,8 +1088,11 @@ class Write(ptransform.PTransform):
 
       pcollection | beam.io.Write(MySink())
 
-  This returns a ``pvalue.PValue`` object that represents the end of the
-  Pipeline.
+  For an ``iobase.Sink``, this returns a ``PCollection`` of the values yielded
+  by the sink's ``finalize_write()`` (or ``finalize_windowed_write()`` for
+  windowed writes). For file-based sinks, such as the ones behind
+  ``WriteToText`` and ``WriteToAvro``, these are the final paths of the files
+  written.
 
   The sink argument may also be a full PTransform, in which case it will be
   applied directly.  This allows composite sink-like transforms (e.g. a sink
