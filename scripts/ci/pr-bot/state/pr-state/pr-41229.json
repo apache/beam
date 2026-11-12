@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "build": "tvalentyn"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
