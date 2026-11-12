@@ -386,6 +386,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
       case BYTES:
         return Schema.FieldType.BYTES;
       case STRING:
+      case UUID:
         return Schema.FieldType.STRING;
       case INT64:
         return Schema.FieldType.INT64;

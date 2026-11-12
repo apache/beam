@@ -30,6 +30,7 @@ import com.google.cloud.spanner.Type;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
@@ -280,6 +281,38 @@ public class MutationUtilsTest {
     assertEquals(expectedMutation, mutation);
     DateTime d = DateTime.parse("2077-10-15T00:00:00+00:00");
     System.out.println(Timestamp.parseTimestamp(d.toString()));
+  }
+
+  @Test
+  public void testCreateRowFromMutationWithUuid() {
+    String uuid1 = "f529d18f-33c7-420f-a959-28b51b32a936";
+    String uuid2 = "00000000-0000-0000-0000-000000000000";
+    Schema schema =
+        Schema.builder()
+            .addStringField("f_uuid")
+            .addNullableField("f_null_uuid", Schema.FieldType.STRING)
+            .addArrayField("f_uuid_array", Schema.FieldType.STRING)
+            .addNullableField("f_null_uuid_array", Schema.FieldType.array(Schema.FieldType.STRING))
+            .build();
+    Mutation mutation =
+        Mutation.newInsertBuilder(TABLE)
+            .set("f_uuid")
+            .to(UUID.fromString(uuid1))
+            .set("f_null_uuid")
+            .to((UUID) null)
+            .set("f_uuid_array")
+            .toUuidArray(ImmutableList.of(UUID.fromString(uuid1), UUID.fromString(uuid2)))
+            .set("f_null_uuid_array")
+            .toUuidArray((Iterable<UUID>) null)
+            .build();
+    Row expectedRow =
+        Row.withSchema(schema)
+            .withFieldValue("f_uuid", uuid1)
+            .withFieldValue("f_null_uuid", null)
+            .withFieldValue("f_uuid_array", ImmutableList.of(uuid1, uuid2))
+            .withFieldValue("f_null_uuid_array", null)
+            .build();
+    assertEquals(expectedRow, MutationUtils.createRowFromMutation(schema, mutation));
   }
 
   private static Mutation createDeleteMutation() {

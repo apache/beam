@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
@@ -412,8 +413,12 @@ final class MutationUtils {
     }
   }
 
+  // It's not possible to pass nulls as values even with a field is nullable
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   public static Row createRowFromMutation(Schema schema, Mutation mutation) {
-    Map<String, Object> mutationHashMap = new HashMap<>();
+    Map<String, @Nullable Object> mutationHashMap = new HashMap<>();
     mutation
         .asMap()
         .forEach(
@@ -421,7 +426,7 @@ final class MutationUtils {
     return Row.withSchema(schema).withFieldValues(mutationHashMap).build();
   }
 
-  public static Object convertValueToBeamFieldType(Value value) {
+  public static @Nullable Object convertValueToBeamFieldType(Value value) {
     switch (value.getType().getCode()) {
       case BOOL:
         return value.getBool();
@@ -439,6 +444,8 @@ final class MutationUtils {
         return value.getTimestamp();
       case STRING:
         return value.getString();
+      case UUID:
+        return value.isNull() ? null : value.getUuid().toString();
       case JSON:
         return value.getJson();
       case ARRAY:
@@ -459,6 +466,12 @@ final class MutationUtils {
             return value.getTimestampArray();
           case STRING:
             return value.getStringArray();
+          case UUID:
+            return value.isNull()
+                ? null
+                : value.getUuidArray().stream()
+                    .<@Nullable String>map(u -> u == null ? null : u.toString())
+                    .collect(toList());
           case JSON:
             return value.getJsonArray();
           default:
