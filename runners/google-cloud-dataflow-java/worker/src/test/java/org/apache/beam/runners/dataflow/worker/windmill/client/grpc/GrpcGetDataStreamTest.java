@@ -861,8 +861,8 @@ public class GrpcGetDataStreamTest {
 
     // A new stream should be created due to handover. However we configure the server to have
     // errors.
-    assertTrue(triggeredExecutor.unblockNextFuture());
     fakeService.setFailedStreamConnectsRemaining(1);
+    assertTrue(triggeredExecutor.unblockNextFuture());
     fakeService.waitForFailedConnectAttempts();
     // Previous stream client should be half-closed.
     assertNull(streamInfo.onDone.get());

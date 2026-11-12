@@ -24,6 +24,7 @@ import difflib
 import json
 import logging
 import os
+import sys
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -89,6 +90,57 @@ def _static_value_provider_of(value_type):
     return StaticValueProvider(value_type, value)
 
   return _f
+
+
+def _find_positions(args: Sequence[str],
+                    flags: Sequence[str]) -> list[Optional[int]]:
+  """Returns the index in flags of each of args.
+
+  args is expected to be a subsequence of flags, such as the unknown args that
+  argparse returns from parse_known_args. The position of an arg that cannot be
+  found is None.
+  """
+  positions: list[Optional[int]] = []
+  start = 0
+  for arg in args:
+    try:
+      position = flags.index(arg, start)
+    except ValueError:
+      positions.append(None)
+      continue
+    positions.append(position)
+    start = position + 1
+  return positions
+
+
+def _has_separate_value(
+    unknown_args: Sequence[str],
+    i: int,
+    all_flags: Sequence[str],
+    positions: Sequence[Optional[int]]) -> bool:
+  """Returns whether the unknown flag unknown_args[i] is followed by its value.
+
+  The value has to be the next unknown arg and also the arg that directly
+  follows the flag in all_flags, so that a flag is not given a stray value from
+  further along the command line. A flag written as --flag=value already
+  carries its value, so nothing after it belongs to it.
+
+  Args:
+    unknown_args: the args that argparse did not recognize, in their original
+      order.
+    i: the index of the flag in unknown_args.
+    all_flags: the complete list of flags that unknown_args came from.
+    positions: the index in all_flags of each of unknown_args, as returned by
+      _find_positions.
+  """
+  if '=' in unknown_args[i]:
+    return False
+  if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+    return False
+  position = positions[i]
+  if position is None or position + 1 >= len(all_flags):
+    return False
+  return not all_flags[position + 1].startswith('-')
 
 
 class _BeamArgumentParser(argparse.ArgumentParser):
@@ -535,6 +587,13 @@ class PipelineOptions(HasDisplayData):
           parser.add_argument(arg, **kwargs)
         seen.add(arg)
 
+      # Unknown args are returned in their original order, but they are not
+      # necessarily adjacent in the original flags, e.g. a known option may
+      # sit between an unknown flag and a stray value. Find where each one
+      # came from so that a value is only given to the flag right before it.
+      all_flags = sys.argv[1:] if self._flags is None else list(self._flags)
+      positions = _find_positions(unknown_args, all_flags)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -545,7 +604,7 @@ class PipelineOptions(HasDisplayData):
         if not unknown_args[i].startswith('-'):
           i += 1
           continue
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+        if not _has_separate_value(unknown_args, i, all_flags, positions):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             add_new_arg(unknown_args[i], action='store_true')

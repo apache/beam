@@ -102,6 +102,10 @@ class BackgroundCachingJob(object):
     with self._result_lock:
       return self._pipeline_result.state is PipelineState.RUNNING
 
+  def is_done_or_running(self):
+    with self._result_lock:
+      return self.is_done() or self.is_running()
+
   def cancel(self):
     """Cancels this background source recording job.
     """
@@ -184,11 +188,9 @@ def is_background_caching_job_needed(user_pipeline):
           # Or checks if there is no previous job.
           # DONE means a previous job has completed successfully and the
           # cached events might still be valid.
-          not (
-              job.is_done() or
-              # RUNNING means a previous job has been started and is still
-              # running.
-              job.is_running()) or
+          # RUNNING means a previous job has been started and is still
+          # running.
+          not job.is_done_or_running() or
           # Or checks if we can invalidate the previous job.
           cache_changed))
 
