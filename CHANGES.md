@@ -135,6 +135,7 @@
 
 ## Bugfixes
 
+* (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
 * (Python) Fixed cross-language `ReadFromKafka(redistribute=True)` creating one key per record when `redistribute_num_keys` is not set. It now uses the KafkaIO default of 32768 keys, as Java `withRedistribute()` does. On Flink the per-record keys left timer state that grew until the job ran out of memory ([#41103](https://github.com/apache/beam/issues/41103)).
 * (Python/YAML) Beam YAML `generic` filters now accept `>=`, `<=`, `==` and `!=`; previously only `<` and `>` were recognized ([#41043](https://github.com/apache/beam/issues/41043)).
 * (Python) Fixed batched DoFns whose input must be rebatched into a `pyarrow.Table` with more than one column, which failed with `ArrowInvalid: Column 1 ... expected length N but got length 0`. This affected, for example, Beam YAML `ReadFromCsv` or `ReadFromJson` followed directly by `WriteToParquet` ([#41042](https://github.com/apache/beam/issues/41042)).
