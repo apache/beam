@@ -579,7 +579,7 @@ type metricsStore struct {
 	accums [2]map[metricKey]metricAccumulator
 
 	shortIDsToKeys      map[string]metricKey
-	unprocessedPayloads [2]map[string][]byte
+	unprocessedPayloads [2]map[string][][]byte
 }
 
 func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
@@ -592,51 +592,79 @@ func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 
 	mis := resp.GetMonitoringInfo()
 	for short, mi := range mis {
+		if _, ok := m.shortIDsToKeys[short]; ok {
+			continue
+		}
 		urn := mi.GetUrn()
 		ops, ok := mUrn2Ops[urn]
 		if !ok {
 			slog.Debug("unknown metrics urn", slog.String("shortID", short), slog.String("urn", urn), slog.String("type", mi.Type))
+			for d := range m.unprocessedPayloads {
+				delete(m.unprocessedPayloads[d], short)
+			}
 			continue
 		}
-		key := ops.keyFn(urn, mi.GetLabels())
-		m.shortIDsToKeys[short] = key
+		m.shortIDsToKeys[short] = ops.keyFn(urn, mi.GetLabels())
 	}
-	for d, payloads := range m.unprocessedPayloads {
-		m.unprocessedPayloads[d] = nil
-		m.contributeMetrics(durability(d), payloads)
+	for d, unprocessed := range m.unprocessedPayloads {
+		for short, payloads := range unprocessed {
+			key, ok := m.shortIDsToKeys[short]
+			if !ok {
+				continue
+			}
+			for _, payload := range payloads {
+				m.accumulatePayload(durability(d), key, payload)
+			}
+			delete(unprocessed, short)
+		}
 	}
+}
+
+func (m *metricsStore) accumulatePayload(d durability, key metricKey, payload []byte) (metricAccumulator, bool) {
+	if m.accums[d] == nil {
+		m.accums[d] = map[metricKey]metricAccumulator{}
+	}
+	accums := m.accums[d]
+	a, ok := accums[key]
+	if !ok || d == tentative {
+		ops, ok := mUrn2Ops[key.Urn()]
+		if !ok {
+			slog.Debug("unknown metrics urn", slog.String("urn", key.Urn()))
+			return nil, false
+		}
+		a = ops.newAccum()
+	}
+	if err := a.accumulate(payload); err != nil {
+		panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v :%v", key.Urn(), key, a, err))
+	}
+	accums[key] = a
+	return a, true
 }
 
 func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) (map[string]int64, []string) {
 	var index, totalCount int64
-	if m.accums[d] == nil {
-		m.accums[d] = map[metricKey]metricAccumulator{}
-	}
 	if m.unprocessedPayloads[d] == nil {
-		m.unprocessedPayloads[d] = map[string][]byte{}
+		m.unprocessedPayloads[d] = map[string][][]byte{}
 	}
-	accums := m.accums[d]
 	var missingShortIDs []string
 	for short, payload := range mdata {
 		key, ok := m.shortIDsToKeys[short]
 		if !ok {
 			missingShortIDs = append(missingShortIDs, short)
-			m.unprocessedPayloads[d][short] = payload
+			copied := bytes.Clone(payload)
+			switch d {
+			case committed:
+				m.unprocessedPayloads[d][short] = append(m.unprocessedPayloads[d][short], copied)
+			case tentative:
+				// Progress updates send snapshots, so keep only the latest payload.
+				m.unprocessedPayloads[d][short] = [][]byte{copied}
+			}
 			continue
 		}
-		a, ok := accums[key]
-		if !ok || d == tentative {
-			ops, ok := mUrn2Ops[key.Urn()]
-			if !ok {
-				slog.Debug("unknown metrics urn", slog.String("urn", key.Urn()))
-				continue
-			}
-			a = ops.newAccum()
+		a, ok := m.accumulatePayload(d, key, payload)
+		if !ok {
+			continue
 		}
-		if err := a.accumulate(payload); err != nil {
-			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v :%v", key.Urn(), key, a, err))
-		}
-		accums[key] = a
 		switch u := key.Urn(); u {
 		case "beam:metric:data_channel:read_index:v1":
 			index = a.(*sumInt64).sum // There should only be one of these per progress response.
