@@ -132,9 +132,7 @@ class YamlJoinTest(unittest.TestCase):
       quantities = p | "quantities" >> beam.Create(QUANTITIES)
       categories = p | "categories" >> beam.Create(CATEGORIES)
       result = {
-          "quantities": quantities,
-          "categories": categories,
-          "fruits": fruits
+          "quantities": quantities, "categories": categories, "fruits": fruits
       } | YamlTransform(
           '''
         type: Join
@@ -256,6 +254,7 @@ class YamlJoinTest(unittest.TestCase):
                   category='dry')
           ]))
 
+
 class SqlJoinQueryTest(unittest.TestCase):
   def _make_mock_pcoll(self, field_names):
     from unittest.mock import MagicMock
@@ -277,13 +276,14 @@ class SqlJoinQueryTest(unittest.TestCase):
       captured_queries.append(query)
       return pcolls
 
-    _ = pcolls | _SqlJoinTransform(
+    _ = _SqlJoinTransform(
         mock_sql,
-        equalities=[
-            {'orders': 'order_id', 'line_items': 'order_id'},
-            {'line_items': 'product_id', 'products': 'product_id'}
-        ],
-        type='inner')
+        equalities=[{
+            'orders': 'order_id', 'line_items': 'order_id'
+        }, {
+            'line_items': 'product_id', 'products': 'product_id'
+        }],
+        type='inner').expand(pcolls)
 
     self.assertEqual(len(captured_queries), 1)
     query = captured_queries[0]
@@ -310,13 +310,14 @@ class SqlJoinQueryTest(unittest.TestCase):
       captured_queries.append(query)
       return pcolls
 
-    _ = pcolls | _SqlJoinTransform(
+    _ = _SqlJoinTransform(
         mock_sql,
-        equalities=[
-            {'orders': 'order_id', 'line_items': 'order_id'},
-            {'line_items': 'product_id', 'products': 'product_id'}
-        ],
-        type='inner')
+        equalities=[{
+            'orders': 'order_id', 'line_items': 'order_id'
+        }, {
+            'line_items': 'product_id', 'products': 'product_id'
+        }],
+        type='inner').expand(pcolls)
 
     self.assertEqual(len(captured_queries), 1)
     query = captured_queries[0]
@@ -340,14 +341,16 @@ class SqlJoinQueryTest(unittest.TestCase):
       captured_queries.append(query)
       return pcolls
 
-    _ = pcolls | _SqlJoinTransform(
+    _ = _SqlJoinTransform(
         mock_sql,
-        equalities=[
-            {'a': 'id', 'b': 'id'},
-            {'b': 'id', 'c': 'id'},
-            {'a': 'id', 'c': 'id'}
-        ],
-        type='inner')
+        equalities=[{
+            'a': 'id', 'b': 'id'
+        }, {
+            'b': 'id', 'c': 'id'
+        }, {
+            'a': 'id', 'c': 'id'
+        }],
+        type='inner').expand(pcolls)
 
     self.assertEqual(len(captured_queries), 1)
     query = captured_queries[0]
