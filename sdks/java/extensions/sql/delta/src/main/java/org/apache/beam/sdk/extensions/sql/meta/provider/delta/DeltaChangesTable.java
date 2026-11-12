@@ -68,14 +68,6 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
   private static final String START_VERSION = "start_version";
   private static final String END_VERSION = "end_version";
 
-  /** The metadata columns of the Change Data Feed, in the order they follow the table's columns. */
-  @VisibleForTesting
-  static final List<String> METADATA_COLUMNS =
-      ImmutableList.of(
-          DeltaIO.CHANGE_TYPE_COLUMN,
-          DeltaIO.COMMIT_VERSION_COLUMN,
-          DeltaIO.COMMIT_TIMESTAMP_COLUMN);
-
   private static final Map<String, String> OWNED_OPTIONS =
       ImmutableMap.<String, String>builder()
           .putAll(ManagedOptions.owned("the SQL table sets it", "table", "hadoop_config"))
@@ -129,23 +121,23 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
     return new DeltaChangesTable(schema.build(), table, range, ImmutableMap.copyOf(config));
   }
 
-  /** The requested metadata columns, in the order of {@link #METADATA_COLUMNS}. */
+  /** The requested metadata columns, in the order of {@link DeltaIO#METADATA_COLUMNS}. */
   @SuppressWarnings("unchecked")
   private static List<String> metadataColumns(Map<String, Object> options, Schema tableSchema) {
     List<String> requested =
         (List<String>) options.getOrDefault(INCLUDE_METADATA_COLUMNS, ImmutableList.of());
     for (String column : requested) {
       checkArgument(
-          METADATA_COLUMNS.contains(column),
+          DeltaIO.METADATA_COLUMNS.contains(column),
           "Unknown metadata column '%s'. Supported metadata columns: %s",
           column,
-          METADATA_COLUMNS);
+          DeltaIO.METADATA_COLUMNS);
       checkArgument(
           !tableSchema.hasField(column),
           "Metadata column '%s' collides with a column of the table",
           column);
     }
-    return METADATA_COLUMNS.stream()
+    return DeltaIO.METADATA_COLUMNS.stream()
         .filter(requested::contains)
         .collect(ImmutableList.toImmutableList());
   }
