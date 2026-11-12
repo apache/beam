@@ -26,6 +26,8 @@ applyJavaNature(
   requireJavaVersion: JavaVersion.VERSION_17,
 )
 
+evaluationDependsOn(":sdks:java:extensions:sql:jdbc")
+
 dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:core")
@@ -44,11 +46,13 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
 
-  testImplementation project(":sdks:java:extensions:sql:jdbc")
+  testImplementation project(":sdks:java:extensions:sql:jdbc").sourceSets.main.output
+  testRuntimeOnly "jline:jline:2.14.6"
+  testRuntimeOnly "sqlline:sqlline:1.4.0"
   testImplementation library.java.junit
   testImplementation library.java.google_api_services_bigquery
-  testImplementation "org.apache.iceberg:iceberg-api:1.9.2"
-  testImplementation "org.apache.iceberg:iceberg-core:1.9.2"
+  testImplementation "org.apache.iceberg:iceberg-api:1.12.0"
+  testImplementation "org.apache.iceberg:iceberg-core:1.12.0"
   testRuntimeOnly library.java.bigdataoss_util_hadoop
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:google-cloud-platform-core")

@@ -82,11 +82,13 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
+* (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 
 ## Improvements
 
@@ -140,13 +142,19 @@
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
+* (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
+* (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
+* (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
+* (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
+* (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
 * (Java) Beam SQL: `CROSS JOIN UNNEST` over an array of rows that contain a nested row no longer fails with a `Row expected N fields ... initialized with M fields` error when the query runs through the JDBC driver or the SQL shell ([#26911](https://github.com/apache/beam/issues/26911)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
 
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+* Updated the Go toolchain used to build the SDK container `boot` binaries and the Go SDK to go1.26.10, which fixes the Go standard library CVEs reported against go1.26.2 ([#41056](https://github.com/apache/beam/issues/41056)).
 
 ## Known Issues
 

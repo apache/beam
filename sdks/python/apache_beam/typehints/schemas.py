@@ -307,6 +307,12 @@ class SchemaTranslation(object):
     self.schema_registry = schema_registry
 
   def typing_to_runner_api(self, type_: type) -> schema_pb2.FieldType:
+    try:
+      if type_ in PRIMITIVE_TO_ATOMIC_TYPE:
+        return schema_pb2.FieldType(atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[type_])
+    except TypeError:
+      pass
+
     if isinstance(type_, schema_pb2.Schema):
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 

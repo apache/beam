@@ -52,6 +52,7 @@ import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageChannelUtils;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.StorageRetryStrategy;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
@@ -229,6 +230,11 @@ class GcsUtilV2 {
         StorageOptions.getDefaultHttpTransportOptions().toBuilder()
             .setHttpTransportFactory(Transport::getTransport)
             .build());
+    // Use the uniform retry strategy so that unconditional deletes and overwrites (such as in
+    // rewriteOne, remove, and removeBucket) also retry transient 5xx/429/408 storage errors,
+    // matching GcsUtilV1's HttpRequestInitializer retry behavior.
+    storageOptionsBuilder.setStorageRetryStrategy(
+        StorageRetryStrategy.getUniformStorageRetryStrategy());
 
     storage = storageOptionsBuilder.build().getService();
     uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
@@ -534,21 +540,31 @@ class GcsUtilV2 {
       batch.submit();
 
       for (int i = 0; i < batchResultFutures.size(); i++) {
+        GcsPath path = pathPartition.get(i);
         StorageBatchResult<Blob> future = batchResultFutures.get(i);
         try {
-          Blob blob = future.get();
+          Blob blob;
+          try {
+            blob = future.get();
+          } catch (StorageException e) {
+            if (!e.isRetryable()) {
+              throw e;
+            }
+            // StorageBatch.submit() does not retry individual sub-requests inside a multipart
+            // batch when one fails with a transient 5xx/429 error; fall back to an individual
+            // get() so the client's retry strategy can retry it.
+            blob = storage().get(path.getBucket(), path.getObject(), options);
+          }
           if (blob != null) {
             results.add(BlobResult.create(blob));
           } else {
             results.add(
                 BlobResult.create(
                     new FileNotFoundException(
-                        String.format(
-                            "The specified file does not exist: %s",
-                            pathPartition.get(i).toString()))));
+                        String.format("The specified file does not exist: %s", path.toString()))));
           }
         } catch (StorageException e) {
-          results.add(BlobResult.create(translateStorageException(pathPartition.get(i), e)));
+          results.add(BlobResult.create(translateStorageException(path, e)));
         }
       }
     }
@@ -660,20 +676,31 @@ class GcsUtilV2 {
       batch.submit();
 
       for (int i = 0; i < batchResultFutures.size(); i++) {
+        GcsPath path = pathPartition.get(i);
         StorageBatchResult<Boolean> future = batchResultFutures.get(i);
         try {
-          Boolean deleted = future.get();
-          if (!deleted) {
+          Boolean deleted;
+          try {
+            deleted = future.get();
+          } catch (StorageException e) {
+            if (!e.isRetryable()) {
+              throw e;
+            }
+            // StorageBatch.submit() does not retry individual sub-requests inside a multipart
+            // batch when one fails with a transient 5xx/429 error; fall back to an individual
+            // delete() so the client's retry strategy can retry it.
+            deleted = storage().delete(BlobId.of(path.getBucket(), path.getObject()));
+          }
+          if (!Boolean.TRUE.equals(deleted)) {
             if (strategy == MissingStrategy.FAIL_IF_MISSING) {
               throw new FileNotFoundException(
-                  String.format(
-                      "The specified file does not exist: %s", pathPartition.get(i).toString()));
+                  String.format("The specified file does not exist: %s", path.toString()));
             } else {
-              LOG.warn("Ignoring failed deletion on file {}.", pathPartition.get(i).toString());
+              LOG.warn("Ignoring failed deletion on file {}.", path.toString());
             }
           }
         } catch (StorageException e) {
-          throw translateStorageException(pathPartition.get(i), e);
+          throw translateStorageException(path, e);
         }
       }
     }
