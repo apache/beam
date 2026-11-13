@@ -79,6 +79,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -567,6 +568,10 @@ public class ProcessBundleHandler {
             finishFunction.run();
           }
 
+          // Surface downstream exceptions that user code may have caught while processing
+          // fused outputs. This must happen before outbound data is finalized.
+          bundleProcessor.getpCollectionConsumerRegistry().finishBundle();
+
           // If bundleProcessor has not flushed any elements, embed them in response.
           embedOutboundElementsIfApplicable(response, bundleProcessor);
 
@@ -616,6 +621,26 @@ public class ProcessBundleHandler {
       beamFnDataClient.poisonInstructionId(instructionId);
       throw e;
     }
+  }
+
+  private static PCollectionConsumerRegistry.FusedDoFnExceptionHandling
+      getFusedDoFnExceptionHandling(PipelineOptions options) {
+    String value =
+        ExperimentalOptions.getExperimentValue(
+            options, ExperimentalOptions.FUSED_DOFN_EXCEPTION_HANDLING);
+    if (value == null || value.equalsIgnoreCase("legacy")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.LEGACY;
+    }
+    if (value.equalsIgnoreCase("warn")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.WARN;
+    }
+    if (value.equalsIgnoreCase("fail")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL;
+    }
+    throw new IllegalArgumentException(
+        String.format(
+            "Unsupported value '%s' for experiment %s. Expected legacy, warn, or fail.",
+            value, ExperimentalOptions.FUSED_DOFN_EXCEPTION_HANDLING));
   }
 
   private void embedOutboundElementsIfApplicable(
@@ -803,13 +828,16 @@ public class ProcessBundleHandler {
         new MetricsEnvironmentStateForBundle();
     ExecutionStateTracker stateTracker = executionStateSampler.create();
     bundleProgressReporterAndRegistrar.register(stateTracker);
+    PCollectionConsumerRegistry.FusedDoFnExceptionHandling fusedDoFnExceptionHandling =
+        getFusedDoFnExceptionHandling(options);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             stateTracker,
             shortIds,
             bundleProgressReporterAndRegistrar,
             bundleDescriptor,
-            dataSampler);
+            dataSampler,
+            fusedDoFnExceptionHandling);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -817,6 +845,7 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(shortIds, stateTracker, Urns.FINISH_BUNDLE_MSECS);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
+    resetFunctions.add(pCollectionConsumerRegistry::reset);
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
