@@ -127,6 +127,7 @@ public class FakeJobService implements JobService, Serializable {
   private static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table<
           String, String, JobStatistics>
       dryRunQueryResults;
+  private static Job lastLoadJob;
 
   public FakeJobService() {
     this(0);
@@ -146,10 +147,12 @@ public class FakeJobService implements JobService, Serializable {
     numExtractJobCalls = 0;
     filesForLoadJobs = HashBasedTable.create();
     dryRunQueryResults = HashBasedTable.create();
+    lastLoadJob = null;
   }
 
   @Override
-  public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
+  public void startLoadJob(
+      JobReference jobRef, JobConfiguration jobConfig, JobConfigurationLoad loadConfig)
       throws IOException {
     synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
@@ -175,6 +178,7 @@ public class FakeJobService implements JobService, Serializable {
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
+      lastLoadJob = job;
     }
   }
 
@@ -284,6 +288,12 @@ public class FakeJobService implements JobService, Serializable {
   public Collection<Job> getAllJobs() {
     synchronized (FakeJobService.class) {
       return allJobs.values().stream().map(j -> j.job).collect(Collectors.toList());
+    }
+  }
+
+  public Job getLastLoadJob() {
+    synchronized (FakeJobService.class) {
+      return lastLoadJob;
     }
   }
 

@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
+import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -140,6 +141,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   private final @Nullable String kmsKey;
+  private final @Nullable String reservation;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
   private transient @Nullable DatasetService datasetService;
@@ -293,7 +295,8 @@ class WriteTables<DestinationT extends @NonNull Object>
               partitionFiles,
               writeDisposition,
               createDisposition,
-              schemaUpdateOptions);
+              schemaUpdateOptions,
+              reservation);
 
       pendingJobs.add(
           new PendingJobData(
@@ -412,7 +415,8 @@ class WriteTables<DestinationT extends @NonNull Object>
       String sourceFormat,
       boolean useAvroLogicalTypes,
       Set<SchemaUpdateOption> schemaUpdateOptions,
-      @Nullable String tempDataset) {
+      @Nullable String tempDataset,
+      @Nullable String reservation) {
 
     this.tempTable = tempTable;
     this.bqServices = bqServices;
@@ -431,6 +435,7 @@ class WriteTables<DestinationT extends @NonNull Object>
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
     this.tempDataset = tempDataset;
+    this.reservation = reservation;
   }
 
   @Override
@@ -475,7 +480,10 @@ class WriteTables<DestinationT extends @NonNull Object>
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      Set<SchemaUpdateOption> schemaUpdateOptions) {
+      Set<SchemaUpdateOption> schemaUpdateOptions,
+      @Nullable String reservation) {
+    JobConfiguration jobConfig = new JobConfiguration();
+
     @SuppressWarnings({
       "nullness" // nulls allowed in most fields but API client not annotated
     })
@@ -506,6 +514,9 @@ class WriteTables<DestinationT extends @NonNull Object>
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
+    if (reservation != null) {
+      jobConfig.setReservation(reservation);
+    }
     String projectId =
         loadJobProjectId == null || loadJobProjectId.get() == null
             ? ref.getProjectId()
@@ -529,7 +540,7 @@ class WriteTables<DestinationT extends @NonNull Object>
                   jobRef,
                   jobId.getRetryIndex());
               try {
-                jobService.startLoadJob(jobRef, loadConfig);
+                jobService.startLoadJob(jobRef, jobConfig, loadConfig);
               } catch (IOException | InterruptedException e) {
                 LOG.warn("Load job {} failed with {}", jobRef, e.toString());
                 throw new RuntimeException(e);
