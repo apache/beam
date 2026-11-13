@@ -65,7 +65,8 @@ public interface MapState<K, V> extends State {
    * map and reconciliation with any pending modifications.
    *
    * <p>If the specified key is not already associated with a value (or is mapped to {@code null})
-   * associates it with the computed and returns {@code null}, else returns the current value.
+   * associates it with the computed value. Returns the current (existing or computed) value
+   * associated with the specified key, or null if the computed value is null.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
