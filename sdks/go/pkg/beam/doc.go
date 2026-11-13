@@ -14,8 +14,12 @@
 // limitations under the License.
 
 // Package beam is an implementation of the Apache Beam (https://beam.apache.org)
-// programming model in Go.  Beam provides a simple, powerful model for
-// building both batch and streaming parallel data processing pipelines.
+// programming model in Go. Beam provides a simple, powerful model for building
+// both batch and streaming parallel data processing pipelines.
+//
+// Before constructing a pipeline, call Init after parsing command-line flags.
+// Registration functions must be called before Init, conventionally from package
+// init functions.
 //
 // For more on the Beam model see: https://beam.apache.org/documentation/programming-guide
 //
