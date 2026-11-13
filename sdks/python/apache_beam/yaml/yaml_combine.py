@@ -64,7 +64,9 @@ def normalize_combine(spec):
   from apache_beam.yaml.yaml_transform import SafeLineLoader
   if spec['type'] == 'Combine':
     config = spec.get('config')
-    if isinstance(config.get('group_by'), str):
+    if not config.get('group_by'):
+      config['group_by'] = []
+    elif isinstance(config['group_by'], str):
       config['group_by'] = [config['group_by']]
 
     def normalize_agg(dest, agg):
@@ -101,13 +103,15 @@ class PyJsYamlCombine(beam.PTransform):
     language: The language used to define (and execute) the
       custom callables in `combine`. Defaults to generic.
   """
+
+  # pylint: disable=dangerous-default-value
   def __init__(
       self,
-      group_by: Iterable[str],
-      combine: Mapping[str, Mapping[str, Any]],
+      group_by: Optional[Iterable[str]] = (),
+      combine: Mapping[str, Mapping[str, Any]] = {},
       language: Optional[str] = None):
-    self._group_by = group_by
-    self._combine = combine
+    self._group_by = tuple(group_by or ())
+    self._combine = combine or {}
     self._language = language
 
   def expand(self, pcoll):
@@ -178,9 +182,15 @@ if PyJsYamlCombine.__doc__:  # make mypy happy
       ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
 
 
+# pylint: disable=dangerous-default-value
 @beam.ptransform.ptransform_fn
 def _SqlCombineTransform(
-    pcoll, sql_transform_constructor, group_by, combine, language=None):
+    pcoll,
+    sql_transform_constructor,
+    group_by: Optional[Iterable[str]] = (),
+    combine: Mapping[str, Any] = {},
+    language: Optional[str] = None):
+  group_by = list(group_by or [])
   all_fields = [
       x for x, _ in named_fields_from_element_type(pcoll.element_type)
   ]
@@ -198,14 +208,18 @@ def _SqlCombineTransform(
       expr = fn_spec['fn']['type']
     return f'{expr} as {dest}'
 
-  return pcoll | sql_transform_constructor(
-      'SELECT %s FROM PCOLLECTION GROUP BY %s' % (
-          ', '.join(
-              list(group_by) +
-              [combine_col(dest, fn_spec)
-               for dest, fn_spec in combine.items()]),
-          ', '.join(group_by),
-      ))
+  select_cols = group_by + [
+      combine_col(dest, fn_spec) for dest, fn_spec in (combine or {}).items()
+  ]
+  if group_by:
+    query = 'SELECT %s FROM PCOLLECTION GROUP BY %s' % (
+        ', '.join(select_cols),
+        ', '.join(group_by),
+    )
+  else:
+    query = 'SELECT %s FROM PCOLLECTION' % ', '.join(select_cols)
+
+  return pcoll | sql_transform_constructor(query)
 
 
 def create_combine_providers():
