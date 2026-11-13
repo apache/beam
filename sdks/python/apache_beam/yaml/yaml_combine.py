@@ -103,10 +103,12 @@ class PyJsYamlCombine(beam.PTransform):
     language: The language used to define (and execute) the
       custom callables in `combine`. Defaults to generic.
   """
+
+  # pylint: disable=dangerous-default-value
   def __init__(
       self,
-      group_by: Iterable[str] = (),
-      combine: Optional[Mapping[str, Mapping[str, Any]]] = None,
+      group_by: Optional[Iterable[str]] = (),
+      combine: Mapping[str, Mapping[str, Any]] = {},
       language: Optional[str] = None):
     self._group_by = tuple(group_by or ())
     self._combine = combine or {}
@@ -180,12 +182,13 @@ if PyJsYamlCombine.__doc__:  # make mypy happy
       ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
 
 
+# pylint: disable=dangerous-default-value
 @beam.ptransform.ptransform_fn
 def _SqlCombineTransform(
     pcoll,
     sql_transform_constructor,
-    group_by: Iterable[str] = (),
-    combine: Optional[Mapping[str, Any]] = None,
+    group_by: Optional[Iterable[str]] = (),
+    combine: Mapping[str, Any] = {},
     language: Optional[str] = None):
   group_by = list(group_by or [])
   all_fields = [
