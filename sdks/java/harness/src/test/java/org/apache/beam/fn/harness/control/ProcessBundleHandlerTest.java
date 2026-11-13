@@ -1099,15 +1099,22 @@ public class ProcessBundleHandlerTest {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
-    ByteStringOutputStream encoded = new ByteStringOutputStream();
-    StringUtf8Coder.of().encode("element", encoded);
+    ByteStringOutputStream firstEncodedElement = new ByteStringOutputStream();
+    StringUtf8Coder.of().encode("first", firstEncodedElement);
+    ByteStringOutputStream secondEncodedElement = new ByteStringOutputStream();
+    StringUtf8Coder.of().encode("second", secondEncodedElement);
     Elements elements =
         Elements.newBuilder()
             .addData(
                 Data.newBuilder()
                     .setInstructionId("fused-fail")
                     .setTransformId("source")
-                    .setData(encoded.toByteString())
+                    .setData(firstEncodedElement.toByteString()))
+            .addData(
+                Data.newBuilder()
+                    .setInstructionId("fused-fail")
+                    .setTransformId("source")
+                    .setData(secondEncodedElement.toByteString())
                     .setIsLast(true))
             .build();
 
@@ -1125,7 +1132,7 @@ public class ProcessBundleHandlerTest {
                         .build()));
     assertTrue(failure.toString(), failure.getMessage().contains("fused downstream failure"));
     assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
-    assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+    assertEquals(2, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
     assertThat(
         handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"), empty());
     handler.shutdown();
