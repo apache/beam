@@ -2451,7 +2451,7 @@ class Reify(object):
       return pcoll | ParDo(self.add_timestamp_info)
 
   @typehints.with_input_types(T)
-  @typehints.with_output_types(T)
+  @typehints.with_output_types(Any)
   class Window(PTransform):
     """PTransform to convert an element in a PCollection into a tuple of
     (element, timestamp, window), wrapped in a TimestampedValue with it's
@@ -2465,7 +2465,7 @@ class Reify(object):
       return pcoll | ParDo(self.add_window_info)
 
   @typehints.with_input_types(tuple[K, V])
-  @typehints.with_output_types(tuple[K, V])
+  @typehints.with_output_types(tuple[K, Any])
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
@@ -2478,7 +2478,7 @@ class Reify(object):
       return pcoll | ParDo(self.add_timestamp_info)
 
   @typehints.with_input_types(tuple[K, V])
-  @typehints.with_output_types(tuple[K, V])
+  @typehints.with_output_types(tuple[K, Any])
   class WindowInValue(PTransform):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a

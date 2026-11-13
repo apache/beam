@@ -2962,6 +2962,28 @@ class ReifyTest(unittest.TestCase):
       reified_pc = pc | util.Reify.WindowInValue()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
+  def test_typed_input(self):
+    # Create infers the element type, and the coders of the outputs come from
+    # the declared output types of the transforms.
+    with TestPipeline() as p:
+      kvs = p | beam.Create([('a', 1), ('b', 2)])
+      windowed = (
+          kvs | 'Window' >> util.Reify.Window()
+          | 'GetElement' >> beam.Map(lambda x: x[0]))
+      assert_that(windowed, equal_to([('a', 1), ('b', 2)]), label='CheckWindow')
+      timestamped = (
+          kvs | util.Reify.TimestampInValue()
+          | 'GetTsValue' >> beam.MapTuple(lambda k, v: (k, v.value)))
+      assert_that(
+          timestamped, equal_to([('a', 1), ('b', 2)]), label='CheckTimestamp')
+      window_in_value = (
+          kvs | util.Reify.WindowInValue()
+          | 'GetValue' >> beam.MapTuple(lambda k, v: (k, v[0])))
+      assert_that(
+          window_in_value,
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckWindowInValue')
+
 
 class RegexTest(unittest.TestCase):
   def test_find(self):
