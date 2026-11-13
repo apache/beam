@@ -116,15 +116,17 @@ def message_from_string(
     inference_args: additional arguments passed to the messages.create call.
       Common args include 'max_tokens', 'system', 'temperature', 'top_p'.
   """
-  max_tokens = inference_args.pop('max_tokens', 1024)
+  # Pass the default only when the caller gave no max_tokens, without
+  # changing inference_args: RunInference reuses that dict for every batch.
+  default_args = {} if 'max_tokens' in inference_args else {'max_tokens': 1024}
   responses = []
   for prompt in batch:
     response = client.messages.create(
         model=model_name,
-        max_tokens=max_tokens,
         messages=[{
             "role": "user", "content": prompt
         }],
+        **default_args,
         **inference_args)
     responses.append(response)
   return responses
@@ -146,14 +148,11 @@ def message_from_conversation(
     client: the Anthropic client instance.
     inference_args: additional arguments passed to the messages.create call.
   """
-  max_tokens = inference_args.pop('max_tokens', 1024)
+  default_args = {} if 'max_tokens' in inference_args else {'max_tokens': 1024}
   responses = []
   for messages in batch:
     response = client.messages.create(
-        model=model_name,
-        max_tokens=max_tokens,
-        messages=messages,
-        **inference_args)
+        model=model_name, messages=messages, **default_args, **inference_args)
     responses.append(response)
   return responses
 
