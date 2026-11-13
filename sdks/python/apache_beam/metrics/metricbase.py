@@ -84,7 +84,6 @@ class MetricName(object):
     self.labels = labels if labels else {}
     self._cached_fast_name: Optional[str] = None
     self._cached_hash: Optional[int] = None
-    self._typed_metric_names: dict = {}
 
   def __eq__(self, other):
     return self is other or (
@@ -123,10 +122,15 @@ class MetricName(object):
     return (self.namespace, self.name, self.urn, self.labels)
 
   def __setstate__(self, state):
-    self.namespace, self.name, self.urn, self.labels = state
+    if isinstance(state, dict):
+      self.namespace = state['namespace']
+      self.name = state['name']
+      self.urn = state['urn']
+      self.labels = state['labels']
+    else:
+      self.namespace, self.name, self.urn, self.labels = state
     self._cached_fast_name = None
     self._cached_hash = None
-    self._typed_metric_names = {}
 
 
 class Metric(object):

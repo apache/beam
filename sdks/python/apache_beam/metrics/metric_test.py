@@ -57,6 +57,29 @@ class NameTest(unittest.TestCase):
     self.assertEqual(key.metric.name, 'name1')
     self.assertEqual(key, MetricKey('step1', MetricName('namespace1', 'name1')))
 
+  def test_metric_name_pickle_and_legacy_dict_state(self):
+    import pickle
+    name = MetricName('namespace1', 'name1', urn='urn1', labels={'k': 'v'})
+    _ = hash(name)
+    _ = name.fast_name()
+    unpickled = pickle.loads(pickle.dumps(name))
+    self.assertEqual(unpickled, name)
+    self.assertEqual(hash(unpickled), hash(name))
+    self.assertEqual(unpickled.fast_name(), name.fast_name())
+
+    legacy = MetricName.__new__(MetricName)
+    legacy.__setstate__({
+        'namespace': 'namespace1',
+        'name': 'name1',
+        'urn': 'urn1',
+        'labels': {
+            'k': 'v'
+        },
+    })
+    self.assertEqual(legacy, name)
+    self.assertEqual(hash(legacy), hash(name))
+    self.assertEqual(legacy.fast_name(), name.fast_name())
+
 
 class MetricResultsTest(unittest.TestCase):
   def test_metric_filter_namespace_matching(self):
