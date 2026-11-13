@@ -20,8 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,7 +47,6 @@ import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
@@ -128,58 +125,9 @@ public class StateFetchingIterators {
 
     @Override
     public PrefetchableIterator<T> createIterator() {
-      return new DecodingIterator<T>(
-          new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk),
-          valueCoder);
-    }
-
-    private static class DecodingIterator<T> extends AbstractIterator<T>
-        implements PrefetchableIterator<T> {
-      private final PrefetchableIterator<ByteString> chunkIterator;
-      private final Coder<T> valueCoder;
-      private InputStream currentChunk;
-
-      public DecodingIterator(PrefetchableIterator<ByteString> chunkIterator, Coder<T> valueCoder) {
-        this.chunkIterator = chunkIterator;
-        this.valueCoder = valueCoder;
-        this.currentChunk = ByteString.EMPTY.newInput();
-      }
-
-      @Override
-      protected @Nullable T computeNext() {
-        try {
-          while (currentChunk.available() == 0) {
-            if (chunkIterator.hasNext()) {
-              currentChunk = chunkIterator.next().newInput();
-            } else {
-              return endOfData();
-            }
-          }
-          return valueCoder.decode(currentChunk);
-        } catch (IOException exn) {
-          // Should never get here as ByteString.newInput() returns InputStreams
-          // that don't do actual IO operations.
-          throw new IllegalStateException(exn);
-        }
-      }
-
-      @Override
-      public boolean isReady() {
-        try {
-          return currentChunk.available() > 0 || chunkIterator.isReady();
-        } catch (IOException exn) {
-          // Should never get here as ByteString.newInput() returns InputStreams
-          // that don't do actual IO operations.
-          throw new IllegalStateException(exn);
-        }
-      }
-
-      @Override
-      public void prefetch() {
-        if (!isReady()) {
-          chunkIterator.prefetch();
-        }
-      }
+      return new DataStreamDecoder<>(
+          valueCoder,
+          new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk));
     }
   }
 
