@@ -259,7 +259,7 @@ public class PCollectionConsumerRegistryTest {
     verify(consumer, times(1)).accept(any());
 
     try {
-      consumers.finishBundle();
+      consumers.failBundleIfDownstreamFailed();
       throw new AssertionError("Expected the recorded downstream exception to fail the bundle");
     } catch (Exception expected) {
       assertEquals(message, expected.getMessage());
@@ -295,7 +295,8 @@ public class PCollectionConsumerRegistryTest {
     verify(consumer, times(2)).accept(any());
 
     // Warning mode reports at successful bundle completion but does not fail the bundle.
-    consumers.finishBundle();
+    consumers.failBundleIfDownstreamFailed();
+    consumers.logWarningIfDownstreamFailed();
   }
 
   @Test
@@ -326,7 +327,8 @@ public class PCollectionConsumerRegistryTest {
     consumers.reset();
     doNothing().when(consumer).accept(any());
     wrapperConsumer.accept(valueInGlobalWindow("next bundle"));
-    consumers.finishBundle();
+    consumers.failBundleIfDownstreamFailed();
+    consumers.logWarningIfDownstreamFailed();
     verify(consumer, times(2)).accept(any());
   }
 
