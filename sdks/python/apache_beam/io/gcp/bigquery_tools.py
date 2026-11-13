@@ -1570,15 +1570,9 @@ class BigQueryWrapper(object):
         str(self.unique_row_id) if not insert_ids else insert_ids[i]
         for i, _ in enumerate(rows)
     ]
-    _json_safe = (str, bool, type(None))
     rows = [
-        r if (
-            type(r) is dict and all(
-                type(k) is str and (
-                    type(v) in _json_safe or
-                    (type(v) is int and -(1 << 63) <= v < (1 << 63)))
-                for k, v in r.items())) else fast_json_loads(
-                    fast_json_dumps(r, default=default_encoder)) for r in rows
+        fast_json_loads(fast_json_dumps(r, default=default_encoder))
+        for r in rows
     ]
 
     result, errors = self._insert_all_rows(
