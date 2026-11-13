@@ -167,6 +167,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
               : Dataset$.MODULE$.ofRows(
                   (org.apache.spark.sql.classic.SparkSession) dataset.sparkSession(),
                   copyStatefulProcessors(dataset.queryExecution().logical()));
+      // TODO(https://github.com/apache/beam/issues/41297): SPARK-60862, a stateful operator above a
+      // reused exchange gets no watermark. Remove once the runner uses Spark 4.4.0 or later.
+      queryDataset.sparkSession().conf().set("spark.sql.exchange.reuse", "false");
       return queryDataset
           .writeStream()
           .format("noop")
