@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.StreamingContext;
@@ -42,19 +43,42 @@ import scala.Option;
 public class SingleEmitInputDStream<T> extends ConstantInputDStream<T> {
 
   private boolean emitted = false;
+  private final boolean forceWatermarkSync;
+  private transient long lastValidTimeMs = 0;
 
   public SingleEmitInputDStream(StreamingContext ssc, RDD<T> rdd) {
+    this(ssc, rdd, false);
+  }
+
+  public SingleEmitInputDStream(StreamingContext ssc, RDD<T> rdd, boolean forceWatermarkSync) {
     super(ssc, rdd, JavaSparkContext$.MODULE$.fakeClassTag());
+    this.forceWatermarkSync = forceWatermarkSync;
   }
 
   @Override
   public Option<RDD<T>> compute(Time validTime) {
+    if (forceWatermarkSync && validTime != null && validTime.milliseconds() > lastValidTimeMs) {
+      waitForLastBatch(validTime);
+    }
     if (this.emitted) {
       return Option.apply(this.emptyRDD());
     } else {
       this.emitted = true;
       return super.compute(validTime);
     }
+  }
+
+  private void waitForLastBatch(Time validTime) {
+    while (GlobalWatermarkHolder.hasWatermarks()
+        && GlobalWatermarkHolder.getLastWatermarkedBatchTime() < lastValidTimeMs) {
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    lastValidTimeMs = validTime.milliseconds();
   }
 
   private RDD<T> emptyRDD() {

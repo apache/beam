@@ -75,7 +75,7 @@ public class GlobalWatermarkHolder {
   private static volatile LoadingCache<String, Map<Integer, SparkWatermarks>> watermarkCache = null;
   private static volatile long lastWatermarkedBatchTime = 0;
 
-  public static void add(int sourceId, SparkWatermarks sparkWatermarks) {
+  public static synchronized void add(int sourceId, SparkWatermarks sparkWatermarks) {
     Queue<SparkWatermarks> timesQueue = sourceTimes.get(sourceId);
     if (timesQueue == null) {
       timesQueue = new ConcurrentLinkedQueue<>();
@@ -85,7 +85,7 @@ public class GlobalWatermarkHolder {
   }
 
   @VisibleForTesting
-  public static void addAll(Map<Integer, Queue<SparkWatermarks>> sourceTimes) {
+  public static synchronized void addAll(Map<Integer, Queue<SparkWatermarks>> sourceTimes) {
     for (Map.Entry<Integer, Queue<SparkWatermarks>> en : sourceTimes.entrySet()) {
       int sourceId = en.getKey();
       Queue<SparkWatermarks> timesQueue = en.getValue();
@@ -95,6 +95,10 @@ public class GlobalWatermarkHolder {
     }
   }
 
+  public static synchronized boolean hasWatermarks() {
+    return !sourceTimes.isEmpty() || driverNodeWatermarks != null;
+  }
+
   public static long getLastWatermarkedBatchTime() {
     return lastWatermarkedBatchTime;
   }
@@ -102,7 +106,7 @@ public class GlobalWatermarkHolder {
   /**
    * Returns the {@link Broadcast} containing the {@link SparkWatermarks} mapped to their sources.
    */
-  public static Map<Integer, SparkWatermarks> get(Long cacheInterval) {
+  public static synchronized Map<Integer, SparkWatermarks> get(Long cacheInterval) {
     if (canBypassRemoteWatermarkFetching()) {
       /*
       driverNodeWatermarks != null =>
@@ -313,6 +317,7 @@ public class GlobalWatermarkHolder {
     sourceTimes.clear();
     lastWatermarkedBatchTime = 0;
     writeLocalWatermarkCopy(null);
+    watermarkCache = null;
     final SparkEnv sparkEnv = SparkEnv.get();
     if (sparkEnv != null) {
       final BlockManager blockManager = sparkEnv.blockManager();
