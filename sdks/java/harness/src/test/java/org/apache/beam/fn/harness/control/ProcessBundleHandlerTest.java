@@ -1075,7 +1075,8 @@ public class ProcessBundleHandlerTest {
                 ApiServiceDescriptor.getDefaultInstance(),
                 StringUtf8Coder.of(),
                 (String input) ->
-                    ((FnDataReceiver<WindowedValue<String>>) context.getPCollectionConsumer("pc-source"))
+                    ((FnDataReceiver<WindowedValue<String>>)
+                            context.getPCollectionConsumer("pc-source"))
                         .accept(WindowedValue.valueInGlobalWindow(input))));
 
     return new ProcessBundleHandler(
