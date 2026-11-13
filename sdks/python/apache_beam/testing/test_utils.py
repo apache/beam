@@ -31,6 +31,7 @@ import shutil
 import struct
 import sys
 import tempfile
+import uuid
 from unittest import SkipTest
 
 import numpy as np
@@ -214,9 +215,12 @@ def require_linux_docker():
 def cleanup_testcontainer_on_retry(container):
   """Best-effort cleanup of a failed testcontainers instance before retrying.
 
-  Fetches container logs and stops the container if it was created, and removes
+  Fetches container logs and stops the container if it was created, removes
   any orphaned ``testcontainers-ryuk-<session_id>`` container left behind if
-  ``Reaper._create_instance()`` failed before setting ``Reaper._instance``.
+  ``Reaper._create_instance()`` failed before setting ``Reaper._instance``, and
+  rotates the testcontainers ``SESSION_ID`` so subsequent retries do not hit
+  ``409 Conflict`` if the Docker daemon is still creating the previous Ryuk
+  container in the background.
 
   Returns:
     A ``(stdout_logs, stderr_logs)`` tuple of decoded log strings.
@@ -236,14 +240,31 @@ def cleanup_testcontainer_on_retry(container):
     except Exception:  # pylint: disable=broad-except
       pass
   try:
+    from testcontainers.core import container as tc_container
+    from testcontainers.core import docker_client as tc_docker_client
+    from testcontainers.core import labels as tc_labels
     from testcontainers.core.container import Reaper
     if getattr(Reaper, "_instance", None) is None:
       docker_client = container.get_docker_client()
-      session_id = docker_client.client.api.headers.get("x-tc-sid")
+      session_id = (
+          getattr(tc_labels, "SESSION_ID", None) or
+          docker_client.client.api.headers.get("x-tc-sid"))
+      try:
+        Reaper.delete_instance()
+      except Exception:  # pylint: disable=broad-except
+        pass
       if session_id:
-        ryuk_container = docker_client.client.containers.get(
-            f"testcontainers-ryuk-{session_id}")
-        ryuk_container.remove(force=True)
+        try:
+          ryuk_container = docker_client.client.containers.get(
+              f"testcontainers-ryuk-{session_id}")
+          ryuk_container.remove(force=True)
+        except Exception:  # pylint: disable=broad-except
+          pass
+      new_session_id = str(uuid.uuid4())
+      tc_labels.SESSION_ID = new_session_id
+      tc_container.SESSION_ID = new_session_id
+      tc_docker_client.SESSION_ID = new_session_id
+      docker_client.client.api.headers["x-tc-sid"] = new_session_id
   except Exception:  # pylint: disable=broad-except
     pass
   return stdout_logs, stderr_logs
