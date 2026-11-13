@@ -1140,6 +1140,44 @@ public class ProcessBundleHandlerTest {
   }
 
   @Test
+  public void fusedDownstreamExceptionWarnModeAllowsBundleToComplete() throws Exception {
+    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
+    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("warn");
+    try {
+      ByteStringOutputStream encoded = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("element", encoded);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-warn")
+                      .setTransformId("source")
+                      .setData(encoded.toByteString())
+                      .setIsLast(true))
+              .build();
+
+      handler.processBundle(
+          InstructionRequest.newBuilder()
+              .setInstructionId("fused-warn")
+              .setProcessBundle(
+                  ProcessBundleRequest.newBuilder()
+                      .setProcessBundleDescriptorId("fused-descriptor")
+                      .setElements(elements))
+              .build());
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertFalse(
+          handler.bundleProcessorCache
+              .getCachedBundleProcessors()
+              .get("fused-descriptor")
+              .isEmpty());
+    } finally {
+      handler.shutdown();
+    }
+  }
+
+  @Test
   public void fusedDownstreamExceptionPreservesLegacyBehaviorByDefault() throws Exception {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
