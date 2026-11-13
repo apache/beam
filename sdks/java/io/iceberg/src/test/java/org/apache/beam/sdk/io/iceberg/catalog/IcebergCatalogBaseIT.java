@@ -113,6 +113,7 @@ import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
@@ -221,9 +222,25 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void setUp() throws Exception {
     OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
     warehouse = warehouse(getClass());
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        catalog = createCatalog();
+        catalogSetup();
+        break;
+      } catch (AlreadyExistsException e) {
+        if (attempt == 1) {
+          throw e;
+        }
+        break;
+      } catch (Exception e) {
+        if (attempt == 3) {
+          throw e;
+        }
+        LOG.warn("Transient failure during catalog setup (attempt {}/3), retrying...", attempt, e);
+        Thread.sleep(SETUP_TEARDOWN_SLEEP_MS * attempt);
+      }
+    }
     namespacesToCleanup.add(namespace());
-    catalog = createCatalog();
-    catalogSetup();
     Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
   }
 
