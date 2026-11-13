@@ -941,6 +941,26 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df, df2: df.corrwith(df2, axis=1), df, df2, check_proxy=False)
 
+  def test_dataframe_cov_corr_diagonal(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.cov(ddof=0), df)
+    self._run_test(lambda df: df.cov(ddof=2), df)
+
+    df.loc[df.index[:5], 'a'] = np.nan
+    self._run_test(lambda df: df.cov(min_periods=16), df)
+    self._run_test(lambda df: df.corr(min_periods=16), df)
+
+  def test_cov_single_row_ddof_0(self):
+    df = pd.DataFrame({'a': [1.0], 'b': [2.0]})
+    self._run_test(lambda df: df.cov(ddof=0), df)
+    self._run_test(lambda df: df.a.cov(df.b, ddof=0), df)
+
+  def test_corr_no_variance(self):
+    df = pd.DataFrame({'a': np.random.randn(10), 'b': 0.1})
+    self._run_test(lambda df: df.a.corr(df.b), df)
+    self._run_test(lambda df: df.b.corr(df.b), df)
+    self._run_test(lambda df: df.corr(), df)
+
   def test_corrwith_bad_axis(self):
     df = pd.DataFrame({'a': range(3), 'b': range(3, 6), 'c': range(6, 9)})
     self._run_error_test(lambda df: df.corrwith(df.a, axis=2), df)
@@ -2588,6 +2608,14 @@ class BeamSpecificTest(unittest.TestCase):
         expressions.PartitioningSession if distributed else expressions.Session)
 
     return session_type({}).evaluate(func(*deferred_args)._expr)
+
+  def test_cov_ddof_equal_to_count(self):
+    # pandas divides by zero here; Beam returns NaN as Series.var does.
+    df = pd.DataFrame({'a': [1.0, 2.0], 'b': [3.0, 5.0]})
+    result = self._evaluate(lambda df: df.cov(ddof=2), df)
+    self.assertTrue(result.isna().all().all())
+    result = self._evaluate(lambda df: df.a.cov(df.b, ddof=2), df)
+    self.assertTrue(np.isnan(result))
 
   def test_drop_duplicates_keep_any(self):
     df = pd.DataFrame({
