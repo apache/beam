@@ -32,6 +32,7 @@ from typing import Union
 
 import numpy as np
 
+from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -50,6 +51,7 @@ __all__ = [
     'Sample',
     'Top',
     'ToDict',
+    'ToIterable',
     'ToList',
     'ToSet',
     'Latest',
@@ -801,16 +803,94 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
     ]
 
 
+class ToSingleElementCollection(CombinerWithoutDefaults):
+  """Base class for combining a PCollection into a single element.
+
+  This is for combining a PCollection into a single element in the cases where
+  there is no value (and significant overhead) in using a combiner as the
+  output is no smaller than its input.
+  """
+  def expand(self, pcoll):
+    raise NotImplementedError
+
+  def _expand(self, pcoll, post_process):
+    if pcoll.is_bounded and pcoll.windowing.windowfn == window.GlobalWindows():
+      # TODO(BEAM-20043): Remove the Map once PCollections used in
+      # side inputs no longer have their elment types mangled by
+      # DataflowRunner.side_input_visitor().
+      side_input = pvalue.AsIter(pcoll | core.Map(lambda x: x))
+
+      timestamped = lambda s: window.TimestampedValue(
+          post_process(s), window.GlobalWindow().end)
+
+      if self.has_defaults:
+        process = lambda _, s: [timestamped(post_process(s))]
+
+      else:
+
+        def process(unused_elem, s):
+          # Yields iff s is non-empty.
+          for _ in s:
+            yield timestamped(post_process(s))
+            break
+
+      result = (
+          pcoll.pipeline
+          | 'DoOnce' >> core.Create([None])
+          | 'AsSingleValue' >> core.FlatMap(process, side_input)
+          # Avoid inferrring a type here so that the outer transform type
+          # takes precedence.
+          .with_output_types(Any))
+
+      result._windowing = pcoll.windowing
+      return result
+
+    else:
+      if self.has_defaults:
+        raise ValueError(
+            'Default values are not yet supported in %s() if the '
+            'input PCollection is not windowed by GlobalWindows and bounded. '
+            'Instead, use %s().without_defaults().' %
+            (self.__class__.__name__, self.__class__.__name__))
+      return (
+          pcoll
+          | 'KeyWithVoid' >> core.ParDo(core._KeyWithNone())
+          | core.GroupByKey()
+          | 'ToValue' >> core.MapTuple(lambda _, vs: post_process(vs))
+          # Avoid inferrring a type here so that the outer transform type
+          # takes precedence.
+          .with_output_types(Any))
+
+
+@with_input_types(T)
+@with_output_types(Iterable[T])
+class ToIterable(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into an iterable.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
+  def expand(self, pcoll):
+    return self._expand(pcoll, lambda x: x)
+
+
 @with_input_types(T)
 @with_output_types(list[T])
-class ToList(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single list."""
+class ToList(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into a single list.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
-    if self.has_defaults:
-      return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
-    else:
-      return pcoll | self.label >> core.CombineGlobally(
-          ToListCombineFn()).without_defaults()
+    if pcoll.pipeline.options.is_compat_version_prior_to('2.77.8'):
+      if self.has_defaults:
+        return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+      else:
+        return pcoll | self.label >> core.CombineGlobally(
+            ToListCombineFn()).without_defaults()
+
+    return self._expand(pcoll, list)
 
 
 @with_input_types(T)
@@ -851,19 +931,25 @@ class ConcatListCombineFn(core.CombineFn):
 
 @with_input_types(tuple[K, V])
 @with_output_types(dict[K, V])
-class ToDict(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a single dict.
+class ToDict(ToSingleElementCollection):
+  """A global Combine that condenses a PCollection into a single dict.
 
   PCollections should consist of 2-tuples, notionally (key, value) pairs.
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
   """
   def expand(self, pcoll):
-    if self.has_defaults:
-      return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
-    else:
-      return pcoll | self.label >> core.CombineGlobally(
-          ToDictCombineFn()).without_defaults()
+    if pcoll.pipeline.options.is_compat_version_prior_to('2.77.8'):
+      if self.has_defaults:
+        return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+      else:
+        return pcoll | self.label >> core.CombineGlobally(
+            ToDictCombineFn()).without_defaults()
+
+    return self._expand(pcoll, dict)
 
 
 @with_input_types(tuple[K, V])
@@ -891,7 +977,11 @@ class ToDictCombineFn(core.CombineFn):
 @with_input_types(T)
 @with_output_types(set[T])
 class ToSet(CombinerWithoutDefaults):
-  """A global CombineFn that condenses a PCollection into a set."""
+  """A global Combine that condenses a PCollection into a set.
+
+  Note that this forces the entire PCollection to be processed on a single
+  machine.
+  """
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
