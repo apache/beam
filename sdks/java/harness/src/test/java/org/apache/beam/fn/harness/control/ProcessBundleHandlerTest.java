@@ -151,6 +151,7 @@ import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -1077,7 +1078,7 @@ public class ProcessBundleHandlerTest {
                 (String input) ->
                     ((FnDataReceiver<WindowedValue<String>>)
                             context.getPCollectionConsumer("pc-source"))
-                        .accept(WindowedValue.valueInGlobalWindow(input))));
+                        .accept(WindowedValues.valueInGlobalWindow(input))));
 
     return new ProcessBundleHandler(
         options,
