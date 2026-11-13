@@ -208,7 +208,7 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable String getWatermarkColumnTimeUnit();
 
     @SchemaFieldDescription(
-        "List of top-level metadata columns to include with CDC output rows. Supported columns: \n"
+        "List of top-level metadata columns to include with CDC output rows. Supported columns:\n"
             + "- `_change_type`\n"
             + "- `_row_id`\n"
             + "- `_last_updated_sequence_number`\n"
