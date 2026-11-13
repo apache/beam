@@ -926,6 +926,13 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.kurtosis(), s)
       self._run_test(lambda s: s.kurt(), s)
 
+  def test_series_skew_kurtosis_single_partition(self):
+    # With distributed=False all the data is in one partition, so the moments
+    # are never merged.
+    s = pd.Series([x**3 for x in range(1, 20)])
+    self._run_test(lambda s: s.skew(), s, distributed=False)
+    self._run_test(lambda s: s.kurtosis(), s, distributed=False)
+
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
