@@ -51,7 +51,10 @@ cdef class ByteCountingOutputStream(OutputStream):
   cpdef write_bigendian_uint64(self, libc.stdint.uint64_t val)
   cpdef write_bigendian_int32(self, libc.stdint.int32_t val)
   cpdef write_bigendian_int16(self, libc.stdint.int16_t val)
+  cpdef write_bigendian_double(self, double d)
+  cpdef write_bigendian_float(self, float f)
   cpdef size_t get_count(self)
+  cpdef size_t size(self) except? -1
   cpdef bytes get(self)
 
 
