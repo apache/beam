@@ -32,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
@@ -100,6 +101,27 @@ public class IcebergFilterTest {
       assertThat(
           "Query: '" + sql + "' is expected to be " + (isSupported ? "supported." : "unsupported."),
           filter.getNotSupported().isEmpty() == isSupported);
+    }
+  }
+
+  @Test
+  public void testPredicatesOnUnpushableColumnsAreUnsupported() {
+    ImmutableList<Pair<String, Boolean>> sqlQueries =
+        ImmutableList.of(
+            Pair.of("select * from TEST where id=2", true),
+            Pair.of("select * from TEST where unused1>100 and id=2", true),
+            Pair.of("select * from TEST where name='two'", false),
+            Pair.of("select * from TEST where 'two'=name", false),
+            Pair.of("select * from TEST where id=2 or name='two'", false));
+
+    for (Pair<String, Boolean> query : sqlQueries) {
+      String sql = query.getLeft();
+      BeamRelNode beamRelNode = sqlEnv.parseQuery(sql);
+      IcebergFilter filter =
+          new IcebergFilter(
+              ((BeamCalcRel) beamRelNode).getProgram().split().right, ImmutableBitSet.of(0, 1));
+
+      assertThat("Query: '" + sql + "'", filter.getNotSupported().isEmpty() == query.getRight());
     }
   }
 

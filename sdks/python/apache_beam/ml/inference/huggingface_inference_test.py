@@ -120,6 +120,29 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
 
+  def test_predict_tensor_custom_inference_fn_receives_device(self):
+    received = {}
+
+    def recording_inference_fn(
+        batch, model, device, inference_args, model_id=None):
+      received['device'] = device
+      received['inference_args'] = inference_args
+      return fake_inference_fn_tensor(
+          batch, model, device, inference_args, model_id)
+
+    inference_runner = HuggingFaceModelHandlerTensor(
+        model_uri='unused',
+        model_class=AutoModel,
+        device='CPU',
+        inference_fn=recording_inference_fn)
+    batched_examples = [tf.constant([1]), tf.constant([10])]
+
+    inference_runner.run_inference(
+        batched_examples, FakeTFTensorModel(), inference_args={'add': True})
+
+    self.assertEqual(received['device'], 'CPU')
+    self.assertEqual(received['inference_args'], {'add': True})
+
   def test_framework_detection_torch(self):
     fake_model = FakeTorchModel()
     inference_runner = HuggingFaceModelHandlerTensor(

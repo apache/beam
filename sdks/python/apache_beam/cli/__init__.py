@@ -14,3 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+"""The `beam` command-line tool. Experimental: commands and flags may change.
+
+The `beam` console script runs `apache_beam.cli.main.main`.
+"""

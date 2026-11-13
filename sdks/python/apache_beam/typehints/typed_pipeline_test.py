@@ -429,6 +429,53 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.Map(fn)
     self.assertEqual([3, 5, 7], sorted(result))
 
+  def test_typed_map_future_annotations_with_type_variable(self):
+    # String annotations that use a TypeVar must still resolve, so the output
+    # type is inferred from the input type.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'T = typing.TypeVar("T")\n'
+        'def first(xs: list[T]) -> T:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    p = TestPipeline()
+    result = p | beam.Create([[1]]) | beam.Map(namespace['first'])
+    self.assertEqual(int, result.element_type)
+
+  def test_typed_flatmap_future_annotations_unsupported_hint(self):
+    # A resolved annotation that Beam cannot convert (collections.abc.Generator
+    # with a single argument) falls back to Any instead of raising.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'from collections.abc import Generator\n'
+        'def gen(x: int) -> Generator[int]:\n'
+        '  yield x\n',
+        namespace)
+
+    result = [1, 2] | beam.FlatMap(namespace['gen'])
+    self.assertEqual([1, 2], sorted(result))
+
+  def test_typed_map_string_annotation_naming_non_type(self):
+    # A protobuf enum is an EnumTypeWrapper instance, not a type (e.g.
+    # tensorflow_data_validation annotates parameters with
+    # Mapping[..., "schema_pb2.FeatureType"]).
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'from google.protobuf import descriptor_pb2\n'
+        'def fn(element: int, types: typing.Mapping[\n'
+        '           str, descriptor_pb2.FieldDescriptorProto.Type]) -> int:\n'
+        '  return element\n',
+        namespace)
+
+    result = [1, 2] | beam.Map(namespace['fn'], {})
+    self.assertEqual([1, 2], sorted(result))
+
   def test_typed_ptransform_fn(self):
     # Test that type hints are propagated to the created PTransform.
     @beam.ptransform_fn

@@ -1281,6 +1281,166 @@ class BatchElementsTest(unittest.TestCase):
       checks = batches | beam.Map(check_batch_homogeneity)
       assert_that(checks, is_not_empty())
 
+  def test_batch_elements_key_fn_groups_homogeneous_batches(self):
+    """BatchElements with key_fn batches each key separately."""
+    elements = ['sysA:q1', 'sysB:q1', 'sysA:q2', 'sysB:q2', 'sysA:q3']
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=2,
+              max_batch_duration_secs=1.0,
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      def check_homogeneous(batch_list):
+        flattened = []
+        for b in batch_list:
+          prefixes = {s.split(':', 1)[0] for s in b}
+          assert len(prefixes) == 1, f'Mixed prefixes in batch: {b}'
+          assert len(b) <= 2, f'Batch exceeded max_batch_size: {b}'
+          flattened.extend(b)
+        assert sorted(flattened) == sorted(elements)
+
+      assert_that(batches, check_homogeneous)
+
+  def test_with_batch_key_num_shards(self):
+    """WithBatchKey appends a bounded random shard suffix to the key."""
+    dofn = util.WithBatchKey(key_fn=lambda d: d['cat'], num_shards=4)
+    element = {'cat': 'math', 'q': '1+1'}
+    out = list(dofn.process(element))
+    self.assertEqual(len(out), 1)
+    key, val = out[0]
+    self.assertIs(val, element)
+    self.assertTrue(key.startswith('math:'))
+    shard = int(key.split(':', 1)[1])
+    self.assertIn(shard, range(4))
+
+  def test_with_batch_key_num_shards_mapping_handles_skew(self):
+    """A per-key shard mapping fans out only the listed hot keys."""
+    dofn = util.WithBatchKey(
+        key_fn=lambda d: d['cat'], num_shards={
+            'hot': 4, 'warm': 2
+        })
+    hot_keys = {list(dofn.process({'cat': 'hot'}))[0][0] for _ in range(200)}
+    warm_keys = {list(dofn.process({'cat': 'warm'}))[0][0] for _ in range(200)}
+    cold_keys = {list(dofn.process({'cat': 'cold'}))[0][0] for _ in range(200)}
+    self.assertEqual(hot_keys, {f'hot:{i}' for i in range(4)})
+    self.assertEqual(warm_keys, {'warm:0', 'warm:1'})
+    # Keys absent from the mapping are not sharded at all.
+    self.assertEqual(cold_keys, {'cold'})
+
+  def test_with_batch_key_num_shards_mapping_matches_str_key(self):
+    """Mapping lookup falls back to the str() form of the key."""
+    dofn = util.WithBatchKey(key_fn=lambda d: d['tenant'], num_shards={'7': 3})
+    keys = {list(dofn.process({'tenant': 7}))[0][0] for _ in range(100)}
+    self.assertEqual(keys, {'7:0', '7:1', '7:2'})
+    # An unhashable key can still match by its str() form.
+    dofn = util.WithBatchKey(key_fn=lambda d: d['ids'], num_shards={'[1]': 2})
+    keys = {list(dofn.process({'ids': [1]}))[0][0] for _ in range(100)}
+    self.assertEqual(keys, {'[1]:0', '[1]:1'})
+
+  def test_with_batch_key_num_shards_callable(self):
+    """A callable computes the shard count per key."""
+    dofn = util.WithBatchKey(
+        key_fn=lambda s: s, num_shards=lambda k: 3 if k == 'hot' else 1)
+    hot_keys = {list(dofn.process('hot'))[0][0] for _ in range(100)}
+    self.assertEqual(hot_keys, {'hot:0', 'hot:1', 'hot:2'})
+    self.assertEqual(list(dofn.process('cold')), [('cold', 'cold')])
+    for bad_count in (0, True, 2.0):
+      bad = util.WithBatchKey(
+          key_fn=lambda s: s, num_shards=lambda k, n=bad_count: n)
+      with self.assertRaises(ValueError):
+        list(bad.process('x'))
+
+  def test_batch_elements_key_fn_validation(self):
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn='not_callable')
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards=0)
+    with self.assertRaises(ValueError):
+      util.BatchElements(num_shards=2)
+    with self.assertRaises(ValueError):
+      util.BatchElements(num_shards={'a': 2})
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards={'a': 0})
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, num_shards='4')
+    # key_fn and length_fn both choose the state key.
+    with self.assertRaises(ValueError):
+      util.BatchElements(key_fn=len, length_fn=len)
+    # Valid specs.
+    util.BatchElements(key_fn=len, num_shards={'a': 2})
+    util.BatchElements(key_fn=len, num_shards=lambda k: 2)
+    util.BatchElements(
+        key_fn=len, max_batch_weight=10, element_size_fn=lambda x: 1)
+
+  def test_batch_elements_key_fn_uses_stateful_batching(self):
+    """Keyed batching reuses the stateful DoFn and always has a flush timer."""
+    def buffering_secs(**kwargs):
+      with mock.patch.object(
+          util,
+          '_pardo_stateful_batch_elements',
+          wraps=util._pardo_stateful_batch_elements) as stateful:
+        p = beam.Pipeline()
+        _ = p | beam.Create(['a']) | util.BatchElements(key_fn=len, **kwargs)
+      self.assertEqual(stateful.call_count, 1)
+      # (coder, batch_size_estimator, max_buffering_duration_secs, clock)
+      return stateful.call_args[0][2]
+
+    self.assertEqual(buffering_secs(), 1.0)
+    self.assertEqual(buffering_secs(max_batch_duration_secs=2.5), 2.5)
+
+  def test_batch_elements_key_fn_honors_batch_size_estimator(self):
+    """Batch sizes adapt from min_batch_size rather than max_batch_size."""
+    elements = [f'k:{i}' for i in range(5)]
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=1,
+              max_batch_size=10000,
+              max_batch_duration_secs=100,
+              clock=FakeClock(),
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      # The estimator starts at min_batch_size, so the first batch for the key
+      # is emitted as soon as it holds one element.
+      def check_not_one_batch(batch_list):
+        assert len(batch_list) > 1, batch_list
+        assert sorted(e for b in batch_list for e in b) == sorted(elements)
+
+      assert_that(batches, check_not_one_batch)
+
+  def test_batch_elements_key_fn_with_max_batch_weight(self):
+    """Keyed batches are bounded by weight as well as homogeneous."""
+    elements = ['a:xx', 'b:xx', 'a:xx', 'a:xx', 'b:xx', 'a:xxxxx']
+    with TestPipeline('FnApiRunner') as p:
+      batches = (
+          p
+          | beam.Create(elements, reshuffle=False)
+          | util.BatchElements(
+              min_batch_size=10,
+              max_batch_size=10,
+              max_batch_duration_secs=100,
+              element_size_fn=lambda s: len(s.split(':', 1)[1]),
+              max_batch_weight=4,
+              key_fn=lambda s: s.split(':', 1)[0]))
+
+      def check(batch_list):
+        flattened = []
+        for b in batch_list:
+          assert len({s.split(':', 1)[0] for s in b}) == 1, b
+          weight = sum(len(s.split(':', 1)[1]) for s in b)
+          # An element heavier than max_batch_weight is batched by itself.
+          assert weight <= 4 or len(b) == 1, b
+          flattened.extend(b)
+        assert sorted(flattened) == sorted(elements), flattened
+
+      assert_that(batches, check)
+
   def test_global_batching_dofn_single_vs_multiple_bundles(self):
     # This test directly verifies how bundling affects the batch sizes produced by
     # the internal _GlobalWindowsBatchingDoFn of BatchElements.
