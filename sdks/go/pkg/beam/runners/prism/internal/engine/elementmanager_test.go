@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1127,4 +1128,672 @@ func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
 			t.Errorf("livePending = %d, want 0", got)
 		}
 	})
+}
+
+func TestElementManager_AccumulatingTriggerPanes(t *testing.T) {
+	type tsStep struct {
+		watermark mtime.Time
+		advancePT time.Duration
+		key       byte
+		vals      []byte
+		eventTime mtime.Time
+	}
+	type gotPane struct {
+		Win    typex.Window
+		Key    string
+		Pane   typex.PaneInfo
+		Values []int
+	}
+
+	readFixed := func(n int) func(io.Reader) []byte {
+		return func(r io.Reader) []byte {
+			buf := make([]byte, n)
+			if _, err := io.ReadFull(r, buf); err != nil {
+				t.Fatalf("readFixed(%d) failed: %v", n, err)
+			}
+			return buf
+		}
+	}
+	tsInfo := PColInfo{
+		GlobalID: "tsOut",
+		WDec:     exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+		WEnc:     exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+		EDec:     readFixed(2),
+		KeyDec:   readFixed(1),
+	}
+	winInfo := PColInfo{
+		GlobalID: "winOut",
+		WDec:     exec.MakeWindowDecoder(coder.NewIntervalWindow()),
+		WEnc:     exec.MakeWindowEncoder(coder.NewIntervalWindow()),
+		EDec:     readFixed(2),
+		KeyDec:   readFixed(1),
+	}
+	aggInfo := PColInfo{
+		GlobalID: "aggOut",
+		WDec:     exec.MakeWindowDecoder(coder.NewIntervalWindow()),
+		WEnc:     exec.MakeWindowEncoder(coder.NewIntervalWindow()),
+		EDec: func(r io.Reader) []byte {
+			hdr := make([]byte, 2)
+			if _, err := io.ReadFull(r, hdr); err != nil {
+				t.Fatalf("aggInfo header read failed: %v", err)
+			}
+			vals := make([]byte, int(hdr[1]))
+			if _, err := io.ReadFull(r, vals); err != nil {
+				t.Fatalf("aggInfo values read failed: %v", err)
+			}
+			return append(hdr, vals...)
+		},
+		KeyDec: readFixed(1),
+	}
+	coders := map[string]PColInfo{
+		"tsOut":  tsInfo,
+		"winOut": winInfo,
+		"aggOut": aggInfo,
+	}
+
+	win0to10 := window.IntervalWindow{Start: 0, End: 10}
+	win10to20 := window.IntervalWindow{Start: 10, End: 20}
+
+	tests := []struct {
+		name  string
+		strat WinStrat
+		steps []tsStep
+		want  []gotPane
+	}{
+		{
+			name: "early_count1_empty_ontime_then_late_count1",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 1},
+					Late:  &TriggerElementCount{ElementCount: 1},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{2}, eventTime: 2},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2},
+				},
+			},
+		},
+		{
+			name: "early_count2_nonempty_ontime_then_late_count1",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 2},
+					Late:  &TriggerElementCount{ElementCount: 1},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4},
+				},
+			},
+		},
+		{
+			name: "untriggered_late_element_emits_closing_pane",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 1},
+					Late:  &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{2}, eventTime: 2},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 1, IsFirst: false, IsLast: true},
+					Values: []int{1, 2},
+				},
+			},
+		},
+		{
+			name: "repeated_count2_resets_partial_count_at_ontime",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerRepeatedly{
+					Repeated: &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+				{key: 'k', vals: []byte{5}, eventTime: 5},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+			},
+		},
+		{
+			name: "early_count2_without_late_finishes_at_ontime",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: true},
+					Values: []int{1, 2, 3},
+				},
+			},
+		},
+		{
+			name: "closing_emit_always_after_triggered_late_panes",
+			strat: WinStrat{
+				AllowedLateness:   60 * time.Millisecond,
+				Accumulating:      true,
+				ClosingEmitAlways: true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+					},
+					Late: &TriggerElementCount{ElementCount: 1},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2, 3}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 2},
+				{key: 'k', vals: []byte{5}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 1, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 2, NonSpeculativeIndex: 2, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 3, NonSpeculativeIndex: 3, IsFirst: false, IsLast: true},
+					Values: []int{1, 2, 3, 4, 5},
+				},
+			},
+		},
+		{
+			name: "processing_time_accumulating_early_and_late",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerAfterAny{
+						SubTriggers: []Trigger{
+							&TriggerElementCount{ElementCount: 2},
+							&TriggerAfterProcessingTime{
+								Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+							},
+						},
+					},
+					Late: &TriggerAfterProcessingTime{
+						Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+					},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1}, eventTime: 1},
+				{key: 'k', vals: []byte{2}, eventTime: 2},
+				{advancePT: 25 * time.Millisecond},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{advancePT: 25 * time.Millisecond},
+				{watermark: 20},
+				{key: 'k', vals: []byte{4}, eventTime: 4},
+				{advancePT: 25 * time.Millisecond},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 1, NonSpeculativeIndex: -1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 2, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 3, NonSpeculativeIndex: 1, IsFirst: false, IsLast: false},
+					Values: []int{1, 2, 3, 4},
+				},
+			},
+		},
+		{
+			name: "single_shot_processing_time_finishes_last_pane",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterProcessingTime{
+					Transforms: []TimestampTransform{{Delay: 20 * time.Millisecond}},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{advancePT: 25 * time.Millisecond},
+				{key: 'k', vals: []byte{3}, eventTime: 2},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: true},
+					Values: []int{1, 2},
+				},
+			},
+		},
+		{
+			name: "never_trigger_waits_for_closing_deadline",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger:         &TriggerNever{},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{watermark: 20},
+				{key: 'k', vals: []byte{3}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: true},
+					Values: []int{1, 2, 3},
+				},
+			},
+		},
+		{
+			name: "multi_window_and_late_only_arrivals",
+			strat: WinStrat{
+				AllowedLateness: 60 * time.Millisecond,
+				Accumulating:    true,
+				Trigger: &TriggerAfterEndOfWindow{
+					Early: &TriggerElementCount{ElementCount: 2},
+					Late:  &TriggerElementCount{ElementCount: 2},
+				},
+			},
+			steps: []tsStep{
+				{key: 'k', vals: []byte{9}, eventTime: 12},
+				{key: 'k', vals: []byte{1, 2}, eventTime: 1},
+				{key: 'k', vals: []byte{8}, eventTime: 13},
+				{watermark: 15},
+				{watermark: 25},
+				{key: 'a', vals: []byte{4, 5}, eventTime: 2},
+				{key: 'b', vals: []byte{6}, eventTime: 3},
+				{watermark: 70},
+			},
+			want: []gotPane{
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win10to20,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneEarly, Index: 0, NonSpeculativeIndex: -1, IsFirst: true, IsLast: false},
+					Values: []int{8, 9},
+				},
+				{
+					Win:    win0to10,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{1, 2},
+				},
+				{
+					Win:    win10to20,
+					Key:    "k",
+					Pane:   typex.PaneInfo{Timing: typex.PaneOnTime, Index: 1, NonSpeculativeIndex: 0, IsFirst: false, IsLast: false},
+					Values: []int{8, 9},
+				},
+				{
+					Win:    win0to10,
+					Key:    "a",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: false},
+					Values: []int{4, 5},
+				},
+				{
+					Win:    win0to10,
+					Key:    "b",
+					Pane:   typex.PaneInfo{Timing: typex.PaneLate, Index: 0, NonSpeculativeIndex: 0, IsFirst: true, IsLast: true},
+					Values: []int{6},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancelFn := context.WithCancelCause(context.Background())
+			defer cancelFn(nil)
+
+			em := NewElementManager(Config{StreamingMode: true})
+			em.AddStage("ts", nil, []string{"tsOut"}, nil)
+			em.RegisterPColInfo("tsOut", tsInfo)
+			em.AddStage("assign", []string{"tsOut"}, []string{"winOut"}, nil)
+			em.AddStage("agg", []string{"winOut"}, []string{"aggOut"}, nil)
+			em.StageAggregates("agg", tc.strat)
+			em.AddStage("sink", []string{"aggOut"}, nil, nil)
+
+			tsb := em.AddTestStream("ts", map[string]string{"": "tsOut"})
+			for _, st := range tc.steps {
+				if len(st.vals) > 0 {
+					var elms []TestStreamElement
+					for _, v := range st.vals {
+						elms = append(elms, TestStreamElement{
+							Encoded:   []byte{st.key, v},
+							EventTime: st.eventTime,
+						})
+					}
+					tsb.AddElementEvent("", elms)
+				} else if st.advancePT > 0 {
+					tsb.AddProcessingTimeEvent(st.advancePT)
+				} else {
+					tsb.AddWatermarkEvent("", st.watermark)
+				}
+			}
+
+			var bundSeq uint64
+			ch := em.Bundles(ctx, cancelFn, func() string {
+				return fmt.Sprintf("b%d", atomic.AddUint64(&bundSeq, 1))
+			})
+
+			var got []gotPane
+			for rb := range ch {
+				switch rb.StageID {
+				case "assign":
+					var td TentativeData
+					for _, datum := range em.InputForBundle(rb, tsInfo) {
+						buf := bytes.NewBuffer(datum)
+						for {
+							_, et, pn, err := exec.DecodeWindowedValueHeader(tsInfo.WDec, buf)
+							if err == io.EOF {
+								break
+							}
+							if err != nil {
+								t.Fatalf("assign decode failed: %v", err)
+							}
+							kv := tsInfo.EDec(buf)
+							start := (et / 10) * 10
+							iw := window.IntervalWindow{Start: start, End: start + 10}
+							var out bytes.Buffer
+							if err := exec.EncodeWindowedValueHeader(winInfo.WEnc, []typex.Window{iw}, et, pn, &out); err != nil {
+								t.Fatalf("assign encode failed: %v", err)
+							}
+							out.Write(kv)
+							td.WriteData("winOut", out.Bytes())
+						}
+					}
+					em.PersistBundle(rb, coders, td, tsInfo, Residuals{})
+
+				case "agg":
+					type kw struct {
+						key byte
+						win typex.Window
+					}
+					var order []kw
+					grouped := map[kw][]byte{}
+					for _, datum := range em.InputForBundle(rb, winInfo) {
+						buf := bytes.NewBuffer(datum)
+						for {
+							ws, _, _, err := exec.DecodeWindowedValueHeader(winInfo.WDec, buf)
+							if err == io.EOF {
+								break
+							}
+							if err != nil {
+								t.Fatalf("agg decode failed: %v", err)
+							}
+							kv := winInfo.EDec(buf)
+							for _, w := range ws {
+								id := kw{key: kv[0], win: w}
+								if _, ok := grouped[id]; !ok {
+									order = append(order, id)
+								}
+								grouped[id] = append(grouped[id], kv[1])
+							}
+						}
+					}
+					var td TentativeData
+					for _, id := range order {
+						vals := grouped[id]
+						slices.Sort(vals)
+						var out bytes.Buffer
+						if err := exec.EncodeWindowedValueHeader(aggInfo.WEnc, []typex.Window{id.win}, id.win.MaxTimestamp(), typex.NoFiringPane(), &out); err != nil {
+							t.Fatalf("agg encode failed: %v", err)
+						}
+						out.WriteByte(id.key)
+						out.WriteByte(byte(len(vals)))
+						out.Write(vals)
+						td.WriteData("aggOut", out.Bytes())
+					}
+					em.PersistBundle(rb, coders, td, winInfo, Residuals{})
+
+				case "sink":
+					for _, datum := range em.InputForBundle(rb, aggInfo) {
+						buf := bytes.NewBuffer(datum)
+						for {
+							ws, _, pn, err := exec.DecodeWindowedValueHeader(aggInfo.WDec, buf)
+							if err == io.EOF {
+								break
+							}
+							if err != nil {
+								t.Fatalf("sink decode failed: %v", err)
+							}
+							raw := aggInfo.EDec(buf)
+							vals := make([]int, len(raw[2:]))
+							for i, b := range raw[2:] {
+								vals[i] = int(b)
+							}
+							got = append(got, gotPane{
+								Win:    ws[0],
+								Key:    string(raw[:1]),
+								Pane:   pn,
+								Values: vals,
+							})
+						}
+					}
+					em.PersistBundle(rb, coders, TentativeData{}, aggInfo, Residuals{})
+				}
+			}
+
+			if err := context.Cause(ctx); err != nil && err.Error() != "elementManager out of elements, cleaning up" {
+				t.Fatalf("pipeline failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("panes mismatch (-want +got):\n%s", diff)
+			}
+			aggStage := em.stages["agg"]
+			if gotIn := aggStage.InputWatermark(); gotIn != mtime.MaxTimestamp {
+				t.Errorf("agg InputWatermark = %v, want %v", gotIn, mtime.MaxTimestamp)
+			}
+			if gotState := len(aggStage.state[LinkID{}]); gotState != 0 {
+				t.Errorf("len(agg.state[LinkID{}]) = %d, want 0 after window expiry", gotState)
+			}
+			if gotOnTime := len(aggStage.pendingOnTime); gotOnTime != 0 {
+				t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
+			}
+			if gotClosing := len(aggStage.pendingClosing); gotClosing != 0 {
+				t.Errorf("len(agg.pendingClosing) = %d, want 0", gotClosing)
+			}
+			if dump := em.DumpStages(); dump == "" {
+				t.Errorf("em.DumpStages() returned empty string")
+			}
+		})
+	}
+}
+
+func TestEmptyPendingOnTimeCleanup(t *testing.T) {
+	ctx, cancelFn := context.WithTimeoutCause(context.Background(), 5*time.Second, fmt.Errorf("timed out waiting for empty pending watermark cleanup"))
+	defer cancelFn()
+
+	em := NewElementManager(Config{StreamingMode: true})
+	em.AddStage("ts", nil, []string{"tsOut"}, nil)
+	em.AddStage("agg", []string{"tsOut"}, []string{"aggOut"}, nil)
+	em.StageAggregates("agg", WinStrat{
+		AllowedLateness:   60 * time.Millisecond,
+		Accumulating:      true,
+		ClosingEmitAlways: true,
+		Trigger: &TriggerAfterEndOfWindow{
+			Early: &TriggerElementCount{ElementCount: 1},
+			Late:  &TriggerElementCount{ElementCount: 1},
+		},
+	})
+
+	tsb := em.AddTestStream("ts", map[string]string{"": "tsOut"})
+	tsb.AddWatermarkEvent("", 20)
+	tsb.AddWatermarkEvent("", 80)
+
+	aggStage := em.stages["agg"]
+	aggStage.mu.Lock()
+	delta := aggStage.addPendingOnTimeLocked(window.IntervalWindow{Start: 0, End: 10}, "k")
+	delta += aggStage.addPendingClosingLocked(window.IntervalWindow{Start: 0, End: 10}, "k")
+	aggStage.mu.Unlock()
+	em.addPending(delta)
+
+	var bundSeq uint64
+	ch := em.Bundles(ctx, func(err error) {
+		t.Errorf("unexpected cancel: %v", err)
+	}, func() string {
+		return fmt.Sprintf("b%d", atomic.AddUint64(&bundSeq, 1))
+	})
+
+	for rb := range ch {
+		t.Fatalf("unexpected bundle emitted: %+v", rb)
+	}
+
+	if err := context.Cause(ctx); err != nil && err.Error() == "timed out waiting for empty pending watermark cleanup" {
+		t.Fatalf("Bundles() hung: %v", err)
+	}
+	if gotOut := aggStage.OutputWatermark(); gotOut != mtime.MaxTimestamp {
+		t.Errorf("agg OutputWatermark = %v, want %v", gotOut, mtime.MaxTimestamp)
+	}
+	if gotOnTime := len(aggStage.pendingOnTime); gotOnTime != 0 {
+		t.Errorf("len(agg.pendingOnTime) = %d, want 0", gotOnTime)
+	}
+	if gotClosing := len(aggStage.pendingClosing); gotClosing != 0 {
+		t.Errorf("len(agg.pendingClosing) = %d, want 0", gotClosing)
+	}
 }

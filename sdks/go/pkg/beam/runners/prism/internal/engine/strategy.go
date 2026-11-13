@@ -45,8 +45,9 @@ import (
 // WinStrat configures the windowing strategy for the stage, based on the
 // stage's input PCollection.
 type WinStrat struct {
-	AllowedLateness time.Duration // Used to extend duration
-	Accumulating    bool          // If true, elements remain pending until the last firing.
+	AllowedLateness   time.Duration // Used to extend duration
+	Accumulating      bool          // If true, elements remain pending until the last firing.
+	ClosingEmitAlways bool          // Emit a final pane when a window expires even without new data.
 
 	Trigger Trigger // Evaluated during execution.
 }
@@ -61,6 +62,13 @@ func (ws WinStrat) IsTriggerReady(input triggerInput, state *StateData) bool {
 		return true
 	}
 	return false
+}
+
+// OnWatermarkFire updates trigger state when a watermark firing emits buffered elements at or after window end.
+func (ws WinStrat) OnWatermarkFire(state *StateData) {
+	if ws.Trigger != nil {
+		ws.Trigger.onWatermarkFire(state)
+	}
 }
 
 // EarliestCompletion marks when we can close a window.
@@ -142,6 +150,8 @@ type Trigger interface {
 	// onFire commits that the trigger has fired, so triggers may transition to
 	// a finished state.
 	onFire(state *StateData)
+	// onWatermarkFire transitions trigger state when a watermark firing emits a pane.
+	onWatermarkFire(state *StateData)
 
 	// TODO handle https://github.com/apache/beam/issues/31438 merging triggers and state for merging windows (sessions, but also custom merging windows)
 }
@@ -167,6 +177,7 @@ type nullTrigger struct{}
 
 func (nullTrigger) onElement(triggerInput, *StateData) {}
 func (nullTrigger) onFire(*StateData)                  {}
+func (nullTrigger) onWatermarkFire(*StateData)         {}
 func (nullTrigger) reset(*StateData)                   {}
 
 // TriggerNever is never ready.
@@ -260,6 +271,22 @@ func (t *TriggerAfterAll) onFire(state *StateData) {
 	triggerClearAndFinish(t, state)
 }
 
+func (t *TriggerAfterAll) onWatermarkFire(state *StateData) {
+	if state.getTriggerState(t).finished {
+		return
+	}
+	unfinished := false
+	for _, sub := range t.SubTriggers {
+		sub.onWatermarkFire(state)
+		if !state.getTriggerState(sub).finished {
+			unfinished = true
+		}
+	}
+	if !unfinished {
+		triggerClearAndFinish(t, state)
+	}
+}
+
 func (t *TriggerAfterAll) reset(state *StateData) {
 	subTriggersReset(t, state, t.SubTriggers)
 }
@@ -296,6 +323,19 @@ func (t *TriggerAfterAny) onFire(state *StateData) {
 		return
 	}
 	triggerClearAndFinish(t, state)
+}
+
+func (t *TriggerAfterAny) onWatermarkFire(state *StateData) {
+	if state.getTriggerState(t).finished {
+		return
+	}
+	for _, sub := range t.SubTriggers {
+		sub.onWatermarkFire(state)
+		if state.getTriggerState(sub).finished {
+			triggerClearAndFinish(t, state)
+			return
+		}
+	}
 }
 
 func (t *TriggerAfterAny) reset(state *StateData) {
@@ -366,6 +406,22 @@ func (t *TriggerAfterEach) onFire(state *StateData) {
 	triggerClearAndFinish(t, state)
 }
 
+func (t *TriggerAfterEach) onWatermarkFire(state *StateData) {
+	if state.getTriggerState(t).finished {
+		return
+	}
+	for i, sub := range t.SubTriggers {
+		if state.getTriggerState(sub).finished {
+			continue
+		}
+		sub.onWatermarkFire(state)
+		if state.getTriggerState(sub).finished && i == len(t.SubTriggers)-1 {
+			triggerClearAndFinish(t, state)
+		}
+		return
+	}
+}
+
 func (t *TriggerAfterEach) reset(state *StateData) {
 	subTriggersReset(t, state, t.SubTriggers)
 }
@@ -417,6 +473,12 @@ func (t *TriggerElementCount) onFire(state *StateData) {
 	state.setTriggerState(t, ts)
 }
 
+func (t *TriggerElementCount) onWatermarkFire(state *StateData) {
+	if !state.getTriggerState(t).finished {
+		delete(state.Trigger, t)
+	}
+}
+
 func (t *TriggerElementCount) reset(state *StateData) {
 	delete(state.Trigger, t)
 }
@@ -466,6 +528,23 @@ func (t *TriggerOrFinally) onFire(state *StateData) {
 	}
 }
 
+func (t *TriggerOrFinally) onWatermarkFire(state *StateData) {
+	if state.getTriggerState(t).finished {
+		return
+	}
+	if eow, ok := t.Finally.(*TriggerAfterEndOfWindow); ok {
+		eow.onWatermarkFire(state)
+		if state.getTriggerState(eow).finished {
+			triggerClearAndFinish(t, state)
+			return
+		}
+	}
+	t.Main.onWatermarkFire(state)
+	if state.getTriggerState(t.Main).finished {
+		t.Main.reset(state)
+	}
+}
+
 func (t *TriggerOrFinally) reset(state *StateData) {
 	t.Main.reset(state)
 	t.Finally.reset(state)
@@ -497,6 +576,13 @@ func (t *TriggerRepeatedly) onFire(state *StateData) {
 	t.Repeated.onFire(state)
 	// If the subtrigger is finished, reset it.
 	if repeatedTs := state.getTriggerState(t.Repeated); repeatedTs.finished {
+		t.Repeated.reset(state)
+	}
+}
+
+func (t *TriggerRepeatedly) onWatermarkFire(state *StateData) {
+	t.Repeated.onWatermarkFire(state)
+	if state.getTriggerState(t.Repeated).finished {
 		t.Repeated.reset(state)
 	}
 }
@@ -554,9 +640,10 @@ func (t *TriggerAfterEndOfWindow) shouldFire(state *StateData) bool {
 	if ts.finished {
 		return false
 	}
+	endOfWindowReached, _ := ts.extra.(bool)
 	if t.Early != nil && !state.getTriggerState(t.Early).finished {
-		return t.Early.shouldFire(state) || ts.extra.(bool)
-	} else if t.Late != nil && ts.extra.(bool) {
+		return t.Early.shouldFire(state) || endOfWindowReached
+	} else if t.Late != nil && endOfWindowReached {
 		return t.Late.shouldFire(state)
 	}
 	return false
@@ -567,6 +654,7 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 	if ts.finished {
 		return
 	}
+	endOfWindowReached, _ := ts.extra.(bool)
 	if t.Early != nil && !state.getTriggerState(t.Early).finished {
 		if t.Early.shouldFire(state) {
 			t.Early.onFire(state)
@@ -576,8 +664,34 @@ func (t *TriggerAfterEndOfWindow) onFire(state *StateData) {
 		}
 	} else if t.Late == nil {
 		return
-	} else if ts.extra.(bool) { // If we're in late firings.
+	} else if endOfWindowReached { // If we're in late firings.
 		t.Late.onFire(state)
+		if state.getTriggerState(t.Late).finished {
+			t.Late.reset(state)
+		}
+	}
+}
+
+func (t *TriggerAfterEndOfWindow) onWatermarkFire(state *StateData) {
+	ts := state.getTriggerState(t)
+	if ts.finished {
+		return
+	}
+	previouslyEndOfWindow, _ := ts.extra.(bool)
+	if !previouslyEndOfWindow {
+		if t.Early != nil {
+			triggerClearAndFinish(t.Early, state)
+		}
+		if t.Late == nil {
+			triggerClearAndFinish(t, state)
+			return
+		}
+		ts.extra = true
+		state.setTriggerState(t, ts)
+		return
+	}
+	if t.Late != nil {
+		t.Late.onWatermarkFire(state)
 		if state.getTriggerState(t.Late).finished {
 			t.Late.reset(state)
 		}
@@ -616,10 +730,17 @@ func (t *TriggerDefault) onElement(input triggerInput, state *StateData) {
 
 func (t *TriggerDefault) shouldFire(state *StateData) bool {
 	ts := state.getTriggerState(t)
-	return ts.extra.(bool)
+	endOfWindowReached, _ := ts.extra.(bool)
+	return endOfWindowReached
 }
 
 func (t *TriggerDefault) onFire(*StateData) {}
+
+func (t *TriggerDefault) onWatermarkFire(state *StateData) {
+	ts := state.getTriggerState(t)
+	ts.extra = true
+	state.setTriggerState(t, ts)
+}
 
 func (t *TriggerDefault) String() string {
 	return "Default"
@@ -706,6 +827,12 @@ func (t *TriggerAfterProcessingTime) onFire(state *StateData) {
 	state.setTriggerState(t, ts)
 }
 
+func (t *TriggerAfterProcessingTime) onWatermarkFire(state *StateData) {
+	if !state.getTriggerState(t).finished {
+		delete(state.Trigger, t)
+	}
+}
+
 func (t *TriggerAfterProcessingTime) reset(state *StateData) {
 	ts := state.getTriggerState(t)
 	if ts.extra != nil {
@@ -751,6 +878,8 @@ func (t *TriggerAfterSynchronizedProcessingTime) onFire(state *StateData) {
 	ts.finished = true
 	state.setTriggerState(t, ts)
 }
+
+func (t *TriggerAfterSynchronizedProcessingTime) onWatermarkFire(*StateData) {}
 
 func (t *TriggerAfterSynchronizedProcessingTime) reset(state *StateData) {
 	delete(state.Trigger, t)
