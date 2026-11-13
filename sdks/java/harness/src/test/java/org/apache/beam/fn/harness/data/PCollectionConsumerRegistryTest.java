@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -243,27 +244,20 @@ public class PCollectionConsumerRegistryTest {
             (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     doThrow(new Exception(message)).when(consumer).accept(any());
 
-    try {
-      wrapperConsumer.accept(valueInGlobalWindow("first"));
-    } catch (Exception expected) {
-      assertEquals(message, expected.getMessage());
-    }
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals(message, firstFailure.getMessage());
 
     // The upstream DoFn may catch the first exception and try to emit again. Fail mode must not
     // invoke the downstream consumer again after its first failure.
-    try {
-      wrapperConsumer.accept(valueInGlobalWindow("second"));
-    } catch (Exception expected) {
-      assertEquals(message, expected.getMessage());
-    }
+    Exception secondFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("second")));
+    assertEquals(message, secondFailure.getMessage());
     verify(consumer, times(1)).accept(any());
 
-    try {
-      consumers.failBundleIfDownstreamFailed();
-      throw new AssertionError("Expected the recorded downstream exception to fail the bundle");
-    } catch (Exception expected) {
-      assertEquals(message, expected.getMessage());
-    }
+    Exception bundleFailure =
+        assertThrows(Exception.class, consumers::failBundleIfDownstreamFailed);
+    assertEquals(message, bundleFailure.getMessage());
   }
 
   @Test
@@ -286,11 +280,9 @@ public class PCollectionConsumerRegistryTest {
             (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     doThrow(new Exception("first output failed")).doNothing().when(consumer).accept(any());
 
-    try {
-      wrapperConsumer.accept(valueInGlobalWindow("first"));
-    } catch (Exception expected) {
-      assertEquals("first output failed", expected.getMessage());
-    }
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("first output failed", firstFailure.getMessage());
     wrapperConsumer.accept(valueInGlobalWindow("second"));
     verify(consumer, times(2)).accept(any());
 
@@ -319,11 +311,9 @@ public class PCollectionConsumerRegistryTest {
             (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
     doThrow(new Exception("first bundle failure")).when(consumer).accept(any());
 
-    try {
-      wrapperConsumer.accept(valueInGlobalWindow("first"));
-    } catch (Exception expected) {
-      assertEquals("first bundle failure", expected.getMessage());
-    }
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("first bundle failure", firstFailure.getMessage());
     consumers.reset();
     doNothing().when(consumer).accept(any());
     wrapperConsumer.accept(valueInGlobalWindow("next bundle"));
