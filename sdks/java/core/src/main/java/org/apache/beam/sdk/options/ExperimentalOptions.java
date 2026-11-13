@@ -35,6 +35,7 @@ public interface ExperimentalOptions extends PipelineOptions {
 
   String STATE_SAMPLING_PERIOD_MILLIS = "state_sampling_period_millis";
 
+  /** Experiment controlling exception handling at fused Java DoFn boundaries. */
   String FUSED_DOFN_EXCEPTION_HANDLING = "fused_dofn_exception_handling";
 
   @Description(
