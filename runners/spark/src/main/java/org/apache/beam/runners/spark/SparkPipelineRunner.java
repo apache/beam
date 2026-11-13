@@ -123,8 +123,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     // Initialize accumulators. Only the DStream streaming path uses the metrics checkpoint.
     MetricsEnvironment.setMetricsSupported(true);
+    MetricsAccumulator.clear();
     MetricsAccumulator.init(
         pipelineOptions, jsc, !useStructuredStreaming && pipelineOptions.isStreaming());
+    if (useDStreams) {
+      GlobalWatermarkHolder.clear();
+    }
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
