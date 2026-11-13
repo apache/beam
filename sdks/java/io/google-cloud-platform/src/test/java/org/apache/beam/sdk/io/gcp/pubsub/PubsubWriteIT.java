@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.UnsafeByteOperations;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -64,7 +66,7 @@ public class PubsubWriteIT {
     pubsubClient = PubsubGrpcClient.FACTORY.newClient(null, null, options);
     testTopic =
         PubsubClient.topicPathFromName(project, "pubsub-write-" + Instant.now().getMillis());
-    pubsubClient.createTopic(testTopic);
+    createTopicWithRetry(testTopic);
   }
 
   @After
@@ -118,9 +120,9 @@ public class PubsubWriteIT {
     TopicPath testTopicPath =
         PubsubClient.topicPathFromName(
             project, "pubsub-write-ordering-key-" + Instant.now().getMillis());
-    pubsubClient.createTopic(testTopicPath);
+    createTopicWithRetry(testTopicPath);
     SubscriptionPath testSubscriptionPath =
-        pubsubClient.createRandomSubscription(
+        createRandomSubscriptionWithRetry(
             PubsubClient.projectPathFromId(project), testTopicPath, 10);
 
     byte[] payload = new byte[] {-16, -97, -89, -86}; // U+1F9EA
@@ -185,5 +187,41 @@ public class PubsubWriteIT {
 
     pubsubClient.deleteSubscription(testSubscriptionPath);
     pubsubClient.deleteTopic(testTopicPath);
+  }
+
+  private void createTopicWithRetry(TopicPath topicPath) throws IOException {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        pubsubClient.createTopic(topicPath);
+        return;
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
+          return;
+        }
+        if ((e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+                || e.getStatus().getCode() == Status.Code.UNAVAILABLE)
+            && attempt < 3) {
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+
+  private SubscriptionPath createRandomSubscriptionWithRetry(
+      PubsubClient.ProjectPath projectPath, TopicPath topicPath, int ackDeadlineSeconds)
+      throws IOException {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        return pubsubClient.createRandomSubscription(projectPath, topicPath, ackDeadlineSeconds);
+      } catch (StatusRuntimeException e) {
+        if ((e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+                || e.getStatus().getCode() == Status.Code.UNAVAILABLE)
+            && attempt < 3) {
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 }
