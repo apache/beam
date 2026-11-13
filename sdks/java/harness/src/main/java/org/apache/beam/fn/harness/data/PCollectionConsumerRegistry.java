@@ -556,22 +556,13 @@ public class PCollectionConsumerRegistry {
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
-      // Increment the counter for each window the element occurs in.
-      this.elementCountCounter.inc(input.getWindows().size());
-      // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
-      // when we have window optimization.
-      this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
-
-      ElementSample<T> elementSample = null;
-      if (outputSampler != null) {
-        elementSample = outputSampler.sample(input);
-      }
-
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container. We specifically don't use a for-each loop since it creates an iterator
       // on a hot path.
       Throwable firstFailure = null;
+      boolean metricsStarted = false;
+      ElementSample<T> elementSample = null;
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         String ptransformId = consumerAndMetadata.getPTransformId();
@@ -585,6 +576,20 @@ public class PCollectionConsumerRegistry {
             firstFailure = previousFailure;
           }
           continue;
+        }
+
+        // Start PCollection-level metrics only when at least one consumer is eligible to receive
+        // this element. This keeps metrics consistent with the single-consumer fail-fast path,
+        // which rejects an element before incrementing the counter.
+        if (!metricsStarted) {
+          this.elementCountCounter.inc(input.getWindows().size());
+          // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
+          // when we have window optimization.
+          this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
+          if (outputSampler != null) {
+            elementSample = outputSampler.sample(input);
+          }
+          metricsStarted = true;
         }
 
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
@@ -614,7 +619,9 @@ public class PCollectionConsumerRegistry {
           }
         }
       }
-      this.sampledByteSizeDistribution.finishLazyUpdate();
+      if (metricsStarted) {
+        this.sampledByteSizeDistribution.finishLazyUpdate();
+      }
       if (firstFailure != null) {
         rethrowDownstreamFailure(firstFailure);
       }
