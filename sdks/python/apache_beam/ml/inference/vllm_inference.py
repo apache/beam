@@ -412,7 +412,6 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       batch_length_fn: Optional[Callable[[Any], int]] = None,
       batch_bucket_boundaries: Optional[list[int]] = None,
       prefix_batching_config: Optional[PrefixBatchingConfig] = None,
-      enable_autoscaling_metric: bool = True,
       autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
@@ -469,15 +468,14 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         prompts sharing a leading prefix are routed to the same worker and
         batched together to maximize vLLM prefix cache hits (see
         ``apache_beam.ml.inference.prefix_batching``).
-      enable_autoscaling_metric: if True (default), publish the
-        ``num_loaded_models_<tag>`` worker capacity signal from vLLM's request
-        metrics so Dataflow's GPU autoscaler scales workers with load. Requires
+      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
+        ``num_loaded_models_<tag>`` worker capacity signal published by default
+        from vLLM's request metrics for Dataflow GPU autoscaling (poll
+        interval, multiplier, aggregation, warmup, or custom
+        ``load_signal_fn``; see
+        ``apache_beam.ml.inference.autoscaling_metrics``). Requires
         ``RunInference(..., use_model_manager=False)`` (the default); not
         published when ``use_dynamo=True``.
-      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
-        autoscaling signal (poll interval, multiplier, aggregation, warmup, or
-        custom ``load_signal_fn``; see
-        ``apache_beam.ml.inference.autoscaling_metrics``).
     """
     super().__init__(
         min_batch_size=min_batch_size,
@@ -498,9 +496,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
     }
     self._use_dynamo = use_dynamo
-    self._autoscaling_config = (
-        autoscaling_config or AutoscalingMetricConfig()
-        if enable_autoscaling_metric else None)
+    self._autoscaling_config = autoscaling_config or AutoscalingMetricConfig()
 
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(
@@ -580,7 +576,6 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       batch_length_fn: Optional[Callable[[Any], int]] = None,
       batch_bucket_boundaries: Optional[list[int]] = None,
       prefix_batching_config: Optional[PrefixBatchingConfig] = None,
-      enable_autoscaling_metric: bool = True,
       autoscaling_config: Optional[AutoscalingMetricConfig] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
@@ -641,15 +636,14 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         system prompt) are routed to the same worker and batched together to
         maximize vLLM prefix cache hits (see
         ``apache_beam.ml.inference.prefix_batching``).
-      enable_autoscaling_metric: if True (default), publish the
-        ``num_loaded_models_<tag>`` worker capacity signal from vLLM's request
-        metrics so Dataflow's GPU autoscaler scales workers with load. Requires
+      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
+        ``num_loaded_models_<tag>`` worker capacity signal published by default
+        from vLLM's request metrics for Dataflow GPU autoscaling (poll
+        interval, multiplier, aggregation, warmup, or custom
+        ``load_signal_fn``; see
+        ``apache_beam.ml.inference.autoscaling_metrics``). Requires
         ``RunInference(..., use_model_manager=False)`` (the default); not
         published when ``use_dynamo=True``.
-      autoscaling_config: optional :class:`AutoscalingMetricConfig` tuning the
-        autoscaling signal (poll interval, multiplier, aggregation, warmup, or
-        custom ``load_signal_fn``; see
-        ``apache_beam.ml.inference.autoscaling_metrics``).
     """
     super().__init__(
         min_batch_size=min_batch_size,
@@ -672,9 +666,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
     self._use_dynamo = use_dynamo
-    self._autoscaling_config = (
-        autoscaling_config or AutoscalingMetricConfig()
-        if enable_autoscaling_metric else None)
+    self._autoscaling_config = autoscaling_config or AutoscalingMetricConfig()
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''

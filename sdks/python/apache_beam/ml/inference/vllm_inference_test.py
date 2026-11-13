@@ -129,17 +129,20 @@ class _RecordingChatHandler(vllm_inference.VLLMChatModelHandler):
 class VLLMInferenceTest(unittest.TestCase):
   def test_native_vllm_starts_single_server_process(self):
     commands = []
-    with mock.patch.object(vllm_inference,
-                           'start_process',
-                           _record_start_process(commands)):
-      with mock.patch.object(vllm_inference, 'getVLLMClient'):
-        vllm_inference.getVLLMClient.return_value = _FakeClient()
-        vllm_inference.VLLMCompletionsModelHandler(
-            model_name='test-model',
-            vllm_server_kwargs={
-                'gpu-memory-utilization': '0.9'
-            },
-            enable_autoscaling_metric=False).load_model()
+    with (
+        mock.patch.object(vllm_inference,
+                          'start_process',
+                          _record_start_process(commands)),
+        mock.patch.object(vllm_inference,
+                          'getVLLMClient',
+                          return_value=_FakeClient()),
+        mock.patch.object(PrometheusNumLoadedModelsPublisher, 'start'),
+    ):
+      vllm_inference.VLLMCompletionsModelHandler(
+          model_name='test-model',
+          vllm_server_kwargs={
+              'gpu-memory-utilization': '0.9'
+          }).load_model()
     self.assertEqual(1, len(commands))
     self.assertIn('vllm.entrypoints.openai.api_server', commands[0])
     self.assertIn('--model', commands[0])
@@ -257,9 +260,6 @@ class VLLMInferenceTest(unittest.TestCase):
         return vllm_inference.VLLMCompletionsModelHandler(
             model_name='test-model', **kwargs).load_model()
 
-    self.assertIsNone(
-        load(enable_autoscaling_metric=False)._num_loaded_models_publisher)
-
     with mock.patch.object(autoscaling_metrics,
                            '_scrape_prometheus_metrics',
                            return_value=None):
@@ -267,7 +267,7 @@ class VLLMInferenceTest(unittest.TestCase):
           autoscaling_config=AutoscalingMetricConfig(poll_interval_secs=60))
       publisher = server._num_loaded_models_publisher
       self.addCleanup(publisher.stop)
-      self.assertEqual(publisher._metrics_port_fn(), 10002)
+      self.assertEqual(publisher._metrics_port_fn(), 10001)
       self.assertTrue(publisher._thread.is_alive())
 
       server._stop_processes()
@@ -288,7 +288,7 @@ class VLLMInferenceTest(unittest.TestCase):
         server.start_server()
       restarted_publisher = server._num_loaded_models_publisher
       self.addCleanup(restarted_publisher.stop)
-      self.assertEqual(restarted_publisher._metrics_port_fn(), 10003)
+      self.assertEqual(restarted_publisher._metrics_port_fn(), 10002)
       self.assertTrue(restarted_publisher._thread.is_alive())
       server.__del__()
       self.assertIsNone(restarted_publisher._thread)
