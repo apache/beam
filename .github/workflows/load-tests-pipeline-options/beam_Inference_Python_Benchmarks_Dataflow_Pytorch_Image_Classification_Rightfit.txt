@@ -26,7 +26,7 @@
 --metrics_dataset=beam_run_inference
 --influx_measurement=torch_inference_imagenet_stream_rightfit
 --pretrained_model_name=efficientnet_b0
---input_file=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input_file=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --runner=DataflowRunner
 --mode=streaming
 --input_mode=gcs_uris

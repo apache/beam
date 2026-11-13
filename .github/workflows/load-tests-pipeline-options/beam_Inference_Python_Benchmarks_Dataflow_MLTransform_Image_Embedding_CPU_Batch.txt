@@ -29,7 +29,7 @@
 --input_options={}
 --influx_measurement=mltransform_image_embedding_cpu_batch
 --mode=batch
---input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --artifact_location=gs://temp-storage-for-perf-tests/loadtests/mltransform_image_embedding_cpu/artifacts
 --output_table=apache-beam-testing:beam_run_inference.result_mltransform_image_embedding_cpu_batch
 --pretrained_model_name=clip-ViT-B-32
