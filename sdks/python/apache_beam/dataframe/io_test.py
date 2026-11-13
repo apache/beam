@@ -426,6 +426,15 @@ X     , c1, c2
         ])
         assert_frame_equal(expected, split_at_header)
 
+      first_record_end = contents.index('b2') + 3
+      for split in range(header_end + 1, first_record_end):
+        split_at_record_boundary = pd.concat([
+            read_truncated_csv(0, split),
+            read_truncated_csv(split, first_record_end),
+            read_truncated_csv(first_record_end, len(contents)),
+        ])
+        assert_frame_equal(expected, split_at_record_boundary)
+
   def test_file_not_found(self):
     with self.assertRaisesRegex(FileNotFoundError, r'/tmp/fake_dir/\*\*'):
       with beam.Pipeline() as p:
