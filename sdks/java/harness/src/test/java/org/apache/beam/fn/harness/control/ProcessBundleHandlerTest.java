@@ -1099,40 +1099,44 @@ public class ProcessBundleHandlerTest {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
-    // A single data block represents the complete encoded stream for this input endpoint.
-    // Encode both elements into that stream so the test exercises two distinct processElement
-    // invocations rather than relying on multiple embedded data blocks for one endpoint.
-    ByteStringOutputStream encodedElements = new ByteStringOutputStream();
-    StringUtf8Coder.of().encode("first", encodedElements);
-    StringUtf8Coder.of().encode("second", encodedElements);
-    Elements elements =
-        Elements.newBuilder()
-            .addData(
-                Data.newBuilder()
-                    .setInstructionId("fused-fail")
-                    .setTransformId("source")
-                    .setData(encodedElements.toByteString())
-                    .setIsLast(true))
-            .build();
+    try {
+      // A single data block represents the complete encoded stream for this input endpoint.
+      // Encode both elements into that stream so the test exercises two distinct processElement
+      // invocations rather than relying on multiple embedded data blocks for one endpoint.
+      ByteStringOutputStream encodedElements = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("first", encodedElements);
+      StringUtf8Coder.of().encode("second", encodedElements);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-fail")
+                      .setTransformId("source")
+                      .setData(encodedElements.toByteString())
+                      .setIsLast(true))
+              .build();
 
-    Exception failure =
-        assertThrows(
-            Exception.class,
-            () ->
-                handler.processBundle(
-                    InstructionRequest.newBuilder()
-                        .setInstructionId("fused-fail")
-                        .setProcessBundle(
-                            ProcessBundleRequest.newBuilder()
-                                .setProcessBundleDescriptorId("fused-descriptor")
-                                .setElements(elements))
-                        .build()));
-    assertTrue(failure.toString(), failure.getMessage().contains("fused downstream failure"));
-    assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
-    assertEquals(2, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
-    assertThat(
-        handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"), empty());
-    handler.shutdown();
+      Exception failure =
+          assertThrows(
+              Exception.class,
+              () ->
+                  handler.processBundle(
+                      InstructionRequest.newBuilder()
+                          .setInstructionId("fused-fail")
+                          .setProcessBundle(
+                              ProcessBundleRequest.newBuilder()
+                                  .setProcessBundleDescriptorId("fused-descriptor")
+                                  .setElements(elements))
+                          .build()));
+      assertTrue(failure.toString(), failure.getMessage().contains("fused downstream failure"));
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(2, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertThat(
+          handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"),
+          empty());
+    } finally {
+      handler.shutdown();
+    }
   }
 
   @Test
@@ -1140,29 +1144,32 @@ public class ProcessBundleHandlerTest {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest(null);
-    ByteStringOutputStream encoded = new ByteStringOutputStream();
-    StringUtf8Coder.of().encode("element", encoded);
-    Elements elements =
-        Elements.newBuilder()
-            .addData(
-                Data.newBuilder()
-                    .setInstructionId("fused-legacy")
-                    .setTransformId("source")
-                    .setData(encoded.toByteString())
-                    .setIsLast(true))
-            .build();
+    try {
+      ByteStringOutputStream encoded = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("element", encoded);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-legacy")
+                      .setTransformId("source")
+                      .setData(encoded.toByteString())
+                      .setIsLast(true))
+              .build();
 
-    handler.processBundle(
-        InstructionRequest.newBuilder()
-            .setInstructionId("fused-legacy")
-            .setProcessBundle(
-                ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorId("fused-descriptor")
-                    .setElements(elements))
-            .build());
-    assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
-    assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
-    handler.shutdown();
+      handler.processBundle(
+          InstructionRequest.newBuilder()
+              .setInstructionId("fused-legacy")
+              .setProcessBundle(
+                  ProcessBundleRequest.newBuilder()
+                      .setProcessBundleDescriptorId("fused-descriptor")
+                      .setElements(elements))
+              .build());
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+    } finally {
+      handler.shutdown();
+    }
   }
 
   private static final class SimpleDoFn extends DoFn<KV<String, String>, String> {
