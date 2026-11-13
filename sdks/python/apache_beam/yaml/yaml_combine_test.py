@@ -21,6 +21,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml.yaml_combine import _SqlCombineTransform
+from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
@@ -185,6 +187,82 @@ class YamlCombineTest(unittest.TestCase):
               beam.Row(b=1, biggest=[103, 102]),
               beam.Row(b=2, biggest=[104]),
           ]))
+
+  def test_sql_combine_calcite_expression(self):
+    queries = []
+    pcoll = beam.Pipeline() | beam.Create(DATA)
+    spec = {
+        'type': 'Combine',
+        'config': {
+            'language': 'calcite',
+            'group_by': ['a'],
+            'combine': {
+                'total_c': 'sum(c)', 'num_records': 'count(*)'
+            }
+        }
+    }
+    normalized = normalize_combine(spec)
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        **normalized['config'])
+    self.assertEqual(
+        queries[-1],
+        'SELECT a, sum(c) as total_c, count(*) as num_records '
+        'FROM PCOLLECTION GROUP BY a')
+
+  def test_sql_combine_sql_shorthand(self):
+    queries = []
+    pcoll = beam.Pipeline() | beam.Create(DATA)
+    spec = {
+        'type': 'Combine',
+        'config': {
+            'language': 'sql', 'group_by': ['a'], 'combine': {
+                'c': 'sum'
+            }
+        }
+    }
+    normalized = normalize_combine(spec)
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        **normalized['config'])
+    self.assertEqual(
+        queries[-1], 'SELECT a, sum(c) as c FROM PCOLLECTION GROUP BY a')
+
+  def test_sql_combine_calcite_shorthand(self):
+    queries = []
+    pcoll = beam.Pipeline() | beam.Create(DATA)
+    spec = {
+        'type': 'Combine',
+        'config': {
+            'language': 'calcite', 'group_by': ['a'], 'combine': {
+                'c': 'sum'
+            }
+        }
+    }
+    normalized = normalize_combine(spec)
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        **normalized['config'])
+    self.assertEqual(
+        queries[-1], 'SELECT a, sum(c) as c FROM PCOLLECTION GROUP BY a')
+
+  def test_sql_combine_type_with_language_suffix(self):
+    queries = []
+    pcoll = beam.Pipeline() | beam.Create(DATA)
+    spec = {
+        'type': 'Combine-calcite',
+        'config': {
+            'group_by': ['a'], 'combine': {
+                'total_c': 'sum(c)'
+            }
+        }
+    }
+    normalized = normalize_combine(spec)
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        **normalized['config'])
+    self.assertEqual(
+        queries[-1], 'SELECT a, sum(c) as total_c FROM PCOLLECTION GROUP BY a')
 
 
 if __name__ == '__main__':
