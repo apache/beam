@@ -570,7 +570,7 @@ public class ProcessBundleHandler {
 
           // Surface downstream exceptions that user code may have caught while processing
           // fused outputs. This must happen before outbound data is finalized.
-          bundleProcessor.getpCollectionConsumerRegistry().finishBundle();
+          bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
 
           // If bundleProcessor has not flushed any elements, embed them in response.
           embedOutboundElementsIfApplicable(response, bundleProcessor);
@@ -602,6 +602,9 @@ public class ProcessBundleHandler {
           stateTracker.reset();
         }
       }
+
+      // A warning is appropriate only once all bundle work has succeeded.
+      bundleProcessor.getpCollectionConsumerRegistry().logWarningIfDownstreamFailed();
 
       // Mark the bundle processor as re-usable.
       bundleProcessorCache.release(
