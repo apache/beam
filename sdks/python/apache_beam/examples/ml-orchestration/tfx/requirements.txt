@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-tfx==1.9.0
-tensorflow==2.11.1
+tfx>=1.21.0,<1.22
+tensorflow>=2.21.0,<2.22
