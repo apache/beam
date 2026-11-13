@@ -1130,6 +1130,10 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.groupby(level=0, observed=False).mean(),
         df,
         nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby(level=0, observed=False).A.describe(),
+        df,
+        nonparallel=True)
 
   def test_astype_categorical(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
@@ -1879,10 +1883,6 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_project_series(self, agg_type):
     df = GROUPBY_DF
 
-    if agg_type == 'describe':
-      self.skipTest(
-          "https://github.com/apache/beam/issues/20967: proxy generation of "
-          "SeriesGroupBy.describe fails")
     if agg_type in ('corr', 'cov'):
       self.skipTest(
           "https://github.com/apache/beam/issues/20895: "
@@ -2065,6 +2065,25 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  def test_groupby_describe_multiple_keys(self):
+    df = pd.DataFrame({
+        'foo': [1, 2, 3, 4, 5, 6, 7, 9],
+        'g1': list('xyxyxyxy'),
+        'g2': [1, 1, 1, 1, 2, 2, 2, 2],
+    })
+    self._run_test(lambda df: df.groupby(['g1', 'g2']).foo.describe(), df)
+
+  def test_groupby_skew_of_integer_columns(self):
+    df = pd.DataFrame({
+        'foo': [1, 2, 3, 4, 5, 6, 7, 9],
+        'bar': [2, 7, 1, 8, 2, 8, 1, 8],
+        'baz': np.array([1, 2, 3, 4, 5, 6, 7, 9], dtype=np.float32),
+        'group': list('xyxyxyxy'),
+    })
+    self._run_test(lambda df: df.groupby('group').foo.skew(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['foo', 'bar', 'baz']].skew(), df)
+
   @unittest.skipIf(
       PD_VERSION >= (2, 0), "dtypes on groups is deprecated in Pandas 2.")
   def test_groupby_dtypes(self):
@@ -2090,10 +2109,6 @@ class GroupByTest(_AbstractFrameTest):
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
-    if agg_type == 'describe':
-      self.skipTest(
-          "https://github.com/apache/beam/issues/20967: proxy generation of "
-          "SeriesGroupBy.describe fails")
     if agg_type in ('corr', 'cov'):
       self.skipTest(
           "https://github.com/apache/beam/issues/20895: "
