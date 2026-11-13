@@ -139,6 +139,27 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
+  public void requiresDedupingReflectsConfiguration() {
+    setupOneMessage(ImmutableList.of());
+    assertTrue(primSource.requiresDeduping());
+
+    PubsubUnboundedSource noDedupeSource =
+        new PubsubUnboundedSource(
+            clock,
+            factory,
+            null,
+            null,
+            StaticValueProvider.of(SUBSCRIPTION),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            true /* needsAttributes */,
+            false /* needsMessageId */,
+            false /* needsOrderingKey */,
+            false /* deduplicate */);
+    assertFalse(new PubsubSource(noDedupeSource).requiresDeduping());
+  }
+
+  @Test
   public void readOneMessage() throws Exception {
     setupOneMessage();
     PubsubReader reader = primSource.createReader(p.getOptions(), null);

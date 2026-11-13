@@ -56,6 +56,7 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -895,6 +896,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsOrderingKey();
 
+    abstract boolean getDeduplicate();
+
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
@@ -910,6 +913,7 @@ public class PubsubIO {
       builder.setNeedsAttributes(false);
       builder.setNeedsMessageId(false);
       builder.setNeedsOrderingKey(false);
+      builder.setDeduplicate(true);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setValidate(false);
@@ -955,6 +959,8 @@ public class PubsubIO {
       abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
 
       abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
+
+      abstract Builder<T> setDeduplicate(boolean deduplicate);
 
       abstract Builder<T> setClock(Clock clock);
 
@@ -1121,6 +1127,24 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    /**
+     * Disables record-id deduplication (using the Pub/Sub message id, or the attribute configured
+     * via {@link #withIdAttribute}) in runners that honor {@link
+     * UnboundedSource#requiresDeduping()}, such as the Flink and Direct runners.
+     *
+     * <p>When deduplication is disabled, any message redelivered by Pub/Sub (for example after an
+     * ack-deadline expiration or checkpoint restore) is emitted again, so downstream transforms
+     * must tolerate duplicates. On runners that deduplicate via a keyed stateful stage (such as the
+     * Flink runner), skipping deduplication avoids keying and shuffling every message by record id
+     * and storing recent ids in state, allowing the read to fuse with downstream transforms.
+     *
+     * <p>Dataflow streaming uses a service-managed Pub/Sub source by default and ignores this
+     * setting (configure Dataflow's streaming mode instead).
+     */
+    public Read<T> withoutDeduplication() {
+      return toBuilder().setDeduplicate(false).build();
+    }
+
     public Read<T> withEnableOpenTelemetryTracing() {
       return toBuilder().setEnableOpenTelemetryTracing(true).setNeedsAttributes(true).build();
     }
@@ -1258,7 +1282,8 @@ public class PubsubIO {
               getIdAttribute(),
               getNeedsAttributes(),
               getNeedsMessageId(),
-              getNeedsOrderingKey());
+              getNeedsOrderingKey(),
+              getDeduplicate());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
       return expandReadContinued(preParse, topicPath, subscriptionPath);
@@ -1427,6 +1452,9 @@ public class PubsubIO {
       builder.addIfNotNull(
           DisplayData.item("subscription", getSubscriptionProvider())
               .withLabel("Pubsub Subscription"));
+      builder.addIfNotDefault(
+          DisplayData.item("deduplicate", getDeduplicate()).withLabel("Deduplicate Messages"),
+          true);
     }
   }
 
