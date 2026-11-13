@@ -123,6 +123,8 @@ _LOGGER = logging.getLogger(__name__)
 _TIME_SHIFT = 1 << 63
 MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
 MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
+MIN_TIMESTAMP_millis = -(abs(MIN_TIMESTAMP_micros) // 1000)
+MAX_TIMESTAMP_millis = MAX_TIMESTAMP_micros // 1000
 
 IterableStateReader = Callable[[bytes, 'CoderImpl'], Iterable]
 IterableStateWriter = Callable[[Iterable, 'CoderImpl'], bytes]
@@ -1645,9 +1647,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we
     # have a BEAM wide consensus on precision of timestamps.
-    if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
+    if timestamp <= MIN_TIMESTAMP_millis:
       timestamp = MIN_TIMESTAMP_micros
-    elif timestamp >= MAX_TIMESTAMP_micros // 1000:
+    elif timestamp >= MAX_TIMESTAMP_millis:
       timestamp = MAX_TIMESTAMP_micros
     else:
       timestamp *= 1000
@@ -1670,19 +1672,16 @@ class WindowedValueCoderImpl(StreamCoderImpl):
       # Should never be here.
       # TODO(robertwb): Remove when coders are set correctly.
       return 0, [(value, self._value_coder)]
-    estimated_size = 0
-    observables = []  # type: Observables
-    value_estimated_size, value_observables = (
+    wv = value  # type cast
+    value_estimated_size, observables = (
         self._value_coder.get_estimated_size_and_observables(
-            value.value, nested=nested))
-    estimated_size += value_estimated_size
-    observables += value_observables
-    estimated_size += (
-        self._timestamp_coder.estimate_size(value.timestamp, nested=True))
-    estimated_size += (
-        self._windows_coder.estimate_size(value.windows, nested=True))
-    estimated_size += (
-        self._pane_info_coder.estimate_size(value.pane_info, nested=True))
+            wv.value, nested=nested))
+    # Timestamp is always encoded as an 8-byte big-endian uint64; avoid
+    # accessing wv.timestamp which lazily allocates a Timestamp object.
+    estimated_size = (
+        value_estimated_size + 8 +
+        self._windows_coder.estimate_size(wv.windows, nested=True) +
+        self._pane_info_coder.estimate_size(wv.pane_info, nested=True))
     return estimated_size, observables
 
 
