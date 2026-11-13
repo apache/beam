@@ -27,6 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -357,6 +358,25 @@ public class IcebergUtilsTest {
           enumType.valueOf("TWO"),
           Types.StringType.get(),
           "TWO");
+    }
+
+    @Test
+    public void testUnknown() {
+      // an unknown column only holds null, so a value fails instead of being dropped
+      Schema beamSchema = Schema.of(Schema.Field.nullable("v", Schema.FieldType.STRING));
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(optional(0, "v", Types.UnknownType.get()));
+      Row row = Row.withSchema(beamSchema).addValue("abc").build();
+      UnsupportedOperationException e =
+          assertThrows(
+              UnsupportedOperationException.class,
+              () -> IcebergUtils.beamRowToIcebergRecord(icebergSchema, row));
+      assertEquals(
+          "Cannot write field 'v': Iceberg type unknown is not supported.", e.getMessage());
+
+      // a null value stays null
+      Row nullRow = Row.withSchema(beamSchema).addValue(null).build();
+      assertNull(IcebergUtils.beamRowToIcebergRecord(icebergSchema, nullRow).getField("v"));
     }
 
     @Test
