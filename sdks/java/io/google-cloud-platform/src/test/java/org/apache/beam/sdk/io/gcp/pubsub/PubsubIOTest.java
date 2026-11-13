@@ -25,8 +25,10 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
@@ -51,12 +53,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -65,16 +69,19 @@ import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
+import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource.PubsubSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -119,6 +126,38 @@ import org.mockito.Mockito;
 public class PubsubIOTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testReadWithoutDeduplication() {
+    PubsubIO.Read<String> defaultRead =
+        PubsubIO.readStrings().fromSubscription("projects/project/subscriptions/subscription");
+    assertTrue(defaultRead.getDeduplicate());
+    assertThat(DisplayData.from(defaultRead), not(hasDisplayItem("deduplicate")));
+
+    PubsubIO.Read<String> noDedupeRead = defaultRead.withoutDeduplication();
+    assertFalse(noDedupeRead.getDeduplicate());
+    assertThat(DisplayData.from(noDedupeRead), hasDisplayItem("deduplicate", false));
+
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(noDedupeRead);
+    AtomicReference<PubsubSource> capturedSource = new AtomicReference<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            if (node.getTransform() instanceof Unbounded) {
+              Unbounded<?> unbounded = (Unbounded<?>) node.getTransform();
+              if (unbounded.getSource() instanceof PubsubSource) {
+                capturedSource.set((PubsubSource) unbounded.getSource());
+              }
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    assertNotNull(capturedSource.get());
+    assertFalse(capturedSource.get().outer.getDeduplicate());
+    assertFalse(capturedSource.get().requiresDeduping());
+  }
 
   @Test
   public void testPubsubIOGetName() {
