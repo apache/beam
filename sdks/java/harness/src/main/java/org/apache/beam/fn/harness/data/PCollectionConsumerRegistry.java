@@ -62,8 +62,10 @@ import org.slf4j.LoggerFactory;
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
  * FnDataReceiver for each pCollectionId. Registering with this class allows inserting an element
- * count counter for every pCollection. A combined MultiplexingConsumer (Wrapped with an
- * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
+ * count counter for every pCollection. A combined MultiplexingConsumer (wrapped with metrics
+ * tracking) is returned by calling getMultiplexingConsumer. When configured, this class also
+ * records downstream exceptions so that exceptions swallowed by fused user code can be surfaced
+ * when the bundle finishes.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
