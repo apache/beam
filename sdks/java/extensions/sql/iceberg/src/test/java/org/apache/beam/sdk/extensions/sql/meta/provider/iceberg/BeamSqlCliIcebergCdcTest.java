@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -366,6 +367,33 @@ public class BeamSqlCliIcebergCdcTest {
         containsString(
             "A streaming INSERT into Iceberg table 'db.orders_mirror' needs"
                 + " 'triggering_frequency_seconds'"));
+  }
+
+  /** The read never ends, so the rows have to arrive while it runs. */
+  @Test(timeout = 120_000)
+  public void streamingChangesArriveWhileThePipelineRuns() throws Exception {
+    seedOrders();
+    List<String> rows = new ArrayList<>();
+    try (Connection connection =
+            JdbcDriver.connect(catalogManager, PipelineOptionsFactory.create());
+        Statement statement = connection.createStatement();
+        ResultSet result =
+            statement.executeQuery(
+                "SELECT * FROM CHANGES(orders) WITH ('streaming' = true, 'starting_strategy' ="
+                    + " 'earliest', 'poll_interval_seconds' = 1, "
+                    + CHANGE_TYPE
+                    + ")")) {
+      while (rows.size() < ALL_CHANGES.size() && result.next()) {
+        rows.add(
+            format(
+                "%s:%s:%s:%s",
+                result.getObject(1),
+                result.getObject(2),
+                result.getObject(3),
+                result.getObject(4)));
+      }
+    }
+    assertThat(rows, containsInAnyOrder(ALL_CHANGES.toArray()));
   }
 
   @Test
