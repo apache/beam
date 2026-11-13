@@ -4648,7 +4648,7 @@ def _liftable_agg(meth, postagg_meth=None):
     to_group = self._ungrouped.proxy().index
     is_categorical_grouping = any(
         isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
-        for i in self._grouping_indexes)
+        for i in range(to_group.nlevels))
     groupby_kwargs = self._kwargs
     group_keys = self._group_keys
 
@@ -4702,7 +4702,7 @@ def _unliftable_agg(meth):
     group_keys = self._group_keys
     is_categorical_grouping = any(
         isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
-        for i in self._grouping_indexes)
+        for i in range(to_group.nlevels))
 
     groupby_kwargs = self._kwargs
     project = _maybe_project_func(self._projection)
