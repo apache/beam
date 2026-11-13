@@ -563,6 +563,15 @@ public class PCollectionConsumerRegistry {
       Throwable firstFailure = null;
       boolean metricsStarted = false;
       ElementSample<T> elementSample = null;
+      // Preserve the existing metric behavior for PCollections that have no consumers.
+      if (consumerAndMetadatas.isEmpty()) {
+        this.elementCountCounter.inc(input.getWindows().size());
+        this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
+        if (outputSampler != null) {
+          elementSample = outputSampler.sample(input);
+        }
+        metricsStarted = true;
+      }
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         String ptransformId = consumerAndMetadata.getPTransformId();
