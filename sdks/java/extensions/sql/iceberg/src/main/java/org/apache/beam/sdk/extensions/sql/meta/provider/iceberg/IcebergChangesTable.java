@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ManagedOptions;
 import org.apache.beam.sdk.io.iceberg.IcebergCdcReadSchemaTransformProvider;
 import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.managed.Managed;
