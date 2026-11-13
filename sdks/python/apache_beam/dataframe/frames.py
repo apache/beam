@@ -1753,9 +1753,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return combined_n * math.sqrt(combined_n - 1) / (combined_n -
-                                                         2) * m3 / (
-                                                             m2**(3 / 2))
+        return n * math.sqrt(n - 1) / (n - 2) * m3 / (m2**(3 / 2))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -1827,12 +1825,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
-                ((combined_n - 2) *
-                 (combined_n - 3))) * (m4 /
-                                       (m2)**2) - ((3 * (combined_n - 1)**2) /
-                                                   ((combined_n - 2) *
-                                                    (combined_n - 3)))
+        return (((n + 1) * (n) * (n - 1)) /
+                ((n - 2) * (n - 3))) * (m4 / (m2)**2) - ((3 * (n - 1)**2) /
+                                                         ((n - 2) * (n - 3)))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
