@@ -1099,22 +1099,19 @@ public class ProcessBundleHandlerTest {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
-    ByteStringOutputStream firstEncodedElement = new ByteStringOutputStream();
-    StringUtf8Coder.of().encode("first", firstEncodedElement);
-    ByteStringOutputStream secondEncodedElement = new ByteStringOutputStream();
-    StringUtf8Coder.of().encode("second", secondEncodedElement);
+    // A single data block represents the complete encoded stream for this input endpoint.
+    // Encode both elements into that stream so the test exercises two distinct processElement
+    // invocations rather than relying on multiple embedded data blocks for one endpoint.
+    ByteStringOutputStream encodedElements = new ByteStringOutputStream();
+    StringUtf8Coder.of().encode("first", encodedElements);
+    StringUtf8Coder.of().encode("second", encodedElements);
     Elements elements =
         Elements.newBuilder()
             .addData(
                 Data.newBuilder()
                     .setInstructionId("fused-fail")
                     .setTransformId("source")
-                    .setData(firstEncodedElement.toByteString()))
-            .addData(
-                Data.newBuilder()
-                    .setInstructionId("fused-fail")
-                    .setTransformId("source")
-                    .setData(secondEncodedElement.toByteString())
+                    .setData(encodedElements.toByteString())
                     .setIsLast(true))
             .build();
 
