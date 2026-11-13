@@ -1131,15 +1131,22 @@ class _PartialGroupByKeyCombiningValues(core.DoFn):
 
   def process(self, element, window=core.DoFn.WindowParam, **side_inputs):
     k, vi = element
-    side_input_args, side_input_kwargs = _unpack_side_inputs(side_inputs)
-    if (k, window) not in self._cache:
-      self._cache[(k, window)] = self._combine_fn.create_accumulator(
+    if window in self._cached_windowed_side_inputs:
+      side_input_args, side_input_kwargs = (
+          self._cached_windowed_side_inputs[window])
+    else:
+      side_input_args, side_input_kwargs = _unpack_side_inputs(side_inputs)
+      self._cached_windowed_side_inputs[window] = (
+          side_input_args, side_input_kwargs)
+    key = (k, window)
+    if key not in self._cache:
+      acc = self._combine_fn.create_accumulator(
           *side_input_args, **side_input_kwargs)
+    else:
+      acc = self._cache[key]
 
-    self._cache[k, window] = self._combine_fn.add_input(
-        self._cache[k, window], vi, *side_input_args, **side_input_kwargs)
-    self._cached_windowed_side_inputs[window] = (
-        side_input_args, side_input_kwargs)
+    self._cache[key] = self._combine_fn.add_input(
+        acc, vi, *side_input_args, **side_input_kwargs)
     return []  # to prevent DoFn-no-iterator warning
 
   def finish_bundle(self):
