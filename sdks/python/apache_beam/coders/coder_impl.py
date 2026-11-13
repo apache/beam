@@ -37,6 +37,7 @@ import enum
 import itertools
 import json
 import logging
+import operator
 import pickle
 from io import BytesIO
 from typing import TYPE_CHECKING
@@ -1935,6 +1936,19 @@ class RowCoderImpl(StreamCoderImpl):
     self.field_names = [f.name for f in self.schema.fields]
     self.field_nullable = [field.type.nullable for field in self.schema.fields]
     self.constructor = named_tuple_from_schema(schema)
+    self._constructor_is_tuple = (
+        isinstance(self.constructor, type) and
+        issubclass(self.constructor, tuple) and
+        getattr(self.constructor, '_fields', None) == tuple(self.field_names))
+    if self.num_fields == 1:
+      self._field0_name = self.field_names[0]
+      self._attr_getter = None
+    elif self.num_fields > 1:
+      self._field0_name = None
+      self._attr_getter = operator.attrgetter(*self.field_names)
+    else:
+      self._field0_name = None
+      self._attr_getter = None
     self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
       # should never be duplicate encoding positions.
@@ -1961,7 +1975,14 @@ class RowCoderImpl(StreamCoderImpl):
         opt.value.atomic_value.boolean for opt in self.schema.options)
 
   def encode_to_stream(self, value, out, nested):
-    attrs = [getattr(value, name) for name in self.field_names]
+    if self._constructor_is_tuple and type(value) is self.constructor:
+      attrs = value
+    elif self.num_fields == 1:
+      attrs = (getattr(value, self._field0_name), )
+    elif self.num_fields > 1:
+      attrs = self._attr_getter(value)
+    else:
+      attrs = ()
 
     if not self.static_encoding:
       out.write_var_int64(self.num_fields)
@@ -2077,10 +2098,12 @@ class RowCoderImpl(StreamCoderImpl):
     while len(sorted_components) < self.num_fields:
       sorted_components.append(None)
 
-    return self.constructor(
-        *(
-            sorted_components if self.encoding_positions_are_trivial else
-            [sorted_components[i] for i in self.encoding_positions]))
+    args = (
+        sorted_components if self.encoding_positions_are_trivial else
+        [sorted_components[i] for i in self.encoding_positions])
+    if self._constructor_is_tuple:
+      return tuple.__new__(self.constructor, args)
+    return self.constructor(*args)
 
   def decode_batch_from_stream(self, dest: Dict[str, np.ndarray], in_stream):
     attrs = self._row_column_encoders(dest)
