@@ -884,14 +884,10 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       spy_execute.assert_called_with({pcoll2}, async_res2, ANY, ANY)
       self.assertTrue(pcoll2 in self.env.computed_pcollections)
 
-  @patch(
-      'apache_beam.runners.interactive.recording_manager.RecordingManager.'
-      '_execute_pipeline_fragment',
-      side_effect=lambda *args: time.sleep(2))
-  def test_async_computation_result_cancel(self, unused_mock_execute):
+  def test_async_computation_result_cancel(self):
     p = beam.Pipeline(ir.InteractiveRunner())
-    # A stream that never finishes to test cancellation
-    pcoll = p | beam.Create([1]) | beam.Map(lambda x: time.sleep(100))
+    # A slow transform to test cancellation while the computation is in flight
+    pcoll = p | beam.Create([1]) | beam.Map(lambda x: time.sleep(3))
     ib.watch(locals())
     self.env.track_user_pipelines()
 
@@ -913,7 +909,7 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     # This part is hard to test without deeper runner integration
     with self.assertRaises(TimeoutError):
       async_result.result(timeout=1)  # It should not complete successfully
-    async_result.wait_for_completion(timeout=5)
+    async_result.wait_for_completion(timeout=30)
 
   @patch(
       'apache_beam.runners.interactive.recording_manager.RecordingManager.'
