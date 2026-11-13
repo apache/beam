@@ -630,6 +630,19 @@ public class ProcessBundleHandler {
       // Ensure that if more data arrives for the instruction it is discarded.
       beamFnDataClient.poisonInstructionId(instructionId);
       throw e;
+    } catch (Error e) {
+      LOG.debug(
+          "Error processing bundle {} with bundleProcessor for {} after error",
+          instructionId,
+          request.getProcessBundle().getProcessBundleDescriptorId(),
+          e);
+      if (bundleProcessor != null) {
+        // Make sure we clean up from the active set of bundle processors.
+        bundleProcessorCache.discard(bundleProcessor);
+      }
+      // Ensure that if more data arrives for the instruction it is discarded.
+      beamFnDataClient.poisonInstructionId(instructionId);
+      throw e;
     }
   }
 
