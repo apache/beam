@@ -68,6 +68,11 @@ public class GroupByKeyStatefulProcessor<K, V>
   }
 
   @Override
+  public GroupByKeyStatefulProcessor<K, V> copy() {
+    return new GroupByKeyStatefulProcessor<>(inputCoder, windowingStrategy, optionsSupplier);
+  }
+
+  @Override
   protected void processElements(
       K key,
       Iterator<WindowedValue<KV<K, V>>> rows,

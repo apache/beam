@@ -198,6 +198,13 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   protected abstract void processTimers(
       K key, SparkTimerInternals timers, SparkStateInternals<K> state);
 
+  /**
+   * Returns a new uninitialized processor with the same configuration, so sibling streaming queries
+   * do not share the mutable {@link StatefulProcessorHandle} on the base class while still sharing
+   * the driver-registered {@code MetricsAccumulator}.
+   */
+  public abstract BeamStatefulProcessor<K, V, OutputT> copy();
+
   private void restoreTimers(SparkTimerInternals timerInternals) {
     ValueState<byte[]> timersState = checkStateNotNull(beamTimers);
     if (timersState.exists()) {
