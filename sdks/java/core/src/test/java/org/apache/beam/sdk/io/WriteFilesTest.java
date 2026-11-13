@@ -614,6 +614,44 @@ public class WriteFilesTest {
     assertEquals(0L, counterValue(result, "directWriteBundles"));
   }
 
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteDisabledWithMergingWindows() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    // Merging windows require an explicit shard count, and a 1-byte threshold would otherwise
+    // write every bundle directly.
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(1L);
+    p.apply(testStream)
+        .apply(Window.into(Sessions.withGapDuration(Duration.standardSeconds(1))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
   /** Routes each element to a destination chosen by {@code destinationOf}, without side inputs. */
   private static class PerElementDestinations extends DynamicDestinations<String, String, String> {
     private final ResourceId baseOutputDirectory;

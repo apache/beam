@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -63,7 +64,8 @@ import org.slf4j.LoggerFactory;
  * emitted to the small tag immediately.
  *
  * <p>To bound memory, at most twice the threshold is buffered in total. When that is exceeded, the
- * key with the fewest buffered bytes is emitted to the small tag.
+ * keys with the fewest buffered bytes are emitted to the small tag until at most the threshold
+ * remains buffered.
  *
  * <p>Every element keeps its own timestamp and window.
  *
@@ -108,7 +110,8 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     // Per-bundle state, reset in startBundle.
     private transient @MonotonicNonNull Map<Object, KeyBuffer<T>> buffers;
     private transient @MonotonicNonNull Set<Object> liftedKeys;
-    private transient long bufferedBytes;
+    // Reset in startBundle; not transient so SpotBugs doesn't flag it as unrestored state.
+    private long bufferedBytes;
 
     BundleLiftDoFn(
         TupleTag<T> smallBatchTag,
@@ -191,8 +194,8 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         return;
       }
 
-      while (bufferedBytes > maxBufferedBytes && !buffers.isEmpty()) {
-        evictSmallestKey(buffers, receiver.get(smallBatchTag));
+      if (bufferedBytes > maxBufferedBytes) {
+        evictSmallestKeys(buffers, receiver.get(smallBatchTag));
       }
     }
 
@@ -225,21 +228,23 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       return Duration.millis(Long.MAX_VALUE);
     }
 
-    private void evictSmallestKey(Map<Object, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
-      Object smallestKey = null;
-      KeyBuffer<T> smallest = null;
-      for (Map.Entry<Object, KeyBuffer<T>> entry : buffers.entrySet()) {
-        if (smallest == null || entry.getValue().sizeBytes < smallest.sizeBytes) {
-          smallestKey = entry.getKey();
-          smallest = entry.getValue();
+    /**
+     * Emits the smallest keys to the small output until at most {@code threshold} bytes remain
+     * buffered. Each call frees more than {@code threshold} bytes, so at least that many new bytes
+     * must be buffered before it runs again, which keeps the sort's cost amortized.
+     */
+    private void evictSmallestKeys(Map<Object, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
+      List<Map.Entry<Object, KeyBuffer<T>>> bySize = new ArrayList<>(buffers.entrySet());
+      bySize.sort(Comparator.comparingLong(entry -> entry.getValue().sizeBytes));
+      for (Map.Entry<Object, KeyBuffer<T>> entry : bySize) {
+        if (bufferedBytes <= threshold) {
+          break;
         }
+        KeyBuffer<T> buffer = entry.getValue();
+        buffers.remove(entry.getKey());
+        bufferedBytes -= buffer.sizeBytes;
+        emit(buffer, small);
       }
-      if (smallestKey == null || smallest == null) {
-        return;
-      }
-      buffers.remove(smallestKey);
-      bufferedBytes -= smallest.sizeBytes;
-      emit(smallest, small);
     }
 
     private static <T> void emit(KeyBuffer<T> buffer, OutputReceiver<T> receiver) {

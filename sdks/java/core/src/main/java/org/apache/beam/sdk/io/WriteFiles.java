@@ -459,12 +459,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Returns a new {@link WriteFiles} that writes large input bundles directly to temporary files,
    * skipping the shuffle before temporary file creation.
    *
-   * <p>Applies only to unbounded inputs, and is ignored when dynamic destinations use side inputs.
-   * Records of each bundle are buffered until their encoded size reaches {@code thresholdBytes};
-   * bundles that reach it are written straight to temporary files. Smaller bundles keep the
-   * existing grouped path so output files stay large. Shard numbers are assigned at finalization,
-   * which may override {@link #withNumShards(int)} (the number of files per window can differ from
-   * the configured number of shards).
+   * <p>Records are buffered per window, pane and destination until their encoded size reaches
+   * {@code thresholdBytes}; those that reach it are written straight to temporary files. Smaller
+   * groups keep the existing grouped path so output files stay large. Shard numbers are assigned at
+   * finalization, which may override {@link #withNumShards(int)} (the number of files per window
+   * can differ from the configured number of shards).
+   *
+   * <p>Direct writes are only used for unbounded inputs with non-merging windows whose dynamic
+   * destinations don't use side inputs. Otherwise the threshold is ignored, a warning is logged,
+   * and the grouped write path is used.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withDirectWriteByteThreshold(
       long thresholdBytes) {
@@ -611,20 +614,37 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     boolean fixedSharding = getComputeNumShards() != null || getNumShardsProvider() != null;
     Long directWriteThreshold = getDirectWriteByteThreshold();
-    if (directWriteThreshold != null
-        && getSideInputs().isEmpty()
-        && input.isBounded() == IsBounded.UNBOUNDED) {
-      // Shard numbers are assigned in finalize across both the direct and grouped files, so any
-      // fixed shard count is not enforced there.
-      return input
-          .apply(
-              "WriteShardedBundlesWithDirectWrite",
-              new WriteShardedBundlesWithDirectWrite(
-                  destinationCoder, fileResultCoder, numShardsView, directWriteThreshold))
-          .apply(
-              "FinalizeTempFileBundles",
-              new FinalizeTempFileBundles(
-                  null, destinationCoder, /* assignShardNumbersInFinalize= */ true));
+    if (directWriteThreshold != null) {
+      List<String> disabledReasons = new ArrayList<>();
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        disabledReasons.add("the input is bounded");
+      }
+      if (!getSideInputs().isEmpty()) {
+        disabledReasons.add("dynamic destinations use side inputs");
+      }
+      // Merging windows are only final after the GroupByKey, so direct writes would use
+      // unmerged windows.
+      if (input.getWindowingStrategy().needsMerge()) {
+        disabledReasons.add("the windowing strategy uses merging windows");
+      }
+      if (disabledReasons.isEmpty()) {
+        // Shard numbers are assigned in finalize across both the direct and grouped files, so any
+        // fixed shard count is not enforced there.
+        return input
+            .apply(
+                "WriteShardedBundlesWithDirectWrite",
+                new WriteShardedBundlesWithDirectWrite(
+                    destinationCoder, fileResultCoder, numShardsView, directWriteThreshold))
+            .apply(
+                "FinalizeTempFileBundles",
+                new FinalizeTempFileBundles(
+                    null, destinationCoder, /* assignShardNumbersInFinalize= */ true));
+      }
+      LOG.warn(
+          "Direct write is disabled (directWriteByteThreshold={}) because {}. Falling back to the"
+              + " grouped write path.",
+          directWriteThreshold,
+          String.join(" and ", disabledReasons));
     }
     PCollection<List<FileResult<DestinationT>>> tempFileResults;
     if (fixedSharding) {

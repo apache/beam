@@ -206,8 +206,9 @@ public class BundleLifterTest {
     for (int i = 0; i < 9; i++) {
       tester.processElement(i);
     }
-    // The 9th distinct key pushes the total over the cap, so one key is evicted early.
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), hasSize(1));
+    // The 9th distinct key pushes the total (9) over the cap (8), so the smallest keys are evicted
+    // in one pass until at most the threshold (4) remains buffered: 5 keys go out early.
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), hasSize(5));
     tester.finishBundle();
 
     assertThat(
