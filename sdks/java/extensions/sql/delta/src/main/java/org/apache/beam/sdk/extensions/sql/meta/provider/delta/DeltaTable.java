@@ -26,7 +26,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -137,6 +139,20 @@ final class DeltaTable extends SchemaBaseBeamTable {
     }
   }
 
+  /** A plain read takes no options: the SQL table and the query set every one of them. */
+  @Override
+  public BeamSqlTable forRead(Map<String, Object> options) {
+    throw new IllegalArgumentException(
+        "WITH options on a Delta Lake read are only accepted with CHANGES(...), got "
+            + options.keySet());
+  }
+
+  /** Returns the table's changes for a {@code CHANGES(...)} call. */
+  @Override
+  public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+    return DeltaChangesTable.of(this, changes, options);
+  }
+
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
@@ -182,7 +198,7 @@ final class DeltaTable extends SchemaBaseBeamTable {
     return new DefaultTableFilter(filter);
   }
 
-  private Map<String, Object> getBaseConfig() {
+  Map<String, Object> getBaseConfig() {
     ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
     managedConfigBuilder.put("table", tableLocation);
     if (version != null) {
