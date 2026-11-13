@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
@@ -82,6 +83,8 @@ public class PCollectionConsumerRegistry {
 
   private final FusedDoFnExceptionHandling fusedDoFnExceptionHandling;
   private final AtomicReference<Exception> firstDownstreamException = new AtomicReference<>();
+  private final Map<String, Exception> downstreamExceptionsByTransform =
+      new ConcurrentHashMap<>();
 
   /** Stores metadata about each consumer so that the appropriate metrics tracking can occur. */
   @AutoValue
@@ -314,17 +317,18 @@ public class PCollectionConsumerRegistry {
    * Records a downstream exception when configured to detect exceptions swallowed by a fused
    * upstream DoFn. Work cancellation is not a downstream processing failure.
    */
-  private void recordDownstreamException(Exception exception) {
+  private void recordDownstreamException(String ptransformId, Exception exception) {
     if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.LEGACY
         && !WorkCancelledException.isWorkCancelledException(exception)) {
       firstDownstreamException.compareAndSet(null, exception);
+      downstreamExceptionsByTransform.putIfAbsent(ptransformId, exception);
     }
   }
 
-  /** Prevents additional downstream work after the first failure in fail mode. */
-  private void failFastIfDownstreamFailed() throws Exception {
+  /** Prevents retrying a downstream transform that has already failed in fail mode. */
+  private void failFastIfDownstreamFailed(String ptransformId) throws Exception {
     if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL) {
-      Exception exception = firstDownstreamException.get();
+      Exception exception = downstreamExceptionsByTransform.get(ptransformId);
       if (exception != null) {
         throw exception;
       }
@@ -358,6 +362,7 @@ public class PCollectionConsumerRegistry {
   /** Clears per-bundle failure state during processor reset before it can be reused. */
   public void reset() {
     firstDownstreamException.set(null);
+    downstreamExceptionsByTransform.clear();
   }
 
   private static <T> void logAndRethrow(
@@ -446,7 +451,7 @@ public class PCollectionConsumerRegistry {
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
-      failFastIfDownstreamFailed();
+      failFastIfDownstreamFailed(ptransformId);
       // Increment the counter for each window the element occurs in.
       this.elementCountCounter.inc(input.getWindows().size());
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
@@ -464,7 +469,7 @@ public class PCollectionConsumerRegistry {
       try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
-        recordDownstreamException(e);
+        recordDownstreamException(ptransformId, e);
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
       }
@@ -550,9 +555,10 @@ public class PCollectionConsumerRegistry {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
+          failFastIfDownstreamFailed(consumerAndMetadata.getPTransformId());
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
-          recordDownstreamException(e);
+          recordDownstreamException(consumerAndMetadata.getPTransformId(), e);
           logAndRethrow(
               e,
               state,
