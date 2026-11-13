@@ -316,6 +316,57 @@ public class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
+    public void startLoadJob(
+        JobReference jobRef,
+        JobConfigurationLoad loadConfig,
+        AbstractInputStreamContent stream,
+        @Nullable String reservation)
+        throws InterruptedException, IOException {
+      Job job =
+          new Job()
+              .setJobReference(jobRef)
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
+      if (reservation != null) {
+        job.getConfiguration().setReservation(reservation);
+      }
+      startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
+    public void startLoadJob(
+        JobReference jobRef, JobConfigurationLoad loadConfig, @Nullable String reservation)
+        throws InterruptedException, IOException {
+      Job job =
+          new Job()
+              .setJobReference(jobRef)
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
+      if (reservation != null) {
+        job.getConfiguration().setReservation(reservation);
+      }
+      startJob(job, errorExtractor, client);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
       Job job =

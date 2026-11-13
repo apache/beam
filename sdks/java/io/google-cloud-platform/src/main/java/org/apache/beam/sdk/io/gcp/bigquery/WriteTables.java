@@ -137,6 +137,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   private final TupleTag<KV<DestinationT, WriteTables.Result>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final @Nullable ValueProvider<String> loadJobProjectId;
+  private final @Nullable ValueProvider<String> loadJobReservation;
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   private final @Nullable String kmsKey;
@@ -406,6 +407,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       @Nullable ValueProvider<String> loadJobProjectId,
+      @Nullable ValueProvider<String> loadJobReservation,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
       @Nullable String kmsKey,
@@ -424,6 +426,7 @@ class WriteTables<DestinationT extends @NonNull Object>
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
     this.loadJobProjectId = loadJobProjectId;
+    this.loadJobReservation = loadJobReservation;
     this.maxRetryJobs = maxRetryJobs;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
@@ -529,7 +532,14 @@ class WriteTables<DestinationT extends @NonNull Object>
                   jobRef,
                   jobId.getRetryIndex());
               try {
-                jobService.startLoadJob(jobRef, loadConfig);
+                if (loadJobReservation == null) {
+                  jobService.startLoadJob(jobRef, loadConfig);
+                } else {
+                  String reservation = loadJobReservation.get();
+                  checkArgument(
+                      !Strings.isNullOrEmpty(reservation), "loadJobReservation cannot be empty");
+                  jobService.startLoadJob(jobRef, loadConfig, reservation);
+                }
               } catch (IOException | InterruptedException e) {
                 LOG.warn("Load job {} failed with {}", jobRef, e.toString());
                 throw new RuntimeException(e);

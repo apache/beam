@@ -36,12 +36,26 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
 public class BigQueryIOTranslationTest {
+
+  private static class DeferredReservation implements ValueProvider<String> {
+    @Override
+    public String get() {
+      throw new IllegalStateException("Reservation is not available during translation");
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+  }
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
   // BigQueryIOTranslation.
@@ -117,6 +131,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggering_frequency");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getLoadJobProjectId", "load_job_project_id");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getLoadJobReservation", "load_job_reservation");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getFailedInsertRetryPolicy", "failed_insert_retry_policy");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getCustomGcsTempLocation", "custom_gcs_temp_location");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getExtendedErrorInfo", "extended_error_info");
@@ -257,6 +272,7 @@ public class BigQueryIOTranslationTest {
             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withClustering(testClustering)
+            .withLoadJobReservation("projects/p/locations/us/reservations/r")
             .withKmsKey("dummykmskey");
 
     BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
@@ -275,8 +291,47 @@ public class BigQueryIOTranslationTest {
     assertEquals(CreateDisposition.CREATE_NEVER, writeTransformFromRow.getCreateDisposition());
     assertEquals("dummykmskey", writeTransformFromRow.getKmsKey());
     assertEquals(
+        "projects/p/locations/us/reservations/r",
+        writeTransformFromRow.getLoadJobReservation().get());
+    assertEquals(
         BigQueryHelpers.toJsonString(testClustering),
         writeTransformFromRow.getJsonClustering().get());
+  }
+
+  @Test
+  public void testWriteReservationProviderRemainsDeferredDuringTranslation() {
+    BigQueryIO.Write<?> write =
+        BigQueryIO.write()
+            .to("dummyproject:dummydataset.dummytable")
+            .withLoadJobReservation(new DeferredReservation());
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(write);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.78.0");
+    BigQueryIO.Write<?> restored = translator.fromConfigRow(row, options);
+    assertNotNull(restored.getLoadJobReservation());
+    assertFalse(restored.getLoadJobReservation().isAccessible());
+  }
+
+  @Test
+  public void testReadOldWriteConfigWithoutReservation() {
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(BigQueryIO.write().to("dummyproject:dummydataset.dummytable"));
+    Schema.Builder schema = Schema.builder();
+    Map<String, Object> values = new HashMap<>();
+    for (Schema.Field field : row.getSchema().getFields()) {
+      if (!field.getName().equals("load_job_reservation")) {
+        schema.addField(field);
+        values.put(field.getName(), row.getValue(field.getName()));
+      }
+    }
+    Row oldRow = Row.withSchema(schema.build()).withFieldValues(values).build();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.78.0");
+    BigQueryIO.Write<?> restored = translator.fromConfigRow(oldRow, options);
+    assertNull(restored.getLoadJobReservation());
   }
 
   @Test

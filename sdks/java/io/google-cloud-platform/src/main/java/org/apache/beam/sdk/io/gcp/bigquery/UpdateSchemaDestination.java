@@ -68,6 +68,7 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
   private final BigQueryServices bqServices;
   private final PCollectionView<String> zeroLoadJobIdPrefixView;
   private final @Nullable ValueProvider<String> loadJobProjectId;
+  private final @Nullable ValueProvider<String> loadJobReservation;
   private transient @Nullable DatasetService datasetService;
   private final int maxRetryJobs;
   private final @Nullable String kmsKey;
@@ -99,7 +100,32 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       @Nullable String kmsKey,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this(
+        bqServices,
+        zeroLoadJobIdPrefixView,
+        loadJobProjectId,
+        null,
+        writeDisposition,
+        createDisposition,
+        maxRetryJobs,
+        kmsKey,
+        schemaUpdateOptions,
+        dynamicDestinations);
+  }
+
+  UpdateSchemaDestination(
+      BigQueryServices bqServices,
+      PCollectionView<String> zeroLoadJobIdPrefixView,
+      @Nullable ValueProvider<String> loadJobProjectId,
+      @Nullable ValueProvider<String> loadJobReservation,
+      BigQueryIO.Write.WriteDisposition writeDisposition,
+      BigQueryIO.Write.CreateDisposition createDisposition,
+      int maxRetryJobs,
+      @Nullable String kmsKey,
+      Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
+    this.loadJobReservation = loadJobReservation;
     this.zeroLoadJobIdPrefixView = zeroLoadJobIdPrefixView;
     this.bqServices = bqServices;
     this.maxRetryJobs = maxRetryJobs;
@@ -318,8 +344,16 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
                   jobRef,
                   jobId.getRetryIndex());
               try {
-                jobService.startLoadJob(
-                    jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
+                ByteArrayContent content = new ByteArrayContent("text/plain", new byte[0]);
+                if (loadJobReservation == null) {
+                  jobService.startLoadJob(jobRef, loadConfig, content);
+                } else {
+                  String reservation = loadJobReservation.get();
+                  if (Strings.isNullOrEmpty(reservation)) {
+                    throw new IllegalArgumentException("loadJobReservation cannot be empty");
+                  }
+                  jobService.startLoadJob(jobRef, loadConfig, content, reservation);
+                }
               } catch (IOException | InterruptedException e) {
                 LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
                 throw new RuntimeException(e);

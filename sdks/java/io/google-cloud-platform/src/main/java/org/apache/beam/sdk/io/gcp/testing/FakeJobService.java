@@ -53,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** A fake implementation of BigQuery's job service. */
@@ -151,17 +153,24 @@ public class FakeJobService implements JobService, Serializable {
   @Override
   public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
       throws IOException {
+    startLoadJob(jobRef, loadConfig, (String) null);
+  }
+
+  @Override
+  public void startLoadJob(
+      JobReference jobRef, JobConfigurationLoad loadConfig, @Nullable String reservation)
+      throws IOException {
     synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
-      job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
+      job.setConfiguration(new JobConfiguration().setLoad(loadConfig).setReservation(reservation));
       job.setKind(" bigquery#job");
       job.setStatus(new JobStatus().setState("PENDING"));
 
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
-      if (loadConfig.getSourceUris().size() > 0) {
+      if (loadConfig.getSourceUris() != null && !loadConfig.getSourceUris().isEmpty()) {
         ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
         ImmutableList.Builder<ResourceId> loadFiles = ImmutableList.builder();
         for (String filename : loadConfig.getSourceUris()) {
@@ -173,6 +182,8 @@ public class FakeJobService implements JobService, Serializable {
 
         FileSystems.copy(sourceFiles.build(), loadFiles.build());
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
+      } else {
+        filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), Collections.emptyList());
       }
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
     }
@@ -185,6 +196,19 @@ public class FakeJobService implements JobService, Serializable {
       AbstractInputStreamContent streamContent)
       throws InterruptedException, IOException {
     // TODO
+  }
+
+  @Override
+  public void startLoadJob(
+      JobReference jobRef,
+      JobConfigurationLoad loadConfig,
+      AbstractInputStreamContent streamContent,
+      @Nullable String reservation)
+      throws InterruptedException, IOException {
+    if (streamContent.getLength() != 0) {
+      throw new UnsupportedOperationException("FakeJobService only supports empty stream loads");
+    }
+    startLoadJob(jobRef, loadConfig, reservation);
   }
 
   @Override
@@ -402,6 +426,10 @@ public class FakeJobService implements JobService, Serializable {
         existingTable = existingTable.setClustering(load.getClustering());
       }
       datasetService.createTable(existingTable);
+    } else if (load.getSourceUris() == null
+        && load.getSchemaUpdateOptions() != null
+        && !load.getSchemaUpdateOptions().isEmpty()) {
+      datasetService.patchTableSchema(destination, schema);
     }
 
     List<TableRow> rows = Lists.newArrayList();
