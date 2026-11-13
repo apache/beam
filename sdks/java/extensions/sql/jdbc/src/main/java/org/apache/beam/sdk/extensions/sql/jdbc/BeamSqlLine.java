@@ -68,7 +68,8 @@ public class BeamSqlLine {
       @Nullable OutputStream errorStream)
       throws IOException {
     String[] modifiedArgs = checkConnectionArgs(args);
-    // JLine uses UnixTerminal on Linux and macOS. We swap in a subclass that lets us interrupt the terminal
+    // JLine uses UnixTerminal on Linux and macOS. We swap in a subclass that lets us interrupt the
+    // terminal
     TerminalFactory.registerFlavor(TerminalFactory.Flavor.UNIX, InterruptRestoringTerminal.class);
     SqlLine sqlLine = new SqlLine();
 
@@ -87,8 +88,8 @@ public class BeamSqlLine {
    * Makes sure Ctrl+C can always stop a running query.
    *
    * <p>JLine turns off Ctrl+C while it reads a line, then turns it back on. Sometimes it forgets to
-   * hand it back, and Ctrl+C can't stop queries anymore. This class saves the Ctrl+C character and hands it back
-   * when needed.
+   * hand it back, and Ctrl+C can't stop queries anymore. This class saves the Ctrl+C character and
+   * hands it back when needed.
    */
   public static class InterruptRestoringTerminal extends UnixTerminal {
     private @Nullable String intr;
