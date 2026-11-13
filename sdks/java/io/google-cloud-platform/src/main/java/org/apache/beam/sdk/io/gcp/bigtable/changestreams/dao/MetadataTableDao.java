@@ -208,6 +208,45 @@ public class MetadataTableDao {
   }
 
   /**
+   * Read the pipeline run id recorded when {@link
+   * org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn} last completed for an
+   * active change stream pipeline.
+   */
+  public @Nullable String readPipelineRunId() {
+    Filter pipelineRunIdFilter =
+        FILTERS
+            .chain()
+            .filter(FILTERS.family().exactMatch(MetadataTableAdminDao.CF_VERSION))
+            .filter(FILTERS.qualifier().exactMatch(MetadataTableAdminDao.QUALIFIER_PIPELINE_RUN_ID))
+            .filter(FILTERS.limit().cellsPerColumn(1));
+    Row row = dataClient.readRow(tableId, getFullDetectNewPartition(), pipelineRunIdFilter);
+    if (row == null
+        || row.getCells(
+                MetadataTableAdminDao.CF_VERSION, MetadataTableAdminDao.QUALIFIER_PIPELINE_RUN_ID)
+            .isEmpty()) {
+      return null;
+    }
+    return row.getCells(
+            MetadataTableAdminDao.CF_VERSION, MetadataTableAdminDao.QUALIFIER_PIPELINE_RUN_ID)
+        .get(0)
+        .getValue()
+        .toStringUtf8();
+  }
+
+  /** Record the pipeline run id for the current change stream pipeline execution. */
+  public void writePipelineRunId(String pipelineRunId) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
+    RowMutation rowMutation =
+        RowMutation.create(tableId, getFullDetectNewPartition())
+            .setCell(
+                MetadataTableAdminDao.CF_VERSION,
+                MetadataTableAdminDao.QUALIFIER_PIPELINE_RUN_ID,
+                nowMicros,
+                pipelineRunId);
+    mutateRowWithHardTimeout(rowMutation);
+  }
+
+  /**
    * Returns all the new partitions resulting from splits and merges waiting to be streamed
    * including ones marked for deletion.
    */

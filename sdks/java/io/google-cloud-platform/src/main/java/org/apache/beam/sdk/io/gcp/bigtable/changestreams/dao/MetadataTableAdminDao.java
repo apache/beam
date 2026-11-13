@@ -52,6 +52,7 @@ public class MetadataTableAdminDao {
   public static final String CF_VERSION = "version";
   public static final String CF_SHOULD_DELETE = "should_delete";
   public static final String QUALIFIER_DEFAULT = "latest";
+  public static final String QUALIFIER_PIPELINE_RUN_ID = "pipeline_run_id";
   public static final ImmutableList<String> COLUMN_FAMILIES =
       ImmutableList.of(
           CF_INITIAL_TOKEN,
