@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.data.IdentityPartitionConverters.convertConstant;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -36,10 +37,13 @@ import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SingleValueParser;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.JsonUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PartitionUtils {
@@ -144,6 +148,29 @@ class PartitionUtils {
     }
 
     throw new IllegalArgumentException("Could not find a partition term for '" + field + "'.");
+  }
+
+  /**
+   * Reads a partition tuple written by {@link SingleValueParser#toJson}. That method writes NaN and
+   * infinite values as quoted strings and {@link SingleValueParser#fromJson} rejects them, so this
+   * turns them back into numbers first.
+   */
+  static StructLike partitionFromJson(Types.StructType partitionType, String json) {
+    return JsonUtil.parse(
+        json,
+        node -> {
+          ObjectNode tuple = (ObjectNode) node;
+          for (Types.NestedField field : partitionType.fields()) {
+            String id = String.valueOf(field.fieldId());
+            boolean isFloatingPoint =
+                field.type().typeId() == Type.TypeID.FLOAT
+                    || field.type().typeId() == Type.TypeID.DOUBLE;
+            if (isFloatingPoint && tuple.path(id).isTextual()) {
+              tuple.put(id, Double.parseDouble(tuple.get(id).textValue()));
+            }
+          }
+          return (StructLike) SingleValueParser.fromJson(partitionType, tuple);
+        });
   }
 
   /**

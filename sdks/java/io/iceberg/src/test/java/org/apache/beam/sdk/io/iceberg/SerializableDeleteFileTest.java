@@ -22,7 +22,6 @@ import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -384,30 +383,24 @@ public class SerializableDeleteFileTest {
     assertEquals("null", viaLegacyPath.partition().get(0, CharSequence.class).toString());
   }
 
-  /**
-   * NaN / Infinity floating-point partition values don't round-trip through the JSON partition
-   * representation ({@code SingleValueParser.fromJson} rejects the non-standard {@code NaN} token).
-   * Reconstruct must fall back to the partition-path string, which handles them, rather than
-   * crash-looping the sink at commit time.
-   */
+  /** A quoted NaN in the JSON partition must not send the null beside it through the path. */
   @Test
-  public void nanFloatPartitionReconstructsViaPathFallback() {
+  public void nanPartitionValueRoundTrips() {
     org.apache.iceberg.Schema schema =
         new org.apache.iceberg.Schema(
             Types.NestedField.required(1, "f", Types.FloatType.get()),
             Types.NestedField.optional(2, "data", Types.StringType.get()));
-    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("f").build();
+    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("f").identity("data").build();
     GenericRecord partition = GenericRecord.create(spec.partitionType());
     partition.setField("f", Float.NaN);
     DeleteFile deleteFile = positionDeletes(spec, partition);
 
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, spec);
-    // Must reconstruct without throwing (JSON decode of NaN fails -> partition-path fallback).
-    DeleteFile reconstructed = serialized.createDeleteFile(singletonMap(spec.specId(), spec), null);
+    DeleteFile reconstructed =
+        SerializableDeleteFile.from(deleteFile, spec)
+            .createDeleteFile(singletonMap(spec.specId(), spec), null);
 
-    Object value = reconstructed.partition().get(0, Object.class);
-    assertThat(value, instanceOf(Float.class));
-    assertTrue("partition value must round-trip as NaN", Float.isNaN((Float) value));
+    assertEquals(Float.NaN, reconstructed.partition().get(0, Object.class));
+    assertThat(reconstructed.partition().get(1, CharSequence.class), nullValue());
   }
 
   private static GenericRecord partition(PartitionSpec spec, @Nullable Object value) {
