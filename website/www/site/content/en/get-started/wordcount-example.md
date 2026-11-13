@@ -65,8 +65,7 @@ python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --outpu
 {{< /highlight >}}
 
 {{< highlight go >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/minimal_wordcount
-$ minimal_wordcount
+$ go run github.com/apache/beam/sdks/v2/go/examples/minimal_wordcount@latest
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -437,8 +436,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-$ wordcount --input <PATH_TO_INPUT_FILE> --output counts
+$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
 {{< runner flink >}}
@@ -454,17 +452,13 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/wordcount
-# As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
-$ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
             --region your-gcp-region \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache/beam_go_sdk:latest
+            --staging_location gs://<your-gcs-bucket>/binaries/
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -758,8 +752,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
-$ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
+$ go run github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount@latest --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
 {{< runner flink >}}
@@ -775,17 +768,13 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount
-# As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
-$ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+$ go run github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --output gs://<your-gcs-bucket>/counts \
                       --runner dataflow \
                       --project your-gcp-project \
                       --region your-gcp-region \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
-                      --staging_location gs://<your-gcs-bucket>/binaries/ \
-                      --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+                      --staging_location gs://<your-gcs-bucket>/binaries/
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -1081,8 +1070,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 {{< runner direct >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
-$ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
+$ go run github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount@latest --input <PATH_TO_INPUT_FILE> --output counts
 {{< /runner >}}
 
 {{< runner flink >}}
@@ -1098,16 +1086,13 @@ This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go install github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount
-# As part of the initial setup, for non linux users - install package unix before run
-$ go get -u golang.org/x/sys/unix
-$ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+$ go run github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
+            --region your-gcp-region \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+            --staging_location gs://<your-gcs-bucket>/binaries/
 {{< /runner >}}
 
 {{< runner nemo >}}
