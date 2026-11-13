@@ -1148,6 +1148,14 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     for c in coder_impls:
       assert isinstance(c, CoderImpl), c
     self._coder_impls = tuple(coder_impls)
+    self._num_coders = len(self._coder_impls)
+    self._is_kv = self._num_coders == 2
+    if self._is_kv:
+      self._coder_0 = self._coder_impls[0]
+      self._coder_1 = self._coder_impls[1]
+    else:
+      self._coder_0 = None
+      self._coder_1 = None
 
   def _extract_components(self, value):
     raise NotImplementedError
@@ -1158,18 +1166,26 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     # type: (Any, create_OutputStream, bool) -> None
     values = self._extract_components(value)
-    if len(self._coder_impls) != len(values):
+    if self._num_coders != len(values):
       raise ValueError('Number of components does not match number of coders.')
-    for i in range(0, len(self._coder_impls)):
+    if self._is_kv:
+      self._coder_0.encode_to_stream(values[0], out, True)
+      self._coder_1.encode_to_stream(values[1], out, nested)
+      return
+    last = self._num_coders - 1
+    for i in range(0, self._num_coders):
       c = self._coder_impls[i]  # type cast
-      c.encode_to_stream(
-          values[i], out, nested or i + 1 < len(self._coder_impls))
+      c.encode_to_stream(values[i], out, nested or i < last)
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> Any
+    if self._is_kv:
+      return self._construct_from_components((
+          self._coder_0.decode_from_stream(in_stream, True),
+          self._coder_1.decode_from_stream(in_stream, nested)))
+    last = self._num_coders - 1
     return self._construct_from_components([
-        c.decode_from_stream(
-            in_stream, nested or i + 1 < len(self._coder_impls))
+        c.decode_from_stream(in_stream, nested or i < last)
         for i, c in enumerate(self._coder_impls)
     ])
 
