@@ -31,7 +31,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
  * <p>This is as thread-safe as the underlying stream observer that is being wrapped.
  */
 public final class ForwardingClientResponseObserver<ReqT, RespT>
-    implements ClientResponseObserver<RespT, ReqT> {
+    implements ClientResponseObserver<RespT, ReqT>, StalledPollHandler {
   public static <ReqT, RespT> ForwardingClientResponseObserver<ReqT, RespT> create(
       StreamObserver<ReqT> inbound, Runnable onReadyHandler) {
     return new ForwardingClientResponseObserver<>(inbound, onReadyHandler, () -> {});
@@ -73,5 +73,18 @@ public final class ForwardingClientResponseObserver<ReqT, RespT>
   @Override
   public void beforeStart(ClientCallStreamObserver<RespT> stream) {
     stream.setOnReadyHandler(onReadyHandler);
+    if (inboundObserver instanceof ClientResponseObserver) {
+      @SuppressWarnings("unchecked")
+      ClientResponseObserver<RespT, ReqT> clientResponseObserver =
+          (ClientResponseObserver<RespT, ReqT>) inboundObserver;
+      clientResponseObserver.beforeStart(stream);
+    }
+  }
+
+  @Override
+  public void onStalledPoll() {
+    if (inboundObserver instanceof StalledPollHandler) {
+      ((StalledPollHandler) inboundObserver).onStalledPoll();
+    }
   }
 }
