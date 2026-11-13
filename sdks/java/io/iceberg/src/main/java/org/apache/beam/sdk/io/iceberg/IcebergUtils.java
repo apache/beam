@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -94,25 +95,49 @@ public class IcebergUtils {
           .put(EnumerationType.IDENTIFIER, Types.StringType.get())
           .build();
 
-  private static final DateTimeFormatter TIMESTAMP_SPACE_FORMATTER =
+  /**
+   * Parses Iceberg {@code timestamp} strings: an ISO-8601 date and time, optionally separated by a
+   * space, a {@code 'T'}, or both, e.g. {@code 2024-10-08T13:18:20.053} or {@code 2024-10-08
+   * 13:18:20.053}.
+   */
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       new DateTimeFormatterBuilder()
           .parseCaseInsensitive()
           .append(ISO_LOCAL_DATE)
+          .optionalStart()
           .appendLiteral(' ')
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral('T')
+          .optionalEnd()
           .append(ISO_LOCAL_TIME)
           .toFormatter()
           .withResolverStyle(ResolverStyle.STRICT)
           .withChronology(IsoChronology.INSTANCE);
 
-  private static final DateTimeFormatter TIMESTAMPTZ_SPACE_FORMATTER =
+  /**
+   * Parses Iceberg {@code timestamptz} strings: {@link #TIMESTAMP_FORMATTER}, then an optional
+   * offset, then an optional space and zone ID, e.g. {@code 2024-10-08T13:18:20.053Z}, {@code
+   * 2024-10-08 13:18:20.053+03:27} or {@code 2024-10-08 13:18:20.053 UTC}. If both are present, the
+   * offset takes precedence. Without either, UTC is assumed.
+   */
+  private static final DateTimeFormatter TIMESTAMPTZ_FORMATTER =
       new DateTimeFormatterBuilder()
-          .append(TIMESTAMP_SPACE_FORMATTER)
+          .append(TIMESTAMP_FORMATTER)
+          .optionalStart()
           .parseLenient()
           .appendOffsetId()
           .parseStrict()
+          .optionalEnd()
+          .optionalStart()
+          .appendLiteral(' ')
+          .parseCaseSensitive()
+          .appendZoneRegionId()
+          .optionalEnd()
           .toFormatter()
           .withResolverStyle(ResolverStyle.STRICT)
-          .withChronology(IsoChronology.INSTANCE);
+          .withChronology(IsoChronology.INSTANCE)
+          .withZone(ZoneOffset.UTC);
 
   private static Schema.FieldType icebergTypeToBeamFieldType(
       final Type type, @Nullable String updateCompatibilityVersion) {
@@ -517,12 +542,9 @@ public class IcebergUtils {
       } else if (beamValue instanceof Long) { // FieldType.INT64
         return DateTimeUtil.timestamptzFromMicros((Long) beamValue);
       } else if (beamValue instanceof String) { // FieldType.STRING
-        String value = (String) beamValue;
-        OffsetDateTime offsetDateTime =
-            hasSpaceSeparator(value)
-                ? OffsetDateTime.parse(value, TIMESTAMPTZ_SPACE_FORMATTER)
-                : OffsetDateTime.parse(value);
-        return offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC);
+        return ZonedDateTime.parse((String) beamValue, TIMESTAMPTZ_FORMATTER)
+            .withZoneSameInstant(ZoneOffset.UTC)
+            .toOffsetDateTime();
       } else {
         throw new UnsupportedOperationException(
             "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
@@ -541,18 +563,11 @@ public class IcebergUtils {
     } else if (beamValue instanceof Long) { // FieldType.INT64
       return DateTimeUtil.timestampFromMicros((Long) beamValue);
     } else if (beamValue instanceof String) { // FieldType.STRING
-      String value = (String) beamValue;
-      return hasSpaceSeparator(value)
-          ? LocalDateTime.parse(value, TIMESTAMP_SPACE_FORMATTER)
-          : LocalDateTime.parse(value);
+      return LocalDateTime.parse((String) beamValue, TIMESTAMP_FORMATTER);
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
     }
-  }
-
-  private static boolean hasSpaceSeparator(String timestamp) {
-    return timestamp.length() > 10 && timestamp.charAt(10) == ' ';
   }
 
   /** Converts a {@link StructLike} to a Beam {@link Row}. */
