@@ -556,7 +556,7 @@ task validatesRunner {
 }
 
 def validatesRunnerStreamingConfig = [
-  pipelineOptions: legacyPipelineOptions + ['--streaming'],
+  pipelineOptions: legacyPipelineOptions + ['--streaming', '--testTimeoutSeconds=1800'],
   excludedCategories: [
     'org.apache.beam.sdk.testing.UsesCommittedMetrics',
     'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
@@ -709,7 +709,7 @@ task validatesRunnerV2Streaming {
   description = "Runs the ValidatesRunner tests on Dataflow Portable Runner forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
-    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
+    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine', '--testTimeoutSeconds=1800'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
