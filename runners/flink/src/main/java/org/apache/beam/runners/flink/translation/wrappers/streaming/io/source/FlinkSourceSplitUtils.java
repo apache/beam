@@ -19,9 +19,8 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.BoundedSourceSplitter;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -30,8 +29,6 @@ import org.slf4j.LoggerFactory;
 
 /** Shared Beam source sizing and splitting helpers. */
 final class FlinkSourceSplitUtils {
-  static final long MEBIBYTE = 1024L * 1024L;
-
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceSplitUtils.class);
 
   private FlinkSourceSplitUtils() {}
@@ -45,20 +42,12 @@ final class FlinkSourceSplitUtils {
       BoundedSource<T> boundedSource,
       PipelineOptions pipelineOptions,
       int numSplits,
+      int parallelism,
       long estimatedSizeBytes)
       throws Exception {
-    long desiredSizeBytes =
-        getDesiredSizeBytes(boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
-    List<? extends BoundedSource<T>> splits =
-        boundedSource.split(desiredSizeBytes, pipelineOptions);
-    LOG.info(
-        "Split bounded source {} in {} splits (estimated size {} bytes, "
-            + "desired split size {} bytes)",
-        boundedSource,
-        splits.size(),
-        estimatedSizeBytes,
-        desiredSizeBytes);
-    return toFlinkSplits(splits);
+    return toFlinkSplits(
+        BoundedSourceSplitter.split(
+            boundedSource, pipelineOptions, numSplits, parallelism, estimatedSizeBytes));
   }
 
   static <T> ArrayList<FlinkSourceSplit<T>> splitUnboundedSource(
@@ -68,25 +57,6 @@ final class FlinkSourceSplitUtils {
         unboundedSource.split(numSplits, pipelineOptions);
     LOG.info("Split source {} to {} splits", unboundedSource, splits);
     return toFlinkSplits(splits);
-  }
-
-  static long getDesiredSizeBytes(
-      Source<?> beamSource,
-      PipelineOptions pipelineOptions,
-      int numSplits,
-      long estimatedSizeBytes) {
-    long desiredSizeBytes = estimatedSizeBytes / numSplits;
-
-    long maxSplitSizeMb =
-        pipelineOptions.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeMB();
-    if (beamSource instanceof FileBasedSource && maxSplitSizeMb > 0) {
-      return Math.min(desiredSizeBytes, mebibytesToBytes(maxSplitSizeMb));
-    }
-    return desiredSizeBytes;
-  }
-
-  static long mebibytesToBytes(long mebibytes) {
-    return mebibytes > Long.MAX_VALUE / MEBIBYTE ? Long.MAX_VALUE : mebibytes * MEBIBYTE;
   }
 
   private static <T> ArrayList<FlinkSourceSplit<T>> toFlinkSplits(

@@ -18,7 +18,9 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +44,7 @@ public final class LazyFlinkSourceSplitEnumerator<T>
   private final Source<T> beamSource;
   private final PipelineOptions pipelineOptions;
   private final int numSplits;
-  private final List<FlinkSourceSplit<T>> pendingSplits;
+  private final Deque<FlinkSourceSplit<T>> pendingSplits;
   private final Map<Integer, Optional<String>> pendingSplitRequests;
 
   private boolean splitsInitialized;
@@ -65,7 +67,7 @@ public final class LazyFlinkSourceSplitEnumerator<T>
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
-    this.pendingSplits = new ArrayList<>(numSplits);
+    this.pendingSplits = new ArrayDeque<>(numSplits);
     this.pendingSplitRequests = new LinkedHashMap<>();
     this.splitsInitialized = restoredState != null;
 
@@ -163,7 +165,11 @@ public final class LazyFlinkSourceSplitEnumerator<T>
     long estimatedSizeBytes =
         FlinkSourceSplitUtils.estimateBoundedSourceSize(boundedSource, pipelineOptions);
     return FlinkSourceSplitUtils.splitBoundedSource(
-        boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
+        boundedSource,
+        pipelineOptions,
+        numSplits,
+        context.currentParallelism(),
+        estimatedSizeBytes);
   }
 
   private void sendPendingSplitRequests() {
@@ -183,7 +189,8 @@ public final class LazyFlinkSourceSplitEnumerator<T>
       return;
     }
 
-    FlinkSourceSplit<T> split = pendingSplits.remove(pendingSplits.size() - 1);
+    // Splits are ordered largest first; handing those out first evens out the reader load.
+    FlinkSourceSplit<T> split = pendingSplits.removeFirst();
     context.assignSplit(split, subtaskId);
     LOG.info("Assigned split to subtask {} on host {}: {}", subtaskId, requesterHostname, split);
   }
