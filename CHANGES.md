@@ -92,6 +92,7 @@
 
 ## Breaking Changes
 
+* (Python) The default GCS staging bucket ownership check is now strict. If ownership of an existing default bucket cannot be verified (the bucket has no project number, or the project number cannot be resolved via the Cloud Resource Manager API), a `ValueError` is raised instead of logging a warning and skipping the check ([#41252](https://github.com/apache/beam/pull/41252)).
 * (Java) Removed Beam SQL Google Cloud Data Catalog table provider (`beam-sdks-java-extensions-sql-datacatalog`) because GCP Data Catalog has been decommissioned ([#40663](https://github.com/apache/beam/issues/40663)).
 * (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. This is an update incompatible change for streaming pipelines that use rows with `int16` or `uint16` fields ([#40151](https://github.com/apache/beam/issues/40151)).
 * (Java) JmsIO migrated to `jakarta.jms` (JMS 3.1) and ActiveMQ 6.2.5. User code implementing `JmsIO.MessageMapper`,
