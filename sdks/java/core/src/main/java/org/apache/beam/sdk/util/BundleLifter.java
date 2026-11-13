@@ -228,6 +228,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         return;
       }
 
+      // Anything that isn't in lifted keys or buffers is sent to small keys immediately.
       if (bufferedBytes > maxBufferedBytes) {
         keysFinalized = true;
         evictSmallestKeys(buffers, receiver.get(smallBatchTag));
