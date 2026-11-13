@@ -550,7 +550,10 @@ class _QuantileState(object):
     Add elements to the unbuffered list, creating new buffers and
     collapsing if needed.
     """
-    self.unbuffered_elements.extend(elements)
+    if elements:
+      self.unbuffered_elements.extend(elements)
+    if len(self.unbuffered_elements) < self.spec.buffer_size:
+      return
     num_new_buffers = len(self.unbuffered_elements) // self.spec.buffer_size
     for idx in range(num_new_buffers):
       to_buffer = sorted(
@@ -576,12 +579,15 @@ class _QuantileState(object):
     Add elements with weights to the unbuffered list, creating new buffers and
     collapsing if needed.
     """
-    if len(elements) == 1:
-      self.unbuffered_elements.append(elements[0][0])
-      self.unbuffered_weights.append(elements[0][1])
-    else:
-      self.unbuffered_elements.extend(elements[0])
-      self.unbuffered_weights.extend(elements[1])
+    if elements:
+      if len(elements) == 1:
+        self.unbuffered_elements.append(elements[0][0])
+        self.unbuffered_weights.append(elements[0][1])
+      else:
+        self.unbuffered_elements.extend(elements[0])
+        self.unbuffered_weights.extend(elements[1])
+    if len(self.unbuffered_elements) < self.spec.buffer_size:
+      return
     num_new_buffers = len(self.unbuffered_elements) // self.spec.buffer_size
     argsort_key = self.spec.get_argsort_key(self.unbuffered_elements)
     for idx in range(num_new_buffers):
@@ -932,7 +938,17 @@ class ApproximateQuantilesCombineFn(CombineFn):
     """
     Add a new element to the collection being summarized by quantile state.
     """
-    quantile_state.add_unbuffered([element], self._offset)
+    if not quantile_state.spec.weighted:
+      quantile_state.unbuffered_elements.append(element)
+      if (len(quantile_state.unbuffered_elements)
+          >= quantile_state.spec.buffer_size):
+        quantile_state._add_unbuffered((), self._offset)
+      return quantile_state
+    quantile_state.unbuffered_elements.append(element[0])
+    quantile_state.unbuffered_weights.append(element[1])
+    if (len(quantile_state.unbuffered_elements)
+        >= quantile_state.spec.buffer_size):
+      quantile_state._add_unbuffered_weighted((), self._offset)
     return quantile_state
 
   def _add_inputs(self, quantile_state, elements):
