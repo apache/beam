@@ -355,7 +355,7 @@ public class PCollectionConsumerRegistry {
     }
   }
 
-  /** Clears per-bundle failure state when a processor is successfully returned to the cache. */
+  /** Clears per-bundle failure state during processor reset before it can be reused. */
   public void reset() {
     firstDownstreamException.set(null);
   }
