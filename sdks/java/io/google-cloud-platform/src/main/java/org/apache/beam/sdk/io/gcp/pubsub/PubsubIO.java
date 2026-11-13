@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -895,6 +897,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsOrderingKey();
 
+    abstract int getPullBatchSize();
+
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
@@ -910,6 +914,7 @@ public class PubsubIO {
       builder.setNeedsAttributes(false);
       builder.setNeedsMessageId(false);
       builder.setNeedsOrderingKey(false);
+      builder.setPullBatchSize(PubsubUnboundedSource.DEFAULT_PULL_BATCH_SIZE);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setValidate(false);
@@ -955,6 +960,8 @@ public class PubsubIO {
       abstract Builder<T> setNeedsMessageId(boolean needsMessageId);
 
       abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
+
+      abstract Builder<T> setPullBatchSize(int pullBatchSize);
 
       abstract Builder<T> setClock(Clock clock);
 
@@ -1121,6 +1128,26 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    /**
+     * Sets the maximum number of messages each reader requests per pull (default {@code 1000};
+     * Cloud Pub/Sub returns at most 1000 messages per pull) in runners that read from Pub/Sub via
+     * Beam's {@link UnboundedSource}, such as the Flink, Spark, and Direct runners.
+     *
+     * <p>Pulled messages are buffered in memory per reader, have their ack deadlines extended for
+     * at most two minutes after the pull, and are acknowledged only after being emitted and
+     * checkpointed. Lowering the batch size reduces per-reader memory use for large messages,
+     * spreads bursts more evenly across parallel readers, and prevents the tail of a batch from
+     * expiring and being redelivered when downstream transforms process only a few messages per
+     * second.
+     *
+     * <p>Dataflow streaming uses a service-managed Pub/Sub source by default and ignores this
+     * setting.
+     */
+    public Read<T> withPullBatchSize(int pullBatchSize) {
+      checkArgument(pullBatchSize > 0, "pullBatchSize must be positive, got %s", pullBatchSize);
+      return toBuilder().setPullBatchSize(pullBatchSize).build();
+    }
+
     public Read<T> withEnableOpenTelemetryTracing() {
       return toBuilder().setEnableOpenTelemetryTracing(true).setNeedsAttributes(true).build();
     }
@@ -1258,7 +1285,8 @@ public class PubsubIO {
               getIdAttribute(),
               getNeedsAttributes(),
               getNeedsMessageId(),
-              getNeedsOrderingKey());
+              getNeedsOrderingKey(),
+              getPullBatchSize());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
       return expandReadContinued(preParse, topicPath, subscriptionPath);
@@ -1427,6 +1455,9 @@ public class PubsubIO {
       builder.addIfNotNull(
           DisplayData.item("subscription", getSubscriptionProvider())
               .withLabel("Pubsub Subscription"));
+      builder.addIfNotDefault(
+          DisplayData.item("pullBatchSize", getPullBatchSize()).withLabel("Pull Batch Size"),
+          PubsubUnboundedSource.DEFAULT_PULL_BATCH_SIZE);
     }
   }
 
