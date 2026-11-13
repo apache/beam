@@ -158,6 +158,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -943,6 +944,10 @@ public class ProcessBundleHandlerTest {
   private static final AtomicInteger FUSED_UPSTREAM_CAUGHT_EXCEPTIONS = new AtomicInteger();
   private static final AtomicInteger FUSED_DOWNSTREAM_FINISH_INVOCATIONS = new AtomicInteger();
 
+  @Before
+  public void resetFusedExceptionTestCounters() {
+  }
+
   private static final class CatchingFusedDoFn extends DoFn<String, String> {
     private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
 
@@ -1102,9 +1107,6 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void fusedDownstreamExceptionCaughtByUpstreamFailsBundleInFailMode() throws Exception {
-    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
-    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
-    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
     try {
       // A single data block represents the complete encoded stream for this input endpoint.
@@ -1152,9 +1154,6 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void fusedDownstreamExceptionWarnModeAllowsBundleToComplete() throws Exception {
-    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
-    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
-    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("warn");
     try {
       ByteStringOutputStream encoded = new ByteStringOutputStream();
@@ -1192,9 +1191,6 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void fusedDownstreamExceptionPreservesLegacyBehaviorByDefault() throws Exception {
-    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
-    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
-    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest(null);
     try {
       ByteStringOutputStream encoded = new ByteStringOutputStream();
