@@ -136,6 +136,7 @@
 ## Bugfixes
 
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
+* (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
 * (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
 * (Python) Fixed cross-language `ReadFromKafka(redistribute=True)` creating one key per record when `redistribute_num_keys` is not set. It now uses the KafkaIO default of 32768 keys, as Java `withRedistribute()` does. On Flink the per-record keys left timer state that grew until the job ran out of memory ([#41103](https://github.com/apache/beam/issues/41103)).
 * (Python/YAML) Beam YAML `generic` filters now accept `>=`, `<=`, `==` and `!=`; previously only `<` and `>` were recognized ([#41043](https://github.com/apache/beam/issues/41043)).
