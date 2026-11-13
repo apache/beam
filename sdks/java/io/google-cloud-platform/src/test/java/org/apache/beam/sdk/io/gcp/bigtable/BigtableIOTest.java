@@ -38,6 +38,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.gax.rpc.ApiException;
@@ -1576,6 +1577,30 @@ public class BigtableIOTest {
     }
   }
 
+  /**
+   * Tests that when {@code processElement} fails and closing the writer in {@code tearDown} also
+   * fails, {@code tearDown} logs the close error without throwing over the original write failure.
+   */
+  @Test
+  public void testWritingFailsAtWriteRecordLogsTeardownCloseFailure() {
+    FailureBigtableService failureService =
+        new FailureBigtableService(
+            FailureOptions.builder().setFailAtWriteRecord(true).setFailAtClose(true).build());
+    FakeServiceFactory failureFactory = new FakeServiceFactory(failureService);
+    BigtableIO.Write failureWrite =
+        BigtableIO.write().withInstanceId("instance").withProjectId("project");
+
+    final String table = "table";
+    failureService.createTable(table);
+
+    p.apply("single row", Create.of(makeWrite("key", "value")).withCoder(bigtableCoder))
+        .apply("write", failureWrite.withTableId(table).withServiceFactory(failureFactory));
+
+    PipelineExecutionException e = assertThrows(PipelineExecutionException.class, p::run);
+    assertEquals("Fake IOException in writeRecord()", e.getCause().getMessage());
+    logged.verifyWarn("Failed to close Bigtable writer during teardown");
+  }
+
   /** Tests that when writing an element fails, the write fails. */
   @Test
   public void testWritingFailsBadElement() throws Exception {
@@ -2006,7 +2031,7 @@ public class BigtableIOTest {
     public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) {}
 
     @Override
-    public void close() {}
+    public void close() throws IOException {}
   }
 
   /** A {@link FakeBigtableWriter} implementation that throw exceptions at given stage. */
@@ -2033,6 +2058,14 @@ public class BigtableIOTest {
       }
     }
 
+    @Override
+    public void close() throws IOException {
+      if (failureOptions.getFailAtClose()) {
+        throw new IOException("Fake IOException in close()");
+      }
+      super.close();
+    }
+
     private final FailureOptions failureOptions;
   }
 
@@ -2055,12 +2088,15 @@ public class BigtableIOTest {
 
     abstract boolean getFailAtWriteRecord();
 
+    abstract boolean getFailAtClose();
+
     static Builder builder() {
       return new AutoValue_BigtableIOTest_FailureOptions.Builder()
           .setFailAtStart(false)
           .setFailAtAdvance(false)
           .setFailAtSplit(false)
-          .setFailAtWriteRecord(false);
+          .setFailAtWriteRecord(false)
+          .setFailAtClose(false);
     }
 
     @AutoValue.Builder
@@ -2072,6 +2108,8 @@ public class BigtableIOTest {
       abstract Builder setFailAtSplit(boolean failAtSplit);
 
       abstract Builder setFailAtWriteRecord(boolean failAtWriteRecord);
+
+      abstract Builder setFailAtClose(boolean failAtClose);
 
       abstract FailureOptions build();
     }
