@@ -103,6 +103,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v7
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           flags: python
           files: ./sdks/python/coverage.xml
           disable_search: true

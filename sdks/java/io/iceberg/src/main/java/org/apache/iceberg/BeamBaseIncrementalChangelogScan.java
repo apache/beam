@@ -72,9 +72,10 @@ public class BeamBaseIncrementalChangelogScan
               PartitionMap.class,
               PartitionMap.class,
               Map.class,
+              Map.class,
               Map.class);
       constructor.setAccessible(true);
-      return constructor.newInstance(null, null, null, null, null);
+      return constructor.newInstance(null, null, null, null, null, null);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize EMPTY DeleteFileIndex", e);
     }

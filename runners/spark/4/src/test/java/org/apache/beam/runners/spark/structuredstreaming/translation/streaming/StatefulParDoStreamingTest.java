@@ -35,6 +35,11 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -48,6 +53,8 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -73,6 +80,7 @@ public class StatefulParDoStreamingTest implements Serializable {
   private static final String TAG_CHAINED = "stateful-chained";
   private static final String TAG_NULL_KEY = "stateful-null-key";
   private static final String TAG_EXPIRY = "stateful-expiry";
+  private static final String TAG_MULTI_LEAF = "stateful-multi-leaf";
 
   @After
   public void tearDown() {
@@ -81,6 +89,7 @@ public class StatefulParDoStreamingTest implements Serializable {
     TestUnboundedSource.forget(TAG_CHAINED);
     TestUnboundedSource.forget(TAG_NULL_KEY);
     TestUnboundedSource.forget(TAG_EXPIRY);
+    TestUnboundedSource.forget(TAG_MULTI_LEAF);
   }
 
   private static Pipeline pipeline(
@@ -215,6 +224,42 @@ public class StatefulParDoStreamingTest implements Serializable {
     for (String stateVarName : Arrays.asList("beamState", "beamTimers", "beamWatermark")) {
       assertEquals(stateVarName, 0L, StreamingTestUtils.stateRows(checkpoint, stateVarName));
     }
+  }
+
+  @Test
+  public void testStatefulParDoSharedAcrossMultipleLeaves() throws Exception {
+    String c0 = StreamingTestUtils.newCollectorId(TAG_MULTI_LEAF + "-0");
+    String c1 = StreamingTestUtils.newCollectorId(TAG_MULTI_LEAF + "-1");
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(tempFolder);
+    options.setMaxRecordsPerBatch(1L);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Integer> counts =
+        pipeline
+            .apply("Read", Read.from(new TestUnboundedSource(TAG_MULTI_LEAF, 1, 5)))
+            .apply("WithKeys", WithKeys.of((Void) null))
+            .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
+            .apply("StatefulParDo", ParDo.of(new NullKeyCountFn()));
+    counts.apply("Collect0", ParDo.of(new StreamingTestUtils.CollectDoFn<>(c0)));
+    counts.apply("Collect1", ParDo.of(new StreamingTestUtils.CollectDoFn<>(c1)));
+
+    PipelineResult result = StreamingTestUtils.run(pipeline);
+    assertEquals(PipelineResult.State.DONE, result.getState());
+    for (String collectorId : Arrays.asList(c0, c1)) {
+      assertTrue(
+          StreamingTestUtils.collected(collectorId).containsAll(Arrays.asList(1, 2, 3, 4, 5)));
+    }
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(NullKeyCountFn.class, "processed"))
+                    .build());
+    // TODO(https://github.com/apache/beam/issues/41198): Each leaf query currently executes the
+    // upstream stateful ParDo independently (5 elements per leaf = 10 total); update to 5L once
+    // #41198 is resolved.
+    assertEquals(10L, (long) Iterables.getOnlyElement(metrics.getCounters()).getAttempted());
   }
 
   private static final class KeySelectorFn extends DoFn<String, KV<String, String>> {
@@ -363,12 +408,15 @@ public class StatefulParDoStreamingTest implements Serializable {
   }
 
   private static final class NullKeyCountFn extends DoFn<KV<Void, String>, Integer> {
+    private final Counter processed = Metrics.counter(NullKeyCountFn.class, "processed");
+
     @StateId("count")
     private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
 
     @ProcessElement
     public void process(
         @StateId("count") ValueState<Integer> countState, OutputReceiver<Integer> out) {
+      processed.inc();
       int count = (countState.read() == null ? 0 : countState.read()) + 1;
       countState.write(count);
       out.output(count);

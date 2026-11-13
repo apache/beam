@@ -74,7 +74,7 @@ jobs:
         id: postgres_for_dev
         run: |
           kubectl apply -f ${{ github.workspace }}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml
-          kubectl wait svc/postgres-for-dev --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
+          kubectl wait svc/postgres-for-dev --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=300s
           loadbalancer_ip=$(kubectl get svc postgres-for-dev -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "pfd_ip=$loadbalancer_ip" >> $GITHUB_OUTPUT
       - name: Prepare test arguments

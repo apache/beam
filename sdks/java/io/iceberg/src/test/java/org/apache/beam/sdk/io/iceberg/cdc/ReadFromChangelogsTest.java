@@ -46,11 +46,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.PositionDelete;
@@ -270,13 +269,12 @@ public class ReadFromChangelogsTest {
 
   private static DeleteFile writePositionDelete(
       Table table, DataFile dataFile, String filename, long... positions) throws IOException {
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
+    GenericFileWriterFactory appenderFactory = new GenericFileWriterFactory.Builder(table).build();
     PositionDeleteWriter<Record> writer =
-        appenderFactory.newPosDeleteWriter(
+        appenderFactory.newPositionDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table.io().newOutputFile(dataFile.location() + "." + filename)),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
     try {
       for (long position : positions) {

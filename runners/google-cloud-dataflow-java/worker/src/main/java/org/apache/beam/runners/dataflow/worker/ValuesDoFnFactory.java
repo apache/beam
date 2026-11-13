@@ -27,9 +27,11 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFnFactory} which returns a {@link ParDoFn} with similar behavior to {@link
@@ -88,5 +90,10 @@ public class ValuesDoFnFactory implements ParDoFnFactory {
 
     @Override
     public void abort() {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 }

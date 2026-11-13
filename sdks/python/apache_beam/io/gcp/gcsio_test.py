@@ -415,6 +415,10 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(bucket, mock_bucket)
     mock_gcsio.get_bucket.assert_called_once_with(
         'dataflow-staging-us-central1-77b801c0838aee13391c0d1885860494')
+    # Ownership was actually verified against the pipeline project.
+    mock_crm_client.get_project.assert_called_once_with(
+        name=f'projects/{DEFAULT_GCP_PROJECT}')
+    mock_gcsio.create_bucket.assert_not_called()
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
@@ -448,9 +452,11 @@ class TestGCSIO(unittest.TestCase):
     mock_gcsio.get_bucket.return_value = mock_bucket
 
     options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
-    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+    with self.assertRaises(ValueError) as ctx:
+      gcsio.get_or_create_default_gcs_bucket(options)
 
-    self.assertEqual(bucket, mock_bucket)
+    self.assertIn('does not have a project number', str(ctx.exception))
+    self.assertIn('bucket in another project', str(ctx.exception))
     mock_crm_class.assert_not_called()
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
@@ -466,26 +472,14 @@ class TestGCSIO(unittest.TestCase):
     mock_crm_client.get_project.side_effect = Exception("API Disabled")
 
     options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
-    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+    with self.assertRaises(ValueError) as ctx:
+      gcsio.get_or_create_default_gcs_bucket(options)
 
-    # Should fall back to success (warn only)
-    self.assertEqual(bucket, mock_bucket)
-
-  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
-  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
-  def test_get_or_create_default_gcs_bucket_ownership_mock_project_number(
-      self, mock_gcsio_class, mock_crm_class):
-    mock_gcsio = mock_gcsio_class.return_value
-    # Creating a mock bucket without setting project_number (it returns another mock object)
-    mock_bucket = mock.Mock()
-    mock_gcsio.get_bucket.return_value = mock_bucket
-
-    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
-    bucket = gcsio.get_or_create_default_gcs_bucket(options)
-
-    # Verification should be skipped, returning the mock bucket and never calling CRM
-    self.assertEqual(bucket, mock_bucket)
-    mock_crm_class.assert_not_called()
+    self.assertIn(
+        f'Failed to resolve project number for project {DEFAULT_GCP_PROJECT}',
+        str(ctx.exception))
+    self.assertIn('API Disabled', str(ctx.exception))
+    self.assertIn('bucket in another project', str(ctx.exception))
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')

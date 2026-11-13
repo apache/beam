@@ -16,8 +16,11 @@
 package schema
 
 import (
+	"io"
+	"math"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -147,10 +150,68 @@ func microsInstantFromStorage(s microsInstantStorage) (MicrosInstant, error) {
 func registerStandardLogicalTypes(r *Registry) {
 	registerLogicalTypeConversion(r, ToLogicalType(URNDate, typeOf[Date](), reflectx.Int64), dateToStorage, dateFromStorage)
 	registerLogicalTypeConversion(r, ToLogicalType(URNMicrosInstant, typeOf[MicrosInstant](), typeOf[microsInstantStorage]()), microsInstantToStorage, microsInstantFromStorage)
+	registerLogicalTypeCoder(r, ToLogicalType(URNMillisInstant, typeOf[MillisInstant](), reflectx.Int64), encodeMillisInstant, decodeMillisInstant)
+	registerLogicalTypeCoder(r, ToLogicalType(URNDecimal, typeOf[Decimal](), reflectx.ByteSlice), encodeDecimal, decodeDecimal)
+	r.RegisterPassThroughLogicalType(URNFixedChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNVarChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNFixedBytes, reflectx.ByteSlice)
+	r.RegisterPassThroughLogicalType(URNVarBytes, reflectx.ByteSlice)
 }
+
+// URNMillisInstant identifies the MillisInstant logical type.
+const URNMillisInstant = "beam:logical_type:millis_instant:v1"
+
+// MillisInstant is a timestamp with millisecond precision, the
+// beam:logical_type:millis_instant:v1 logical type. Its representation is the
+// milliseconds since the epoch as an INT64, encoded as 8 big endian bytes
+// shifted by the minimum int64 so that the byte order matches the
+// chronological order. Encoding a value with sub millisecond precision fails;
+// truncate such values with time.Time.Truncate first.
+type MillisInstant time.Time
+
+// Time returns the instant as a time.Time.
+func (m MillisInstant) Time() time.Time {
+	return time.Time(m)
+}
+
+func encodeMillisInstant(m MillisInstant, w io.Writer) error {
+	t := time.Time(m)
+	if t.Nanosecond()%int(time.Millisecond) != 0 {
+		return errors.Errorf("MillisInstant %v has sub millisecond precision", t)
+	}
+	millis := t.UnixMilli()
+	if !time.UnixMilli(millis).Equal(t) {
+		return errors.Errorf("MillisInstant %v is outside the INT64 millisecond range", t)
+	}
+	return coder.EncodeUint64(uint64(millis-math.MinInt64), w)
+}
+
+func decodeMillisInstant(r io.Reader) (MillisInstant, error) {
+	shifted, err := coder.DecodeUint64(r)
+	if err != nil {
+		return MillisInstant{}, err
+	}
+	return MillisInstant(time.UnixMilli(int64(shifted) + math.MinInt64).UTC()), nil
+}
+
+// URNs of the standard logical types that pass through as their
+// representation type. Their INT32 argument is the fixed or maximum length,
+// which the Go SDK does not enforce.
+const (
+	// URNFixedChar identifies the fixed length string logical type.
+	URNFixedChar = "beam:logical_type:fixed_char:v1"
+	// URNVarChar identifies the variable length string logical type.
+	URNVarChar = "beam:logical_type:var_char:v1"
+	// URNFixedBytes identifies the fixed length bytes logical type.
+	URNFixedBytes = "beam:logical_type:fixed_bytes:v1"
+	// URNVarBytes identifies the variable length bytes logical type.
+	URNVarBytes = "beam:logical_type:var_bytes:v1"
+)
 
 func init() {
 	// Pipeline graphs serialize the standard logical types by name.
 	runtime.RegisterType(typeOf[Date]())
 	runtime.RegisterType(typeOf[MicrosInstant]())
+	runtime.RegisterType(typeOf[MillisInstant]())
+	runtime.RegisterType(typeOf[Decimal]())
 }

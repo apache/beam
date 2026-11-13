@@ -30,11 +30,17 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state.BeamStatefulProcessor;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.plans.logical.TransformWithState;
+import org.apache.spark.sql.classic.Dataset$;
+import org.apache.spark.sql.streaming.StatefulProcessor;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
@@ -153,7 +159,17 @@ public class StreamingEvaluationContext extends EvaluationContext {
       int leafIndex,
       SparkStructuredStreamingPipelineOptions options) {
     try {
-      return dataset
+      // Leaf 0 uses the translated dataset's processor instances directly; leaves 1..n get fresh
+      // BeamStatefulProcessor copies so concurrent queries do not share StatefulProcessor.handle.
+      // TODO(https://github.com/apache/beam/issues/41198): Remove per-leaf copying once pipelines
+      // execute as a single streaming query.
+      Dataset<?> queryDataset =
+          leafIndex == 0
+              ? dataset
+              : Dataset$.MODULE$.ofRows(
+                  (org.apache.spark.sql.classic.SparkSession) dataset.sparkSession(),
+                  copyStatefulProcessors(dataset.queryExecution().logical()));
+      return queryDataset
           .writeStream()
           .format("noop")
           .outputMode("append")
@@ -166,6 +182,43 @@ public class StreamingEvaluationContext extends EvaluationContext {
       throw new RuntimeException(
           "Failed to start streaming query for leaf dataset index " + leafIndex, e);
     }
+  }
+
+  /**
+   * Copies {@link TransformWithState} stateful processor instances so sibling leaf streaming
+   * queries do not concurrently mutate the same {@code StatefulProcessor} handle on the driver.
+   */
+  private static LogicalPlan copyStatefulProcessors(LogicalPlan plan) {
+    LogicalPlan mapped =
+        (LogicalPlan)
+            plan.mapChildren(ScalaInterop.fun1(StreamingEvaluationContext::copyStatefulProcessors));
+    if (mapped instanceof TransformWithState) {
+      TransformWithState tws = (TransformWithState) mapped;
+      @SuppressWarnings("unchecked")
+      StatefulProcessor<Object, Object, Object> copiedProcessor =
+          (StatefulProcessor<Object, Object, Object>)
+              (StatefulProcessor<?, ?, ?>)
+                  ((BeamStatefulProcessor<?, ?, ?>)
+                          (StatefulProcessor<?, ?, ?>) tws.statefulProcessor())
+                      .copy();
+      return tws.copy(
+          tws.keyDeserializer(),
+          tws.valueDeserializer(),
+          tws.groupingAttributes(),
+          tws.dataAttributes(),
+          copiedProcessor,
+          tws.timeMode(),
+          tws.outputMode(),
+          tws.keyEncoder(),
+          tws.outputObjAttr(),
+          tws.child(),
+          tws.hasInitialState(),
+          tws.initialStateGroupingAttrs(),
+          tws.initialStateDataAttrs(),
+          tws.initialStateDeserializer(),
+          tws.initialState());
+    }
+    return mapped;
   }
 
   /** Blocks until every query in toAwait has terminated. Sibling queries stop on failure. */

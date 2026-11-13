@@ -373,10 +373,45 @@ func (th *timerHandler) replace(key timerKey, oldTimer, newTimer fireElement) {
 	th.order.Remove(oldTimer.firing)
 }
 
-// Persist the given timer, and updates the provided hold times map with changes to the hold counts.
+func (th *timerHandler) unschedule(userKey string, key timerKey, firing mtime.Time) {
+	byKeys := th.toFire[firing]
+	timers := byKeys[userKey]
+	timers.remove(key)
+	if len(timers) == 0 {
+		th.timerKeySetPool.Put(timers)
+		delete(byKeys, userKey)
+	}
+	if len(byKeys) == 0 {
+		th.userKeysSetPool.Put(byKeys)
+		delete(th.toFire, firing)
+		th.order.Remove(firing)
+	}
+}
+
+// Persist stores or clears timer and updates holdChanges with hold count deltas.
+// It returns the change in pending timer count (1, 0, or -1).
 func (th *timerHandler) Persist(fire mtime.Time, timer element, holdChanges map[mtime.Time]int) int {
-	timers := th.timers(timer)
 	key := timerKey{family: timer.family, tag: timer.tag, window: timer.window}
+	if timer.sequence < 0 {
+		userKey := string(timer.keyBytes)
+		timers, ok := th.nextFiring[userKey]
+		if !ok {
+			return 0
+		}
+		oldTimer, ok := timers[key]
+		if !ok {
+			return 0
+		}
+		th.removeTimer(userKey, key)
+		th.unschedule(userKey, key, oldTimer.firing)
+		holdChanges[oldTimer.timer.holdTimestamp] -= 1
+		if holdChanges[oldTimer.timer.holdTimestamp] == 0 {
+			delete(holdChanges, oldTimer.timer.holdTimestamp)
+		}
+		return -1
+	}
+
+	timers := th.timers(timer)
 	newTimer := fireElement{firing: fire, timer: timer}
 	if oldTimer, ok := timers[key]; ok {
 		// Update with the new times
@@ -384,6 +419,9 @@ func (th *timerHandler) Persist(fire mtime.Time, timer element, holdChanges map[
 		th.replace(key, oldTimer, newTimer)
 
 		holdChanges[newTimer.timer.holdTimestamp] += 1
+		if holdChanges[newTimer.timer.holdTimestamp] == 0 {
+			delete(holdChanges, newTimer.timer.holdTimestamp)
+		}
 		holdChanges[oldTimer.timer.holdTimestamp] -= 1
 		if holdChanges[oldTimer.timer.holdTimestamp] == 0 {
 			delete(holdChanges, oldTimer.timer.holdTimestamp)
@@ -393,6 +431,9 @@ func (th *timerHandler) Persist(fire mtime.Time, timer element, holdChanges map[
 	timers[key] = newTimer
 	th.add(key, newTimer)
 	holdChanges[newTimer.timer.holdTimestamp] += 1
+	if holdChanges[newTimer.timer.holdTimestamp] == 0 {
+		delete(holdChanges, newTimer.timer.holdTimestamp)
+	}
 	return 1
 }
 

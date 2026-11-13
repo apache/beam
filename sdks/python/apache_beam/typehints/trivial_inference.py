@@ -37,6 +37,9 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.utils import python_callable
 
+_SIMPLE_OPS = None
+_INT_ONE_OPS = None
+
 
 class TypeInferenceError(ValueError):
   """Error to raise when type inference failed."""
@@ -360,9 +363,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       dis.dis(f, show_caches=True)
     else:
       dis.dis(f)
-  from . import opcodes
-  simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
-  from . import intrinsic_one_ops
+  global _SIMPLE_OPS, _INT_ONE_OPS
+  if _SIMPLE_OPS is None:
+    from . import intrinsic_one_ops
+    from . import opcodes
+    _SIMPLE_OPS = {k.upper(): v for k, v in opcodes.__dict__.items()}
+    _INT_ONE_OPS = intrinsic_one_ops.INT_ONE_OPS
+  simple_ops = _SIMPLE_OPS
 
   co = f.__code__
   code = co.co_code
@@ -753,7 +760,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       # Introduced in 3.12. The arg is an index into a table of
       # operations reproduced in INT_ONE_OPS. Not all ops are
       # relevant for our type checking infrastructure.
-      int_op = intrinsic_one_ops.INT_ONE_OPS[arg]
+      int_op = _INT_ONE_OPS[arg]
       if debug:
         print("Executing intrinsic one op", int_op.__name__.upper())
       int_op(state, arg)

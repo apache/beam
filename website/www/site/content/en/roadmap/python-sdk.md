@@ -23,7 +23,7 @@ _Last updated on Aug 2026._
 
 ## Python Version Support
 
-Apache Beam 2.73.0 and higher support Python 3.10, 3.11, 3.12, 3.13 and 3.14. Beam aims to support new Python minor versions in a timely manner:
+Apache Beam supports Python 3.11, 3.12, 3.13 and 3.14. Beam aims to support new Python minor versions in a timely manner:
 
  - [Python Version Compatibility matrix](/documentation/sdks/python/#python-version-compatibility)
 

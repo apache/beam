@@ -43,7 +43,6 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -62,6 +61,7 @@ public class SolaceIOMultipleSempIT {
   private static final String READ_COUNT = "read_count";
   private static final String QUEUE_NAME = "test_queue";
   private static final long PUBLISH_MESSAGE_COUNT = 20;
+  private static final Duration READ_TIMEOUT = Duration.standardMinutes(2);
   private static final TestPipelineOptions pipelineOptions;
   private static SolaceContainerManager solaceContainerManager;
 
@@ -98,7 +98,7 @@ public class SolaceIOMultipleSempIT {
    * with the Solace message broker.
    */
   @Test
-  public void test01writeAndReadWithMultipleSempClientFactory() {
+  public void test01writeAndReadWithMultipleSempClientFactory() throws IOException {
     Pipeline writerPipeline =
         createWriterPipeline(WriterType.BATCHED, solaceContainerManager.jcsmpPortMapped);
     writerPipeline
@@ -129,12 +129,9 @@ public class SolaceIOMultipleSempIT {
         .apply("Count", ParDo.of(new CountingFn<>(NAMESPACE, READ_COUNT)));
 
     PipelineResult pipelineResult = writerPipeline.run();
-    // We need enough time for Beam to pull all messages from the queue, but we need a timeout too,
-    // as the Read connector will keep attempting to read forever.
-    pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
-
-    MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
-    long actualRecordsCount = metricsReader.getCounterMetric(READ_COUNT);
+    long actualRecordsCount =
+        SolaceTestUtils.waitForCounterAndCancel(
+            pipelineResult, NAMESPACE, READ_COUNT, PUBLISH_MESSAGE_COUNT, READ_TIMEOUT);
     assertEquals(PUBLISH_MESSAGE_COUNT, actualRecordsCount);
   }
 

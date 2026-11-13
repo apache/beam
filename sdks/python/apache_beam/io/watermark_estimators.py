@@ -41,8 +41,9 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     self._last_observed_timestamp = timestamp
 
   def current_watermark(self):
-    if self._last_observed_timestamp is not None \
-        and self._last_observed_timestamp >= self._watermark:
+    if self._last_observed_timestamp is not None and (
+        self._watermark is None or
+        self._last_observed_timestamp >= self._watermark):
       self._watermark = self._last_observed_timestamp
     return self._watermark
 

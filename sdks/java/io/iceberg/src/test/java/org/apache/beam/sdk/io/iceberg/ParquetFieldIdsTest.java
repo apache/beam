@@ -316,7 +316,7 @@ public class ParquetFieldIdsTest {
             + billingCity
             + ", which the table uses for column billing.city",
         refusal(file, table));
-    assertEquals(Arrays.asList("Record(null, null)"), read(file, schema));
+    assertEquals(Arrays.asList("Record(null, Record(null))"), read(file, schema));
   }
 
   /**

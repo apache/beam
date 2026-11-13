@@ -48,8 +48,6 @@ def parse_args():
   parser.add_argument(
       "--csv-file", type=str, help="Path to the csv input file.", required=True)
   parser.add_argument(
-      "--csv-file", type=str, help="Path to the csv input file.", required=True)
-  parser.add_argument(
       "--module-file",
       type=str,
       help="Path to module file containing the preprocessing_fn and run_fn.",
