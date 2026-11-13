@@ -352,8 +352,9 @@ public class PCollectionConsumerRegistry {
   }
 
   /**
-   * Fails the bundle when configured to do so. This must run after finish functions but before
-   * outbound data is finalized.
+   * Fails the bundle when configured to do so. Call before finish functions to avoid flushing
+   * state after a processing failure, and after each finish function to detect swallowed failures
+   * raised during bundle finalization. This must run before outbound data is finalized.
    */
   public void failBundleIfDownstreamFailed() throws Exception {
     Throwable failure = firstDownstreamException.get();
@@ -590,7 +591,8 @@ public class PCollectionConsumerRegistry {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
           recordDownstreamException(ptransformId, e);
-          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL) {
+          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL
+              || WorkCancelledException.isWorkCancelledException(e)) {
             logAndRethrow(
                 e,
                 state,
