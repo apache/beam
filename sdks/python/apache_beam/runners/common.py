@@ -737,17 +737,18 @@ def _get_arg_placeholders(
   if default_arg_values:
     for a, d in zip(arg_names[-len(default_arg_values):], default_arg_values):
       if core.DoFn.ElementParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(ArgPlaceholder(core.DoFn.ElementParam))
       elif core.DoFn.KeyParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(ArgPlaceholder(core.DoFn.KeyParam))
       elif core.DoFn.WindowParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(ArgPlaceholder(core.DoFn.WindowParam))
       elif core.DoFn.WindowedValueParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(
+            ArgPlaceholder(core.DoFn.WindowedValueParam))
       elif core.DoFn.TimestampParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(ArgPlaceholder(core.DoFn.TimestampParam))
       elif core.DoFn.PaneInfoParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(ArgPlaceholder(core.DoFn.PaneInfoParam))
       elif core.DoFn.SideInputParam == d:
         # If no more args are present then the value must be passed via kwarg
         try:
@@ -760,7 +761,8 @@ def _get_arg_placeholders(
       elif isinstance(d, core.DoFn.TimerParam):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
-        args_with_placeholders.append(ArgPlaceholder(d))
+        args_with_placeholders.append(
+            ArgPlaceholder(core.DoFn.BundleFinalizerParam))
       elif isinstance(d, core.DoFn.BundleContextParam):
         args_with_placeholders.append(ArgPlaceholder(d))
       elif isinstance(d, core.DoFn.SetupContextParam):
@@ -1027,17 +1029,17 @@ class PerWindowInvoker(DoFnInvoker):
             'instead, got \'%s\'.') % (windowed_value.value, ))
 
     for i, p in self.placeholders_for_process:
-      if core.DoFn.ElementParam == p:
+      if p is core.DoFn.ElementParam:
         args_for_process[i] = windowed_value.value
-      elif core.DoFn.KeyParam == p:
+      elif p is core.DoFn.KeyParam:
         args_for_process[i] = key
-      elif core.DoFn.WindowParam == p:
+      elif p is core.DoFn.WindowParam:
         args_for_process[i] = window
-      elif core.DoFn.WindowedValueParam == p:
+      elif p is core.DoFn.WindowedValueParam:
         args_for_process[i] = windowed_value
-      elif core.DoFn.TimestampParam == p:
+      elif p is core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
-      elif core.DoFn.PaneInfoParam == p:
+      elif p is core.DoFn.PaneInfoParam:
         args_for_process[i] = windowed_value.pane_info
       elif isinstance(p, core.DoFn.StateParam):
         assert self.user_state_context is not None
@@ -1052,7 +1054,7 @@ class PerWindowInvoker(DoFnInvoker):
                 window,
                 windowed_value.timestamp,
                 windowed_value.pane_info))
-      elif core.DoFn.BundleFinalizerParam == p:
+      elif p is core.DoFn.BundleFinalizerParam:
         args_for_process[i] = self.bundle_finalizer_param
       elif isinstance(p, core.DoFn.BundleContextParam):
         args_for_process[i] = self._bundle_context_values[p][1]
@@ -1125,17 +1127,17 @@ class PerWindowInvoker(DoFnInvoker):
         self.has_cached_window_batch_args = True
 
     for i, p in self.placeholders_for_process_batch:
-      if core.DoFn.ElementParam == p:
+      if p is core.DoFn.ElementParam:
         args_for_process_batch[i] = windowed_batch.values
-      elif core.DoFn.KeyParam == p:
+      elif p is core.DoFn.KeyParam:
         raise NotImplementedError(
             'https://github.com/apache/beam/issues/21653: Per-key process_batch'
         )
-      elif core.DoFn.WindowParam == p:
+      elif p is core.DoFn.WindowParam:
         args_for_process_batch[i] = window
-      elif core.DoFn.TimestampParam == p:
+      elif p is core.DoFn.TimestampParam:
         args_for_process_batch[i] = windowed_batch.timestamp
-      elif core.DoFn.PaneInfoParam == p:
+      elif p is core.DoFn.PaneInfoParam:
         assert isinstance(windowed_batch, HomogeneousWindowedBatch)
         args_for_process_batch[i] = windowed_batch.pane_info
       elif isinstance(p, core.DoFn.StateParam):
