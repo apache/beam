@@ -983,7 +983,7 @@ public class ProcessBundleHandlerTest {
                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                 .setPayload(payload.toByteString()))
         .putInputs("input", inputPCollection)
-        .putOutputs("output", outputPCollection)
+        .putOutputs("mainOutput", outputPCollection)
         .build();
   }
 
