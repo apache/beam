@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -137,7 +138,13 @@ public class BeamIOPushDownRule extends RelOptRule {
       return;
     }
 
-    FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
+    // An IO without field reordering returns fields in table order, so request them in that order
+    // and let the Calc built by constructNodesWithPushDown reorder them.
+    List<String> fieldsToRead = new ArrayList<>(usedFields);
+    if (!beamSqlTable.supportsProjects().withFieldReordering()) {
+      fieldsToRead.sort(Comparator.comparingInt(beamSqlTable.getSchema()::indexOf));
+    }
+    FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(fieldsToRead);
     resolved = resolved.resolve(beamSqlTable.getSchema());
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {

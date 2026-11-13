@@ -239,6 +239,34 @@ public class BeamSqlCliIcebergTest {
   }
 
   @Test
+  public void testSelectColumnsOutOfTableOrder() {
+    sqlEnv.executeDdl(createCatalog("my_catalog"));
+    sqlEnv.executeDdl("USE CATALOG my_catalog");
+    sqlEnv.executeDdl("CREATE EXTERNAL TABLE abc (a VARCHAR, b VARCHAR, c VARCHAR) TYPE 'iceberg'");
+    sqlEnv.executeDdl("CREATE EXTERNAL TABLE ab (a VARCHAR, b VARCHAR) TYPE 'iceberg'");
+    // Leaving out c pushes the projection down, and the IO returns columns in table order.
+    for (String statement :
+        new String[] {
+          "INSERT INTO abc VALUES ('x', 'y', 'z')", "INSERT INTO ab SELECT b, a FROM abc"
+        }) {
+      Pipeline p = Pipeline.create();
+      BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery(statement));
+      p.run().waitUntilFinish();
+    }
+
+    Pipeline p = Pipeline.create();
+    PCollection<Row> selected =
+        BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery("SELECT b, a FROM abc"));
+    PCollection<Row> written =
+        BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery("SELECT * FROM ab"));
+    PAssert.that(selected)
+        .containsInAnyOrder(Row.withSchema(selected.getSchema()).addValues("y", "x").build());
+    PAssert.that(written)
+        .containsInAnyOrder(Row.withSchema(written.getSchema()).addValues("y", "x").build());
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testInsertWithOptions() {
     sqlEnv.executeDdl(createCatalog("my_catalog"));
     sqlEnv.executeDdl("USE CATALOG my_catalog");
