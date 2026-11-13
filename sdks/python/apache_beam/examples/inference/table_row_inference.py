@@ -309,8 +309,7 @@ def run(
     raise ValueError('input_subscription is required for streaming mode')
   if known_args.mode == 'batch' and not known_args.input_file:
     raise ValueError('input_file is required for batch mode')
-  if (known_args.mode == 'streaming' and not test_pipeline and
-      not known_args.input_file):
+  if known_args.mode == 'streaming' and not known_args.input_file:
     raise ValueError(
         'input_file is required for streaming mode to publish test data')
   if known_args.mode == 'streaming' and not known_args.output_table:
@@ -341,13 +340,12 @@ def run(
     table_row_inference_utils.ensure_pubsub_subscription(
         pubsub_project, topic_name, subscription_name)
 
-    if not test_pipeline:
-      # Delay so main streaming workers can start before publishing.
-      threading.Thread(
-          target=lambda: (
-              time.sleep(60), run_load_pipeline(
-                  known_args, pipeline_args, topic_path)),
-          daemon=True).start()
+    # Delay so main streaming workers can start before publishing.
+    threading.Thread(
+        target=lambda: (
+            time.sleep(60), run_load_pipeline(
+                known_args, pipeline_args, topic_path)),
+        daemon=True).start()
 
   feature_columns = [
       col.strip() for col in known_args.feature_columns.split(',')
@@ -424,9 +422,6 @@ def run(
             shard_name_template=''))
 
   result = pipeline.run()
-
-  if test_pipeline:
-    return result
 
   if known_args.mode == 'batch':
     result.wait_until_finish()
