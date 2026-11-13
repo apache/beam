@@ -124,8 +124,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Coder for checkpoints. */
   private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
-  /** Maximum number of messages per pull. */
-  private static final int PULL_BATCH_SIZE = 1000;
+  /** Default maximum number of messages per pull. */
+  static final int DEFAULT_PULL_BATCH_SIZE = 1000;
 
   /** Maximum number of ACK ids per ACK or ACK extension call. */
   private static final int ACK_BATCH_SIZE = 2000;
@@ -734,8 +734,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       // Pull the next batch.
       // BLOCKs until received.
+      int batchSize = Math.min(outer.outer.getPullBatchSize(), MAX_IN_FLIGHT - inFlight.size());
       Collection<PubsubClient.IncomingMessage> receivedMessages =
-          getClient().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
+          getClient().pull(requestTimeMsSinceEpoch, subscription, batchSize, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
         return;
@@ -1244,6 +1245,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Whether this source should include the orderingKey from PubSub. */
   private final boolean needsOrderingKey;
 
+  /** The maximum number of messages each reader requests per pull. */
+  private final int pullBatchSize;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       @Nullable Clock clock,
@@ -1256,6 +1260,33 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       boolean needsAttributes,
       boolean needsMessageId,
       boolean needsOrderingKey) {
+    this(
+        clock,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        needsMessageId,
+        needsOrderingKey,
+        DEFAULT_PULL_BATCH_SIZE);
+  }
+
+  PubsubUnboundedSource(
+      @Nullable Clock clock,
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes,
+      boolean needsMessageId,
+      boolean needsOrderingKey,
+      int pullBatchSize) {
+    checkArgument(pullBatchSize > 0, "pullBatchSize must be positive, got %s", pullBatchSize);
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
@@ -1269,6 +1300,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.needsAttributes = needsAttributes;
     this.needsMessageId = needsMessageId;
     this.needsOrderingKey = needsOrderingKey;
+    this.pullBatchSize = pullBatchSize;
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1384,6 +1416,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   public boolean getNeedsOrderingKey() {
     return needsOrderingKey;
+  }
+
+  /** The maximum number of messages each reader requests per pull. */
+  public int getPullBatchSize() {
+    return pullBatchSize;
   }
 
   @Override
