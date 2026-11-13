@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.delta.DeltaIO;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -149,8 +150,15 @@ final class DeltaTable extends SchemaBaseBeamTable {
 
   /** Returns the table's changes for a {@code CHANGES(...)} call. */
   @Override
-  public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
-    return DeltaChangesTable.of(this, changes, options);
+  public BeamSqlTable forChanges(
+      ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
+    return DeltaChangesTable.of(this, changes, options, metadataColumns);
+  }
+
+  /** The metadata columns of the Change Data Feed, such as {@code _change_type}. */
+  @Override
+  public List<String> getChangeMetadataColumns() {
+    return DeltaIO.METADATA_COLUMNS;
   }
 
   @Override

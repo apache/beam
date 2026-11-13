@@ -407,8 +407,8 @@ public class BeamSqlCliIcebergCdcTest {
 
     execute(
         "INSERT INTO orders_typed_mirror WITH ('mode' = 'MERGE-ON-READ', 'change_type_column' ="
-            + " '_change_type') SELECT * FROM CHANGES(orders) WITH ('include_metadata_columns' ="
-            + " ARRAY['_change_type', '_commit_snapshot_sequence_number'])");
+            + " '_change_type') SELECT *, _change_type, _commit_snapshot_sequence_number"
+            + " FROM CHANGES(orders)");
 
     assertThat(
         rows("SELECT * FROM orders_typed_mirror"),
@@ -452,6 +452,15 @@ public class BeamSqlCliIcebergCdcTest {
         "CHANGES needs a primary key, and Iceberg table 'db.no_key' has none. Declare one with"
             + " PRIMARY KEY (...) NOT ENFORCED when creating the table, or set the table's"
             + " identifier fields in the Iceberg catalog.");
+    RuntimeException misspelled =
+        assertThrows(
+            RuntimeException.class,
+            () -> sqlEnv.parseQuery("SELECT _chnage_type FROM CHANGES(orders)"));
+    assertThat(
+        Throwables.getStackTraceAsString(misspelled),
+        containsString(
+            "CHANGES(orders) also has these metadata columns: _change_type, _commit_snapshot_id,"
+                + " _commit_snapshot_sequence_number, _row_id, _last_updated_sequence_number"));
   }
 
   /**
@@ -477,10 +486,9 @@ public class BeamSqlCliIcebergCdcTest {
     assertNotEquals(firstVersion, secondVersion);
   }
 
+  /** Queries the second commit, naming its metadata columns without include_metadata_columns. */
   private String changesQuery(String columns, String where) {
-    return format(
-        "SELECT %s FROM CHANGES(orders, %d) WITH (%s) %s",
-        columns, secondVersion, CHANGE_TYPE, where);
+    return format("SELECT %s FROM CHANGES(orders, %d) %s", columns, secondVersion, where);
   }
 
   /** Asserts that the query returns the rows with and without push-down. */
