@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import concurrent.futures
+import concurrent.futures.process
 import copy
 import inspect
 import logging
@@ -2696,8 +2697,15 @@ class _SubprocessDoFn(DoFn):
 
   def _call_remote(self, method, *args, **kwargs):
     if self._pool is None:
-      self._pool = concurrent.futures.ProcessPoolExecutor(1)
-      self._pool.submit(self._remote_init, self._serialized_fn).result()
+      for attempt in range(3):
+        self._pool = concurrent.futures.ProcessPoolExecutor(1)
+        try:
+          self._pool.submit(self._remote_init, self._serialized_fn).result()
+          break
+        except concurrent.futures.process.BrokenProcessPool:
+          self._terminate_pool()
+          if attempt == 2:
+            raise
     try:
       return self._pool.submit(method, *args, **kwargs).result(
           self._timeout if method == self._remote_process else None)
