@@ -201,7 +201,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     State state;
     while (true) {
       // Check pipeline state in every second
-      state = result.waitUntilFinish(Duration.standardSeconds(1));
+      try {
+        state = result.waitUntilFinish(Duration.standardSeconds(1));
+      } catch (RuntimeException e) {
+        checkNotCancelled(cancelFlag, e);
+        throw e;
+      }
       if (state != null && state.isTerminal()) {
         if (PipelineResult.State.FAILED.equals(state)) {
           throw new RuntimeException("Pipeline failed for unknown reason");
@@ -278,14 +283,25 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       State state = result.waitUntilFinish();
       checkNotCancelled(cancelFlag);
       return state;
+    } catch (RuntimeException e) {
+      checkNotCancelled(cancelFlag, e);
+      throw e;
     } finally {
       canceller.interrupt();
     }
   }
 
   private static void checkNotCancelled(AtomicBoolean cancelFlag) {
+    checkNotCancelled(cancelFlag, null);
+  }
+
+  private static void checkNotCancelled(AtomicBoolean cancelFlag, @Nullable Throwable suppressed) {
     if (cancelFlag.get()) {
-      throw new CancellationException("Statement canceled");
+      CancellationException e = new CancellationException("Statement canceled");
+      if (suppressed != null) {
+        e.addSuppressed(suppressed);
+      }
+      throw e;
     }
   }
 
