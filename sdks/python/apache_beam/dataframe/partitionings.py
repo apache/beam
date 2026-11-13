@@ -114,9 +114,15 @@ class Index(Partitioning):
         for level in levels)
 
   def partition_fn(self, df, num_partitions):
-    hashes = self._hash_index(df)
+    if not len(df):
+      for key in range(num_partitions):
+        yield key, df
+      return
+    pids = self._hash_index(df) % num_partitions
+    empty_df = df.iloc[0:0]
+    groups = dict(tuple(df.groupby(pids, sort=False)))
     for key in range(num_partitions):
-      yield key, df[hashes % num_partitions == key]
+      yield key, groups.get(key, empty_df)
 
   def check(self, dfs):
     # Drop empty DataFrames

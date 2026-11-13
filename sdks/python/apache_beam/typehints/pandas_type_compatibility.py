@@ -189,17 +189,18 @@ class DataFrameBatchConverter(BatchConverter):
     # nullable types
     def make_null_checking_generator(series):
       nulls = pd.isnull(series)
+      if not nulls.any():
+        return iter(series)
       return (None if isnull else value for isnull, value in zip(nulls, series))
 
     all_series = self._get_series(batch)
     iterators = [make_null_checking_generator(series) for series in all_series]
-
-    for values in zip(*iterators):
-      yield self._element_type.user_type(
-          **{
-              column: value
-              for column, value in zip(self._columns, values)
-          })
+    user_type = self._element_type.user_type
+    if issubclass(user_type, tuple) and hasattr(user_type, '_make'):
+      yield from map(user_type._make, zip(*iterators))
+    else:
+      for values in zip(*iterators):
+        yield user_type(*values)
 
   def combine_batches(self, batches: List[pd.DataFrame]):
     return pd.concat(batches)
@@ -267,8 +268,12 @@ class SeriesBatchConverter(BatchConverter):
     if is_nullable(element_type):
 
       def unbatch(series):
-        for isnull, value in zip(pd.isnull(series), series):
-          yield None if isnull else value
+        nulls = pd.isnull(series)
+        if not nulls.any():
+          yield from series
+        else:
+          for isnull, value in zip(nulls, series):
+            yield None if isnull else value
     else:
 
       def unbatch(series):
