@@ -554,8 +554,10 @@ public class PCollectionConsumerRegistry {
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
         ExecutionState state = consumerAndMetadata.getExecutionState();
+        // The original failure was already logged when the consumer first threw. Avoid logging
+        // the same failure again for every later element rejected by fail-fast handling.
+        failFastIfDownstreamFailed(consumerAndMetadata.getPTransformId());
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
-          failFastIfDownstreamFailed(consumerAndMetadata.getPTransformId());
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
           recordDownstreamException(consumerAndMetadata.getPTransformId(), e);
