@@ -782,4 +782,10 @@ public class TextIOWriteTest {
 
     assertEquals(Arrays.asList("header", "a", "b", "c", "footer"), readLinesFromFile(f));
   }
+
+  @Test
+  public void testWriteWithDirectWriteByteThreshold() {
+    TextIO.Write write = TextIO.write().to("/tmp/x").withDirectWriteByteThreshold(1000);
+    assertEquals(Long.valueOf(1000), write.inner.getDirectWriteByteThreshold());
+  }
 }

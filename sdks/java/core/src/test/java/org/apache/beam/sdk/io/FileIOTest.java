@@ -723,6 +723,13 @@ public class FileIOTest implements Serializable {
     assertTrue(metadata.size() >= 2);
   }
 
+  @Test
+  public void testWriteWithDirectWriteByteThreshold() {
+    FileIO.Write<Void, String> write =
+        FileIO.<String>write().to("/tmp/x").via(TextIO.sink()).withDirectWriteByteThreshold(1000);
+    assertEquals(Long.valueOf(1000), write.getDirectWriteByteThreshold());
+  }
+
   static void checkFileContents(File rootDir, String prefix, List<String> inputs)
       throws IOException {
     List<File> outputFiles = Lists.newArrayList();
