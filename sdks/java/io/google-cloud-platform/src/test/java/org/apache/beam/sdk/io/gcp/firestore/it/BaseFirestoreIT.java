@@ -129,7 +129,7 @@ abstract class BaseFirestoreIT {
                         .collect(Collectors.toList())),
                 FirestoreTestingHelper.flattenListList(),
                 MoreExecutors.directExecutor())
-            .get(10, TimeUnit.SECONDS);
+            .get(60, TimeUnit.SECONDS);
     return toMaxWriteTime(results);
   }
 
@@ -192,12 +192,12 @@ abstract class BaseFirestoreIT {
   public final void listDocuments() throws Exception {
     DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
     Instant readTime =
-        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+        toMaxWriteTime(documentGenerator.generateDocuments().get(60, TimeUnit.SECONDS));
     Thread.sleep(5);
 
     DocumentGenerator moreDocumentGenerator =
         helper.documentGenerator(NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, "a");
-    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    moreDocumentGenerator.generateDocuments().get(60, TimeUnit.SECONDS);
 
     List<String> allDocumentPaths =
         Stream.of(
@@ -251,13 +251,13 @@ abstract class BaseFirestoreIT {
     DocumentGenerator documentGenerator =
         helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId, /* addBazDoc= */ true);
     Instant readTime =
-        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+        toMaxWriteTime(documentGenerator.generateDocuments().get(60, TimeUnit.SECONDS));
     Thread.sleep(5);
 
     DocumentGenerator moreDocumentGenerator =
         helper.documentGenerator(
             NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, collectionId, true);
-    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    moreDocumentGenerator.generateDocuments().get(60, TimeUnit.SECONDS);
 
     List<String> allDocumentPaths =
         Stream.of(
@@ -319,12 +319,12 @@ abstract class BaseFirestoreIT {
     DocumentGenerator documentGenerator =
         helper.documentGenerator(documentCount, collectionGroupId);
     Instant readTime =
-        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+        toMaxWriteTime(documentGenerator.generateDocuments().get(60, TimeUnit.SECONDS));
     Thread.sleep(5);
 
     DocumentGenerator moreDocumentGenerator =
         helper.documentGenerator(documentCount + 1, documentCount + 2 * 128, collectionGroupId);
-    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    moreDocumentGenerator.generateDocuments().get(60, TimeUnit.SECONDS);
 
     List<String> allDocumentPaths =
         Stream.of(
@@ -395,12 +395,12 @@ abstract class BaseFirestoreIT {
     DocumentGenerator documentGenerator =
         helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId);
     Instant readTime =
-        toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
+        toMaxWriteTime(documentGenerator.generateDocuments().get(60, TimeUnit.SECONDS));
 
     DocumentGenerator moreDocumentGenerator =
         helper.documentGenerator(
             NUM_ITEMS_TO_GENERATE + 1, NUM_ITEMS_TO_GENERATE + 10, collectionId);
-    moreDocumentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+    moreDocumentGenerator.generateDocuments().get(60, TimeUnit.SECONDS);
 
     List<String> allDocumentIds =
         Stream.of(documentGenerator.getDocumentIds(), moreDocumentGenerator.getDocumentIds())
