@@ -1128,6 +1128,7 @@ public class ProcessBundleHandlerTest {
     assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
     assertThat(
         handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"), empty());
+    handler.shutdown();
   }
 
   @Test
