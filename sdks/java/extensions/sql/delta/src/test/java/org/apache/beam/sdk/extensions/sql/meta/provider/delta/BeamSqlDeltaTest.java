@@ -17,6 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.delta;
 
+import static java.lang.String.format;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -34,10 +41,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
@@ -50,10 +59,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -90,6 +101,8 @@ public class BeamSqlDeltaTest {
       Row.withSchema(PERSON_SCHEMA).addValues("Bob", 20, 70.0, "USA").build();
   private static final Row PERSON_3 =
       Row.withSchema(PERSON_SCHEMA).addValues("Charlie", 40, 85.0, "Canada").build();
+  private static final Row PERSON_4 =
+      Row.withSchema(PERSON_SCHEMA).addValues("Dave", 28, 88.0, "UK").build();
 
   @Before
   public void setUp() {
@@ -471,5 +484,259 @@ public class BeamSqlDeltaTest {
 
     PAssert.that(output).containsInAnyOrder(expectedRow);
     readPipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Writes a Delta Lake table with three versions and registers it as {@code name}: version 0
+   * inserts Alice and Bob, version 1 inserts Charlie, and version 2 updates Alice and deletes Bob.
+   */
+  private File createChangesTable(String name) throws Exception {
+    File tableDir = tempFolder.newFolder(name);
+    Engine engine = DefaultEngine.create(new Configuration());
+
+    // Version 0 (at 100000000000L): insert PERSON_1 (Alice) and PERSON_2 (Bob)
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        PERSON_DELTA_SCHEMA,
+        Arrays.asList(PERSON_1, PERSON_2));
+
+    // Version 1 (at 200000000000L): insert PERSON_3 (Charlie)
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        PERSON_DELTA_SCHEMA,
+        Collections.singletonList(PERSON_3));
+
+    // Version 2 (at 300000000000L): update Alice's age/score and delete Bob
+    Schema cdcFileBeamSchema =
+        Schema.builder()
+            .addFields(PERSON_SCHEMA.getFields())
+            .addStringField("_change_type")
+            .build();
+    StructType cdcFileDeltaSchema = PERSON_DELTA_SCHEMA.add("_change_type", StringType.STRING);
+    Row alicePre =
+        Row.withSchema(cdcFileBeamSchema)
+            .addValues("Alice", 30, 95.5, "USA", "update_preimage")
+            .build();
+    Row alicePost =
+        Row.withSchema(cdcFileBeamSchema)
+            .addValues("Alice", 31, 98.0, "USA", "update_postimage")
+            .build();
+    Row bobDelete =
+        Row.withSchema(cdcFileBeamSchema).addValues("Bob", 20, 70.0, "USA", "delete").build();
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        2L,
+        300000000000L,
+        PERSON_DELTA_SCHEMA,
+        null,
+        null,
+        Arrays.asList(alicePre, alicePost, bobDelete),
+        cdcFileDeltaSchema);
+
+    sqlEnv.executeDdl(
+        format(
+            "CREATE EXTERNAL TABLE %s (\n"
+                + "  name VARCHAR,\n"
+                + "  age INTEGER,\n"
+                + "  score DOUBLE,\n"
+                + "  country VARCHAR\n"
+                + ")\n"
+                + "TYPE 'delta'\n"
+                + "LOCATION '%s'",
+            name, tableDir.getAbsolutePath()));
+    return tableDir;
+  }
+
+  @Test
+  public void testSelectChangesWithVersionAndTimestampRanges() throws Exception {
+    createChangesTable("persons_cdc");
+    String ts0 = new org.joda.time.Instant(100000000000L).toString();
+    String ts1 = new org.joda.time.Instant(200000000000L).toString();
+    String ts2 = new org.joda.time.Instant(300000000000L).toString();
+
+    assertThat(
+        rows(
+            "SELECT * FROM CHANGES(persons_cdc, 0) WITH ('include_metadata_columns' ="
+                + " ARRAY['_commit_timestamp', '_commit_version', '_change_type'])"),
+        containsInAnyOrder(
+            "Alice:30:95.5:USA:insert:0:" + ts0,
+            "Bob:20:70.0:USA:insert:0:" + ts0,
+            "Charlie:40:85.0:Canada:insert:1:" + ts1,
+            "Alice:30:95.5:USA:update_preimage:2:" + ts2,
+            "Alice:31:98.0:USA:update_postimage:2:" + ts2,
+            "Bob:20:70.0:USA:delete:2:" + ts2));
+
+    assertThat(
+        rows(
+            "SELECT name, age, _change_type, _commit_version FROM CHANGES(persons_cdc, 0, 1)"
+                + " WITH ('include_metadata_columns' = ARRAY['_change_type', '_commit_version'])"),
+        containsInAnyOrder("Alice:30:insert:0", "Bob:20:insert:0", "Charlie:40:insert:1"));
+
+    assertThat(
+        rows(
+            "SELECT name, age, _change_type FROM CHANGES(persons_cdc, start_version => 2,"
+                + " end_version => 2) WITH ('include_metadata_columns' = ARRAY['_change_type'])"
+                + " WHERE _change_type <> 'update_preimage'"),
+        containsInAnyOrder("Alice:31:update_postimage", "Bob:20:delete"));
+
+    assertThat(
+        rows(
+            format(
+                "SELECT name, _change_type, _commit_version FROM CHANGES(persons_cdc, '%s', '%s')"
+                    + " WITH ('include_metadata_columns' = ARRAY['_change_type',"
+                    + " '_commit_version'])",
+                ts1, ts1)),
+        containsInAnyOrder("Charlie:insert:1"));
+
+    assertThat(
+        rows(
+            format(
+                "SELECT name, age FROM CHANGES(persons_cdc, start_timestamp => TIMESTAMP '%s')",
+                ts2.replace("T", " ").replace("Z", ""))),
+        containsInAnyOrder("Alice:30", "Alice:31", "Bob:20"));
+  }
+
+  @Test
+  public void testSelectChangesWithEmptyTimestampRanges() throws Exception {
+    createChangesTable("persons_cdc");
+    String betweenV0AndV1 = new org.joda.time.Instant(150000000000L).toString();
+    String alsoBetweenV0AndV1 = new org.joda.time.Instant(160000000000L).toString();
+
+    // After the latest commit, before the first commit, and between two commits
+    assertThat(rows("SELECT * FROM CHANGES(persons_cdc, '2999-01-01')"), empty());
+    assertThat(rows("SELECT * FROM CHANGES(persons_cdc, '1970-01-01', '1971-01-01')"), empty());
+    assertThat(
+        rows(
+            format(
+                "SELECT * FROM CHANGES(persons_cdc, '%s', '%s')",
+                betweenV0AndV1, alsoBetweenV0AndV1)),
+        empty());
+  }
+
+  @Test
+  public void testSelectChangesRangeErrors() throws Exception {
+    createChangesTable("persons_cdc");
+    String ts1 = new org.joda.time.Instant(200000000000L).toString();
+    String ts2 = new org.joda.time.Instant(300000000000L).toString();
+
+    assertQueryFailsWith(
+        "SELECT * FROM CHANGES(persons_cdc, 3)", "has no version 3. Its latest version is 2.");
+    assertQueryFailsWith(
+        "SELECT * FROM CHANGES(persons_cdc, 0, 3)", "has no version 3. Its latest version is 2.");
+    assertQueryFailsWith(
+        "SELECT * FROM CHANGES(persons_cdc, 2, 1)",
+        "CHANGES start version 2 is after its end version 1.");
+    assertQueryFailsWith(
+        format("SELECT * FROM CHANGES(persons_cdc, '%s', '%s')", ts2, ts1),
+        format("CHANGES start timestamp %s is after its end timestamp %s.", ts2, ts1));
+  }
+
+  @Test
+  public void testSelectChangesReadsTheVersionsResolvedWhenThePipelineIsBuilt() throws Exception {
+    File tableDir = createChangesTable("persons_cdc");
+    BeamRelNode relNode =
+        sqlEnv.parseQuery(
+            "SELECT name, _commit_version FROM CHANGES(persons_cdc, 1)"
+                + " WITH ('include_metadata_columns' = ARRAY['_commit_version'])");
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
+
+    // Version 3, committed after the pipeline was built, is not read.
+    DeltaWriteTestUtils.writeAppendCommit(
+        DefaultEngine.create(new Configuration()),
+        tableDir.getAbsolutePath(),
+        3L,
+        400000000000L,
+        PERSON_DELTA_SCHEMA,
+        Collections.singletonList(PERSON_4));
+
+    Schema schema = output.getSchema();
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("Charlie", 1L).build(),
+            Row.withSchema(schema).addValues("Alice", 2L).build(),
+            Row.withSchema(schema).addValues("Alice", 2L).build(),
+            Row.withSchema(schema).addValues("Bob", 2L).build());
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSelectChangesValidationErrors() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-cdc-validation");
+    createDeltaTable(tableDir, Collections.singletonList(PERSON_1));
+
+    sqlEnv.executeDdl(
+        format(
+            "CREATE EXTERNAL TABLE persons (\n"
+                + "  name VARCHAR,\n"
+                + "  age INTEGER,\n"
+                + "  score DOUBLE,\n"
+                + "  country VARCHAR\n"
+                + ")\n"
+                + "TYPE 'delta'\n"
+                + "LOCATION '%s'",
+            tableDir.getAbsolutePath()));
+    sqlEnv.executeDdl(
+        format(
+            "CREATE EXTERNAL TABLE persons_v0 (\n"
+                + "  name VARCHAR,\n"
+                + "  age INTEGER,\n"
+                + "  score DOUBLE,\n"
+                + "  country VARCHAR\n"
+                + ")\n"
+                + "TYPE 'delta'\n"
+                + "LOCATION '%s'\n"
+                + "TBLPROPERTIES '{\"version\": 0}'",
+            tableDir.getAbsolutePath()));
+
+    assertParseFailsWith(
+        "SELECT * FROM CHANGES(persons)",
+        "needs a start: a version, as in CHANGES(t, 2), or a timestamp");
+    assertParseFailsWith(
+        "SELECT * FROM persons WITH ('include_metadata_columns' = ARRAY['_change_type'])",
+        "WITH options on a Delta Lake read are only accepted with CHANGES(...)");
+    assertParseFailsWith(
+        "SELECT * FROM CHANGES(persons_v0, 0)",
+        "pins the version it reads with the 'version' or 'timestamp' table property");
+    assertParseFailsWith(
+        "SELECT * FROM CHANGES(persons, 0) WITH ('bogus' = 1)",
+        "Unknown option 'bogus' for a CHANGES read. Accepted options: [include_metadata_columns]");
+    assertParseFailsWith(
+        "SELECT * FROM CHANGES(persons, 0) WITH ('start_version' = 0)",
+        "Option 'start_version' cannot be set in WITH: CHANGES' arguments set the range");
+    assertParseFailsWith(
+        "SELECT * FROM CHANGES(persons, 0) WITH ('include_metadata_columns' = ARRAY['_bogus'])",
+        "Unknown metadata column '_bogus'. Supported metadata columns: [_change_type,"
+            + " _commit_version, _commit_timestamp]");
+  }
+
+  private List<String> rows(String query) {
+    return BeamEnumerableConverter.toRowList(sqlEnv.parseQuery(query)).stream()
+        .map(Row::getValues)
+        .map(values -> values.stream().map(String::valueOf).collect(joining(":")))
+        .collect(toList());
+  }
+
+  private void assertParseFailsWith(String sql, String expectedMessage) {
+    assertFailsWith(() -> sqlEnv.parseQuery(sql), expectedMessage);
+  }
+
+  private void assertQueryFailsWith(String sql, String expectedMessage) {
+    assertFailsWith(() -> rows(sql), expectedMessage);
+  }
+
+  private static void assertFailsWith(ThrowingRunnable runnable, String expectedMessage) {
+    RuntimeException exception = assertThrows(RuntimeException.class, runnable);
+    String messages =
+        Throwables.getCausalChain(exception).stream()
+            .map(Throwable::getMessage)
+            .collect(joining("\n"));
+    assertThat(messages, containsString(expectedMessage));
   }
 }
