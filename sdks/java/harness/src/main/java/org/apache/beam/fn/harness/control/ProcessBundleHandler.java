@@ -561,15 +561,22 @@ public class ProcessBundleHandler {
                 bundleProcessor.getInboundEndpointApiServiceDescriptors());
           }
 
-          // Need to reverse this since we want to call finish in topological order.
+          // Do not run @FinishBundle after a downstream failure was swallowed during element
+          // processing. Finish functions can flush state or write to external sinks.
+          bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
+
+          // Need to reverse this since we want to call finish in topological order. Check after
+          // each function as well, so a swallowed failure during @FinishBundle prevents later
+          // finish functions from running.
           for (ThrowingRunnable finishFunction :
               Lists.reverse(finishFunctionRegistry.getFunctions())) {
             LOG.debug("Finishing function {}", finishFunction);
             finishFunction.run();
+            bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
           }
 
-          // Surface downstream exceptions that user code may have caught while processing
-          // fused outputs. This must happen before outbound data is finalized.
+          // Surface a failure raised by the final @FinishBundle function before outbound data is
+          // finalized.
           bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
 
           // If bundleProcessor has not flushed any elements, embed them in response.
