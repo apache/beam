@@ -115,7 +115,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.fn.test.TestExecutors;
@@ -1076,8 +1075,8 @@ public class ProcessBundleHandlerTest {
                 ApiServiceDescriptor.getDefaultInstance(),
                 StringUtf8Coder.of(),
                 (String input) ->
-                    ((FnDataReceiver<WindowedValue<String>>)
-                            context.getPCollectionConsumer("pc-source"))
+                    context
+                        .<WindowedValue<String>>getPCollectionConsumer("pc-source")
                         .accept(WindowedValues.valueInGlobalWindow(input))));
 
     return new ProcessBundleHandler(
