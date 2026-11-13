@@ -95,7 +95,30 @@ jobs:
     # For details on the ASF GHA allowlist, see: https://github.com/apache/infrastructure-actions/blob/main/allowlist-check/README.md
     - name: Validate GHA Allowlist
       uses: apache/infrastructure-actions/allowlist-check@main # zizmor: ignore[unpinned-uses]
-    - name: Run zizmor
+    # Retry zizmor to mitigate transient GitHub API transport errors during online audits.
+    - name: Run zizmor (attempt 1)
+      id: zizmor_attempt_1
+      continue-on-error: true
+      uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+      with:
+        advanced-security: true
+    - name: Wait before retrying zizmor (attempt 2)
+      if: steps.zizmor_attempt_1.outcome == 'failure'
+      run: sleep 10
+      shell: bash
+    - name: Run zizmor (attempt 2)
+      id: zizmor_attempt_2
+      if: steps.zizmor_attempt_1.outcome == 'failure'
+      continue-on-error: true
+      uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+      with:
+        advanced-security: true
+    - name: Wait before retrying zizmor (attempt 3)
+      if: steps.zizmor_attempt_2.outcome == 'failure'
+      run: sleep 20
+      shell: bash
+    - name: Run zizmor (attempt 3)
+      if: steps.zizmor_attempt_2.outcome == 'failure'
       uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
       with:
         advanced-security: true
