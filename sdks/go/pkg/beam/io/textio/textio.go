@@ -171,8 +171,16 @@ type readBaseFn struct {
 }
 
 // CreateInitialRestriction creates an offset range restriction representing
-// the file's size in bytes.
+// the file's size in bytes for uncompressed files, or a single unsplittable
+// unit [0, 1) for non-empty compressed files whose uncompressed size differs
+// from the compressed size on disk.
 func (fn *readBaseFn) CreateInitialRestriction(file fileio.ReadableFile) offsetrange.Restriction {
+	if file.IsCompressed() {
+		if file.Metadata.Size == 0 {
+			return offsetrange.Restriction{Start: 0, End: 0}
+		}
+		return offsetrange.Restriction{Start: 0, End: 1}
+	}
 	return offsetrange.Restriction{
 		Start: 0,
 		End:   file.Metadata.Size,
@@ -224,6 +232,33 @@ func (fn *readBaseFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTrac
 // valid restriction might not output any lines.
 func (fn *readBaseFn) process(ctx context.Context, rt *sdf.LockRTracker, file fileio.ReadableFile, consumer consumer) error {
 	log.Infof(ctx, "Reading from %v", file.Metadata.Path)
+
+	if file.IsCompressed() {
+		if !rt.TryClaim(rt.GetRestriction().(offsetrange.Restriction).Start) {
+			return nil
+		}
+		fd, err := file.Open(ctx)
+		if err != nil {
+			return err
+		}
+		defer fd.Close()
+
+		rd := bufio.NewReader(fd)
+		for {
+			line, err := rd.ReadString('\n')
+			if err == io.EOF {
+				if len(line) != 0 {
+					consumer.Consume(strings.TrimSuffix(line, "\n"))
+				}
+				break
+			}
+			if err != nil {
+				return err
+			}
+			consumer.Consume(strings.TrimSuffix(line, "\n"))
+		}
+		return nil
+	}
 
 	fd, err := file.Open(ctx)
 	if err != nil {

@@ -60,6 +60,19 @@ type ReadableFile struct {
 	Compression compressionType
 }
 
+// IsCompressed reports whether the file is compressed after resolving auto-detected compression
+// from the file extension.
+func (f ReadableFile) IsCompressed() bool {
+	return f.resolvedCompression() != compressionUncompressed
+}
+
+func (f ReadableFile) resolvedCompression() compressionType {
+	if f.Compression == compressionAuto {
+		return compressionFromExt(f.Metadata.Path)
+	}
+	return f.Compression
+}
+
 // Open opens the file for reading. The compression type is determined by the Compression field of
 // the ReadableFile. If Compression is compressionAuto, the compression type is auto-detected from
 // the file extension. It is the caller's responsibility to close the returned reader.
@@ -75,12 +88,7 @@ func (f ReadableFile) Open(ctx context.Context) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	comp := f.Compression
-	if comp == compressionAuto {
-		comp = compressionFromExt(f.Metadata.Path)
-	}
-
-	return newDecompressionReader(rc, comp)
+	return newDecompressionReader(rc, f.resolvedCompression())
 }
 
 // compressionFromExt detects the compression of a file based on its extension. If the extension is
