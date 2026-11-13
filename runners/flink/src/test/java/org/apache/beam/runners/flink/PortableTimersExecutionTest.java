@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -115,6 +116,7 @@ public class PortableTimersExecutionTest implements Serializable {
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    options.as(PortablePipelineOptions.class).setEnvironmentCacheMillis(10_000);
 
     final String timerId = "foo";
     final String stateId = "sizzle";
@@ -193,7 +195,7 @@ public class PortableTimersExecutionTest implements Serializable {
     JobInvocation jobInvocation =
         FlinkJobInvoker.create(null)
             .createJobInvocation(
-                "id",
+                "id-" + UUID.randomUUID(),
                 "none",
                 flinkJobExecutor,
                 pipelineProto,
@@ -201,9 +203,15 @@ public class PortableTimersExecutionTest implements Serializable {
                 new FlinkPipelineRunner(options, null, Collections.emptyList()));
 
     jobInvocation.start();
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
-      Thread.sleep(1000);
+    try {
+      while (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        Thread.sleep(1000);
+      }
+      assertThat(jobInvocation.getState(), is(JobState.Enum.DONE));
+    } finally {
+      if (!JobInvocation.isTerminated(jobInvocation.getState())) {
+        jobInvocation.cancel();
+      }
     }
-    assertThat(jobInvocation.getState(), is(JobState.Enum.DONE));
   }
 }
