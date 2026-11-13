@@ -256,6 +256,9 @@ public class StatefulParDoStreamingTest implements Serializable {
                 MetricsFilter.builder()
                     .addNameFilter(MetricNameFilter.named(NullKeyCountFn.class, "processed"))
                     .build());
+    // TODO(https://github.com/apache/beam/issues/41198): Each leaf query currently executes the
+    // upstream stateful ParDo independently (5 elements per leaf = 10 total); update to 5L once
+    // #41198 is resolved.
     assertEquals(10L, (long) Iterables.getOnlyElement(metrics.getCounters()).getAttempted());
   }
 
