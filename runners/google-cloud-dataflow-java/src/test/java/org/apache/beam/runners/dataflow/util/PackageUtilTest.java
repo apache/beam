@@ -49,6 +49,7 @@ import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
+import com.google.api.client.util.DateTime;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.File;
@@ -91,6 +92,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.LineReader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -535,6 +538,31 @@ public class PackageUtilTest {
         ImmutableList.of(makeStagedFile(tmpDirectory.getAbsolutePath())),
         STAGING_PATH,
         createOptions);
+
+    verify(mockGcsUtil).getObjects(anyList());
+    verify(mockGcsUtil).create(any(GcsPath.class), any(GcsUtil.CreateOptions.class));
+    verifyNoMoreInteractions(mockGcsUtil);
+  }
+
+  @Test
+  public void testPackageUploadIsNotSkippedWhenStagedFileIsExpired() throws Exception {
+    Pipe pipe = Pipe.open();
+    File tmpFile = makeFileWithContents("file.txt", "This is a test!");
+    StorageObject expiredObject =
+        createStorageObject(STAGING_PATH, tmpFile.length())
+            .setUpdated(
+                new DateTime(
+                    Instant.now()
+                        .minus(PackageUtil.MAX_STAGED_FILE_AGE)
+                        .minus(Duration.standardMinutes(1))
+                        .getMillis()));
+    when(mockGcsUtil.getObjects(anyList()))
+        .thenReturn(ImmutableList.of(StorageObjectOrIOException.create(expiredObject)));
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
+        .thenReturn(pipe.sink());
+
+    defaultPackageUtil.stageClasspathElements(
+        ImmutableList.of(makeStagedFile(tmpFile.getAbsolutePath())), STAGING_PATH, createOptions);
 
     verify(mockGcsUtil).getObjects(anyList());
     verify(mockGcsUtil).create(any(GcsPath.class), any(GcsUtil.CreateOptions.class));

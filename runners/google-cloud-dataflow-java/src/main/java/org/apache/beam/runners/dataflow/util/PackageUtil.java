@@ -47,6 +47,7 @@ import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -122,11 +123,33 @@ public class PackageUtil implements Closeable {
         () -> PackageAttributes.forFileToStage(source, hash, dest, stagingPath), executorService);
   }
 
+  /**
+   * Maximum age of a previously staged file before it is re-uploaded. Shared test and staging
+   * buckets often configure GCS lifecycle deletion rules (for example, 7 days on {@code
+   * gs://temp-storage-for-validates-runner-tests}), so re-uploading files older than 1 day
+   * refreshes their object creation timestamp well before lifecycle deletion can race with job
+   * execution.
+   */
+  static final Duration MAX_STAGED_FILE_AGE = Duration.standardDays(1);
+
   private boolean alreadyStaged(PackageAttributes attributes) throws IOException {
     try {
-      long remoteLength =
-          FileSystems.matchSingleFileSpec(attributes.getDestination().getLocation()).sizeBytes();
-      return remoteLength == attributes.getSize();
+      Metadata remoteMetadata =
+          FileSystems.matchSingleFileSpec(attributes.getDestination().getLocation());
+      if (remoteMetadata.sizeBytes() != attributes.getSize()) {
+        return false;
+      }
+      long lastModifiedMillis = remoteMetadata.lastModifiedMillis();
+      if (lastModifiedMillis > 0
+          && Instant.now().getMillis() - lastModifiedMillis > MAX_STAGED_FILE_AGE.getMillis()) {
+        LOG.info(
+            "Re-staging file {} at {} because existing object is older than {}",
+            attributes.getSourceDescription(),
+            attributes.getDestination().getLocation(),
+            MAX_STAGED_FILE_AGE);
+        return false;
+      }
+      return true;
     } catch (FileNotFoundException expected) {
       // If the file doesn't exist, it means we need to upload it.
       return false;
