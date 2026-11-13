@@ -117,6 +117,7 @@ cdef class DoOperation(Operation):
   cdef dict timer_specs
   cdef public object input_info
   cdef object fn
+  cdef object _fn_data
   cdef object scoped_timer_processing_state
 
 

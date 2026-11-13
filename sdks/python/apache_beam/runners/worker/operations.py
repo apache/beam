@@ -818,8 +818,8 @@ class DoOperation(Operation):
         'process-timers',
         metrics_container=self.metrics_container)
     # See fn_data in dataflow_runner.py
-    # TODO: Store all the items from spec?
-    self.fn, _, _, _, _ = (pickler.loads(self.spec.serialized_fn))
+    self._fn_data = pickler.loads(self.spec.serialized_fn)
+    self.fn = self._fn_data[0]
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
@@ -883,8 +883,7 @@ class DoOperation(Operation):
       super(DoOperation, self).setup(data_sampler)
 
       # See fn_data in dataflow_runner.py
-      fn, args, kwargs, tags_and_types, window_fn = (
-          pickler.loads(self.spec.serialized_fn))
+      fn, args, kwargs, tags_and_types, window_fn = self._fn_data
 
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
@@ -1040,9 +1039,8 @@ class DoOperation(Operation):
     return infos
 
   def _get_runtime_performance_hints(self):
-    fns = pickler.loads(self.spec.serialized_fn)
-    if fns and hasattr(fns[0], '_runtime_output_constraints'):
-      return fns[0]._runtime_output_constraints
+    if self.fn is not None and hasattr(self.fn, '_runtime_output_constraints'):
+      return self.fn._runtime_output_constraints
 
     return {}
 

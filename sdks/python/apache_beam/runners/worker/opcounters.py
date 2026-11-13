@@ -328,16 +328,16 @@ class OperationCounters(object):
     if self.coder_impl is None:
       return False
     self._sample_counter += 1
+    if self._sample_counter < self._next_sample:
+      return False
     if self._next_sample == 0:
       if random.randint(1, self._sample_counter) <= 10:
         if self._sample_counter > 30:
           self._next_sample = self._compute_next_sample(self._sample_counter)
         return True
       return False
-    elif self._sample_counter >= self._next_sample:
-      self._next_sample = self._compute_next_sample(self._sample_counter)
-      return True
-    return False
+    self._next_sample = self._compute_next_sample(self._sample_counter)
+    return True
 
   def should_sample(self):
     # We create this separate method because the above "_should_sample()" method
@@ -346,6 +346,7 @@ class OperationCounters(object):
 
   def restart_sampling(self):
     self._sample_counter = 0
+    self._next_sample = 0
 
   def __str__(self):
     return '<%s [%s]>' % (
