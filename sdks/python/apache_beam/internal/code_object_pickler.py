@@ -450,7 +450,12 @@ def get_code_from_identifier(code_object_identifier: str):
       obj = importlib.import_module(module_name)
       start_index = i
       break
-    except (ImportError, ModuleNotFoundError, ValueError):
+    except ModuleNotFoundError as e:
+      if e.name == module_name or (e.name and
+                                   module_name.startswith(f'{e.name}.')):
+        continue
+      raise
+    except ValueError:
       continue
   if obj is None:
     raise AttributeError(f'Module {parts[0]} not found in sys.modules')
