@@ -43,15 +43,21 @@ import scala.Option;
 public class SingleEmitInputDStream<T> extends ConstantInputDStream<T> {
 
   private boolean emitted = false;
+  private final boolean forceWatermarkSync;
   private transient long lastValidTimeMs = 0;
 
   public SingleEmitInputDStream(StreamingContext ssc, RDD<T> rdd) {
+    this(ssc, rdd, false);
+  }
+
+  public SingleEmitInputDStream(StreamingContext ssc, RDD<T> rdd, boolean forceWatermarkSync) {
     super(ssc, rdd, JavaSparkContext$.MODULE$.fakeClassTag());
+    this.forceWatermarkSync = forceWatermarkSync;
   }
 
   @Override
   public Option<RDD<T>> compute(Time validTime) {
-    if (validTime != null) {
+    if (forceWatermarkSync && validTime != null && validTime.milliseconds() > lastValidTimeMs) {
       waitForLastBatch(validTime);
     }
     if (this.emitted) {

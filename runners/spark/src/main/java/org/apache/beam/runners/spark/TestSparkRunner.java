@@ -105,6 +105,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             finishState,
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
       } finally {
+        GlobalWatermarkHolder.clear();
         try {
           if (testSparkOptions.isDeleteCheckpointDir()) {
             // cleanup checkpoint dir.

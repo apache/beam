@@ -176,19 +176,25 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       final Future<?> submissionFuture =
           executorService.submit(
               () -> {
-                translator.translate(fusedPipeline, context);
-                LOG.info(
-                    "Job {}: Pipeline translated successfully. Computing outputs", jobInfo.jobId());
-                context.computeOutputs();
-
-                jssc.start();
+                GlobalWatermarkHolder.clear();
                 try {
-                  jssc.awaitTerminationOrTimeout(timeout);
-                } catch (InterruptedException e) {
-                  LOG.warn("Streaming context interrupted, shutting down.", e);
+                  translator.translate(fusedPipeline, context);
+                  LOG.info(
+                      "Job {}: Pipeline translated successfully. Computing outputs",
+                      jobInfo.jobId());
+                  context.computeOutputs();
+
+                  jssc.start();
+                  try {
+                    jssc.awaitTerminationOrTimeout(timeout);
+                  } catch (InterruptedException e) {
+                    LOG.warn("Streaming context interrupted, shutting down.", e);
+                  }
+                  jssc.stop();
+                  LOG.info("Job {} finished.", jobInfo.jobId());
+                } finally {
+                  GlobalWatermarkHolder.clear();
                 }
-                jssc.stop();
-                LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableStreamingMode(submissionFuture, jssc);
     } else {
