@@ -237,8 +237,8 @@ public class GroupByKeyTest implements Serializable {
      * many runners do not support it.
      *
      * <p>Since a delay in processing time is fundamental to this test, it unfortunately must have a
-     * real-time sleep. Currently the sleep is sub-second so it is acceptable delay for a unit test
-     * suite.
+     * real-time sleep. Currently the sleep is a couple of seconds so it is an acceptable delay for
+     * a unit test suite.
      */
     @Test
     @BeamParallelJunit4Runner.SerialTest
