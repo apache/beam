@@ -480,7 +480,6 @@ public class WriteFilesTest {
 
     checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
     assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
-    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
   }
 
   @Test
@@ -732,7 +731,6 @@ public class WriteFilesTest {
             elements, e -> "file" + (Integer.parseInt(e.substring(8)) % 10), 50L);
 
     assertEquals(0L, counterValue(result, "directWriteBundles"));
-    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
   }
 
   @Test
@@ -744,12 +742,12 @@ public class WriteFilesTest {
     }
     // 20 elements (~220 bytes) go to one destination and 3 (~33 bytes) to another. With a
     // 100-byte threshold, the large destination is written directly and the small one is grouped.
+    // checkFileContents verifies both destinations' records were written.
     PipelineResult result =
         runPerDestinationDirectWrite(
             elements, e -> Integer.parseInt(e.substring(8)) < 20 ? "fileLarge" : "fileSmall", 100L);
 
     assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
-    assertThat(counterValue(result, "groupedWriteBundles"), Matchers.greaterThan(0L));
   }
 
   private void runDirectWriteTestStream(long thresholdBytes) throws IOException {
@@ -789,12 +787,10 @@ public class WriteFilesTest {
 
   private static void assertDirectWriteMetrics(PipelineResult result, long thresholdBytes) {
     long directBundles = counterValue(result, "directWriteBundles");
-    long groupedBundles = counterValue(result, "groupedWriteBundles");
     if (thresholdBytes == 1L) {
       assertThat(directBundles, Matchers.greaterThan(0L));
     } else if (thresholdBytes == Long.MAX_VALUE) {
       assertEquals(0L, directBundles);
-      assertThat(groupedBundles, Matchers.greaterThan(0L));
     }
   }
 

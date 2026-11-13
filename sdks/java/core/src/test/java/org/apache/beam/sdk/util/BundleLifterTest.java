@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -181,19 +182,21 @@ public class BundleLifterTest {
   }
 
   @Test
-  public void testNullKeyGoesToSmallOutput() throws Exception {
+  public void testNullKeysShareTheirOwnKey() throws Exception {
     DoFnTester<Integer, Void> tester =
         DoFnTester.of(
             new BundleLiftDoFn<>(
-                INTEGER_SMALL, INTEGER_LARGE, 1, x -> 1, x -> x < 0 ? null : "key"));
+                INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1, x -> x < 0 ? null : "key"));
 
     tester.startBundle();
     tester.processElement(-1);
     tester.processElement(5);
+    tester.processElement(-2);
     tester.finishBundle();
 
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), contains(-1));
-    assertThat(tester.peekOutputElements(INTEGER_LARGE), contains(5));
+    // The two null-key elements share a key and reach the threshold; "key" has only one element.
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(-1, -2));
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), contains(5));
   }
 
   @Test
@@ -214,6 +217,64 @@ public class BundleLifterTest {
     assertThat(
         tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4, 5, 6, 7, 8));
     assertThat(tester.peekOutputElements(INTEGER_LARGE), empty());
+  }
+
+  @Test
+  public void testUntrackedKeysGoToSmallOutputAfterEviction() throws Exception {
+    // Threshold 4 caps total buffered bytes at 8.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
+
+    tester.startBundle();
+    for (int i = 0; i < 9; i++) {
+      tester.processElement(i);
+    }
+    // Keys 0-4 were evicted; keys 5-8 are still buffered.
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4));
+
+    // A new key and an evicted key are no longer tracked, so they go straight to the small output.
+    tester.processElement(100);
+    tester.processElement(0);
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4, 100, 0));
+
+    // A key that is still buffered can still reach the threshold.
+    tester.processElement(5);
+    tester.processElement(5);
+    tester.processElement(5);
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), contains(5, 5, 5, 5));
+    tester.finishBundle();
+
+    assertThat(
+        tester.peekOutputElements(INTEGER_SMALL),
+        containsInAnyOrder(0, 1, 2, 3, 4, 100, 0, 6, 7, 8));
+  }
+
+  @Test
+  public void testCustomMaxBufferedBytes() throws Exception {
+    // Threshold 4 with a cap of 4: the 5th distinct key exceeds the cap, and keys are evicted
+    // until at most half of it (2) remains buffered.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
+
+    tester.startBundle();
+    for (int i = 0; i < 5; i++) {
+      tester.processElement(i);
+    }
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2));
+    tester.finishBundle();
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMaxBufferedBytesBelowThresholdIsRejected() {
+    BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxBufferedBytes(5L);
+  }
+
+  @Test
+  public void testWithMaxBufferedBytes() {
+    BundleLifter<Integer> lifter =
+        BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxBufferedBytes(15L);
+    assertEquals(15L, lifter.maxBufferedBytes);
+    assertEquals(20L, BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).maxBufferedBytes);
   }
 
   @Test

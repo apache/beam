@@ -456,8 +456,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /**
-   * Returns a new {@link WriteFiles} that writes large input bundles directly to temporary files,
-   * skipping the shuffle before temporary file creation.
+   * Returns a new {@link WriteFiles} that fuses with preceding stages and writes large input
+   * from a single bundle directly to temporary files.
    *
    * <p>Records are buffered per window, pane and destination until their encoded size reaches
    * {@code thresholdBytes}; those that reach it are written straight to temporary files. Smaller
@@ -1259,7 +1259,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           PCollectionList.of(lifted.get(smallBundlesTag).setCoder(input.getCoder()))
               .and(routed.get(spilledRecordsTag).setCoder(input.getCoder()))
               .apply("FlattenSmallBundles", Flatten.pCollections())
-              .apply("CountGroupedBundles", ParDo.of(new CountGroupedBundlesFn<>()))
               .setCoder(input.getCoder());
       PCollection<FileResult<DestinationT>> groupedFiles;
       if (getComputeNumShards() != null || getNumShardsProvider() != null) {
@@ -1320,8 +1319,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   /**
    * Key function for {@link BundleLifter}: the record's destination, so that together with the
    * window and pane the threshold is evaluated per output file. Returns {@code null} if the
-   * destination cannot be computed, which sends the record to the grouped path where the usual
-   * error handling applies.
+   * destination cannot be computed; such records share one key, and the write DoFn applies the
+   * usual error handling to them.
    */
   private static class DestinationKeyFn<UserT, DestinationT>
       implements SerializableFunction<UserT, @Nullable Object> {
@@ -1334,31 +1333,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @Override
     public @Nullable Object apply(UserT record) {
       try {
-        // Wrapped so that a null destination (e.g. Void) is still a valid key.
-        return java.util.Optional.ofNullable(dynamicDestinations.getDestination(record));
+        return dynamicDestinations.getDestination(record);
       } catch (Exception e) {
         return null;
       }
-    }
-  }
-
-  /** Passes records through, counting the bundles that take the grouped path. */
-  private static class CountGroupedBundlesFn<T> extends DoFn<T, T> {
-    private final Counter groupedBundles = Metrics.counter(WriteFiles.class, "groupedWriteBundles");
-    private transient boolean counted;
-
-    @StartBundle
-    public void startBundle() {
-      counted = false;
-    }
-
-    @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<T> receiver) {
-      if (!counted) {
-        groupedBundles.inc();
-        counted = true;
-      }
-      receiver.output(element);
     }
   }
 
@@ -1373,7 +1351,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private final Counter directBundles = Metrics.counter(WriteFiles.class, "directWriteBundles");
 
-    // Per-bundle state, reset in startBundle.
+    // Per-bundle state, allocated once in setup and cleared at the start of each bundle.
     private transient Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
 
     DirectWriteRecordsFn(TupleTag<UserT> spilledRecordsTag, Coder<UserT> inputCoder) {
@@ -1381,9 +1359,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       this.inputCoder = inputCoder;
     }
 
+    @Setup
+    public void setup() {
+      writers = new LinkedHashMap<>();
+    }
+
     @StartBundle
     public void startBundle() {
-      writers = new LinkedHashMap<>();
+      writers.clear();
     }
 
     @ProcessElement
