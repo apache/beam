@@ -214,7 +214,7 @@ public abstract class SerializableDeleteFile {
               deleteFile.specId(), spec.specId()));
     }
     // jsonPartition is the primary (handles evolved specs, special characters).
-    // partitionPath is the fallback for values that don't round-trip through JSON.
+    // partitionPath doesn't parse back reliably, so only elements from before jsonPartition use it.
     String jsonPartition = SingleValueParser.toJson(spec.partitionType(), deleteFile.partition());
     String partitionPath = spec.partitionToPath(deleteFile.partition());
 
@@ -286,13 +286,7 @@ public abstract class SerializableDeleteFile {
 
     @Nullable String jsonPartition = getJsonPartition();
     if (jsonPartition != null) {
-      try {
-        deleteFileBuilder = deleteFileBuilder.withPartition(partition(partitionSpec));
-      } catch (RuntimeException e) {
-        // Some partition values (e.g. NaN / Infinity floating-point) don't round-trip through the
-        // JSON representation; fall back to the partition-path string
-        deleteFileBuilder = deleteFileBuilder.withPartitionPath(getPartitionPath());
-      }
+      deleteFileBuilder = deleteFileBuilder.withPartition(partition(partitionSpec));
     } else {
       // Elements decoded from a pre-jsonPartition release carry only the partition path.
       deleteFileBuilder = deleteFileBuilder.withPartitionPath(getPartitionPath());
@@ -340,8 +334,8 @@ public abstract class SerializableDeleteFile {
   }
 
   private StructLike partition(PartitionSpec spec) {
-    return (StructLike)
-        SingleValueParser.fromJson(spec.partitionType(), checkStateNotNull(getJsonPartition()));
+    return PartitionUtils.partitionFromJson(
+        spec.partitionType(), checkStateNotNull(getJsonPartition()));
   }
 
   @Override

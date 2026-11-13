@@ -263,36 +263,56 @@ public class SerializableDataFileTest {
   }
 
   /**
-   * F7: NaN / Infinity floating-point partition values don't round-trip through the JSON partition
-   * representation ({@code SingleValueParser.fromJson} rejects the quoted {@code "NaN"}).
-   * Reconstruct must fall back to the partition-path string, which handles them, rather than
-   * crash-looping the sink at commit time.
+   * NaN and infinity become quoted strings in the JSON partition, which {@code
+   * SingleValueParser.fromJson} rejects. They must still read back, and so must the other values in
+   * the tuple. The partition path would change those.
    */
   @Test
-  public void nanFloatPartitionReconstructsViaPathFallback() {
+  public void nonFinitePartitionValuesRoundTrip() {
     Schema schema =
         new Schema(
             Types.NestedField.required(1, "f", Types.FloatType.get()),
-            Types.NestedField.optional(2, "data", Types.StringType.get()));
-    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("f").build();
-    GenericRecord partition = GenericRecord.create(spec.partitionType());
-    partition.setField("f", Float.NaN);
-    DataFile dataFile =
-        DataFiles.builder(spec)
-            .withFormat(FileFormat.PARQUET)
-            .withPath("gs://test-bucket/data/nan.parquet")
-            .withFileSizeInBytes(1L)
-            .withRecordCount(1L)
-            .withPartition(partition)
+            Types.NestedField.required(2, "d", Types.DoubleType.get()),
+            Types.NestedField.optional(3, "date", Types.DateType.get()),
+            Types.NestedField.optional(4, "str", Types.StringType.get()),
+            Types.NestedField.optional(5, "null_str", Types.StringType.get()),
+            Types.NestedField.optional(6, "null_int", Types.IntegerType.get()),
+            Types.NestedField.optional(7, "bin", Types.BinaryType.get()));
+    PartitionSpec spec =
+        PartitionSpec.builderFor(schema)
+            .identity("f")
+            .identity("d")
+            .year("date")
+            .identity("str")
+            .identity("null_str")
+            .identity("null_int")
+            .identity("bin")
             .build();
 
-    SerializableDataFile sdf = SerializableDataFile.from(dataFile, spec);
-    // Must reconstruct without throwing (JSON decode of NaN fails -> partition-path fallback).
-    DataFile reconstructed = sdf.createDataFile(ImmutableMap.of(spec.specId(), spec));
+    for (float value : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+      GenericRecord partition = GenericRecord.create(spec.partitionType());
+      partition.setField("f", value);
+      partition.setField("d", (double) value);
+      partition.setField("date_year", 54);
+      partition.setField("str", "a b/c");
+      partition.setField("bin", ByteBuffer.wrap(new byte[] {1, 2, 3}));
+      DataFile dataFile =
+          DataFiles.builder(spec)
+              .withFormat(FileFormat.PARQUET)
+              .withPath("gs://test-bucket/data/non-finite.parquet")
+              .withFileSizeInBytes(1L)
+              .withRecordCount(1L)
+              .withPartition(partition)
+              .build();
 
-    Object value = reconstructed.partition().get(0, Object.class);
-    assertTrue(
-        "partition value must round-trip as NaN",
-        value instanceof Float && Float.isNaN((Float) value));
+      DataFile reconstructed =
+          SerializableDataFile.from(dataFile, spec)
+              .createDataFile(ImmutableMap.of(spec.specId(), spec));
+
+      for (int pos = 0; pos < partition.size(); pos++) {
+        assertEquals(
+            partition.get(pos, Object.class), reconstructed.partition().get(pos, Object.class));
+      }
+    }
   }
 }

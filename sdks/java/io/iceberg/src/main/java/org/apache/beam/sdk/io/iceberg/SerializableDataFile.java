@@ -191,7 +191,7 @@ public abstract class SerializableDataFile {
               f.specId(), spec.specId()));
     }
     // jsonPartition is the primary (handles evolved specs, special characters).
-    // partitionPath is the fallback for values that don't round-trip through JSON.
+    // partitionPath doesn't parse back reliably, so only elements from before jsonPartition use it.
     String jsonPartition = SingleValueParser.toJson(spec.partitionType(), f.partition());
     String partitionPath = spec.partitionToPath(f.partition());
 
@@ -260,13 +260,7 @@ public abstract class SerializableDataFile {
 
     @Nullable String jsonPartition = getJsonPartition();
     if (jsonPartition != null) {
-      try {
-        builder = builder.withPartition(partition(partitionSpec));
-      } catch (RuntimeException e) {
-        // Some partition values (e.g. NaN / Infinity floating-point) don't round-trip through the
-        // JSON representation; fall back to the partition-path string, which handles them.
-        builder = builder.withPartitionPath(getPartitionPath());
-      }
+      builder = builder.withPartition(partition(partitionSpec));
     } else {
       // Elements decoded from a pre-jsonPartition release carry only the partition path.
       builder = builder.withPartitionPath(getPartitionPath());
@@ -276,8 +270,8 @@ public abstract class SerializableDataFile {
 
   @VisibleForTesting
   StructLike partition(PartitionSpec spec) {
-    return (StructLike)
-        SingleValueParser.fromJson(spec.partitionType(), checkStateNotNull(getJsonPartition()));
+    return PartitionUtils.partitionFromJson(
+        spec.partitionType(), checkStateNotNull(getJsonPartition()));
   }
 
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
