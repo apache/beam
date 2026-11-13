@@ -80,6 +80,26 @@ class TestMetricsContainer(unittest.TestCase):
     counter = mc.get_counter(MetricName('namespace', 'name'))
     self.assertEqual(counter.value, 1)
 
+  def test_pickle_and_deepcopy_metric_name_after_caching(self):
+    import copy
+    import pickle
+    from apache_beam.internal import pickler
+    mc = MetricsContainer('astep')
+    name = MetricName('namespace', 'name')
+    mc.get_counter(name).inc()
+    mc.get_distribution(name).update(1)
+    mc.get_gauge(name).set(2)
+    mc.get_string_set(name).add('a')
+
+    self.assertEqual(pickle.loads(pickle.dumps(name)), name)
+    self.assertEqual(pickler.loads(pickler.dumps(name)), name)
+    self.assertEqual(copy.deepcopy(name), name)
+
+    key = MetricKey('astep', name)
+    self.assertEqual(pickle.loads(pickle.dumps(key)), key)
+    self.assertEqual(pickler.loads(pickler.dumps(key)), key)
+    self.assertEqual(copy.deepcopy(key), key)
+
   def test_get_cumulative_or_updates(self):
     mc = MetricsContainer('astep')
 

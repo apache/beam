@@ -175,12 +175,15 @@ class _TypedMetricName(object):
   def __init__(
       self,
       cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
-      metric_name  # type: Union[str, MetricName]
+      metric_name,  # type: Union[str, MetricName]
+      fast_name=None  # type: Optional[str]
   ):
     # type: (...) -> None
     self.cell_type = cell_type
     self.metric_name = metric_name
-    if isinstance(metric_name, str):
+    if fast_name is not None:
+      self.fast_name = fast_name
+    elif isinstance(metric_name, str):
       self.fast_name = metric_name
     else:
       self.fast_name = metric_name.fast_name()
@@ -198,7 +201,7 @@ class _TypedMetricName(object):
     return '%s %s' % (self.cell_type, self.metric_name)
 
   def __reduce__(self):
-    return _TypedMetricName, (self.cell_type, self.metric_name)
+    return _TypedMetricName, (self.cell_type, self.metric_name, self.fast_name)
 
 
 _DEFAULT = None  # type: Any
