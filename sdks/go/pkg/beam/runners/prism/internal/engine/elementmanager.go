@@ -1997,7 +1997,7 @@ keysPerBundle:
 					timerCleared = true
 					continue // Timer has "fired" already, so this can be ignored.
 				}
-				if e.timestamp != lastSet.firing {
+				if e.sequence < 0 || e.timestamp != lastSet.firing || e.holdTimestamp != lastSet.hold {
 					timerCleared = true
 					continue
 				}
