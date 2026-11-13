@@ -113,6 +113,7 @@ import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
+import org.apache.iceberg.exceptions.ForbiddenException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
@@ -188,11 +189,26 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   public void catalogCleanup(List<Namespace> namespaces) throws IOException {
     for (Namespace namespace : namespaces) {
-      for (TableIdentifier identifier : catalog.listTables(namespace)) {
-        catalog.dropTable(identifier);
-      }
-      if (catalog instanceof SupportsNamespaces) {
-        ((SupportsNamespaces) catalog).dropNamespace(namespace);
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        try {
+          for (TableIdentifier identifier : catalog.listTables(namespace)) {
+            catalog.dropTable(identifier);
+          }
+          if (catalog instanceof SupportsNamespaces) {
+            ((SupportsNamespaces) catalog).dropNamespace(namespace);
+          }
+          break;
+        } catch (ForbiddenException e) {
+          if (attempt == 3) {
+            throw e;
+          }
+          try {
+            Thread.sleep(SETUP_TEARDOWN_SLEEP_MS * attempt);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting to retry catalog cleanup", ie);
+          }
+        }
       }
     }
   }
