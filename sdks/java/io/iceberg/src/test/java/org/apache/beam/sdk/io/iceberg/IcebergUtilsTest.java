@@ -37,8 +37,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -48,6 +51,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -57,6 +61,7 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
+import org.apache.iceberg.util.UUIDUtil;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -240,6 +245,14 @@ public class IcebergUtilsTest {
           "2024-10-08 13:18:20.053",
           Types.TimestampType.withoutZone(),
           localDateTime);
+
+      // Timestamp.MICROS, too far out for a long of nanos
+      LocalDateTime farOut = LocalDateTime.parse("9999-12-31T23:59:59.123456");
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          farOut.toInstant(ZoneOffset.UTC),
+          Types.TimestampType.withoutZone(),
+          farOut);
     }
 
     @Test
@@ -255,6 +268,17 @@ public class IcebergUtilsTest {
           offsetDateTime.toInstant(),
           Types.TimestampType.withZone(),
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Timestamp.MICROS, too far out for a long of nanos
+      for (String farOut :
+          Arrays.asList(
+              "9999-12-31T23:59:59.123456Z", "9999-12-31T23:59:59Z", "0001-01-01T00:00:00Z")) {
+        checkRowValueToRecordValue(
+            Schema.FieldType.logicalType(Timestamp.MICROS),
+            OffsetDateTime.parse(farOut).toInstant(),
+            Types.TimestampType.withZone(),
+            OffsetDateTime.parse(farOut));
+      }
 
       // SqlTypes.DATETIME
       checkRowValueToRecordValue(
@@ -342,6 +366,15 @@ public class IcebergUtilsTest {
     }
 
     @Test
+    public void testUuid() {
+      UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+      checkRowValueToRecordValue(
+          Schema.FieldType.BYTES, UUIDUtil.convert(uuid), Types.UUIDType.get(), uuid);
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(SqlTypes.UUID), Types.UUIDType.get(), uuid);
+    }
+
+    @Test
     public void testDecimal() {
       BigDecimal num = BigDecimal.valueOf(123.456);
 
@@ -382,6 +415,12 @@ public class IcebergUtilsTest {
           Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32),
           Types.MapType.ofRequired(1, 2, Types.StringType.get(), Types.IntegerType.get()),
           map);
+
+      // a null value stays null
+      checkRowValueToRecordValue(
+          Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES.withNullable(true)),
+          Types.MapType.ofOptional(1, 2, Types.StringType.get(), Types.BinaryType.get()),
+          Collections.singletonMap("a", null));
     }
 
     @Test
@@ -392,6 +431,12 @@ public class IcebergUtilsTest {
           Schema.FieldType.array(Schema.FieldType.STRING),
           Types.ListType.ofRequired(1, Types.StringType.get()),
           list);
+
+      // a null element stays null
+      checkRowValueToRecordValue(
+          Schema.FieldType.array(Schema.FieldType.BYTES.withNullable(true)),
+          Types.ListType.ofOptional(1, Types.BinaryType.get()),
+          Collections.singletonList(null));
     }
 
     @Test
@@ -586,6 +631,90 @@ public class IcebergUtilsTest {
     }
 
     @Test
+    public void testUuid() {
+      UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+      checkRecordValueToRowValue(
+          Types.UUIDType.get(), uuid, Schema.FieldType.BYTES, UUIDUtil.convert(uuid));
+    }
+
+    @Test
+    public void testNestedValuesRoundTrip() throws Exception {
+      ByteBuffer binary = ByteBuffer.wrap(new byte[] {1, 2, 3});
+      UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
+      OffsetDateTime timestamptz = OffsetDateTime.parse("9999-12-31T23:59:59.123456Z");
+      Type binaryType = Types.BinaryType.get();
+      Type uuidType = Types.UUIDType.get();
+      Type timestamptzType = Types.TimestampType.withZone();
+      Type stringType = Types.StringType.get();
+      Types.StructType structType = Types.StructType.of(required(1, "uuid", uuidType));
+      Record struct = GenericRecord.create(structType).copy("uuid", uuid);
+
+      Map<Type, Object> values =
+          ImmutableMap.<Type, Object>builder()
+              .put(Types.ListType.ofRequired(2, binaryType), Arrays.asList(binary))
+              .put(Types.ListType.ofRequired(2, uuidType), Arrays.asList(uuid))
+              .put(Types.ListType.ofRequired(2, timestamptzType), Arrays.asList(timestamptz))
+              .put(
+                  Types.MapType.ofRequired(2, 3, binaryType, binaryType),
+                  ImmutableMap.of(binary, binary))
+              .put(Types.MapType.ofRequired(2, 3, uuidType, uuidType), ImmutableMap.of(uuid, uuid))
+              .put(
+                  Types.MapType.ofRequired(2, 3, timestamptzType, timestamptzType),
+                  ImmutableMap.of(timestamptz, timestamptz))
+              .put(
+                  Types.ListType.ofRequired(2, Types.ListType.ofRequired(3, structType)),
+                  Arrays.asList(Arrays.asList(struct)))
+              .put(
+                  Types.ListType.ofRequired(
+                      2, Types.MapType.ofRequired(3, 4, stringType, structType)),
+                  Arrays.asList(ImmutableMap.of("a", struct)))
+              .put(
+                  Types.MapType.ofRequired(
+                      2, 3, stringType, Types.ListType.ofRequired(4, structType)),
+                  ImmutableMap.of("a", Arrays.asList(struct)))
+              .build();
+
+      for (Map.Entry<Type, Object> entry : values.entrySet()) {
+        org.apache.iceberg.Schema icebergSchema =
+            new org.apache.iceberg.Schema(required(0, "v", entry.getKey()));
+        Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema);
+        Record record = GenericRecord.create(icebergSchema).copy("v", entry.getValue());
+
+        Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
+        Row decoded = CoderUtils.clone(RowCoder.of(beamSchema), row);
+
+        assertEquals(record, IcebergUtils.beamRowToIcebergRecord(icebergSchema, decoded));
+      }
+    }
+
+    @Test
+    public void testNullStructElements() {
+      Record listRecord =
+          GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+              .copy("list", Collections.singletonList(null));
+      Record mapRecord =
+          GenericRecord.create(RECORD_MAP_ICEBERG_SCHEMA)
+              .copy("map", Collections.singletonMap("key", null));
+      assertThrows(
+          IllegalStateException.class,
+          () -> IcebergUtils.icebergRecordToBeamRow(ROW_LIST_BEAM_SCHEMA, listRecord));
+      assertThrows(
+          IllegalStateException.class,
+          () -> IcebergUtils.icebergRecordToBeamRow(ROW_MAP_BEAM_SCHEMA, mapRecord));
+
+      Row listRow =
+          Row.withSchema(ROW_LIST_BEAM_SCHEMA).attachValues(Collections.singletonList(null), true);
+      Row mapRow =
+          Row.withSchema(ROW_MAP_BEAM_SCHEMA).attachValues(Collections.singletonMap("key", null));
+      assertThrows(
+          IllegalStateException.class,
+          () -> IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, listRow));
+      assertThrows(
+          IllegalStateException.class,
+          () -> IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, mapRow));
+    }
+
+    @Test
     public void testDecimal() {
       BigDecimal num = BigDecimal.valueOf(123.456);
 
@@ -615,6 +744,14 @@ public class IcebergUtilsTest {
           Types.MapType.ofRequired(1, 2, Types.StringType.get(), Types.IntegerType.get()),
           Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32),
           map);
+
+      // a null value is fine when the Beam type allows it
+      Map<String, ByteBuffer> nullValue = Collections.singletonMap("a", null);
+      checkRecordValueToRowValue(
+          Types.MapType.ofOptional(1, 2, Types.StringType.get(), Types.BinaryType.get()),
+          nullValue,
+          Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES.withNullable(true)),
+          nullValue);
     }
 
     @Test
@@ -625,6 +762,20 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
+
+      // a null element is only fine when the Beam type allows it
+      Type nullableList = Types.ListType.ofOptional(1, Types.BinaryType.get());
+      List<ByteBuffer> nullElement = Collections.singletonList(null);
+      checkRecordValueToRowValue(
+          nullableList,
+          nullElement,
+          Schema.FieldType.array(Schema.FieldType.BYTES.withNullable(true)),
+          nullElement);
+      Schema.FieldType requiredElements = Schema.FieldType.array(Schema.FieldType.BYTES);
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              checkRecordValueToRowValue(nullableList, nullElement, requiredElements, nullElement));
     }
 
     @Test
