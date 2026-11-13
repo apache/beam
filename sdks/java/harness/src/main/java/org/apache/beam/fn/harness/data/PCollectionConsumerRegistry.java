@@ -82,8 +82,8 @@ public class PCollectionConsumerRegistry {
   }
 
   private final FusedDoFnExceptionHandling fusedDoFnExceptionHandling;
-  private final AtomicReference<Exception> firstDownstreamException = new AtomicReference<>();
-  private final Map<String, Exception> downstreamExceptionsByTransform =
+  private final AtomicReference<Throwable> firstDownstreamException = new AtomicReference<>();
+  private final Map<String, Throwable> downstreamExceptionsByTransform =
       new ConcurrentHashMap<>();
 
   /** Stores metadata about each consumer so that the appropriate metrics tracking can occur. */
@@ -317,7 +317,7 @@ public class PCollectionConsumerRegistry {
    * Records a downstream exception when configured to detect exceptions swallowed by a fused
    * upstream DoFn. Work cancellation is not a downstream processing failure.
    */
-  private void recordDownstreamException(String ptransformId, Exception exception) {
+  private void recordDownstreamException(String ptransformId, Throwable exception) {
     if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.LEGACY
         && !WorkCancelledException.isWorkCancelledException(exception)) {
       firstDownstreamException.compareAndSet(null, exception);
@@ -325,13 +325,29 @@ public class PCollectionConsumerRegistry {
     }
   }
 
+  /** Re-throws a recorded downstream failure without changing its original type. */
+  private static void rethrowDownstreamFailure(Throwable failure) throws Exception {
+    if (failure instanceof Exception) {
+      throw (Exception) failure;
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    throw new RuntimeException(failure);
+  }
+
+  /** Returns a previously recorded failure for the transform, if any. */
+  private @Nullable Throwable getDownstreamFailure(String ptransformId) {
+    return fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL
+        ? downstreamExceptionsByTransform.get(ptransformId)
+        : null;
+  }
+
   /** Prevents retrying a downstream transform that has already failed in fail mode. */
   private void failFastIfDownstreamFailed(String ptransformId) throws Exception {
-    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL) {
-      Exception exception = downstreamExceptionsByTransform.get(ptransformId);
-      if (exception != null) {
-        throw exception;
-      }
+    Throwable failure = getDownstreamFailure(ptransformId);
+    if (failure != null) {
+      rethrowDownstreamFailure(failure);
     }
   }
 
@@ -340,9 +356,9 @@ public class PCollectionConsumerRegistry {
    * outbound data is finalized.
    */
   public void failBundleIfDownstreamFailed() throws Exception {
-    Exception exception = firstDownstreamException.get();
-    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL && exception != null) {
-      throw exception;
+    Throwable failure = firstDownstreamException.get();
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL && failure != null) {
+      rethrowDownstreamFailure(failure);
     }
   }
 
@@ -350,12 +366,12 @@ public class PCollectionConsumerRegistry {
    * Logs a swallowed downstream exception only after the rest of bundle processing has succeeded.
    */
   public void logWarningIfDownstreamFailed() {
-    Exception exception = firstDownstreamException.get();
-    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN && exception != null) {
+    Throwable failure = firstDownstreamException.get();
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN && failure != null) {
       LOG.warn(
           "A downstream exception was caught by fused user code. The bundle completed, but "
               + "downstream processing may have been skipped.",
-          exception);
+          failure);
     }
   }
 
@@ -472,6 +488,9 @@ public class PCollectionConsumerRegistry {
         recordDownstreamException(ptransformId, e);
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
+      } catch (Error e) {
+        recordDownstreamException(ptransformId, e);
+        throw e;
       }
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
@@ -551,25 +570,51 @@ public class PCollectionConsumerRegistry {
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container. We specifically don't use a for-each loop since it creates an iterator
       // on a hot path.
+      Throwable firstFailure = null;
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
+        String ptransformId = consumerAndMetadata.getPTransformId();
         ExecutionState state = consumerAndMetadata.getExecutionState();
-        // The original failure was already logged when the consumer first threw. Avoid logging
-        // the same failure again for every later element rejected by fail-fast handling.
-        failFastIfDownstreamFailed(consumerAndMetadata.getPTransformId());
+
+        // In fail mode, a failed consumer is skipped on later elements, but healthy sibling
+        // consumers must still receive those elements.
+        Throwable previousFailure = getDownstreamFailure(ptransformId);
+        if (previousFailure != null) {
+          if (firstFailure == null) {
+            firstFailure = previousFailure;
+          }
+          continue;
+        }
+
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
-          recordDownstreamException(consumerAndMetadata.getPTransformId(), e);
-          logAndRethrow(
-              e,
-              state,
-              consumerAndMetadata.getExecutionStateTracker(),
-              consumerAndMetadata.getPTransformId(),
-              outputSampler,
-              elementSample);
+          recordDownstreamException(ptransformId, e);
+          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL) {
+            logAndRethrow(
+                e,
+                state,
+                consumerAndMetadata.getExecutionStateTracker(),
+                ptransformId,
+                outputSampler,
+                elementSample);
+          }
+          if (firstFailure == null) {
+            firstFailure = e;
+          }
+        } catch (Error e) {
+          recordDownstreamException(ptransformId, e);
+          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL) {
+            throw e;
+          }
+          if (firstFailure == null) {
+            firstFailure = e;
+          }
         }
-        this.sampledByteSizeDistribution.finishLazyUpdate();
+      }
+      this.sampledByteSizeDistribution.finishLazyUpdate();
+      if (firstFailure != null) {
+        rethrowDownstreamFailure(firstFailure);
       }
     }
   }
