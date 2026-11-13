@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
@@ -69,6 +70,16 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PCollectionConsumerRegistry {
+
+  /** Controls how exceptions from fused downstream consumers are handled at bundle completion. */
+  public enum FusedDoFnExceptionHandling {
+    LEGACY,
+    WARN,
+    FAIL
+  }
+
+  private final FusedDoFnExceptionHandling fusedDoFnExceptionHandling;
+  private final AtomicReference<Exception> firstDownstreamException = new AtomicReference<>();
 
   /** Stores metadata about each consumer so that the appropriate metrics tracking can occur. */
   @AutoValue
@@ -121,7 +132,13 @@ public class PCollectionConsumerRegistry {
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
-    this(stateTracker, shortIdMap, bundleProgressReporterRegistrar, processBundleDescriptor, null);
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        null,
+        FusedDoFnExceptionHandling.LEGACY);
   }
 
   public PCollectionConsumerRegistry(
@@ -130,6 +147,22 @@ public class PCollectionConsumerRegistry {
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor,
       @Nullable DataSampler dataSampler) {
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        dataSampler,
+        FusedDoFnExceptionHandling.LEGACY);
+  }
+
+  public PCollectionConsumerRegistry(
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+      ProcessBundleDescriptor processBundleDescriptor,
+      @Nullable DataSampler dataSampler,
+      FusedDoFnExceptionHandling fusedDoFnExceptionHandling) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
@@ -142,6 +175,7 @@ public class PCollectionConsumerRegistry {
                 .putAllWindowingStrategies(processBundleDescriptor.getWindowingStrategiesMap())
                 .build());
     this.dataSampler = dataSampler;
+    this.fusedDoFnExceptionHandling = fusedDoFnExceptionHandling;
   }
 
   /**
@@ -274,6 +308,51 @@ public class PCollectionConsumerRegistry {
         });
   }
 
+  /**
+   * Records a downstream exception when configured to detect exceptions swallowed by a fused
+   * upstream DoFn. Work cancellation is not a downstream processing failure.
+   */
+  private void recordDownstreamException(Exception exception) {
+    if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.LEGACY
+        && !WorkCancelledException.isWorkCancelledException(exception)) {
+      firstDownstreamException.compareAndSet(null, exception);
+    }
+  }
+
+  /** Prevents additional downstream work after the first failure in fail mode. */
+  private void failFastIfDownstreamFailed() throws Exception {
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL) {
+      Exception exception = firstDownstreamException.get();
+      if (exception != null) {
+        throw exception;
+      }
+    }
+  }
+
+  /**
+   * Applies the configured policy after all bundle finish functions have run. This must be called
+   * before outbound data is finalized and before the bundle processor is returned to its cache.
+   */
+  public void finishBundle() throws Exception {
+    Exception exception = firstDownstreamException.get();
+    if (exception == null) {
+      return;
+    }
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN) {
+      LOG.warn(
+          "A downstream exception was caught by fused user code. The bundle completed, but "
+              + "downstream processing may have been skipped.",
+          exception);
+    } else if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL) {
+      throw exception;
+    }
+  }
+
+  /** Clears per-bundle failure state when a processor is successfully returned to the cache. */
+  public void reset() {
+    firstDownstreamException.set(null);
+  }
+
   private static <T> void logAndRethrow(
       Exception e,
       ExecutionState executionState,
@@ -360,6 +439,7 @@ public class PCollectionConsumerRegistry {
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
+      failFastIfDownstreamFailed();
       // Increment the counter for each window the element occurs in.
       this.elementCountCounter.inc(input.getWindows().size());
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
@@ -377,6 +457,7 @@ public class PCollectionConsumerRegistry {
       try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
+        recordDownstreamException(e);
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
       }
@@ -464,6 +545,7 @@ public class PCollectionConsumerRegistry {
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
+          recordDownstreamException(e);
           logAndRethrow(
               e,
               state,
