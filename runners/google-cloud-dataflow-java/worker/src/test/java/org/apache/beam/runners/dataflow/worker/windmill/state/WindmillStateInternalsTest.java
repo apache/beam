@@ -4059,6 +4059,7 @@ public class WindmillStateInternalsTest {
     assertNull(mapState.get("removed").readLater().read());
     assertEquals(Integer.valueOf(1), mapState.putIfAbsent("present", 2).read());
     assertNull(mapState.putIfAbsent("removed", 2).read());
+    assertFalse(mapState.isEmpty().readLater().read());
 
     Mockito.verifyNoInteractions(mockReader);
 
@@ -4101,6 +4102,7 @@ public class WindmillStateInternalsTest {
     mapSet.contains("x").readLater().read();
     mapSet.contains("y").readLater().read();
     assertFalse(mapSet.addIfAbsent("x").readLater().read());
+    assertFalse(mapSet.isEmpty().readLater().read());
     Mockito.verifyNoInteractions(mockReader);
   }
 

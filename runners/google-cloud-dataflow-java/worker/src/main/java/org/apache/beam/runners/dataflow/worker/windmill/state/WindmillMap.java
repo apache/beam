@@ -389,12 +389,17 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     @Override
     public @Nullable Boolean read() {
+      if (!cachedValues.isEmpty()) {
+        return false;
+      }
       return Iterables.isEmpty(keys.read());
     }
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
-      keys.readLater();
+      if (cachedValues.isEmpty()) {
+        keys.readLater();
+      }
       return this;
     }
   }
