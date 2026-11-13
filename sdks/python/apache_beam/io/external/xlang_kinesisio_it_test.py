@@ -273,19 +273,23 @@ class KinesisHelper:
 
   def create_stream(self, stream_name):
     # localstack could not have initialized in the container yet so repeat
-    retries = 15
+    retries = 10
     for i in range(retries):
       try:
         self.kinesis_client.create_stream(
             StreamName=stream_name,
             ShardCount=1,
         )
+        time.sleep(2)
         break
       except Exception as e:
         if i == retries - 1:
           logging.error('Could not create kinesis stream')
           raise e
-        time.sleep(2)
+        # LocalStack's HTTP endpoint may not be ready to accept connections
+        # immediately after container startup; sleep before retrying so all
+        # attempts are not exhausted immediately on ConnectionClosedError.
+        time.sleep(3)
 
     # Wait for the stream to be active
     self.get_first_shard_id(stream_name)

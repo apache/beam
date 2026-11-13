@@ -1006,16 +1006,20 @@ _LOCALSTACK_KINESIS_REGION = 'us-east-1'
 
 def _create_kinesis_stream(kinesis_client, stream_name):
   """Creates a Kinesis stream and waits until it is active."""
-  retries = 15
+  retries = 10
   for attempt in range(retries):
     try:
       kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+      time.sleep(2)
       break
     except Exception as exn:
       if attempt == retries - 1:
         _LOGGER.error('Could not create kinesis stream')
         raise exn
-      time.sleep(2)
+      # LocalStack's HTTP endpoint may not be ready to accept connections
+      # immediately after container startup; sleep before retrying so all
+      # attempts are not exhausted immediately on ConnectionClosedError.
+      time.sleep(3)
 
   for attempt in range(retries):
     stream = kinesis_client.describe_stream(StreamName=stream_name)
