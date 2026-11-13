@@ -190,40 +190,14 @@ public class TableClauseResolutionTest {
             + " InMemoryTable does not support WITH options for writes");
   }
 
+  /** {@link MetadataColumnResolverTest} covers how names bind. */
   @Test
   public void changesReadsTheMetadataColumnsThatTheQueryNames() throws Exception {
-    String opAndVersion = changes(ChangeRange.all(), ImmutableMap.of(), METADATA_COLUMNS);
-
-    // A star leaves out the metadata columns that the query names.
-    assertEquals(
-        Collections.singletonList(Arrays.asList(1L, "one", opAndVersion, 7L)),
-        session.query("SELECT *, c._version FROM CHANGES(orders) AS c WHERE _op = 'INSERT'"));
     assertEquals(
         Collections.singletonList(
             Arrays.asList(
-                1L,
-                "one",
-                opAndVersion,
-                changes(
-                    ChangeRange.versions(1L, null),
-                    ImmutableMap.of(),
-                    Collections.singletonList("_version")))),
-        session.query(
-            "SELECT a.*, x.clause FROM CHANGES(orders) AS a"
-                + " JOIN (SELECT id, clause, _version FROM CHANGES(orders, 1)) AS x"
-                + " ON a.id = x.id AND a._version = x._version WHERE a._op = 'INSERT'"));
-    assertEquals(
-        Collections.singletonList(Arrays.asList("INSERT", 1L)),
-        session.query(
-            "SELECT _op, COUNT(*) FROM CHANGES(orders) GROUP BY _op HAVING MAX(_version) = 7"
-                + " ORDER BY _op LIMIT 10"));
-
-    // A column of the table wins over a metadata column with the same name.
-    session.execute("CREATE EXTERNAL TABLE ops (id BIGINT NOT NULL, _op VARCHAR) TYPE clause");
-    assertEquals(
-        Collections.singletonList(
-            Arrays.asList("one", changes(ChangeRange.all(), ImmutableMap.of()))),
-        session.query("SELECT _op, clause FROM CHANGES(ops)"));
+                1L, "one", changes(ChangeRange.all(), ImmutableMap.of(), METADATA_COLUMNS), 7L)),
+        session.query("SELECT *, c._version FROM CHANGES(orders) AS c WHERE _op = 'INSERT'"));
   }
 
   @Test
@@ -236,12 +210,6 @@ public class TableClauseResolutionTest {
         "SELECT c._opp FROM CHANGES(orders) AS c",
         "Column '_opp' not found in table 'c'."
             + " CHANGES(orders) AS c also has these metadata columns: _op, _version");
-    assertError(
-        "SELECT _op FROM CHANGES(orders) AS a JOIN CHANGES(orders) AS b ON a.id = b.id",
-        "Column '_op' is ambiguous");
-    assertError(
-        "SELECT * FROM CHANGES(orders) AS c JOIN orders USING (id) WHERE c._op = 'INSERT'",
-        "* cannot leave out metadata column '_op' of CHANGES(orders) AS c");
   }
 
   private void assertError(String sql, String message) {

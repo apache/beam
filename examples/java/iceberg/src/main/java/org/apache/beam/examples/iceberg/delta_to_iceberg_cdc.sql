@@ -87,7 +87,8 @@ SET tempLocation='gs://my-temp-bucket/temp';
 --    Feed (or of a timestamp range, such as
 --    CHANGES(delta_employee_data, '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z'))
 --    and apply their inserts, updates, and deletes to the Lakehouse Iceberg
---    table in merge-on-read mode, ordered by _commit_version.
+--    table in merge-on-read mode, ordered by _commit_version. Naming the
+--    metadata columns _change_type and _commit_version in the SELECT reads them.
 --
 --    Keep 'change_type_column', 'change_type_map' and '_change_type'. Each
 --    change row also carries its kind as Beam ValueKind metadata, but runners
@@ -115,7 +116,4 @@ SELECT
   employee_location,
   _change_type,
   _commit_version
-FROM CHANGES(delta_employee_data, 2, 4)
-WITH (
-  'include_metadata_columns' = ARRAY['_change_type', '_commit_version']
-);
+FROM CHANGES(delta_employee_data, 2, 4);

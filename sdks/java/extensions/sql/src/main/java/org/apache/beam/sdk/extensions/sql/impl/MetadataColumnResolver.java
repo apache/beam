@@ -58,7 +58,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * its own SELECT that have it, or else to those of an enclosing SELECT. The resolver adds the names
  * to the read's {@link TableClause}, which passes them to {@link BeamSqlTable#forChanges}. It also
  * replaces {@code *} and {@code c.*} with the read's other columns, so {@code SELECT *} returns the
- * same columns as before.
+ * same columns as before. It rejects metadata columns named under a NATURAL JOIN, which could join
+ * on them.
  *
  * <p>The resolver can't tell whether a name it can't bind is an alias, a column of another table or
  * a typo, so the validator still reports unknown columns. {@link #explain} adds the metadata
@@ -87,6 +88,7 @@ final class MetadataColumnResolver {
     SqlKind kind = statement.getKind();
     if (kind.belongsTo(SqlKind.QUERY) || kind == SqlKind.INSERT || kind == SqlKind.EXPLAIN) {
       visit(statement, null);
+      selects.forEach(Scope::checkNaturalJoin);
       reads.forEach(ChangesRead::addNamedColumns);
       selects.forEach(Scope::expandStars);
     }
@@ -161,7 +163,10 @@ final class MetadataColumnResolver {
         from(join.getLeft(), scope, joinConditions);
         from(join.getRight(), scope, joinConditions);
         @Nullable SqlNode condition = join.getCondition();
-        if (join.isNatural() || join.getConditionType() == JoinConditionType.USING) {
+        if (join.isNatural()) {
+          scope.natural = true;
+          scope.mergesColumns = true;
+        } else if (join.getConditionType() == JoinConditionType.USING) {
           scope.mergesColumns = true;
         } else if (condition != null) {
           joinConditions.add(condition);
@@ -292,9 +297,25 @@ final class MetadataColumnResolver {
     /** Whether the FROM clause has a NATURAL JOIN or a JOIN ... USING, which merge columns. */
     private boolean mergesColumns;
 
+    /** Whether the FROM clause has a NATURAL JOIN, which joins on the columns its sides share. */
+    private boolean natural;
+
     Scope(SqlSelect select, @Nullable Scope parent) {
       this.select = select;
       this.parent = parent;
+    }
+
+    /** Rejects named metadata columns under a NATURAL JOIN, which could silently join on them. */
+    void checkNaturalJoin() {
+      for (ChangesRead read : reads()) {
+        if (natural && !read.named.isEmpty()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "A NATURAL JOIN would join on metadata column '%s' of %s if the other side has a"
+                      + " column with that name. Join with USING or ON instead",
+                  read.named.iterator().next(), read));
+        }
+      }
     }
 
     List<ChangesRead> reads() {
@@ -361,8 +382,8 @@ final class MetadataColumnResolver {
         throw new IllegalArgumentException(
             String.format(
                 "* cannot leave out metadata column '%s' of %s, because the FROM clause has a"
-                    + " NATURAL JOIN, a JOIN ... USING or an item without an alias. Write %s.* or"
-                    + " list the columns instead",
+                    + " JOIN ... USING or an item without an alias. Write %s.* or list the columns"
+                    + " instead",
                 read.named.iterator().next(), read, read.alias));
       }
       SqlParserPos pos = star.getParserPosition();
