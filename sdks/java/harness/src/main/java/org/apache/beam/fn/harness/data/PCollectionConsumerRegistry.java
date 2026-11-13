@@ -332,21 +332,26 @@ public class PCollectionConsumerRegistry {
   }
 
   /**
-   * Applies the configured policy after all bundle finish functions have run. This must be called
-   * before outbound data is finalized and before the bundle processor is returned to its cache.
+   * Fails the bundle when configured to do so. This must run after finish functions but before
+   * outbound data is finalized.
    */
-  public void finishBundle() throws Exception {
+  public void failBundleIfDownstreamFailed() throws Exception {
     Exception exception = firstDownstreamException.get();
-    if (exception == null) {
-      return;
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL && exception != null) {
+      throw exception;
     }
-    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN) {
+  }
+
+  /**
+   * Logs a swallowed downstream exception only after the rest of bundle processing has succeeded.
+   */
+  public void logWarningIfDownstreamFailed() {
+    Exception exception = firstDownstreamException.get();
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN && exception != null) {
       LOG.warn(
           "A downstream exception was caught by fused user code. The bundle completed, but "
               + "downstream processing may have been skipped.",
           exception);
-    } else if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL) {
-      throw exception;
     }
   }
 
