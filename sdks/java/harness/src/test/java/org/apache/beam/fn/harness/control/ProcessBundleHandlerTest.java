@@ -158,7 +158,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -946,6 +945,9 @@ public class ProcessBundleHandlerTest {
 
   @Before
   public void resetFusedExceptionTestCounters() {
+    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
+    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
   }
 
   private static final class CatchingFusedDoFn extends DoFn<String, String> {
@@ -1180,7 +1182,8 @@ public class ProcessBundleHandlerTest {
       assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
       assertEquals(1, FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
       assertFalse(
-          handler.bundleProcessorCache
+          handler
+              .bundleProcessorCache
               .getCachedBundleProcessors()
               .get("fused-descriptor")
               .isEmpty());
