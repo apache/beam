@@ -109,6 +109,10 @@ cdef class BytesCoderImpl(CoderImpl):
   pass
 
 
+cdef class StrUtf8CoderImpl(CoderImpl):
+  pass
+
+
 cdef class BooleanCoderImpl(CoderImpl):
   pass
 
