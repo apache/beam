@@ -261,6 +261,71 @@ public class PCollectionConsumerRegistryTest {
   }
 
   @Test
+  public void failModeContinuesDeliveringToHealthySiblingConsumers() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> failedConsumer = mock(FnDataReceiver.class);
+    FnDataReceiver<WindowedValue<String>> healthyConsumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, "failed", "failed", failedConsumer);
+    consumers.register(P_COLLECTION_A, "healthy", "healthy", healthyConsumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new Exception("downstream failure")).when(failedConsumer).accept(any());
+
+    Exception firstFailure =
+        assertThrows(
+            Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("downstream failure", firstFailure.getMessage());
+    verify(failedConsumer, times(1)).accept(any());
+    verify(healthyConsumer, times(1)).accept(any());
+
+    Exception secondFailure =
+        assertThrows(
+            Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("second")));
+    assertEquals("downstream failure", secondFailure.getMessage());
+    // The failed consumer is not invoked again, but its healthy sibling continues processing.
+    verify(failedConsumer, times(1)).accept(any());
+    verify(healthyConsumer, times(2)).accept(any());
+  }
+
+  @Test
+  public void failModeRecordsAndSurfacesErrors() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, "failed", "failed", consumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new AssertionError("downstream error")).when(consumer).accept(any());
+
+    AssertionError outputFailure =
+        assertThrows(
+            AssertionError.class, () -> wrapperConsumer.accept(valueInGlobalWindow("element")));
+    assertEquals("downstream error", outputFailure.getMessage());
+    AssertionError bundleFailure =
+        assertThrows(AssertionError.class, consumers::failBundleIfDownstreamFailed);
+    assertEquals("downstream error", bundleFailure.getMessage());
+  }
+
+  @Test
   public void warnModeRemembersExceptionButAllowsLaterOutputs() throws Exception {
     final String pTransformId = "pTransformId";
     ShortIdMap shortIds = new ShortIdMap();
