@@ -516,7 +516,6 @@ class BigtableServiceImpl implements BigtableService {
 
     private BigtableDataClient client;
     private Integer outstandingMutations = 0;
-    private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private String projectId;
     private String instanceId;
     private String tableId;
@@ -543,7 +542,7 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       if (bulkMutation != null) {
         try {
-          stopwatch.start();
+          Stopwatch stopwatch = Stopwatch.createStarted();
           // closeAsync will send any remaining elements in the batch.
           // If the experimental close wait timeout flag is set,
           // set a timeout waiting for the future.
@@ -554,7 +553,6 @@ class BigtableServiceImpl implements BigtableService {
             future.get();
           }
           bulkSize.update(outstandingMutations);
-          outstandingMutations = 0;
           stopwatch.stop();
           latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (BatchingException e) {
@@ -571,8 +569,13 @@ class BigtableServiceImpl implements BigtableService {
           Thread.currentThread().interrupt();
           // We fail since close() operation was interrupted.
           throw new IOException(e);
+        } finally {
+          // closeAsync() transitions the batcher to closed permanently (no new elements can be
+          // added and its background resources are released), so clear bulkMutation even if
+          // waiting for completion failed, timed out, or was interrupted.
+          outstandingMutations = 0;
+          bulkMutation = null;
         }
-        bulkMutation = null;
       }
     }
 
