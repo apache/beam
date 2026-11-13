@@ -415,6 +415,10 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(bucket, mock_bucket)
     mock_gcsio.get_bucket.assert_called_once_with(
         'dataflow-staging-us-central1-77b801c0838aee13391c0d1885860494')
+    # Ownership was actually verified against the pipeline project.
+    mock_crm_client.get_project.assert_called_once_with(
+        name=f'projects/{DEFAULT_GCP_PROJECT}')
+    mock_gcsio.create_bucket.assert_not_called()
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
@@ -452,6 +456,7 @@ class TestGCSIO(unittest.TestCase):
       gcsio.get_or_create_default_gcs_bucket(options)
 
     self.assertIn('does not have a project number', str(ctx.exception))
+    self.assertIn('bucket in another project', str(ctx.exception))
     mock_crm_class.assert_not_called()
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
@@ -474,6 +479,7 @@ class TestGCSIO(unittest.TestCase):
         f'Failed to resolve project number for project {DEFAULT_GCP_PROJECT}',
         str(ctx.exception))
     self.assertIn('API Disabled', str(ctx.exception))
+    self.assertIn('bucket in another project', str(ctx.exception))
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')

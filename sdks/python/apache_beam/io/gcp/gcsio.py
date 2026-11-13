@@ -113,14 +113,18 @@ def _validate_bucket_project(bucket, project_id, credentials=None):
   if bucket_project_number is None:
     raise ValueError(
         f'Bucket gs://{bucket.name} does not have a project number. '
-        'Unable to verify bucket ownership.')
+        'Unable to verify bucket ownership, which is required to prevent '
+        'staging the pipeline to a potentially malicious bucket in another '
+        'project.')
 
   try:
     project_number = _get_project_number(project_id, credentials=credentials)
   except Exception as e:
     raise ValueError(
         f'Failed to resolve project number for project {project_id}: {e}. '
-        'Unable to verify bucket ownership.') from e
+        'Unable to verify bucket ownership, which is required to prevent '
+        'staging the pipeline to a potentially malicious bucket in another '
+        'project.') from e
 
   if bucket_project_number != project_number:
     raise ValueError(

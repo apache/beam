@@ -198,7 +198,7 @@
 
 ## Breaking Changes
 
-* (Python) The default GCS staging bucket ownership check is now strict. If ownership of an existing default bucket cannot be verified (the bucket has no project number, or the project number cannot be resolved via the Cloud Resource Manager API), a `ValueError` is raised instead of logging a warning and skipping the check ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) The default GCS staging bucket ownership check is now strict. If ownership of an existing default bucket cannot be verified (the bucket has no project number, or the project number cannot be resolved via the Cloud Resource Manager API), a `ValueError` is raised instead of logging a warning and skipping the check ([#41252](https://github.com/apache/beam/pull/41252)).
 
 ### Package upgrades
 
