@@ -24,6 +24,7 @@ import logging
 import os
 import sys
 import tempfile
+import types
 import unittest
 
 import mock
@@ -161,6 +162,56 @@ class RequireLinuxDockerTest(unittest.TestCase):
     with utils.block_imports('docker'):
       with self.assertRaisesRegex(unittest.SkipTest, 'Docker is not available'):
         utils.require_linux_docker()
+
+  def test_cleanup_testcontainer_on_retry_rotates_ryuk_session_id(self):
+    fake_tc = types.ModuleType('testcontainers')
+    fake_tc_core = types.ModuleType('testcontainers.core')
+    fake_tc_container = types.ModuleType('testcontainers.core.container')
+    fake_tc_docker_client = types.ModuleType(
+        'testcontainers.core.docker_client')
+    fake_tc_labels = types.ModuleType('testcontainers.core.labels')
+
+    class FakeReaper:
+      _instance = None
+      delete_instance = mock.MagicMock()
+
+    old_sid = 'old-session-id'
+    fake_tc_labels.SESSION_ID = old_sid
+    fake_tc_container.SESSION_ID = old_sid
+    fake_tc_container.Reaper = FakeReaper
+    fake_tc_docker_client.SESSION_ID = old_sid
+    fake_tc.core = fake_tc_core
+    fake_tc_core.container = fake_tc_container
+    fake_tc_core.docker_client = fake_tc_docker_client
+    fake_tc_core.labels = fake_tc_labels
+
+    container = mock.MagicMock()
+    container._container = None
+    docker_client = container.get_docker_client.return_value
+    docker_client.client.api.headers = {'x-tc-sid': old_sid}
+    # Simulate dockerd still creating the Ryuk container (NotFound on get)
+    docker_client.client.containers.get.side_effect = RuntimeError('NotFound')
+
+    with mock.patch.dict(
+        sys.modules,
+        {
+            'testcontainers': fake_tc,
+            'testcontainers.core': fake_tc_core,
+            'testcontainers.core.container': fake_tc_container,
+            'testcontainers.core.docker_client': fake_tc_docker_client,
+            'testcontainers.core.labels': fake_tc_labels,
+        }):
+      utils.cleanup_testcontainer_on_retry(container)
+
+    FakeReaper.delete_instance.assert_called_once()
+    docker_client.client.containers.get.assert_called_once_with(
+        f'testcontainers-ryuk-{old_sid}')
+    self.assertNotEqual(fake_tc_labels.SESSION_ID, old_sid)
+    self.assertEqual(fake_tc_container.SESSION_ID, fake_tc_labels.SESSION_ID)
+    self.assertEqual(
+        fake_tc_docker_client.SESSION_ID, fake_tc_labels.SESSION_ID)
+    self.assertEqual(
+        docker_client.client.api.headers['x-tc-sid'], fake_tc_labels.SESSION_ID)
 
 
 class LCGeneratorTest(unittest.TestCase):
