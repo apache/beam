@@ -941,6 +941,7 @@ public class ProcessBundleHandlerTest {
 
   private static final AtomicInteger FUSED_DOWNSTREAM_INVOCATIONS = new AtomicInteger();
   private static final AtomicInteger FUSED_UPSTREAM_CAUGHT_EXCEPTIONS = new AtomicInteger();
+  private static final AtomicInteger FUSED_DOWNSTREAM_FINISH_INVOCATIONS = new AtomicInteger();
 
   private static final class CatchingFusedDoFn extends DoFn<String, String> {
     private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
@@ -962,6 +963,11 @@ public class ProcessBundleHandlerTest {
     public void processElement(ProcessContext context) {
       FUSED_DOWNSTREAM_INVOCATIONS.incrementAndGet();
       throw new IllegalStateException("fused downstream failure");
+    }
+
+    @FinishBundle
+    public void finishBundle() {
+      FUSED_DOWNSTREAM_FINISH_INVOCATIONS.incrementAndGet();
     }
   }
 
@@ -1098,6 +1104,7 @@ public class ProcessBundleHandlerTest {
   public void fusedDownstreamExceptionCaughtByUpstreamFailsBundleInFailMode() throws Exception {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
     try {
       // A single data block represents the complete encoded stream for this input endpoint.
@@ -1131,6 +1138,10 @@ public class ProcessBundleHandlerTest {
       assertTrue(failure.toString(), failure.getMessage().contains("fused downstream failure"));
       assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
       assertEquals(2, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(
+          "A downstream failure during @ProcessElement must prevent @FinishBundle.",
+          0,
+          FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
       assertThat(
           handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"),
           empty());
@@ -1143,6 +1154,7 @@ public class ProcessBundleHandlerTest {
   public void fusedDownstreamExceptionWarnModeAllowsBundleToComplete() throws Exception {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("warn");
     try {
       ByteStringOutputStream encoded = new ByteStringOutputStream();
@@ -1167,6 +1179,7 @@ public class ProcessBundleHandlerTest {
               .build());
       assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
       assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(1, FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
       assertFalse(
           handler.bundleProcessorCache
               .getCachedBundleProcessors()
@@ -1181,6 +1194,7 @@ public class ProcessBundleHandlerTest {
   public void fusedDownstreamExceptionPreservesLegacyBehaviorByDefault() throws Exception {
     FUSED_DOWNSTREAM_INVOCATIONS.set(0);
     FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
     ProcessBundleHandler handler = setupHandlerForFusedExceptionTest(null);
     try {
       ByteStringOutputStream encoded = new ByteStringOutputStream();
@@ -1205,6 +1219,7 @@ public class ProcessBundleHandlerTest {
               .build());
       assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
       assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(1, FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
     } finally {
       handler.shutdown();
     }
