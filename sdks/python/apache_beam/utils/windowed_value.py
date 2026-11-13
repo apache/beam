@@ -40,6 +40,9 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 
+_MIN_TIMESTAMP_MICROS = MIN_TIMESTAMP.micros
+_MAX_TIMESTAMP_MICROS = MAX_TIMESTAMP.micros
+
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
 
@@ -442,21 +445,38 @@ class _IntervalWindowBase(object):
     # Cut off window at start/end timestamps for comparison purposes since some
     # portable runners do this already, and timestamps outside of the bands of
     # Min/Max timestamps are functionally equal to Min/Max.
-    start = max(self._start_micros, MIN_TIMESTAMP.micros)
-    end = min(self._end_micros, MAX_TIMESTAMP.micros)
+    start = self._start_micros
+    if start < _MIN_TIMESTAMP_MICROS:
+      start = _MIN_TIMESTAMP_MICROS
+    end = self._end_micros
+    if end > _MAX_TIMESTAMP_MICROS:
+      end = _MAX_TIMESTAMP_MICROS
     return hash((start, end))
 
   def __eq__(self, other):
-    if type(self) != type(other):
+    if self is other:
+      return True
+    if type(self) is not type(other):
       return False
+    if (self._start_micros == other._start_micros and
+        self._end_micros == other._end_micros):
+      return True
 
     # Cut off window at start/end timestamps for comparison purposes since some
     # portable runners do this already, and timestamps outside of the bands of
     # Min/Max timestamps are functionally equal to Min/Max.
-    self_start = max(self._start_micros, MIN_TIMESTAMP.micros)
-    self_end = min(self._end_micros, MAX_TIMESTAMP.micros)
-    other_start = max(other._start_micros, MIN_TIMESTAMP.micros)
-    other_end = min(other._end_micros, MAX_TIMESTAMP.micros)
+    self_start = (
+        _MIN_TIMESTAMP_MICROS
+        if self._start_micros < _MIN_TIMESTAMP_MICROS else self._start_micros)
+    self_end = (
+        _MAX_TIMESTAMP_MICROS
+        if self._end_micros > _MAX_TIMESTAMP_MICROS else self._end_micros)
+    other_start = (
+        _MIN_TIMESTAMP_MICROS
+        if other._start_micros < _MIN_TIMESTAMP_MICROS else other._start_micros)
+    other_end = (
+        _MAX_TIMESTAMP_MICROS
+        if other._end_micros > _MAX_TIMESTAMP_MICROS else other._end_micros)
 
     return (self_start == other_start and self_end == other_end)
 
