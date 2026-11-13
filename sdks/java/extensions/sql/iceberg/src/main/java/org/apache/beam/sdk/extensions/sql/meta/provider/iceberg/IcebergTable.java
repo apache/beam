@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ManagedOptions;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamSqlUnparseContext;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider;
