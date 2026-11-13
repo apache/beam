@@ -73,15 +73,31 @@ public class TestHelper {
     }
   }
 
+  public static Connection getConnectionWithRetry(DataSource dataSource)
+      throws SQLException, InterruptedException {
+    int maxAttempts = 5;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return dataSource.getConnection();
+      } catch (SQLException e) {
+        if (attempt == maxAttempts) {
+          throw e;
+        }
+        Thread.sleep(5000);
+      }
+    }
+    throw new IllegalStateException("Unreachable");
+  }
+
   public static void createDatabaseIfNotExists(
       String serverName, Integer port, String username, String password, String databaseName)
-      throws SQLException {
+      throws SQLException, InterruptedException {
     DataSource dataSource =
         new SingleStoreDataSource(
             String.format(
                 "jdbc:singlestore://%s:%d/?user=%s&password=%s&allowLocalInfile=TRUE",
                 serverName, port, username, password));
-    try (Connection conn = dataSource.getConnection();
+    try (Connection conn = getConnectionWithRetry(dataSource);
         Statement stmt = conn.createStatement()) {
       stmt.executeQuery(String.format("CREATE DATABASE IF NOT EXISTS %s", databaseName));
     }

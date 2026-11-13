@@ -73,7 +73,7 @@ public class SingleStoreIOConnectionAttributesIT {
 
     DataSource dataSource = dataSourceConfiguration.getDataSource();
 
-    try (Connection conn = dataSource.getConnection();
+    try (Connection conn = TestHelper.getConnectionWithRetry(dataSource);
         Statement stmt = conn.createStatement();
         ResultSet rs =
             stmt.executeQuery("select * from information_schema.mv_connection_attributes"); ) {
