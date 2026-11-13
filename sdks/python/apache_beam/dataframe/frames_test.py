@@ -1131,6 +1131,18 @@ class DeferredFrameTest(_AbstractFrameTest):
         df,
         nonparallel=True)
 
+  def test_categorical_groupby_column(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cabd')))
+    self._run_test(
+        lambda df: df.groupby('B', observed=False).sum(), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby('B', observed=False).mean(), df, nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby('B', observed=False).A.median(),
+        df,
+        nonparallel=True)
+
   def test_astype_categorical(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
     categorical_dtype = pd.CategoricalDtype(df.B.unique())
