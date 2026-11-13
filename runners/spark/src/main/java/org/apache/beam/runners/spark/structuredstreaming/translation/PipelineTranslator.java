@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -265,6 +266,7 @@ public abstract class PipelineTranslator {
     private final Supplier<PipelineOptions> optionsSupplier;
     private final StorageLevel storageLevel;
 
+    // Ordered, the streaming context derives each leaf's checkpoint location from its position.
     private final Set<TranslationResult<?, ?>> leaves;
 
     public TranslatingVisitor(
@@ -277,7 +279,7 @@ public abstract class PipelineTranslator {
       this.optionsSupplier = new BroadcastOptions(sparkSession, options);
       this.storageLevel = StorageLevel.fromString(options.getStorageLevel());
       this.encoders = new HashMap<>();
-      this.leaves = new HashSet<>();
+      this.leaves = new LinkedHashSet<>();
     }
 
     @Override
