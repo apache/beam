@@ -833,7 +833,15 @@ class ReadFromTextWithFilename(ReadFromText):
 
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
-  text files."""
+  text files.
+
+  The output is a ``PCollection`` of ``str`` holding the final path of each file
+  written, one per shard, emitted once that file is in place. For windowed
+  writes, such as streaming writes with **triggering_frequency**, the paths of
+  each window's files are emitted after that window is finalized. If a runner
+  retries the finalization step after some files were already renamed, those
+  files are not emitted again, so the output may not list every file.
+  """
   def __init__(
       self,
       file_path_prefix: str,

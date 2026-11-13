@@ -854,6 +854,10 @@ class Sink(HasDisplayData):
         will only contain the result of a single successful write for a given
         bundle.
       pre_finalize_result: the result of ``pre_finalize()`` invocation.
+
+    Returns:
+      An optional iterable of strings, such as the paths of the files written,
+      which ``Write`` emits as its output ``PCollection``.
     """
     raise NotImplementedError
 
@@ -1084,8 +1088,11 @@ class Write(ptransform.PTransform):
 
       pcollection | beam.io.Write(MySink())
 
-  This returns a ``pvalue.PValue`` object that represents the end of the
-  Pipeline.
+  For an ``iobase.Sink``, this returns a ``PCollection`` of the values yielded
+  by the sink's ``finalize_write()`` (or ``finalize_windowed_write()`` for
+  windowed writes). For file-based sinks, such as the ones behind
+  ``WriteToText`` and ``WriteToAvro``, these are the final paths of the files
+  written.
 
   The sink argument may also be a full PTransform, in which case it will be
   applied directly.  This allows composite sink-like transforms (e.g. a sink
@@ -1446,7 +1453,10 @@ class _WriteKeyedBundleDoFn(core.DoFn):
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     for e in bundle[1]:  # values
       writer.write(e)
-    return [window.TimestampedValue(writer.close(), timestamp.MAX_TIMESTAMP)]
+    return [
+        window.TimestampedValue(
+            writer.close(), window.GlobalWindow().max_timestamp())
+    ]
 
 
 def _pre_finalize(unused_element, sink, init_result, write_results):
@@ -1473,7 +1483,8 @@ def _finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results)
   if outputs:
     return (
-        window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
+        window.TimestampedValue(v, window.GlobalWindow().max_timestamp())
+        for v in outputs)
 
 
 def _finalize_windowed_write(
