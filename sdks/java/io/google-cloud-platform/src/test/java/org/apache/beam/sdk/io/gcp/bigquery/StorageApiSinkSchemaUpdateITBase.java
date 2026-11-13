@@ -54,6 +54,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -267,10 +268,15 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     private transient BigqueryClient bqClient;
 
     private static final String ROW_COUNTER = "rowCounter";
+    private static final String DEFERRED_ROWS = "deferredRows";
 
     @StateId(ROW_COUNTER)
     @SuppressWarnings("unused")
     private final StateSpec<ValueState<Integer>> counter;
+
+    @StateId(DEFERRED_ROWS)
+    @SuppressWarnings("unused")
+    private final StateSpec<BagState<TableRow>> deferredRows;
 
     private final boolean waitForPropagation;
     // Whether to sleep before updating the table schema so that the sink's message converter and
@@ -297,6 +303,7 @@ abstract class StorageApiSinkSchemaUpdateITBase {
       this.newSchemas = serializableSchemas;
       this.bqClient = null;
       this.counter = StateSpecs.value();
+      this.deferredRows = StateSpecs.bag(TableRowJsonCoder.of());
       this.waitForPropagation = waitForPropagation;
       this.settleBeforeSchemaUpdate = settleBeforeSchemaUpdate;
       this.spreadRowsOverRecognitionWindow = spreadRowsOverRecognitionWindow;
@@ -308,9 +315,24 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, @StateId(ROW_COUNTER) ValueState<Integer> counter)
+    public void processElement(
+        ProcessContext c,
+        @StateId(ROW_COUNTER) ValueState<Integer> counter,
+        @StateId(DEFERRED_ROWS) BagState<TableRow> deferredRows)
         throws Exception {
+      TableRow row = c.element().getValue();
       int current = firstNonNull(counter.read(), 0);
+      Object rowIdObj = row.get("id");
+      long id = (rowIdObj instanceof Number) ? ((Number) rowIdObj).longValue() : -1L;
+      // DirectRunner executes upstream MapElements bundles in parallel, so rows with id >=
+      // ORIGINAL_N (containing extraField) can arrive at UpdateSchemaDoFn before all ORIGINAL_N
+      // original-schema rows and the recognition window have completed. Buffer any id >=
+      // ORIGINAL_N rows until all ORIGINAL_N original-schema rows have been processed and emitted.
+      if (id >= ORIGINAL_N && current < ORIGINAL_N) {
+        deferredRows.add(row);
+        return;
+      }
+
       // We update schema early on to leave a healthy amount of time for the StreamWriter to
       // recognize it,
       // ensuring that subsequent writers are created with the updated schema.
@@ -363,18 +385,21 @@ abstract class StorageApiSinkSchemaUpdateITBase {
       // Spread the rows between the schema update and the first new-column row across the
       // recognition window. These appends are what cause BigQuery to eventually return the
       // updated schema on an append response; rows outside the window are emitted immediately.
-      if (spreadRowsOverRecognitionWindow) {
-        Object rowId = c.element().getValue().get("id");
-        if (rowId instanceof Number) {
-          long id = ((Number) rowId).longValue();
-          if (id > SCHEMA_UPDATE_TRIGGER && id < ORIGINAL_N) {
-            Thread.sleep(SCHEMA_RECOGNITION_WINDOW_MS / (ORIGINAL_N - SCHEMA_UPDATE_TRIGGER - 1));
-          }
-        }
+      if (spreadRowsOverRecognitionWindow
+          && current > SCHEMA_UPDATE_TRIGGER
+          && current < ORIGINAL_N) {
+        Thread.sleep(SCHEMA_RECOGNITION_WINDOW_MS / (ORIGINAL_N - SCHEMA_UPDATE_TRIGGER - 1));
       }
 
       counter.write(++current);
-      c.output(c.element().getValue());
+      c.output(row);
+      if (current == ORIGINAL_N) {
+        for (TableRow deferred : deferredRows.read()) {
+          counter.write(++current);
+          c.output(deferred);
+        }
+        deferredRows.clear();
+      }
     }
   }
 
