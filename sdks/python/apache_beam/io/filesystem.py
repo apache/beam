@@ -89,45 +89,32 @@ class CompressionTypes(object):
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = 'uncompressed'
 
+  _VALID_TYPES = frozenset(
+      (AUTO, BZIP2, DEFLATE, GZIP, ZSTD, LZMA, UNCOMPRESSED))
+  _MIME_TYPES = {
+      BZIP2: 'application/x-bz2',
+      DEFLATE: 'application/x-deflate',
+      GZIP: 'application/x-gzip',
+      ZSTD: 'application/zstd',
+      LZMA: 'application/lzma'
+  }
+  _BY_SUFFIX = (('.bz2', BZIP2), ('.deflate', DEFLATE), ('.gz', GZIP),
+                ('.zst', ZSTD), ('.zstd', ZSTD), ('.xz', LZMA), ('.lzma', LZMA))
+
   @classmethod
   def is_valid_compression_type(cls, compression_type):
     """Returns True for valid compression types, False otherwise."""
-    types = set([
-        CompressionTypes.AUTO,
-        CompressionTypes.BZIP2,
-        CompressionTypes.DEFLATE,
-        CompressionTypes.GZIP,
-        CompressionTypes.ZSTD,
-        CompressionTypes.LZMA,
-        CompressionTypes.UNCOMPRESSED
-    ])
-    return compression_type in types
+    return compression_type in cls._VALID_TYPES
 
   @classmethod
   def mime_type(cls, compression_type, default='application/octet-stream'):
-    mime_types_by_compression_type = {
-        cls.BZIP2: 'application/x-bz2',
-        cls.DEFLATE: 'application/x-deflate',
-        cls.GZIP: 'application/x-gzip',
-        cls.ZSTD: 'application/zstd',
-        cls.LZMA: 'application/lzma'
-    }
-    return mime_types_by_compression_type.get(compression_type, default)
+    return cls._MIME_TYPES.get(compression_type, default)
 
   @classmethod
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)."""
-    compression_types_by_suffix = {
-        '.bz2': cls.BZIP2,
-        '.deflate': cls.DEFLATE,
-        '.gz': cls.GZIP,
-        '.zst': cls.ZSTD,
-        '.zstd': cls.ZSTD,
-        '.xz': cls.LZMA,
-        '.lzma': cls.LZMA
-    }
     lowercased_path = file_path.lower()
-    for suffix, compression_type in compression_types_by_suffix.items():
+    for suffix, compression_type in cls._BY_SUFFIX:
       if lowercased_path.endswith(suffix):
         return compression_type
     return cls.UNCOMPRESSED
