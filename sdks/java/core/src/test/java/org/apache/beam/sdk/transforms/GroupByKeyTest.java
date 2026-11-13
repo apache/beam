@@ -241,6 +241,7 @@ public class GroupByKeyTest implements Serializable {
      * suite.
      */
     @Test
+    @BeamParallelJunit4Runner.SerialTest
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
@@ -249,7 +250,7 @@ public class GroupByKeyTest implements Serializable {
     })
     public void testAfterProcessingTimeContinuationTriggerUsingState() throws Exception {
       final long triggerMillis = 1;
-      final long waitMillis = 500;
+      final long waitMillis = 2000;
 
       PCollection<Integer> triggeredSums =
           p.apply(
