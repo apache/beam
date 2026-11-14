@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
@@ -65,6 +66,8 @@ import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -158,7 +161,7 @@ public class ParquetIOTest implements Serializable {
   public void testSplitBlockWithLimit() {
     ParquetIO.ReadFiles.SplitReadFn<GenericRecord> testFn =
         new ParquetIO.ReadFiles.SplitReadFn<>(
-            null, null, ParquetIO.GenericRecordPassthroughFn.create(), null);
+            null, null, null, ParquetIO.GenericRecordPassthroughFn.create(), null);
     ArrayList<BlockMetaData> blockList = new ArrayList<>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
@@ -493,6 +496,216 @@ public class ParquetIOTest implements Serializable {
                 .withConfiguration(configuration));
     PAssert.that(readBack).containsInAnyOrder(expectedRecords);
     readPipeline.run().waitUntilFinish();
+  }
+
+  private static final Schema SCHEMA_WITH_NULLABLE_FIELD =
+      new Schema.Parser()
+          .parse(
+              "{"
+                  + "\"type\":\"record\", "
+                  + "\"name\":\"testrecord\","
+                  + "\"fields\":["
+                  + "    {\"name\":\"name\",\"type\":\"string\"},"
+                  + "    {\"name\":\"id\",\"type\":\"string\"},"
+                  + "    {\"name\":\"country\",\"type\":[\"null\",\"string\"],\"default\":null}"
+                  + "  ]"
+                  + "}");
+
+  private static final Schema SCHEMA_WITH_DEFAULT_FIELD =
+      new Schema.Parser()
+          .parse(
+              "{"
+                  + "\"type\":\"record\", "
+                  + "\"name\":\"testrecord\","
+                  + "\"fields\":["
+                  + "    {\"name\":\"name\",\"type\":\"string\"},"
+                  + "    {\"name\":\"id\",\"type\":\"string\"},"
+                  + "    {\"name\":\"country\",\"type\":\"string\",\"default\":\"unknown\"}"
+                  + "  ]"
+                  + "}");
+
+  private void writeGenericRecords(List<GenericRecord> records) {
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+  }
+
+  private static List<GenericRecord> withCountry(
+      List<GenericRecord> records, Schema schema, String country) {
+    return records.stream()
+        .map(
+            record ->
+                (GenericRecord)
+                    new GenericRecordBuilder(schema)
+                        .set("name", record.get("name"))
+                        .set("id", record.get("id"))
+                        .set("country", country)
+                        .build())
+        .collect(toList());
+  }
+
+  @Test
+  public void testReadWithAddedNullableField() {
+    List<GenericRecord> records = generateGenericRecords(1000);
+    writeGenericRecords(records);
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA_WITH_NULLABLE_FIELD)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+    PAssert.that(readBack)
+        .containsInAnyOrder(withCountry(records, SCHEMA_WITH_NULLABLE_FIELD, null));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadFilesWithAddedFieldWithDefault() {
+    List<GenericRecord> records = generateGenericRecords(1000);
+    writeGenericRecords(records);
+
+    PCollection<GenericRecord> readBack =
+        readPipeline
+            .apply(FileIO.match().filepattern(temporaryFolder.getRoot().getAbsolutePath() + "/*"))
+            .apply(FileIO.readMatches())
+            .apply(ParquetIO.readFiles(SCHEMA_WITH_DEFAULT_FIELD));
+    PAssert.that(readBack)
+        .containsInAnyOrder(withCountry(records, SCHEMA_WITH_DEFAULT_FIELD, "unknown"));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithSubsetSchemaWithoutProjection() {
+    // REQUESTED_SCHEMA drops the first column, so matching fields by position would return names
+    // as ids.
+    List<GenericRecord> records = generateGenericRecords(1000);
+    writeGenericRecords(records);
+
+    List<GenericRecord> expected =
+        records.stream()
+            .map(
+                record ->
+                    (GenericRecord)
+                        new GenericRecordBuilder(REQUESTED_SCHEMA)
+                            .set("id", record.get("id"))
+                            .build())
+            .collect(toList());
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(REQUESTED_SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+    PAssert.that(readBack).containsInAnyOrder(expected);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithProjectionAndAddedField() {
+    Schema encoderSchema =
+        new Schema.Parser()
+            .parse(
+                "{"
+                    + "\"type\":\"record\", "
+                    + "\"name\":\"testrecord\","
+                    + "\"fields\":["
+                    + "    {\"name\":\"name\",\"type\":[\"string\",\"null\"]},"
+                    + "    {\"name\":\"id\",\"type\":\"string\"},"
+                    + "    {\"name\":\"country\",\"type\":[\"null\",\"string\"],\"default\":null}"
+                    + "  ]"
+                    + "}");
+    writeGenericRecords(generateGenericRecords(1000));
+
+    List<GenericRecord> expected = new ArrayList<>();
+    for (int i = 0; i < 1000; i++) {
+      expected.add(
+          new GenericRecordBuilder(encoderSchema)
+              .set("name", null)
+              .set("id", Integer.toString(i))
+              .set("country", null)
+              .build());
+    }
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withProjection(REQUESTED_SCHEMA, encoderSchema));
+    PAssert.that(readBack).containsInAnyOrder(expected);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadSchemaFromConfigurationIsNotOverridden() {
+    Schema configuredReadSchema =
+        new Schema.Parser()
+            .parse(
+                "{"
+                    + "\"type\":\"record\", "
+                    + "\"name\":\"testrecord\","
+                    + "\"fields\":["
+                    + "    {\"name\":\"name\",\"type\":\"string\"},"
+                    + "    {\"name\":\"id\",\"type\":\"string\"},"
+                    + "    {\"name\":\"country\",\"type\":[\"string\",\"null\"],"
+                    + "\"default\":\"configured\"}"
+                    + "  ]"
+                    + "}");
+    List<GenericRecord> records = generateGenericRecords(1000);
+    writeGenericRecords(records);
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA_WITH_NULLABLE_FIELD)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withConfiguration(
+                    ImmutableMap.of("parquet.avro.read.schema", configuredReadSchema.toString())));
+    PAssert.that(readBack)
+        .containsInAnyOrder(withCountry(records, SCHEMA_WITH_NULLABLE_FIELD, "configured"));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPruneToReadSchema() {
+    MessageType fileSchema =
+        MessageTypeParser.parseMessageType(
+            "message testrecord {"
+                + "  required binary name (STRING);"
+                + "  required binary id (STRING);"
+                + "  optional binary country (STRING);"
+                + "}");
+    Schema readSchema =
+        new Schema.Parser()
+            .parse(
+                "{"
+                    + "\"type\":\"record\", "
+                    + "\"name\":\"testrecord\","
+                    + "\"fields\":["
+                    + "    {\"name\":\"id\",\"type\":\"string\"},"
+                    + "    {\"name\":\"fullName\",\"aliases\":[\"name\"],\"type\":\"string\"},"
+                    + "    {\"name\":\"age\",\"type\":[\"null\",\"int\"],\"default\":null}"
+                    + "  ]"
+                    + "}");
+
+    MessageType pruned = ParquetIO.ReadFiles.SplitReadFn.pruneToReadSchema(fileSchema, readSchema);
+
+    assertEquals(
+        MessageTypeParser.parseMessageType(
+            "message testrecord {"
+                + "  required binary name (STRING);"
+                + "  required binary id (STRING);"
+                + "}"),
+        pruned);
+    assertEquals(
+        fileSchema,
+        ParquetIO.ReadFiles.SplitReadFn.pruneToReadSchema(fileSchema, SCHEMA_WITH_NULLABLE_FIELD));
+    assertEquals(
+        fileSchema,
+        ParquetIO.ReadFiles.SplitReadFn.pruneToReadSchema(
+            fileSchema,
+            new Schema.Parser()
+                .parse(
+                    "{\"type\":\"record\",\"name\":\"other\",\"fields\":"
+                        + "[{\"name\":\"unrelated\",\"type\":\"string\"}]}")));
   }
 
   @Test
