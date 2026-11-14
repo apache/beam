@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -171,6 +172,15 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
                   .setData(ByteString.copyFrom(formatted.getPayload()));
           if (formatted.getAttributeMap() != null) {
             pubsubMessageBuilder.putAllAttributes(formatted.getAttributeMap());
+          }
+          if (idLabel != null
+              && !idLabel.isEmpty()
+              && !pubsubMessageBuilder.getAttributesMap().containsKey(idLabel)) {
+            // Generate a unique id that is stable across retries of the same element, so that
+            // redeliveries of a bundle can be deduplicated by Pub/Sub.
+            pubsubMessageBuilder.putAttributes(
+                idLabel,
+                UUID.nameUUIDFromBytes(pubsubMessageBuilder.build().toByteArray()).toString());
           }
           pubsubMessageBuilder.build().writeTo(stream);
         } else {
