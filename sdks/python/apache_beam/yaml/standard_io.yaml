@@ -187,11 +187,13 @@
         delimiter: 'sep'
         comment: 'comment'
         filename_column: 'filename_column'
+        error_handling: 'error_handling'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'
       'ReadFromJson':
         path: 'path'
+        error_handling: 'error_handling'
       'WriteToJson':
         path: 'path'
       'ReadFromParquet':
@@ -210,9 +212,9 @@
     underlying_provider:
       type: python
       transforms:
-        'ReadFromCsv': 'apache_beam.io.ReadFromCsv'
+        'ReadFromCsv': 'apache_beam.yaml.yaml_io.read_from_csv'
         'WriteToCsv': 'apache_beam.io.WriteToCsv'
-        'ReadFromJson': 'apache_beam.io.ReadFromJson'
+        'ReadFromJson': 'apache_beam.yaml.yaml_io.read_from_json'
         'WriteToJson': 'apache_beam.io.WriteToJson'
         'ReadFromParquet': 'apache_beam.io.ReadFromParquet'
         'WriteToParquet': 'apache_beam.io.WriteToParquet'
