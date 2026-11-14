@@ -197,14 +197,15 @@ class _WriteMilvusFn(DoFn):
   """DoFn that handles batched writes to Milvus.
 
   This DoFn accumulates records in batches and flushes them to Milvus when
-  the batch size is reached or when the bundle finishes. This approach
-  optimizes performance by reducing the number of individual write operations.
+  the batch size is reached or when the bundle finishes. It reuses a single
+  Milvus client for writes within the DoFn lifecycle.
 
   Args:
     connection_params: Configuration for connecting to the Milvus server.
     write_config: Configuration for write operations including batch size
       and collection details.
   """
+
   def __init__(
       self,
       connection_params: MilvusConnectionParameters,
@@ -212,6 +213,11 @@ class _WriteMilvusFn(DoFn):
     self._connection_params = connection_params
     self._write_config = write_config
     self.batch = []
+    self._sink = None
+
+  def setup(self):
+    """Initializes the sink state."""
+    self._sink = None
 
   def process(self, element, *args, **kwargs):
     """Processes individual records, batching them for efficient writes.
@@ -224,10 +230,13 @@ class _WriteMilvusFn(DoFn):
     Yields:
       The original element after adding it to the batch.
     """
-    _ = args, kwargs  # Unused parameters
+    _ = args, kwargs
+
     self.batch.append(element)
+
     if len(self.batch) >= self._write_config.write_batch_size:
       self._flush()
+
     yield element
 
   def finish_bundle(self):
@@ -237,17 +246,30 @@ class _WriteMilvusFn(DoFn):
     """
     self._flush()
 
+  def teardown(self):
+    """Closes the reusable Milvus client."""
+    if self._sink is not None:
+      try:
+        self._sink.__exit__(None, None, None)
+      finally:
+        self._sink = None
+
   def _flush(self):
     """Flushes the current batch of records to Milvus.
 
-    Creates a MilvusSink connection and writes all batched records,
-    then clears the batch for the next set of records.
+    Writes all batched records through the reusable sink, then clears
+    the batch for the next set of records.
     """
-    if len(self.batch) == 0:
+    if not self.batch:
       return
-    with _MilvusSink(self._connection_params, self._write_config) as sink:
-      sink.write(self.batch)
-      self.batch = []
+
+    if self._sink is None:
+      self._sink = _MilvusSink(
+          self._connection_params,
+          self._write_config).__enter__()
+
+    self._sink.write(self.batch)
+    self.batch = []
 
   def display_data(self):
     """Returns display data for monitoring and debugging.
