@@ -38,6 +38,7 @@ from functools import reduce
 
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
 from apache_beam.typehints.trivial_inference import element_type
@@ -474,6 +475,26 @@ def load_attr(state, arg):
   state.stack.append(_getattr(o, name))
 
 
+def _union_of(flattened_types):
+  """Build the narrowest union covering (already un-nested) member types."""
+  unique = list(dict.fromkeys(flattened_types))
+  if not unique:
+    return Any
+  if len(unique) == 1:
+    return unique[0]
+  return Union[tuple(unique)]
+
+
+def _flatten_union_members(resolved):
+  members = []
+  for result in resolved:
+    if isinstance(result, typehints.UnionHint.UnionConstraint):
+      members.extend(result.union_types)
+    else:
+      members.append(result)
+  return members
+
+
 def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
     return Const(getattr(o.value, name))
@@ -485,14 +506,39 @@ def _getattr(o, name):
     return Const(BoundMethod(func, o))
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
-  elif inspect.isclass(o) and dataclasses.is_dataclass(o):
-    field = o.__dataclass_fields__.get(name)
+  elif inspect.isclass(o):
+    if match_is_named_tuple(o):
+      field_type = o.__annotations__.get(name)
+      if field_type is None:
+        return Any
+      try:
+        return typehints.normalize(field_type)
+      except Exception:  # Inference should never fail.
+        return Any
+    field = (o.__dataclass_fields__.get(name)
+             if dataclasses.is_dataclass(o) else None)
     if field is not None:
       return resolve_dataclass_field_type(field.type)
     return Any
-
   else:
-    return Any
+    try:
+      normalized = typehints.normalize(o)
+    except Exception:
+      return Any
+    if not isinstance(normalized, typehints.UnionHint.UnionConstraint):
+      return Any
+    has_none = type(None) in normalized.union_types
+    resolved = [
+        _getattr(member, name)
+        for member in normalized.union_types
+        if member is not type(None)
+    ]
+    if not resolved or any(result is Any for result in resolved):
+      return Any
+    members = _flatten_union_members(resolved)
+    if has_none:
+      members.append(type(None))
+    return _union_of(members)
 
 
 def load_method(state, arg):
