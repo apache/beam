@@ -1860,6 +1860,20 @@ class JsonTest(unittest.TestCase):
 
         assert_that(pcoll, equal_to(records))
 
+  def test_nested_values_are_valid_json(self):
+    with tempfile.TemporaryDirectory() as dest:
+      path = os.path.join(dest, 'nested.jsonl')
+      with open(path, 'w') as f:
+        f.write('{"id": 1, "user": {"name": "a"}, "tags": ["x", "y"]}\n')
+      with TestPipeline() as p:
+        results = (
+            p
+            | beam.io.ReadFromJson(path)
+            | beam.Map(lambda r: (json.loads(r.user), json.loads(r.tags))))
+        assert_that(results, equal_to([({
+            'name': 'a'
+        }, ['x', 'y'])]))
+
   def test_numeric_strings_preserved(self):
     records = [
         beam.Row(
