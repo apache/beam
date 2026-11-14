@@ -114,6 +114,24 @@ class TestTableSchemaParser(unittest.TestCase):
     })
     self.assertEqual(parse_table_schema_from_json(json_str), expected_schema)
 
+  def test_get_table_schema_from_string_strips_whitespace(self):
+    # "name: STRING" was parsed as type " STRING", which BigQuery rejects.
+    schema = bigquery_tools.get_table_schema_from_string("name: STRING")
+    self.assertEqual(len(schema.fields), 1)
+    self.assertEqual(schema.fields[0].name, "name")
+    self.assertEqual(schema.fields[0].type, "STRING")
+    self.assertEqual(schema.fields[0].mode, "NULLABLE")
+
+    schema = bigquery_tools.get_table_schema_from_string(
+        " name : INTEGER , age: INT64")
+    self.assertEqual([(f.name, f.type, f.mode) for f in schema.fields],
+                     [("name", "INTEGER", "NULLABLE"),
+                      ("age", "INT64", "NULLABLE")])
+
+    schema = bigquery_tools.get_table_schema_from_string("name:STRING")
+    self.assertEqual(schema.fields[0].name, "name")
+    self.assertEqual(schema.fields[0].type, "STRING")
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableReferenceParser(unittest.TestCase):
