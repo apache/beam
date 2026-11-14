@@ -119,6 +119,7 @@
 
 * [comment]: generic breaking changes if not covered in following sections.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Job servers and gRPC servers from `ServerFactory` now listen on the requested host, instead of on all interfaces. The Flink and Spark job servers listen on `localhost` by default. To accept connections from other hosts or through published container ports, set `--job-host=0.0.0.0` ([#41006](https://github.com/apache/beam/issues/41006)).
 
 ### Package upgrades
 * [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
