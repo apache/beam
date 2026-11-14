@@ -251,6 +251,74 @@ public class SourceRecordJsonTest implements Serializable {
     assertTrue(json.contains("\"lsn\":37094192"));
   }
 
+  @Test
+  public void testChangeSchemaEvent() {
+    Schema keySchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.mysql.SchemaChangeKey")
+            .field("databaseName", Schema.STRING_SCHEMA)
+            .build();
+    Schema tableSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.schema.Table")
+            .version(1)
+            .optional()
+            .field("defaultCharsetName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field(
+                "primaryKeyColumnNames",
+                SchemaBuilder.array(Schema.STRING_SCHEMA).optional().build())
+            .field("comment", Schema.OPTIONAL_STRING_SCHEMA)
+            .build();
+    Schema changeSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.schema.Change")
+            .version(1)
+            .field("type", Schema.STRING_SCHEMA)
+            .field("id", Schema.STRING_SCHEMA)
+            .field("table", tableSchema)
+            .build();
+    Schema valueSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.mysql.SchemaChangeValue")
+            .field("ts_ms", Schema.INT64_SCHEMA)
+            .field("databaseName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("schemaName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("ddl", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("tableChanges", SchemaBuilder.array(changeSchema).build())
+            .build();
+
+    String ddl =
+        "ALTER TABLE inventory.customers MODIFY COLUMN first_name TEXT "
+            + "CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL";
+    Struct table =
+        new Struct(tableSchema)
+            .put("defaultCharsetName", "utf8mb4")
+            .put("primaryKeyColumnNames", Collections.singletonList("id"));
+    Struct change =
+        new Struct(changeSchema)
+            .put("type", "ALTER")
+            .put("id", "\"inventory\".\"customers\"")
+            .put("table", table);
+    Struct key = new Struct(keySchema).put("databaseName", "inventory");
+    Struct value =
+        new Struct(valueSchema)
+            .put("ts_ms", 1794617055223L)
+            .put("databaseName", "inventory")
+            .put("ddl", ddl)
+            .put("tableChanges", Collections.singletonList(change));
+    SourceRecord record = new SourceRecord(null, null, null, keySchema, key, valueSchema, value);
+
+    String expectedJson =
+        "{\"databaseName\":\"inventory\",\"schemaName\":null,\"ddl\":\"ALTER TABLE inventory.customers "
+            + "MODIFY COLUMN first_name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL\","
+            + "\"ts_ms\":1794617055223,\"tableChanges\":[{\"type\":\"ALTER\",\"id\":\"\\\"inventory\\\".\\\"customers\\\"\","
+            + "\"table\":{\"defaultCharsetName\":\"utf8mb4\",\"comment\":null,"
+            + "\"primaryKeyColumnNames\":[\"id\"]}}]}";
+
+    assertEquals(expectedJson, new SourceRecordJson(record).toJson());
+    assertEquals(expectedJson, new SourceRecordJson(record, true).toJson());
+  }
+
   private static SchemaBuilder sourceSchemaBuilder() {
     return SchemaBuilder.struct()
         .field("version", Schema.STRING_SCHEMA)
