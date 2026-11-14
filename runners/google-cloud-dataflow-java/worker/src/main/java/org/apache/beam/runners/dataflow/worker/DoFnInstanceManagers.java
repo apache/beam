@@ -91,11 +91,12 @@ public class DoFnInstanceManagers {
       DoFnInvokers.tryInvokeSetupFor(fn.getDoFn(), options);
       long elapsed = System.currentTimeMillis() - startMillis;
       if (elapsed > 180_000) { // 3 min
-        // Work item could fail for long-running setup due to Dataflow worker lease timeout
+        // setup runs again on every new worker and for every thread that needs its own instance,
+        // so a slow setup delays processing each time
         LOG.warn(
-            "DoFn.setup for {} ran for {} seconds.\nThis could cause Dataflow worker "
-                + "lease expire and failing the job. DoFn.Setup should not contain long "
-                + "running operations.",
+            "DoFn.setup for {} ran for {} seconds.\nSetup runs again on each new worker and "
+                + "for each thread that needs its own instance, so it delays processing every "
+                + "time. DoFn.Setup should not contain long running operations.",
             fn.getDoFn().getClass(),
             elapsed / 1_000);
       }

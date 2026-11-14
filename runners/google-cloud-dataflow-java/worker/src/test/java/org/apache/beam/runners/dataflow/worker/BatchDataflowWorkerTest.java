@@ -38,6 +38,8 @@ import com.google.api.services.dataflow.model.WorkItemStatus;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -47,6 +49,7 @@ import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,6 +58,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
 
@@ -159,6 +163,56 @@ public class BatchDataflowWorkerTest {
       /* Expected - ignore. */
     }
     verify(mockProgressUpdater, times(1)).stopReportingProgress();
+  }
+
+  @Test
+  public void testProgressReportedWhileExecutorIsBeingCreated() throws Exception {
+    // creating the executor runs every DoFn.setup, which can take minutes; if no status reaches
+    // the service in that time the lease expires and the work item is failed
+    CountDownLatch statusReported = new CountDownLatch(1);
+    Mockito.when(mockWorkUnitClient.reportWorkItemStatus(Mockito.any()))
+        .thenAnswer(
+            invocation -> {
+              statusReported.countDown();
+              return null;
+            });
+    boolean[] reportedBeforeCreateReturned = new boolean[1];
+    DataflowMapTaskExecutorFactory blockingFactory =
+        (network,
+            pipelineOptions,
+            stageName,
+            readerFactory,
+            sinkFactory,
+            executionContext,
+            counterSet,
+            idGenerator) -> {
+          try {
+            reportedBeforeCreateReturned[0] = statusReported.await(30, TimeUnit.SECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return mock(DataflowMapTaskExecutor.class);
+        };
+    BatchDataflowWorker worker =
+        new BatchDataflowWorker(mockWorkUnitClient, blockingFactory, options);
+    WorkItem workItem =
+        new WorkItem()
+            .setId(1L)
+            .setJobId("SlowExecutorCreation")
+            .setInitialReportIndex(1L)
+            .setMapTask(
+                new MapTask()
+                    .setInstructions(new ArrayList<ParallelInstruction>())
+                    .setStageName("testStage"))
+            .setLeaseExpireTime(
+                TimeUtil.toCloudTime(Instant.now().plus(Duration.standardMinutes(3))))
+            .setReportStatusInterval(TimeUtil.toCloudDuration(Duration.standardSeconds(1)));
+
+    worker.doWork(workItem, new WorkItemStatusClient(mockWorkUnitClient, workItem));
+
+    Assert.assertTrue(
+        "no status was reported while the executor was being created",
+        reportedBeforeCreateReturned[0]);
   }
 
   @Test
