@@ -71,6 +71,7 @@ from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedBatch
 
 if TYPE_CHECKING:
   from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -833,6 +834,9 @@ class _TaggedReceivers(dict):
     def receive(self, element: WindowedValue) -> None:
       pass
 
+    def receive_batch(self, windowed_batch) -> None:
+      pass
+
   class _InMemoryReceiver(common.Receiver):
     """Buffers undeclared outputs to the given dictionary."""
     def __init__(self, target, tag):
@@ -869,20 +873,33 @@ class _ParDoEvaluator(_TransformEvaluator):
   def start_bundle(self):
     transform = self._applied_ptransform.transform
 
+    # TODO(aaltay): Consider storing the serialized form as an optimization.
+    dofn = (
+        pickler.roundtrip(transform.dofn)
+        if self._perform_dofn_pickle_test else transform.dofn)
+    output_batch_converter = getattr(dofn, 'output_batch_converter', None)
+
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
     for output_tag in self._applied_ptransform.outputs:
       output_pcollection = pvalue.PCollection(None, tag=output_tag)
       output_pcollection.producer = self._applied_ptransform
       self._tagged_receivers[output_tag] = (
-          self._evaluation_context.create_bundle(output_pcollection))
+          self._evaluation_context.create_bundle(
+              output_pcollection,
+              output_batch_converter=output_batch_converter))
       self._tagged_receivers[output_tag].tag = output_tag
 
     self._counter_factory = counters.CounterFactory()
 
-    # TODO(aaltay): Consider storing the serialized form as an optimization.
-    dofn = (
-        pickler.roundtrip(transform.dofn)
-        if self._perform_dofn_pickle_test else transform.dofn)
+    # Buffer elements and invoke process_batch() for DoFns that only
+    # implement process_batch() (e.g. _BeamRowsToArrowTable), since this
+    # runner otherwise invokes process() once per element.
+    self._batch_only = (
+        not getattr(dofn, '_process_defined', False) and
+        getattr(dofn, '_process_batch_defined', False) and
+        not is_stateful_dofn(dofn))
+    self._batch_fn = dofn
+    self._batched_elements = []
 
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
@@ -930,9 +947,22 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_firing.dynamic_timer_tag)
 
   def process_element(self, element):
+    if self._batch_only:
+      self._batched_elements.append(element)
+      return
     self.runner.process(element)
 
   def finish_bundle(self):
+    if self._batch_only:
+      converter = getattr(self._batch_fn, 'input_batch_converter', None)
+      if converter is None:
+        raise NotImplementedError(
+            'DoFn %s only defines process_batch() and no input batch '
+            'converter could be constructed' % self._batch_fn)
+      for windowed_batch in WindowedBatch.from_windowed_values(
+          self._batched_elements, produce_fn=converter.produce_batch):
+        self.runner.process_batch(windowed_batch)
+      self._batched_elements = []
     self.runner.finish()
     self.runner.teardown()
     bundles = list(self._tagged_receivers.values())
