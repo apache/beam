@@ -36,7 +36,8 @@ MAVEN_DISTRIBUTION_URL="https://repo.maven.apache.org/maven2/org/apache/maven/ap
 
 # Maven Plugin Configuration
 MAVEN_SHADE_PLUGIN_VERSION="3.5.1"
-ICEBERG_VERSION="${ICEBERG_VERSION:-1.10.0}"
+ICEBERG_VERSION="${ICEBERG_VERSION:-1.12.0}"
+BIGDATAOSS_GCS_CONNECTOR_VERSION="${BIGDATAOSS_GCS_CONNECTOR_VERSION:-4.0.4}"
 APACHE_SNAPSHOT_REPOSITORY_URL="https://repository.apache.org/content/repositories/snapshots/"
 mkdir -p "${CACHE_DIR}"
 
@@ -132,7 +133,7 @@ function usage() {
   echo "                dataflow  - DataflowRunner (runs on Google Cloud Dataflow)"
   echo "  --io        Specify an IO connector to include. Can be used multiple times."
   echo "              Available connectors: amazon-web-services2, amqp, azure,"
-  echo "              azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, elasticsearch,"
+  echo "              azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, delta, elasticsearch,"
   echo "              google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg,"
   echo "              influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j,"
   echo "              parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr,"
@@ -195,7 +196,7 @@ function list_ios() {
     echo "❌ Could not retrieve IO connectors. Please check your internet connection or try again later." >&2
     echo "📋 Here are the known IO connectors (may not be complete):"
     echo "amazon-web-services2, amqp, azure, azure-cosmos, cassandra,"
-    echo "cdap, clickhouse, csv, debezium, elasticsearch, google-ads, google-cloud-platform,"
+    echo "cdap, clickhouse, csv, debezium, delta, elasticsearch, google-ads, google-cloud-platform,"
     echo "hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis,"
     echo "kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake,"
     echo "solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml"
@@ -385,16 +386,18 @@ else
     <artifactId>beam-sql-shell-runner</artifactId>
     <version>1.0</version>
     <dependencies>
-        <dependency>
-            <groupId>org.apache.beam</groupId>
-            <artifactId>beam-sdks-java-extensions-sql-jdbc</artifactId>
-            <version>\${beam.version}</version>
-        </dependency>
 EOL
 # Add IO and Runner dependencies
   for io in "${IO_CONNECTORS[@]}"; do
     add_beam_dependency "beam-sdks-java-io-${io}"
     case "${io}" in
+      delta)
+        add_beam_dependency "beam-sdks-java-extensions-sql-delta"
+        add_dependency "com.google.cloud.bigdataoss" "gcs-connector" "${BIGDATAOSS_GCS_CONNECTOR_VERSION}"
+        add_dependency "com.google.cloud.bigdataoss" "util-hadoop" "${BIGDATAOSS_GCS_CONNECTOR_VERSION}"
+        add_dependency "com.google.cloud.bigdataoss" "gcsio" "${BIGDATAOSS_GCS_CONNECTOR_VERSION}"
+        add_dependency "com.google.cloud.bigdataoss" "util" "${BIGDATAOSS_GCS_CONNECTOR_VERSION}"
+        ;;
       iceberg)
         add_beam_dependency "beam-sdks-java-extensions-sql-iceberg"
         add_dependency "org.apache.iceberg" "iceberg-aws" "${ICEBERG_VERSION}"
@@ -403,6 +406,7 @@ EOL
         ;;
     esac
   done
+  add_beam_dependency "beam-sdks-java-extensions-sql-jdbc"
   RUNNER_ARTIFACT=""
   case "${BEAM_RUNNER}" in
     dataflow) RUNNER_ARTIFACT="beam-runners-google-cloud-dataflow-java" ;;

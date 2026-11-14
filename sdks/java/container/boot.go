@@ -192,9 +192,7 @@ func main() {
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(lim, 10),
-		// ParallelGC the most adequate for high throughput and lower CPU utilization
-		// It is the default GC in Java 8, but not on newer versions
-		"-XX:+UseParallelGC",
+		GCOption(ctx, logger, po),
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
 	}
@@ -332,6 +330,30 @@ func HeapSizeLimit(size uint64) uint64 {
 		return lim
 	}
 	return size - (32 << 30)
+}
+
+// GCOption returns the JVM GC flag from the java_gc experiment, defaulting to UseParallelGC.
+// ParallelGC is the most adequate for high throughput and lower CPU utilization.
+// It is the default GC in Java 8, but not on newer versions.
+func GCOption(ctx context.Context, logger *tools.Logger, po *tools.PipelineOptions) string {
+	validGCs := map[string]bool{
+		"UseParallelGC": true,
+		"UseG1GC":       true,
+		"UseZGC":        true,
+	}
+	defaultGCName := "UseParallelGC"
+	gcName := defaultGCName
+	if po != nil {
+		if val, ok := po.LookupExperiment("java_gc"); ok {
+			if validGCs[val] {
+				gcName = val
+				logger.Printf(ctx, "Setting java gc to %s", gcName)
+			} else {
+				logger.Errorf(ctx, "GC %s is not valid. Defaulting to %s, GC should be one of %v", val, defaultGCName, validGCs)
+			}
+		}
+	}
+	return fmt.Sprintf("-XX:+%s", gcName)
 }
 
 // Options represents java VM invocation options in a simple,

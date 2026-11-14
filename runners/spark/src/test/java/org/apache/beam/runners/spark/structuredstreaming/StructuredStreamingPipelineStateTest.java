@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -60,10 +61,20 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
-  private static final long DEADLINE_SECONDS = 60;
+  private static final long DEADLINE_SECONDS = 180;
 
   // Shared with the DoFn running in Spark's local executor threads, reset per test.
   private static volatile CountDownLatch started = new CountDownLatch(1);
+
+  @After
+  public void tearDown() {
+    if (SparkSession.getActiveSession().isDefined()) {
+      SparkSession.getActiveSession().get().stop();
+    }
+    if (SparkSession.getDefaultSession().isDefined()) {
+      SparkSession.getDefaultSession().get().stop();
+    }
+  }
 
   /** Signals started, then blocks until the task is killed. */
   private static class BlockingDoFn extends DoFn<String, String> {
@@ -77,13 +88,22 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     }
   }
 
-  private SparkStructuredStreamingPipelineResult runBlockingPipeline() throws InterruptedException {
+  private SparkStructuredStreamingPipelineResult runBlockingPipeline() throws Exception {
     started = new CountDownLatch(1);
     Pipeline pipeline = Pipeline.create(getBatchOptions());
     pipeline.apply(Create.of("one", "two")).apply(ParDo.of(new BlockingDoFn()));
     SparkStructuredStreamingPipelineResult result =
         (SparkStructuredStreamingPipelineResult) pipeline.run();
-    assertTrue("DoFn did not start", started.await(DEADLINE_SECONDS, TimeUnit.SECONDS));
+    boolean didStart = false;
+    try {
+      didStart = started.await(DEADLINE_SECONDS, TimeUnit.SECONDS);
+    } finally {
+      if (!didStart) {
+        result.cancel();
+        result.waitUntilFinish();
+      }
+    }
+    assertTrue("DoFn did not start", didStart);
     return result;
   }
 

@@ -32,6 +32,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -70,6 +72,10 @@ import org.slf4j.LoggerFactory;
 })
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+
+  @VisibleForTesting
+  static final String DAILY_STAGING_DIR = "staging-" + LocalDate.now(ZoneOffset.UTC);
+
   static final String MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY =
       "beam.dataflow.maxConcurrentStandaloneJobs";
   private static final int DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS = 12;
@@ -148,9 +154,20 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setTempLocation(tempLocation);
     String defaultPerJobStagingLocation =
         FileSystems.matchNewDirectory(tempLocation, "staging").toString();
-    if (defaultPerJobStagingLocation.equals(dataflowOptions.getStagingLocation())) {
+    String unversionedSharedStagingLocation =
+        FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), "staging").toString();
+    String rawStagingLocation = dataflowOptions.getStagingLocation();
+    String configuredStagingLocation =
+        rawStagingLocation != null
+            ? FileSystems.matchNewDirectory(rawStagingLocation).toString()
+            : null;
+    // Scope shared test staging directories by UTC date so tests running on the same day reuse
+    // staged JARs without referencing objects near the 7-day GCS lifecycle deletion threshold.
+    if (defaultPerJobStagingLocation.equals(configuredStagingLocation)
+        || unversionedSharedStagingLocation.equals(configuredStagingLocation)) {
       dataflowOptions.setStagingLocation(
-          FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), "staging").toString());
+          FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), DAILY_STAGING_DIR)
+              .toString());
     }
 
     return new TestDataflowRunner(
@@ -589,11 +606,19 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
         if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          String messageText = message.getMessageText();
+          if (messageText != null && messageText.contains("The service will retry")) {
+            LOG.info(
+                "Dataflow job {} reported transient error that the service will retry: {}",
+                job.getJobId(),
+                messageText);
+            continue;
+          }
           LOG.info(
               "Dataflow job {} threw exception. Failure message was: {}",
               job.getJobId(),
-              message.getMessageText());
-          errorMessage.append(message.getMessageText());
+              messageText);
+          errorMessage.append(messageText);
           hasSeenError = true;
         }
       }

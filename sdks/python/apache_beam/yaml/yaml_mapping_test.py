@@ -528,6 +528,19 @@ class YamlMappingTest(unittest.TestCase):
                       True, True, 'UNKNOWN', 0, 0)),
           ]))
 
+  def test_extract_windowing_info_duplicate_field(self):
+    with self.assertRaisesRegex(
+        ValueError, 'Input schema already has a field named timestamp'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([beam.Row(timestamp=1, value='a')])
+        _ = elements | YamlTransform(
+            '''
+            type: ExtractWindowingInfo
+            config:
+                fields: [timestamp]
+            ''')
+
   def test_extract_windowing_info_iterable(self):
     T = typing.TypeVar('T')
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -557,6 +570,59 @@ class YamlMappingTest(unittest.TestCase):
                   value=11, timestamp=Timestamp(11),
                   window_type='GlobalWindow'),
           ]))
+
+  def test_filter_generic(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+          type: Filter
+          config:
+              language: generic
+              keep: "rank >= 1"
+          ''')
+      assert_that(
+          result
+          | beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict())),
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
+          ]))
+
+
+class ValidateGenericExpressionTest(unittest.TestCase):
+  FIELDS = ['age', 'name']
+
+  def test_accepts_every_comparison_operator(self):
+    for op in ('==', '!=', '<', '<=', '>', '>='):
+      with self.subTest(op=op):
+        yaml_mapping.validate_generic_expression({'expression': f'age {op} 21'},
+                                                 self.FIELDS,
+                                                 True,
+                                                 'keep')
+
+  def test_accepts_comparisons_without_spaces(self):
+    yaml_mapping.validate_generic_expression({'expression': 'age>=21'},
+                                             self.FIELDS,
+                                             True,
+                                             'keep')
+
+  def test_rejects_non_atomic_sides(self):
+    for expr in ('age + 1 >= 21', 'unknown >= 21', 'age >= 21 >= 1'):
+      with self.subTest(expr=expr):
+        with self.assertRaises(ValueError):
+          yaml_mapping.validate_generic_expression({'expression': expr},
+                                                   self.FIELDS,
+                                                   True,
+                                                   'keep')
+
+  def test_rejects_comparisons_when_not_allowed(self):
+    with self.assertRaises(ValueError):
+      yaml_mapping.validate_generic_expression({'expression': 'age >= 21'},
+                                               self.FIELDS,
+                                               False,
+                                               'field')
 
 
 if __name__ == '__main__':

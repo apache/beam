@@ -90,7 +90,7 @@ class ZScore(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "ZScore.learn_one expected univariate input, but got %s", str(x))
+          "ZScore.learn_one expected univariate input, but got %s" % str(x))
 
     v = next(iter(x))
     self._stdev_tracker.push(v)
@@ -107,7 +107,7 @@ class ZScore(AnomalyDetector):
     """
     if len(x.__dict__) != 1:
       raise ValueError(
-          "ZScore.score_one expected univariate input, but got %s", str(x))
+          "ZScore.score_one expected univariate input, but got %s" % str(x))
 
     v = next(iter(x))
     if v is None or math.isnan(v):

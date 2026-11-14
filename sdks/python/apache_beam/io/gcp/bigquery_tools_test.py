@@ -948,6 +948,7 @@ class TestAvroRowWriter(unittest.TestCase):
       with mock.patch.object(buf, 'close') as mock_close:
         writer = AvroRowWriter(buf, schema)
         writer.write({'stamp': stamp, 'number': float('NaN')})
+        self.assertGreater(writer.tell(), buf.tell())
         writer.close()
 
         mock_close.assert_called_once()

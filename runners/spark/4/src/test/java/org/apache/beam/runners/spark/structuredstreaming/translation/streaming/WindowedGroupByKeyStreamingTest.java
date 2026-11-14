@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -75,6 +76,7 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
   private static final String TAG_CHAINED = "chained-timer";
   private static final String TAG_GLOBALLY = "globally-combine";
   private static final String TAG_EXPIRY = "gbk-expiry";
+  private static final String TAG_MULTI_LEAF = "gbk-multi-leaf";
 
   @After
   public void tearDown() {
@@ -84,6 +86,7 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     TestUnboundedSource.forget(TAG_CHAINED);
     TestUnboundedSource.forget(TAG_GLOBALLY);
     TestUnboundedSource.forget(TAG_EXPIRY);
+    TestUnboundedSource.forget(TAG_MULTI_LEAF);
   }
 
   private SparkStructuredStreamingPipelineOptions options(String tag) throws Exception {
@@ -206,6 +209,31 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     assertTrue(res.contains(TestUnboundedSource.BASE_MILLIS + ":k=1"));
     for (String stateVarName : Arrays.asList("beamState", "beamTimers", "beamWatermark")) {
       assertEquals(stateVarName, 0L, StreamingTestUtils.stateRows(checkpoint, stateVarName));
+    }
+  }
+
+  @Test
+  public void testGroupByKeySharedAcrossMultipleLeaves() throws Exception {
+    Pipeline p = Pipeline.create(options(TAG_MULTI_LEAF));
+    PCollection<String> formatted =
+        p.apply(Read.from(new TestUnboundedSource(TAG_MULTI_LEAF, 1, 6)))
+            .apply(ParDo.of(new ToKvFn()))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(2))))
+            .apply(GroupByKey.create())
+            .apply(ParDo.of(new FormatGbkFn()));
+
+    String[] collectors = new String[4];
+    for (int i = 0; i < collectors.length; i++) {
+      collectors[i] = StreamingTestUtils.newCollectorId(TAG_MULTI_LEAF + "-" + i);
+      formatted.apply("Collect" + i, ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectors[i])));
+    }
+
+    assertEquals(PipelineResult.State.DONE, StreamingTestUtils.run(p).getState());
+    for (String col : collectors) {
+      Set<String> res = StreamingTestUtils.collected(col);
+      assertTrue(res.contains(TestUnboundedSource.BASE_MILLIS + ":k=2"));
+      assertTrue(res.contains(TestUnboundedSource.BASE_MILLIS + 2000 + ":k=2"));
     }
   }
 

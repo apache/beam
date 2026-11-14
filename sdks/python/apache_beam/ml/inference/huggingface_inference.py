@@ -587,7 +587,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union['tf.Tensor',
 
     if self._inference_fn:
       return self._inference_fn(
-          batch, model, inference_args, inference_args, self._model_uri)
+          batch, model, self._device, inference_args, self._model_uri)
 
     if self._framework == "tf":
       return _default_inference_fn_tensorflow(

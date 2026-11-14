@@ -46,6 +46,17 @@ class IQRTest(unittest.TestCase):
     self.assertEqual(
         scores[1:], [0.0, 0.0, 3.0, 2.8, 0.125, 0.12903225806451613])
 
+  def test_non_univariate_input_error_message(self):
+    detector = IQR()
+    row = beam.Row(x=1, y=2)
+
+    for name in ('learn_one', 'score_one'):
+      with self.assertRaisesRegex(
+          ValueError,
+          rf'IQR\.{name} expected univariate input, but got '
+          r'Row\(x=1, y=2\)'):
+        getattr(detector, name)(row)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

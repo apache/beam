@@ -18,7 +18,11 @@
 package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
@@ -54,5 +58,27 @@ public class SparkPipelineOptionsTest {
       SparkCommonPipelineOptions.prepareFilesToStage(options);
       assertEquals(explicitFiles, options.getFilesToStage());
     }
+  }
+
+  @Test
+  public void testStorageLevelDefaultValue() {
+    SparkCommonPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkCommonPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    assertEquals("MEMORY_ONLY", options.getStorageLevel());
+
+    SparkCommonPipelineOptions structuredStreamingOptions =
+        PipelineOptionsFactory.create().as(SparkCommonPipelineOptions.class);
+    structuredStreamingOptions.setRunner(SparkStructuredStreamingRunner.class);
+    assertEquals("MEMORY_AND_DISK", structuredStreamingOptions.getStorageLevel());
+  }
+
+  @Test
+  public void testStorageLevelDefaultValueWithoutRunner() {
+    PipelineOptions options = mock(PipelineOptions.class);
+    when(options.getRunner())
+        .thenThrow(new IllegalArgumentException("DirectRunner was not found on the classpath"));
+    assertEquals(
+        "MEMORY_ONLY", new SparkCommonPipelineOptions.StorageLevelFactory().create(options));
   }
 }

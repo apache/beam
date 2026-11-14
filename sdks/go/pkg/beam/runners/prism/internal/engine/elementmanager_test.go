@@ -16,12 +16,14 @@
 package engine
 
 import (
+	"bytes"
 	"container/heap"
 	"context"
 	"fmt"
 	"io"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -56,6 +58,89 @@ func TestElementHeap(t *testing.T) {
 		if got := heap.Pop(&elements).(element).timestamp; got != want {
 			t.Errorf("[%d] heap.Pop(&elements).(element).timestamp = %v, want %v", i, got, want)
 		}
+	}
+}
+
+func TestStatefulStageKind_buildEventTimeBundle_TimeSortedInput(t *testing.T) {
+	// The key has data at 50 and 200 pending. Each step builds a bundle at the
+	// given watermark, and checks the timestamps of the data it processes.
+	// Data is buildable at a watermark exactly when the step processes some.
+	type step struct {
+		watermark mtime.Time
+		want      []mtime.Time
+	}
+	tests := []struct {
+		name            string
+		timeSorted      bool
+		allowedLateness time.Duration
+		steps           []step
+	}{
+		{
+			name: "not time sorted processes all data",
+			steps: []step{
+				{watermark: mtime.MinTimestamp, want: []mtime.Time{50, 200}},
+			},
+		}, {
+			name:       "time sorted holds data until the watermark passes it",
+			timeSorted: true,
+			steps: []step{
+				{watermark: 49, want: nil},
+				{watermark: 50, want: []mtime.Time{50}},
+				{watermark: 199, want: nil},
+				{watermark: 200, want: []mtime.Time{200}},
+			},
+		}, {
+			name:            "time sorted holds data for the allowed lateness",
+			timeSorted:      true,
+			allowedLateness: 100 * time.Millisecond,
+			steps: []step{
+				{watermark: 149, want: nil},
+				{watermark: 150, want: []mtime.Time{50}},
+				{watermark: 299, want: nil},
+				{watermark: mtime.MaxTimestamp, want: []mtime.Time{200}},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			em := NewElementManager(Config{})
+			em.AddStage("dofn", []string{"input"}, nil, nil)
+			em.StageStateful("dofn", nil)
+			if test.timeSorted {
+				em.StageRequiresTimeSortedInput("dofn", test.allowedLateness)
+			}
+			ss := em.stages["dofn"]
+			win := window.GlobalWindow{}
+			dnt := &dataAndTimers{
+				elements: elementHeap{
+					{window: win, timestamp: 200, elmBytes: []byte{2}, keyBytes: []byte("k")},
+					{window: win, timestamp: 50, elmBytes: []byte{1}, keyBytes: []byte("k")},
+				},
+				timers: map[timerKey]timerTimes{},
+			}
+			heap.Init(&dnt.elements)
+			ss.pendingByKeys = map[string]*dataAndTimers{"k": dnt}
+
+			for _, s := range test.steps {
+				ss.mu.Lock()
+				buildable := ss.hasBuildableDataLocked(s.watermark)
+				toProcess, _, _, _, _, _, _ := ss.kind.buildEventTimeBundle(ss, s.watermark)
+				ss.mu.Unlock()
+				var got []mtime.Time
+				for _, e := range toProcess {
+					got = append(got, e.timestamp)
+				}
+				if !cmp.Equal(got, s.want) {
+					t.Errorf("buildEventTimeBundle(watermark=%v) = %v, want %v", s.watermark, got, s.want)
+				}
+				if want := len(s.want) > 0; buildable != want {
+					t.Errorf("hasBuildableDataLocked(%v) = %v, want %v", s.watermark, buildable, want)
+				}
+			}
+			if got := len(ss.pendingByKeys); got != 0 {
+				t.Errorf("len(pendingByKeys) = %v, want 0", got)
+			}
+		})
 	}
 }
 
@@ -682,5 +767,364 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 		validateSideBundles(t, keys1) // Should still have this key present, but with a different bundle.
 		validateSideBundles(t, keys2)
 		validateSideBundles(t, singleSet("\u0004key5")) // still exist..
+	})
+
+	// Each OnWindowExpiration callback a key owes counts as pending until its bundle persists,
+	// or the job could end before the callback runs.
+	t.Run("pendingUntilExpiryPersists", func(t *testing.T) {
+		em := NewElementManager(Config{})
+		var instID uint64
+		em.nextBundID = func() string {
+			return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+		}
+		em.AddStage("dofn", []string{"input"}, nil, nil)
+		em.StageStateful("dofn", nil)
+		em.StageOnWindowExpiration("dofn", StaticTimerID{TransformID: "dofn", TimerFamily: "onWinExp"})
+		stage := em.stages["dofn"]
+		w1 := window.IntervalWindow{Start: 0, End: 10}
+		w2 := window.IntervalWindow{Start: 10, End: 20}
+		side := LinkID{Transform: "dofn", Local: "side"}
+		stage.sideInputs = map[LinkID]map[typex.Window][][]byte{side: {w1: {{1}}}}
+
+		add := func(wins ...window.IntervalWindow) {
+			var es []element
+			for _, w := range wins {
+				es = append(es, element{window: w, timestamp: w.Start, pane: typex.NoFiringPane(), elmBytes: []byte{1}, keyBytes: []byte("k")})
+			}
+			em.addPending(stage.AddPending(em, es))
+		}
+		start := func(watermark mtime.Time) RunBundle {
+			t.Helper()
+			bundID, ok, _, _ := stage.startEventTimeBundle(watermark, em.nextBundID)
+			if !ok {
+				t.Fatalf("startEventTimeBundle(%v) started no bundle", watermark)
+			}
+			return RunBundle{StageID: stage.ID, BundleID: bundID, Watermark: watermark}
+		}
+		persist := func(rb RunBundle, wantPending int64) {
+			t.Helper()
+			em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, Residuals{})
+			if got := em.livePending.Load(); got != wantPending {
+				t.Fatalf("pending after bundle %v = %v, want %v", rb.BundleID, got, wantPending)
+			}
+		}
+		// refresh updates the watermarks, and takes the expiry bundles they inject, which must be for wantWins.
+		refresh := func(upstream mtime.Time, wantWins ...typex.Window) []RunBundle {
+			t.Helper()
+			em.refreshCond.L.Lock()
+			stage.updateUpstreamWatermark("input", upstream)
+			em.changedStages.insert(stage.ID)
+			em.refreshWatermarks()
+			injected := em.injectedBundles
+			em.injectedBundles = nil
+			em.refreshCond.L.Unlock()
+			var gotWins []typex.Window
+			for _, rb := range injected {
+				gotWins = append(gotWins, stage.expiryWindowsByBundles[rb.BundleID])
+			}
+			if !cmp.Equal(gotWins, wantWins) {
+				t.Fatalf("refresh(%v) expired windows %v, want %v", upstream, gotWins, wantWins)
+			}
+			return injected
+		}
+
+		// The last data in the job, for one key in two windows.
+		add(w1, w2)
+		persist(start(5), 2)
+		// The key is busy with more data when w1 expires, so w1 waits, and keeps its side input.
+		add(w2)
+		busy := start(15)
+		refresh(15)
+		if _, ok := stage.sideInputs[side][w1]; !ok {
+			t.Fatalf("side input for %v collected before its expiry ran", w1)
+		}
+		persist(busy, 2)
+		persist(refresh(15, w1)[0], 1)
+		persist(refresh(mtime.MaxTimestamp, w2)[0], 0)
+		if _, ok := stage.sideInputs[side][w1]; ok {
+			t.Fatalf("side input for %v not collected after its expiry ran", w1)
+		}
+		refresh(mtime.MaxTimestamp)
+
+		// Late data for an expired window owes the callback again, which runs after that data.
+		add(w1)
+		refresh(mtime.MaxTimestamp)
+		persist(start(mtime.MaxTimestamp), 1)
+		persist(refresh(mtime.MaxTimestamp, w1)[0], 0)
+	})
+}
+
+func TestStatefulStageKind_buildEventTimeBundle_OverwrittenTimerSameFiringDifferentHold(t *testing.T) {
+	em := NewElementManager(Config{})
+	var instID uint64
+	em.nextBundID = func() string {
+		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+	}
+	em.AddStage("dofn", []string{"input"}, nil, nil)
+	em.StageStateful("dofn", nil)
+	stage := em.stages["dofn"]
+	win := window.GlobalWindow{}
+
+	// Add an event-time timer with firing=MaxTimestamp and hold=4000, followed by
+	// data at 5000 and an overwritten timer with the same firing=MaxTimestamp
+	// but updated hold=9000.
+	em.addPending(stage.AddPending(em, []element{
+		{window: win, timestamp: mtime.MaxTimestamp, holdTimestamp: 4000, family: "hold", keyBytes: []byte("k")},
+		{window: win, timestamp: 5000, elmBytes: []byte{1}, keyBytes: []byte("k")},
+		{window: win, timestamp: mtime.MaxTimestamp, holdTimestamp: 9000, family: "hold", keyBytes: []byte("k")},
+	}))
+
+	// First bundle processes the data element at 5000, which sifts the stale
+	// hold=4000 timer ahead of hold=9000 in the key's binary heap.
+	bund1, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, em.nextBundID)
+	if !ok {
+		t.Fatal("startEventTimeBundle(1) started no bundle")
+	}
+	em.PersistBundle(RunBundle{StageID: stage.ID, BundleID: bund1, Watermark: mtime.MaxTimestamp}, nil, TentativeData{}, PColInfo{}, Residuals{})
+
+	// Second bundle must skip the stale hold=4000 timer, fire the hold=9000 timer,
+	// and release hold=9000 on PersistBundle without panicking on a negative hold count for 4000.
+	bund2, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, em.nextBundID)
+	if !ok {
+		t.Fatal("startEventTimeBundle(2) started no bundle")
+	}
+	if got := stage.inprogressHoldsByBundle[bund2]; !cmp.Equal(got, map[mtime.Time]int{9000: 1}) {
+		t.Fatalf("inprogressHoldsByBundle[%v] = %v, want map[9000:1]", bund2, got)
+	}
+	em.PersistBundle(RunBundle{StageID: stage.ID, BundleID: bund2, Watermark: mtime.MaxTimestamp}, nil, TentativeData{}, PColInfo{}, Residuals{})
+	if got := stage.watermarkHolds.counts; len(got) != 0 {
+		t.Fatalf("watermarkHolds.counts = %v, want empty", got)
+	}
+}
+
+func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
+	lpBytesDec := func(r io.Reader) []byte {
+		var buf bytes.Buffer
+		tr := io.TeeReader(r, &buf)
+		l, err := coder.DecodeVarInt(tr)
+		if err != nil {
+			t.Fatalf("DecodeVarInt: %v", err)
+		}
+		if _, err := io.CopyN(io.Discard, tr, l); err != nil {
+			t.Fatalf("CopyN: %v", err)
+		}
+		return buf.Bytes()
+	}
+	readAll := func(r io.Reader) []byte {
+		b, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		return b
+	}
+
+	unkeyedInfo := PColInfo{
+		GlobalID:    "unkeyed",
+		WindowCoder: WinGlobal,
+		WDec:        exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+		WEnc:        exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+		EDec:        readAll,
+	}
+	keyedInfo := PColInfo{
+		GlobalID:    "keyed",
+		WindowCoder: WinGlobal,
+		WDec:        exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+		WEnc:        exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+		EDec:        readAll,
+		KeyDec:      lpBytesDec,
+	}
+
+	glo := window.GlobalWindow{}
+	keyBytes := []byte{1, 'k'}
+
+	encodeWindowed := func(info PColInfo, ts mtime.Time, payload []byte) []byte {
+		var buf bytes.Buffer
+		if err := exec.EncodeWindowedValueHeader(info.WEnc, []typex.Window{glo}, ts, typex.NoFiringPane(), &buf); err != nil {
+			t.Fatalf("EncodeWindowedValueHeader: %v", err)
+		}
+		buf.Write(payload)
+		return buf.Bytes()
+	}
+
+	encodeTimerSet := func(tag string, firing, hold mtime.Time) []byte {
+		var buf bytes.Buffer
+		buf.Write(keyBytes)
+		coder.EncodeVarInt(int64(len(tag)), &buf)
+		buf.WriteString(tag)
+		if err := keyedInfo.WEnc.Encode([]typex.Window{glo}, &buf); err != nil {
+			t.Fatalf("WEnc.Encode: %v", err)
+		}
+		buf.WriteByte(0)
+		coder.EncodeEventTime(firing, &buf)
+		coder.EncodeEventTime(hold, &buf)
+		if err := coder.EncodePane(typex.NoFiringPane(), &buf); err != nil {
+			t.Fatalf("EncodePane: %v", err)
+		}
+		return buf.Bytes()
+	}
+
+	encodeTimerClear := func(tag string) []byte {
+		var buf bytes.Buffer
+		buf.Write(keyBytes)
+		coder.EncodeVarInt(int64(len(tag)), &buf)
+		buf.WriteString(tag)
+		if err := keyedInfo.WEnc.Encode([]typex.Window{glo}, &buf); err != nil {
+			t.Fatalf("WEnc.Encode: %v", err)
+		}
+		buf.WriteByte(1)
+		return buf.Bytes()
+	}
+
+	for _, enableRTC := range []bool{true, false} {
+		t.Run(fmt.Sprintf("eventTimeTimerClearsProcessingTimeTimer/enableRTC=%v", enableRTC), func(t *testing.T) {
+			ctx, cancelFn := context.WithCancelCause(context.Background())
+			defer cancelFn(nil)
+
+			em := NewElementManager(Config{EnableRTC: enableRTC})
+			em.AddStage("impulse", nil, []string{"src_in"}, nil)
+			em.AddStage("src", []string{"src_in"}, []string{"dofn_in"}, nil)
+			em.AddStage("dofn", []string{"dofn_in"}, []string{"sink_in"}, nil)
+			em.StageStateful("dofn", nil)
+			em.StageProcessingTimeTimers("dofn", map[string]bool{"pt": true})
+			em.AddStage("sink", []string{"sink_in"}, nil, nil)
+			em.Impulse("impulse")
+
+			coders := map[string]PColInfo{
+				"src_in":  unkeyedInfo,
+				"dofn_in": keyedInfo,
+				"sink_in": unkeyedInfo,
+			}
+
+			var bundSeq int
+			ch := em.Bundles(ctx, cancelFn, func() string {
+				bundSeq++
+				return fmt.Sprintf("b%d", bundSeq)
+			})
+
+			var etFired, ptFired, sinkBundles int
+			for rb := range ch {
+				switch rb.StageID {
+				case "src":
+					td := TentativeData{}
+					td.WriteData("dofn_in", encodeWindowed(keyedInfo, mtime.FromMilliseconds(1), []byte{1, 'k', 1, 'v'}))
+					em.PersistBundle(rb, coders, td, unkeyedInfo, Residuals{})
+				case "dofn":
+					blocks, _ := em.DataAndTimerInputForBundle(rb, keyedInfo)
+					if len(blocks) != 1 {
+						t.Fatalf("dofn bundle %v blocks = %d, want 1", rb, len(blocks))
+					}
+					td := TentativeData{}
+					switch blocks[0].Kind {
+					case BlockData:
+						td.WriteTimers("dofn", "et", encodeTimerSet("", mtime.FromMilliseconds(10), mtime.FromMilliseconds(10)))
+						td.WriteTimers("dofn", "pt", encodeTimerSet("", mtime.Now().Add(time.Hour), mtime.FromMilliseconds(5)))
+					case BlockTimer:
+						switch blocks[0].Family {
+						case "et":
+							etFired++
+							td.WriteTimers("dofn", "pt", encodeTimerClear(""))
+							td.WriteData("sink_in", encodeWindowed(unkeyedInfo, mtime.FromMilliseconds(10), []byte("event_fired")))
+						case "pt":
+							ptFired++
+							t.Errorf("cleared processing-time timer fired in bundle %v", rb)
+						default:
+							t.Fatalf("unexpected timer family %q", blocks[0].Family)
+						}
+					default:
+						t.Fatalf("unexpected block kind %v", blocks[0].Kind)
+					}
+					em.PersistBundle(rb, coders, td, keyedInfo, Residuals{})
+				case "sink":
+					sinkBundles++
+					em.PersistBundle(rb, coders, TentativeData{}, unkeyedInfo, Residuals{})
+				default:
+					t.Fatalf("unexpected stage %q", rb.StageID)
+				}
+			}
+
+			if err := context.Cause(ctx); err != nil {
+				t.Errorf("pipeline canceled with error: %v", err)
+			}
+			if etFired != 1 {
+				t.Errorf("etFired = %d, want 1", etFired)
+			}
+			if ptFired != 0 {
+				t.Errorf("ptFired = %d, want 0", ptFired)
+			}
+			if sinkBundles != 1 {
+				t.Errorf("sinkBundles = %d, want 1", sinkBundles)
+			}
+			if got := em.livePending.Load(); got != 0 {
+				t.Errorf("livePending = %d, want 0", got)
+			}
+			dofn := em.stages["dofn"]
+			if got := dofn.processingTimeTimers.Peek(); got != mtime.MaxTimestamp {
+				t.Errorf("processingTimeTimers.Peek() = %v, want %v", got, mtime.MaxTimestamp)
+			}
+			if got := dofn.watermarkHolds.Min(); got != mtime.MaxTimestamp {
+				t.Errorf("watermarkHolds.Min() = %v, want %v", got, mtime.MaxTimestamp)
+			}
+		})
+	}
+
+	t.Run("clearUnsetProcessingTimeTimer", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
+		defer cancelFn(nil)
+
+		em := NewElementManager(Config{EnableRTC: true})
+		em.AddStage("impulse", nil, []string{"src_in"}, nil)
+		em.AddStage("src", []string{"src_in"}, []string{"dofn_in"}, nil)
+		em.AddStage("dofn", []string{"dofn_in"}, nil, nil)
+		em.StageStateful("dofn", nil)
+		em.StageProcessingTimeTimers("dofn", map[string]bool{"pt": true})
+		em.Impulse("impulse")
+
+		coders := map[string]PColInfo{
+			"src_in":  unkeyedInfo,
+			"dofn_in": keyedInfo,
+		}
+
+		var bundSeq int
+		ch := em.Bundles(ctx, cancelFn, func() string {
+			bundSeq++
+			return fmt.Sprintf("b%d", bundSeq)
+		})
+
+		var dataBundles, ptFired int
+		for rb := range ch {
+			switch rb.StageID {
+			case "src":
+				td := TentativeData{}
+				td.WriteData("dofn_in", encodeWindowed(keyedInfo, mtime.FromMilliseconds(1), []byte{1, 'k', 1, 'v'}))
+				em.PersistBundle(rb, coders, td, unkeyedInfo, Residuals{})
+			case "dofn":
+				blocks, _ := em.DataAndTimerInputForBundle(rb, keyedInfo)
+				td := TentativeData{}
+				switch blocks[0].Kind {
+				case BlockData:
+					dataBundles++
+					td.WriteTimers("dofn", "pt", encodeTimerClear(""))
+				case BlockTimer:
+					ptFired++
+					t.Errorf("unset processing-time timer fired after clear in bundle %v", rb)
+				}
+				em.PersistBundle(rb, coders, td, keyedInfo, Residuals{})
+			default:
+				t.Fatalf("unexpected stage %q", rb.StageID)
+			}
+		}
+
+		if err := context.Cause(ctx); err != nil {
+			t.Errorf("pipeline canceled with error: %v", err)
+		}
+		if dataBundles != 1 {
+			t.Errorf("dataBundles = %d, want 1", dataBundles)
+		}
+		if ptFired != 0 {
+			t.Errorf("ptFired = %d, want 0", ptFired)
+		}
+		if got := em.livePending.Load(); got != 0 {
+			t.Errorf("livePending = %d, want 0", got)
+		}
 	})
 }

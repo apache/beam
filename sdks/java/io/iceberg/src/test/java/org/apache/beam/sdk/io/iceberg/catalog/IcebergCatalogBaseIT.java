@@ -89,7 +89,6 @@ import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
@@ -103,7 +102,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
@@ -114,6 +113,7 @@ import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
+import org.apache.iceberg.exceptions.ForbiddenException;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
@@ -189,11 +189,26 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   public void catalogCleanup(List<Namespace> namespaces) throws IOException {
     for (Namespace namespace : namespaces) {
-      for (TableIdentifier identifier : catalog.listTables(namespace)) {
-        catalog.dropTable(identifier);
-      }
-      if (catalog instanceof SupportsNamespaces) {
-        ((SupportsNamespaces) catalog).dropNamespace(namespace);
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        try {
+          for (TableIdentifier identifier : catalog.listTables(namespace)) {
+            catalog.dropTable(identifier);
+          }
+          if (catalog instanceof SupportsNamespaces) {
+            ((SupportsNamespaces) catalog).dropNamespace(namespace);
+          }
+          break;
+        } catch (ForbiddenException e) {
+          if (attempt == 3) {
+            throw e;
+          }
+          try {
+            Thread.sleep(SETUP_TEARDOWN_SLEEP_MS * attempt);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting to retry catalog cleanup", ie);
+          }
+        }
       }
     }
   }
@@ -1549,15 +1564,18 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   private DeleteFile writeCdcEqualityDelete(Table table, String filename, long id)
       throws IOException {
     org.apache.iceberg.Schema deleteSchema = table.schema().select("id");
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {1}, deleteSchema, null);
+    GenericFileWriterFactory appenderFactory =
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {1})
+            .equalityDeleteRowSchema(deleteSchema)
+            .build();
     EqualityDeleteWriter<Record> writer =
-        appenderFactory.newEqDeleteWriter(
+        appenderFactory.newEqualityDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table
                     .io()
                     .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
 
     try (writer) {
@@ -1569,15 +1587,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   private DeleteFile writeCdcPositionDelete(
       Table table, String filename, DataFile dataFile, long... positions) throws IOException {
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
+    GenericFileWriterFactory appenderFactory = new GenericFileWriterFactory.Builder(table).build();
     PositionDeleteWriter<Record> writer =
-        appenderFactory.newPosDeleteWriter(
+        appenderFactory.newPositionDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table
                     .io()
                     .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
 
     try (writer) {

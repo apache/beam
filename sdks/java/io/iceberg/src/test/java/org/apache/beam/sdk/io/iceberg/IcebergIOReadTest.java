@@ -76,7 +76,7 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDelete;
@@ -491,33 +491,39 @@ public class IcebergIOReadTest {
                         "id", 5L, "data", "e", "metadata", ImmutableMap.of("source", "x")))));
     table.newFastAppend().appendFile(file).commit();
     org.apache.iceberg.Schema idSchema = table.schema().select("id");
-    GenericAppenderFactory deletes =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {1}, idSchema, null);
+    GenericFileWriterFactory deletes =
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {1})
+            .equalityDeleteRowSchema(idSchema)
+            .build();
     PositionDeleteWriter<Record> positionDeletes =
-        deletes.newPosDeleteWriter(
+        deletes.newPositionDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table.io().newOutputFile(file.location() + ".pos.parquet")),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
     try (positionDeletes) {
       positionDeletes.write(PositionDelete.<Record>create().set(file.location(), 1L));
     }
     EqualityDeleteWriter<Record> equalityDeletes =
-        deletes.newEqDeleteWriter(
+        deletes.newEqualityDeleteWriter(
             EncryptedFiles.plainAsEncryptedOutput(
                 table.io().newOutputFile(file.location() + ".eq.parquet")),
-            FileFormat.PARQUET,
+            table.spec(),
             null);
     try (equalityDeletes) {
       equalityDeletes.write(createRecord(idSchema, ImmutableMap.of("id", 3L)));
     }
     org.apache.iceberg.Schema sourceSchema = table.schema().select("metadata.source");
     EqualityDeleteWriter<Record> nestedDeletes =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {4}, sourceSchema, null)
-            .newEqDeleteWriter(
+        new GenericFileWriterFactory.Builder(table)
+            .equalityFieldIds(new int[] {4})
+            .equalityDeleteRowSchema(sourceSchema)
+            .build()
+            .newEqualityDeleteWriter(
                 EncryptedFiles.plainAsEncryptedOutput(
                     table.io().newOutputFile(file.location() + ".nested.parquet")),
-                FileFormat.PARQUET,
+                table.spec(),
                 null);
     try (nestedDeletes) {
       nestedDeletes.write(

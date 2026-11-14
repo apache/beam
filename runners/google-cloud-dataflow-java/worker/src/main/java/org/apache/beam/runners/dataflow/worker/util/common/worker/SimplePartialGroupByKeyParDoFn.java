@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A partial group-by-key {@link ParDoFn} implementation. */
@@ -51,4 +52,9 @@ public class SimplePartialGroupByKeyParDoFn<K, InputT, AccumT> implements ParDoF
 
   @Override
   public void abort() {}
+
+  @Override
+  public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+    return null;
+  }
 }

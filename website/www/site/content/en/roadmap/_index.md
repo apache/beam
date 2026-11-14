@@ -68,12 +68,12 @@ Learn more from the [Beam Element Extended Metadata Design Doc](https://s.apache
 
 The Go SDK is not actively being developed beyond bugfixes due to lack of contributors. If you'd like to help move this forward again, see the [Go SDK's Roadmap](/roadmap/go-sdk)
 
-## Python 3 support
+## Python SDK
 
-As of Apache Beam 2.75.0, we support python version from 3.10 uptil Python 3.14. Supporting new Python 3 minor version is in our roadmap.
+As of Apache Beam 2.78.0, we support Python 3.11, 3.12, 3.13 and 3.14.
 
 See details on
-the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
+the [Python SDK's Roadmap](/roadmap/python-sdk/).
 
 ## Java support
 

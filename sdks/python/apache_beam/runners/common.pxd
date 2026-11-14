@@ -19,6 +19,7 @@ cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.utils.windowed_value cimport WindowedBatch
+from apache_beam.utils.windowed_value cimport create as windowed_value_create
 from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from libc.stdint cimport int64_t
@@ -118,6 +119,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_key_param_required
   cdef object splitting_lock
 
+  cdef _invoke_process_per_window(self, WindowedValue windowed_value,
+                                  additional_args, additional_kwargs)
+
 
 cdef class DoFnRunner:
   cdef DoFnContext context
@@ -159,6 +163,7 @@ cdef class _OutputHandler(OutputHandler):
                                watermark_estimator=*)
 
   @cython.locals(windowed_value=WindowedValue,
+                 empty_windowed_value=WindowedValue,
                  windowed_batch=WindowedBatch,
                  output_element_count=int64_t)
   cpdef handle_process_batch_outputs(self, WindowedBatch input_batch, results,
@@ -166,7 +171,6 @@ cdef class _OutputHandler(OutputHandler):
 
   @cython.locals(windowed_value=WindowedValue)
   cdef inline WindowedValue _maybe_propagate_windowing_info(self, WindowedValue input_element, result)
-  cdef inline tuple _handle_tagged_output(self, result)
   cdef inline _write_value_to_tag(self, tag, WindowedValue windowed_value,
                                   watermark_estimator)
   cdef inline _write_batch_to_tag(self, tag, WindowedBatch windowed_batch,
