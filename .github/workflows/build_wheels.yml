@@ -225,7 +225,9 @@ jobs:
       - check_env_variables
       - build_source
     env:
-      CIBW_ARCHS_LINUX: ${{matrix.os_python.arch}}
+      # Native arm64 runners build for their own architecture, so the aarch64
+      # leg sets cibw_archs to "auto" instead of the emulated CIBW_ARCHS_LINUX.
+      CIBW_ARCHS_LINUX: ${{ matrix.os_python.cibw_archs || matrix.os_python.arch }}
     runs-on: ${{ matrix.os_python.runner }}
     timeout-minutes: 480
     strategy:
@@ -235,7 +237,7 @@ jobs:
           {"os": "ubuntu-24.04", "runner": [self-hosted, ubuntu-24.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
           {"os": "macos-15", "runner": "macos-15", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
           {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
-          {"os": "ubuntu-24.04", "runner": "ubuntu-22.04", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
+          {"os": "ubuntu-24.04", "runner": "ubuntu-24.04-arm", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64", cibw_archs: "auto" }
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
         py_version: ["cp311-", "cp312-", "cp313-", "cp314-"]
@@ -256,7 +258,10 @@ jobs:
       with:
         python-version: '3.11'
     - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
-      if: ${{matrix.os_python.arch == 'aarch64'}}
+      # Only needed when cross-compiling, i.e. for rows that don't build
+      # natively (the aarch64 row now sets cibw_archs and runs on an arm64
+      # runner).
+      if: ${{ matrix.os_python.arch == 'aarch64' && !matrix.os_python.cibw_archs }}
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
