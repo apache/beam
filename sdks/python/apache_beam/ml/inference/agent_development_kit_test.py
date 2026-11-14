@@ -22,6 +22,7 @@ from unittest import mock
 
 try:
   from google.adk.agents import Agent
+  from google.adk.sessions import InMemorySessionService
 
   from apache_beam.ml.inference.agent_development_kit import ADKAgentModelHandler
   from apache_beam.ml.inference.base import PredictionResult
@@ -58,8 +59,7 @@ def _make_mock_runner(
   runner.agent = agent
   runner.run_async = mock.MagicMock(side_effect=_async_gen)
   runner.session_service = mock.MagicMock()
-  runner.session_service.get_session = mock.AsyncMock(
-      side_effect=Exception("Session not found"))
+  runner.session_service.get_session = mock.AsyncMock(return_value=None)
   runner.session_service.create_session = mock.AsyncMock()
   return runner
 
@@ -253,6 +253,52 @@ class TestSessionManagement(unittest.TestCase):
     call_kwargs = runner.session_service.create_session.call_args[1]
     self.assertEqual(call_kwargs["app_name"], "my_app")
 
+  def test_reuses_existing_session_across_calls(self):
+    """A second call with the same session_id reuses the existing session."""
+    agent = _make_mock_agent()
+    runner = _make_mock_runner(agent)
+    runner.session_service = InMemorySessionService()
+
+    handler = ADKAgentModelHandler(agent=agent)
+    for prompt in ["turn1", "turn2"]:
+      results = list(
+          handler.run_inference(
+              batch=[prompt],
+              model=runner,
+              inference_args={"session_id": "my-session"},
+          ))
+      self.assertEqual(results[0].inference, "Hello from agent")
+
+    session = asyncio.run(
+        runner.session_service.get_session(
+            app_name="beam_inference",
+            user_id="beam_user",
+            session_id="my-session"))
+    self.assertIsNotNone(session)
+
+  def test_concurrent_calls_share_session_id_in_one_batch(self):
+    """Concurrent invocations racing to create the same session both succeed."""
+    class _RacingSessionService(InMemorySessionService):
+      async def get_session(self, **kwargs):
+        session = await super().get_session(**kwargs)
+        # Yield so every invocation looks up the session before any creates it.
+        await asyncio.sleep(0)
+        return session
+
+    agent = _make_mock_agent()
+    runner = _make_mock_runner(agent)
+    runner.session_service = _RacingSessionService()
+
+    handler = ADKAgentModelHandler(agent=agent)
+    results = list(
+        handler.run_inference(
+            batch=["turn1", "turn2"],
+            model=runner,
+            inference_args={"session_id": "my-session"},
+        ))
+
+    self.assertEqual(len(results), 2)
+
 
 class TestResponseExtraction(unittest.TestCase):
   """Tests for extraction of the final response from the event stream."""
@@ -271,7 +317,7 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
-    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.get_session = mock.AsyncMock(return_value=None)
     runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
@@ -292,7 +338,7 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
-    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.get_session = mock.AsyncMock(return_value=None)
     runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
@@ -321,7 +367,7 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
-    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.get_session = mock.AsyncMock(return_value=None)
     runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
