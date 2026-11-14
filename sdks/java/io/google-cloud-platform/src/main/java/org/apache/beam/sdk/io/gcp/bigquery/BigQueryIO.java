@@ -200,7 +200,7 @@ import org.slf4j.LoggerFactory;
  * <h3>BigQuery Concepts</h3>
  *
  * <p>Tables have rows ({@link TableRow}) and each row has cells ({@link TableCell}). A table has a
- * schema ({@link TableSchema}), which in turn describes the schema of each cell ({@link
+ * work when schema ({@link TableSchema}), which in turn describes the schema of each cell ({@link
  * TableFieldSchema}). The terms field and cell are used interchangeably.
  *
  * <p>{@link TableSchema}: describes the schema (types and order) for values in each row. It has one
@@ -3069,6 +3069,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
+    abstract @Nullable String getReservation();
+
     abstract @Nullable List<String> getPrimaryKey();
 
     abstract AppendRowsRequest.MissingValueInterpretation getDefaultMissingValueInterpretation();
@@ -3187,6 +3189,8 @@ public class BigQueryIO {
       abstract Builder<T> setIgnoreInsertIds(boolean ignoreInsertIds);
 
       abstract Builder<T> setKmsKey(@Nullable String kmsKey);
+
+      abstract Builder<T> setReservation(@Nullable String reservation);
 
       abstract Builder<T> setPrimaryKey(@Nullable List<String> primaryKey);
 
@@ -3806,6 +3810,17 @@ public class BigQueryIO {
       return toBuilder().setKmsKey(kmsKey).build();
     }
 
+    /**
+     * Specify a reservation to use for FILE_LOADS operations.
+     *
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS},
+     * the default write method for bounded inputs.
+     */
+    public Write<T> withReservation(String reservation) {
+      checkArgument(reservation != null, "reservation can not be null");
+      return toBuilder().setReservation(reservation).build();
+    }
+
     public Write<T> withPrimaryKey(List<String> primaryKey) {
       return toBuilder().setPrimaryKey(primaryKey).build();
     }
@@ -4247,6 +4262,12 @@ public class BigQueryIO {
             getMethod() != Method.FILE_LOADS, "Primary key not supported when using FILE_LOADS");
       }
 
+      if (getReservation() != null) {
+        checkArgument(
+            getMethod() == Method.FILE_LOADS,
+            "Reservation is only supported when using FILE_LOADS write method.");
+      }
+
       if (getAutoSchemaUpdate()) {
         // TODO(reuvenlax): Remove this restriction once we implement support.
         checkArgument(
@@ -4566,6 +4587,7 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
+                getReservation(),
                 getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),

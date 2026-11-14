@@ -21,6 +21,7 @@ import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
@@ -72,7 +73,8 @@ public interface BigQueryServices extends Serializable {
   /** An interface for the Cloud BigQuery load service. */
   public interface JobService extends AutoCloseable {
     /** Start a BigQuery load job. */
-    void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
+    void startLoadJob(
+        JobReference jobRef, JobConfiguration jobConfig, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
 
     /** Start a BigQuery load job with stream content. */

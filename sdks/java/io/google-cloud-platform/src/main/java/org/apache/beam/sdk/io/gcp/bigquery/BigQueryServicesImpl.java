@@ -275,13 +275,14 @@ public class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
+    public void startLoadJob(
+        JobReference jobRef, JobConfiguration jobConfig, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
       Job job =
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(
-                  new JobConfiguration()
+                  jobConfig
                       .setLoad(loadConfig)
                       .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
       startJob(job, errorExtractor, client);

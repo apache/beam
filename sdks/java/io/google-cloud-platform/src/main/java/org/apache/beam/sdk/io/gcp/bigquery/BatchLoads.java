@@ -171,6 +171,7 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
+  private final @Nullable String reservation;
   private final @Nullable String tempDataset;
   private final BadRecordRouter badRecordRouter;
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
@@ -191,6 +192,7 @@ class BatchLoads<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey,
+      @Nullable String reservation,
       boolean clusteringEnabled,
       boolean useAvroLogicalTypes,
       @Nullable String tempDataset,
@@ -217,6 +219,7 @@ class BatchLoads<DestinationT, ElementT>
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
+    this.reservation = reservation;
     this.rowWriterFactory = rowWriterFactory;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
@@ -850,7 +853,8 @@ class BatchLoads<DestinationT, ElementT>
                 // tables. They also shouldn't be needed. See
                 // https://github.com/apache/beam/issues/21105 for additional details.
                 schemaUpdateOptions,
-                tempDataset))
+                tempDataset,
+                reservation))
         .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
@@ -890,7 +894,8 @@ class BatchLoads<DestinationT, ElementT>
                     rowWriterFactory.getSourceFormat(),
                     useAvroLogicalTypes,
                     schemaUpdateOptions,
-                    null))
+                    null,
+                    reservation))
             .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
