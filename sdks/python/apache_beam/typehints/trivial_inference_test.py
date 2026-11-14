@@ -21,6 +21,7 @@
 
 import dataclasses
 import types
+import typing
 import unittest
 
 import apache_beam as beam
@@ -497,6 +498,40 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Any, lambda row: getattr(row, '_asdict'),
         [row_type.RowTypeConstraint.from_fields([('x', int), ('y', str)])])
+
+  def testNamedTupleAttr(self):
+    class Address(typing.NamedTuple):
+      city: str
+
+    class Person(typing.NamedTuple):
+      name: str
+      address: typing.Optional[Address]
+
+    self.assertReturnType(str, lambda r: r.name, [Person])
+    self.assertReturnType(
+        typehints.Union[type(None), Address], lambda r: r.address,
+        [Person])
+    self.assertReturnType(
+        typehints.Union[type(None), str], lambda r: r.address.city,
+        [Person])
+
+  def testDataclassOptionalNestedAttr(self):
+    @dataclasses.dataclass
+    class DCNested:
+      city: str
+
+    @dataclasses.dataclass
+    class DCPerson:
+      name: str
+      address: typing.Optional[DCNested] = None
+
+    self.assertReturnType(str, lambda r: r.name, [DCPerson])
+    self.assertReturnType(
+        typehints.Union[type(None), DCNested], lambda r: r.address,
+        [DCPerson])
+    self.assertReturnType(
+        typehints.Union[type(None), str], lambda r: r.address.city,
+        [DCPerson])
 
   def testFString(self):
     self.assertReturnType(str, lambda x, y: f'{x}: {y:0.2}', [str, float])
