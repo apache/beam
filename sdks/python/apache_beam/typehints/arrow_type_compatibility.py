@@ -21,17 +21,27 @@ For internal use only, no backward compatibility guarantees.
 """
 
 # ruff: noqa: UP006
+import collections.abc
+import dataclasses
 from functools import partial
+from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
+from typing import get_args
+from typing import get_origin
 
 import pyarrow as pa
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
@@ -295,6 +305,66 @@ def _arrow_type_from_beam_fieldtype(
   return output_arrow_type
 
 
+def _from_arrow_value_fn(typ) -> Optional[Callable[[Any], Any]]:
+  """Returns a function that turns a value from ``pa.Scalar.as_py`` into
+  ``typ``, or None if the value needs no conversion.
+
+  ``as_py`` returns structs as dicts, so nested rows are built from those
+  dicts, including rows in optional fields and in lists.
+  """
+  if isinstance(typ, RowTypeConstraint):
+    return _row_from_dict_fn(typ.user_type, typ._fields)
+  if match_is_named_tuple(typ):
+    return _row_from_dict_fn(
+        typ, [(name, typ.__annotations__[name]) for name in typ._fields])
+  if match_dataclass_for_row(typ):
+    return _row_from_dict_fn(
+        typ, [(field.name, field.type) for field in dataclasses.fields(typ)])
+
+  # BatchConverter.from_typehints normalizes typing hints to Beam ones.
+  if isinstance(typ, typehints.UnionConstraint):
+    origin, args = Union, tuple(typ.union_types)
+  elif isinstance(typ,
+                  (typehints.ListConstraint,
+                   typehints.ABCSequenceTypeConstraint,
+                   typehints.IterableTypeConstraint)):
+    origin, args = list, (typ.inner_type, )
+  else:
+    origin, args = get_origin(typ), get_args(typ)
+  if origin is Union:
+    not_none = [arg for arg in args if arg is not type(None)]
+    return _from_arrow_value_fn(not_none[0]) if len(not_none) == 1 else None
+  if origin in (list,
+                collections.abc.Sequence,
+                collections.abc.MutableSequence,
+                collections.abc.Iterable,
+                collections.abc.Collection) and args:
+    convert_element = _from_arrow_value_fn(args[0])
+    if convert_element is not None:
+      return lambda value: None if value is None else [
+          convert_element(element) for element in value
+      ]
+  return None
+
+
+def _row_from_dict_fn(user_type, fields) -> Callable[[Any], Any]:
+  converters = [(name, convert)
+                for name, convert in ((name, _from_arrow_value_fn(typ))
+                                      for name, typ in fields)
+                if convert is not None]
+
+  def convert(value):
+    if value is None:
+      return None
+    # A struct read with only some of its columns lacks the others.
+    values = {name: value.get(name) for name, _ in fields}
+    for name, convert_field in converters:
+      values[name] = convert_field(values[name])
+    return user_type(**values)
+
+  return convert
+
+
 class PyarrowBatchConverter(BatchConverter):
   def __init__(self, element_type: RowTypeConstraint):
     super().__init__(pa.Table, element_type)
@@ -302,6 +372,12 @@ class PyarrowBatchConverter(BatchConverter):
     arrow_schema = arrow_schema_from_beam_schema(self._beam_schema)
 
     self._arrow_schema = arrow_schema
+    self._field_converters = [
+        (name, convert)
+        for name, convert in ((name, _from_arrow_value_fn(typ))
+                              for name, typ in self._element_type._fields)
+        if convert is not None
+    ]
 
   @staticmethod
   def from_typehints(element_type,
@@ -329,11 +405,13 @@ class PyarrowBatchConverter(BatchConverter):
   def explode_batch(self, batch: pa.Table):
     """Convert an instance of B to Generator[E]."""
     for row_values in zip(*batch.columns):
-      yield self._element_type.user_type(
-          **{
-              name: val.as_py()
-              for name, val in zip(self._arrow_schema.names, row_values)
-          })
+      values = {
+          name: val.as_py()
+          for name, val in zip(self._arrow_schema.names, row_values)
+      }
+      for name, convert in self._field_converters:
+        values[name] = convert(values[name])
+      yield self._element_type.user_type(**values)
 
   def combine_batches(self, batches: List[pa.Table]):
     return pa.concat_tables(batches)
@@ -362,6 +440,7 @@ class PyarrowArrayBatchConverter(BatchConverter):
     self._element_type = element_type
     beam_fieldtype = typing_to_runner_api(element_type)
     self._arrow_type = _arrow_type_from_beam_fieldtype(beam_fieldtype)
+    self._convert = _from_arrow_value_fn(element_type)
 
   @staticmethod
   def from_typehints(element_type,
@@ -375,8 +454,12 @@ class PyarrowArrayBatchConverter(BatchConverter):
 
   def explode_batch(self, batch: pa.Array):
     """Convert an instance of B to Generator[E]."""
-    for val in batch:
-      yield val.as_py()
+    if self._convert is None:
+      for val in batch:
+        yield val.as_py()
+    else:
+      for val in batch:
+        yield self._convert(val.as_py())
 
   def combine_batches(self, batches: List[pa.Array]):
     return pa.concat_arrays(batches)
