@@ -166,6 +166,18 @@ class BundleBasedRunnerTest(unittest.TestCase):
     with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
       assert_that(p | beam.Impulse(), equal_to([b'']))
 
+  def test_process_batch_only_dofn(self):
+    class BatchDoFn(beam.DoFn):
+
+      @beam.DoFn.yields_elements
+      def process_batch(self, batch: list[int]):
+        yield from batch
+
+    with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
+      assert_that(
+          p | beam.Create([3, 1, 2]) | beam.ParDo(BatchDoFn()),
+          equal_to([1, 2, 3]))
+
 
 class DirectRunnerRetryTests(unittest.TestCase):
   def test_retry_fork_graph(self):

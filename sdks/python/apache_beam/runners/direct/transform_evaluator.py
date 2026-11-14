@@ -71,6 +71,7 @@ from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import HomogeneousWindowedBatch
 
 if TYPE_CHECKING:
   from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -883,6 +884,15 @@ class _ParDoEvaluator(_TransformEvaluator):
     dofn = (
         pickler.roundtrip(transform.dofn)
         if self._perform_dofn_pickle_test else transform.dofn)
+    # Buffer elements and invoke process_batch() for DoFns that only
+    # implement process_batch() (e.g. _BeamRowsToArrowTable), since this
+    # runner otherwise invokes process() once per element.
+    self._batch_only = (
+        not getattr(dofn, '_process_defined', False) and
+        getattr(dofn, '_process_batch_defined', False) and
+        not is_stateful_dofn(dofn))
+    self._batch_fn = dofn
+    self._batch_groups = {}
 
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
@@ -930,9 +940,34 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_firing.dynamic_timer_tag)
 
   def process_element(self, element):
+    if self._batch_only:
+      key = (element.timestamp_micros, tuple(element.windows),
+             element.pane_info)
+      group = self._batch_groups.get(key)
+      if group is None:
+        group = self._batch_groups[key] = {
+            'values': [],
+            'timestamp': element.timestamp,
+            'windows': element.windows,
+            'pane_info': element.pane_info,
+        }
+      group['values'].append(element.value)
+      return
     self.runner.process(element)
 
   def finish_bundle(self):
+    if self._batch_only:
+      converter = getattr(self._batch_fn, 'input_batch_converter', None)
+      if converter is None:
+        raise NotImplementedError(
+            'DoFn %s only defines process_batch() and no input batch '
+            'converter could be constructed' % self._batch_fn)
+      for group in self._batch_groups.values():
+        batch = converter.produce_batch(group['values'])
+        windowed_batch = HomogeneousWindowedBatch.of(
+            batch, group['timestamp'], group['windows'], group['pane_info'])
+        self.runner.process_batch(windowed_batch)
+      self._batch_groups = {}
     self.runner.finish()
     self.runner.teardown()
     bundles = list(self._tagged_receivers.values())
