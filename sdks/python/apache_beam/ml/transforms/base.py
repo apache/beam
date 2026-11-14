@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import abc
+import copy
 import functools
 import logging
 import os
@@ -230,6 +231,10 @@ def _dict_output_fn(
 
   result = []
   for batch_idx, item in enumerate(batch):
+    if isinstance(item, dict):
+      # Copy so the input element, which other transforms may also consume,
+      # is not modified. copy.copy keeps the type of dict subclasses.
+      item = copy.copy(item)
     for col_idx, col in enumerate(columns):
       embedding_idx = batch_idx * len(columns) + col_idx
       if isinstance(item, dict):

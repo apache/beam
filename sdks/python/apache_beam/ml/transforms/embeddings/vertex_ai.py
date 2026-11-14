@@ -19,6 +19,8 @@
 # Follow https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk # pylint: disable=line-too-long
 # to install Vertex AI Python SDK.
 
+import copy
+import dataclasses
 import functools
 import logging
 from collections.abc import Callable
@@ -408,13 +410,19 @@ def _multimodal_dict_output_fn(
   results = []
   for batch_idx, item in enumerate(batch):
     mm_embedding = embeddings[batch_idx]
+    # Copy the dict and the nested objects so the input element, which other
+    # transforms may also consume, is not modified.
+    item = copy.copy(item)
     if image_column:
-      item[image_column].embedding = mm_embedding.image_embedding
+      item[image_column] = dataclasses.replace(
+          item[image_column], embedding=mm_embedding.image_embedding)
     if video_column:
-      item[video_column].embeddings = mm_embedding.video_embeddings
+      item[video_column] = dataclasses.replace(
+          item[video_column], embeddings=mm_embedding.video_embeddings)
     if text_column:
-      item[text_column].embedding = Embedding(
-          dense_embedding=mm_embedding.text_embedding)
+      item[text_column] = dataclasses.replace(
+          item[text_column],
+          embedding=Embedding(dense_embedding=mm_embedding.text_embedding))
     results.append(item)
   return results
 
