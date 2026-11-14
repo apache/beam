@@ -431,8 +431,7 @@ class TestParquet(unittest.TestCase):
       assert len(files) == 1
       self.assertEqual(
           pq.read_table(files[0]).to_pydict(), {
-              'a': [1, 2],
-              'b': ['x', 'y']
+              'a': [1, 2], 'b': ['x', 'y']
           })
 
   def test_write_with_nullable_fields_missing_data(self):
