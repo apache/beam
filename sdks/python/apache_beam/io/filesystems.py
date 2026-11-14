@@ -106,6 +106,8 @@ class FileSystems(object):
   URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
 
   _pipeline_options = None
+  _direct_subclasses_cache = None
+  _systems_by_scheme = {}
 
   @classmethod
   def set_options(cls, pipeline_options):
@@ -118,10 +120,12 @@ class FileSystems(object):
 
   @staticmethod
   def get_scheme(path):
+    if '://' not in path:
+      return None
     match_result = FileSystems.URI_SCHEMA_PATTERN.match(path.strip())
     if match_result is None:
       return None
-    return match_result.groupdict()['scheme']
+    return match_result.group('scheme')
 
   @staticmethod
   def get_filesystem(path):
@@ -131,10 +135,14 @@ class FileSystems(object):
     """
     try:
       path_scheme = FileSystems.get_scheme(path)
-      systems = [
-          fs for fs in FileSystem.get_all_subclasses()
-          if fs.scheme() == path_scheme
-      ]
+      direct_subclasses = FileSystem.__subclasses__()
+      if FileSystems._direct_subclasses_cache != direct_subclasses:
+        by_scheme = {}
+        for fs in FileSystem.get_all_subclasses():
+          by_scheme.setdefault(fs.scheme(), []).append(fs)
+        FileSystems._systems_by_scheme = by_scheme
+        FileSystems._direct_subclasses_cache = direct_subclasses
+      systems = FileSystems._systems_by_scheme.get(path_scheme, ())
       if len(systems) == 0:
         raise ValueError(
             'Unable to get filesystem from specified path, please use the '
