@@ -21,6 +21,7 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.nio.ByteBuffer;
@@ -35,6 +36,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -562,31 +564,37 @@ public class IcebergUtils {
         "Struct of size %s does not match expected schema size %s",
         struct.size(),
         schema.getFieldCount());
-    Row.Builder rowBuilder = Row.withSchema(schema);
+    List<@Nullable Object> values = new ArrayList<>(schema.getFieldCount());
     for (int i = 0; i < schema.getFieldCount(); i++) {
       Schema.Field field = schema.getField(i);
       @Nullable Object icebergValue = struct.get(i, Object.class);
-      addIcebergValue(rowBuilder, field, icebergValue);
+      addIcebergValue(values, field, icebergValue);
     }
-    return rowBuilder.build();
+    return Row.withSchema(schema).attachValues(values);
   }
 
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
-    Row.Builder rowBuilder = Row.withSchema(schema);
+    List<@Nullable Object> values = new ArrayList<>(schema.getFieldCount());
     for (Schema.Field field : schema.getFields()) {
       @Nullable Object icebergValue = record.getField(field.getName());
-      addIcebergValue(rowBuilder, field, icebergValue);
+      addIcebergValue(values, field, icebergValue);
     }
-    return rowBuilder.build();
+    return Row.withSchema(schema).attachValues(values);
   }
 
+  /**
+   * Converts an Iceberg value and adds it to {@code values}. The values are attached to a Row
+   * without the checks and conversions in {@link Row.Builder#build()}, so each one must already be
+   * the type Beam stores for its field, such as a {@link org.joda.time.Instant} for {@link
+   * Schema.FieldType#DATETIME}.
+   */
   private static void addIcebergValue(
-      Row.Builder rowBuilder, Schema.Field field, @Nullable Object icebergValue) {
+      List<@Nullable Object> values, Schema.Field field, @Nullable Object icebergValue) {
     boolean isNullable = field.getType().getNullable();
     if (icebergValue == null) {
       if (isNullable) {
-        rowBuilder.addValue(null);
+        values.add(null);
         return;
       }
       throw new RuntimeException(
@@ -602,7 +610,7 @@ public class IcebergUtils {
       case DOUBLE: // Iceberg and Beam both use double
       case STRING: // Iceberg and Beam both use String
       case BOOLEAN: // Iceberg and Beam both use boolean
-        rowBuilder.addValue(icebergValue);
+        values.add(icebergValue);
         break;
       case ARRAY:
         checkState(
@@ -621,7 +629,7 @@ public class IcebergUtils {
                   .map(v -> icebergRecordToBeamRow(innerSchema, (Record) v))
                   .collect(Collectors.toList());
         }
-        rowBuilder.addValue(beamList);
+        values.add(toBeamNestedValue(field.getType(), beamList, field.getName()));
         break;
       case ITERABLE:
         checkState(
@@ -641,7 +649,7 @@ public class IcebergUtils {
           }
           beamIterable = builder.build();
         }
-        rowBuilder.addValue(beamIterable);
+        values.add(toBeamNestedValue(field.getType(), beamIterable, field.getName()));
         break;
       case MAP:
         checkState(
@@ -663,17 +671,17 @@ public class IcebergUtils {
           }
           beamMap = newMap.build();
         }
-        rowBuilder.addValue(beamMap);
+        values.add(toBeamNestedValue(field.getType(), beamMap, field.getName()));
         break;
       case DATETIME:
         // Iceberg uses a long for micros.
-        // Beam DATETIME uses joda's DateTime, which only supports millis,
+        // Beam DATETIME uses joda's Instant, which only supports millis,
         // so we do lose some precision here
-        rowBuilder.addValue(getBeamDateTimeValue(icebergValue));
+        values.add(getJodaInstant(icebergValue));
         break;
       case BYTES:
         // Beam uses byte[]. Iceberg represents `binary` as a ByteBuffer but `fixed` as a byte[].
-        rowBuilder.addValue(
+        values.add(
             icebergValue instanceof byte[]
                 ? (byte[]) icebergValue
                 : ((ByteBuffer) icebergValue).array());
@@ -684,16 +692,16 @@ public class IcebergUtils {
                 field.getType().getRowSchema(),
                 "Corrupted schema: Row type did not have associated nested schema.");
         if (icebergValue instanceof Record) {
-          rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, (Record) icebergValue));
+          values.add(icebergRecordToBeamRow(nestedSchema, (Record) icebergValue));
         } else if (icebergValue instanceof StructLike) {
-          rowBuilder.addValue(structToRow(nestedSchema, (StructLike) icebergValue));
+          values.add(structToRow(nestedSchema, (StructLike) icebergValue));
         } else {
           throw new UnsupportedOperationException(
               "Unsupported row type: " + icebergValue.getClass());
         }
         break;
       case LOGICAL_TYPE:
-        rowBuilder.addValue(getLogicalTypeValue(icebergValue, field.getType()));
+        values.add(getLogicalTypeValue(icebergValue, field.getType()));
         break;
       default:
         throw new UnsupportedOperationException(
@@ -701,7 +709,45 @@ public class IcebergUtils {
     }
   }
 
-  private static DateTime getBeamDateTimeValue(Object icebergValue) {
+  /**
+   * Copies a list or map, or one of its elements, the way {@link Row.Builder#build()} would. A null
+   * fails where the Beam type is not nullable, and {@code binary}, which Iceberg reads as a {@link
+   * ByteBuffer}, becomes byte[].
+   */
+  private static @Nullable Object toBeamNestedValue(
+      Schema.FieldType type, @Nullable Object value, String fieldName) {
+    if (value == null) {
+      checkArgument(
+          type.getNullable(), "Received null value for %s in field '%s'.", type, fieldName);
+      return null;
+    }
+    switch (type.getTypeName()) {
+      case BYTES:
+        return value instanceof byte[] ? value : ((ByteBuffer) value).array();
+      case ARRAY:
+      case ITERABLE:
+        Schema.FieldType elementType = checkStateNotNull(type.getCollectionElementType());
+        List<@Nullable Object> list = new ArrayList<>();
+        for (@Nullable Object element : (Iterable<?>) value) {
+          list.add(toBeamNestedValue(elementType, element, fieldName));
+        }
+        return list;
+      case MAP:
+        Schema.FieldType keyType = checkStateNotNull(type.getMapKeyType());
+        Schema.FieldType valueType = checkStateNotNull(type.getMapValueType());
+        Map<@Nullable Object, @Nullable Object> map = new HashMap<>();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+          map.put(
+              toBeamNestedValue(keyType, entry.getKey(), fieldName),
+              toBeamNestedValue(valueType, entry.getValue(), fieldName));
+        }
+        return map;
+      default:
+        return value;
+    }
+  }
+
+  private static Instant getJodaInstant(Object icebergValue) {
     long micros;
     if (icebergValue instanceof OffsetDateTime) {
       micros = DateTimeUtil.microsFromTimestamptz((OffsetDateTime) icebergValue);
@@ -710,12 +756,12 @@ public class IcebergUtils {
     } else if (icebergValue instanceof Long) {
       micros = (long) icebergValue;
     } else if (icebergValue instanceof String) {
-      return DateTime.parse((String) icebergValue);
+      return DateTime.parse((String) icebergValue).toInstant();
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
     }
-    return new DateTime(micros / 1000L);
+    return new Instant(micros / 1000L);
   }
 
   private static Object getLogicalTypeValue(Object icebergValue, Schema.FieldType type) {
