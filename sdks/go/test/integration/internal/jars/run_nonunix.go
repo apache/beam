@@ -40,7 +40,7 @@ func getTimeoutRunner() runCallback {
 	}
 }
 
-// run simply starts up a jar and returns the cmd.Process.
+// run simply starts up a jar and returns its process.
 func run(jar string, args ...string) (Process, error) {
 	var cmdArr []string
 	cmdArr = append(cmdArr, "java", "-jar", jar)
@@ -51,5 +51,5 @@ func run(jar string, args ...string) (Process, error) {
 	if err != nil {
 		return nil, err
 	}
-	return cmd.Process, nil
+	return &commandProcess{cmd}, nil
 }

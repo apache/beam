@@ -61,5 +61,5 @@ func run(dur time.Duration, jar string, args ...string) (Process, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UnixProcess{proc: cmd.Process}, nil
+	return &UnixProcess{commandProcess{cmd}}, nil
 }

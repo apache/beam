@@ -15,8 +15,19 @@
 
 package jars
 
-// Process is an interface to allow wrapping os.Process with alternate behavior
+import "os/exec"
+
+// Process is an interface to allow wrapping exec.Cmd with alternate behavior
 // depending on OS.
 type Process interface {
 	Kill() error
+	Wait() error
+}
+
+type commandProcess struct {
+	*exec.Cmd
+}
+
+func (p *commandProcess) Kill() error {
+	return p.Process.Kill()
 }
