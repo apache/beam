@@ -179,10 +179,12 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
           logging.error('Could not initialize localstack container')
           raise e
 
-    self.aws_service_endpoint = 'https://{}:{}'.format(
-        self.localstack.get_container_host_ip(),
-        self.localstack.get_exposed_port('4566'),
-    )
+    port = self.localstack.get_exposed_port('4566')
+    # LocalStack certificate is for localhost.localstack.cloud.
+    self.aws_service_endpoint = (
+        'https://localhost.localstack.cloud:{}'.format(port))
+    self.kinesis_client_endpoint = 'http://{}:{}'.format(
+        self.localstack.get_container_host_ip(), port)
 
   def setUp(self):
     parser = argparse.ArgumentParser()
@@ -237,15 +239,18 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
     self.use_localstack = not known_args.use_real_aws
     self.expansion_service = known_args.expansion_service
 
+    self.kinesis_client_endpoint = None
     if self.use_localstack:
       self.set_localstack()
 
+    helper_endpoint = self.kinesis_client_endpoint
+    if not helper_endpoint and self.aws_service_endpoint:
+      helper_endpoint = self.aws_service_endpoint.replace('https', 'http')
     self.kinesis_helper = KinesisHelper(
         self.aws_access_key,
         self.aws_secret_key,
         self.aws_region,
-        self.aws_service_endpoint.replace('https', 'http')
-        if self.aws_service_endpoint else None,
+        helper_endpoint,
     )
 
     if self.use_localstack:
