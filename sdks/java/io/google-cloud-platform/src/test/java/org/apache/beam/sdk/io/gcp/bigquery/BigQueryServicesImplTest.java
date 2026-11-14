@@ -95,6 +95,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -311,6 +312,15 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testStreamLoadJobReservationInRequest() throws Exception {
+    testStreamLoadJobRequest("projects/p/locations/us/reservations/r");
+  }
+
+  @Test
+  public void testStreamLoadJobWithoutReservationInRequest() throws Exception {
+    testStreamLoadJobRequest(null);
+  }
+
+  private void testStreamLoadJobRequest(@Nullable String reservation) throws Exception {
     List<String> payloads = new ArrayList<>();
     MockLowLevelHttpRequest uploadRequest =
         new MockLowLevelHttpRequest() {
@@ -334,15 +344,18 @@ public class BigQueryServicesImplTest {
                 Transport.getJsonFactory(),
                 new RetryHttpRequestInitializer())
             .build();
-    String reservation = "projects/p/locations/us/reservations/r";
-    new JobServiceImpl(uploadClient)
-        .startLoadJob(
-            new JobReference().setProjectId("p").setJobId("job"),
-            new JobConfigurationLoad(),
-            new ByteArrayContent("text/plain", new byte[0]),
-            reservation);
+    JobServiceImpl service = new JobServiceImpl(uploadClient);
+    JobReference jobRef = new JobReference().setProjectId("p").setJobId("job");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    ByteArrayContent content = new ByteArrayContent("text/plain", new byte[0]);
+    if (reservation == null) {
+      service.startLoadJob(jobRef, loadConfig, content);
+    } else {
+      service.startLoadJob(jobRef, loadConfig, content, reservation);
+    }
     Job sent = fromString(payloads.get(0), Job.class);
     assertEquals(reservation, sent.getConfiguration().getReservation());
+    assertNotNull(sent.getConfiguration().getLoad());
   }
 
   /**

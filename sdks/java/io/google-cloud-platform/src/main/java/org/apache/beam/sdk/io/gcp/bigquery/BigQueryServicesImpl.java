@@ -277,14 +277,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
-      Job job =
-          new Job()
-              .setJobReference(jobRef)
-              .setConfiguration(
-                  new JobConfiguration()
-                      .setLoad(loadConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
-      startJob(job, errorExtractor, client);
+      startLoadJob(jobRef, loadConfig, (String) null);
     }
 
     /**
@@ -298,14 +291,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public void startLoadJob(
         JobReference jobRef, JobConfigurationLoad loadConfig, AbstractInputStreamContent stream)
         throws InterruptedException, IOException {
-      Job job =
-          new Job()
-              .setJobReference(jobRef)
-              .setConfiguration(
-                  new JobConfiguration()
-                      .setLoad(loadConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
-      startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
+      startLoadJob(jobRef, loadConfig, stream, null);
     }
 
     /**
