@@ -126,8 +126,12 @@ public class SourceRecordJson {
   private static final String SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME =
       "io.debezium.connector.common.TransactionMetadataKey";
 
-  public static final String SCHEMA_CHANGE_EVENT_KEY_NAME =
-      "io.debezium.connector.mysql.SchemaChangeKey";
+  /** Key schema names of the schema change events emitted by the supported connectors. */
+  private static final Set<String> SCHEMA_CHANGE_EVENT_KEY_NAMES =
+      ImmutableSet.of(
+          "io.debezium.connector.mysql.SchemaChangeKey",
+          "io.debezium.connector.oracle.SchemaChangeKey",
+          "io.debezium.connector.sqlserver.SchemaChangeKey");
 
   private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
@@ -767,7 +771,7 @@ public class SourceRecordJson {
    * include.schema.changes} is enabled. These are identified by their key schema name.
    */
   private static boolean isSchemaChangeEventKeyName(@Nullable Schema keySchema) {
-    return keySchema != null && SCHEMA_CHANGE_EVENT_KEY_NAME.equals(keySchema.name());
+    return keySchema != null && SCHEMA_CHANGE_EVENT_KEY_NAMES.contains(keySchema.name());
   }
 
   /** Returns the string field's value, or null if the struct's schema has no such field. */
