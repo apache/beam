@@ -315,6 +315,10 @@ public class TableClauseTest {
       "Unknown CHANGES parameter 'from_version'."
           + " Accepted parameters: start_version, end_version, start_timestamp, end_timestamp"
     },
+    {
+      "SELECT * FROM CHANGES(t, ^metadata_columns => ARRAY['_change_type'])",
+      "Unknown CHANGES parameter 'metadata_columns'."
+    },
     {"SELECT * FROM CHANGES(t, ^1.5)", NOT_A_BOUND},
     {"SELECT * FROM CHANGES(t, ^1e3)", NOT_A_BOUND},
     {"SELECT * FROM CHANGES(t, NULL, ^x)", NOT_A_BOUND},
@@ -527,6 +531,8 @@ public class TableClauseTest {
       TableClause.createChanges("orders", ChangeRange.timestamps(new Instant(-1), null), options),
       TableClause.createChanges(
           "orders", ChangeRange.timestamps(null, new Instant(1)), ImmutableMap.of()),
+      TableClause.createChanges("orders", ChangeRange.versions(1L, 5L), options)
+          .withMetadataColumns(ImmutableList.of("_change_type", "it's `odd`")),
       TableClause.create("orders", Role.READ, options),
       TableClause.create("my `odd` 'name' 日本", Role.READ, ImmutableMap.of("k", 1L)),
       TableClause.create("orders", Role.WRITE, options),
@@ -560,6 +566,8 @@ public class TableClauseTest {
       "CHANGES(`orders`, start_timestamp => TIMESTAMP '2026-01-01')",
       "CHANGES(`orders`) WITH ('a' = 1",
       "INTO CHANGES(`orders`) WITH ('a' = 1)",
+      "CHANGES(`orders`, metadata_columns => ARRAY['a'], start_version => 1)",
+      "CHANGES(`orders`, metadata_columns => ARRAY[1])",
     };
     for (String name : plainNames) {
       assertNull(name, TableClause.decode(name));

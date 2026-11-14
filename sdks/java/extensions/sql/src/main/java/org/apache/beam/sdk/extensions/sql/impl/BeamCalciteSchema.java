@@ -145,7 +145,7 @@ public class BeamCalciteSchema implements Schema {
         return table.forWrite(clause.options());
       }
       return changes != null
-          ? table.forChanges(changes, clause.options())
+          ? table.forChanges(changes, clause.options(), clause.metadataColumns())
           : table.forRead(clause.options());
     } catch (RuntimeException e) {
       throw new IllegalArgumentException(

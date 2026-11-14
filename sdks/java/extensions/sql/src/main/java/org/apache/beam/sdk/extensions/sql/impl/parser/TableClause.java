@@ -78,7 +78,9 @@ import org.joda.time.Instant;
  * `orders` WITH ('k' = 1)} aliased as {@code orders}. {@code FROM CHANGES(cat.db.orders, 5)}
  * becomes {@code cat}, {@code db}, {@code CHANGES(`orders`, start_version => 5)}, also aliased as
  * {@code orders}. The INSERT target {@code INTO orders WITH ('k' = 1)} becomes the name {@code INTO
- * `orders` WITH ('k' = 1)}.
+ * `orders` WITH ('k' = 1)}. Before validation, {@code MetadataColumnResolver} adds the metadata
+ * columns that the statement names on a read, as in {@code CHANGES(`orders`, metadata_columns =>
+ * ARRAY['_change_type'])}.
  *
  * <p>This is not a {@code SqlCall} like the DDL nodes in this package: Beam executes those itself,
  * while a table occurrence, including an INSERT target, goes through Calcite's validator and
@@ -89,6 +91,7 @@ public abstract class TableClause {
   private static final String CHANGES_FORM = "CHANGES(table [, start [, end]])";
   private static final List<String> BOUND_PARAMETERS =
       ImmutableList.of("start_version", "end_version", "start_timestamp", "end_timestamp");
+  private static final String METADATA_COLUMNS = "metadata_columns";
 
   /** An ISO 8601 date with an optional time and offset, such as 2026-10-01T12:30:00.5-05:00. */
   private static final DateTimeFormatter ISO_TIMESTAMP =
@@ -125,14 +128,28 @@ public abstract class TableClause {
    */
   public abstract Map<String, Object> options();
 
+  /**
+   * The metadata columns that Beam SQL adds to a {@code CHANGES(...)} read before validation. They
+   * are encoded as a {@code metadata_columns} parameter, which users can't write.
+   */
+  public abstract List<String> metadataColumns();
+
   public static TableClause create(String baseName, Role role, Map<String, Object> options) {
-    return new AutoValue_TableClause(baseName, role, null, ImmutableMap.copyOf(options));
+    return new AutoValue_TableClause(
+        baseName, role, null, ImmutableMap.copyOf(options), ImmutableList.of());
   }
 
   /** Returns the read of a table through {@code CHANGES(...)}, with its {@code WITH} options. */
   public static TableClause createChanges(
       String baseName, ChangeRange changes, Map<String, Object> options) {
-    return new AutoValue_TableClause(baseName, Role.READ, changes, ImmutableMap.copyOf(options));
+    return new AutoValue_TableClause(
+        baseName, Role.READ, changes, ImmutableMap.copyOf(options), ImmutableList.of());
+  }
+
+  /** Returns this {@code CHANGES(...)} read with the given metadata columns. */
+  public TableClause withMetadataColumns(List<String> metadataColumns) {
+    return new AutoValue_TableClause(
+        baseName(), role(), changes(), options(), ImmutableList.copyOf(metadataColumns));
   }
 
   /**
@@ -153,6 +170,9 @@ public abstract class TableClause {
       appendBound(sql, "end_version", changes.endVersion());
       appendBound(sql, "start_timestamp", changes.startTimestamp());
       appendBound(sql, "end_timestamp", changes.endTimestamp());
+      if (!metadataColumns().isEmpty()) {
+        sql.append(", ").append(METADATA_COLUMNS).append(" => ").append(toSql(metadataColumns()));
+      }
       sql.append(')');
     }
     if (!options().isEmpty()) {
@@ -209,7 +229,7 @@ public abstract class TableClause {
       }
       return tableFunction;
     }
-    return fold(changesTable(call), Role.READ, changeRange(call), options);
+    return fold(changesTable(call), Role.READ, changeRange(call, null), options);
   }
 
   /**
@@ -218,7 +238,10 @@ public abstract class TableClause {
    */
   public static TableClause readChanges(SqlNode tableFunction, Map<String, Object> options) {
     SqlCall call = ((SqlCall) tableFunction).operand(0);
-    return createChanges(Util.last(changesTable(call).names), changeRange(call), options);
+    List<String> metadataColumns = new ArrayList<>();
+    ChangeRange changes = changeRange(call, metadataColumns);
+    return createChanges(Util.last(changesTable(call).names), changes, options)
+        .withMetadataColumns(metadataColumns);
   }
 
   /**
@@ -323,7 +346,8 @@ public abstract class TableClause {
     int last = name.names.size() - 1;
     String baseName = name.names.get(last);
     TableClause clause =
-        new AutoValue_TableClause(baseName, role, changes, ImmutableMap.copyOf(options));
+        new AutoValue_TableClause(
+            baseName, role, changes, ImmutableMap.copyOf(options), ImmutableList.of());
     SqlIdentifier folded = name.setName(last, encode(clause, name));
     return role == Role.WRITE
         ? folded
@@ -358,8 +382,12 @@ public abstract class TableClause {
     return (SqlIdentifier) table;
   }
 
-  /** Converts the bounds that follow the table name of a {@code CHANGES(...)} call. */
-  private static ChangeRange changeRange(SqlCall call) {
+  /**
+   * Converts the bounds that follow the table name of a {@code CHANGES(...)} call. Collects the
+   * {@code metadata_columns} parameter into {@code metadataColumns} when decoding, and rejects it
+   * when {@code metadataColumns} is null.
+   */
+  private static ChangeRange changeRange(SqlCall call, @Nullable List<String> metadataColumns) {
     @Nullable Object[] bounds = new @Nullable Object[2];
     boolean[] given = new boolean[2];
     int positional = 0;
@@ -371,6 +399,13 @@ public abstract class TableClause {
       if (arg.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
         SqlIdentifier name = ((SqlCall) arg).operand(1);
         parameter = name.getSimple().toLowerCase(Locale.ROOT);
+        if (metadataColumns != null && parameter.equals(METADATA_COLUMNS)) {
+          // Anything but an array of strings fails decode's round trip.
+          for (Object column : (List<?>) toJava(parameter, ((SqlCall) arg).operand(0))) {
+            metadataColumns.add(String.valueOf(column));
+          }
+          continue;
+        }
         if (!BOUND_PARAMETERS.contains(parameter)) {
           throw error(
               name.getParserPosition(),

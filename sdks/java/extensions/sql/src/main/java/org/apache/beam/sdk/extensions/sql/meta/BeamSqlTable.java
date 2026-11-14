@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
@@ -94,10 +95,23 @@ public interface BeamSqlTable {
   }
 
   /**
+   * Returns the metadata columns that {@code CHANGES(...)} can read from this table, such as the
+   * change type. A query can select them by name, and Beam SQL passes the ones it names to {@link
+   * #forChanges}. Returns none by default.
+   */
+  default List<String> getChangeMetadataColumns() {
+    return Collections.emptyList();
+  }
+
+  /**
    * Returns the table to read for one {@code CHANGES(...)} call in FROM, such as {@code SELECT *
    * FROM CHANGES(t, 5, 10)}: the changes committed in the {@code changes} range, read with the
    * {@code WITH} options, if any. Both bounds are inclusive. Everything in {@link #forRead} applies
    * here too.
+   *
+   * <p>{@code metadataColumns} holds the metadata columns that the query names and that the table
+   * doesn't already return for these options. Add them to the returned table's columns. Beam SQL
+   * keeps them out of {@code SELECT *}.
    *
    * <p>The parser will already reject malformed bounds, such as a negative version or an invalid
    * timestamp format. Beyond that, it's up to the CDC source to validate the range against the
@@ -116,7 +130,8 @@ public interface BeamSqlTable {
    *
    * @throws UnsupportedOperationException if this table does not support {@code CHANGES(...)}
    */
-  default BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
+  default BeamSqlTable forChanges(
+      ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
     throw new UnsupportedOperationException(
         String.format("%s does not support CHANGES(...)", getClass().getSimpleName()));
   }

@@ -49,8 +49,9 @@ import org.joda.time.Instant;
 
 /**
  * The changes of an Iceberg table, for a {@code CHANGES(...)} call, read through {@link
- * Managed#ICEBERG_CDC}. Rows carry their change kind as their {@code ValueKind}, and the {@code
- * include_metadata_columns} option appends metadata columns.
+ * Managed#ICEBERG_CDC}. Rows carry their change kind as their {@code ValueKind}. The metadata
+ * columns that the query names, and those that the {@code include_metadata_columns} option lists,
+ * are appended to the table's columns.
  *
  * <p>The range becomes the CDC read's {@code from_snapshot} and {@code to_snapshot}, or its {@code
  * from_timestamp} and {@code to_timestamp}. The read checks them against the table when the
@@ -95,7 +96,7 @@ class IcebergChangesTable extends SchemaBaseBeamTable {
   }
 
   static IcebergChangesTable of(
-      IcebergTable table, ChangeRange range, Map<String, Object> options) {
+      IcebergTable table, ChangeRange range, Map<String, Object> options, List<String> named) {
     Map<String, Object> checked =
         ManagedOptions.check(options, READ_CONFIG_SCHEMA, ownedOptions(range), "a CHANGES read");
 
@@ -110,7 +111,7 @@ class IcebergChangesTable extends SchemaBaseBeamTable {
     }
 
     Schema tableSchema = table.getSchema();
-    List<String> metadataColumns = metadataColumns(checked, tableSchema);
+    List<String> metadataColumns = metadataColumns(checked, named, tableSchema);
     Schema.Builder schema = Schema.builder().addFields(tableSchema.getFields());
     metadataColumns.forEach(column -> schema.addField(IcebergCdcMetadataColumns.beamField(column)));
 
@@ -140,9 +141,10 @@ class IcebergChangesTable extends SchemaBaseBeamTable {
         .build();
   }
 
-  /** The requested metadata columns, in the canonical order of the CDC source. */
+  /** The metadata columns that the option lists or the query names, in the CDC source's order. */
   @SuppressWarnings("unchecked")
-  private static List<String> metadataColumns(Map<String, Object> options, Schema tableSchema) {
+  private static List<String> metadataColumns(
+      Map<String, Object> options, List<String> named, Schema tableSchema) {
     List<String> requested =
         (List<String>) options.getOrDefault(INCLUDE_METADATA_COLUMNS, ImmutableList.of());
     for (String column : requested) {
@@ -157,7 +159,7 @@ class IcebergChangesTable extends SchemaBaseBeamTable {
           column);
     }
     return IcebergCdcMetadataColumns.SUPPORTED_COLUMNS.stream()
-        .filter(requested::contains)
+        .filter(column -> requested.contains(column) || named.contains(column))
         .collect(ImmutableList.toImmutableList());
   }
 
