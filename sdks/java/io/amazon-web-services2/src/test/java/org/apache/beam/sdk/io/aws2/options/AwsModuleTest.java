@@ -31,6 +31,7 @@ import static software.amazon.awssdk.profiles.ProfileFileSystemSetting.AWS_CONFI
 import static software.amazon.awssdk.profiles.ProfileFileSystemSetting.AWS_PROFILE;
 
 import com.amazonaws.regions.Regions;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -41,10 +42,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.io.aws2.auth.FakeSecretRegistrar;
+import org.apache.beam.sdk.io.aws2.auth.SecretCredentialsProvider;
 import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.MatcherAssert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -102,6 +106,46 @@ public class AwsModuleTest {
 
   private <T> T serializeAndDeserialize(T obj) {
     return SerializationTestUtil.serializeDeserialize((Class<T>) obj.getClass(), obj);
+  }
+
+  @Test
+  public void testSecretCredentialsProviderSerDe() throws IOException {
+    String keySpec = FakeSecretRegistrar.spec("resolved-key");
+    String secretSpec = FakeSecretRegistrar.spec("resolved-secret");
+    SecretCredentialsProvider provider =
+        SecretCredentialsProvider.create(FakeSecretRegistrar.NAME, keySpec, secretSpec);
+    // Resolved credentials must never be serialized, only the specs.
+    provider.resolveCredentials();
+    JsonNode json = new ObjectMapper().readTree(serialize(provider));
+    assertThat(ImmutableList.copyOf(json.fieldNames()))
+        .containsExactlyInAnyOrder("@type", "secretManager", "accessKeyId", "secretAccessKey");
+    assertThat(json.get("@type").textValue()).isEqualTo("SecretCredentialsProvider");
+    assertThat(json.get("secretManager").textValue()).isEqualTo(FakeSecretRegistrar.NAME);
+    assertThat(json.get("accessKeyId").textValue()).isEqualTo(keySpec);
+    assertThat(json.get("secretAccessKey").textValue()).isEqualTo(secretSpec);
+    assertThat(serializeAndDeserialize(provider)).isEqualTo(provider);
+
+    provider =
+        SecretCredentialsProvider.create(
+            FakeSecretRegistrar.NAME, keySpec, secretSpec, FakeSecretRegistrar.spec("token"));
+    assertThat(serializeAndDeserialize(provider)).isEqualTo(provider);
+  }
+
+  @Test
+  public void testSecretCredentialsProviderDeserializeObjectSpecs() {
+    String json =
+        "{\"@type\":\"SecretCredentialsProvider\","
+            + "\"secretManager\":\"GoogleCloudSecretManager\","
+            + "\"accessKeyId\":{\"name\":\"my-key-id\",\"project\":\"p\"},"
+            + "\"secretAccessKey\":\"{\\\"name\\\":\\\"my-secret-key\\\"}\"}";
+    AwsCredentialsProvider provider =
+        SerializationTestUtil.deserialize(json, AwsCredentialsProvider.class);
+    assertThat(provider)
+        .isEqualTo(
+            SecretCredentialsProvider.create(
+                "GoogleCloudSecretManager",
+                "{\"name\":\"my-key-id\",\"project\":\"p\"}",
+                "{\"name\":\"my-secret-key\"}"));
   }
 
   @Test
