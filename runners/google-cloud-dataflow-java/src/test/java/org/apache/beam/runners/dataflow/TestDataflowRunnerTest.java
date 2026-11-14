@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -51,6 +52,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -559,9 +564,7 @@ public class TestDataflowRunnerTest {
     pipeline.apply(Create.of(1, 2, 3));
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    // Still running when the wait times out; the background CancelOnError poller sees the job
-    // terminate afterwards and exits.
-    when(mockJob.getState()).thenReturn(State.RUNNING, State.RUNNING, State.CANCELLED);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
@@ -583,6 +586,49 @@ public class TestDataflowRunnerTest {
       assertThat(expected.getMessage(), containsString("ZONE_RESOURCE_POOL_EXHAUSTED"));
     }
     verify(mockJob).cancel();
+  }
+
+  /**
+   * Once {@code waitUntilFinish} exits, {@link TestDataflowRunner.CancelOnError} must be cancelled
+   * even if the job is not in a terminal state (such as {@code POLLING_FAILED}, where the job is
+   * intentionally left running and {@code getState()} returns {@link State#UNKNOWN}).
+   */
+  @Test
+  public void testCancelOnErrorStoppedWhenStreamingWaitExitsOnNonTerminalJob() throws Exception {
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      options.setStreaming(true);
+      options.setExecutorService(executor);
+      TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+
+      CountDownLatch pollerStarted = new CountDownLatch(1);
+      DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+      when(mockJob.getJobId()).thenReturn("test-job");
+      when(mockJob.getState())
+          .thenAnswer(
+              invocation -> {
+                pollerStarted.countDown();
+                return State.UNKNOWN;
+              });
+      when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+          .thenAnswer(
+              invocation -> {
+                assertTrue(pollerStarted.await(5, TimeUnit.SECONDS));
+                return null; // polling gave up well before the timeout
+              });
+
+      TestDataflowRunner.MergedJobWait wait =
+          runner.waitForMergedJobTermination(
+              mockJob, Duration.standardMinutes(10), TestDataflowRunner.errorMonitorFor(mockJob));
+      assertEquals(TestDataflowRunner.MergedJobWait.Kind.POLLING_FAILED, wait.kind);
+
+      // An orderly shutdown only finishes once running tasks exit; without cancel(true) on the
+      // CancelOnError future, it would keep polling State.UNKNOWN every 3s forever.
+      executor.shutdown();
+      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   @Test

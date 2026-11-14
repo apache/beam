@@ -28,13 +28,13 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -323,14 +323,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
-  @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
-  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
     // we try to terminate early by polling and canceling if we see
     // an error message
-    options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+    Future<?> cancelOnError =
+        options.getExecutorService().submit(new CancelOnError(job, messageHandler));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
@@ -343,6 +342,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (InterruptedException e) {
       Thread.interrupted();
       return false;
+    } finally {
+      cancelOnError.cancel(true);
     }
 
     // Getting the final state may have timed out; it may not indicate a failure.
@@ -428,13 +429,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * differs: a job that outlived its timeout should be cancelled, a job that merely could not be
    * observed should be left alone.
    */
-  @SuppressWarnings("FutureReturnValueIgnored") // CancelOnError's outcome is observed via the job
-  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   MergedJobWait waitForMergedJobTermination(
       DataflowPipelineJob job, Duration timeout, ErrorMonitorMessagesHandler messageHandler) {
-    if (options.isStreaming()) {
-      options.getExecutorService().submit(new CancelOnError(job, messageHandler));
-    }
+    @Nullable Future<?> cancelOnError =
+        options.isStreaming()
+            ? options.getExecutorService().submit(new CancelOnError(job, messageHandler))
+            : null;
     long startNanos = System.nanoTime();
     try {
       State state = job.waitUntilFinish(timeout, messageHandler);
@@ -452,6 +452,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return MergedJobWait.of(MergedJobWait.Kind.INTERRUPTED);
+    } finally {
+      if (cancelOnError != null) {
+        cancelOnError.cancel(true);
+      }
     }
   }
 
