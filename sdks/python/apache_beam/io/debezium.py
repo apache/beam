@@ -152,6 +152,9 @@ class ReadFromDebezium(PTransform):
                                       Set ``provide.transaction.metadata=true``
                                       to add a ``transaction`` key to records
                                       and emit transaction BEGIN/END records.
+                                      Set ``include.schema.changes=true``
+                                      to emit schema change records
+                                      (MySQL, Oracle and SQL Server).
         :param start_offset: starting offset to resume the connector from
                              a previously seen position. Provided as a list
                              of "key=value" strings, where numeric values are
