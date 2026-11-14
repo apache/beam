@@ -118,12 +118,15 @@ public class SourceRecordJson {
 
   private static final String SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME =
       "io.debezium.connector.common.TransactionMetadataKey";
+  public static final String SCHEMA_CHANGE_EVENT_KEY_NAME =
+      "io.debezium.connector.mysql.SchemaChangeKey";
 
   private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
   private final @Nullable Struct value;
   private final @Nullable Event event;
   private final @Nullable TransactionEvent transactionEvent;
+  private final @Nullable ChangeSchemaEvent changeSchemaEvent;
   private final Map<String, Object> metadataExtras;
 
   /**
@@ -152,10 +155,17 @@ public class SourceRecordJson {
     if (this.value == null) {
       this.event = new Event(null, null, null, null);
       this.transactionEvent = null;
+      this.changeSchemaEvent = null;
       this.metadataExtras = Collections.emptyMap();
     } else if (isTransactionMetadataEvent(sourceRecord.keySchema())) {
       this.event = null;
       this.transactionEvent = this.loadTransactionEvent();
+      this.changeSchemaEvent = null;
+      this.metadataExtras = Collections.emptyMap();
+    } else if (isSchemaChangeEventKeyName(sourceRecord.keySchema())) {
+      this.event = null;
+      this.transactionEvent = null;
+      this.changeSchemaEvent = this.loadChangeSchemaEvent();
       this.metadataExtras = Collections.emptyMap();
     } else {
       Event.Metadata metadata = this.loadMetadata();
@@ -165,6 +175,7 @@ public class SourceRecordJson {
 
       this.event = new Event(metadata, before, after, transaction);
       this.transactionEvent = null;
+      this.changeSchemaEvent = null;
       this.metadataExtras =
           fullMetadata && metadata != null ? this.loadMetadataExtras() : Collections.emptyMap();
     }
@@ -329,6 +340,34 @@ public class SourceRecordJson {
         dataCollections);
   }
 
+  private ChangeSchemaEvent loadChangeSchemaEvent() {
+    @Nullable List<ChangeSchemaEvent.TableChange> tableChanges = null;
+    @Nullable List<Struct> tableChangeStructs = getArrayOrNull(this.value, "tableChanges");
+    if (tableChangeStructs != null) {
+      tableChanges = new ArrayList<>();
+      for (Struct change : tableChangeStructs) {
+        @Nullable Struct table = getStructOrNull(change, "table");
+        tableChanges.add(
+            new ChangeSchemaEvent.TableChange(
+                getStringOrNull(change, "type"),
+                getStringOrNull(change, "id"),
+                table == null
+                    ? null
+                    : new ChangeSchemaEvent.Table(
+                        getStringOrNull(table, "defaultCharsetName"),
+                        getStringOrNull(table, "comment"),
+                        getArrayOrNull(table, "primaryKeyColumnNames"))));
+      }
+    }
+
+    return new ChangeSchemaEvent(
+        getStringOrNull(this.value, "databaseName"),
+        getStringOrNull(this.value, "schemaName"),
+        getStringOrNull(this.value, "ddl"),
+        getInt64OrNull(this.value, "ts_ms"),
+        tableChanges);
+  }
+
   /**
    * Transforms the extracted data to a JSON string.
    *
@@ -337,6 +376,8 @@ public class SourceRecordJson {
   public String toJson() {
     if (this.transactionEvent != null) {
       return this.transactionEvent.toJson();
+    } else if (this.changeSchemaEvent != null) {
+      return this.changeSchemaEvent.toJson();
     }
     return this.event.toJson(this.metadataExtras);
   }
@@ -584,12 +625,73 @@ public class SourceRecordJson {
     }
   }
 
+  @SuppressWarnings("unused") // Unused params are validated as JSON
+  static class ChangeSchemaEvent implements Serializable {
+
+    private final @Nullable String databaseName;
+    private final @Nullable String schemaName;
+    private final @Nullable String ddl;
+
+    @SerializedName("ts_ms")
+    private final @Nullable Long tsMs;
+
+    private final @Nullable List<TableChange> tableChanges;
+
+    public ChangeSchemaEvent(
+        @Nullable String databaseName,
+        @Nullable String schemaName,
+        @Nullable String ddl,
+        @Nullable Long tsMs,
+        @Nullable List<TableChange> tableChanges) {
+      this.databaseName = databaseName;
+      this.schemaName = schemaName;
+      this.ddl = ddl;
+      this.tsMs = tsMs;
+      this.tableChanges = tableChanges;
+    }
+
+    public String toJson() {
+      return GSON.toJson(this);
+    }
+
+    static class TableChange implements Serializable {
+      private final @Nullable String type;
+      private final @Nullable String id;
+      private final @Nullable Table table;
+
+      public TableChange(@Nullable String type, @Nullable String id, @Nullable Table table) {
+        this.type = type;
+        this.id = id;
+        this.table = table;
+      }
+    }
+
+    static class Table implements Serializable {
+      private final @Nullable String defaultCharsetName;
+      private final @Nullable String comment;
+      private final @Nullable List<String> primaryKeyColumnNames;
+
+      public Table(
+          @Nullable String defaultCharsetName,
+          @Nullable String comment,
+          @Nullable List<String> primaryKeyColumnNames) {
+        this.defaultCharsetName = defaultCharsetName;
+        this.comment = comment;
+        this.primaryKeyColumnNames = primaryKeyColumnNames;
+      }
+    }
+  }
+
   /**
    * Whether the record is a transaction BEGIN/END event, emitted when {@code
    * provide.transaction.metadata} is enabled. These are identified by their key schema name.
    */
   private static boolean isTransactionMetadataEvent(@Nullable Schema keySchema) {
     return keySchema != null && SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME.equals(keySchema.name());
+  }
+
+  private static boolean isSchemaChangeEventKeyName(@Nullable Schema keySchema) {
+    return keySchema != null && SCHEMA_CHANGE_EVENT_KEY_NAME.equals(keySchema.name());
   }
 
   /** Returns the string field's value, or null if the struct's schema has no such field. */
@@ -605,5 +707,10 @@ public class SourceRecordJson {
   /** Returns the array field's value, or null if the struct's schema has no such field. */
   private static <T> @Nullable List<T> getArrayOrNull(Struct s, String name) {
     return s.schema().field(name) != null ? s.getArray(name) : null;
+  }
+
+  /** Returns the struct field's value, or null if the struct's schema has no such field. */
+  private static @Nullable Struct getStructOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getStruct(name) : null;
   }
 }
