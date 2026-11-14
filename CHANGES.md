@@ -122,6 +122,7 @@
 
 ### Package upgrades
 * [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+* (Python) Upgraded the `vllm` extra to vLLM 0.32.0, which requires `openai>=2.25.0`, `transformers>=5.16.1`, and `torch==2.13.0` ([#41005](https://github.com/apache/beam/issues/41005)).
 
 ### API changes
 * [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
