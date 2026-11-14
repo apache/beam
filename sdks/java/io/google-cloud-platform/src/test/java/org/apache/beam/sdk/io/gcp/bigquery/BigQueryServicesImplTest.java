@@ -41,6 +41,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponseException;
@@ -50,6 +51,7 @@ import com.google.api.client.json.Json;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
@@ -58,6 +60,7 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
@@ -92,6 +95,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -270,6 +274,88 @@ public class BigQueryServicesImplTest {
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyInfo(String.format("Started BigQuery job: %s", jobRef));
+  }
+
+  @Test
+  public void testLoadJobReservationInRequest() throws Exception {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new Job()));
+        });
+    String reservation = "projects/p/locations/us/reservations/r";
+    new JobServiceImpl(bigquery)
+        .startLoadJob(
+            new JobReference().setProjectId("p").setJobId("job"),
+            new JobConfigurationLoad(),
+            reservation);
+    Job sent = fromString(request.getContentAsString(), Job.class);
+    assertEquals(reservation, sent.getConfiguration().getReservation());
+    assertNotNull(sent.getConfiguration().getLoad());
+  }
+
+  @Test
+  public void testLoadJobWithoutReservationInRequest() throws Exception {
+    setupMockResponses(
+        response -> {
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getStatusCode()).thenReturn(200);
+          when(response.getContent()).thenReturn(toStream(new Job()));
+        });
+    new JobServiceImpl(bigquery)
+        .startLoadJob(
+            new JobReference().setProjectId("p").setJobId("job"), new JobConfigurationLoad());
+    Job sent = fromString(request.getContentAsString(), Job.class);
+    assertNull(sent.getConfiguration().getReservation());
+  }
+
+  @Test
+  public void testStreamLoadJobReservationInRequest() throws Exception {
+    testStreamLoadJobRequest("projects/p/locations/us/reservations/r");
+  }
+
+  @Test
+  public void testStreamLoadJobWithoutReservationInRequest() throws Exception {
+    testStreamLoadJobRequest(null);
+  }
+
+  private void testStreamLoadJobRequest(@Nullable String reservation) throws Exception {
+    List<String> payloads = new ArrayList<>();
+    MockLowLevelHttpRequest uploadRequest =
+        new MockLowLevelHttpRequest() {
+          @Override
+          public LowLevelHttpResponse execute() throws IOException {
+            payloads.add(getContentAsString());
+            if (payloads.size() == 1) {
+              return new MockLowLevelHttpResponse()
+                  .setStatusCode(200)
+                  .addHeader("Location", "https://example.com/upload");
+            }
+            return new MockLowLevelHttpResponse()
+                .setStatusCode(200)
+                .setContentType(Json.MEDIA_TYPE)
+                .setContent("{}");
+          }
+        };
+    Bigquery uploadClient =
+        new Bigquery.Builder(
+                new MockHttpTransport.Builder().setLowLevelHttpRequest(uploadRequest).build(),
+                Transport.getJsonFactory(),
+                new RetryHttpRequestInitializer())
+            .build();
+    JobServiceImpl service = new JobServiceImpl(uploadClient);
+    JobReference jobRef = new JobReference().setProjectId("p").setJobId("job");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    ByteArrayContent content = new ByteArrayContent("text/plain", new byte[0]);
+    if (reservation == null) {
+      service.startLoadJob(jobRef, loadConfig, content);
+    } else {
+      service.startLoadJob(jobRef, loadConfig, content, reservation);
+    }
+    Job sent = fromString(payloads.get(0), Job.class);
+    assertEquals(reservation, sent.getConfiguration().getReservation());
+    assertNotNull(sent.getConfiguration().getLoad());
   }
 
   /**

@@ -277,14 +277,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
-      Job job =
-          new Job()
-              .setJobReference(jobRef)
-              .setConfiguration(
-                  new JobConfiguration()
-                      .setLoad(loadConfig)
-                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
-      startJob(job, errorExtractor, client);
+      startLoadJob(jobRef, loadConfig, (String) null);
     }
 
     /**
@@ -298,6 +291,23 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public void startLoadJob(
         JobReference jobRef, JobConfigurationLoad loadConfig, AbstractInputStreamContent stream)
         throws InterruptedException, IOException {
+      startLoadJob(jobRef, loadConfig, stream, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
+    public void startLoadJob(
+        JobReference jobRef,
+        JobConfigurationLoad loadConfig,
+        AbstractInputStreamContent stream,
+        @Nullable String reservation)
+        throws InterruptedException, IOException {
       Job job =
           new Job()
               .setJobReference(jobRef)
@@ -305,7 +315,34 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   new JobConfiguration()
                       .setLoad(loadConfig)
                       .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
+      if (reservation != null) {
+        job.getConfiguration().setReservation(reservation);
+      }
       startJobStream(job, stream, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
+     */
+    @Override
+    public void startLoadJob(
+        JobReference jobRef, JobConfigurationLoad loadConfig, @Nullable String reservation)
+        throws InterruptedException, IOException {
+      Job job =
+          new Job()
+              .setJobReference(jobRef)
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(this.jobLabels)));
+      if (reservation != null) {
+        job.getConfiguration().setReservation(reservation);
+      }
+      startJob(job, errorExtractor, client);
     }
 
     /**

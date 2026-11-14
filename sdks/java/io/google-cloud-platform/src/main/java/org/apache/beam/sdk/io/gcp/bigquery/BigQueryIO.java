@@ -3053,6 +3053,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getLoadJobProjectId();
 
+    abstract @Nullable ValueProvider<String> getLoadJobReservation();
+
     abstract @Nullable InsertRetryPolicy getFailedInsertRetryPolicy();
 
     abstract @Nullable ValueProvider<String> getCustomGcsTempLocation();
@@ -3173,6 +3175,8 @@ public class BigQueryIO {
       abstract Builder<T> setMethod(Write.Method method);
 
       abstract Builder<T> setLoadJobProjectId(ValueProvider<String> loadJobProjectId);
+
+      abstract Builder<T> setLoadJobReservation(ValueProvider<String> loadJobReservation);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
@@ -3677,6 +3681,30 @@ public class BigQueryIO {
     }
 
     /**
+     * Sets the reservation used for BigQuery load jobs, including schema-update load jobs. The
+     * resource name must be in the form {@code
+     * projects/{project}/locations/{location}/reservations/{reservation}}. If not set, BigQuery
+     * selects a reservation according to its assignment rules.
+     *
+     * <p>This is only applicable when the resolved write method is {@link Method#FILE_LOADS}.
+     */
+    public Write<T> withLoadJobReservation(String loadJobReservation) {
+      checkArgument(loadJobReservation != null, "loadJobReservation cannot be null");
+      checkArgument(!loadJobReservation.isEmpty(), "loadJobReservation cannot be empty");
+      return withLoadJobReservation(StaticValueProvider.of(loadJobReservation));
+    }
+
+    /**
+     * Same as {@link #withLoadJobReservation(String)}, with a runtime value. If the provider
+     * resolves to {@code null}, BigQuery selects a reservation according to its assignment rules.
+     * An empty value is invalid.
+     */
+    public Write<T> withLoadJobReservation(ValueProvider<String> loadJobReservation) {
+      checkArgument(loadJobReservation != null, "loadJobReservation cannot be null");
+      return toBuilder().setLoadJobReservation(loadJobReservation).build();
+    }
+
+    /**
      * Choose the frequency at which file writes are triggered.
      *
      * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
@@ -4141,6 +4169,10 @@ public class BigQueryIO {
       // Perform some argument checks
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       Write.Method method = resolveMethod(input);
+      checkArgument(
+          getLoadJobReservation() == null || method == Method.FILE_LOADS,
+          "withLoadJobReservation is only supported when using FILE_LOADS, but the method was %s.",
+          method);
       if (input.isBounded() == IsBounded.UNBOUNDED) {
         if (method == Write.Method.FILE_LOADS || method == Write.Method.STORAGE_WRITE_API) {
           Duration triggeringFrequency =
@@ -4562,6 +4594,7 @@ public class BigQueryIO {
                 destinationCoder,
                 getCustomGcsTempLocation(),
                 getLoadJobProjectId(),
+                getLoadJobReservation(),
                 getIgnoreUnknownValues(),
                 elementCoder,
                 rowWriterFactory,
