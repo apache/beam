@@ -208,7 +208,6 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   @Override
   public @UnknownKeyFor @NonNull @Initialized ReadableState<V> computeIfAbsent(
       K key, Function<? super K, ? extends V> mappingFunction) {
-    Future<V> persistedData = getFutureForKey(key);
     try (Closeable scope = scopedReadState()) {
       if (localRemovals.contains(key) || negativeCache.contains(key)) {
         return ReadableStates.immediate(null);
@@ -218,7 +217,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
         return ReadableStates.immediate(cachedValue);
       }
 
-      V persistedValue = persistedData.get();
+      V persistedValue = getFutureForKey(key).get();
       if (persistedValue == null) {
         // This is a new value. Add it to the map and return null.
         put(key, mappingFunction.apply(key));
@@ -251,6 +250,13 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     negativeCache.clear();
     cleared = true;
     complete = true;
+  }
+
+  private boolean isKeyCached(K key) {
+    return localRemovals.contains(key)
+        || negativeCache.contains(key)
+        || cachedValues.get(key) != null
+        || complete;
   }
 
   private Future<V> getFutureForKey(K key) {
@@ -383,12 +389,17 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     @Override
     public @Nullable Boolean read() {
+      if (!cachedValues.isEmpty()) {
+        return false;
+      }
       return Iterables.isEmpty(keys.read());
     }
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
-      keys.readLater();
+      if (cachedValues.isEmpty()) {
+        keys.readLater();
+      }
       return this;
     }
   }
@@ -404,7 +415,6 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
 
     @Override
     public @Nullable V read() {
-      Future<V> persistedData = getFutureForKey(key);
       try (Closeable scope = scopedReadState()) {
         if (localRemovals.contains(key) || negativeCache.contains(key)) {
           return null;
@@ -414,7 +424,7 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
           return cachedValue;
         }
 
-        V persistedValue = persistedData.get();
+        V persistedValue = getFutureForKey(key).get();
         if (persistedValue == null) {
           negativeCache.add(key);
           return defaultValue;
@@ -432,7 +442,9 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
     @Override
     @SuppressWarnings("FutureReturnValueIgnored")
     public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
-      WindmillMap.this.getFutureForKey(key);
+      if (!isKeyCached(key)) {
+        WindmillMap.this.getFutureForKey(key);
+      }
       return this;
     }
   }
