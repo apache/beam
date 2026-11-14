@@ -79,6 +79,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -932,6 +933,45 @@ public class PubsubIOTest {
       messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
       pipeline.run();
     }
+  }
+
+  @Test
+  public void testBoundedWriteBatchSizeIncludesAttributesAndOrderingKey() throws Exception {
+    PubsubClient mockClient = Mockito.mock(PubsubClient.class);
+    PubsubClient.PubsubClientFactory mockFactory =
+        Mockito.mock(PubsubClient.PubsubClientFactory.class);
+    Mockito.when(
+            mockFactory.newClient(
+                Mockito.isNull(), Mockito.isNull(), Mockito.any(), Mockito.isNull()))
+        .thenReturn(mockClient);
+
+    List<Integer> publishedBatchSizes = Lists.newArrayList();
+    Mockito.when(mockClient.publish(Mockito.any(), Mockito.anyList()))
+        .thenAnswer(
+            invocation -> {
+              List<OutgoingMessage> messages = invocation.getArgument(1);
+              publishedBatchSizes.add(messages.size());
+              return messages.size();
+            });
+
+    PubsubIO.Write<PubsubMessage> write =
+        PubsubIO.writeMessages()
+            .to("projects/project/topics/topic")
+            .withClientFactory(mockFactory)
+            .withOrderingKey()
+            .withMaxBatchBytesSize(40);
+    PubsubMessage message =
+        new PubsubMessage(
+                "0123456789".getBytes(StandardCharsets.UTF_8), ImmutableMap.of("k", "value"))
+            .withOrderingKey("order");
+
+    try (DoFnTester<PubsubMessage, Void> tester =
+        DoFnTester.of(write.new PubsubBoundedWriter(100, 40))) {
+      tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
+      tester.processBundle(ImmutableList.of(message, message));
+    }
+
+    assertEquals(ImmutableList.of(1, 1), publishedBatchSizes);
   }
 
   @Test
