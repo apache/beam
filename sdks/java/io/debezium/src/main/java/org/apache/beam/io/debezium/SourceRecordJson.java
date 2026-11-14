@@ -356,7 +356,8 @@ public class SourceRecordJson {
                     : new ChangeSchemaEvent.Table(
                         getStringOrNull(table, "defaultCharsetName"),
                         getStringOrNull(table, "comment"),
-                        getArrayOrNull(table, "primaryKeyColumnNames"))));
+                        getArrayOrNull(table, "primaryKeyColumnNames"),
+                        loadChangeSchemaEventColumns(table))));
       }
     }
 
@@ -366,6 +367,28 @@ public class SourceRecordJson {
         getStringOrNull(this.value, "ddl"),
         getInt64OrNull(this.value, "ts_ms"),
         tableChanges);
+  }
+
+  /**
+   * Extracts the columns of a schema change's table. Each column becomes a map of every field in
+   * the column's schema, in schema order, so all attributes the connector emits are kept.
+   *
+   * @return columns, or null if the table's schema has no columns field
+   */
+  private static @Nullable List<Map<String, Object>> loadChangeSchemaEventColumns(Struct table) {
+    @Nullable List<Struct> columnStructs = getArrayOrNull(table, "columns");
+    if (columnStructs == null) {
+      return null;
+    }
+    List<Map<String, Object>> columns = new ArrayList<>();
+    for (Struct column : columnStructs) {
+      Map<String, Object> fields = new LinkedHashMap<>();
+      for (Field field : column.schema().fields()) {
+        fields.put(field.name(), toJsonFriendly(column.get(field)));
+      }
+      columns.add(fields);
+    }
+    return columns;
   }
 
   /**
@@ -670,14 +693,17 @@ public class SourceRecordJson {
       private final @Nullable String defaultCharsetName;
       private final @Nullable String comment;
       private final @Nullable List<String> primaryKeyColumnNames;
+      private final @Nullable List<Map<String, Object>> columns;
 
       public Table(
           @Nullable String defaultCharsetName,
           @Nullable String comment,
-          @Nullable List<String> primaryKeyColumnNames) {
+          @Nullable List<String> primaryKeyColumnNames,
+          @Nullable List<Map<String, Object>> columns) {
         this.defaultCharsetName = defaultCharsetName;
         this.comment = comment;
         this.primaryKeyColumnNames = primaryKeyColumnNames;
+        this.columns = columns;
       }
     }
   }
