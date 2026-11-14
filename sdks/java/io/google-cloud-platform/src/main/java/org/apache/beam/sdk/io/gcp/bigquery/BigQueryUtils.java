@@ -230,6 +230,25 @@ public class BigQueryUtils {
           .appendZoneRegionId()
           .toFormatter();
 
+  // TIMESTAMP_FORMATTER accepts alternate separators and must not be used for printing.
+  static final java.time.format.DateTimeFormatter BIGQUERY_TIMESTAMP_MICROS_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          .appendPattern("uuuu-MM-dd HH:mm:ss")
+          .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 6, true)
+          .appendLiteral(" UTC")
+          .toFormatter()
+          .withResolverStyle(java.time.format.ResolverStyle.STRICT)
+          .withZone(ZoneOffset.UTC);
+
+  private static final java.time.format.DateTimeFormatter
+      HISTORICAL_STORAGE_API_TIMESTAMP_FORMATTER =
+          new java.time.format.DateTimeFormatterBuilder()
+              .appendPattern("uuuu-MM-dd 'T'HH:mm:ss")
+              .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
+              .toFormatter()
+              .withResolverStyle(java.time.format.ResolverStyle.STRICT)
+              .withZone(ZoneOffset.UTC);
+
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
   /**
@@ -936,7 +955,19 @@ public class BigQueryUtils {
           long nanos = (micros % 1_000_000) * 1_000;
           return java.time.Instant.ofEpochSecond(seconds, nanos);
         } catch (NumberFormatException e) {
-          return java.time.Instant.parse(jsonBQString);
+          try {
+            return java.time.Instant.parse(jsonBQString);
+          } catch (DateTimeParseException e2) {
+            try {
+              return BIGQUERY_TIMESTAMP_MICROS_FORMATTER.parse(
+                  jsonBQString, java.time.Instant::from);
+            } catch (DateTimeParseException e3) {
+              // Keep accepting the historical Storage Write API rendering (for example,
+              // "1970-01-01 T00:00:00.000043") even though new output is canonical UTC.
+              return HISTORICAL_STORAGE_API_TIMESTAMP_FORMATTER.parse(
+                  jsonBQString, java.time.Instant::from);
+            }
+          }
         }
       } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
         if (!jsonBQString.contains("UTC")) {
