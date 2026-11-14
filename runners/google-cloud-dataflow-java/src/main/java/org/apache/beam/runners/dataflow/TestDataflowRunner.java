@@ -28,7 +28,6 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -37,7 +36,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -339,14 +340,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
-  @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
-  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
     // we try to terminate early by polling and canceling if we see
     // an error message
-    options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+    Future<?> cancelOnError =
+        options.getExecutorService().submit(new CancelOnError(job, messageHandler));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
@@ -359,15 +359,27 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (InterruptedException e) {
       Thread.interrupted();
       return false;
+    } finally {
+      cancelOnError.cancel(true);
     }
 
     // Getting the final state may have timed out; it may not indicate a failure.
     // This cancellation may be the second
     if (finalState == null || !finalState.isTerminal()) {
-      LOG.info(
-          "Dataflow job {} took longer than {} seconds to complete, cancelling.",
-          job.getJobId(),
-          options.getTestTimeoutSeconds());
+      if (messageHandler.hasSeenRetryableInfrastructureError()) {
+        LOG.warn(
+            "Dataflow job {} did not complete within {} seconds while the service was retrying an"
+                + " infrastructure error; cancelling. The failure is most likely capacity, not the"
+                + " test: {}",
+            job.getJobId(),
+            options.getTestTimeoutSeconds(),
+            messageHandler.getErrorMessage());
+      } else {
+        LOG.info(
+            "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+            job.getJobId(),
+            options.getTestTimeoutSeconds());
+      }
       try {
         job.cancel();
       } catch (IOException e) {
@@ -375,28 +387,92 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
+      // Retryable infrastructure errors do not count: if the job still reached DONE, the service
+      // recovered from them and the pipeline ran to completion.
       return finalState == State.DONE && !messageHandler.hasSeenError();
     }
   }
 
+  /** How waiting on a merged job ended; see {@link #waitForMergedJobTermination}. */
+  static final class MergedJobWait {
+    enum Kind {
+      /** The job reached {@link #terminalState}. */
+      TERMINATED,
+      /** The job was still running when the timeout passed. */
+      TIMED_OUT,
+      /**
+       * The job's state could not be fetched for long enough that polling gave up before the
+       * timeout; the job itself may be perfectly healthy.
+       */
+      POLLING_FAILED,
+      /** The waiting thread was interrupted. */
+      INTERRUPTED
+    }
+
+    final Kind kind;
+    final @Nullable State terminalState;
+
+    private MergedJobWait(Kind kind, @Nullable State terminalState) {
+      this.kind = kind;
+      this.terminalState = terminalState;
+    }
+
+    static MergedJobWait terminated(State state) {
+      return new MergedJobWait(Kind.TERMINATED, state);
+    }
+
+    static MergedJobWait of(Kind kind) {
+      return new MergedJobWait(kind, null);
+    }
+
+    @Override
+    public String toString() {
+      return kind == Kind.TERMINATED ? "terminated in state " + terminalState : kind.toString();
+    }
+  }
+
   /**
-   * Waits up to {@code timeout} for a merged test job to terminate, feeding its log messages to
-   * {@code messageHandler}. Returns its terminal state, or {@code null} if the job did not
-   * terminate in time or the wait was interrupted.
+   * Waits up to {@code timeout} (negative for no limit) for a merged test job to terminate, feeding
+   * its log messages to {@code messageHandler}.
    *
    * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
-   * the verdict for several tests at once, so it is never allowed to block them forever.
+   * the verdict for several tests at once, so it is never allowed to block them forever. A merged
+   * streaming job is additionally watched by {@link CancelOnError}, exactly like a standalone
+   * streaming job: a failing step would otherwise retry until the timeout.
+   *
+   * <p>{@link DataflowPipelineJob#waitUntilFinish} reports both "deadline passed" and "could not
+   * reach the service" as {@code null}; the two are told apart here by the time spent, since
+   * polling gives up well before a sane timeout. The distinction matters because the right reaction
+   * differs: a job that outlived its timeout should be cancelled, a job that merely could not be
+   * observed should be left alone.
    */
-  @Nullable State waitForMergedJobTermination(
+  MergedJobWait waitForMergedJobTermination(
       DataflowPipelineJob job, Duration timeout, ErrorMonitorMessagesHandler messageHandler) {
+    @Nullable Future<?> cancelOnError =
+        options.isStreaming()
+            ? options.getExecutorService().submit(new CancelOnError(job, messageHandler))
+            : null;
+    long startNanos = System.nanoTime();
     try {
       State state = job.waitUntilFinish(timeout, messageHandler);
-      return state != null && state.isTerminal() ? state : null;
+      if (state != null && state.isTerminal()) {
+        return MergedJobWait.terminated(state);
+      }
+      long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+      boolean bounded = timeout.getMillis() > 0;
+      return MergedJobWait.of(
+          bounded && elapsedMillis >= timeout.getMillis()
+              ? MergedJobWait.Kind.TIMED_OUT
+              : MergedJobWait.Kind.POLLING_FAILED);
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return null;
+      return MergedJobWait.of(MergedJobWait.Kind.INTERRUPTED);
+    } finally {
+      if (cancelOnError != null) {
+        cancelOnError.cancel(true);
+      }
     }
   }
 
@@ -586,56 +662,96 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Monitors job log output messages for errors.
    *
-   * <p>Creates an error message representing the concatenation of all error messages seen.
+   * <p>Errors come in two kinds. A <i>fatal</i> error is a failure of the pipeline itself: a {@link
+   * PAssert} that did not hold, user code that threw, a worker crash. A <i>retryable
+   * infrastructure</i> error is one the service announces it will recover from on its own, such as
+   * a worker pool that could not be started because the zone was out of capacity. The service keeps
+   * retrying those and the job usually goes on to succeed, so they must not be treated as a verdict
+   * on the test: {@link #hasSeenError()} reports fatal errors only. Both kinds are kept for {@link
+   * #getErrorMessage()}, so that a job that never recovers still reports the real cause.
    */
   static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuilder errorMessage;
+    private final StringBuilder retryableErrorMessage;
     private volatile boolean hasSeenError;
+    private boolean hasSeenRetryableInfrastructureError;
 
     ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuilder();
+      this.retryableErrorMessage = new StringBuilder();
       this.hasSeenError = false;
+      this.hasSeenRetryableInfrastructureError = false;
     }
 
     @Override
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
-        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
-          String messageText = message.getMessageText();
-          if (messageText != null && messageText.contains("The service will retry")) {
-            LOG.info(
-                "Dataflow job {} reported transient error that the service will retry: {}",
-                job.getJobId(),
-                messageText);
-            continue;
-          }
-          LOG.info(
-              "Dataflow job {} threw exception. Failure message was: {}",
+        if (!"JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          continue;
+        }
+        String text = Strings.nullToEmpty(message.getMessageText());
+        if (isRetryableInfrastructureError(text)) {
+          LOG.warn(
+              "Dataflow job {} reported an infrastructure error that the service will retry;"
+                  + " waiting for it to recover: {}",
               job.getJobId(),
-              messageText);
-          errorMessage.append(messageText);
+              text);
+          retryableErrorMessage.append(text);
+          hasSeenRetryableInfrastructureError = true;
+        } else {
+          LOG.info(
+              "Dataflow job {} threw exception. Failure message was: {}", job.getJobId(), text);
+          errorMessage.append(text);
           hasSeenError = true;
         }
       }
     }
 
+    /** Whether a fatal error has been reported; retryable infrastructure errors do not count. */
     boolean hasSeenError() {
       return hasSeenError;
     }
 
+    boolean hasSeenRetryableInfrastructureError() {
+      return hasSeenRetryableInfrastructureError;
+    }
+
+    /**
+     * The fatal error messages seen so far, or, if there were none, the retryable infrastructure
+     * error messages. Empty if no error was reported at all.
+     */
     String getErrorMessage() {
-      return errorMessage.toString();
+      return errorMessage.length() > 0 ? errorMessage.toString() : retryableErrorMessage.toString();
+    }
+
+    /**
+     * Whether {@code text} is a {@code JOB_MESSAGE_ERROR} that Dataflow itself reports as transient
+     * and keeps retrying, so that it says nothing about the pipeline under test. Kept deliberately
+     * narrow: only wording in which the service states that it will retry, plus the Compute Engine
+     * stockout that dominates ValidatesRunner failures. Anything else is fatal.
+     */
+    @VisibleForTesting
+    static boolean isRetryableInfrastructureError(String text) {
+      if (text.contains("ZONE_RESOURCE_POOL_EXHAUSTED")) {
+        return true;
+      }
+      if (text.contains("Startup of the worker pool") && text.contains("failed to bring up")) {
+        return true;
+      }
+      return text.contains("The service will retry");
     }
   }
 
   /**
-   * Polls a job and cancels it as soon as {@code messageHandler} has seen an error. Used for
-   * streaming jobs, where a failing step retries forever instead of failing the job.
+   * Polls a job and cancels it as soon as {@code messageHandler} has seen a fatal error. Used for
+   * streaming jobs, where a failing step retries forever instead of failing the job. Retryable
+   * infrastructure errors do not trigger cancellation; the service is given until the test timeout
+   * to recover from them.
    */
   static class CancelOnError implements Callable<Void> {
 

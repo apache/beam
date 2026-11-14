@@ -247,19 +247,22 @@ def commonRunnerV2ExcludeCategories = [
 ]
 
 // ValidatesRunner parallelism. Each test worker JVM runs ValidatesRunner tests on several threads;
-// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching, batch mode only
-// for now) many more threads are useful since most of them just contribute a member to the next
-// merged job rather than a job of their own. Tests that cannot be merged, including every test
-// of a streaming task, are still one job each, so their thread count is kept at the pre-batching
-// level to bound the number of concurrent jobs per worker JVM.
+// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching) many more
+// threads are useful since most of them just contribute a member to the next merged job rather
+// than a job of their own. Tests that cannot be merged are still one job each, so where merging is
+// off the thread count is kept low to bound the number of concurrent jobs per worker JVM.
+//
+// Merging of streaming tests is opt-in (-PstreamingTestBatching=true) while it is being validated;
+// without it every test of a streaming task is a job of its own.
 def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
+def validatesRunnerStreamingTestBatching = project.findProperty('streamingTestBatching') ?: 'false'
 def validatesRunnerTestBatchWindowMs = project.findProperty('testBatchWindowMs') ?: '3000'
 def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcurrentStandaloneJobs') ?: '12'
 
 def configureValidatesRunnerParallelism = { Test task, List pipelineOptions ->
   def streaming = pipelineOptions.any { it == '--streaming' || it == '--streaming=true' }
-  def batching = validatesRunnerTestBatching == 'true' && !streaming
-  // TODO: explore possibility to merge streaming tests into single Dataflow pipeline, as we did for batch
+  def batching = validatesRunnerTestBatching == 'true' &&
+      (!streaming || validatesRunnerStreamingTestBatching == 'true')
   def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '2')
   def batchMaxSize = project.findProperty('testBatchMaxSize') ?: parallelThreads
 
