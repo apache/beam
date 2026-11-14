@@ -25,16 +25,22 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
+import org.apache.beam.runners.dataflow.worker.windmill.Pubsub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -129,6 +135,115 @@ public class PubsubSinkTest {
   @Test
   public void testEmptyParseFn() throws Exception {
     testWriteWith("");
+  }
+
+  private static class FormatFn extends SimpleFunction<String, PubsubMessage> {
+    private final Map<String, String> attributes;
+
+    FormatFn(Map<String, String> attributes) {
+      this.attributes = attributes;
+    }
+
+    @Override
+    public PubsubMessage apply(String input) {
+      return new PubsubMessage(input.getBytes(StandardCharsets.UTF_8), attributes);
+    }
+  }
+
+  private Windmill.WorkItemCommitRequest.Builder writeWithFormatFn(
+      SimpleFunction<String, PubsubMessage> formatFn) throws Exception {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key"))
+            .setWorkToken(0);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilder);
+
+    PubsubSink<String> sink =
+        new PubsubSink<>(
+            "topic",
+            "ts",
+            "id",
+            WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+            formatFn,
+            true,
+            mockContext);
+
+    Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(1000)));
+    writer.close();
+    return outputBuilder;
+  }
+
+  @Test
+  public void testWriteSetsIdLabelWhenMissing() throws Exception {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        writeWithFormatFn(new FormatFn(Collections.singletonMap("attr1", "val1")));
+
+    Pubsub.PubsubMessage messageWithoutId =
+        Pubsub.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8("e0"))
+            .putAttributes("attr1", "val1")
+            .build();
+    String expectedId = UUID.nameUUIDFromBytes(messageWithoutId.toByteArray()).toString();
+    Pubsub.PubsubMessage expectedMessage =
+        messageWithoutId.toBuilder().putAttributes("id", expectedId).build();
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key"))
+            .setWorkToken(0)
+            .addPubsubMessages(
+                Windmill.PubSubMessageBundle.newBuilder()
+                    .setTopic("topic")
+                    .setTimestampLabel("ts")
+                    .setIdLabel("id")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(0)
+                            .setData(expectedMessage.toByteString()))
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(1000000)
+                            .setData(expectedMessage.toByteString()))
+                    .setWithAttributes(true))
+            .build(),
+        outputBuilder.build());
+  }
+
+  @Test
+  public void testWriteKeepsExistingIdLabel() throws Exception {
+    Map<String, String> attributes = new HashMap<>();
+    attributes.put("attr1", "val1");
+    attributes.put("id", "user-id");
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        writeWithFormatFn(new FormatFn(attributes));
+
+    Pubsub.PubsubMessage expectedMessage =
+        Pubsub.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8("e0"))
+            .putAttributes("attr1", "val1")
+            .putAttributes("id", "user-id")
+            .build();
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key"))
+            .setWorkToken(0)
+            .addPubsubMessages(
+                Windmill.PubSubMessageBundle.newBuilder()
+                    .setTopic("topic")
+                    .setTimestampLabel("ts")
+                    .setIdLabel("id")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(0)
+                            .setData(expectedMessage.toByteString()))
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(1000000)
+                            .setData(expectedMessage.toByteString()))
+                    .setWithAttributes(true))
+            .build(),
+        outputBuilder.build());
   }
 
   private static class ErrorCoder extends Coder<String> {
