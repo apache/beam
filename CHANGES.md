@@ -97,7 +97,7 @@
 ### New Feature
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline ([#40891](https://github.com/apache/beam/issues/40891)).
+* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline. `beam pipe --from SOURCE --to SINK` reads and writes CSV, JSON, Parquet or Avro files, and `--dry-run` prints the equivalent pipeline to save and run with `beam run` ([#40891](https://github.com/apache/beam/issues/40891)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
