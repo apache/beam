@@ -515,6 +515,9 @@ class WriteTables<DestinationT extends @NonNull Object>
             : loadJobProjectId.get();
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
+    String reservation = loadJobReservation == null ? null : loadJobReservation.get();
+    checkArgument(
+        reservation == null || !reservation.isEmpty(), "loadJobReservation cannot be empty");
 
     PendingJob retryJob =
         new PendingJob(
@@ -532,12 +535,9 @@ class WriteTables<DestinationT extends @NonNull Object>
                   jobRef,
                   jobId.getRetryIndex());
               try {
-                if (loadJobReservation == null) {
+                if (reservation == null) {
                   jobService.startLoadJob(jobRef, loadConfig);
                 } else {
-                  String reservation = loadJobReservation.get();
-                  checkArgument(
-                      !Strings.isNullOrEmpty(reservation), "loadJobReservation cannot be empty");
                   jobService.startLoadJob(jobRef, loadConfig, reservation);
                 }
               } catch (IOException | InterruptedException e) {

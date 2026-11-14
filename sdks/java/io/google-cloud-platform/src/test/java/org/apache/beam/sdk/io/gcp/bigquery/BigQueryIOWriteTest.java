@@ -947,14 +947,33 @@ public class BigQueryIOWriteTest implements Serializable {
     testFileLoadReservation(false, true);
   }
 
+  @Test
+  public void testBatchFileLoadsWithUnsetRuntimeReservation() throws Exception {
+    testFileLoadReservation(false, true, null);
+  }
+
+  @Test
+  public void testBatchFileLoadsWithEmptyRuntimeReservation() throws Exception {
+    assumeTrue(!useStreaming && !useStorageApi);
+    thrown.expectMessage("loadJobReservation cannot be empty");
+    testFileLoadReservation(false, true, "");
+  }
+
   private void testFileLoadReservation(boolean tempTables) throws Exception {
     testFileLoadReservation(tempTables, false);
   }
 
   private void testFileLoadReservation(boolean tempTables, boolean runtimeReservation)
       throws Exception {
+    testFileLoadReservation(
+        tempTables,
+        runtimeReservation,
+        "projects/reservation-project/locations/us/reservations/load");
+  }
+
+  private void testFileLoadReservation(
+      boolean tempTables, boolean runtimeReservation, String reservation) throws Exception {
     assumeTrue(!useStreaming && !useStorageApi);
-    String reservation = "projects/reservation-project/locations/us/reservations/load";
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("project-id:dataset-id.table-id")
@@ -997,8 +1016,28 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaUpdateLoadJobWithReservation() throws Exception {
+    testSchemaUpdateLoadJobWithReservation(false);
+  }
+
+  @Test
+  public void testSchemaUpdateLoadJobWithUnsetRuntimeReservation() throws Exception {
+    testSchemaUpdateLoadJobWithReservation(true);
+  }
+
+  private void testSchemaUpdateLoadJobWithReservation(boolean unsetRuntimeReservation)
+      throws Exception {
     assumeTrue(!useStreaming && !useStorageApi);
-    String reservation = "projects/reservation-project/locations/us/reservations/load";
+    String reservation =
+        unsetRuntimeReservation
+            ? null
+            : "projects/reservation-project/locations/us/reservations/load";
+    ValueProvider<String> provider =
+        unsetRuntimeReservation
+            ? p.newProvider(null)
+            : ValueProvider.StaticValueProvider.of(reservation);
+    if (unsetRuntimeReservation) {
+      assertFalse(provider.isAccessible());
+    }
     TableReference ref =
         new TableReference()
             .setProjectId("project-id")
@@ -1030,7 +1069,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(updatedSchema)
                 .withWriteDisposition(Write.WriteDisposition.WRITE_APPEND)
                 .withSchemaUpdateOptions(EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION))
-                .withLoadJobReservation(reservation)
+                .withLoadJobReservation(provider)
                 .withMaxFileSize(1)
                 .withMaxFilesPerPartition(1)
                 .withTestServices(fakeBqServices)

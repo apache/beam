@@ -328,6 +328,10 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(
             datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    String reservation = loadJobReservation == null ? null : loadJobReservation.get();
+    if (reservation != null && reservation.isEmpty()) {
+      throw new IllegalArgumentException("loadJobReservation cannot be empty");
+    }
 
     BigQueryHelpers.PendingJob retryJob =
         new BigQueryHelpers.PendingJob(
@@ -345,13 +349,9 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
                   jobId.getRetryIndex());
               try {
                 ByteArrayContent content = new ByteArrayContent("text/plain", new byte[0]);
-                if (loadJobReservation == null) {
+                if (reservation == null) {
                   jobService.startLoadJob(jobRef, loadConfig, content);
                 } else {
-                  String reservation = loadJobReservation.get();
-                  if (Strings.isNullOrEmpty(reservation)) {
-                    throw new IllegalArgumentException("loadJobReservation cannot be empty");
-                  }
                   jobService.startLoadJob(jobRef, loadConfig, content, reservation);
                 }
               } catch (IOException | InterruptedException e) {

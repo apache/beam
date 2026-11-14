@@ -3694,7 +3694,11 @@ public class BigQueryIO {
       return withLoadJobReservation(StaticValueProvider.of(loadJobReservation));
     }
 
-    /** Same as {@link #withLoadJobReservation(String)}, with a runtime value. */
+    /**
+     * Same as {@link #withLoadJobReservation(String)}, with a runtime value. If the provider
+     * resolves to {@code null}, BigQuery selects a reservation according to its assignment rules.
+     * An empty value is invalid.
+     */
     public Write<T> withLoadJobReservation(ValueProvider<String> loadJobReservation) {
       checkArgument(loadJobReservation != null, "loadJobReservation cannot be null");
       return toBuilder().setLoadJobReservation(loadJobReservation).build();

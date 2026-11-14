@@ -195,7 +195,7 @@ public class FakeJobService implements JobService, Serializable {
       JobConfigurationLoad loadConfig,
       AbstractInputStreamContent streamContent)
       throws InterruptedException, IOException {
-    // TODO
+    startLoadJob(jobRef, loadConfig, streamContent, null);
   }
 
   @Override
