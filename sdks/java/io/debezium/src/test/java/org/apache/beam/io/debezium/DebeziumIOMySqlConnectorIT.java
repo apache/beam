@@ -20,6 +20,7 @@ package org.apache.beam.io.debezium;
 import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -35,7 +36,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -49,6 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonElement;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonParser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -362,6 +366,93 @@ public class DebeziumIOMySqlConnectorIT {
                     equalTo(metadata.get("schema").getAsString()));
                 assertFalse(metadata.has("source"));
               }
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+  }
+
+  /**
+   * Debezium - MySQL connector Test with {@code include.schema.changes} enabled.
+   *
+   * <p>Tests that the snapshot's CREATE schema change event for {@code inventory.customers} carries
+   * the table's columns, each with every field of Debezium's column schema.
+   */
+  @Test
+  public void testDebeziumIOMySqlSchemaChangeEventColumns() {
+
+    String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
+    String schemaHistoryTopic = "mysql-schema-history-schema-change-" + System.nanoTime();
+
+    String host = MY_SQL_CONTAINER.getHost();
+    String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> results =
+        p.apply(
+            DebeziumIO.readAsJson()
+                .withConnectorConfiguration(
+                    DebeziumIO.ConnectorConfiguration.create()
+                        .withUsername("debezium")
+                        .withPassword("dbz")
+                        .withConnectorClass(MySqlConnector.class)
+                        .withHostName(host)
+                        .withPort(port)
+                        .withConnectionProperty("database.server.id", "184056")
+                        .withConnectionProperty("database.include.list", "inventory")
+                        .withConnectionProperty("table.include.list", "inventory.customers")
+                        .withConnectionProperty("include.schema.changes", "true")
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.bootstrap.servers",
+                            kafkaBootstrapServers)
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.topic", schemaHistoryTopic)
+                        .withConnectionProperty(
+                            "schema.history.internal",
+                            "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+                        .withConnectionProperty(
+                            "schema.history.internal.store.only.captured.tables.ddl", "true"))
+                // The snapshot emits its schema change events before the customers rows.
+                .withMaxNumberOfRecords(10)
+                .withMaxTimeToRun(Duration.ofMinutes(2).toMillis()));
+
+    // Every field of Debezium's column schema, in schema order, nulls included.
+    String expectedFirstNameColumn =
+        "{\"name\":\"first_name\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"VARCHAR\","
+            + "\"typeExpression\":\"VARCHAR\",\"charsetName\":\"utf8mb4\",\"length\":255,"
+            + "\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,"
+            + "\"generated\":false,\"comment\":null,\"defaultValueExpression\":null,"
+            + "\"enumValues\":null}";
+
+    PAssert.that(results)
+        .satisfies(
+            (Iterable<String> res) -> {
+              // Find the snapshot's CREATE event for the customers table.
+              String customersId = "\"inventory\".\"customers\"";
+              JsonObject table = null;
+              for (String record : res) {
+                JsonObject event = JsonParser.parseString(record).getAsJsonObject();
+                if (!event.has("tableChanges")) {
+                  continue; // A data change event.
+                }
+                for (JsonElement change : event.getAsJsonArray("tableChanges")) {
+                  JsonObject tableChange = change.getAsJsonObject();
+                  if (tableChange.get("type").getAsString().equals("CREATE")
+                      && tableChange.get("id").getAsString().equals(customersId)) {
+                    table = tableChange.getAsJsonObject("table");
+                  }
+                }
+              }
+              assertThat(table.get("primaryKeyColumnNames").toString(), equalTo("[\"id\"]"));
+
+              // Each column's JSON, keyed by column name, in column order.
+              Map<String, String> columns = new LinkedHashMap<>();
+              for (JsonElement column : table.getAsJsonArray("columns")) {
+                columns.put(column.getAsJsonObject().get("name").getAsString(), column.toString());
+              }
+              assertThat(columns.keySet(), contains("id", "first_name", "last_name", "email"));
+              assertThat(columns.get("first_name"), equalTo(expectedFirstNameColumn));
               return null;
             });
 
