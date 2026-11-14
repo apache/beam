@@ -92,11 +92,13 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
   sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION\",/" sdks/typescript/package.json
   sed -i -e "s/DEFAULT_BEAM_VERSION=\".*\"/DEFAULT_BEAM_VERSION=\"$TARGET_VERSION\"/" scripts/beam-sql.sh
+  sdks/rust/scripts/set_version.sh "$TARGET_VERSION"
 else
   # For snapshot version:
   #   Java/gradle appends -SNAPSHOT
   #   In the Gradle plugin, the -SNAPSHOT is dynamic so we don't add it here
   #   Python appends .dev
+  #   Rust appends -SNAPSHOT (Cargo requires semver)
   #   The Dataflow container remains unchanged as in this case it is beam-master-<date> form
   sed -i -e "s/version=.*/version=$TARGET_VERSION-SNAPSHOT/" gradle.properties
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
@@ -105,6 +107,7 @@ else
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
   sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION-SNAPSHOT\",/" sdks/typescript/package.json
   sed -i -e "s/DEFAULT_BEAM_VERSION=\".*\"/DEFAULT_BEAM_VERSION=\"$TARGET_VERSION\"/" scripts/beam-sql.sh
+  sdks/rust/scripts/set_version.sh "$TARGET_VERSION-SNAPSHOT"
 fi
 
 if [[ "$GIT_ADD" == yes ]] ; then
@@ -115,4 +118,5 @@ if [[ "$GIT_ADD" == yes ]] ; then
   git add runners/google-cloud-dataflow-java/build.gradle
   git add sdks/typescript/package.json
   git add scripts/beam-sql.sh
+  git add 'sdks/rust/*Cargo.toml' sdks/rust/Cargo.lock
 fi

@@ -68,6 +68,13 @@ if [ "$kernelname" = "Linux" ]; then
         exit
     fi
 
+    type -P rustc > /dev/null 2>&1
+    rustExists=$?
+    if [ $rustExists -ne 0 ]; then
+        echo "Installing rust via rustup..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    fi
+
 # Running on Mac
 elif [ "$kernelname" = "Darwin" ]; then
     # Check for Homebrew, install if we don't have it
@@ -142,6 +149,24 @@ elif [ "$kernelname" = "Darwin" ]; then
     else
         echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
+    fi
+
+    type -P rustc > /dev/null 2>&1
+    rustExists=$?
+    if [ $rustExists -eq 0 ]; then
+        echo "rust already installed. Skipping"
+    else
+        echo "Installing rust"
+        brew install rust
+    fi
+
+    type -P protoc > /dev/null 2>&1
+    protocExists=$?
+    if [ $protocExists -eq 0 ]; then
+        echo "protobuf already installed. Skipping"
+    else
+        echo "Installing protobuf"
+        brew install protobuf
     fi
 
 else echo "Unrecognized Kernel Name: $kernelname"
