@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.Time;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Types;
@@ -63,6 +64,7 @@ public class BeamRowWrapperTest {
           .addLogicalTypeField("fixed_numeric_field", FixedPrecisionNumeric.of(10, 2))
           .addRowField("row_field", NESTED_BEAM_SCHEMA)
           .addInt32Field("pass_through_field")
+          .addLogicalTypeField("timestamp_field", Timestamp.MICROS)
           .build();
   private static final Types.StructType ICEBERG_STRUCT =
       Types.StructType.of(
@@ -83,7 +85,8 @@ public class BeamRowWrapperTest {
               "row_field",
               Types.StructType.of(
                   Types.NestedField.required(1, "nested_int", Types.IntegerType.get()))),
-          Types.NestedField.required(14, "pass_through_field", Types.IntegerType.get()));
+          Types.NestedField.required(14, "pass_through_field", Types.IntegerType.get()),
+          Types.NestedField.required(15, "timestamp_field", Types.TimestampType.withZone()));
   private static final UUID TEST_UUID = UUID.randomUUID();
   private static final Instant TEST_MICROS_INSTANT =
       Instant.ofEpochSecond(1_609_459_200L, 123_456_000);
@@ -107,14 +110,15 @@ public class BeamRowWrapperTest {
               LocalTime.now(ZoneId.systemDefault()),
               new BigDecimal("567.89"),
               NESTED_ROW,
-              888)
+              888,
+              TEST_MICROS_INSTANT)
           .build();
   private static final BeamRowWrapper WRAPPER =
       new BeamRowWrapper(BEAM_SCHEMA, ICEBERG_STRUCT).wrap(ROW);
 
   @Test
   public void testSize() {
-    assertEquals("Size should match the schema field count", 14, WRAPPER.size());
+    assertEquals("Size should match the schema field count", 15, WRAPPER.size());
   }
 
   @Test
@@ -183,6 +187,11 @@ public class BeamRowWrapperTest {
   @Test
   public void testMicrosInstantLogicalTypeConversion() {
     assertEquals(1_609_459_200_123_456L, (long) WRAPPER.get(7, Long.class));
+  }
+
+  @Test
+  public void testTimestampLogicalTypeConversion() {
+    assertEquals(1_609_459_200_123_456L, (long) WRAPPER.get(14, Long.class));
   }
 
   @Test
