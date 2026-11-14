@@ -104,6 +104,22 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(label='389a', conductor=389, rank=2),
           ]))
 
+  def test_python_expression_skips_keyword_named_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(
+        ['status', 'in'], expression="status in ('ACTIVE', 'PENDING')")
+    self.assertTrue(fn(beam.Row(status='ACTIVE')))
+    self.assertFalse(fn(beam.Row(status='DONE')))
+
+  def test_python_expression_skips_non_identifier_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(
+        ['status', 'my col'], expression="status == 'my col'")
+    self.assertTrue(fn(beam.Row(status='my col')))
+
+  def test_python_expression_binds_referenced_identifier_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(['a', 'b'],
+                                                  expression='a + b')
+    self.assertEqual(fn(beam.Row(a=1, b=2)), 3)
+
   def test_explode(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
