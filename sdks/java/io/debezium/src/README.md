@@ -97,6 +97,8 @@ By default, the JSON `metadata` object holds `connector`, `version`, `name`, `da
 
 With `provide.transaction.metadata=true`, each change event has a `transaction` object (`id`, `total_order`, `data_collection_order`); otherwise the key is absent. The transaction `BEGIN` and `END` events are mapped to `status`, `id`, `ts_ms`, `event_count` and `data_collections`, where the last two are only set on `END`.
 
+With `include.schema.changes=true`, the MySQL, Oracle and SQL Server connectors also emit an event each time a table is created, altered or dropped. These are mapped to `databaseName`, `schemaName`, `ddl`, `ts_ms` and `tableChanges`, which lists each changed table and its columns.
+
 ## Quick Example
 
 The following example is how an actual setup would look like using a **MySQL Debezium Connector** and **SourceRecordJsonMapper** as the Serializable Function.

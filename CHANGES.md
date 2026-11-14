@@ -95,6 +95,7 @@
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 * (Python) Made `beam.managed.ICEBERG_CDC` public, for reading an Iceberg table's inserts, updates and deletes with `beam.managed.Read` ([#41654](https://github.com/apache/beam/pull/41654)).
+* (Java/Python/Go) DebeziumIO: `readAsJson()` now emits MySQL, Oracle and SQL Server schema change events with `include.schema.changes=true` (Python/Go via `connection_properties`) ([#41330](https://github.com/apache/beam/issues/41330)).
 
 ## Improvements
 

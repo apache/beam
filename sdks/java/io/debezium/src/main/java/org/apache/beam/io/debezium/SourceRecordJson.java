@@ -91,6 +91,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * ({@link #loadTransactionEvent}): {@code status}, {@code id}, {@code ts_ms}, {@code event_count}
  * and {@code data_collections}.
  *
+ * <h3>Schema change events</h3>
+ *
+ * <p>With {@code include.schema.changes=true}, the MySQL, Oracle and SQL Server connectors also
+ * emit an event each time a table is created, altered or dropped. These are mapped to their own
+ * payload ({@link #loadChangeSchemaEvent}): {@code databaseName}, {@code schemaName}, {@code ddl},
+ * {@code ts_ms} and {@code tableChanges}, which lists each changed table and its columns.
+ *
  * <h3>Usage Example</h3>
  *
  * <p>Map each SourceRecord to JSON
@@ -118,6 +125,7 @@ public class SourceRecordJson {
 
   private static final String SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME =
       "io.debezium.connector.common.TransactionMetadataKey";
+
   public static final String SCHEMA_CHANGE_EVENT_KEY_NAME =
       "io.debezium.connector.mysql.SchemaChangeKey";
 
@@ -340,6 +348,12 @@ public class SourceRecordJson {
         dataCollections);
   }
 
+  /**
+   * Extracts the payload of a schema change event, emitted for each DDL statement when the
+   * connector has {@code include.schema.changes=true}.
+   *
+   * @return ChangeSchemaEvent
+   */
   private ChangeSchemaEvent loadChangeSchemaEvent() {
     @Nullable List<ChangeSchemaEvent.TableChange> tableChanges = null;
     @Nullable List<Struct> tableChangeStructs = getArrayOrNull(this.value, "tableChanges");
@@ -648,6 +662,7 @@ public class SourceRecordJson {
     }
   }
 
+  /** Depicts a schema change SourceRecord as a ChangeSchemaEvent to be mapped as JSON. */
   @SuppressWarnings("unused") // Unused params are validated as JSON
   static class ChangeSchemaEvent implements Serializable {
 
@@ -660,6 +675,15 @@ public class SourceRecordJson {
 
     private final @Nullable List<TableChange> tableChanges;
 
+    /**
+     * ChangeSchemaEvent Initializer.
+     *
+     * @param databaseName Database the DDL statement was applied to
+     * @param schemaName Schema the DDL statement was applied to, null for MySQL
+     * @param ddl DDL statement that changed the schema
+     * @param tsMs Time the connector processed the event, in milliseconds
+     * @param tableChanges Tables created, altered or dropped by the DDL statement
+     */
     public ChangeSchemaEvent(
         @Nullable String databaseName,
         @Nullable String schemaName,
@@ -673,15 +697,28 @@ public class SourceRecordJson {
       this.tableChanges = tableChanges;
     }
 
+    /**
+     * Transforms the ChangeSchemaEvent to a JSON string.
+     *
+     * @return JSON String
+     */
     public String toJson() {
       return GSON.toJson(this);
     }
 
+    /** Depicts an entry of the tableChanges field within SourceRecord. */
     static class TableChange implements Serializable {
       private final @Nullable String type;
       private final @Nullable String id;
       private final @Nullable Table table;
 
+      /**
+       * TableChange Initializer.
+       *
+       * @param type Kind of change: {@code CREATE}, {@code ALTER} or {@code DROP}
+       * @param id Fully qualified table id, for example {@code "inventory"."customers"}
+       * @param table Table definition after the change
+       */
       public TableChange(@Nullable String type, @Nullable String id, @Nullable Table table) {
         this.type = type;
         this.id = id;
@@ -689,12 +726,21 @@ public class SourceRecordJson {
       }
     }
 
+    /** Depicts the table field of a tableChanges entry within SourceRecord. */
     static class Table implements Serializable {
       private final @Nullable String defaultCharsetName;
       private final @Nullable String comment;
       private final @Nullable List<String> primaryKeyColumnNames;
       private final @Nullable List<Map<String, Object>> columns;
 
+      /**
+       * Table Initializer.
+       *
+       * @param defaultCharsetName Default character set of the table
+       * @param comment Table comment
+       * @param primaryKeyColumnNames Names of the primary key columns
+       * @param columns Columns of the table, each a map of every field Debezium emits for it
+       */
       public Table(
           @Nullable String defaultCharsetName,
           @Nullable String comment,
@@ -716,6 +762,10 @@ public class SourceRecordJson {
     return keySchema != null && SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME.equals(keySchema.name());
   }
 
+  /**
+   * Whether the record is a schema change event, emitted for each DDL statement when {@code
+   * include.schema.changes} is enabled. These are identified by their key schema name.
+   */
   private static boolean isSchemaChangeEventKeyName(@Nullable Schema keySchema) {
     return keySchema != null && SCHEMA_CHANGE_EVENT_KEY_NAME.equals(keySchema.name());
   }
