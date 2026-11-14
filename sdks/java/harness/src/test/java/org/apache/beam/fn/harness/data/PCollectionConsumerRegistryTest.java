@@ -22,11 +22,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -219,6 +221,170 @@ public class PCollectionConsumerRegistryTest {
     expectedException.expectMessage(message);
     expectedException.expect(Exception.class);
     wrapperConsumer.accept(valueInGlobalWindow("elem"));
+  }
+
+  @Test
+  public void failModeRemembersSwallowedExceptionAndStopsLaterOutputs() throws Exception {
+    final String pTransformId = "pTransformId";
+    final String message = "downstream failure";
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new Exception(message)).when(consumer).accept(any());
+
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals(message, firstFailure.getMessage());
+
+    // The upstream DoFn may catch the first exception and try to emit again. Fail mode must not
+    // invoke the downstream consumer again after its first failure.
+    Exception secondFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("second")));
+    assertEquals(message, secondFailure.getMessage());
+    verify(consumer, times(1)).accept(any());
+
+    Exception bundleFailure =
+        assertThrows(Exception.class, consumers::failBundleIfDownstreamFailed);
+    assertEquals(message, bundleFailure.getMessage());
+  }
+
+  @Test
+  public void failModeContinuesDeliveringToHealthySiblingConsumers() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> failedConsumer = mock(FnDataReceiver.class);
+    FnDataReceiver<WindowedValue<String>> healthyConsumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, "failed", "failed", failedConsumer);
+    consumers.register(P_COLLECTION_A, "healthy", "healthy", healthyConsumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new Exception("downstream failure")).when(failedConsumer).accept(any());
+
+    Exception firstFailure =
+        assertThrows(
+            Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("downstream failure", firstFailure.getMessage());
+    verify(failedConsumer, times(1)).accept(any());
+    verify(healthyConsumer, times(1)).accept(any());
+
+    Exception secondFailure =
+        assertThrows(
+            Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("second")));
+    assertEquals("downstream failure", secondFailure.getMessage());
+    // The failed consumer is not invoked again, but its healthy sibling continues processing.
+    verify(failedConsumer, times(1)).accept(any());
+    verify(healthyConsumer, times(2)).accept(any());
+  }
+
+  @Test
+  public void failModeRecordsAndSurfacesErrors() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, "failed", "failed", consumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new AssertionError("downstream error")).when(consumer).accept(any());
+
+    AssertionError outputFailure =
+        assertThrows(
+            AssertionError.class, () -> wrapperConsumer.accept(valueInGlobalWindow("element")));
+    assertEquals("downstream error", outputFailure.getMessage());
+    AssertionError bundleFailure =
+        assertThrows(AssertionError.class, consumers::failBundleIfDownstreamFailed);
+    assertEquals("downstream error", bundleFailure.getMessage());
+  }
+
+  @Test
+  public void warnModeRemembersExceptionButAllowsLaterOutputs() throws Exception {
+    final String pTransformId = "pTransformId";
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.WARN);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new Exception("first output failed")).doNothing().when(consumer).accept(any());
+
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("first output failed", firstFailure.getMessage());
+    wrapperConsumer.accept(valueInGlobalWindow("second"));
+    verify(consumer, times(2)).accept(any());
+
+    // Warning mode reports at successful bundle completion but does not fail the bundle.
+    consumers.failBundleIfDownstreamFailed();
+    consumers.logWarningIfDownstreamFailed();
+  }
+
+  @Test
+  public void resetClearsRecordedDownstreamException() throws Exception {
+    final String pTransformId = "pTransformId";
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(),
+            shortIds,
+            reporterAndRegistrar,
+            TEST_DESCRIPTOR,
+            null,
+            PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL);
+    FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+    consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
+    FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<String>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+    doThrow(new Exception("first bundle failure")).when(consumer).accept(any());
+
+    Exception firstFailure =
+        assertThrows(Exception.class, () -> wrapperConsumer.accept(valueInGlobalWindow("first")));
+    assertEquals("first bundle failure", firstFailure.getMessage());
+    consumers.reset();
+    doNothing().when(consumer).accept(any());
+    wrapperConsumer.accept(valueInGlobalWindow("next bundle"));
+    consumers.failBundleIfDownstreamFailed();
+    consumers.logWarningIfDownstreamFailed();
+    verify(consumer, times(2)).accept(any());
   }
 
   /** Test that the counter increments even when there are no consumers of the PCollection. */

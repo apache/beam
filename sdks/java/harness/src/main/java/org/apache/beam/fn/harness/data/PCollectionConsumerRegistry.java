@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
@@ -61,14 +63,28 @@ import org.slf4j.LoggerFactory;
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
  * FnDataReceiver for each pCollectionId. Registering with this class allows inserting an element
- * count counter for every pCollection. A combined MultiplexingConsumer (Wrapped with an
- * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
+ * count counter for every pCollection. A combined MultiplexingConsumer (wrapped with metrics
+ * tracking) is returned by calling getMultiplexingConsumer. When configured, this class also
+ * records downstream exceptions so that exceptions swallowed by fused user code can be surfaced
+ * when the bundle finishes.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PCollectionConsumerRegistry {
+
+  /** Controls how exceptions from fused downstream consumers are handled at bundle completion. */
+  public enum FusedDoFnExceptionHandling {
+    LEGACY,
+    WARN,
+    FAIL
+  }
+
+  private final FusedDoFnExceptionHandling fusedDoFnExceptionHandling;
+  private final AtomicReference<Throwable> firstDownstreamException = new AtomicReference<>();
+  private final Map<String, Throwable> downstreamExceptionsByTransform =
+      new ConcurrentHashMap<>();
 
   /** Stores metadata about each consumer so that the appropriate metrics tracking can occur. */
   @AutoValue
@@ -121,7 +137,13 @@ public class PCollectionConsumerRegistry {
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
-    this(stateTracker, shortIdMap, bundleProgressReporterRegistrar, processBundleDescriptor, null);
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        null,
+        FusedDoFnExceptionHandling.LEGACY);
   }
 
   public PCollectionConsumerRegistry(
@@ -130,6 +152,22 @@ public class PCollectionConsumerRegistry {
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor,
       @Nullable DataSampler dataSampler) {
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        dataSampler,
+        FusedDoFnExceptionHandling.LEGACY);
+  }
+
+  public PCollectionConsumerRegistry(
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+      ProcessBundleDescriptor processBundleDescriptor,
+      @Nullable DataSampler dataSampler,
+      FusedDoFnExceptionHandling fusedDoFnExceptionHandling) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
@@ -142,6 +180,7 @@ public class PCollectionConsumerRegistry {
                 .putAllWindowingStrategies(processBundleDescriptor.getWindowingStrategiesMap())
                 .build());
     this.dataSampler = dataSampler;
+    this.fusedDoFnExceptionHandling = fusedDoFnExceptionHandling;
   }
 
   /**
@@ -274,6 +313,75 @@ public class PCollectionConsumerRegistry {
         });
   }
 
+  /**
+   * Records a downstream exception when configured to detect exceptions swallowed by a fused
+   * upstream DoFn. Work cancellation is not a downstream processing failure.
+   */
+  private void recordDownstreamException(String ptransformId, Throwable exception) {
+    if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.LEGACY
+        && !WorkCancelledException.isWorkCancelledException(exception)) {
+      firstDownstreamException.compareAndSet(null, exception);
+      downstreamExceptionsByTransform.putIfAbsent(ptransformId, exception);
+    }
+  }
+
+  /** Re-throws a recorded downstream failure without changing its original type. */
+  private static void rethrowDownstreamFailure(Throwable failure) throws Exception {
+    if (failure instanceof Exception) {
+      throw (Exception) failure;
+    }
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    throw new RuntimeException(failure);
+  }
+
+  /** Returns a previously recorded failure for the transform, if any. */
+  private @Nullable Throwable getDownstreamFailure(String ptransformId) {
+    return fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL
+        ? downstreamExceptionsByTransform.get(ptransformId)
+        : null;
+  }
+
+  /** Prevents retrying a downstream transform that has already failed in fail mode. */
+  private void failFastIfDownstreamFailed(String ptransformId) throws Exception {
+    Throwable failure = getDownstreamFailure(ptransformId);
+    if (failure != null) {
+      rethrowDownstreamFailure(failure);
+    }
+  }
+
+  /**
+   * Fails the bundle when configured to do so. Call before finish functions to avoid flushing
+   * state after a processing failure, and after each finish function to detect swallowed failures
+   * raised during bundle finalization. This must run before outbound data is finalized.
+   */
+  public void failBundleIfDownstreamFailed() throws Exception {
+    Throwable failure = firstDownstreamException.get();
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.FAIL && failure != null) {
+      rethrowDownstreamFailure(failure);
+    }
+  }
+
+  /**
+   * Logs a swallowed downstream exception only after the rest of bundle processing has succeeded.
+   */
+  public void logWarningIfDownstreamFailed() {
+    Throwable failure = firstDownstreamException.get();
+    if (fusedDoFnExceptionHandling == FusedDoFnExceptionHandling.WARN && failure != null) {
+      LOG.warn(
+          "A downstream exception was caught by fused user code. The bundle completed, but "
+              + "downstream processing may have been skipped.",
+          failure);
+    }
+  }
+
+  /** Clears per-bundle failure state during processor reset before it can be reused. */
+  public void reset() {
+    firstDownstreamException.set(null);
+    downstreamExceptionsByTransform.clear();
+  }
+
   private static <T> void logAndRethrow(
       Exception e,
       ExecutionState executionState,
@@ -360,6 +468,7 @@ public class PCollectionConsumerRegistry {
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
+      failFastIfDownstreamFailed(ptransformId);
       // Increment the counter for each window the element occurs in.
       this.elementCountCounter.inc(input.getWindows().size());
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
@@ -377,8 +486,12 @@ public class PCollectionConsumerRegistry {
       try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
+        recordDownstreamException(ptransformId, e);
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
+      } catch (Error e) {
+        recordDownstreamException(ptransformId, e);
+        throw e;
       }
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
@@ -443,36 +556,83 @@ public class PCollectionConsumerRegistry {
 
     @Override
     public void accept(WindowedValue<T> input) throws Exception {
-      // Increment the counter for each window the element occurs in.
-      this.elementCountCounter.inc(input.getWindows().size());
-      // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
-      // when we have window optimization.
-      this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
-
-      ElementSample<T> elementSample = null;
-      if (outputSampler != null) {
-        elementSample = outputSampler.sample(input);
-      }
-
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container. We specifically don't use a for-each loop since it creates an iterator
       // on a hot path.
+      Throwable firstFailure = null;
+      boolean metricsStarted = false;
+      ElementSample<T> elementSample = null;
+      // Preserve the existing metric behavior for PCollections that have no consumers.
+      if (consumerAndMetadatas.isEmpty()) {
+        this.elementCountCounter.inc(input.getWindows().size());
+        this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
+        if (outputSampler != null) {
+          elementSample = outputSampler.sample(input);
+        }
+        metricsStarted = true;
+      }
       for (int size = consumerAndMetadatas.size(), i = 0; i < size; ++i) {
         ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(i);
+        String ptransformId = consumerAndMetadata.getPTransformId();
         ExecutionState state = consumerAndMetadata.getExecutionState();
+
+        // In fail mode, a failed consumer is skipped on later elements, but healthy sibling
+        // consumers must still receive those elements.
+        Throwable previousFailure = getDownstreamFailure(ptransformId);
+        if (previousFailure != null) {
+          if (firstFailure == null) {
+            firstFailure = previousFailure;
+          }
+          continue;
+        }
+
+        // Start PCollection-level metrics only when at least one consumer is eligible to receive
+        // this element. This keeps metrics consistent with the single-consumer fail-fast path,
+        // which rejects an element before incrementing the counter.
+        if (!metricsStarted) {
+          this.elementCountCounter.inc(input.getWindows().size());
+          // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window
+          // when we have window optimization.
+          this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
+          if (outputSampler != null) {
+            elementSample = outputSampler.sample(input);
+          }
+          metricsStarted = true;
+        }
+
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
-          logAndRethrow(
-              e,
-              state,
-              consumerAndMetadata.getExecutionStateTracker(),
-              consumerAndMetadata.getPTransformId(),
-              outputSampler,
-              elementSample);
+          recordDownstreamException(ptransformId, e);
+          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL
+              || WorkCancelledException.isWorkCancelledException(e)) {
+            logAndRethrow(
+                e,
+                state,
+                consumerAndMetadata.getExecutionStateTracker(),
+                ptransformId,
+                outputSampler,
+                elementSample);
+          }
+          if (firstFailure == null) {
+            firstFailure = e;
+          }
+        } catch (Error e) {
+          recordDownstreamException(ptransformId, e);
+          if (fusedDoFnExceptionHandling != FusedDoFnExceptionHandling.FAIL) {
+            throw e;
+          }
+          if (firstFailure == null) {
+            firstFailure = e;
+          }
         }
+      }
+      if (metricsStarted) {
         this.sampledByteSizeDistribution.finishLazyUpdate();
+      }
+      if (firstFailure != null) {
+        rethrowDownstreamFailure(firstFailure);
       }
     }
   }
