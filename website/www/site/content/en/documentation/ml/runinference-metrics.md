@@ -87,20 +87,26 @@ The following image shows a snapshot of different metrics in the Google Cloud co
 
   ![RunInference GPU metrics rendered on Dataflow](/images/runinference_metrics_snapshot.svg)
 
-Some metrics commonly used for benchmarking are:
+RunInference reports the following metrics:
 
-* `num_inferences`: Represents the total number of elements passed to `run_inference()`.
+{{< table >}}
+| Metric | Type | Description |
+| ------ | ---- | ----------- |
+| `num_inferences` | Counter | The total number of elements passed to `run_inference()`. Elements in batches where inference failed aren't counted. |
+| `failed_batches_counter` | Counter | The number of batches for which inference raised an exception. |
+| `inference_request_batch_size` | Distribution | The number of elements in each batch of examples (created from `beam.BatchElements`) passed to `run_inference()`. |
+| `inference_request_batch_byte_size` | Distribution | The size of each batch of examples, in bytes, as computed by the model handler's `get_num_bytes()` method. |
+| `inference_batch_latency_micro_secs` | Distribution | The time taken to perform inference on each batch of examples, measured in microseconds. |
+| `load_model_latency_milli_secs` | Distribution | The time taken to load and initialize the model, measured in milliseconds. |
+| `model_byte_size` | Distribution | The memory consumed to load and initialize the model, in bytes. RunInference measures it as the increase in the worker process's peak memory usage while the model loads. On platforms where the Python `resource` module isn't available, such as Windows, this metric is always 0. |
+{{< /table >}}
 
-* `inference_batch_latency_micro_secs_MEAN`: Represents the average time taken to perform inference across all batches of examples, measured in microseconds.
+Counters report a total, and distributions record one value at a time. For more information, see [Types of metrics](/documentation/programming-guide/#types-of-metrics). In the Google Cloud console, each distribution appears as four metrics with the suffixes `_COUNT`, `_MIN`, `_MAX`, and `_MEAN`, where `_COUNT` is the number of values recorded.
 
-* `inference_request_batch_size_COUNT`: Represents the total number of samples across all batches of examples (created from `beam.BatchElements`) to be passed to `run_inference()`.
+`inference_request_batch_size`, `inference_request_batch_byte_size`, and `inference_batch_latency_micro_secs` record one value for each batch where inference succeeded, so their `_COUNT` is the number of batches, not the number of elements. For example, in the preceding image, `inference_request_batch_size_COUNT` is 4,013, the number of batches, while `num_inferences` is 6,000, the number of elements. `load_model_latency_milli_secs` and `model_byte_size` record one value each time the model is loaded.
 
-* `inference_request_batch_byte_size_MEAN`: Represents the average size of all elements for all samples in all batches of examples (created from `beam.BatchElements`) to be passed to `run_inference()`. This metric is measured in bytes.
-
-* `model_byte_size_MEAN`: Represents the average memory consumed to load and initialize the model, measured in bytes.
-
-* `load_model_latency_milli_secs_MEAN`: Represents the average time taken to load and initialize the model, measured in milliseconds.
+RunInference reports these metrics in the namespace returned by the model handler's `get_metrics_namespace()` method, such as `BeamML_PyTorch` for the PyTorch model handlers. To use a different namespace, pass the `metrics_namespace` argument to `RunInference`.
 
 You can also derive other relevant metrics, such as in the following example.
-* `Total time taken for inference` = `num_inferences x inference_batch_latency_micro_secs_MEAN`
+* `Total time taken for inference` = `inference_batch_latency_micro_secs_COUNT x inference_batch_latency_micro_secs_MEAN`
 
