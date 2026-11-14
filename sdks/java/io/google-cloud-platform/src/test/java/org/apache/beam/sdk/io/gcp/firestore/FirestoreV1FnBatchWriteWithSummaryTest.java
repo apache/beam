@@ -19,9 +19,11 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BaseBatchWriteFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BatchWriteFnWithSummary;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.WriteElement;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -201,7 +204,7 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
 
     BaseBatchWriteFn<WriteSuccessSummary> fn =
         new BatchWriteFnWithSummary(
-            clock, ff, options, CounterFactory.DEFAULT, "testing-project", "(default)");
+            clock, ff, options, CounterFactory.DEFAULT, "testing-project", "(default)", null);
     fn.setup();
     fn.startBundle(startBundleContext);
     fn.processElement(processContext, window); // write0
@@ -239,6 +242,31 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
   }
 
   @Test
+  public void rampUpStartIsReadFromSideInput() throws Exception {
+    @SuppressWarnings("unchecked")
+    PCollectionView<Instant> rampUpStartView = mock(PCollectionView.class);
+    Instant rampUpStart = Instant.ofEpochSecond(42);
+    when(processContext.sideInput(rampUpStartView)).thenReturn(rampUpStart);
+    when(processContext.element()).thenReturn(FirestoreProtoHelpers.newWrite());
+    InterruptedException interruptedException = new InterruptedException();
+    when(attempt.awaitSafeToProceed(any())).thenThrow(interruptedException);
+
+    BaseBatchWriteFn<WriteSuccessSummary> fn =
+        new BatchWriteFnWithSummary(
+            clock, ff, rpcQosOptions, CounterFactory.DEFAULT, null, null, rampUpStartView);
+    fn.setup();
+    fn.startBundle(startBundleContext);
+    try {
+      fn.processElement(processContext, window);
+      fail("expected the attempt to be interrupted");
+    } catch (InterruptedException e) {
+      assertSame(interruptedException, e);
+    }
+
+    verify(rpcQos).setRampUpStart(rampUpStart);
+  }
+
+  @Test
   public void testWithProjectId_thenWithDatabaseId() {
     FirestoreV1.Write beamWrite =
         FirestoreIO.v1().write().withProjectId("my-project").withDatabaseId("(default)");
@@ -254,6 +282,6 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
       RpcQosOptions rpcQosOptions,
       CounterFactory counterFactory,
       DistributionFactory distributionFactory) {
-    return new BatchWriteFnWithSummary(clock, ff, rpcQosOptions, counterFactory, null, null);
+    return new BatchWriteFnWithSummary(clock, ff, rpcQosOptions, counterFactory, null, null, null);
   }
 }
