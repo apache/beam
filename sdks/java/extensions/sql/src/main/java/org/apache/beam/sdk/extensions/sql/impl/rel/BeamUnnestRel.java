@@ -20,10 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -136,32 +132,48 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
     }
 
     /**
-     * This is recursive call to get all the values of the nested rows. The recursion is bounded by
-     * the amount of nesting with in the data. This mirrors the unnest behavior of calcite towards
-     * schema. *
+     * Appends the fields of an unnested array element to {@code values}, laid out the way {@code
+     * outputSchema} expects them. The recursion is bounded by the nesting depth of the element
+     * schema.
+     *
+     * <p>Whether a nested row field of the element arrives as one ROW column or as one column per
+     * leaf field depends on which Calcite planner produced the plan. For an element {@code ROW<id,
+     * author ROW<name, email>>}, the planner behind {@code SqlTransform} flattens the element into
+     * {@code id, name, email}, while the planner behind the JDBC driver and the SQL shell keeps
+     * {@code id, author}. Building the values from the element schema alone matches only one of
+     * them, and the other then fails in {@link Row.Builder#build()} with a field count mismatch. So
+     * each nested row is checked against the output column at the same position: a ROW column takes
+     * the row as is, any other column means the row was flattened.
      */
-    private List<Object> getNestedRowBaseValues(Row nestedRow) {
-      return IntStream.range(0, nestedRow.getFieldCount())
-          .mapToObj(
-              (i) -> {
-                List<Object> values = new ArrayList<>();
-                Schema.FieldType fieldType = nestedRow.getSchema().getField(i).getType();
-                if (fieldType.getTypeName().equals(Schema.TypeName.ROW)) {
-                  @Nullable Row row = nestedRow.getBaseValue(i, Row.class);
-                  if (row == null) {
-                    return Stream.builder().build();
-                  }
-                  List<Object> rowValues = getNestedRowBaseValues(row);
-                  if (null != rowValues) {
-                    values.addAll(rowValues);
-                  }
-                } else {
-                  values.add(nestedRow.getBaseValue(i));
-                }
-                return values.stream();
-              })
-          .flatMap(Function.identity())
-          .collect(Collectors.toList());
+    private void addElementValues(
+        Schema elementSchema, @Nullable Row element, List<Object> values) {
+      for (int i = 0; i < elementSchema.getFieldCount(); i++) {
+        Schema.FieldType fieldType = elementSchema.getField(i).getType();
+        Object value = null;
+        if (element != null) {
+          value = element.getBaseValue(i);
+        }
+
+        boolean isRow = fieldType.getTypeName().equals(Schema.TypeName.ROW);
+        if (!isRow || isRowColumn(values.size())) {
+          values.add(value);
+          continue;
+        }
+
+        // a null nested row still fills one null per flattened column
+        addElementValues(fieldType.getRowSchema(), (Row) value, values);
+      }
+    }
+
+    private boolean isRowColumn(int index) {
+      // past the last output column the element does not fit the planner's layout. returning
+      // false lets the values run long so Row.Builder#build() reports the field count mismatch,
+      // instead of an IndexOutOfBoundsException from getField() that names neither schema
+      if (index >= outputSchema.getFieldCount()) {
+        return false;
+      }
+
+      return outputSchema.getField(index).getType().getTypeName().equals(Schema.TypeName.ROW);
     }
 
     @ProcessElement
@@ -178,21 +190,15 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       if (rawValues == null) {
         return;
       }
-      Schema.TypeName typeName =
-          schemaWithArrayField
-              .getField(unnestIndices.get(0))
-              .getType()
-              .getCollectionElementType()
-              .getTypeName();
+      Schema.FieldType elementType =
+          schemaWithArrayField.getField(unnestIndices.get(0)).getType().getCollectionElementType();
+      Schema.TypeName typeName = elementType.getTypeName();
 
       for (Object uncollectedValue : rawValues) {
         if (typeName.equals(Schema.TypeName.ROW)) {
-          Row nestedRow = (Row) uncollectedValue;
-          out.output(
-              Row.withSchema(outputSchema)
-                  .addValues(row.getBaseValues())
-                  .addValues(getNestedRowBaseValues(nestedRow))
-                  .build());
+          List<Object> values = new ArrayList<>(row.getBaseValues());
+          addElementValues(elementType.getRowSchema(), (Row) uncollectedValue, values);
+          out.output(Row.withSchema(outputSchema).addValues(values).build());
         } else {
           out.output(
               Row.withSchema(outputSchema)

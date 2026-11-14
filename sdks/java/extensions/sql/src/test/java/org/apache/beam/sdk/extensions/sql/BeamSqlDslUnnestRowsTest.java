@@ -139,4 +139,45 @@ public class BeamSqlDslUnnestRowsTest {
                 .build());
     pipeline.run();
   }
+
+  @Test
+  public void testUnnestArrayWithNullNestedRow() {
+    Schema nestedType = Schema.builder().addInt32Field("c1").addStringField("c2").build();
+    Schema elementType =
+        Schema.builder()
+            .addInt32Field("b1")
+            .addNullableField("b2", Schema.FieldType.row(nestedType))
+            .build();
+    Schema inputType =
+        Schema.builder()
+            .addInt32Field("a1")
+            .addArrayField("a2", Schema.FieldType.row(elementType))
+            .build();
+
+    Row input =
+        Row.withSchema(inputType)
+            .addValues(
+                1,
+                Arrays.asList(
+                    Row.withSchema(elementType)
+                        .addValues(1, Row.withSchema(nestedType).addValues(10, "x").build())
+                        .build(),
+                    Row.withSchema(elementType).addValues(2, null).build()))
+            .build();
+    PCollection<Row> inputTable =
+        PBegin.in(pipeline).apply(Create.of(input).withRowSchema(inputType));
+
+    PCollection<Row> result =
+        PCollectionTuple.of(new TupleTag<>("test"), inputTable)
+            .apply(
+                SqlTransform.query("select d.b1, d.b2.c1 from test t cross join unnest(t.a2) d"));
+
+    Schema resultSchema =
+        Schema.builder().addInt32Field("b1").addNullableField("c1", Schema.FieldType.INT32).build();
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultSchema).addValues(1, 10).build(),
+            Row.withSchema(resultSchema).addValues(2, null).build());
+    pipeline.run();
+  }
 }
