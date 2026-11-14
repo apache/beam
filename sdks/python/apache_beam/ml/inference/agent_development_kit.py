@@ -65,6 +65,7 @@ from apache_beam.ml.inference.base import PredictionResult
 try:
   from google.adk import sessions
   from google.adk.agents import Agent
+  from google.adk.errors.already_exists_error import AlreadyExistsError
   from google.adk.runners import Runner
   from google.adk.sessions import BaseSessionService
   from google.adk.sessions import InMemorySessionService
@@ -279,16 +280,21 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       The text of the agent's final response, or ``None`` if the agent
       produced no final text response.
     """
-    # Check for your specific session ID
-    try:
-      # Attempt to get the specific session
-      await runner.session_service.get_session(session_id)
-    except Exception as e:
-      await runner.session_service.create_session(
-          app_name=app_name,
-          user_id=user_id,
-          session_id=session_id,
-      )
+    session = await runner.session_service.get_session(
+        app_name=app_name,
+        user_id=user_id,
+        session_id=session_id,
+    )
+    if session is None:
+      try:
+        await runner.session_service.create_session(
+            app_name=app_name,
+            user_id=user_id,
+            session_id=session_id,
+        )
+      except AlreadyExistsError:
+        # Another invocation in the same batch created this session first.
+        pass
 
     async for event in runner.run_async(
         user_id=user_id,
