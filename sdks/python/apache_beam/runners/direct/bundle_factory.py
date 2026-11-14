@@ -19,14 +19,20 @@
 
 # pytype: skip-file
 
+from typing import TYPE_CHECKING
 from typing import Iterable
 from typing import Iterator
+from typing import Optional
 from typing import Union
 from typing import cast
 
 from apache_beam import pvalue
 from apache_beam.runners import common
+from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.typehints.batch import BatchConverter
 
 
 class BundleFactory(object):
@@ -43,9 +49,10 @@ class BundleFactory(object):
     self._stacked = stacked
 
   def create_bundle(
-      self, output_pcollection: Union[pvalue.PBegin,
-                                      pvalue.PCollection]) -> '_Bundle':
-    return _Bundle(output_pcollection, self._stacked)
+      self,
+      output_pcollection: Union[pvalue.PBegin, pvalue.PCollection],
+      output_batch_converter: Optional['BatchConverter'] = None) -> '_Bundle':
+    return _Bundle(output_pcollection, self._stacked, output_batch_converter)
 
   def create_empty_committed_bundle(
       self, output_pcollection: Union[pvalue.PBegin,
@@ -120,12 +127,14 @@ class _Bundle(common.Receiver):
   def __init__(
       self,
       pcollection: Union[pvalue.PBegin, pvalue.PCollection],
-      stacked: bool = True) -> None:
+      stacked: bool = True,
+      output_batch_converter: Optional['BatchConverter'] = None) -> None:
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
     self._elements: list[Union[WindowedValue,
                                _Bundle._StackedWindowedValues]] = []
     self._stacked = stacked
+    self._output_batch_converter = output_batch_converter
     self._committed = False
     self._tag = None  # optional tag information for this bundle
 
@@ -205,6 +214,14 @@ class _Bundle(common.Receiver):
 
   def receive(self, element: WindowedValue) -> None:
     self.add(element)
+
+  def receive_batch(self, windowed_batch: WindowedBatch) -> None:
+    if self._output_batch_converter is None:
+      raise NotImplementedError(
+          'Cannot receive a batch without an output batch converter.')
+    for windowed_value in windowed_batch.as_windowed_values(
+        self._output_batch_converter.explode_batch):
+      self.add(windowed_value)
 
   def commit(self, synchronized_processing_time):
     """Commits this bundle.

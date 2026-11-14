@@ -834,6 +834,9 @@ class _TaggedReceivers(dict):
     def receive(self, element: WindowedValue) -> None:
       pass
 
+    def receive_batch(self, windowed_batch) -> None:
+      pass
+
   class _InMemoryReceiver(common.Receiver):
     """Buffers undeclared outputs to the given dictionary."""
     def __init__(self, target, tag):
@@ -870,20 +873,24 @@ class _ParDoEvaluator(_TransformEvaluator):
   def start_bundle(self):
     transform = self._applied_ptransform.transform
 
+    # TODO(aaltay): Consider storing the serialized form as an optimization.
+    dofn = (
+        pickler.roundtrip(transform.dofn)
+        if self._perform_dofn_pickle_test else transform.dofn)
+    output_batch_converter = getattr(dofn, 'output_batch_converter', None)
+
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
     for output_tag in self._applied_ptransform.outputs:
       output_pcollection = pvalue.PCollection(None, tag=output_tag)
       output_pcollection.producer = self._applied_ptransform
       self._tagged_receivers[output_tag] = (
-          self._evaluation_context.create_bundle(output_pcollection))
+          self._evaluation_context.create_bundle(
+              output_pcollection,
+              output_batch_converter=output_batch_converter))
       self._tagged_receivers[output_tag].tag = output_tag
 
     self._counter_factory = counters.CounterFactory()
 
-    # TODO(aaltay): Consider storing the serialized form as an optimization.
-    dofn = (
-        pickler.roundtrip(transform.dofn)
-        if self._perform_dofn_pickle_test else transform.dofn)
     # Buffer elements and invoke process_batch() for DoFns that only
     # implement process_batch() (e.g. _BeamRowsToArrowTable), since this
     # runner otherwise invokes process() once per element.
