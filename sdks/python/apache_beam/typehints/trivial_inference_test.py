@@ -509,11 +509,9 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(str, lambda r: r.name, [Person])
     self.assertReturnType(
-        typehints.Union[type(None), Address], lambda r: r.address,
-        [Person])
+        typehints.Union[type(None), Address], lambda r: r.address, [Person])
     self.assertReturnType(
-        typehints.Union[type(None), str], lambda r: r.address.city,
-        [Person])
+        typehints.Union[type(None), str], lambda r: r.address.city, [Person])
 
   def testDataclassOptionalNestedAttr(self):
     @dataclasses.dataclass
@@ -527,11 +525,25 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(str, lambda r: r.name, [DCPerson])
     self.assertReturnType(
-        typehints.Union[type(None), DCNested], lambda r: r.address,
-        [DCPerson])
+        typehints.Union[type(None), DCNested], lambda r: r.address, [DCPerson])
     self.assertReturnType(
-        typehints.Union[type(None), str], lambda r: r.address.city,
-        [DCPerson])
+        typehints.Union[type(None), str], lambda r: r.address.city, [DCPerson])
+
+  def testRowTypeAttrNormalizesFieldType(self):
+    row = row_type.RowTypeConstraint.from_fields([('a', int),
+                                                  ('b', typing.Optional[str])])
+    self.assertReturnType(
+        typehints.Union[type(None), str], lambda r: r.b, [row])
+
+  def testOptionalMethodAccess(self):
+    class Address(typing.NamedTuple):
+      city: str
+
+    class Person(typing.NamedTuple):
+      address: typing.Optional[Address]
+
+    self.assertReturnType(
+        typehints.Any, lambda r: r.address._asdict(), [Person])
 
   def testFString(self):
     self.assertReturnType(str, lambda x, y: f'{x}: {y:0.2}', [str, float])

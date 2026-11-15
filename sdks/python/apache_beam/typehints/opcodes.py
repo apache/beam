@@ -505,7 +505,7 @@ def _getattr(o, name):
     func = getattr(o, name)  # Python 3 has no unbound methods
     return Const(BoundMethod(func, o))
   elif isinstance(o, row_type.RowTypeConstraint):
-    return o.get_type_for(name)
+    return typehints.normalize(o.get_type_for(name))
   elif inspect.isclass(o):
     if match_is_named_tuple(o):
       field_type = o.__annotations__.get(name)
@@ -515,8 +515,9 @@ def _getattr(o, name):
         return typehints.normalize(field_type)
       except Exception:  # Inference should never fail.
         return Any
-    field = (o.__dataclass_fields__.get(name)
-             if dataclasses.is_dataclass(o) else None)
+    field = (
+        o.__dataclass_fields__.get(name)
+        if dataclasses.is_dataclass(o) else None)
     if field is not None:
       return resolve_dataclass_field_type(field.type)
     return Any
@@ -529,11 +530,11 @@ def _getattr(o, name):
       return Any
     has_none = type(None) in normalized.union_types
     resolved = [
-        _getattr(member, name)
-        for member in normalized.union_types
+        _getattr(member, name) for member in normalized.union_types
         if member is not type(None)
     ]
-    if not resolved or any(result is Any for result in resolved):
+    if not resolved or any(result is Any or isinstance(result, Const)
+                           for result in resolved):
       return Any
     members = _flatten_union_members(resolved)
     if has_none:
