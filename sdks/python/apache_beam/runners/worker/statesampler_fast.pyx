@@ -220,6 +220,9 @@ cdef class ScopedState(object):
     self.counter = counter
     self.metrics_container = metrics_container
 
+  cpdef set_metrics_container(self, metrics_container):
+    self.metrics_container = metrics_container
+
   @property
   def nsecs(self):
     cdef pythread.PyThread_type_lock lock = self.sampler.lock

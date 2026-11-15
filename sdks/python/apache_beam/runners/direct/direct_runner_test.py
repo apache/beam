@@ -39,6 +39,7 @@ from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
 from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
 from apache_beam.testing import test_pipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils import shared
@@ -165,6 +166,33 @@ class BundleBasedRunnerTest(unittest.TestCase):
   def test_impulse(self):
     with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
       assert_that(p | beam.Impulse(), equal_to([b'']))
+
+  def test_metrics_across_multiple_bundles(self):
+    class CountFn(beam.DoFn):
+      def __init__(self):
+        self.seen = Metrics.counter('ns', 'seen')
+        self.second_bundle = Metrics.counter('ns', 'second_bundle')
+
+      def process(self, element):
+        self.seen.inc()
+        if element == 'b2':
+          self.second_bundle.inc()
+        yield element
+
+    p = beam.Pipeline('BundleBasedDirectRunner')
+    _ = (
+        p
+        | TestStream().advance_watermark_to(0).add_elements(
+            ['b1']).advance_watermark_to(10).add_elements(
+                ['b2']).advance_watermark_to_infinity()
+        | beam.ParDo(CountFn()))
+    result = p.run()
+    result.wait_until_finish()
+    counters = {
+        m.key.metric.name: m.committed
+        for m in result.metrics().query()['counters']
+    }
+    self.assertEqual(counters, {'seen': 2, 'second_bundle': 1})
 
 
 class DirectRunnerRetryTests(unittest.TestCase):
