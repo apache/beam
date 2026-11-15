@@ -29,7 +29,7 @@ import setuptools
 from setuptools import find_packages
 
 REQUIREMENTS = [
-    "apache-beam[gcp]==2.41.0", "transformers==5.10.1", "torch==1.13.1"
+    "apache-beam[gcp]==2.41.0", "transformers==5.10.1", "torch==2.13.0"
 ]
 
 setuptools.setup(
