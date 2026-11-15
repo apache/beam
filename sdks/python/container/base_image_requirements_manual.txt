@@ -50,3 +50,6 @@ build>=1.0,<2 # tool to build sdist from setup.py in stager.
 # Dill 0.3.1.1 is included as a base manual requirement so is avaiable to users
 # with pickle_library=dill, but apache-beam does not have a hard dependency.
 dill>=0.3.1.1,<0.3.2
+# Enforce minimum floor for CVE-2026-128089 so container regeneration cannot
+# resolve an older vulnerable transitive dnspython version.
+dnspython>=2.9.2
