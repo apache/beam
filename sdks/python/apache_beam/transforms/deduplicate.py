@@ -23,6 +23,7 @@ import typing
 
 from apache_beam import typehints
 from apache_beam.coders.coders import BooleanCoder
+from apache_beam.metrics import Metrics
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import userstate
@@ -72,6 +73,12 @@ class DeduplicatePerKey(ptransform.PTransform):
     event_time_duration = self.event_time_duration
 
     class DeduplicationFn(core.DoFn):
+      def __init__(self):
+        self.kept_counter = Metrics.counter(
+            DeduplicatePerKey, 'deduplicate_kept')
+        self.dropped_counter = Metrics.counter(
+            DeduplicatePerKey, 'deduplicate_dropped')
+
       def process(
           self,
           kv,
@@ -80,6 +87,7 @@ class DeduplicatePerKey(ptransform.PTransform):
           processing_timer=core.DoFn.TimerParam(processing_timer_spec),
           event_timer=core.DoFn.TimerParam(event_timer_spec)):
         if True in seen_state.read():
+          self.dropped_counter.inc()
           return
 
         if processing_time_duration is not None:
@@ -88,6 +96,7 @@ class DeduplicatePerKey(ptransform.PTransform):
         if event_time_duration is not None:
           event_timer.set(ts + event_time_duration)
         seen_state.add(True)
+        self.kept_counter.inc()
         yield kv
 
       @userstate.on_timer(processing_timer_spec)

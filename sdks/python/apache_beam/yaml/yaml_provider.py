@@ -1274,6 +1274,83 @@ class YamlProviders:
     def expand(self, pcoll):
       return pcoll | beam.Reshuffle(num_buckets=self.num_buckets)
 
+  class Deduplicate(beam.PTransform):
+    """Drops records whose key fields have already been seen recently.
+
+    Only the first record with a given set of key field values is kept, and
+    any other record with the same values that arrives within `duration` of it
+    is dropped. Records in different windows are never considered duplicates
+    of each other. The output has the same schema and timestamps as the input.
+
+    For example::
+
+        type: Deduplicate
+        config:
+          keys: [tenant_id, event_id]
+          duration: 10m
+          time_domain: processing_time
+
+    The duration must be defined using a time unit suffix 'ms', 's', 'm', 'h'
+    or 'd' for milliseconds, seconds, minutes, hours or days, respectively.
+    If a time unit is not specified, it will default to 's'.
+
+    The number of kept and dropped records are reported in the
+    `deduplicate_kept` and `deduplicate_dropped` counters.
+
+    Args:
+      keys: The field(s) whose values identify duplicate records.
+      duration: How long a key is remembered after the first record with it.
+      time_domain: The time domain `duration` is measured in, either
+        `processing_time` (the default) or `event_time`.
+    """
+    def __init__(
+        self,
+        keys: Iterable[str],
+        duration: str,
+        time_domain: Optional[str] = 'processing_time'):
+      if isinstance(keys, str):
+        keys = [keys]
+      if not keys:
+        raise ValueError('Deduplicate requires at least one key field.')
+      self._keys = list(keys)
+      seconds = YamlProviders.WindowInto._parse_duration(duration, 'duration')
+      if seconds <= 0:
+        raise ValueError(
+            f'Deduplicate duration must be positive, got {duration!r}.')
+      if time_domain == 'processing_time':
+        self._durations = {'processing_time_duration': seconds}
+      elif time_domain == 'event_time':
+        self._durations = {'event_time_duration': seconds}
+      else:
+        raise ValueError(
+            f'Unknown time_domain {time_domain!r}, '
+            'must be one of processing_time or event_time.')
+
+    def expand(self, pcoll):
+      from apache_beam.transforms.deduplicate import DeduplicatePerKey
+      from apache_beam.typehints.row_type import RowTypeConstraint
+      from apache_beam.typehints.schemas import named_fields_from_element_type
+
+      input_types = dict(named_fields_from_element_type(pcoll.element_type))
+      unknown_keys = set(self._keys) - set(input_types)
+      if unknown_keys:
+        raise ValueError(f'Unknown key fields: {sorted(unknown_keys)}')
+      keys = self._keys
+      # Keying by a schema'd Row gives a deterministic key coder, which the
+      # stateful deduplication requires.
+      key_type = RowTypeConstraint.from_fields([(k, input_types[k])
+                                                for k in keys])
+
+      def key_by_fields(row):
+        return beam.Row(**{k: getattr(row, k) for k in keys}), row
+
+      return (
+          pcoll
+          | 'KeyByFields' >> beam.Map(key_by_fields).with_output_types(
+              tuple[key_type, pcoll.element_type])
+          | 'DeduplicatePerKey' >> DeduplicatePerKey(**self._durations)
+          | 'DropKeys' >> beam.Values().with_output_types(pcoll.element_type))
+
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
@@ -1284,6 +1361,7 @@ class YamlProviders:
         'Flatten': YamlProviders.Flatten,
         'WindowInto': YamlProviders.WindowInto,
         'Reshuffle': YamlProviders.Reshuffle,
+        'Deduplicate': YamlProviders.Deduplicate,
     },
                           no_input_transforms=('Create', ))
 
