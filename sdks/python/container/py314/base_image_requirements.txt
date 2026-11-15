@@ -48,7 +48,7 @@ deltalake==1.6.6
 Deprecated==3.0.1
 dill==0.3.1.1
 distro==1.9.0
-dnspython==2.9.1
+dnspython==2.9.2
 docker==7.2.0
 docstring_parser==0.18.0
 execnet==2.1.2
