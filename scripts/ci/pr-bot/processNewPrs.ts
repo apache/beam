@@ -28,6 +28,7 @@ const {
   PATH_TO_CONFIG_FILE,
   REVIEWERS_ACTION,
   AWAITING_TRIAGE_LABEL,
+  NO_MATCHING_LABEL,
 } = require("./shared/constants");
 import { CheckStatus } from "./shared/checks";
 
@@ -251,8 +252,8 @@ export async function processPull(
 
       // If the approver is a GitHub assigned reviewer but not in our label map,
       // we can try to guess a label from the PR to assign a committer to.
-      if (!labelOfReviewer) {
-        let isGithubReviewer = false;
+      if (!labelOfReviewer || labelOfReviewer === NO_MATCHING_LABEL) {
+        let isGithubReviewer = labelOfReviewer === NO_MATCHING_LABEL;
         if (
           pull.requested_reviewers &&
           pull.requested_reviewers.some((r: any) => r.login === approver)

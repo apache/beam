@@ -567,19 +567,27 @@ func registerDoFnTypes(doFn any) {
    registerMethodTypes(reflect.ValueOf(doFn).MethodByName("ProcessElement").Type())
 }
 
+// registerStructType registers t with the schema registry, and with the
+// runtime type registry when t has a type key. Unnamed types, such as anonymous
+// structs, have no type key, and graphx encodes them field by field instead.
+func registerStructType(t reflect.Type) {
+   if _, ok := runtime.TypeKey(t); ok {
+       runtime.RegisterType(t)
+   }
+   schema.RegisterType(t)
+}
+
 func registerMethodTypes(fn reflect.Type) {
    for i := 0; i < fn.NumIn(); i++ {
        in := reflectx.SkipPtr(fn.In(i))
        if in.Kind() == reflect.Struct {
-           runtime.RegisterType(in)
-           schema.RegisterType(in)
+           registerStructType(in)
        }
    }
    for i := 0; i < fn.NumOut(); i++ {
        out := reflectx.SkipPtr(fn.Out(i))
        if out.Kind() == reflect.Struct {
-           runtime.RegisterType(out)
-           schema.RegisterType(out)
+           registerStructType(out)
        }
    }
 }

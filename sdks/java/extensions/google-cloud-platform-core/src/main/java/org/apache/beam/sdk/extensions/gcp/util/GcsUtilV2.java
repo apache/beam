@@ -52,6 +52,7 @@ import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageChannelUtils;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.StorageRetryStrategy;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
@@ -108,6 +109,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
             + " into a static factory method may fix it.")
 class GcsUtilV2 {
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
+
+  /** Environment variable that selects the Google Cloud universe domain. */
+  @VisibleForTesting static final String UNIVERSE_DOMAIN_ENV_VAR = "GOOGLE_CLOUD_UNIVERSE_DOMAIN";
 
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
     @Override
@@ -208,6 +212,16 @@ class GcsUtilV2 {
     String endpoint = gcsOptions.getGcsEndpoint();
     if (endpoint != null) {
       storageOptionsBuilder.setHost(rootUrlOf(endpoint));
+    } else {
+      // java-storage only takes the universe domain from StorageOptions; unlike the Google API
+      // client used by GcsUtilV1, it ignores GOOGLE_CLOUD_UNIVERSE_DOMAIN and the credentials'
+      // universe domain. Set it explicitly so that non-default universes (e.g. Trusted Partner
+      // Cloud) resolve to their own storage endpoint instead of storage.googleapis.com.
+      @Nullable String universeDomain =
+          resolveUniverseDomain(System.getenv(UNIVERSE_DOMAIN_ENV_VAR), credentials);
+      if (universeDomain != null) {
+        storageOptionsBuilder.setUniverseDomain(universeDomain);
+      }
     }
 
     // Use the process-wide shared HTTP transport rather than letting each client create its own, so
@@ -216,6 +230,11 @@ class GcsUtilV2 {
         StorageOptions.getDefaultHttpTransportOptions().toBuilder()
             .setHttpTransportFactory(Transport::getTransport)
             .build());
+    // Use the uniform retry strategy so that unconditional deletes and overwrites (such as in
+    // rewriteOne, remove, and removeBucket) also retry transient 5xx/429/408 storage errors,
+    // matching GcsUtilV1's HttpRequestInitializer retry behavior.
+    storageOptionsBuilder.setStorageRetryStrategy(
+        StorageRetryStrategy.getUniformStorageRetryStrategy());
 
     storage = storageOptionsBuilder.build().getService();
     uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
@@ -407,6 +426,35 @@ class GcsUtilV2 {
     }
   }
 
+  /**
+   * Returns the non-default universe domain to use for the storage client, or null for the default
+   * universe ({@code googleapis.com}).
+   *
+   * <p>{@code envUniverseDomain} (the value of {@code GOOGLE_CLOUD_UNIVERSE_DOMAIN}) takes
+   * precedence; otherwise the credentials' universe domain is used. This matches how the Google API
+   * client libraries, and Beam's Python SDK, resolve the universe domain.
+   */
+  @VisibleForTesting
+  static @Nullable String resolveUniverseDomain(
+      @Nullable String envUniverseDomain, @Nullable Credentials credentials) {
+    String universeDomain = envUniverseDomain == null ? "" : envUniverseDomain.trim();
+    if (universeDomain.isEmpty() && credentials != null) {
+      try {
+        universeDomain = credentials.getUniverseDomain();
+      } catch (IOException e) {
+        LOG.warn(
+            "Unable to determine the universe domain of the credentials; using the default.", e);
+        return null;
+      }
+    }
+    if (universeDomain == null
+        || universeDomain.isEmpty()
+        || Credentials.GOOGLE_DEFAULT_UNIVERSE.equals(universeDomain)) {
+      return null;
+    }
+    return universeDomain;
+  }
+
   // AccessDeniedException/FileAlreadyExistsException permit a null "other" argument, and these
   // exceptions permit a null detail message, but the JDK constructor stubs are not annotated for
   // nullness.
@@ -492,21 +540,31 @@ class GcsUtilV2 {
       batch.submit();
 
       for (int i = 0; i < batchResultFutures.size(); i++) {
+        GcsPath path = pathPartition.get(i);
         StorageBatchResult<Blob> future = batchResultFutures.get(i);
         try {
-          Blob blob = future.get();
+          Blob blob;
+          try {
+            blob = future.get();
+          } catch (StorageException e) {
+            if (!e.isRetryable()) {
+              throw e;
+            }
+            // StorageBatch.submit() does not retry individual sub-requests inside a multipart
+            // batch when one fails with a transient 5xx/429 error; fall back to an individual
+            // get() so the client's retry strategy can retry it.
+            blob = storage().get(path.getBucket(), path.getObject(), options);
+          }
           if (blob != null) {
             results.add(BlobResult.create(blob));
           } else {
             results.add(
                 BlobResult.create(
                     new FileNotFoundException(
-                        String.format(
-                            "The specified file does not exist: %s",
-                            pathPartition.get(i).toString()))));
+                        String.format("The specified file does not exist: %s", path.toString()))));
           }
         } catch (StorageException e) {
-          results.add(BlobResult.create(translateStorageException(pathPartition.get(i), e)));
+          results.add(BlobResult.create(translateStorageException(path, e)));
         }
       }
     }
@@ -618,20 +676,31 @@ class GcsUtilV2 {
       batch.submit();
 
       for (int i = 0; i < batchResultFutures.size(); i++) {
+        GcsPath path = pathPartition.get(i);
         StorageBatchResult<Boolean> future = batchResultFutures.get(i);
         try {
-          Boolean deleted = future.get();
-          if (!deleted) {
+          Boolean deleted;
+          try {
+            deleted = future.get();
+          } catch (StorageException e) {
+            if (!e.isRetryable()) {
+              throw e;
+            }
+            // StorageBatch.submit() does not retry individual sub-requests inside a multipart
+            // batch when one fails with a transient 5xx/429 error; fall back to an individual
+            // delete() so the client's retry strategy can retry it.
+            deleted = storage().delete(BlobId.of(path.getBucket(), path.getObject()));
+          }
+          if (!Boolean.TRUE.equals(deleted)) {
             if (strategy == MissingStrategy.FAIL_IF_MISSING) {
               throw new FileNotFoundException(
-                  String.format(
-                      "The specified file does not exist: %s", pathPartition.get(i).toString()));
+                  String.format("The specified file does not exist: %s", path.toString()));
             } else {
-              LOG.warn("Ignoring failed deletion on file {}.", pathPartition.get(i).toString());
+              LOG.warn("Ignoring failed deletion on file {}.", path.toString());
             }
           }
         } catch (StorageException e) {
-          throw translateStorageException(pathPartition.get(i), e);
+          throw translateStorageException(path, e);
         }
       }
     }

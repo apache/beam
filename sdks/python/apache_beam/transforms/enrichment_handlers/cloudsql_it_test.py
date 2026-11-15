@@ -28,6 +28,7 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 from apache_beam.testing.test_utils import require_linux_docker
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -148,9 +149,8 @@ class SQLEnrichmentTestHelper:
             info.address)
         break
       except Exception as e:
-        stdout_logs, stderr_logs = sql_db_container.get_logs()
-        stdout_logs = stdout_logs.decode("utf-8")
-        stderr_logs = stderr_logs.decode("utf-8")
+        stdout_logs, stderr_logs = cleanup_testcontainer_on_retry(
+            sql_db_container)
         _LOGGER.warning(
             "Retry %d/%d: Failed to start %s container. Reason: %s. "
             "STDOUT logs:\n%s\nSTDERR logs:\n%s",
@@ -288,6 +288,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
   def _start_cache_container(self):
     for i in range(self._cache_client_retries):
+      self._cache_container = None
       try:
         self._cache_container = RedisContainer(image="redis:7.2.4")
         self._cache_container.start()
@@ -298,6 +299,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         self._cache_client = self._cache_container.get_client()
         break
       except Exception as e:
+        cleanup_testcontainer_on_retry(self._cache_container)
         if i == self._cache_client_retries - 1:
           _LOGGER.error(
               "Unable to start redis container for RRIO tests after "

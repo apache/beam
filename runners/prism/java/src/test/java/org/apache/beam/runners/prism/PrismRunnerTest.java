@@ -21,9 +21,19 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -36,11 +46,15 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -49,9 +63,103 @@ import org.junit.runners.JUnit4;
 public class PrismRunnerTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.fromOptions(options());
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   // See build.gradle for test task configuration.
   private static final String PRISM_BUILD_TARGET_PROPERTY_NAME = "prism.buildTarget";
+
+  @Test
+  public void startPrismRetriesAfterPortConflict() throws Exception {
+    Server otherService = ServerBuilder.forPort(0).build().start();
+    TestPrismPipelineOptions options = options();
+    options.setJobServerTimeout(5);
+    AtomicBoolean firstAttempt = new AtomicBoolean(true);
+    PrismRunner runner =
+        new PrismRunner(options) {
+          @Override
+          int findAvailablePort() throws IOException {
+            return firstAttempt.getAndSet(false)
+                ? otherService.getPort()
+                : super.findAvailablePort();
+          }
+        };
+    try {
+      PrismExecutor executor = runner.startPrism();
+      try {
+        assertThat(options.getJobEndpoint()).isNotEqualTo("localhost:" + otherService.getPort());
+        ManagedChannel channel =
+            ManagedChannelFactory.createDefault()
+                .forDescriptor(
+                    ApiServiceDescriptor.newBuilder().setUrl(options.getJobEndpoint()).build());
+        try {
+          JobServiceGrpc.newBlockingStub(channel)
+              .withDeadlineAfter(5, java.util.concurrent.TimeUnit.SECONDS)
+              .getJobs(GetJobsRequest.getDefaultInstance());
+        } finally {
+          channel.shutdownNow();
+        }
+      } finally {
+        executor.stop();
+      }
+    } finally {
+      otherService.shutdownNow();
+    }
+  }
+
+  @Test
+  public void startPrismRejectsLiveProcessWithoutJobService() throws Exception {
+    assumeTrue("requires a POSIX shell", Files.isExecutable(Path.of("/bin/sh")));
+    Path command = temporaryFolder.newFile("not-prism").toPath();
+    Path pids = Path.of(command + ".pids");
+    Files.write(
+        command,
+        Arrays.asList("#!/bin/sh", "echo $$ >> \"$0.pids\"", "exec sleep 30"),
+        StandardCharsets.UTF_8);
+    assertThat(command.toFile().setExecutable(true)).isTrue();
+    TestPrismPipelineOptions options = options();
+    options.setPrismLocation(command.toString());
+    options.setJobServerTimeout(1);
+    Server otherService = ServerBuilder.forPort(0).build().start();
+    AtomicBoolean firstAttempt = new AtomicBoolean(true);
+    PrismRunner runner =
+        new PrismRunner(options) {
+          @Override
+          int findAvailablePort() throws IOException {
+            return firstAttempt.getAndSet(false)
+                ? otherService.getPort()
+                : super.findAvailablePort();
+          }
+        };
+    try {
+      assertThrows(IOException.class, () -> runner.startPrism().stop());
+      if (Files.exists(pids)) {
+        for (String pid : Files.readAllLines(pids)) {
+          assertThat(
+                  ProcessHandle.of(Long.parseLong(pid)).map(ProcessHandle::isAlive).orElse(false))
+              .isFalse();
+        }
+      }
+    } finally {
+      otherService.shutdownNow();
+      if (Files.exists(pids)) {
+        for (String pid : Files.readAllLines(pids)) {
+          ProcessHandle.of(Long.parseLong(pid)).ifPresent(ProcessHandle::destroyForcibly);
+        }
+      }
+    }
+  }
+
+  @Test
+  public void startPrismPreservesInterruption() {
+    PrismRunner runner = new PrismRunner(options());
+    Thread.currentThread().interrupt();
+    try {
+      assertThrows(InterruptedIOException.class, runner::startPrism);
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 
   @Test
   public void givenJobEndpointSet_TestPrismRunner_validateThrows() {

@@ -425,3 +425,20 @@ func buildEnvironment(t *testing.T, containerImg string) *pipepb.Environment {
 	env.Payload = plb
 	return env
 }
+
+func TestComputeRootsDeterminism(t *testing.T) {
+	xforms := map[string]*pipepb.PTransform{
+		"e10": {UniqueName: "root10"},
+		"e2":  {UniqueName: "root2", Inputs: map[string]string{"i0": "p1"}},
+		"e1":  {UniqueName: "root1", Outputs: map[string]string{"i0": "p1"}},
+		"s1":  {UniqueName: "comp1", Subtransforms: []string{"e3"}},
+		"e3":  {UniqueName: "child3"},
+	}
+	want := []string{"s1", "e10", "e1", "e2"}
+	for i := 0; i < 20; i++ {
+		got := computeRoots(xforms)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("iteration %d: computeRoots(%v) = %v, want %v (-want +got):\n%s", i, xforms, got, want, diff)
+		}
+	}
+}

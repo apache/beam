@@ -25,6 +25,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.Streamingbuffer;
@@ -40,11 +43,15 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.beam.sdk.PipelineResult;
@@ -72,6 +79,7 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -81,6 +89,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -589,6 +598,176 @@ public class BigQueryIOReadTest implements Serializable {
                 new MyData("c", 3L, bd1, bd2)));
     PipelineResult result = p.run();
     checkLineageSourceMetric(result, "non-executing-project:somedataset.sometable");
+  }
+
+  private static final String REGIONAL_LOCATION = "us-east7";
+
+  /** A dataset service that reports every dataset in {@link #REGIONAL_LOCATION}. */
+  private static class RegionalDatasetService extends FakeDatasetService {
+    @Override
+    public Dataset getDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException {
+      return super.getDataset(projectId, datasetId).setLocation(REGIONAL_LOCATION);
+    }
+  }
+
+  /**
+   * A job service whose job lookups fail unless they specify the job's location ({@link
+   * #REGIONAL_LOCATION}), like BigQuery does for jobs in regional locations on some endpoints.
+   */
+  private static class LocationRequiredJobService extends FakeJobService {
+    @Override
+    public Job getJob(JobReference jobRef) {
+      if (!REGIONAL_LOCATION.equals(jobRef.getLocation())) {
+        throw new RuntimeException(
+            String.format(
+                "Expected location %s to look up %s, got %s",
+                REGIONAL_LOCATION, jobRef.getJobId(), jobRef.getLocation()));
+      }
+      return super.getJob(jobRef);
+    }
+  }
+
+  @Test
+  public void testExportReadCleanupWithRegionalDatasetWithoutTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testExportReadCleanupWithRegionalDataset(false);
+  }
+
+  @Test
+  public void testExportReadCleanupWithRegionalDatasetWithTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testExportReadCleanupWithRegionalDataset(true);
+  }
+
+  private void testExportReadCleanupWithRegionalDataset(boolean useTemplateCompatibility)
+      throws IOException, InterruptedException {
+    TableReference tableRef =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("regional_dataset")
+            .setTableId("sometable");
+    FakeDatasetService fakeDatasetService = new RegionalDatasetService();
+    fakeDatasetService.createDataset("project-id", "regional_dataset", REGIONAL_LOCATION, "", null);
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(tableRef)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING")))));
+    fakeDatasetService.insertAll(
+        tableRef,
+        ImmutableList.of(new TableRow().set("name", "a"), new TableRow().set("name", "b")),
+        null);
+
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new LocationRequiredJobService())
+            .withDatasetService(fakeDatasetService);
+    BigQueryIO.TypedRead<TableRow> read =
+        BigQueryIO.readTableRows()
+            .from(tableRef)
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (useTemplateCompatibility) {
+      read = read.withTemplateCompatibility();
+    }
+
+    PCollection<String> names =
+        p.apply(read)
+            .apply(
+                MapElements.into(TypeDescriptors.strings())
+                    .via((TableRow row) -> (String) row.get("name")));
+    PAssert.that(names).containsInAnyOrder("a", "b");
+    p.run().waitUntilFinish();
+
+    assertNoExtractFilesRemain();
+  }
+
+  @Test
+  public void testExportQueryReadCleanupWithInferredRegionalLocationWithoutTemplateCompatibility()
+      throws Exception {
+    testExportQueryReadCleanupWithInferredRegionalLocation(false);
+  }
+
+  @Test
+  public void testExportQueryReadCleanupWithInferredRegionalLocationWithTemplateCompatibility()
+      throws Exception {
+    testExportQueryReadCleanupWithInferredRegionalLocation(true);
+  }
+
+  private void testExportQueryReadCleanupWithInferredRegionalLocation(
+      boolean useTemplateCompatibility) throws Exception {
+    TableReference sourceTableRef =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("regional_dataset")
+            .setTableId("sometable");
+    FakeDatasetService fakeDatasetService = new RegionalDatasetService();
+    fakeDatasetService.createDataset("project-id", "regional_dataset", REGIONAL_LOCATION, "", null);
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTableRef));
+
+    Table queryResultTable =
+        new Table()
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"))));
+    String encodedQuery =
+        FakeBigQueryServices.encodeQueryResult(
+            queryResultTable,
+            ImmutableList.of(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+
+    // No withQueryLocation(): the location is inferred from the referenced table.
+    FakeJobService fakeJobService = new LocationRequiredJobService();
+    fakeJobService.expectDryRunQuery(
+        "project-id",
+        encodedQuery,
+        new JobStatistics()
+            .setQuery(
+                new JobStatistics2()
+                    .setTotalBytesProcessed(100L)
+                    .setReferencedTables(ImmutableList.of(sourceTableRef))));
+
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(fakeJobService)
+            .withDatasetService(fakeDatasetService);
+
+    BigQueryIO.TypedRead<TableRow> read =
+        BigQueryIO.readTableRows()
+            .fromQuery(encodedQuery)
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (useTemplateCompatibility) {
+      read = read.withTemplateCompatibility();
+    }
+
+    PCollection<String> names =
+        p.apply(read)
+            .apply(
+                MapElements.into(TypeDescriptors.strings())
+                    .via((TableRow row) -> (String) row.get("name")));
+    PAssert.that(names).containsInAnyOrder("a", "b");
+    p.run().waitUntilFinish();
+
+    assertNoExtractFilesRemain();
+  }
+
+  /** The export writes Avro files under the temp location; cleanup must have deleted them. */
+  private void assertNoExtractFilesRemain() throws IOException {
+    List<String> remainingExtractFiles;
+    try (Stream<Path> paths = Files.walk(testFolder.getRoot().toPath())) {
+      remainingExtractFiles =
+          paths
+              .map(Path::toString)
+              .filter(path -> path.endsWith(".avro"))
+              .collect(Collectors.toList());
+    }
+    assertEquals(ImmutableList.of(), remainingExtractFiles);
   }
 
   @Test

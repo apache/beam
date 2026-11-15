@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -221,6 +222,80 @@ public class GcsUtilV2Test {
     options.setGcsEndpoint("not a url");
 
     assertThrows(IllegalArgumentException.class, () -> new GcsUtilV2(options));
+  }
+
+  /** A test credential in the given universe domain. */
+  private static class UniverseCredential extends TestCredential {
+    private final String universeDomain;
+
+    UniverseCredential(String universeDomain) {
+      this.universeDomain = universeDomain;
+    }
+
+    @Override
+    public String getUniverseDomain() {
+      return universeDomain;
+    }
+  }
+
+  /** A test credential whose universe domain cannot be determined. */
+  private static class FailingUniverseCredential extends TestCredential {
+    @Override
+    public String getUniverseDomain() throws IOException {
+      throw new IOException("no universe domain");
+    }
+  }
+
+  @Test
+  public void testResolveUniverseDomainPrefersEnvVar() {
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain(
+            " apis-tpczero.goog ", new UniverseCredential("other.goog")));
+  }
+
+  @Test
+  public void testResolveUniverseDomainFallsBackToCredentials() {
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain(null, new UniverseCredential("apis-tpczero.goog")));
+    assertEquals(
+        "apis-tpczero.goog",
+        GcsUtilV2.resolveUniverseDomain("", new UniverseCredential("apis-tpczero.goog")));
+  }
+
+  @Test
+  public void testResolveUniverseDomainReturnsNullForDefaultUniverse() {
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, null));
+    assertNull(GcsUtilV2.resolveUniverseDomain(Credentials.GOOGLE_DEFAULT_UNIVERSE, null));
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, new TestCredential()));
+  }
+
+  @Test
+  public void testResolveUniverseDomainIgnoresCredentialErrors() {
+    assertNull(GcsUtilV2.resolveUniverseDomain(null, new FailingUniverseCredential()));
+  }
+
+  @Test
+  public void testCredentialsUniverseDomainIsUsedWithoutGcsEndpoint() {
+    // Skip if the environment variable is set, since it takes precedence over the credentials.
+    assumeTrue(System.getenv(GcsUtilV2.UNIVERSE_DOMAIN_ENV_VAR) == null);
+    GcsOptions options = gcsOptions();
+    options.setGcpCredential(new UniverseCredential("example.goog"));
+
+    StorageOptions storageOptions = storageOptionsOf(new GcsUtilV2(options));
+
+    assertEquals("example.goog", storageOptions.getUniverseDomain());
+    assertEquals("https://storage.example.goog/", storageOptions.getResolvedHost("storage"));
+  }
+
+  @Test
+  public void testGcsEndpointTakesPrecedenceOverUniverseDomain() {
+    GcsOptions options = gcsOptions();
+    options.setGcpCredential(new UniverseCredential("example.goog"));
+    options.setGcsEndpoint("https://storage.example.com/storage/v1/");
+
+    assertEquals("https://storage.example.com", storageOptionsOf(new GcsUtilV2(options)).getHost());
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -1024,9 +1099,16 @@ public class GcsUtilV2Test {
     StorageBatchResult<Blob> found = batchResult(mockBlob("testbucket", "found", 10L), null);
     StorageBatchResult<Blob> missing = batchResult(null, null);
     StorageBatchResult<Blob> forbidden = batchResult(null, new StorageException(403, "Forbidden"));
+    StorageBatchResult<Blob> transientError =
+        batchResult(null, new StorageException(503, "Service Unavailable"));
+    Blob recovered = mockBlob("testbucket", "transient", 20L);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("found"), any())).thenReturn(found);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("missing"), any())).thenReturn(missing);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("forbidden"), any())).thenReturn(forbidden);
+    when(batch.get(Mockito.eq("testbucket"), Mockito.eq("transient"), any()))
+        .thenReturn(transientError);
+    when(storage.get(Mockito.eq("testbucket"), Mockito.eq("transient"), any()))
+        .thenReturn(recovered);
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     List<StorageObjectOrIOException> results =
@@ -1034,15 +1116,19 @@ public class GcsUtilV2Test {
             ImmutableList.of(
                 GcsPath.fromComponents("testbucket", "found"),
                 GcsPath.fromComponents("testbucket", "missing"),
-                GcsPath.fromComponents("testbucket", "forbidden")));
+                GcsPath.fromComponents("testbucket", "forbidden"),
+                GcsPath.fromComponents("testbucket", "transient")));
 
-    assertEquals(3, results.size());
+    assertEquals(4, results.size());
     assertEquals("found", results.get(0).storageObject().getName());
     assertEquals(BigInteger.valueOf(10), results.get(0).storageObject().getSize());
     assertTrue(results.get(1).ioException() instanceof FileNotFoundException);
     assertTrue(results.get(2).ioException() instanceof AccessDeniedException);
+    assertEquals("transient", results.get(3).storageObject().getName());
+    assertEquals(BigInteger.valueOf(20), results.get(3).storageObject().getSize());
     verify(storage).batch();
     verify(batch).submit();
+    verify(storage).get(Mockito.eq("testbucket"), Mockito.eq("transient"), any());
   }
 
   /** A java-storage client whose batched deletes in "testbucket" report {@code results}. */
@@ -1099,6 +1185,19 @@ public class GcsUtilV2Test {
         () ->
             withForbidden.remove(
                 ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
+
+    GcsPath transientError = GcsPath.fromComponents("testbucket", "transient");
+    Storage retryStorage =
+        storageDeleting(
+            ImmutableMap.of(
+                "deleted",
+                batchResult(true, null),
+                "transient",
+                batchResult(null, new StorageException(503, "Service Unavailable"))));
+    when(retryStorage.delete(BlobId.of("testbucket", "transient"))).thenReturn(true);
+    gcsUtilWithV2Storage(retryStorage)
+        .remove(ImmutableList.of(deleted.toString(), transientError.toString()));
+    verify(retryStorage).delete(BlobId.of("testbucket", "transient"));
   }
 
   /**

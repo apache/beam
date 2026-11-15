@@ -27,6 +27,7 @@ import uuid
 import jsonpickle
 import numpy as np
 import pytest
+import requests
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -66,7 +67,37 @@ _HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+# all-mpnet-base-v2 is only served as sentence-similarity on hf-inference;
+# InferenceAPIEmbeddings calls /pipeline/feature-extraction.
+INFERENCE_API_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+INFERENCE_API_EMBEDDING_DIM = 384
+INFERENCE_API_URL = (
+    'https://router.huggingface.co/hf-inference/models/'
+    f'{INFERENCE_API_MODEL_NAME}/pipeline/feature-extraction')
 IMAGE_MODEL_NAME = "clip-ViT-B-32"
+
+
+def _hf_inference_api_available():
+  """Returns (ready, reason) for the optional live Inference API dependency."""
+  if not _HF_TOKEN:
+    return False, 'HF_INFERENCE_TOKEN environment variable not set.'
+  try:
+    response = requests.post(
+        INFERENCE_API_URL,
+        headers={'Authorization': f'Bearer {_HF_TOKEN}'},
+        json={'inputs': test_query},
+        timeout=60)
+    payload = response.json()
+  except Exception as exc:  # pylint: disable=broad-except
+    return False, 'HF Inference API unavailable: %s' % exc
+  if response.status_code >= 400:
+    return False, 'HF Inference API HTTP %s: %s' % (
+        response.status_code, payload)
+  if isinstance(payload, dict) and 'error' in payload:
+    return False, 'HF Inference API error: %s' % payload['error']
+  return True, ''
+
+
 _parameterized_inputs = [
     ([{
         test_query_column: 'That is a happy person'
@@ -472,7 +503,8 @@ class SentenceTransformerJobSubmissionTest(unittest.TestCase):
     self.assertEqual(model.model_name, DEFAULT_MODEL_NAME)
 
 
-@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
+@unittest.skipIf(
+    not _HF_TOKEN, 'HF_INFERENCE_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPITest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
@@ -490,12 +522,14 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
       _ = inference_embeddings.api_url
 
   def test_embeddings_with_inference_api(self):
+    ready, reason = _hf_inference_api_available()
+    if not ready:
+      self.skipTest(reason)
     embedding_config = InferenceAPIEmbeddings(
         hf_token=_HF_TOKEN,
-        model_name=DEFAULT_MODEL_NAME,
+        model_name=INFERENCE_API_MODEL_NAME,
         columns=[test_query_column],
     )
-    expected_output = [0.13]
     with beam.Pipeline() as p:
       result_pcoll = (
           p
@@ -503,14 +537,18 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   embedding_config))
-      max_ele_pcoll = (
-          result_pcoll
-          | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
 
-      assert_that(max_ele_pcoll, equal_to(expected_output))
+      def _embedding_shape(element):
+        emb = element[test_query_column]
+        return (len(emb), all(isinstance(x, (float, np.floating)) for x in emb))
+
+      assert_that(
+          result_pcoll | beam.Map(_embedding_shape),
+          equal_to([(INFERENCE_API_EMBEDDING_DIM, True)]))
 
 
-@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
+@unittest.skipIf(
+    not _HF_TOKEN, 'HF_INFERENCE_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
   def setUp(self):
     self.artifact_location = self.gcs_artifact_location = os.path.join(

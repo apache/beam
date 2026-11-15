@@ -25,11 +25,13 @@ import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlK
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -40,9 +42,16 @@ public class IcebergFilter implements BeamSqlTableFilter {
   private @Nullable List<RexNode> supported;
   private @Nullable List<RexNode> unsupported;
   private final List<RexNode> predicateCNF;
+  private final @Nullable ImmutableBitSet pushableColumns;
 
   public IcebergFilter(List<RexNode> predicateCNF) {
+    this(predicateCNF, null);
+  }
+
+  /** Leaves unsupported every predicate on a column outside {@code pushableColumns}, if set. */
+  IcebergFilter(List<RexNode> predicateCNF, @Nullable ImmutableBitSet pushableColumns) {
     this.predicateCNF = predicateCNF;
+    this.pushableColumns = pushableColumns;
   }
 
   private void maybeInitialize() {
@@ -60,7 +69,8 @@ public class IcebergFilter implements BeamSqlTableFilter {
                 + node.getType().getSqlTypeName());
       }
 
-      if (isSupported(node).getLeft()) {
+      if ((pushableColumns == null || pushableColumns.contains(RelOptUtil.InputFinder.bits(node)))
+          && isSupported(node).getLeft()) {
         supportedBuilder.add(node);
       } else {
         unsupportedBuilder.add(node);

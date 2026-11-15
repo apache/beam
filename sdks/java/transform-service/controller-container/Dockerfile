@@ -43,4 +43,12 @@ RUN if [ "${pull_licenses}" = "false" ] ; then \
     rm -rf /opt/apache/beam/third_party_licenses ; \
    fi
 
+# Remove distrusted eMudhra / emSign root CA certificates from the JDK truststore.
+RUN keytool -list -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit \
+      | grep -iE "emsign|emudhra" \
+      | awk -F', ' '{print $1}' \
+      | while IFS= read -r alias; do \
+          keytool -delete -noprompt -alias "${alias}" -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit; \
+        done
+
 ENTRYPOINT ["./boot", "-config_file", "./transform_service_config.yml"]

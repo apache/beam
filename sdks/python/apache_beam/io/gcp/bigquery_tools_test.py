@@ -948,6 +948,7 @@ class TestAvroRowWriter(unittest.TestCase):
       with mock.patch.object(buf, 'close') as mock_close:
         writer = AvroRowWriter(buf, schema)
         writer.write({'stamp': stamp, 'number': float('NaN')})
+        self.assertGreater(writer.tell(), buf.tell())
         writer.close()
 
         mock_close.assert_called_once()
@@ -1655,13 +1656,14 @@ class TestBigQueryWrapperQuotaProject(unittest.TestCase):
   def test_from_pipeline_options_reads_quota_from_options(
       self, mock_gcp_client, mock_bq_client):
     """Test from_pipeline_options reads quota_project_id from
-    GoogleCloudOptions."""
+    BigQueryOptions."""
     from apache_beam.options.pipeline_options import PipelineOptions
 
     mock_bq_client.return_value = mock.Mock()
     mock_gcp_client.return_value = mock.Mock()
 
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     wrapper = BigQueryWrapper.from_pipeline_options(options)
 
     self.assertEqual(wrapper.quota_project_id, 'my-billing-project')

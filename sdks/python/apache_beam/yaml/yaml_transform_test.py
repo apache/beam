@@ -1247,6 +1247,35 @@ class YamlWindowingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
 
+  def test_parse_duration(self):
+    parse = yaml_provider.YamlProviders.WindowInto._parse_duration
+    self.assertEqual(parse('500ms', 'size'), 0.5)
+    self.assertEqual(parse('10', 'size'), 10)
+    self.assertEqual(parse('10s', 'size'), 10)
+    self.assertEqual(parse('2m', 'size'), 120)
+    self.assertEqual(parse('1h', 'size'), 3600)
+    self.assertEqual(parse('1d', 'size'), 86400)
+    self.assertEqual(parse('2d', 'size'), 172800)
+
+  def test_windowing_days(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 50000, 90000]
+            - type: WindowInto
+              windowing:
+                type: fixed
+                size: 1d
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([50000, 90000]))
+
   def test_assign_timestamps(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

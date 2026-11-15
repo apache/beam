@@ -71,6 +71,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `pubsub`
     *   `kafka`
     *   `parquet`
+    *   `avro`
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
@@ -597,6 +598,59 @@ CREATE EXTERNAL TABLE daily_orders (
 )
 TYPE parquet
 LOCATION '/gcs/my-data/orders/2025-07-14/*';
+```
+
+---
+
+## Avro
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE avro
+LOCATION '/path/to/file.avro'
+[TBLPROPERTIES '{"writeWindowSizeSeconds": 60}']
+```
+
+*   `LOCATION`: For Read Mode, the Avro file or file pattern to read, for example
+    `'gs://my-bucket/people/*.avro'`. For Write Mode, the file to write, or the
+    filename prefix when writing windowed files (see Write Mode).
+*   `TBLPROPERTIES`:
+    *   `writeWindowSizeSeconds`: Optional. The size, in seconds, of the fixed
+        windows used for windowed writes. Setting it turns on windowed writes
+        for bounded input too. For unbounded input, the default is 60 seconds.
+
+### Read Mode
+
+Read Mode reads every Avro file that matches `LOCATION`.
+
+### Write Mode
+
+For bounded input, Write Mode writes a single file at `LOCATION`.
+
+For unbounded input, or when `writeWindowSizeSeconds` is set, Write Mode
+assigns rows to fixed windows and writes one file per window, using `LOCATION`
+as the filename prefix. To read those files back, use a pattern such as
+`'/path/to/prefix*'` as the `LOCATION` of the table you read from.
+
+### Schema
+
+Beam SQL converts the table schema to an Avro record schema. It writes files
+with that schema, and reads files with it as the reader schema, so files
+written by other tools can be read as long as their schema is compatible
+under Avro's schema resolution rules, which match fields by name.
+
+### Example
+
+```
+CREATE EXTERNAL TABLE person_info (
+  name VARCHAR,
+  age BIGINT,
+  country VARCHAR
+)
+TYPE avro
+LOCATION '/tmp/person-info.avro';
 ```
 
 ---

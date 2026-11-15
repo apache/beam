@@ -1936,6 +1936,12 @@ public class BigQueryIO {
                       .setJobId(
                           BigQueryResourceNaming.createJobIdPrefix(
                               bqOptions.getJobName(), jobUuid, JobType.EXPORT));
+              // Job lookups must specify the location for regional locations; without it the
+              // job isn't found, or some endpoints reject the request.
+              String location = getExtractJobLocation(bqOptions);
+              if (location != null) {
+                jobRef.setLocation(location);
+              }
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1947,6 +1953,28 @@ public class BigQueryIO {
                       extractFiles, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
               }
+            }
+
+            /**
+             * Returns the location the extract job ran in, which job lookups must specify for
+             * regional locations: the source table's dataset location for table reads, or the query
+             * location for query reads, resolved as {@link BigQueryQueryHelper#executeQuery} does
+             * (explicit location, or inferred from the referenced tables).
+             */
+            private @Nullable String getExtractJobLocation(BigQueryOptions bqOptions)
+                throws Exception {
+              if (sourceDef instanceof BigQueryTableSourceDef) {
+                TableReference tableRef =
+                    ((BigQueryTableSourceDef) sourceDef).getTableReference(bqOptions);
+                try (DatasetService datasetService =
+                    getBigQueryServices().getDatasetService(bqOptions)) {
+                  return BigQueryHelpers.getDatasetLocation(
+                      datasetService, tableRef.getProjectId(), tableRef.getDatasetId());
+                }
+              } else if (sourceDef instanceof BigQueryQuerySourceDef) {
+                return ((BigQueryQuerySourceDef) sourceDef).getQueryLocation(bqOptions);
+              }
+              return null;
             }
           };
 
@@ -2775,7 +2803,6 @@ public class BigQueryIO {
         .setAutoSchemaUpdate(false)
         .setAutoSchemaUpdateStrictTimeout(null)
         .setDeterministicRecordIdFn(null)
-        .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
         .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
         .setDirectWriteProtos(true)
@@ -3038,7 +3065,7 @@ public class BigQueryIO {
 
     abstract boolean getIgnoreInsertIds();
 
-    abstract int getMaxRetryJobs();
+    abstract @Nullable Integer getMaxRetryJobs();
 
     abstract @Nullable String getKmsKey();
 
@@ -3172,7 +3199,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setAutoSharding(boolean autoSharding);
 
-      abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
+      abstract Builder<T> setMaxRetryJobs(@Nullable Integer maxRetryJobs);
 
       abstract Builder<T> setPropagateSuccessful(boolean propagateSuccessful);
 
@@ -3825,7 +3852,17 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
-    /** If set, this will set the max number of retry of batch load jobs. */
+    /**
+     * Sets the maximum number of times a failed BigQuery load or copy job is retried before the
+     * write fails.
+     *
+     * <p>Only applies when the write method is {@link Method#FILE_LOADS}. The streaming insert and
+     * Storage Write API methods retry at the row level and ignore this setting.
+     *
+     * <p>If this is not called, a bounded (batch) pipeline retries 3 times and an unbounded
+     * (streaming) pipeline retries 1000 times. Streaming defaults higher because failing a bundle
+     * in streaming is far more expensive than retrying the load job.
+     */
     public Write<T> withMaxRetryJobs(int maxRetryJobs) {
       return toBuilder().setMaxRetryJobs(maxRetryJobs).build();
     }
@@ -4549,10 +4586,15 @@ public class BigQueryIO {
         batchLoads.setMaxFilesPerPartition(getMaxFilesPerPartition());
         batchLoads.setMaxBytesPerPartition(getMaxBytesPerPartition());
 
-        // When running in streaming (unbounded mode) we want to retry failed load jobs
-        // indefinitely. Failing the bundle is expensive, so we set a fairly high limit on retries.
-        if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
-          batchLoads.setMaxRetryJobs(getMaxRetryJobs());
+        // an explicit withMaxRetryJobs applies to batch and streaming alike. left unset, streaming
+        // retries a failed load job far more often than batch does: failing the bundle in streaming
+        // is expensive, so we would rather keep retrying the job than hand the work back to the
+        // runner. batch leaves BatchLoads on its own lower default
+        Integer maxRetryJobs = getMaxRetryJobs();
+        if (maxRetryJobs != null) {
+          batchLoads.setMaxRetryJobs(maxRetryJobs);
+        } else if (IsBounded.UNBOUNDED.equals(input.isBounded())) {
+          batchLoads.setMaxRetryJobs(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED);
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
         if (getAutoSharding()) {

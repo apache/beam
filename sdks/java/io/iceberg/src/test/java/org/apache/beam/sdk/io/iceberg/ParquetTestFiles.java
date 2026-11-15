@@ -144,8 +144,16 @@ final class ParquetTestFiles {
       group.add(column, (Boolean) value);
     } else if (value instanceof String) {
       group.add(column, (String) value);
+    } else if (value instanceof Float) {
+      group.add(column, (Float) value);
+    } else if (value instanceof Double) {
+      group.add(column, (Double) value);
     } else if (value instanceof NanoTime) {
       group.add(column, (NanoTime) value);
+    } else if (value != null) {
+      // a silently skipped value leaves the column null, so the test asserts on nothing
+      throw new IllegalArgumentException(
+          "no writer for " + value.getClass().getName() + " in column " + column);
     }
   }
 

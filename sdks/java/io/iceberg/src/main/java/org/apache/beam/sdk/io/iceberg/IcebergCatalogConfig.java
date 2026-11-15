@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collection;
@@ -46,6 +49,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -163,8 +167,22 @@ public abstract class IcebergCatalogConfig implements Serializable {
       Schema tableSchema,
       @Nullable List<String> partitionFields,
       @Nullable Map<String, String> properties) {
+    createTable(tableIdentifier, tableSchema, partitionFields, properties, null);
+  }
+
+  /**
+   * Like {@link #createTable(String, Schema, List, Map)}, also setting the table's identifier
+   * (primary key) fields, which must be non-nullable columns.
+   */
+  public void createTable(
+      String tableIdentifier,
+      Schema tableSchema,
+      @Nullable List<String> partitionFields,
+      @Nullable Map<String, String> properties,
+      @Nullable List<String> identifierFields) {
     TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
-    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
+    org.apache.iceberg.Schema icebergSchema =
+        withIdentifierFields(IcebergUtils.beamSchemaToIcebergSchema(tableSchema), identifierFields);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
       LOG.info(
@@ -183,6 +201,19 @@ public abstract class IcebergCatalogConfig implements Serializable {
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
     }
+  }
+
+  private static org.apache.iceberg.Schema withIdentifierFields(
+      org.apache.iceberg.Schema schema, @Nullable List<String> identifierFields) {
+    if (identifierFields == null || identifierFields.isEmpty()) {
+      return schema;
+    }
+    Set<Integer> identifierFieldIds =
+        identifierFields.stream()
+            .map(name -> checkArgumentNotNull(schema.findField(name), "Unknown column '%s'", name))
+            .map(Types.NestedField::fieldId)
+            .collect(Collectors.toSet());
+    return new org.apache.iceberg.Schema(schema.columns(), identifierFieldIds);
   }
 
   public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
@@ -215,6 +246,14 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
     public Map<String, String> getProperties() {
       return table.properties();
+    }
+
+    /** The table's identifier (primary key) fields. */
+    public List<String> getIdentifierFields() {
+      org.apache.iceberg.Schema schema = table.schema();
+      return schema.identifierFieldIds().stream()
+          .map(id -> checkStateNotNull(schema.findColumnName(id)))
+          .collect(Collectors.toList());
     }
 
     public void updateTableProps(Map<String, String> setProps, List<String> resetProps) {
@@ -261,6 +300,10 @@ public abstract class IcebergCatalogConfig implements Serializable {
       columnsToDrop.forEach(update::deleteColumn);
 
       update.commit();
+    }
+
+    public void updateIdentifierFields(List<String> identifierFields) {
+      table.updateSchema().setIdentifierFields(identifierFields).commit();
     }
 
     public void updatePartitionSpec(

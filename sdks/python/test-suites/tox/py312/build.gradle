@@ -30,9 +30,5 @@ pythonVersion = '3.12'
 
 project.tasks.register("postCommitPyDep") {}
 
-toxTask "testPy312tensorflow-216", "py312-tensorflow-216", "${posargs}"
-test.dependsOn "testPy312tensorflow-216"
-postCommitPyDep.dependsOn "testPy312tensorflow-216"
-
 apply from: "../common.gradle"
 

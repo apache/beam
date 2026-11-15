@@ -150,6 +150,51 @@
   identifier: beam:schematransform:org.apache.beam:mongodb_write:v1
   name: MongodbWrite
 - default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: The number of events to batch together for each write.
+    name: batch_count
+    nullable: true
+    type: int32
+  - description: Whether to disable SSL certificate validation, e.g. for self-signed
+      certificates.
+    name: disable_certificate_validation
+    nullable: true
+    type: boolean
+  - description: Whether to log the result of each batch write.
+    name: enable_batch_logs
+    nullable: true
+    type: boolean
+  - description: Whether requests sent to the HEC endpoint should be GZIP encoded.
+      Defaults to true.
+    name: enable_gzip_http_compression
+    nullable: true
+    type: boolean
+  - description: Specifies how to handle errors.
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: The number of parallel requests to the HEC endpoint.
+    name: parallelism
+    nullable: true
+    type: int32
+  - description: Path to a root CA certificate used to validate the HEC endpoint.
+    name: root_ca_certificate_path
+    nullable: true
+    type: str
+  - description: The Splunk HEC authentication token.
+    name: token
+    nullable: false
+    type: str
+  - description: The Splunk HEC endpoint URL, e.g. https://splunk-host:8088.
+    name: url
+    nullable: false
+    type: str
+  identifier: beam:schematransform:org.apache.beam:splunk_write:v1
+  name: SplunkWrite
+- default_service: sdks:java:io:expansion-service:shadowJar
   description: Reads records from an Amazon Kinesis stream and outputs Beam Rows
     with `data` (bytes) plus stream metadata fields.
   destinations:

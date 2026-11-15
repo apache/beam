@@ -19,9 +19,12 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,5 +48,29 @@ public class DetectNewPartitionsRangeTrackerTest {
     assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(11L)));
     assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(19L)));
     assertFalse(tracker.tryClaim(Timestamp.ofTimeMicroseconds(20L)));
+  }
+
+  @Test
+  public void testTrySplitRefusesDynamicSplit() {
+    assertNull(tracker.trySplit(0.5));
+    assertEquals(range, tracker.currentRestriction());
+
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(12L)));
+    assertNull(tracker.trySplit(0.5));
+    assertEquals(range, tracker.currentRestriction());
+  }
+
+  @Test
+  public void testTrySplitAllowsCheckpoint() {
+    assertTrue(tracker.tryClaim(Timestamp.ofTimeMicroseconds(12L)));
+    SplitResult<TimestampRange> split = tracker.trySplit(0.0);
+    assertNotNull(split);
+    Timestamp expectedSplitPos = TimestampUtils.next(Timestamp.ofTimeMicroseconds(12L));
+    assertEquals(
+        TimestampRange.of(Timestamp.ofTimeMicroseconds(10L), expectedSplitPos), split.getPrimary());
+    assertEquals(
+        TimestampRange.of(expectedSplitPos, Timestamp.ofTimeMicroseconds(20L)),
+        split.getResidual());
+    assertEquals(split.getPrimary(), tracker.currentRestriction());
   }
 }

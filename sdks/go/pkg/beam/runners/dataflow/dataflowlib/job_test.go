@@ -290,6 +290,7 @@ func TestTranslate(t *testing.T) {
 	opts := &JobOptions{
 		Project:                        "test-project",
 		Name:                           "test-job",
+		DataflowServiceOptions:         []string{"enable_prime", "enable_google_cloud_profiler"},
 		DiskProvisionedIops:            4000,
 		DiskProvisionedThroughputMibps: 200,
 		WorkerHash:                     "worker-sha256-hash",
@@ -312,6 +313,28 @@ func TestTranslate(t *testing.T) {
 	}
 	if wp.DiskProvisionedThroughputMibps != 200 {
 		t.Errorf("DiskProvisionedThroughputMibps = %v, want 200", wp.DiskProvisionedThroughputMibps)
+	}
+
+	var recoveredOptions struct {
+		Options dataflowOptions `json:"options"`
+	}
+	if err := json.Unmarshal(job.Environment.SdkPipelineOptions, &recoveredOptions); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+	if recoveredOptions.Options.Project != "test-project" {
+		t.Errorf("Options.Project = %q, want %q", recoveredOptions.Options.Project, "test-project")
+	}
+	if recoveredOptions.Options.JobName != "test-job" {
+		t.Errorf("Options.JobName = %q, want %q", recoveredOptions.Options.JobName, "test-job")
+	}
+	if diff := cmp.Diff([]string{"enable_prime", "enable_google_cloud_profiler"}, recoveredOptions.Options.DataflowServiceOptions); diff != "" {
+		t.Errorf("Options.DataflowServiceOptions diff (-want +got):\n%s", diff)
+	}
+	if recoveredOptions.Options.DiskProvisionedIops != 4000 {
+		t.Errorf("Options.DiskProvisionedIops = %v, want 4000", recoveredOptions.Options.DiskProvisionedIops)
+	}
+	if recoveredOptions.Options.DiskProvisionedThroughputMibps != 200 {
+		t.Errorf("Options.DiskProvisionedThroughputMibps = %v, want 200", recoveredOptions.Options.DiskProvisionedThroughputMibps)
 	}
 
 	// Verify worker package has Sha256
@@ -373,5 +396,40 @@ func TestTranslateWithPipelineHash(t *testing.T) {
 
 	if recoveredOptions.Options.PipelineProtoHash != expectedHashStr {
 		t.Errorf("Expected PipelineProtoHash %v, got %v", expectedHashStr, recoveredOptions.Options.PipelineProtoHash)
+	}
+}
+
+func TestTranslateStreamingWorkerHarnessThreads(t *testing.T) {
+	ctx := context.Background()
+	p := &pipepb.Pipeline{}
+	opts := &JobOptions{
+		Project:              "test-project",
+		Name:                 "test-streaming-job",
+		Region:               "us-central1",
+		Streaming:            true,
+		WorkerHarnessThreads: 16,
+	}
+
+	job, err := Translate(ctx, p, opts, "gs://bucket/worker", "gs://bucket/model", "hash-123")
+	if err != nil {
+		t.Fatalf("Translate(...) error = %v, want nil", err)
+	}
+
+	if got := job.Environment.WorkerPools[0].NumThreadsPerWorker; got != 16 {
+		t.Errorf("WorkerPools[0].NumThreadsPerWorker = %d, want 16", got)
+	}
+
+	var parsed struct {
+		Options map[string]any `json:"options"`
+	}
+	if err := json.Unmarshal(job.Environment.SdkPipelineOptions, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+
+	if got, ok := parsed.Options["streaming"].(bool); !ok || !got {
+		t.Errorf("SdkPipelineOptions.options[streaming] = %v, want true", parsed.Options["streaming"])
+	}
+	if got, ok := parsed.Options["numberOfWorkerHarnessThreads"].(float64); !ok || int64(got) != 16 {
+		t.Errorf("SdkPipelineOptions.options[numberOfWorkerHarnessThreads] = %v, want 16", parsed.Options["numberOfWorkerHarnessThreads"])
 	}
 }

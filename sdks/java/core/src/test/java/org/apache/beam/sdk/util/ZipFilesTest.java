@@ -197,7 +197,7 @@ public class ZipFilesTest {
     assertFalse(invalidDirectory.exists());
     try {
       ZipFiles.unzipFile(zipFile, invalidDirectory);
-      fail("We expect the IllegalArgumentException, but it never occured");
+      fail("We expect the IllegalArgumentException, but it never occurred");
     } catch (IllegalArgumentException e) {
       // This is the expected exception - we passed the test.
     }

@@ -89,7 +89,7 @@ Some common errors can occur during worker start-up and prevent jobs from starti
 </tr>
 <tr>
   <td>3.10</td>
-  <td>&ge; 2.43.0</td>
+  <td>2.43.0 - 2.77.0</td>
 </tr>
 <tr>
   <td>3.9</td>

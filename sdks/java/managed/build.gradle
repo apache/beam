@@ -31,8 +31,11 @@ dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
+    // Core's YamlUtils needs snakeyaml at runtime, which is used here and in managed IOs
+    // downstream.
+    implementation library.java.snake_yaml
+    permitUnusedDeclared library.java.snake_yaml
 
     testImplementation library.java.junit
-    testRuntimeOnly "org.yaml:snakeyaml:2.0"
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

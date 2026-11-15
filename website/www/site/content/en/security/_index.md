@@ -85,8 +85,7 @@ that vulnerabilities should not be publicly disclosed until the project has
 responded.
 
 Before reporting a possible security vulnerability, please review this page to check if the vulnerability pattern is explicitly out of scope or should be routed to the runner provider. To report a possible security vulnerability, please email
-`security@apache.org` and `pmc@beam.apache.org`. This is a non-public list
-that will reach the Beam PMC.
+`security@apache.org`. This is a non-public list that will reach the Beam PMC.
 
 ## Known Security Issues
 

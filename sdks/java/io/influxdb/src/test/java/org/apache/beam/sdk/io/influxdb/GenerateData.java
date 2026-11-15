@@ -23,8 +23,12 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 class GenerateData {
@@ -32,6 +36,10 @@ class GenerateData {
   private static Random random = new Random();
 
   static List<String> getMetric(String metric, int number) {
+    return getMetric(metric, number, new HashSet<>());
+  }
+
+  private static List<String> getMetric(String metric, int number, Set<Long> timestamps) {
     List<String> element = new ArrayList<>();
     for (int i = 0; i < number; i++) {
       Model m = new Model();
@@ -47,7 +55,11 @@ class GenerateData {
                   random.nextInt(60),
                   random.nextInt(999999999 + 1)));
       ZonedDateTime zdt = time.atZone(ZoneOffset.UTC);
-      m.setTime(zdt.toInstant().toEpochMilli());
+      long timestamp = zdt.toInstant().toEpochMilli();
+      while (!timestamps.add(timestamp)) {
+        timestamp++;
+      }
+      m.setTime(timestamp);
       m.setTimeUnit(TimeUnit.MILLISECONDS);
       element.add(m.getLineProtocol());
     }
@@ -56,25 +68,10 @@ class GenerateData {
 
   static List<String> getMultipleMetric(List<String> metrics, int number) {
     List<String> element = new ArrayList<>();
+    Map<String, Set<Long>> timestamps = new HashMap<>();
     for (String metric : metrics) {
-      for (int i = 0; i < number; i++) {
-        Model m = new Model();
-        m.setMeasurement(metric);
-        m.addField("field1", random.nextInt(100));
-        m.addField("field2", random.nextInt(100));
-        LocalDateTime time =
-            LocalDateTime.of(
-                LocalDate.now(ZoneOffset.UTC),
-                LocalTime.of(
-                    random.nextInt(24),
-                    random.nextInt(60),
-                    random.nextInt(60),
-                    random.nextInt(999999999 + 1)));
-        ZonedDateTime zdt = time.atZone(ZoneOffset.UTC);
-        m.setTime(zdt.toInstant().toEpochMilli());
-        m.setTimeUnit(TimeUnit.MILLISECONDS);
-        element.add(m.getLineProtocol());
-      }
+      Set<Long> metricTimestamps = timestamps.computeIfAbsent(metric, unused -> new HashSet<>());
+      element.addAll(getMetric(metric, number, metricTimestamps));
     }
     return element;
   }

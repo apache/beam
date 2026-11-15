@@ -119,7 +119,19 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner.fromOptions(options);
     assertEquals("gs://test/test-job-1/output/results", options.getTempLocation());
     assertEquals("gs://test/test-job-1/output/results", options.getGcpTempLocation());
-    assertEquals("gs://test/staging/", options.getStagingLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsScopesUnversionedTempRootStagingLocationByDate() {
+    options.setJobName("test-job-unversioned-staging");
+    options.setStagingLocation("gs://test/staging");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals(
+        "gs://test/test-job-unversioned-staging/output/results", options.getTempLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
   }
 
   @Test
@@ -448,6 +460,49 @@ public class TestDataflowRunnerTest {
 
     expectedException.expect(RuntimeException.class);
     runner.run(pipeline, mockRunner);
+  }
+
+  /**
+   * Unlike batch jobs (which wait for a terminal job state and ignore {@link
+   * TestDataflowRunner.ErrorMonitorMessagesHandler#hasSeenError()}), streaming jobs poll {@code
+   * hasSeenError()} via {@link TestDataflowRunner.CancelOnError} to cancel and fail on the first
+   * {@code JOB_MESSAGE_ERROR}. Transient service errors that state {@code "The service will retry"}
+   * must not trigger early cancellation or fail a streaming job that ultimately succeeds.
+   */
+  @Test
+  public void testRunStreamingJobThatSucceedsDespiteRetriableServiceError() throws Exception {
+    options.setStreaming(true);
+    Pipeline pipeline = TestPipeline.create(options);
+    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3));
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.DONE);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              JobMessage message = new JobMessage();
+              message.setMessageText(
+                  "Startup of the worker pool in us-central1-c failed to bring up any of the"
+                      + " desired 1 workers. This is likely a quota issue or a Compute Engine"
+                      + " stockout. The service will retry.");
+              message.setTime(TimeUtil.toCloudTime(Instant.now()));
+              message.setMessageImportance("JOB_MESSAGE_ERROR");
+              ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+              return State.DONE;
+            });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    when(mockClient.getJobMetrics(anyString()))
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+
+    assertEquals(mockJob, runner.run(pipeline, mockRunner));
+    verify(mockJob, never()).cancel();
   }
 
   @Test
