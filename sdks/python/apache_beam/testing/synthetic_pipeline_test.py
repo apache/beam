@@ -270,6 +270,46 @@ class SyntheticPipelineTest(unittest.TestCase):
   def test_pipeline_merge_side_input(self):
     self.run_pipeline('merge-side-input')
 
+  def test_invalid_parameter_error_messages(self):
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.get_generator(algorithm='invalid_algo')
+    self.assertEqual(
+        str(cm.exception),
+        'Unknown algorithm invalid_algo. Supported algorithms are '
+        '"builtin" or "lcg".')
+
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticStep(per_element_delay_sec=1e-4)
+    self.assertEqual(
+        str(cm.exception),
+        'Per element sleep time must be at least 1e-3. Received: 0.0001')
+
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticSource(input_spec(10, 1, 1, 'uniform', 0))
+    self.assertIn('Received: uniform', str(cm.exception))
+
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticSource(input_spec(10, 1, 1, 'zipf', 0.5))
+    self.assertIn('Received 0.5.', str(cm.exception))
+
+    spec_bad_delay_type = input_spec(10, 1, 1)
+    spec_bad_delay_type['delayDistribution'] = {'type': 'exp', 'const': 1}
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticSource(spec_bad_delay_type)
+    self.assertIn('Received exp.', str(cm.exception))
+
+    spec_small_delay = input_spec(10, 1, 1)
+    spec_small_delay['delayDistribution'] = {'type': 'const', 'const': 0.1}
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticSource(spec_small_delay)
+    self.assertIn('Received: 0.0001', str(cm.exception))
+
+    with self.assertRaises(ValueError) as cm:
+      synthetic_pipeline.SyntheticSource(
+          input_spec(10, 1, 1, algorithm='unknown'))
+    self.assertIn(
+        'Unknown algorithm for input_spec: unknown.', str(cm.exception))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

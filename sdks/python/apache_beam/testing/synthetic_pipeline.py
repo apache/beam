@@ -90,7 +90,7 @@ def get_generator(seed: Optional[int] = None, algorithm: Optional[str] = None):
     return generator
   else:
     raise ValueError(
-        'Unknown algorithm %s. Supported algorithms are "builtin" or "lcg".',
+        'Unknown algorithm %s. Supported algorithms are "builtin" or "lcg".' %
         algorithm)
 
 
@@ -153,8 +153,7 @@ class SyntheticStep(beam.DoFn):
     if per_element_delay_sec and per_element_delay_sec < 1e-3:
       raise ValueError(
           'Per element sleep time must be at least 1e-3. '
-          'Received: %r',
-          per_element_delay_sec)
+          'Received: %r' % per_element_delay_sec)
     self._per_element_delay_sec = per_element_delay_sec
     self._per_bundle_delay_sec = per_bundle_delay_sec
     self._output_records_per_input_record = output_records_per_input_record
@@ -360,7 +359,7 @@ class SyntheticSource(iobase.BoundedSource):
     if self._initial_splitting != 'const' and self._initial_splitting != 'zipf':
       raise ValueError(
           'Only const and zipf distributions are supported for determining '
-          'sizes of bundles produced by initial splitting. Received: %s',
+          'sizes of bundles produced by initial splitting. Received: %s' %
           self._initial_splitting)
     self._initial_splitting_num_bundles = (
         input_spec['forceNumInitialBundles']
@@ -371,8 +370,7 @@ class SyntheticSource(iobase.BoundedSource):
       if self._initial_splitting_distribution_parameter < 1:
         raise ValueError(
             'Parameter for a Zipf distribution must be larger than 1. '
-            'Received %r.',
-            self._initial_splitting_distribution_parameter)
+            'Received %r.' % self._initial_splitting_distribution_parameter)
     else:
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
@@ -383,7 +381,7 @@ class SyntheticSource(iobase.BoundedSource):
       if input_spec['delayDistribution']['type'] != 'const':
         raise ValueError(
             'SyntheticSource currently only supports delay '
-            'distributions of type \'const\'. Received %s.',
+            'distributions of type \'const\'. Received %s.' %
             input_spec['delayDistribution']['type'])
       self._sleep_per_input_record_sec = (
           float(input_spec['delayDistribution']['const']) / 1000)
@@ -391,8 +389,7 @@ class SyntheticSource(iobase.BoundedSource):
           self._sleep_per_input_record_sec < 1e-3):
         raise ValueError(
             'Sleep time per input record must be at least 1e-3.'
-            ' Received: %r',
-            self._sleep_per_input_record_sec)
+            ' Received: %r' % self._sleep_per_input_record_sec)
     else:
       self._sleep_per_input_record_sec = 0
 
@@ -401,8 +398,7 @@ class SyntheticSource(iobase.BoundedSource):
     if self.gen_algo not in (None, 'builtin', 'lcg'):
       raise ValueError(
           'Unknown algorithm for input_spec: %s. Supported '
-          'algorithms are "builtin" and "lcg".',
-          self.gen_algo)
+          'algorithms are "builtin" and "lcg".' % self.gen_algo)
     # optimization to reduce overhead of copying bytes
     self._gen_kv_separately = (
         self.gen_algo == 'lcg' and self._key_size % 4 == 0)
