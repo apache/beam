@@ -40,6 +40,15 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * LOCATION '/path/to/delta/orders'
  * TBLPROPERTIES '{"version": 1}'
  * }</pre>
+ *
+ * <p>The changes of a table with Change Data Feed enabled ({@code delta.enableChangeDataFeed =
+ * true}) can be read with {@code CHANGES(...)}, from a start version or timestamp up to an optional
+ * end version or timestamp:
+ *
+ * <pre>{@code
+ * SELECT * FROM CHANGES(orders, 2, 5)
+ * WITH ('include_metadata_columns' = ARRAY['_change_type', '_commit_version'])
+ * }</pre>
  */
 @AutoService(TableProvider.class)
 public class DeltaTableProvider extends InMemoryMetaTableProvider {

@@ -1030,7 +1030,11 @@ class YamlProviders:
       input PCollections. Fields are made optional to handle missing values.
       If fields have different types, they are unified to Optional[Any].
       """
+      from apache_beam.typehints.native_type_compatibility import _match_is_optional
+      from apache_beam.typehints.native_type_compatibility import extract_optional_type
       from apache_beam.typehints.schemas import named_fields_from_element_type
+      from apache_beam.typehints.schemas import named_fields_to_schema
+      from apache_beam.typehints.schemas import named_tuple_from_schema
 
       # Collect all schemas
       schemas = []
@@ -1046,20 +1050,42 @@ class YamlProviders:
       if not schemas:
         return None
 
-      # Merge all field names and types.
-      all_field_names = set().union(*(s.keys() for s in schemas))
+      # If all PCollections have identical schemas, no unification is needed.
+      if len(schemas) == len(pcolls) and all(
+          list(s.items()) == list(schemas[0].items()) for s in schemas):
+        return None
+
+      def unwrap_type(t):
+        if _match_is_optional(t):
+          return extract_optional_type(t), True
+        return t, False
+
+      # Maintain deterministic field ordering across all input schemas.
+      all_field_names = list(
+          dict.fromkeys(name for s in schemas for name in s.keys()))
       unified_fields = {}
+      has_unschematized_pcoll = len(schemas) < len(pcolls)
+
       for name in all_field_names:
-        present_types = {s[name] for s in schemas if name in s}
-        if len(present_types) > 1:
+        is_optional = has_unschematized_pcoll or (
+            len([s for s in schemas if name in s]) < len(schemas))
+        unwrapped_types = set()
+        for s in schemas:
+          if name in s:
+            inner_type, was_optional = unwrap_type(s[name])
+            unwrapped_types.add(inner_type)
+            if was_optional:
+              is_optional = True
+
+        if len(unwrapped_types) > 1:
           unified_fields[name] = Optional[Any]
         else:
-          unified_fields[name] = Optional[present_types.pop()]
+          concrete_type = unwrapped_types.pop()
+          unified_fields[name] = (
+              Optional[concrete_type] if is_optional else concrete_type)
 
       # Create unified schema
       if unified_fields:
-        from apache_beam.typehints.schemas import named_fields_to_schema
-        from apache_beam.typehints.schemas import named_tuple_from_schema
         unified_schema = named_fields_to_schema(list(unified_fields.items()))
         return named_tuple_from_schema(unified_schema)
 

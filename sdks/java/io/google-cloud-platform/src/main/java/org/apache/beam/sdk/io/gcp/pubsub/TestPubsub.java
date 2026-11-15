@@ -23,8 +23,11 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.rpc.AlreadyExistsException;
+import com.google.api.gax.rpc.DeadlineExceededException;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnavailableException;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
@@ -65,6 +68,8 @@ import org.joda.time.format.DateTimeFormatter;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test rule which creates a new topic and subscription with randomized names and exposes the APIs
@@ -73,6 +78,7 @@ import org.junit.runners.model.Statement;
  * <p>Deletes topic and subscription on shutdown.
  */
 public class TestPubsub implements TestRule {
+  private static final Logger LOG = LoggerFactory.getLogger(TestPubsub.class);
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY-MM-dd-HH-mm-ss-SSS");
   private static final String EVENTS_TOPIC_NAME = "events";
@@ -168,7 +174,7 @@ public class TestPubsub implements TestRule {
     TopicPath eventsTopicPathTmp =
         PubsubClient.topicPathFromName(
             pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
-    topAdmin.createTopic(eventsTopicPathTmp.getPath());
+    createTopicWithRetry(topAdmin, eventsTopicPathTmp.getPath());
 
     // Set this after successful creation; it signals that the topic needs teardown
     eventsTopicPath = eventsTopicPathTmp;
@@ -180,13 +186,58 @@ public class TestPubsub implements TestRule {
             String.format(
                 "projects/%s/subscriptions/%s", pipelineOptions.getProject(), subscriptionName));
 
-    subAdmin.createSubscription(
+    createSubscriptionWithRetry(
+        subAdmin,
         subscriptionPathTmp.getPath(),
         topicPath().getPath(),
-        PushConfig.getDefaultInstance(),
         DEFAULT_ACK_DEADLINE_SECONDS);
 
     subscriptionPath = subscriptionPathTmp;
+  }
+
+  static void createTopicWithRetry(TopicAdminClient topicAdmin, String topicPath) {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        topicAdmin.createTopic(topicPath);
+        return;
+      } catch (AlreadyExistsException e) {
+        return;
+      } catch (DeadlineExceededException | UnavailableException e) {
+        if (attempt >= 3) {
+          throw e;
+        }
+        LOG.warn(
+            "Timed out or unavailable creating topic {} (attempt {}/3), retrying...",
+            topicPath,
+            attempt,
+            e);
+      }
+    }
+  }
+
+  static void createSubscriptionWithRetry(
+      SubscriptionAdminClient subscriptionAdmin,
+      String subscriptionPath,
+      String topicPath,
+      int ackDeadlineSeconds) {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        subscriptionAdmin.createSubscription(
+            subscriptionPath, topicPath, PushConfig.getDefaultInstance(), ackDeadlineSeconds);
+        return;
+      } catch (AlreadyExistsException e) {
+        return;
+      } catch (DeadlineExceededException | UnavailableException e) {
+        if (attempt >= 3) {
+          throw e;
+        }
+        LOG.warn(
+            "Timed out or unavailable creating subscription {} (attempt {}/3), retrying...",
+            subscriptionPath,
+            attempt,
+            e);
+      }
+    }
   }
 
   private void tearDown() {

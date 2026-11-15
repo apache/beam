@@ -21,6 +21,7 @@
 import bz2
 import glob
 import gzip
+import json
 import logging
 import os
 import platform
@@ -1888,6 +1889,48 @@ class JsonTest(unittest.TestCase):
             assert type(a) == type(b), (a, b, type(a), type(b))
 
         _ = pcoll | beam.Map(check_types)
+
+  def test_float_precision(self):
+    records = [
+        beam.Row(id=1, x=0.1234567890123),
+        beam.Row(id=2, x=1e-11),
+        beam.Row(id=3, x=0.1234567890123456),
+    ]
+
+    def write_and_read(**kwargs):
+      with tempfile.TemporaryDirectory() as dest:
+        with TestPipeline() as p:
+          _ = p | beam.Create(records) | beam.io.WriteToJson(
+              os.path.join(dest, 'out'), **kwargs)
+        written = []
+        for path in glob.glob(os.path.join(dest, 'out*')):
+          with open(path) as f:
+            written.extend(json.loads(line) for line in f if line.strip())
+        return written
+
+    # By default pandas' maximum of 15 decimal places is used: the first two
+    # values are preserved, while the third needs 16 decimal places and is
+    # therefore rounded to 15.
+    self.assertCountEqual(
+        write_and_read(),
+        [{
+            'id': 1, 'x': 0.1234567890123
+        }, {
+            'id': 2, 'x': 1e-11
+        }, {
+            'id': 3, 'x': 0.123456789012346
+        }])
+
+    # An explicit double_precision is honored (pandas' own default is 10).
+    self.assertCountEqual(
+        write_and_read(double_precision=10),
+        [{
+            'id': 1, 'x': 0.123456789
+        }, {
+            'id': 2, 'x': 0.0
+        }, {
+            'id': 3, 'x': 0.123456789
+        }])
 
 
 class GenerateEvent(beam.PTransform):
