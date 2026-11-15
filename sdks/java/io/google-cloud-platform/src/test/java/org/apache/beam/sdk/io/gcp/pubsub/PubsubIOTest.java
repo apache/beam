@@ -1281,4 +1281,3 @@ public class PubsubIOTest {
           assertEquals("existing-id", published.get(0).recordId());
     }
 }
-
