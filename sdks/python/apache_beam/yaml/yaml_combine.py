@@ -128,6 +128,11 @@ class PyJsYamlCombine(beam.PTransform):
             fn_spec['type'])
         if 'config' in fn_spec:
           fn = fn(**fn_spec['config'])
+        elif isinstance(fn, python_callable.PythonCallableWithSource) and (
+            isinstance(fn._fn, type) and issubclass(fn._fn, beam.CombineFn)):
+          fn = fn()
+        elif isinstance(fn, type) and issubclass(fn, beam.CombineFn):
+          fn = fn()
         return fn
       else:
         raise TypeError('Unknown CombineFn: {fn_spec}')
@@ -139,6 +144,9 @@ class PyJsYamlCombine(beam.PTransform):
       if (expr_hints and expr_hints.has_simple_output_type() and
           expr_hints.simple_output_type(None) != typehints.Any):
         return expr_hints.simple_output_type(None)
+      elif isinstance(expr, beam.CombineFn):
+        return trivial_inference.infer_return_type(
+            expr.extract_output, [typehints.Any])
       elif callable(expr):
         return trivial_inference.infer_return_type(expr, [pcoll.element_type])
       else:

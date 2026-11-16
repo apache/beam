@@ -186,6 +186,41 @@ class YamlCombineTest(unittest.TestCase):
               beam.Row(b=2, biggest=[104]),
           ]))
 
+  def test_custom_combine_fn_preserves_output_type(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+          type: Combine
+          config:
+            group_by: a
+            language: python
+            combine:
+              distinct_b:
+                value: b
+                fn:
+                  type: |
+                    @beam.typehints.with_output_types(int)
+                    class CountDistinctFn(beam.CombineFn):
+                      def create_accumulator(self):
+                        return set()
+                      def add_input(self, acc, x):
+                        acc.add(x)
+                        return acc
+                      def merge_accumulators(self, accs):
+                        return set().union(*accs)
+                      def extract_output(self, acc):
+                        return len(acc)
+          ''')
+      self.assertEqual(dict(result.element_type._fields)['distinct_b'], int)
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(a='x', distinct_b=1),
+              beam.Row(a='y', distinct_b=2),
+          ]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
