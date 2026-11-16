@@ -110,16 +110,26 @@ class LocalFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
-    if not self.exists(dir_or_prefix):
+    # Bare relative globs in the current working directory (e.g. 'users.json*'
+    # or '*.csv') have os.path.dirname(...) == '', so walk os.curdir and strip
+    # the leading './' (or '.\' on Windows) so returned paths match the caller's
+    # relative pattern.
+    search_root = dir_or_prefix or os.curdir
+    if not self.exists(search_root):
       return
+
+    cwd_prefix = os.curdir + os.sep
 
     def list_files(root):
       for dirpath, _, files in os.walk(root):
         for filename in files:
-          yield self.join(dirpath, filename)
+          path = self.join(dirpath, filename)
+          if not dir_or_prefix and path.startswith(cwd_prefix):
+            path = path[len(cwd_prefix):]
+          yield path
 
     try:
-      for f in list_files(dir_or_prefix):
+      for f in list_files(search_root):
         try:
           yield FileMetadata(f, os.path.getsize(f), os.path.getmtime(f))
         except OSError:

@@ -228,6 +228,56 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
 
+  def test_match_cwd_glob(self):
+    with self.tmpdir_as_cwd():
+      open('users.json-00000-of-00002', 'a').close()
+      open('users.json-00001-of-00002', 'a').close()
+      open('other.txt', 'a').close()
+      self.fs.mkdirs('sub')
+      open(os.path.join('sub', 'nested.txt'), 'a').close()
+
+      matched = [
+          f.path for f in self.fs.match(['users.json*'])[0].metadata_list
+      ]
+      self.assertCountEqual(
+          matched, ['users.json-00000-of-00002', 'users.json-00001-of-00002'])
+
+      dot_matched = [
+          f.path for f in self.fs.match([os.path.join('.', 'users.json*')])
+          [0].metadata_list
+      ]
+      self.assertCountEqual(
+          dot_matched,
+          [
+              os.path.join('.', 'users.json-00000-of-00002'),
+              os.path.join('.', 'users.json-00001-of-00002'),
+          ])
+
+      star_matched = [f.path for f in self.fs.match(['*'])[0].metadata_list]
+      self.assertCountEqual(
+          star_matched,
+          [
+              'users.json-00000-of-00002',
+              'users.json-00001-of-00002',
+              'other.txt',
+          ])
+
+      recursive_matched = [
+          f.path for f in self.fs.match(['**'])[0].metadata_list
+      ]
+      self.assertCountEqual(
+          recursive_matched,
+          [
+              'users.json-00000-of-00002',
+              'users.json-00001-of-00002',
+              'other.txt',
+              os.path.join('sub', 'nested.txt'),
+          ])
+
+      self.fs.delete(['users.json*'])
+      self.assertEqual(self.fs.match(['users.json*'])[0].metadata_list, [])
+      self.assertTrue(self.fs.exists('other.txt'))
+
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
