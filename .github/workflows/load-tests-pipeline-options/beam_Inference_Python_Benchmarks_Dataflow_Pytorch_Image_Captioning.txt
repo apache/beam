@@ -24,7 +24,7 @@
 --metrics_dataset=beam_run_inference
 --input_options={}
 --influx_measurement=result_torch_inference_image_captioning
---input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --blip_model_name=Salesforce/blip-image-captioning-base
 --blip_batch_size=4
 --num_captions=5
