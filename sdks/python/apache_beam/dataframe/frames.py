@@ -4706,14 +4706,36 @@ def _unliftable_agg(meth):
 
     groupby_kwargs = self._kwargs
     project = _maybe_project_func(self._projection)
+
+    def grouped(df):
+      return project(
+          df.groupby(
+              level=list(range(df.index.nlevels)),
+              group_keys=group_keys,
+              **groupby_kwargs))
+
+    grouped_proxy = grouped(self._ungrouped.proxy())
+    proxy = getattr(grouped_proxy, agg_name)(**kwargs)
+    if agg_name == 'skew':
+      # pandas keeps the integer/bool dtype of an empty input, but the skew of
+      # integer/bool data is computed as float64.
+      if isinstance(proxy, pd.DataFrame):
+        proxy = proxy.astype({
+            col: 'float64'
+            for col, dtype in proxy.dtypes.items() if dtype.kind in 'iub'
+        })
+      elif proxy.dtype.kind in 'iub':
+        proxy = proxy.astype('float64')
+    elif agg_name == 'describe':
+      # pandas drops the names (and levels) of the group keys when describing
+      # an empty input.
+      proxy.index = grouped_proxy.size().index[:0]
+
     post_agg = expressions.ComputedExpression(
         agg_name,
-        lambda df: getattr(project(
-            df.groupby(level=list(range(df.index.nlevels)),
-                       group_keys=group_keys,
-                       **groupby_kwargs),
-        ), agg_name)(**kwargs),
+        lambda df: getattr(grouped(df), agg_name)(**kwargs),
         [self._ungrouped],
+        proxy=proxy,
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
             "parallelizable (https://github.com/apache/beam/issues/21827)."
