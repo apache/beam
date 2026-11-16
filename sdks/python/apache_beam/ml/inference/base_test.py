@@ -2167,6 +2167,31 @@ class RunInferenceBaseTest(unittest.TestCase):
     mm.load('key1')
     self.assertEqual(['key3', 'key1'], list(mm._tag_map.keys()))
 
+  def test_model_handler_manager_retries_failed_load(self):
+    # state=100 makes FakeStatefulModel raise when the model is loaded.
+    mh1 = FakeModelHandler(state=100)
+    mh2 = FakeModelHandler(state=2)
+    mm = base._ModelHandlerManager(mh_map={'key1': mh1, 'key2': mh2})
+    mm.increment_max_models(1)
+    with self.assertRaisesRegex(Exception, 'Oh no'):
+      mm.load('key1')
+    self.assertEqual([], list(mm._tag_map.keys()))
+
+    # The next load of key1 loads the model again and keeps it.
+    mh1._state = 1
+    stats = mm.load('key1')
+    self.assertIsNotNone(stats.load_latency)
+    # Use bad_mh's load function to make sure the model is already stored.
+    bad_mh = FakeModelHandler(state=100)
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=stats.model_tag).acquire()
+    self.assertEqual(1, model1.predict(10))
+    self.assertIsNone(mm.load('key1').load_latency)
+
+    # Evicting key1 to load key2 works.
+    mm.load('key2')
+    self.assertEqual(['key2'], list(mm._tag_map.keys()))
+
   def test_keyed_model_handler_max_models_hint_with_handler_copies(self):
     mhs = [
         base.KeyModelMapping([k],

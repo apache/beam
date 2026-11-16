@@ -725,7 +725,13 @@ class _ModelHandlerManager:
     start_time = _to_milliseconds(time.time_ns())
     shared_handle = multi_process_shared.MultiProcessShared(
         mh.load_model, tag=tag)
-    model_reference = shared_handle.acquire()
+    try:
+      model_reference = shared_handle.acquire()
+    except Exception:
+      # Forget the tag so that the next call loads the model again instead of
+      # returning a tag that has no model behind it.
+      del self._tag_map[key]
+      raise
     self._proxy_map[tag] = (shared_handle, model_reference)
     memory_after = _get_current_process_memory_in_bytes()
     end_time = _to_milliseconds(time.time_ns())
