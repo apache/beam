@@ -878,14 +878,6 @@ def _AssignTimestamps(
 
 def _to_timestamp(ts):
   if isinstance(ts, str):
-    if ts and ts[-1] not in 'Zz' and '+' not in ts[10:] and '-' not in ts[10:]:
-      try:
-        dt = datetime.datetime.fromisoformat(ts)
-      except ValueError:
-        pass
-      else:
-        return Timestamp.from_utc_datetime(
-            dt.replace(tzinfo=datetime.timezone.utc))
     return Timestamp.from_rfc3339(ts)
   elif isinstance(ts, datetime.datetime):
     if ts.tzinfo is None:

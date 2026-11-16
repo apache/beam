@@ -547,7 +547,7 @@ class YamlMappingTest(unittest.TestCase):
       elements = p | beam.Create([
           beam.Row(user='alice', event_time='2026-01-01T00:00:10Z'),
           beam.Row(user='bob', event_time='2026-01-01T02:00:25+02:00'),
-          beam.Row(user='carol', event_time='2026-01-01T00:00:30'),
+          beam.Row(user='carol', event_time='2026-01-01T00:00:30.123456'),
       ])
       result = (
           elements
@@ -568,15 +568,15 @@ class YamlMappingTest(unittest.TestCase):
           equal_to([
               ('alice', Timestamp.from_rfc3339('2026-01-01T00:00:10Z')),
               ('bob', Timestamp.from_rfc3339('2026-01-01T00:00:25Z')),
-              ('carol', Timestamp.from_rfc3339('2026-01-01T00:00:30Z')),
+              ('carol', Timestamp.from_rfc3339('2026-01-01T00:00:30.123456Z')),
           ]))
 
   def test_assign_timestamps_datetime_callable(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
-          beam.Row(user='alice', sec=10),
-          beam.Row(user='bob', sec=25),
+          beam.Row(user='alice', sec=10, tz_hours=0),
+          beam.Row(user='bob', sec=25, tz_hours=2),
       ])
       result = (
           elements
@@ -589,6 +589,11 @@ class YamlMappingTest(unittest.TestCase):
                   callable: |
                     import datetime
                     def fn(row):
+                      if row.tz_hours:
+                        tz = datetime.timezone(
+                            datetime.timedelta(hours=row.tz_hours))
+                        return datetime.datetime(
+                            1970, 1, 1, row.tz_hours, 0, row.sec, tzinfo=tz)
                       return datetime.datetime(1970, 1, 1, 0, 0, row.sec)
               ''')
           | 'Extract' >> YamlTransform(

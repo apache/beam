@@ -67,6 +67,13 @@ class TimestampTest(unittest.TestCase):
       self.assertEqual(
           rfc3339_str, Timestamp.from_rfc3339(rfc3339_str).to_rfc3339())
 
+  def test_from_rfc3339_naive_iso8601(self):
+    self.assertEqual(
+        Timestamp(10000000), Timestamp.from_rfc3339('1970-04-26T17:46:40'))
+    self.assertEqual(
+        Timestamp(10000000, 123456789, 9),
+        Timestamp.from_rfc3339('1970-04-26T17:46:40.123456789'))
+
   def test_from_rfc3339_with_timezone(self):
     test_cases = [
         (1458328979.123456, '2016-03-18T23:22:59.123456+04:00'),
