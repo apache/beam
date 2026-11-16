@@ -573,27 +573,38 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
     self._finalized = False
     self._pending_accumulator: Any = None
     self._has_pending_accumulator = False
-    self._read_or_cleared = False
+    self._underlying_read = False
+    self._needs_clear = False
+    self._dirty = False
 
   def _fold_underlying_into_pending(self) -> None:
-    if not self._read_or_cleared:
-      accumulators = list(self._underlying_bag_state.read())
-      if self._has_pending_accumulator:
-        accumulators.append(self._pending_accumulator)
-      if accumulators:
+    if not self._underlying_read:
+      underlying_accumulators = list(self._underlying_bag_state.read())
+      self._underlying_read = True
+      if underlying_accumulators:
+        self._needs_clear = True
+        if len(underlying_accumulators) > 1:
+          self._dirty = True
+        # Copy the first persisted accumulator so merge_accumulators or
+        # subsequent add_input calls cannot mutate a cached StateCache entry in
+        # place.
+        accumulators = [
+            copy.deepcopy(underlying_accumulators[0]),
+            *underlying_accumulators[1:]
+        ]
+        if self._has_pending_accumulator:
+          accumulators.append(self._pending_accumulator)
         self._pending_accumulator = self._combinefn.merge_accumulators(
             accumulators)
-      else:
-        self._pending_accumulator = self._combinefn.create_accumulator()
-      self._has_pending_accumulator = True
-      self._read_or_cleared = True
+        self._has_pending_accumulator = True
 
   def read(self) -> Iterable[Any]:
     self._fold_underlying_into_pending()
     if not self._has_pending_accumulator:
       return self._combinefn.extract_output(
           self._combinefn.create_accumulator())
-    return self._combinefn.extract_output(self._pending_accumulator)
+    return self._combinefn.extract_output(
+        copy.deepcopy(self._pending_accumulator))
 
   def add(self, value: Any) -> None:
     if not self._has_pending_accumulator:
@@ -601,24 +612,30 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
       self._has_pending_accumulator = True
     self._pending_accumulator = self._combinefn.add_input(
         self._pending_accumulator, value)
+    self._dirty = True
 
   def clear(self) -> None:
     self._underlying_bag_state.clear()
     self._pending_accumulator = None
     self._has_pending_accumulator = False
-    self._read_or_cleared = True
+    self._underlying_read = True
+    self._needs_clear = True
+    self._dirty = True
 
   def commit(self) -> None:
-    if self._has_pending_accumulator and not self._read_or_cleared:
-      if random.random() < self._BLIND_WRITE_COMPACT_PROBABILITY:
-        self._fold_underlying_into_pending()
-    if self._read_or_cleared:
-      self._underlying_bag_state.clear()
-    if self._has_pending_accumulator:
-      self._underlying_bag_state.add(self._pending_accumulator)
-      self._pending_accumulator = None
-      self._has_pending_accumulator = False
-    self._read_or_cleared = False
+    if self._dirty:
+      if self._has_pending_accumulator and not self._underlying_read:
+        if random.random() < self._BLIND_WRITE_COMPACT_PROBABILITY:
+          self._fold_underlying_into_pending()
+      if self._needs_clear:
+        self._underlying_bag_state.clear()
+      if self._has_pending_accumulator:
+        self._underlying_bag_state.add(self._pending_accumulator)
+    self._pending_accumulator = None
+    self._has_pending_accumulator = False
+    self._underlying_read = False
+    self._needs_clear = False
+    self._dirty = False
     self._underlying_bag_state.commit()
 
   def finalize(self):
