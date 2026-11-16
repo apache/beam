@@ -131,8 +131,8 @@ class LocalFileSystem(FileSystem):
     try:
       for f in list_files(dir_or_prefix):
         try:
-        if strip_dot_prefix and f.startswith('.' + os.sep):
-          f = f[len('.' + os.sep):]
+          if strip_dot_prefix and f.startswith('.' + os.sep):
+            f = f[len('.' + os.sep):]
           yield FileMetadata(f, os.path.getsize(f), os.path.getmtime(f))
         except OSError:
           # Files may disappear, such as when listing /tmp.
