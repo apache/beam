@@ -21,6 +21,7 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.io.IOException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.spark.SparkException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -92,6 +94,18 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State getState() {
+    if (!state.isTerminal() && pipelineExecution.isDone()) {
+      if (cancelRequested.get()) {
+        state = State.CANCELLED;
+      } else {
+        try {
+          Futures.getDone(pipelineExecution);
+          state = State.DONE;
+        } catch (ExecutionException | CancellationException e) {
+          state = State.FAILED;
+        }
+      }
+    }
     return state;
   }
 
@@ -108,17 +122,13 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
   public State waitUntilFinish(final Duration duration) {
     try {
       pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
-      state = cancelRequested.get() ? State.CANCELLED : State.DONE;
     } catch (final TimeoutException e) {
       // ignore.
     } catch (final ExecutionException e) {
-      if (cancelRequested.get()) {
-        LOG.warn("Pipeline execution failed after cancel", e.getCause());
-        state = State.CANCELLED;
-        return state;
+      if (getState() != State.CANCELLED) {
+        throw unwrapCause(firstNonNull(e.getCause(), e));
       }
-      state = State.FAILED;
-      throw unwrapCause(firstNonNull(e.getCause(), e));
+      LOG.warn("Pipeline execution failed after cancel", e.getCause());
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       state = State.FAILED;
@@ -128,7 +138,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
       throw unwrapCause(e);
     }
 
-    return state;
+    return getState();
   }
 
   @Override
@@ -136,17 +146,19 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
     return asAttemptedOnlyMetricResults(metrics.value());
   }
 
-  /** Requests cancellation of the pipeline and returns immediately. */
+  /**
+   * Requests cancellation and returns the current state. The state becomes CANCELLED once the
+   * execution ends.
+   */
   @Override
   public PipelineResult.State cancel() throws IOException {
-    if (!state.isTerminal() && cancelRequested.compareAndSet(false, true)) {
+    if (!pipelineExecution.isDone() && cancelRequested.compareAndSet(false, true)) {
       EvaluationContext ctx = evaluationContext.get();
       if (ctx != null) {
         ctx.stop();
       }
       cancelSparkJobs.run();
-      state = State.CANCELLED;
     }
-    return state;
+    return getState();
   }
 }

@@ -39,6 +39,7 @@ import io.delta.kernel.types.StructType;
 import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
@@ -73,6 +74,14 @@ public class DeltaIO {
   public static final String COMMIT_TIMESTAMP_COLUMN = "_commit_timestamp";
 
   /**
+   * The metadata columns that {@link ReadChanges#withMetadataColumns} can add to the rows of a
+   * change read, in the order of the Delta Lake Change Data Feed.
+   */
+  public static final List<String> METADATA_COLUMNS =
+      Collections.unmodifiableList(
+          Arrays.asList(CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN, COMMIT_TIMESTAMP_COLUMN));
+
+  /**
    * Reads rows from a Delta Lake table.
    *
    * <p>Normally, it is recommended to use {@link org.apache.beam.sdk.managed.Managed#read(String)}
@@ -82,7 +91,13 @@ public class DeltaIO {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
   }
 
-  /** Reads change data feed (CDC) from a Delta Lake table. */
+  /**
+   * Reads change data feed (CDC) from a Delta Lake table.
+   *
+   * <p>Change Data Feed ({@code delta.enableChangeDataFeed = true}) must have been enabled on the
+   * table for every version that the read covers, since Delta Lake writers only record the changes
+   * of a commit while it is enabled. Otherwise the read fails.
+   */
   public static ReadChanges readChanges() {
     return new AutoValue_DeltaIO_ReadChanges.Builder().build();
   }
@@ -300,9 +315,7 @@ public class DeltaIO {
 
     public ReadChanges withMetadataColumns(String... metadataColumns) {
       for (String col : metadataColumns) {
-        if (!col.equals(CHANGE_TYPE_COLUMN)
-            && !col.equals(COMMIT_VERSION_COLUMN)
-            && !col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+        if (!METADATA_COLUMNS.contains(col)) {
           throw new IllegalArgumentException(
               String.format(
                   "Unsupported metadata column %s. Supported columns are: %s, %s, and %s.",
@@ -346,6 +359,18 @@ public class DeltaIO {
 
       TableImpl tableImpl = (TableImpl) table;
 
+      long resolvedStartVersion;
+      Long startVersionVal = getStartVersion();
+      String startTimestampVal = getStartTimestamp();
+      if (startVersionVal != null) {
+        resolvedStartVersion = startVersionVal;
+      } else if (startTimestampVal != null) {
+        long startMillis = java.time.Instant.parse(startTimestampVal).toEpochMilli();
+        resolvedStartVersion = tableImpl.getVersionAtOrAfterTimestamp(engine, startMillis);
+      } else {
+        throw new IllegalArgumentException("Either startVersion or startTimestamp must be set.");
+      }
+
       long resolvedEndVersion;
       Long endVersionVal = getEndVersion();
       String endTimestampVal = getEndTimestamp();
@@ -358,11 +383,49 @@ public class DeltaIO {
         resolvedEndVersion = table.getLatestSnapshot(engine).getVersion();
       }
 
-      Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      if (resolvedStartVersion > resolvedEndVersion) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Resolved start version %d is greater than resolved end version %d",
+                resolvedStartVersion, resolvedEndVersion));
+      }
+
+      Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
+      Snapshot endSnapshot =
+          resolvedStartVersion == resolvedEndVersion
+              ? startSnapshot
+              : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      // Fail early if Change Data Feed was not enabled at either end of the range.
+      // CreateCDCReadTasksDoFn additionally verifies every change of the table configuration within
+      // the range while reading the commits of the range.
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedStartVersion,
+          startSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedEndVersion,
+          endSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
+      StructType startDeltaSchema = startSnapshot.getSchema();
       StructType deltaSchema = endSnapshot.getSchema();
-      if (deltaSchema == null) {
+      if (startDeltaSchema == null || deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
       }
+      // All changes within the range are read using the table schema at the end version, which is
+      // only supported if the range only spans additive schema changes (see DeltaSchemaUtils). Fail
+      // early here if the schema at the start version can't be read using the schema at the end
+      // version. CreateCDCReadTasksDoFn additionally verifies all schema changes within the range
+      // while reading the commits of the range.
+      DeltaSchemaUtils.checkReadCompatible(
+          startDeltaSchema,
+          resolvedStartVersion,
+          deltaSchema,
+          resolvedStartVersion,
+          resolvedEndVersion);
       Schema baseSchema = ReadRows.convertToBeamSchema(deltaSchema);
       Schema publicBeamSchema = buildPublicBeamSchema(baseSchema, getMetadataColumns());
 

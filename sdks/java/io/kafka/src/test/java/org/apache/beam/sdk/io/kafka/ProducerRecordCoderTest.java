@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.kafka;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.mockStatic;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,14 +28,12 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.MockedStatic;
 
 /** Tests for {@link ProducerRecordCoder}. */
 @RunWith(JUnit4.class)
@@ -56,8 +53,7 @@ public class ProducerRecordCoderTest {
 
   @Test
   public void testProducerRecordSerializableWithoutHeaders() throws IOException {
-    ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>("", 0, 0L, "", "");
-    verifySerialization(consumerRecord.headers(), 0, System.currentTimeMillis());
+    verifySerialization(new RecordHeaders(), 0, System.currentTimeMillis());
   }
 
   @Test
@@ -100,24 +96,6 @@ public class ProducerRecordCoderTest {
     ProducerRecord<byte[], byte[]> testProducerRecord =
         (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
     assertEquals(testProducerRecord.headers(), headers);
-  }
-
-  @Test
-  public void testProducerRecordStructuralValueWithoutHeadersApi() throws IOException {
-    RecordHeaders headers = new RecordHeaders();
-    headers.add("headerKey", "headerVal".getBytes(UTF_8));
-    ProducerRecordCoder<byte[], byte[]> producerRecordCoder =
-        ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of());
-    ProducerRecord<byte[], byte[]> producerRecord =
-        new ProducerRecord<>(
-            "topic", 1, null, "key".getBytes(UTF_8), "value".getBytes(UTF_8), headers);
-    try (MockedStatic<ConsumerSpEL> staticMock = mockStatic(ConsumerSpEL.class)) {
-      staticMock.when(ConsumerSpEL::hasHeaders).thenReturn(false);
-      ProducerRecord<byte[], byte[]> testProducerRecord =
-          (ProducerRecord<byte[], byte[]>) producerRecordCoder.structuralValue(producerRecord);
-
-      assertEquals(testProducerRecord.headers(), new RecordHeaders());
-    }
   }
 
   private ProducerRecord<String, String> verifySerialization(Integer partition, Long timestamp)

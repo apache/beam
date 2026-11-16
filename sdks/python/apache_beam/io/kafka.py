@@ -212,7 +212,7 @@ class ReadFromKafka(ExternalTransform):
     :param redistribute: whether a Redistribute transform should be applied
         immediately after the read.
     :param redistribute_num_keys: Configures how many keys the Redistribute
-        spreads the data across.
+        spreads the data across. If 0, the KafkaIO default of 32768 is used.
     :param allow_duplicates: whether the Redistribute transform allows for
         duplicates (this serves solely as a hint to the underlying runner).
     :param dynamic_read_poll_interval_seconds: The interval in seconds at which

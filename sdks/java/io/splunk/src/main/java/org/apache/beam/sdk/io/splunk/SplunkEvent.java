@@ -43,6 +43,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoValue
 public abstract class SplunkEvent {
 
+  public static final String TIME = "time";
+  public static final String HOST = "host";
+  public static final String SOURCE = "source";
+  public static final String SOURCE_TYPE = "sourcetype";
+  public static final String INDEX = "index";
+  public static final String FIELDS = "fields";
+  public static final String EVENT = "event";
+
   /** Provides a builder for creating {@link SplunkEvent} objects. */
   public static Builder newBuilder() {
     return new AutoValue_SplunkEvent.Builder();

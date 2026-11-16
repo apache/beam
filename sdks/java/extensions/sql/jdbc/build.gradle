@@ -36,7 +36,6 @@ configurations {
 dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation "jline:jline:2.14.6"
-  permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   implementation "sqlline:sqlline:1.4.0"
   implementation library.java.vendored_calcite_1_40_0
   permitUnusedDeclared library.java.vendored_calcite_1_40_0
@@ -85,7 +84,9 @@ task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadow
   // Disable Gradle cache (it should not be used because the IT's won't run).
   outputs.upToDateWhen { false }
 
-  systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
+  // Resolved at execution time: resolving it during configuration breaks any project that
+  // depends on this one.
+  doFirst { systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1] }
 
   include '**/JdbcJarTest.class'
   classpath = configurations.integrationTest

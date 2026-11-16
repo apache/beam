@@ -29,10 +29,10 @@ on:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: false
   schedule:
-  - cron: "0 6 * * 1"
+  - cron: "0 6 * * *"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.76.0' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.77.0' }}"
   rc: "${{ github.event.inputs.RC || '4' }}"
 
 jobs:
@@ -47,11 +47,10 @@ jobs:
         # tasks as they are added.
         images_to_publish: [
           {"gradle_task": ":pushAllRunnersDockerImages", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
-          {"gradle_task": ":sdks:python:container:push310", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push311", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push312", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
           {"gradle_task": ":sdks:python:container:push313", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless"},
-          {"gradle_task": ":sdks:python:container:pushAll", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless -Pskip-python-39-images -Pskip-python-310-images -Pskip-python-311-images -Pskip-python-312-images -Pskip-python-313-images"},
+          {"gradle_task": ":sdks:python:container:pushAll", "include_skip_flags": "-Pinclude-ml -Pinclude-distroless -Pskip-python-311-images -Pskip-python-312-images -Pskip-python-313-images"},
           {"gradle_task": ":pushAllSdkDockerImages", "include_skip_flags": "-Pskip-python-images"},
           {"gradle_task": ":pushAllDockerImages", "include_skip_flags": "-Pskip-runner-images -Pskip-sdk-images"}
         ]

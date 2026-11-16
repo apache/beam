@@ -17,24 +17,50 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
+import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.IcebergGenerics;
+import org.apache.iceberg.data.Record;
+import org.hamcrest.Matchers;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class AddFilesSchemaTransformProviderTest {
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+  @Rule
+  public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
+
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private static Configuration.Builder base() {
     return Configuration.builder()
@@ -181,5 +207,34 @@ public class AddFilesSchemaTransformProviderTest {
     assertTrue(pins.getMessage(), pins.getMessage().contains("schema_evolution_options"));
     assertTrue(
         unverifiable.getMessage(), unverifiable.getMessage().contains("schema_evolution_options"));
+  }
+
+  @Test
+  public void testAddFilesUsingManagedTransform() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", "managed_add_files");
+    DataFile file =
+        warehouse.writeRecords("data.parquet", TestFixtures.SCHEMA, TestFixtures.FILE1SNAPSHOT1);
+
+    Schema inputSchema = Schema.builder().addStringField("file").build();
+    PCollectionRowTuple output =
+        pipeline
+            .apply(Create.of(Row.withSchema(inputSchema).addValue(file.location()).build()))
+            .setRowSchema(inputSchema)
+            .apply(
+                Managed.write(Managed.ICEBERG_ADD_FILES)
+                    .withConfig(
+                        ImmutableMap.<String, Object>builder()
+                            .put("table", tableId.toString())
+                            .put(
+                                "catalog_properties",
+                                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                            .put("error_handling", ImmutableMap.of("output", "errors"))
+                            .build()));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+    List<Record> records = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(records, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
 }

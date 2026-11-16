@@ -29,7 +29,6 @@ import secrets
 import shutil
 import sqlite3
 import string
-import struct
 import tempfile
 import time
 import unittest
@@ -38,42 +37,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import requests
-
-from apache_beam.coders import Coder
-from apache_beam.coders.coder_impl import CoderImpl
-
-
-class BigEndianIntegerCoderImpl(CoderImpl):
-  """Coder implementation for big-endian integers used in cross-language tests.
-
-  This is needed because Java's BigEndianIntegerCoder falls back to the generic
-  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
-  Python's FnApiRunner needs to know how to decode it.
-  """
-  def encode_to_stream(self, value, stream, nested):
-    stream.write(struct.pack('>i', value))
-
-  def decode_from_stream(self, stream, nested):
-    return struct.unpack('>i', stream.read(4))[0]
-
-
-class BigEndianIntegerCoder(Coder):
-  def get_impl(self):
-    return BigEndianIntegerCoderImpl()
-
-
-# Register the coder with the fallback URN used by the Java SDK for this coder.
-# This allows the Python FnApiRunner to handle data sharded by Java transforms
-# using BigEndianIntegerCoder in integration tests.
-Coder.register_urn(
-    'beam:coders:javasdk:0.1',
-    None, lambda payload, components, context: BigEndianIntegerCoder())
-
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytds
+import requests
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
@@ -300,41 +268,43 @@ def temp_bigquery_table(
   table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  if table_schema:
-    schema = get_table_schema_from_string(table_schema)
-    additional_create_parameters = None
-    if primary_key:
-      pk_columns = set(primary_key)
-      for field in schema.fields:
-        if field.name in pk_columns:
-          field.mode = 'REQUIRED'
-      additional_create_parameters = {
-          'tableConstraints': bigquery.TableConstraints(
-              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
-                  columns=list(primary_key)))
-      }
-    bigquery_client.get_or_create_table(
-        project_id=project,
-        dataset_id=dataset_id,
-        table_id=table_id,
-        schema=schema,
-        create_disposition='CREATE_IF_NEEDED',
-        write_disposition='WRITE_APPEND',
-        additional_create_parameters=additional_create_parameters)
-    logging.info(
-        "Created table %s.%s.%s (primary_key=%s)",
-        project,
-        dataset_id,
-        table_id,
-        primary_key)
-  if use_colon_table_spec:
-    yield f'{project}:{dataset_id}.{table_id}'
-  else:
-    yield f'{project}.{dataset_id}.{table_id}'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
-  logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  try:
+    if table_schema:
+      schema = get_table_schema_from_string(table_schema)
+      additional_create_parameters = None
+      if primary_key:
+        pk_columns = set(primary_key)
+        for field in schema.fields:
+          if field.name in pk_columns:
+            field.mode = 'REQUIRED'
+        additional_create_parameters = {
+            'tableConstraints': bigquery.TableConstraints(
+                primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                    columns=list(primary_key)))
+        }
+      bigquery_client.get_or_create_table(
+          project_id=project,
+          dataset_id=dataset_id,
+          table_id=table_id,
+          schema=schema,
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND',
+          additional_create_parameters=additional_create_parameters)
+      logging.info(
+          "Created table %s.%s.%s (primary_key=%s)",
+          project,
+          dataset_id,
+          table_id,
+          primary_key)
+    if use_colon_table_spec:
+      yield f'{project}:{dataset_id}.{table_id}'
+    else:
+      yield f'{project}.{dataset_id}.{table_id}'
+  finally:
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
 
 
 def instance_prefix(instance):
@@ -745,28 +715,28 @@ def temp_postgres_database_with_secret_manager(
 
     _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
     try:
-      secret_client.get_secret(request={'name': secret_path})
-    except Exception:
-      secret_client.create_secret(
+      try:
+        secret_client.get_secret(request={'name': secret_path})
+      except Exception:
+        secret_client.create_secret(
+            request={
+                'parent': project_path,
+                'secret_id': secret_id,
+                'secret': {
+                    'replication': {
+                        'automatic': {}
+                    }
+                }
+            })
+
+      secret_client.add_secret_version(
           request={
-              'parent': project_path,
-              'secret_id': secret_id,
-              'secret': {
-                  'replication': {
-                      'automatic': {}
-                  }
+              'parent': secret_path,
+              'payload': {
+                  'data': postgres_container.password.encode('utf-8')
               }
           })
 
-    secret_client.add_secret_version(
-        request={
-            'parent': secret_path,
-            'payload': {
-                'data': postgres_container.password.encode('utf-8')
-            }
-        })
-
-    try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
       with engine.begin() as connection:
@@ -1046,6 +1016,10 @@ def _create_kinesis_stream(kinesis_client, stream_name):
       if attempt == retries - 1:
         _LOGGER.error('Could not create kinesis stream')
         raise exn
+      # LocalStack's HTTP endpoint may not be ready to accept connections
+      # immediately after container startup; sleep before retrying so all
+      # attempts are not exhausted immediately on ConnectionClosedError.
+      time.sleep(3)
 
   for attempt in range(retries):
     stream = kinesis_client.describe_stream(StreamName=stream_name)
@@ -1247,6 +1221,134 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
 
 
 @contextlib.contextmanager
+def temp_pubsub_subscriptions(project_id="apache-beam-testing"):
+  """Context manager providing a temporary Pub/Sub emulator with input and
+  deadletter topics and subscriptions, plus bounded ReadFromPubSub and
+  WriteToPubSub transforms compatible with FnApiRunner for E2E testing.
+  """
+  from google.api_core import exceptions as gcp_exceptions
+
+  with PubSubContainer(project=project_id) as pubsub_container:
+    emulator_host = pubsub_container.get_pubsub_emulator_host()
+    with mock.patch.dict(os.environ, {"PUBSUB_EMULATOR_HOST": emulator_host}):
+      suffix = uuid.uuid4().hex[:8]
+
+      input_topic = f"projects/{pubsub_container.project}/topics/input-{suffix}"
+      input_sub = (
+          f"projects/{pubsub_container.project}/subscriptions/"
+          f"input-sub-{suffix}")
+      dlq_topic = (
+          f"projects/{pubsub_container.project}/topics/deadletter-{suffix}")
+      dlq_sub = (
+          f"projects/{pubsub_container.project}/subscriptions/"
+          f"deadletter-sub-{suffix}")
+
+      with pubsub_v1.PublisherClient() as publisher, \
+           pubsub_v1.SubscriberClient() as subscriber:
+        publisher.create_topic(name=input_topic)
+        subscriber.create_subscription(name=input_sub, topic=input_topic)
+        publisher.create_topic(name=dlq_topic)
+        subscriber.create_subscription(name=dlq_sub, topic=dlq_topic)
+
+      class _BoundedReadFromPubSub(beam.PTransform):
+        def __init__(
+            self,
+            topic=None,
+            subscription=None,
+            id_label=None,
+            with_attributes=False,
+            timestamp_attribute=None):
+          super().__init__()
+          self._topic = topic
+          self._subscription = subscription
+          self._with_attributes = with_attributes
+
+        def expand(self, pbegin):
+          sub_name = self._subscription
+          with_attrs = self._with_attributes
+
+          class _PullFn(beam.DoFn):
+            def process(self, _):
+              os.environ["PUBSUB_EMULATOR_HOST"] = emulator_host
+              sub_client = pubsub_v1.SubscriberClient()
+              total_pulled = 0
+              try:
+                while True:
+                  try:
+                    response = sub_client.pull(
+                        request={
+                            "subscription": sub_name,
+                            "max_messages": 100,
+                        },
+                        timeout=5.0 if total_pulled == 0 else 1.0)
+                  except gcp_exceptions.DeadlineExceeded:
+                    break
+                  if not response.received_messages:
+                    break
+                  total_pulled += len(response.received_messages)
+                  ack_ids = [m.ack_id for m in response.received_messages]
+                  sub_client.acknowledge(
+                      request={
+                          "subscription": sub_name, "ack_ids": ack_ids
+                      })
+                  for received in response.received_messages:
+                    msg = received.message
+                    if with_attrs:
+                      yield beam.io.gcp.pubsub.PubsubMessage(
+                          data=msg.data, attributes=dict(msg.attributes))
+                    else:
+                      yield msg.data
+              finally:
+                sub_client.close()
+
+          return pbegin | beam.Impulse() | beam.ParDo(_PullFn())
+
+      class _BoundedWriteToPubSub(beam.PTransform):
+        def __init__(
+            self,
+            topic,
+            with_attributes=False,
+            id_label=None,
+            timestamp_attribute=None):
+          super().__init__()
+          self._topic = topic
+          self._with_attributes = with_attributes
+
+        def expand(self, pcoll):
+          topic_name = self._topic
+          with_attrs = self._with_attributes
+
+          class _PublishFn(beam.DoFn):
+            def setup(self):
+              os.environ["PUBSUB_EMULATOR_HOST"] = emulator_host
+              self._pub_client = pubsub_v1.PublisherClient()
+
+            def process(self, element):
+              if with_attrs:
+                data = element.data
+                attrs = dict(element.attributes or {})
+              else:
+                data = element
+                attrs = {}
+              self._pub_client.publish(topic_name, data, **attrs).result()
+
+            def teardown(self):
+              if hasattr(self, "_pub_client") and self._pub_client is not None:
+                self._pub_client.transport.close()
+
+          return pcoll | beam.ParDo(_PublishFn())
+
+      with mock.patch("apache_beam.io.ReadFromPubSub", _BoundedReadFromPubSub), \
+           mock.patch("apache_beam.io.WriteToPubSub", _BoundedWriteToPubSub):
+        yield {
+            "INPUT_TOPIC": input_topic,
+            "INPUT_SUBSCRIPTION": input_sub,
+            "DEADLETTER_TOPIC": dlq_topic,
+            "DEADLETTER_SUBSCRIPTION": dlq_sub,
+        }
+
+
+@contextlib.contextmanager
 def temp_delta_table():
   with tempfile.TemporaryDirectory() as temp_dir:
     log_dir = os.path.join(temp_dir, "_delta_log")
@@ -1351,6 +1453,8 @@ def replace_recursive(spec, vars):
   # callable in the if branch above instead of checking lambda here.
   elif isinstance(
       spec, str) and '{' in spec and '{\n' not in spec and 'lambda' not in spec:
+    if spec.startswith('{') and spec.endswith('}') and spec[1:-1] in vars:
+      return vars[spec[1:-1]]
     try:
       return spec.format(**vars)
     except Exception as exn:
@@ -1502,12 +1606,29 @@ def create_test_methods(spec):
                 'apache_beam.yaml.yaml_provider.standard_providers',
                 lambda: providers))
         for fixture in spec.get('fixtures', []):
-          vars[fixture['name']] = stack.enter_context(
+          fixture_callable = (
               python_callable.PythonCallableWithSource.
-              load_from_fully_qualified_name(fixture['type'])(
-                  **yaml_transform.SafeLineLoader.strip_metadata(
-                      fixture.get('config', {}))))
+              load_from_fully_qualified_name(fixture['type']))
+          fixture_config = yaml_transform.SafeLineLoader.strip_metadata(
+              fixture.get('config', {}))
+          for attempt in range(3):
+            try:
+              vars[fixture['name']] = stack.enter_context(
+                  fixture_callable(**fixture_config))
+              break
+            except unittest.SkipTest:
+              raise
+            except Exception as exn:
+              if attempt == 2:
+                raise
+              _LOGGER.warning(
+                  'Fixture %s setup failed (attempt %d/3): %s',
+                  fixture['name'],
+                  attempt + 1,
+                  exn)
+              time.sleep(5)
         for pipeline_spec in spec['pipelines']:
+          vars['NOW_MS'] = int(time.time() * 1000) + 1000
           try:
             with beam.Pipeline(options=PipelineOptions(
                 pickle_library='cloudpickle',

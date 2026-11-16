@@ -150,8 +150,50 @@ task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
   into "${project.buildDir}/templates-fmpp/codegen"
 }
+
+// config.fmpp adds Beam's rules to Calcite's grammar, Parser.jj, only at fixed hooks. There is
+// no hook that allows us to add syntax right after a table name or a table function call, which is
+// needed to set options using WITH ('key' = value, ...) and to read changes using CHANGES(...). To
+// get around this, the copyFmppTemplatesFromCalciteCore task edits its copy of Parser.jj to add
+// that syntax.
+//
+// Each entry below pairs a snippet of Calcite's grammar, the anchor, with Beam code. The task
+// inserts the code right after the anchor. Take the first entry. TableRef3, Calcite's rule for a
+// table in FROM, contains
+//   [ tableRef = Snapshot(tableRef) ]
+// which parses an optional FOR SYSTEM_TIME AS OF. After the edit, that line reads
+//   [ tableRef = Snapshot(tableRef) ] tableRef = TableClauseOpt(tableRef, TableClause.Role.READ)
+// So right after FOR SYSTEM_TIME AS OF, Beam's TableClauseOpt rule parses an optional WITH clause.
+//
+// The build fails if an anchor is missing from Parser.jj or shows up more than once. This will catch
+// the case when a Calcite upgrade changes one of these snippets. To fix that, find the snippet's new
+// form in Parser.jj and update the anchor below.
+def calciteParserExtensions = [
+  // Parses WITH on a table in FROM. This is the example above.
+  '[ tableRef = Snapshot(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.READ)',
+  // Parses WITH after a table function call in FROM, such as CHANGES(orders, 5). A CHANGES(...)
+  // call then gets folded into the name of the table it reads, like a table with WITH.
+  'tableRef = ImplicitTableFunctionCallArgs(tableName)': 'tableRef = ChangesCallOpt(tableRef)',
+  // Rejects TABLE(CHANGES(...)), so that FROM CHANGES(...) is the one way to read changes.
+  'tableRef = TableFunctionCall()': '{ TableClause.checkNotChanges(tableRef); }',
+  // Parses WITH on the INSERT target, in Calcite's SqlInsert rule, before the optional column list.
+  '[ LOOKAHEAD(5) tableRef = ExtendTable(tableRef) ]': 'tableRef = TableClauseOpt(tableRef, TableClause.Role.WRITE)',
+  // Beam gives a FROM table with CHANGES(...) or WITH an alias: its own name. If the query gives it
+  // an alias too, keep only the query's. This runs at the end of TableRef3.
+  '[ tableRef = Tablesample(tableRef) ]': '{ tableRef = TableClause.collapseImplicitAlias(tableRef); }',
+  // SQL also uses WITH for common table expressions, as in WITH q AS (...) SELECT * FROM q. A
+  // reference to q can't use CHANGES(...) or take WITH options. Either would become part of the
+  // name, and Calcite would then look for a catalog table instead of using q. addWith builds every
+  // such query, so check the references there.
+  'JAVACODE SqlNode addWith(SqlNodeList withList, SqlNode e) {': 'TableClause.checkCteReferences(withList, e);',
+  // OrderByLimitOpt attaches the ORDER BY of such a query after addWith has run, so check the
+  // ORDER BY here too.
+  'if (orderBy != null || offsetFetch[0] != null || offsetFetch[1] != null) {': 'TableClause.checkCteReferencesInOrderBy(e, orderBy);',
+]
+
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
+  inputs.property("calciteParserExtensions", calciteParserExtensions)
   File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
     it.name.startsWith("beam-vendor-calcite")
   }.singleFile
@@ -169,6 +211,18 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
   filter{
     line ->
       line.replace('import com.google.common.', 'import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.')
+  }
+  doLast {
+    def parserJj = file("${project.buildDir}/templates-fmpp/codegen/templates/Parser.jj")
+    def grammar = parserJj.text
+    calciteParserExtensions.each { anchor, extension ->
+      def count = grammar.count(anchor)
+      if (count != 1) {
+        throw new GradleException("Expected '${anchor}' once in Calcite's Parser.jj, found it ${count} times")
+      }
+      grammar = grammar.replace(anchor, "${anchor} ${extension}")
+    }
+    parserJj.text = grammar
   }
 }
 

@@ -48,7 +48,7 @@ RUN apt-get update \
 RUN apt-get update \
     && apt-get install -y apt-transport-https \
     # Download the key and save it directly to the keyring file (skipping apt-key)
-    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+    && curl -fsSL --retry 5 --retry-all-errors https://packages.cloud.google.com/apt/doc/apt-key.gpg \
        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
     # Add the repo source using the signed-by tag
     && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
@@ -62,7 +62,7 @@ ENV CLOUDSDK_CONFIG=/opt/gcloud-config
 RUN mkdir -p /opt/gcloud-config && chmod 777 /opt/gcloud-config
 
 # Install node LTS environment
-RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
+RUN curl -fsSL --retry 5 --retry-all-errors https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         nodejs \
@@ -74,16 +74,18 @@ RUN npm update -g npm
 
 RUN npm install postcss postcss-cli autoprefixer
 
-# Install yarn
-ENV COREPACK_HOME=/usr/local/share/corepack
+# Install yarn. Node.js 25+ no longer bundles Corepack.
+ENV COREPACK_HOME=/usr/local/share/corepack \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN mkdir -p "$COREPACK_HOME" \
+ && npm install -g corepack \
  && corepack enable \
  && corepack prepare yarn@1.22.22 --activate
 
 # Install hugo extended version v0.117.0
 RUN HUGOHOME="$(mktemp -d)" \
     && export HUGOHOME \
-    && curl -sL https://github.com/gohugoio/hugo/releases/download/v0.117.0/hugo_extended_0.117.0_Linux-64bit.tar.gz > "${HUGOHOME}/hugo.tar.gz" \
+    && curl -fsSL --retry 5 --retry-all-errors https://github.com/gohugoio/hugo/releases/download/v0.117.0/hugo_extended_0.117.0_Linux-64bit.tar.gz > "${HUGOHOME}/hugo.tar.gz" \
     && tar -xzvf "${HUGOHOME}/hugo.tar.gz" hugo \
     && mv hugo /usr/local/bin/hugo \
     && chmod +x /usr/local/bin/hugo \

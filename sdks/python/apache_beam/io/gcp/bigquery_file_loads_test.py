@@ -734,7 +734,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     expected_dest_jobref_list = [(partition_1[0], job_1.jobReference),
                                  (partition_2[0], job_2.jobReference)]
     with TestPipeline('DirectRunner') as p:
-      partitions = p | beam.Create([partition_1, partition_2])
+      partitions = p | beam.Create([partition_1, partition_2], reshuffle=False)
       outputs = (
           partitions
           | beam.ParDo(
@@ -776,7 +776,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
-        partitions = p | beam.Create([partition_1, partition_2])
+        partitions = p | beam.Create([partition_1, partition_2],
+                                     reshuffle=False)
         _ = (
             partitions
             | beam.ParDo(
@@ -1357,7 +1358,8 @@ class TestFileLoadsQuotaProject(_TestCaseWithTempDirCleanUp):
         mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_expand_resolves_quota_project_from_options(self):
-    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    options = PipelineOptions(
+        ['--bigquery_quota_project_id=my-billing-project'])
     transform = bqfl.BigQueryBatchFileLoads(
         'project:dataset.table',
         custom_gcs_temp_location=self._new_tempdir(),

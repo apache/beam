@@ -187,11 +187,13 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 rawRecord.topic(),
                 rawRecord.partition(),
                 rawRecord.offset(),
-                ConsumerSpEL.getRecordTimestamp(rawRecord),
-                ConsumerSpEL.getRecordTimestampType(rawRecord),
-                ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                rawRecord.timestamp(),
+                KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal()),
+                rawRecord.headers(),
+                keyDeserializerInstance.deserialize(
+                    rawRecord.topic(), rawRecord.headers(), rawRecord.key()),
+                valueDeserializerInstance.deserialize(
+                    rawRecord.topic(), rawRecord.headers(), rawRecord.value()));
 
         curTimestamp =
             pState.timestampPolicy.getTimestampForRecord(pState.mkTimestampPolicyContext(), record);
@@ -828,7 +830,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       Instant startReadTime = spec.getStartReadTime();
       if (startReadTime != null) {
         pState.nextOffset =
-            ConsumerSpEL.offsetForTime(consumer, pState.topicPartition, startReadTime);
+            KafkaIOUtils.offsetForTime(consumer, pState.topicPartition, startReadTime);
         consumer.seek(pState.topicPartition, pState.nextOffset);
       } else {
         pState.nextOffset = consumer.position(pState.topicPartition);

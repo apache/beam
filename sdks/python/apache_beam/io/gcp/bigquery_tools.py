@@ -62,7 +62,6 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import BigQueryOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -121,6 +120,17 @@ _DATASET_PATTERN = r'[-\w.]{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 # A single segment of a project id (no dots or colons).
 _PROJECT_NAME_SEGMENT_PATTERN = r'[-a-z0-9]*[a-z0-9]'
+
+try:
+  _COMPILED_TABLE_SPEC_RE = regex.compile(
+      f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
+      f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
+  _COMPILED_PROJECT_RE = regex.compile(_PROJECT_PATTERN)
+  _COMPILED_PROJECT_SEGMENT_RE = regex.compile(_PROJECT_NAME_SEGMENT_PATTERN)
+except NameError:
+  _COMPILED_TABLE_SPEC_RE = None
+  _COMPILED_PROJECT_RE = None
+  _COMPILED_PROJECT_SEGMENT_RE = None
 
 # For CI: temp dataset of this name are automatically deleted
 _TEMP_DATASET_PREFIX = 'beam_temp_dataset_'
@@ -405,10 +415,7 @@ def _split_table_spec(table_spec):
   and domain-scoped project ids ('example.com:proj') are both handled. This
   mirrors BigQueryHelpers.parseTableSpec in the Java SDK.
   """
-  pattern = (
-      f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
-      f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
-  if not regex.fullmatch(pattern, table_spec):
+  if not _COMPILED_TABLE_SPEC_RE.fullmatch(table_spec):
     raise _invalid_table_spec(table_spec)
 
   # Table ids cannot contain '.', so the table is always the last segment.
@@ -427,7 +434,7 @@ def _split_table_spec(table_spec):
       return None, prefix, table
     project = prefix[:first_dot]
     dataset = prefix[first_dot + 1:]
-    if not regex.fullmatch(_PROJECT_PATTERN, project) or not dataset:
+    if not _COMPILED_PROJECT_RE.fullmatch(project) or not dataset:
       raise _invalid_table_spec(table_spec)
     return project, dataset, table
 
@@ -441,7 +448,7 @@ def _split_table_spec(table_spec):
     dataset = prefix[colon + 1:]
     first_dot = dataset.find('.')
     if (first_dot >= 0 and first_dot < len(dataset) - 1 and '.' in project and
-        regex.fullmatch(_PROJECT_NAME_SEGMENT_PATTERN, dataset[:first_dot])):
+        _COMPILED_PROJECT_SEGMENT_RE.fullmatch(dataset[:first_dot])):
       project = project + ':' + dataset[:first_dot]
       dataset = dataset[first_dot + 1:]
     return project, dataset, table
@@ -500,10 +507,10 @@ def _build_dataset_encryption_config(kms_key):
 
 
 def _quota_project_id_from_options(pipeline_options):
-  """Returns --quota_project_id from pipeline options, if any."""
+  """Returns --bigquery_quota_project_id from pipeline options, if any."""
   if pipeline_options is None:
     return None
-  return pipeline_options.view_as(GoogleCloudOptions).quota_project_id
+  return pipeline_options.view_as(BigQueryOptions).bigquery_quota_project_id
 
 
 def create_bq_storage_client(quota_project_id=None):
@@ -1654,7 +1661,7 @@ class BigQueryWrapper(object):
 
     Args:
       pipeline_options: Pipeline options containing GCP configuration.
-        The quota_project_id is read from GoogleCloudOptions if set.
+        The quota project is read from --bigquery_quota_project_id if set.
     """
     return BigQueryWrapper(pipeline_options=pipeline_options)
 
@@ -1829,8 +1836,11 @@ class AvroRowWriter(io.IOBase):
     raise io.UnsupportedOperation("AvroRowWriter is not readable")
 
   def tell(self):
-    # Flush the fastavro Writer to the underlying stream, otherwise there isn't
-    # a reliable way to determine how many bytes have been written.
+    # Include both bytes already flushed to the underlying stream and bytes
+    # currently buffered in the fastavro Writer, avoiding a costly block flush
+    # (and 16-byte sync marker) after every single row.
+    if hasattr(self._avro_writer, 'io'):
+      return self._file_handle.tell() + self._avro_writer.io.tell()
     self._avro_writer.flush()
     return self._file_handle.tell()
 

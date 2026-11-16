@@ -60,7 +60,7 @@ import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericFileWriterFactory;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.InternalRecordWrapper;
@@ -436,11 +436,11 @@ public class IcebergEncryptionTest implements Serializable {
       throws IOException {
     OutputFileFactory fileFactory =
         OutputFileFactory.builderFor(table, 1, 1).format(FileFormat.PARQUET).build();
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
-
     DataWriter<Record> writer =
-        appenderFactory.newDataWriter(fileFactory.newOutputFile(), FileFormat.PARQUET, null);
+        new GenericFileWriterFactory.Builder(table)
+            .dataFileFormat(FileFormat.PARQUET)
+            .build()
+            .newDataWriter(fileFactory.newOutputFile(), table.spec(), null);
     try (DataWriter<Record> toClose = writer) {
       for (Record record : records) {
         toClose.write(record);
@@ -456,13 +456,14 @@ public class IcebergEncryptionTest implements Serializable {
 
   private static DeleteFile writePositionDelete(Table table, DataFile dataFile, long... positions)
       throws IOException {
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
     PositionDeleteWriter<Record> writer =
-        appenderFactory.newPosDeleteWriter(
-            encryptedFile(table, dataFile.location() + ".pos-delete.parquet"),
-            FileFormat.PARQUET,
-            null);
+        new GenericFileWriterFactory.Builder(table)
+            .deleteFileFormat(FileFormat.PARQUET)
+            .build()
+            .newPositionDeleteWriter(
+                encryptedFile(table, dataFile.location() + ".pos-delete.parquet"),
+                table.spec(),
+                null);
     try (PositionDeleteWriter<Record> toClose = writer) {
       for (long position : positions) {
         toClose.write(PositionDelete.<Record>create().set(dataFile.location(), position));
@@ -474,13 +475,16 @@ public class IcebergEncryptionTest implements Serializable {
   private static DeleteFile writeEqualityDelete(
       Table table, DataFile dataFile, @Nullable String data) throws IOException {
     Schema deleteSchema = table.schema().select("data");
-    GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {2}, deleteSchema, null);
     EqualityDeleteWriter<Record> writer =
-        appenderFactory.newEqDeleteWriter(
-            encryptedFile(table, dataFile.location() + ".eq-delete.parquet"),
-            FileFormat.PARQUET,
-            null);
+        new GenericFileWriterFactory.Builder(table)
+            .deleteFileFormat(FileFormat.PARQUET)
+            .equalityFieldIds(new int[] {2})
+            .equalityDeleteRowSchema(deleteSchema)
+            .build()
+            .newEqualityDeleteWriter(
+                encryptedFile(table, dataFile.location() + ".eq-delete.parquet"),
+                table.spec(),
+                null);
     try (EqualityDeleteWriter<Record> toClose = writer) {
       GenericRecord deleteRecord = GenericRecord.create(deleteSchema);
       deleteRecord.setField("data", data);

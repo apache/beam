@@ -29,12 +29,12 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,8 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Pipeline translator for streaming pipelines on Spark 4. It extends the common registry to reuse
- * the stateless single output ParDo, Window.Assign, Flatten, Reshuffle and Combine.GroupedValues
- * translators, which are safe on a streaming Dataset. Unsupported primitives fail at translation.
+ * the stateless ParDo, Window.Assign, Flatten, Reshuffle and Combine.GroupedValues translators,
+ * which are safe on a streaming Dataset. Unsupported primitives fail at translation.
  */
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
@@ -93,17 +93,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       return READ_UNBOUNDED;
     }
 
-    if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
-      throw new UnsupportedOperationException(
-          "Bounded Read (Read.from(BoundedSource), Create with two or more elements)"
-              + NOT_SUPPORTED);
-    }
-
-    if (transform instanceof Impulse) {
-      throw new UnsupportedOperationException(
-          "Impulse (Create with fewer than two elements, PAssert)" + NOT_SUPPORTED);
-    }
-
     if (transform instanceof GroupByKey) {
       return GROUP_BY_KEY;
     }
@@ -112,6 +101,11 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
         && ((Combine.Globally<?, ?>) transform).isInsertDefault()) {
       throw new UnsupportedOperationException(
           "Combine.globally() with a default value (use withoutDefaults())" + NOT_SUPPORTED);
+    }
+
+    if (transform instanceof Combine.PerKeyWithHotKeyFanout) {
+      throw new UnsupportedOperationException(
+          "Combine.perKey().withHotKeyFanout()" + NOT_SUPPORTED);
     }
 
     if (transform instanceof Combine.PerKey || transform instanceof Combine.Globally) {
@@ -125,13 +119,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
         throw new UnsupportedOperationException(
             "ParDo with side inputs (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
       }
-      if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
-        throw new UnsupportedOperationException(
-            "ParDo with additional outputs ("
-                + signature.fnClass().getName()
-                + ")"
-                + NOT_SUPPORTED);
-      }
       if (signature.processElement().requiresTimeSortedInput()) {
         throw new UnsupportedOperationException(
             "@RequiresTimeSortedInput (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
@@ -143,6 +130,14 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       checkNoProcessingTimeTimers(parDo.getFn(), signature);
 
       if (signature.usesState() || signature.usesTimers()) {
+        if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
+          // BeamStatefulProcessor merges all output tags into the main output.
+          throw new UnsupportedOperationException(
+              "Stateful ParDo with additional outputs ("
+                  + signature.fnClass().getName()
+                  + ")"
+                  + NOT_SUPPORTED);
+        }
         return STATEFUL_PAR_DO;
       }
     }
@@ -175,7 +170,8 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
   private static void checkSupportedGroupByKey(PCollection<?> input) {
     WindowingStrategy<?, ?> strategy = input.getWindowingStrategy();
     checkNotMergingWindows(strategy, "GroupByKey");
-    if (!(strategy.getTrigger() instanceof DefaultTrigger)) {
+    if (!(strategy.getTrigger() instanceof DefaultTrigger
+        || strategy.getTrigger() instanceof NeverTrigger)) {
       throw new UnsupportedOperationException(
           "Custom triggers (" + strategy.getTrigger() + ")" + NOT_SUPPORTED);
     }

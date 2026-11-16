@@ -32,6 +32,8 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.avro.SchemaBuilder;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -40,7 +42,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -341,9 +346,15 @@ public class ReadFooterSchemaTest {
   }
 
   private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
+    // the read is keyed by destination table; these tests are about the schema, so one key
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))
+        .apply(
+            "KeyByTable",
+            WithKeys.<String, String>of("db.t").withKeyType(TypeDescriptors.strings()))
         .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled())))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), CollectDistinctSchemas.groupCoder()))
+        .apply("DropKey", Values.create())
         .setCoder(CollectDistinctSchemas.groupCoder());
   }
 
@@ -351,7 +362,12 @@ public class ReadFooterSchemaTest {
       String prefix, String... paths) {
     return pipeline
         .apply(Create.of(Arrays.asList(paths)))
+        .apply(
+            "KeyByTable",
+            WithKeys.<String, String>of("db.t").withKeyType(TypeDescriptors.strings()))
         .apply(ParDo.of(new ReadFooterSchema(SchemaEvolutionConfig.disabled(), prefix)))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), CollectDistinctSchemas.groupCoder()))
+        .apply("DropKey", Values.create())
         .setCoder(CollectDistinctSchemas.groupCoder());
   }
 

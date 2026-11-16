@@ -27,6 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -35,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -149,6 +151,13 @@ public class IcebergUtilsTest {
       assertThat(record.getField("v"), equalTo(destValue));
     }
 
+    private Record toIcebergRecord(Type destType, String sourceValue) {
+      Schema beamSchema = Schema.of(Schema.Field.of("v", Schema.FieldType.STRING));
+      Row row = Row.withSchema(beamSchema).addValues(sourceValue).build();
+      return IcebergUtils.beamRowToIcebergRecord(
+          new org.apache.iceberg.Schema(required(0, "v", destType)), row);
+    }
+
     @Test
     public void testBoolean() {
       checkRowValueToRecordValue(Schema.FieldType.BOOLEAN, Types.BooleanType.get(), true);
@@ -225,6 +234,13 @@ public class IcebergUtilsTest {
       LocalDateTime localDateTime = LocalDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000);
       checkRowValueToRecordValue(
           Schema.FieldType.STRING, val, Types.TimestampType.withoutZone(), localDateTime);
+
+      // Schema.FieldType.STRING, with a space separating date and time
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 13:18:20.053",
+          Types.TimestampType.withoutZone(),
+          localDateTime);
     }
 
     @Test
@@ -268,6 +284,49 @@ public class IcebergUtilsTest {
           val,
           Types.TimestampType.withZone(),
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.STRING, with a space separating date and time
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 13:18:20.053+03:27",
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-10-08 09:51:20.053Z",
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+    }
+
+    @Test
+    public void testTimestampStringWithInvalidSeparator() {
+      for (String val :
+          Arrays.asList(
+              "2024-10-08 T13:18:20.053", "2024-10-0813:18:20.053", "2024-10-08  13:18:20.053")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withoutZone(), val));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+      }
+    }
+
+    @Test
+    public void testTimestampStringWithInvalidDate() {
+      for (String val :
+          Arrays.asList(
+              "2023-02-29T13:18:20",
+              "2023-02-29 13:18:20",
+              "2024-04-31T13:18:20",
+              "2024-04-31 13:18:20")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withoutZone(), val));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+      }
     }
 
     @Test
@@ -299,6 +358,25 @@ public class IcebergUtilsTest {
           enumType.valueOf("TWO"),
           Types.StringType.get(),
           "TWO");
+    }
+
+    @Test
+    public void testUnknown() {
+      // an unknown column only holds null, so a value fails instead of being dropped
+      Schema beamSchema = Schema.of(Schema.Field.nullable("v", Schema.FieldType.STRING));
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(optional(0, "v", Types.UnknownType.get()));
+      Row row = Row.withSchema(beamSchema).addValue("abc").build();
+      UnsupportedOperationException e =
+          assertThrows(
+              UnsupportedOperationException.class,
+              () -> IcebergUtils.beamRowToIcebergRecord(icebergSchema, row));
+      assertEquals(
+          "Cannot write field 'v': Iceberg type unknown is not supported.", e.getMessage());
+
+      // a null value stays null
+      Row nullRow = Row.withSchema(beamSchema).addValue(null).build();
+      assertNull(IcebergUtils.beamRowToIcebergRecord(icebergSchema, nullRow).getField("v"));
     }
 
     @Test

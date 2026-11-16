@@ -34,7 +34,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -178,8 +177,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link KafkaIO}. Run with 'mvn test -Dkafka.clients.version=0.10.1.1', to test with a
@@ -188,8 +185,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnnecessaryLongToIntConversion") // for assert
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
-
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
 
   /*
    * The tests below borrow code and structure from CountingSourceTest. In addition verifies
@@ -645,14 +640,12 @@ public class KafkaIOTest {
 
     @Override
     public Integer deserialize(String topic, byte[] data) {
-      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
-      return super.deserialize(topic, data);
+      throw new UnsupportedOperationException(
+          "Expected deserialize(String, Headers, byte[]) to be called");
     }
 
     @Override
     public Integer deserialize(String topic, Headers headers, byte[] data) {
-      // Overriding the default should trigger header evaluation and this to be called.
-      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -662,14 +655,12 @@ public class KafkaIOTest {
 
     @Override
     public Long deserialize(String topic, byte[] data) {
-      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
-      return super.deserialize(topic, data);
+      throw new UnsupportedOperationException(
+          "Expected deserialize(String, Headers, byte[]) to be called");
     }
 
     @Override
     public Long deserialize(String topic, Headers headers, byte[] data) {
-      // Overriding the default should trigger header evaluation and this to be called.
-      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -2082,12 +2073,6 @@ public class KafkaIOTest {
     // It is not feasible to test such retries with direct runner. When DoFnTester supports
     // state, we can test ExactlyOnceWriter DoFn directly to ensure it handles retries correctly.
 
-    if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn(
-          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
-      return;
-    }
-
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
@@ -2125,13 +2110,6 @@ public class KafkaIOTest {
 
   @Test
   public void testExactlyOnceSinkWithSendException() throws Throwable {
-
-    if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn(
-          "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
-      return;
-    }
-
     thrown.expect(KafkaException.class);
     thrown.expectMessage("fakeException");
 
@@ -2201,9 +2179,6 @@ public class KafkaIOTest {
 
   @Test
   public void testUnboundedSourceStartReadTime() {
-
-    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
-
     int numElements = 1000;
     // In this MockConsumer, we let the elements of the time and offset equal and there are 20
     // partitions. So set this startTime can read half elements.
@@ -2278,9 +2253,6 @@ public class KafkaIOTest {
 
   @Test
   public void testUnboundedSourceStartReadTimeException() {
-
-    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
-
     noMessagesException.expect(RuntimeException.class);
 
     int numElements = 1000;
