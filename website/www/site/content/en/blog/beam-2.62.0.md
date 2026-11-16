@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.62.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/#2620-2025-01-21) for this release.
 
 <!--more-->
 

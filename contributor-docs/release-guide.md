@@ -683,6 +683,12 @@ as an example.
 
 - Copy the changes for the current release from `CHANGES.md` to the blog post
   and edit as necessary.
+- Set `{$DOWNLOAD_ANCHOR}` to the Hugo heading slug for the new entry in
+  `downloads.md`: the release version without dots followed by `-YYYY-MM-DD`
+  (for example, `2780-2026-11-16` for `#### 2.78.0 (2026-11-16)`). Use `??` for
+  the day (e.g., `2780-2026-11-??`) until the final release date is known, and
+  keep the link root-relative (`/get-started/downloads/#...`) in the blog post
+  so GCS PR preview staging links to the staged `downloads` page.
 - Be sure to add yourself to
   [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml)
   if necessary.
@@ -725,7 +731,7 @@ as an example.
 
     We are happy to present the new {$RELEASE_VERSION} release of Beam.
     This release includes both improvements and new functionality.
-    See the [download page](https://beam.apache.org/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+    See the [download page](/get-started/downloads/#{$DOWNLOAD_ANCHOR}) for this release.
 
     <{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more-->
 
@@ -776,15 +782,31 @@ as an example.
 
 ### Update the Github Release with the Blog post content
 
-Use the body of the blog post (below the Hugo frontmatter and license comment) as the description of the release:
+Update the RC GitHub Release description from the blog post body (stripping the Hugo frontmatter and license header), rewrite root-relative Beam website links (`](/...`) to `https://beam.apache.org/...` so they do not 404 on `github.com`, and point the download link at the staged RC artifacts (`https://dist.apache.org/repos/dist/dev/beam/${RELEASE_VERSION}/`) while the release is still an RC (since `beam.apache.org/get-started/downloads/` only lists finalized releases).
 
-* Ensure all Beam website links use full `https://beam.apache.org/...` URLs rather than root-relative `/...` paths (e.g., `sed 's=](/=](https://beam.apache.org/=g'`), since relative paths resolve against `https://github.com` and return 404 on GitHub Releases.
-* While the release is still an RC (before the final release date is known), link to `https://beam.apache.org/get-started/downloads/` without an unresolved `#...-??` / `{$DOWNLOAD_ANCHOR}` placeholder.
+You can update and undraft the pre-release directly with `gh` (preserving any Prism binary assets already attached to the RC release):
 
-You may now also uncheck the "draft" checkbox.
-This allows it to be visible to non-committers, and makes the assets publicly accessible.
+```shell
+RELEASE_VERSION=2.XX.0
+RC_NUM=1
+python3 - "$RELEASE_VERSION" <<'EOF' | gh release edit "v${RELEASE_VERSION}-RC${RC_NUM}" --repo apache/beam --prerelease --draft=false --notes-file -
+import pathlib, re, sys
+ver = sys.argv[1]
+body = pathlib.Path(f"website/www/site/content/en/blog/beam-{ver}.md").read_text()
+body = re.sub(r"\A(?:---.*?---\s*)?(?:<!--.*?-->\s*)?", "", body, flags=re.S)
+body = re.sub(r"<[^>]*!--more-->", "", body)
+body = re.sub(r"\n{3,}", "\n\n", body)
+body = re.sub(
+    r"\[download page\]\([^)]*/get-started/downloads/[^)]*\)",
+    f"[staged RC artifacts](https://dist.apache.org/repos/dist/dev/beam/{ver}/)",
+    body,
+)
+body = re.sub(r"\]\(/(?!/)", "](https://beam.apache.org/", body)
+sys.stdout.write(body.lstrip())
+EOF
+```
 
-Be sure the release is still marked as a pre-release (not as latest).
+This makes the pre-release visible to non-committers and makes its assets publicly accessible while keeping it marked as a pre-release (not as latest).
 
 ### Checklist to proceed to the next phase
 
@@ -1013,15 +1035,26 @@ If the issue persists, create an infrastructure ticket for assistance (e.g., htt
 
 ### Publish the Github Release page
 
-Once the tag is uploaded, update the page with the final release tag, and publish the release notes to Github.
+Once the tag is uploaded and the website PR has been finalized and merged, update the existing RC GitHub Release in place (preserving its attached Prism assets) with the final release tag and finalized release notes:
 
-* From the [Beam release page on Github](https://github.com/apache/beam/releases)
-find and open the release for the final RC tag for editing.
-* Update the release with the final version tag created above.
-* Update the release description from the finalized blog post so that the download page link uses the final release date anchor (no `??` / `{$DOWNLOAD_ANCHOR}` placeholders) and all Beam website links use full `https://beam.apache.org/...` URLs rather than root-relative `/...` paths.
-* Set this version as the latest release, and publish it.
+```shell
+RELEASE_VERSION=2.XX.0
+RC_NUM=1
+python3 - "$RELEASE_VERSION" <<'EOF' | gh release edit "v${RELEASE_VERSION}-RC${RC_NUM}" --repo apache/beam --tag "v${RELEASE_VERSION}" --title "Beam ${RELEASE_VERSION} release" --prerelease=false --latest --notes-file -
+import pathlib, re, sys
+ver = sys.argv[1]
+body = pathlib.Path(f"website/www/site/content/en/blog/beam-{ver}.md").read_text()
+body = re.sub(r"\A(?:---.*?---\s*)?(?:<!--.*?-->\s*)?", "", body, flags=re.S)
+body = re.sub(r"<[^>]*!--more-->", "", body)
+body = re.sub(r"\n{3,}", "\n\n", body)
+body = re.sub(r"\]\(/(?!/)", "](https://beam.apache.org/", body)
+if "DOWNLOAD_ANCHOR" in body or "??" in body:
+  sys.exit("ERROR: Unresolved DOWNLOAD_ANCHOR or '??' placeholder in blog post.")
+sys.stdout.write(body.lstrip())
+EOF
+```
 
-The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page with the correct version.
+The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page with the correct version and a working `https://beam.apache.org/get-started/downloads/#...` link.
 
 ### Mark the version as released in GitHub
 
