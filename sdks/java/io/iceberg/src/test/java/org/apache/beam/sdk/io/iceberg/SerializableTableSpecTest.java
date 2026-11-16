@@ -19,9 +19,12 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -42,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
@@ -57,7 +61,11 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.encryption.EncryptedKey;
 import org.apache.iceberg.hadoop.HadoopConfigurable;
+import org.apache.iceberg.inmemory.InMemoryFileIO;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.ResolvingFileIO;
+import org.apache.iceberg.io.StorageCredential;
+import org.apache.iceberg.io.SupportsStorageCredentials;
 import org.apache.iceberg.types.Types;
 import org.junit.Before;
 import org.junit.Rule;
@@ -249,6 +257,18 @@ public class SerializableTableSpecTest {
 
   @Test
   public void testBeamSchemaCoderRoundtrip() throws Exception {
+    // HadoopFileIO can't hold storage credentials. ResolvingFileIO can, like the GCS and S3
+    // FileIOs that a REST catalog vends them to.
+    Catalog resolvingCatalog =
+        CatalogUtil.loadCatalog(
+            CatalogUtil.ICEBERG_CATALOG_HADOOP,
+            "hadoop",
+            ImmutableMap.of(
+                CatalogProperties.WAREHOUSE_LOCATION,
+                warehouseLocation,
+                CatalogProperties.FILE_IO_IMPL,
+                ResolvingFileIO.class.getName()),
+            new Configuration());
     TableIdentifier tableId = TableIdentifier.of("default", "coder_table");
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(COMPLEX_SCHEMA).hour("timestamp_val").build();
@@ -257,12 +277,17 @@ public class SerializableTableSpecTest {
             .sortBy("id", SortDirection.DESC, NullOrder.NULLS_LAST)
             .build();
     Table table =
-        catalog
+        resolvingCatalog
             .buildTable(tableId, COMPLEX_SCHEMA)
             .withPartitionSpec(partitionSpec)
             .withSortOrder(sortOrder)
             .withProperties(ImmutableMap.of("k1", "v1"))
             .create();
+    List<StorageCredential> credentials =
+        ImmutableList.of(
+            StorageCredential.create(
+                "gs://bucket/coder_table", ImmutableMap.of("gcs.oauth2.token", "vended-token")));
+    ((SupportsStorageCredentials) table.io()).setCredentials(credentials);
 
     SerializableTableSpec original = SerializableTableSpec.fromTable(tableId, table);
     SchemaCoder<SerializableTableSpec> coder = SerializableTableSpec.getCoder();
@@ -287,7 +312,43 @@ public class SerializableTableSpecTest {
     assertEquals(original.getFileIoJson(), decoded.getFileIoJson());
     assertEquals(original.getEncryptedKeyJsons(), decoded.getEncryptedKeyJsons());
     assertEquals(original.getLastUpdatedMillis(), decoded.getLastUpdatedMillis());
-    assertNotNull(decoded.getFileIO());
+    assertEquals(credentials, ((SupportsStorageCredentials) decoded.getFileIO()).credentials());
+    // Each side input update decodes new copies, which reuse the FileIO
+    assertSame(decoded.getFileIO(), CoderUtils.clone(coder, original).getFileIO());
+
+    // A copy with newly vended credentials gets its own FileIO, which holds them
+    List<StorageCredential> newCredentials =
+        ImmutableList.of(
+            StorageCredential.create(
+                "gs://bucket/coder_table", ImmutableMap.of("gcs.oauth2.token", "new-token")));
+    ((SupportsStorageCredentials) table.io()).setCredentials(newCredentials);
+    SerializableTableSpec refreshed =
+        CoderUtils.clone(coder, SerializableTableSpec.fromTable(tableId, table));
+    assertEquals(
+        newCredentials, ((SupportsStorageCredentials) refreshed.getFileIO()).credentials());
+    assertNotSame(decoded.getFileIO(), refreshed.getFileIO());
+  }
+
+  @Test
+  public void testSharedFileIOClosedOnceNoSpecUsesIt() throws Exception {
+    InMemoryFileIO fileIO = new InMemoryFileIO();
+    fileIO.initialize(ImmutableMap.of(CatalogProperties.WAREHOUSE_LOCATION, warehouseLocation));
+    Table table =
+        catalog.createTable(TableIdentifier.of("default", "closed_io"), TestFixtures.SCHEMA);
+    SerializableTableSpec spec =
+        SerializableTableSpec.fromTable(table).toBuilder().setFileIO(fileIO).build();
+
+    // Only a decoded copy uses the shared FileIO, and that copy is unreachable once this returns
+    InMemoryFileIO shared =
+        (InMemoryFileIO) CoderUtils.clone(SerializableTableSpec.getCoder(), spec).getFileIO();
+
+    await()
+        .atMost(30, TimeUnit.SECONDS)
+        .until(
+            () -> {
+              System.gc();
+              return shared.isClosed();
+            });
   }
 
   @Test
@@ -404,28 +465,20 @@ public class SerializableTableSpecTest {
 
     SerializableTableSpec spec = SerializableTableSpec.fromTable(table);
 
+    // Verify that calling zero-arg getFileIO() first does not pollute cache:
+    // subsequent getFileIO(conf) must update configuration on Configurable FileIO
+    FileIO fileIO = spec.getFileIO();
+    assertNotNull(fileIO);
+    assertTrue("FileIO must be Configurable", fileIO instanceof HadoopConfigurable);
+    assertNull(((HadoopConfigurable) fileIO).getConf().get("custom.test.prop"));
+
     Configuration conf = new Configuration();
     conf.set("custom.test.prop", "test-value-123");
 
-    FileIO fileIO = spec.getFileIO(conf);
-    assertNotNull(fileIO);
-    assertTrue("FileIO must be Configurable", fileIO instanceof HadoopConfigurable);
-    assertEquals("test-value-123", ((HadoopConfigurable) fileIO).getConf().get("custom.test.prop"));
-
-    // Also verify that zero-arg getFileIO() returns cached instance
-    assertEquals(fileIO, spec.getFileIO());
-
-    // Verify that calling zero-arg getFileIO() first does not pollute cache:
-    // subsequent getFileIO(conf) must update configuration on Configurable FileIO
-    SerializableTableSpec spec2 = SerializableTableSpec.fromTable(table);
-    FileIO fileIO2 = spec2.getFileIO();
-    assertNotNull(fileIO2);
-    assertNull(((HadoopConfigurable) fileIO2).getConf().get("custom.test.prop"));
-
-    FileIO configuredFileIO2 = spec2.getFileIO(conf);
-    assertEquals(fileIO2, configuredFileIO2);
+    FileIO configuredFileIO = spec.getFileIO(conf);
+    assertEquals(fileIO, configuredFileIO);
     assertEquals(
         "test-value-123",
-        ((HadoopConfigurable) configuredFileIO2).getConf().get("custom.test.prop"));
+        ((HadoopConfigurable) configuredFileIO).getConf().get("custom.test.prop"));
   }
 }

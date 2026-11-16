@@ -520,7 +520,9 @@ public abstract class TableMetadataDriver
       if (newSpec != null) {
         ReadableState<SerializableTableSpec> existingState = cacheState.get(tableId);
         SerializableTableSpec existingSpec = existingState != null ? existingState.read() : null;
-        if (existingSpec == null || isNewer(newSpec, existingSpec)) {
+        // Keep the cached spec only if it's newer. A poll of an unchanged table still brings the
+        // storage credentials the catalog just vended, and the cached ones may be about to expire.
+        if (existingSpec == null || !isNewer(existingSpec, newSpec)) {
           cacheState.put(tableId, newSpec);
         }
         lastSeenState.put(tableId, now);

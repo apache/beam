@@ -65,6 +65,10 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.ResolvingFileIO;
+import org.apache.iceberg.io.StorageCredential;
+import org.apache.iceberg.io.SupportsStorageCredentials;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
@@ -427,6 +431,19 @@ public class TableMetadataDriverTest implements Serializable {
     Catalog catalog = getCatalog();
     TableIdentifier tableId = TableIdentifier.of("default", "evolving_side_input_table");
     catalog.createTable(tableId, ICEBERG_SCHEMA);
+    VendingHadoopCatalog.token = "token-1";
+    IcebergCatalogConfig vendingCatalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("vending")
+            .setCatalogProperties(
+                ImmutableMap.of(
+                    CatalogProperties.CATALOG_IMPL,
+                    VendingHadoopCatalog.class.getName(),
+                    CatalogProperties.WAREHOUSE_LOCATION,
+                    warehouseLocation,
+                    CatalogProperties.FILE_IO_IMPL,
+                    ResolvingFileIO.class.getName()))
+            .build();
 
     String tableIdStr = "default.evolving_side_input_table";
     Duration refreshInterval = Duration.standardSeconds(2);
@@ -436,6 +453,8 @@ public class TableMetadataDriverTest implements Serializable {
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", tableIdStr).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_update", tableIdStr).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_update_data", tableIdStr).build();
+    Row row4 = Row.withSchema(BEAM_SCHEMA).addValues(4L, "rotate_credentials", tableIdStr).build();
+    Row row5 = Row.withSchema(BEAM_SCHEMA).addValues(5L, "post_rotation_data", tableIdStr).build();
 
     TestStream<Row> stream =
         TestStream.create(RowCoder.of(BEAM_SCHEMA))
@@ -445,6 +464,10 @@ public class TableMetadataDriverTest implements Serializable {
             .addElements(row2)
             .advanceProcessingTime(Duration.standardSeconds(3))
             .addElements(row3)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(row4)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(row5)
             .advanceProcessingTime(Duration.standardSeconds(3))
             .advanceWatermarkToInfinity();
 
@@ -472,6 +495,12 @@ public class TableMetadataDriverTest implements Serializable {
                               .commit();
                         } else if ("post_update_data".equals(data)) {
                           ControllableTestClock.setTime(10000L);
+                        } else if ("rotate_credentials".equals(data)) {
+                          // The catalog vends new credentials, but the table doesn't change
+                          ControllableTestClock.setTime(15000L);
+                          VendingHadoopCatalog.token = "token-2";
+                        } else if ("post_rotation_data".equals(data)) {
+                          ControllableTestClock.setTime(20000L);
                         }
                         out.output(row);
                       }
@@ -483,7 +512,7 @@ public class TableMetadataDriverTest implements Serializable {
             "CreateMetadataView",
             TableMetadataDriver.asView(
                 TableMetadataDriver.builder()
-                    .setCatalogConfig(catalogConfig)
+                    .setCatalogConfig(vendingCatalogConfig)
                     .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                     .setRefreshInterval(refreshInterval)
                     .build(),
@@ -497,7 +526,8 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(
                           @Element Row row, OutputReceiver<String> out, ProcessContext c) {
-                        if ("trigger_update".equals(row.getString("data"))) {
+                        String data = row.getString("data");
+                        if ("trigger_update".equals(data) || "rotate_credentials".equals(data)) {
                           return;
                         }
                         Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
@@ -506,18 +536,44 @@ public class TableMetadataDriverTest implements Serializable {
 
                         SideInputTable sideInputTable = new SideInputTable(spec);
                         boolean hasNewCol = sideInputTable.schema().findField("new_col") != null;
+                        String token =
+                            ((SupportsStorageCredentials) sideInputTable.io())
+                                .credentials()
+                                .get(0)
+                                .config()
+                                .get("token");
                         out.output(
-                            row.getString("data")
+                            data
                                 + ":"
-                                + (hasNewCol ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA"));
+                                + (hasNewCol ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA")
+                                + ":"
+                                + token);
                       }
                     })
                 .withSideInputs(metadataView));
 
     PAssert.that(consumerObserved)
-        .containsInAnyOrder("initial_data:INITIAL_SCHEMA", "post_update_data:UPDATED_SCHEMA");
+        .containsInAnyOrder(
+            "initial_data:INITIAL_SCHEMA:token-1",
+            "post_update_data:UPDATED_SCHEMA:token-1",
+            "post_rotation_data:UPDATED_SCHEMA:token-2");
 
     pipeline.run();
+  }
+
+  /** A Hadoop catalog that vends {@link #token} as a storage credential on every table load. */
+  public static class VendingHadoopCatalog extends HadoopCatalog {
+    static volatile String token = "token-1";
+
+    @Override
+    public Table loadTable(TableIdentifier identifier) {
+      Table table = super.loadTable(identifier);
+      ((SupportsStorageCredentials) table.io())
+          .setCredentials(
+              ImmutableList.of(
+                  StorageCredential.create(table.location(), ImmutableMap.of("token", token))));
+      return table;
+    }
   }
 
   @Test
