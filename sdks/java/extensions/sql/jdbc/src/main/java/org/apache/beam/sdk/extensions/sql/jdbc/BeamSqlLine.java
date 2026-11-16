@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_PREFIX;
 
+import java.io.Console;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +31,7 @@ import java.util.List;
 import jline.TerminalFactory;
 import jline.UnixTerminal;
 import jline.internal.Log;
+import org.apache.beam.sdk.extensions.sql.impl.rel.LiveResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
@@ -40,7 +42,32 @@ public class BeamSqlLine {
   private static final String NICKNAME = "BeamSQL";
 
   public static void main(String[] args) throws IOException {
+    if (isTerminal()) {
+      // Show the rows of unbounded queries in a full-screen view while their pipelines run.
+      LiveResult.setViewer(new LiveResultView());
+    }
     runSqlLine(args, null, System.out, System.err);
+  }
+
+  /**
+   * Whether the shell runs in a terminal that can show the live view.
+   *
+   * <p>Before Java 22, {@link System#console()} is null without a terminal. Since Java 22, it
+   * returns a console either way, and {@code Console.isTerminal()} tells the two apart.
+   */
+  @SuppressWarnings("SystemConsoleNull")
+  private static boolean isTerminal() {
+    Console console = System.console();
+    if (console == null || "dumb".equals(System.getenv("TERM"))) {
+      return false;
+    }
+    try {
+      return Boolean.TRUE.equals(Console.class.getMethod("isTerminal").invoke(console));
+    } catch (NoSuchMethodException e) {
+      return true;
+    } catch (ReflectiveOperationException e) {
+      return false;
+    }
   }
 
   private static String[] checkConnectionArgs(String[] args) {
