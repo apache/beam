@@ -69,6 +69,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.base.AbstractInstant;
 
 /** Utilities for converting between Beam and Iceberg types, made public for user's convenience. */
 public class IcebergUtils {
@@ -94,6 +95,15 @@ public class IcebergUtils {
           .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
           .put(EnumerationType.IDENTIFIER, Types.StringType.get())
+          .build();
+
+  /** The Java type a Row holds for each logical type that an Iceberg column maps to. */
+  private static final Map<String, Class<?>> LOGICAL_TYPE_VALUE_CLASSES =
+      ImmutableMap.<String, Class<?>>builder()
+          .put(SqlTypes.DATE.getIdentifier(), LocalDate.class)
+          .put(SqlTypes.TIME.getIdentifier(), LocalTime.class)
+          .put(SqlTypes.DATETIME.getIdentifier(), LocalDateTime.class)
+          .put(Timestamp.IDENTIFIER, java.time.Instant.class)
           .build();
 
   private static final DateTimeFormatter TIMESTAMP_SPACE_FORMATTER =
@@ -710,9 +720,10 @@ public class IcebergUtils {
   }
 
   /**
-   * Copies a list or map, or one of its elements, the way {@link Row.Builder#build()} would. A null
-   * fails where the Beam type is not nullable, and {@code binary}, which Iceberg reads as a {@link
-   * ByteBuffer}, becomes byte[].
+   * Copies a list or map, or one of its elements, with the checks {@link Row.Builder#build()} would
+   * make. A null fails where the Beam type is not nullable. {@code binary}, which Iceberg reads as
+   * a {@link ByteBuffer}, becomes byte[]. A DATETIME, logical type or row value that Beam can't
+   * store fails here.
    */
   private static @Nullable Object toBeamNestedValue(
       Schema.FieldType type, @Nullable Object value, String fieldName) {
@@ -742,6 +753,21 @@ public class IcebergUtils {
               toBeamNestedValue(valueType, entry.getValue(), fieldName));
         }
         return map;
+      case DATETIME:
+        return ((AbstractInstant) value).toInstant();
+      case LOGICAL_TYPE:
+        // For logical types that we have mapped here, we can skip the round-trip check that
+        // Row.Builder performs, and instead do a class cast check.
+        // We still perform the round-trip for unknown logical types for safety.
+        @SuppressWarnings("unchecked")
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) checkStateNotNull(type.getLogicalType());
+        @Nullable Class<?> valueClass = LOGICAL_TYPE_VALUE_CLASSES.get(logicalType.getIdentifier());
+        return valueClass != null
+            ? valueClass.cast(value)
+            : logicalType.toInputType(logicalType.toBaseType(value));
+      case ROW:
+        return (Row) value;
       default:
         return value;
     }

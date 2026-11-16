@@ -486,10 +486,17 @@ public class IcebergUtilsTest {
     @Test
     public void testTimestamp() {
       // SqlTypes.DATETIME
+      LocalDateTime localDateTime = DateTimeUtil.timestampFromMicros(123456789L);
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
-          DateTimeUtil.timestampFromMicros(123456789L));
+          localDateTime);
+
+      // SqlTypes.DATETIME inside a list
+      checkRecordValueToRowValue(
+          Types.ListType.ofRequired(1, Types.TimestampType.withoutZone()),
+          Schema.FieldType.array(Schema.FieldType.logicalType(SqlTypes.DATETIME)),
+          Arrays.asList(localDateTime));
 
       // Schema.FieldType.DATETIME
       DateTime dateTime =
@@ -555,6 +562,21 @@ public class IcebergUtilsTest {
           dateTime);
       checkRecordValueToRowValue(
           Types.TimestampType.withZone(), timestamp, Schema.FieldType.DATETIME, dateTime);
+
+      // A timestamptz inside a list isn't supported yet. Rows skip Row.Builder's checks, so the
+      // conversion itself must reject it, as build() used to.
+      Types.ListType timestamptzList = Types.ListType.ofRequired(1, Types.TimestampType.withZone());
+      for (Schema.FieldType elementType :
+          Arrays.asList(
+              Schema.FieldType.logicalType(Timestamp.MICROS), Schema.FieldType.DATETIME)) {
+        assertThrows(
+            ClassCastException.class,
+            () ->
+                checkRecordValueToRowValue(
+                    timestamptzList,
+                    Schema.FieldType.array(elementType),
+                    Arrays.asList(offsetDateTime)));
+      }
     }
 
     @Test
@@ -625,6 +647,15 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
+
+      // A logical type no Iceberg column maps to still rejects a value it can't hold.
+      assertThrows(
+          ClassCastException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.ListType.ofRequired(1, Types.StringType.get()),
+                  Schema.FieldType.array(Schema.FieldType.logicalType(SqlTypes.UUID)),
+                  list));
     }
 
     @Test
@@ -632,6 +663,20 @@ public class IcebergUtilsTest {
       Row actual =
           IcebergUtils.icebergRecordToBeamRow(ROW_LIST_BEAM_SCHEMA, RECORD_LIST_OF_RECORDS);
       assertEquals(ROW_LIST_OF_ROWS, actual);
+
+      // A struct nested in two lists isn't supported yet. The conversion itself must reject it,
+      // as Row.Builder#build() used to.
+      assertThrows(
+          ClassCastException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.ListType.ofRequired(
+                      1,
+                      Types.ListType.ofRequired(
+                          2, Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))),
+                  Schema.FieldType.array(
+                      Schema.FieldType.array(Schema.FieldType.row(NESTED_BEAM_SCHEMA))),
+                  Arrays.asList(LIST_OF_RECORDS)));
     }
 
     @Test
