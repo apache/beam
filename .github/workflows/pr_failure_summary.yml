@@ -178,9 +178,15 @@ jobs:
             const existing = [...comments].reverse().find(c => (c.body || '').includes(MARKER));
 
             if (raw === 'NO_FAILURES') {
-              if (existing) {
-                await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
-                core.info(`All checks passing on PR #${prNumber}; deleted stale failure summary comment.`);
+              const toDelete = comments.filter(c => {
+                const body = (c.body || '').trim();
+                return body.includes(MARKER) || body.toLowerCase() === '/summarize-failures';
+              });
+              if (toDelete.length > 0) {
+                for (const comment of toDelete) {
+                  await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+                }
+                core.info(`All checks passing on PR #${prNumber}; deleted ${toDelete.length} stale failure summary / command comment(s).`);
               } else {
                 core.info(`No failing checks on PR #${prNumber}; skipping comment.`);
               }
