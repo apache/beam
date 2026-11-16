@@ -127,6 +127,7 @@
 
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
+* (Java) IcebergIO now writes `uuid` values as given instead of hashing them, and no longer wraps `Timestamp.MICROS` values outside about 1677 to 2262. This is a breaking change: rows written earlier with this sink will keep the old values, so new CDC writes keyed on a `uuid` column won't match them ([#41250](https://github.com/apache/beam/pull/41250)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
