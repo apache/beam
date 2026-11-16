@@ -725,7 +725,7 @@ as an example.
 
     We are happy to present the new {$RELEASE_VERSION} release of Beam.
     This release includes both improvements and new functionality.
-    See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+    See the [download page](https://beam.apache.org/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
 
     <{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more-->
 
@@ -776,7 +776,10 @@ as an example.
 
 ### Update the Github Release with the Blog post content
 
-Use the content of the blog post as the description of the release.
+Use the body of the blog post (below the Hugo frontmatter and license comment) as the description of the release:
+
+* Ensure all Beam website links use full `https://beam.apache.org/...` URLs rather than root-relative `/...` paths (e.g., `sed 's=](/=](https://beam.apache.org/=g'`), since relative paths resolve against `https://github.com` and return 404 on GitHub Releases.
+* While the release is still an RC (before the final release date is known), link to `https://beam.apache.org/get-started/downloads/` without an unresolved `#...-??` / `{$DOWNLOAD_ANCHOR}` placeholder.
 
 You may now also uncheck the "draft" checkbox.
 This allows it to be visible to non-committers, and makes the assets publicly accessible.
@@ -790,13 +793,13 @@ Be sure the release is still marked as a pre-release (not as latest).
 - [ ] Source distribution deployed to the dev repository of
   [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 - [ ] Website pull request proposed to list the
-  [release](/get-started/downloads/), publish the [Java API reference
+  [release](https://beam.apache.org/get-started/downloads/), publish the [Java API reference
   manual](https://beam.apache.org/releases/javadoc/), and publish the [Python
   API reference manual](https://beam.apache.org/releases/pydoc/).
 - [ ] Docker images are published to
   [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with
   tags: `{RELEASE_VERSION}rc{RC_NUM}`.
-- [ ] Github Release page contains the blog post.
+- [ ] Github Release page contains the blog post with absolute `https://beam.apache.org/...` links.
 
 You can (optionally) also do additional verification by:
 
@@ -1015,6 +1018,7 @@ Once the tag is uploaded, update the page with the final release tag, and publis
 * From the [Beam release page on Github](https://github.com/apache/beam/releases)
 find and open the release for the final RC tag for editing.
 * Update the release with the final version tag created above.
+* Update the release description from the finalized blog post so that the download page link uses the final release date anchor (no `??` / `{$DOWNLOAD_ANCHOR}` placeholders) and all Beam website links use full `https://beam.apache.org/...` URLs rather than root-relative `/...` paths.
 * Set this version as the latest release, and publish it.
 
 The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page with the correct version.
@@ -1068,7 +1072,7 @@ Add a short post on LinkedIn promoting the release.
 - [ ] Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 - [ ] Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 - [ ] Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-- [ ] Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged.
+- [ ] Website pull request to [list the release](https://beam.apache.org/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged.
 - [ ] The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
 - [ ] The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
 - [ ] Release version finalized in GitHub.
