@@ -110,6 +110,16 @@ class LocalFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
+    # An empty directory means the current working directory (e.g. when
+    # matching a bare relative glob such as 'users.json*'). Since
+    # os.path.exists('') is False, normalize it to '.' and strip the
+    # leading './' from the yielded paths so they line up with the
+    # caller's relative pattern.
+    strip_dot_prefix = False
+    if dir_or_prefix == '':
+      dir_or_prefix = '.'
+      strip_dot_prefix = True
+
     if not self.exists(dir_or_prefix):
       return
 
@@ -121,6 +131,8 @@ class LocalFileSystem(FileSystem):
     try:
       for f in list_files(dir_or_prefix):
         try:
+        if strip_dot_prefix and f.startswith('.' + os.sep):
+          f = f[len('.' + os.sep):]
           yield FileMetadata(f, os.path.getsize(f), os.path.getmtime(f))
         except OSError:
           # Files may disappear, such as when listing /tmp.
