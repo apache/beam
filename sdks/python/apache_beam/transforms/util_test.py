@@ -2765,13 +2765,12 @@ class GroupIntoBatchesTest(unittest.TestCase):
     buffering_timer = mock.Mock()
 
     for i in range(7):
-      res = dofn.process(
-          ('k', i),
-          window=window,
-          element_state=element_state,
-          count_state=count_state,
-          window_timer=window_timer,
-          buffering_timer=buffering_timer)
+      res = dofn.process(('k', i),
+                         window=window,
+                         element_state=element_state,
+                         count_state=count_state,
+                         window_timer=window_timer,
+                         buffering_timer=buffering_timer)
       if res is not None:
         list(res)
 
