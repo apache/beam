@@ -130,8 +130,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       return true;
     }
     KeyState keyState = keyStateMap.get(structuralKey);
-    if (allKeysKnown
-        && (keyState == null || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE)) {
+    if (allKeysKnown && (keyState == null || keyState.existence != KeyExistence.KNOWN_EXIST)) {
       return true;
     }
     return keyState != null
@@ -711,14 +710,17 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
     @Override
     public ReadableState<Boolean> readLater() {
+      boolean readRequired = true;
       KeyState keyState = keyStateMap.get(structuralKey);
       if (keyState != null && keyState.existence != KeyExistence.UNKNOWN_EXISTENCE) {
-        return this;
+        readRequired = false;
       }
       if (values == null) {
         values = WindmillMultimap.this.get(key);
       }
-      values.readLater();
+      if (readRequired) {
+        values.readLater();
+      }
       return this;
     }
   }
@@ -741,15 +743,19 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
     @Override
     public ReadableState<Boolean> readLater() {
+      boolean readRequired = true;
       for (KeyState keyState : keyStateMap.values()) {
         if (keyState.existence == KeyExistence.KNOWN_EXIST) {
-          return this;
+          readRequired = false;
+          break;
         }
       }
       if (keys == null) {
         keys = WindmillMultimap.this.keys();
       }
-      keys.readLater();
+      if (readRequired) {
+        keys.readLater();
+      }
       return this;
     }
   }

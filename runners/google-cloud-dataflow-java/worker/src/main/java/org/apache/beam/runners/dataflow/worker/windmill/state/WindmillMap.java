@@ -253,10 +253,10 @@ public class WindmillMap<K, V> extends AbstractWindmillMap<K, V> {
   }
 
   private boolean isKeyCached(K key) {
-    return localRemovals.contains(key)
-        || negativeCache.contains(key)
+    return complete
         || cachedValues.get(key) != null
-        || complete;
+        || localRemovals.contains(key)
+        || negativeCache.contains(key);
   }
 
   private Future<V> getFutureForKey(K key) {
