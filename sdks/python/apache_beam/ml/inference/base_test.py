@@ -160,6 +160,20 @@ class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
     return [model.predict(x) for x in batch]
 
 
+class DictModelHandler(base.ModelHandler[int, int, dict[str, int]]):
+  """Returns a dict, which can't be weakly referenced, from load_model()."""
+  def __init__(self, key: Optional[str] = None):
+    self._key = key
+
+  def load_model(self):
+    if self._key is not None:
+      _LOAD_COUNTS[self._key] = _LOAD_COUNTS.get(self._key, 0) + 1
+    return {'increment': 1}
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [x + model['increment'] for x in batch]
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -395,6 +409,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeModelHandler())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_dict_model(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(DictModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_simple_examples_multi_process_shared(self):
@@ -1138,6 +1160,27 @@ class RunInferenceBaseTest(unittest.TestCase):
       bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_impl_dlq_error_info(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 'TEST'])
+      _, other = pcoll | base.RunInference(
+          FakeModelHandler(
+            min_batch_size=1,
+            max_batch_size=1
+          )).with_exception_handling()
+
+      # The error info is (exception type, repr, formatted traceback).
+      def check_error_info(failure):
+        exc_type, exc_repr, exc_traceback = failure[1]
+        return (
+            exc_type is TypeError and isinstance(exc_repr, str) and
+            exc_repr.startswith('TypeError(') and
+            isinstance(exc_traceback, list) and
+            all(isinstance(line, str) for line in exc_traceback))
+
+      checked = other.failed_inferences | beam.Map(check_error_info)
+      assert_that(checked, equal_to([True]), label='assert:failures')
 
   def test_run_inference_timeout_on_load_dlq(self):
     with TestPipeline() as pipeline:
@@ -2328,6 +2371,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     dofn_instance.setup()
 
     self.assertEqual(1, _LOAD_COUNTS[model_tag])
+
+  def test_new_dofn_instances_reuse_previously_loaded_dict_models(self):
+    model_tag = 'tag3' + uuid.uuid4().hex
+    handler = DictModelHandler(model_tag)
+    dofn = base._RunInferenceDoFn(
+        handler, clock=FakeClock(), metrics_namespace=None, model_tag=model_tag)
+    serialized_dofn = pickle.dumps(dofn)
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+    del dofn_instance
+    gc.collect()
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+
+    self.assertEqual(1, _LOAD_COUNTS[model_tag])
+    self.assertEqual({'increment': 1}, dofn_instance._model.next_model())
 
   def test_model_status_provides_valid_garbage_collection(self):
     ms = base._ModelStatus(True)

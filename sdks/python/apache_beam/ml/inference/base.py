@@ -35,6 +35,7 @@ import sys
 import threading
 import time
 import uuid
+import weakref
 from abc import ABC
 from abc import abstractmethod
 from collections import OrderedDict
@@ -1793,17 +1794,22 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         failed_postprocessing = other.failed_postprocessing
 
     failed_inferences is in the form
-    PCollection[tuple[failed batch, exception]].
+    PCollection[tuple[failed batch, error info]].
 
     failed_preprocessing is in the form
-    list[PCollection[tuple[failed record, exception]]]], where each element of
+    list[PCollection[tuple[failed record, error info]]], where each element of
     the list corresponds to a preprocess function. These PCollections are
     in the same order that the preprocess functions are applied.
 
     failed_postprocessing is in the form
-    list[PCollection[tuple[failed record, exception]]]], where each element of
+    list[PCollection[tuple[failed record, error info]]], where each element of
     the list corresponds to a postprocess function. These PCollections are
     in the same order that the postprocess functions are applied.
+
+    error info is not the exception object itself, but a tuple of
+    (exception type, repr of the exception, formatted traceback), where the
+    formatted traceback is the list of strings returned by
+    traceback.format_exception().
 
 
     Args:
@@ -2051,6 +2057,17 @@ class _ProxyLoader:
     return unique_tag
 
 
+class _WeakRefableModelHolder():
+  """Holds a model that can't be weakly referenced, such as a dict or list.
+
+    shared.Shared caches objects through weak references, which several
+    built-in types don't support, so models of those types are cached inside
+    this holder instead.
+  """
+  def __init__(self, model: Any):
+    self.model = model
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
 
@@ -2142,6 +2159,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
+    # Strong reference to the object cached in _shared_model_handle, which is
+    # a _WeakRefableModelHolder rather than the model itself for models that
+    # can't be weakly referenced.
+    self._shared_model = None
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
@@ -2214,7 +2235,22 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
                 load, tag=copy_tag, always_proxy=True).acquire())
       model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
-      model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
+
+      def load_weakrefable():
+        model = load()
+        if model is None:
+          return None
+        try:
+          weakref.ref(model)
+        except TypeError:
+          return _WeakRefableModelHolder(model)
+        return model
+
+      self._shared_model = self._shared_model_handle.acquire(
+          load_weakrefable, tag=self._cur_tag)
+      model = self._shared_model
+      if isinstance(model, _WeakRefableModelHolder):
+        model = model.model
       model_wrapper = _SharedModelWrapper([model], self._cur_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
