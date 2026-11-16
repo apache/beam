@@ -871,8 +871,29 @@ def _AssignTimestamps(
   """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
-  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
-                          ).with_input_types(T).with_output_types(T)
+  return pcoll | beam.Map(
+      lambda x: TimestampedValue(x, _to_timestamp(timestamp_fn(x)))
+  ).with_input_types(T).with_output_types(T)
+
+
+def _to_timestamp(ts):
+  if isinstance(ts, str):
+    if ts and ts[-1] not in 'Zz' and '+' not in ts[10:] and '-' not in ts[10:]:
+      try:
+        dt = datetime.datetime.fromisoformat(ts)
+      except ValueError:
+        pass
+      else:
+        return Timestamp.from_utc_datetime(
+            dt.replace(tzinfo=datetime.timezone.utc))
+    return Timestamp.from_rfc3339(ts)
+  elif isinstance(ts, datetime.datetime):
+    if ts.tzinfo is None:
+      ts = ts.replace(tzinfo=datetime.timezone.utc)
+    else:
+      ts = ts.astimezone(datetime.timezone.utc)
+    return Timestamp.from_utc_datetime(ts)
+  return ts
 
 
 class PaneInfoTuple(NamedTuple):
