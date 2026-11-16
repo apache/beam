@@ -23,6 +23,7 @@ import apache_beam as beam
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.cloud import bigquery
   from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigquery_it_test import condition_value_fn
   from apache_beam.transforms.enrichment_handlers.bigquery_it_test import query_fn
@@ -146,6 +147,135 @@ class TestBigQueryEnrichment(unittest.TestCase):
             'min_batch_size': 2,
             'max_batch_size': 10,
         })
+
+  def test_unbatched_query_binds_scalar_query_parameters(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = [{
+        'id': "O'Brien", 'value': 'enriched'
+    }]
+
+    request = beam.Row(id="O'Brien", name='first')
+    response = handler(request)
+
+    self.assertEqual(
+        response, (request, beam.Row(id="O'Brien", value='enriched')))
+    handler.client.query.assert_called_once()
+    call_kwargs = handler.client.query.call_args.kwargs
+    self.assertEqual(
+        call_kwargs['query'], 'SELECT * FROM project.dataset.table WHERE id=?')
+    self.assertEqual(
+        list(call_kwargs['job_config'].query_parameters),
+        [bigquery.ScalarQueryParameter(None, 'STRING', "O'Brien")])
+
+  def test_batched_query_binds_parameters_and_prevents_sql_injection(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}' AND distribution_center_id={}",
+        fields=['id', 'distribution_center_id'],
+        min_batch_size=2,
+        max_batch_size=10,
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = []
+
+    malicious_id = "1') LIMIT 1; DROP TABLE project.dataset.audit_log; --"
+    brace_id = "{malicious_format_key}"
+    requests = [
+        beam.Row(id=malicious_id, distribution_center_id=3),
+        beam.Row(id=brace_id, distribution_center_id=7),
+    ]
+    responses = handler(requests)
+
+    self.assertEqual(
+        responses, [(requests[0], beam.Row()), (requests[1], beam.Row())])
+    handler.client.query.assert_called_once()
+    call_kwargs = handler.client.query.call_args.kwargs
+    self.assertEqual(
+        call_kwargs['query'],
+        'SELECT * FROM project.dataset.table WHERE '
+        '(id=? AND distribution_center_id=?) or '
+        '(id=? AND distribution_center_id=?)')
+    self.assertNotIn('DROP TABLE', call_kwargs['query'])
+    self.assertEqual(
+        list(call_kwargs['job_config'].query_parameters),
+        [
+            bigquery.ScalarQueryParameter(None, 'STRING', malicious_id),
+            bigquery.ScalarQueryParameter(None, 'INT64', 3),
+            bigquery.ScalarQueryParameter(None, 'STRING', brace_id),
+            bigquery.ScalarQueryParameter(None, 'INT64', 7),
+        ])
+
+  def test_native_question_mark_placeholders(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template='id = ? AND active = ?',
+        fields=['id', 'active'],
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = []
+
+    request = beam.Row(id=42, active=True)
+    _ = handler(request)
+
+    call_kwargs = handler.client.query.call_args.kwargs
+    self.assertEqual(
+        call_kwargs['query'],
+        'SELECT * FROM project.dataset.table WHERE id = ? AND active = ?')
+    self.assertEqual(
+        list(call_kwargs['job_config'].query_parameters),
+        [
+            bigquery.ScalarQueryParameter(None, 'INT64', 42),
+            bigquery.ScalarQueryParameter(None, 'BOOL', True),
+        ])
+
+  def test_query_fn_with_parameterized_tuple(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        query_fn=lambda row:
+        ('SELECT * FROM project.dataset.table WHERE id = ?', [row.id]),
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = []
+
+    payload = "1' OR '1'='1"
+    _ = handler(beam.Row(id=payload))
+
+    call_kwargs = handler.client.query.call_args.kwargs
+    self.assertEqual(
+        call_kwargs['query'],
+        'SELECT * FROM project.dataset.table WHERE id = ?')
+    self.assertEqual(
+        list(call_kwargs['job_config'].query_parameters),
+        [bigquery.ScalarQueryParameter(None, 'STRING', payload)])
+
+  @parameterized.expand([
+      ("project.dataset.table; DROP TABLE x; --", ['id']),
+      ("project.dataset.table WHERE 1=1", ['id']),
+      ("project.dataset.table", ["id; DROP TABLE x"]),
+      ("project.dataset.table", ["id, (SELECT 1)"]),
+  ])
+  def test_invalid_identifiers_raise_value_error(
+      self, table_name, column_names):
+    with self.assertRaises(ValueError):
+      _ = BigQueryEnrichmentHandler(
+          project=self.project,
+          table_name=table_name,
+          row_restriction_template='id = ?',
+          fields=['id'],
+          column_names=column_names,
+      )
 
 
 if __name__ == '__main__':

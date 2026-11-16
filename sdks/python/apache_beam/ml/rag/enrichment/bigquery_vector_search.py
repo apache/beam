@@ -15,9 +15,11 @@
 # limitations under the License.
 #
 
-import logging
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
+import logging
+import re
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -28,8 +30,18 @@ from google.cloud import bigquery
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+from apache_beam.transforms.enrichment_handlers.bigquery import _COLUMN_NAME_PATTERN
+from apache_beam.transforms.enrichment_handlers.bigquery import _TABLE_NAME_PATTERN
+from apache_beam.transforms.enrichment_handlers.bigquery import _to_query_parameter
+from apache_beam.transforms.enrichment_handlers.bigquery import _validate_bigquery_identifier
 
 _LOGGER = logging.getLogger(__name__)
+
+_METADATA_PLACEHOLDER_PATTERN = re.compile(
+    r"'\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}'|"
+    r'"\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}"|'
+    r'\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}')
+_DISTANCE_TYPE_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
 @dataclass
@@ -165,12 +177,23 @@ class BigQueryVectorSearchParameters:
   embedding_column: str
   columns: list[str]
   neighbor_count: int
-  metadata_restriction_template: Optional[Union[str,
-                                                Callable[[EmbeddableItem],
-                                                         str]]] = None
+  metadata_restriction_template: Optional[Union[
+      str, Callable[[EmbeddableItem], Union[str, tuple[str,
+                                                       Sequence[Any]]]]]] = None
   distance_type: Optional[str] = None
   options: Optional[dict[str, Any]] = None
   include_distance: bool = False
+
+  def __post_init__(self) -> None:
+    _validate_bigquery_identifier(
+        self.table_name, 'table_name', _TABLE_NAME_PATTERN)
+    _validate_bigquery_identifier(
+        self.embedding_column, 'embedding_column', _COLUMN_NAME_PATTERN)
+    for col in self.columns:
+      _validate_bigquery_identifier(col, 'column_name', _COLUMN_NAME_PATTERN)
+    if self.distance_type is not None:
+      _validate_bigquery_identifier(
+          self.distance_type, 'distance_type', _DISTANCE_TYPE_PATTERN)
 
   def _format_restrict(self, item: EmbeddableItem) -> str:
     assert self.metadata_restriction_template is not None, (
@@ -179,11 +202,59 @@ class BigQueryVectorSearchParameters:
     )
 
     if callable(self.metadata_restriction_template):
-      return self.metadata_restriction_template(item)
+      res = self.metadata_restriction_template(item)
+      return res[0] if isinstance(res, tuple) else res
     return self.metadata_restriction_template.format(**item.metadata)
 
-  def format_query(self, items: list[EmbeddableItem]) -> str:
-    """Format the vector search query template."""
+  def _parameterize_restrict(
+      self,
+      item: EmbeddableItem,
+      param_counter: list[int],
+  ) -> tuple[str, list[Any]]:
+    assert self.metadata_restriction_template is not None, (
+        "metadata_restriction_template cannot be None when formatting. "
+        "This indicates a logical error in the code."
+    )
+    if callable(self.metadata_restriction_template):
+      res = self.metadata_restriction_template(item)
+      if isinstance(res, tuple):
+        cond_sql, raw_params = res
+        return cond_sql, [_to_query_parameter(p) for p in raw_params]
+      return res, []
+
+    params: list[Any] = []
+
+    def _replace(match: re.Match[str]) -> str:
+      key = match.group(1) or match.group(2) or match.group(3)
+      assert key is not None
+      val = item.metadata[key]
+      param_name = f"_bq_meta_{param_counter[0]}"
+      param_counter[0] += 1
+      params.append(_to_query_parameter(val, name=param_name))
+      return f"@{param_name}"
+
+    cond_sql = _METADATA_PLACEHOLDER_PATTERN.sub(
+        _replace, self.metadata_restriction_template)
+    return cond_sql, params
+
+  def _metadata_group_key(self, item: EmbeddableItem) -> Any:
+    if not self.metadata_restriction_template:
+      return ""
+    if callable(self.metadata_restriction_template):
+      res = self.metadata_restriction_template(item)
+      if isinstance(res, tuple):
+        cond_sql, raw_params = res
+        return (cond_sql, tuple(repr(p) for p in raw_params))
+      return res
+    keys = [
+        m.group(1) or m.group(2) or m.group(3)
+        for m in _METADATA_PLACEHOLDER_PATTERN.finditer(
+            self.metadata_restriction_template)
+    ]
+    return tuple((k, repr(item.metadata[k])) for k in keys if k is not None)
+
+  def build_query(self, items: list[EmbeddableItem]) -> tuple[str, list[Any]]:
+    """Build the parameterized vector search SQL query and query parameters."""
     base_columns_str = ", ".join(f"base.{col}" for col in self.columns)
     columns_str = ", ".join(self.columns)
     distance_clause = (
@@ -191,49 +262,57 @@ class BigQueryVectorSearchParameters:
         if self.distance_type else "")
     options_clause = (f", options => {self.options}" if self.options else "")
 
-    # Create metadata check function only if needed
     metadata_fn = """
         CREATE TEMP FUNCTION check_metadata(
-          metadata ARRAY<STRUCT<key STRING, value STRING>>, 
-          search_key STRING, 
+          metadata ARRAY<STRUCT<key STRING, value STRING>>,
+          search_key STRING,
           search_value STRING
-        ) 
+        )
         AS ((
-            SELECT COUNT(*) > 0 
-            FROM UNNEST(metadata) 
+            SELECT COUNT(*) > 0
+            FROM UNNEST(metadata)
             WHERE key = search_key AND value = search_value
         ));
     """ if self.metadata_restriction_template else ""
 
-    # Group items by their metadata conditions
-    condition_groups = defaultdict(list)
+    condition_groups: dict[Any, list[EmbeddableItem]] = defaultdict(list)
     if self.metadata_restriction_template:
       for item in items:
-        condition = self._format_restrict(item)
-        condition_groups[condition].append(item)
+        group_key = self._metadata_group_key(item)
+        condition_groups[group_key].append(item)
     else:
-      # No metadata filtering - all items in one group
       condition_groups[""] = items
 
-    # Generate VECTOR_SEARCH subqueries for each condition group
     vector_searches = []
-    for condition, group_items in condition_groups.items():
-      # Create embeddings subquery for this group
+    query_parameters: list[Any] = []
+    param_counter = [0]
+    item_counter = 0
+
+    for group_items in condition_groups.values():
+      condition = ""
+      if self.metadata_restriction_template and group_items:
+        condition, cond_params = self._parameterize_restrict(
+            group_items[0], param_counter)
+        query_parameters.extend(cond_params)
+
       embedding_unions = []
       for item in group_items:
         if not item.dense_embedding:
           raise ValueError(f"Item {item.id} missing embedding")
+        id_param_name = f"_bq_item_id_{item_counter}"
+        item_counter += 1
+        query_parameters.append(
+            _to_query_parameter(str(item.id), name=id_param_name))
         embedding_str = (
-            f"SELECT '{item.id}' as id, "
+            f"SELECT @{id_param_name} as id, "
             f"{[float(x) for x in item.dense_embedding]} "
             f"as embedding")
         embedding_unions.append(embedding_str)
       group_embeddings = " UNION ALL ".join(embedding_unions)
 
       where_clause = f"WHERE {condition}" if condition else ""
-      # Create VECTOR_SEARCH for this condition group
       vector_search = f"""
-            SELECT 
+            SELECT
                 query.id,
                 ARRAY_AGG(
                     STRUCT({"distance, " if self.include_distance else ""}\
@@ -253,14 +332,18 @@ class BigQueryVectorSearchParameters:
         """
       vector_searches.append(vector_search)
 
-    # Combine all vector searches
     combined_searches = " UNION ALL ".join(vector_searches)
-
-    return f"""
+    query = f"""
         {metadata_fn}
 
         {combined_searches}
     """
+    return query, query_parameters
+
+  def format_query(self, items: list[EmbeddableItem]) -> str:
+    """Format the vector search query template."""
+    query, _ = self.build_query(items)
+    return query
 
 
 class BigQueryVectorSearchEnrichmentHandler(
@@ -362,10 +445,12 @@ class BigQueryVectorSearchEnrichmentHandler(
     requests = request if isinstance(request, list) else [request]
 
     # Generate and execute query
-    query = self.vector_search_parameters.format_query(requests)
+    query, query_parameters = self.vector_search_parameters.build_query(
+        requests)
     if self.log_query:
       _LOGGER.info("Executing query %s", query)
-    query_job = self.client.query(query)
+    job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
+    query_job = self.client.query(query, job_config=job_config)
     results = query_job.result()
 
     # Create results dict with empty embeddable_items list as default

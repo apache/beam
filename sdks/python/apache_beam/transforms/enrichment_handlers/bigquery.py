@@ -14,10 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 from collections import defaultdict
 from collections.abc import Callable
 from collections.abc import Mapping
+from collections.abc import Sequence
+import datetime
+import decimal
+import logging
+import re
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -29,14 +33,112 @@ import apache_beam as beam
 from apache_beam.pvalue import Row
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
-QueryFn = Callable[[beam.Row], str]
+QueryFn = Callable[[beam.Row], Union[str, tuple[str, Sequence[Any]]]]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
 
 _LOGGER = logging.getLogger(__name__)
 
+_TABLE_NAME_PATTERN = re.compile(
+    r'^`?[A-Za-z0-9_.:$-]+`?(?:\.`?[A-Za-z0-9_.:$-]+`?)*$')
+_COLUMN_NAME_PATTERN = re.compile(
+    r'^(?:\*|`?[A-Za-z_][A-Za-z0-9_]*`?(?:\.`?[A-Za-z_][A-Za-z0-9_]*`?)*)$')
+_TEMPLATE_PLACEHOLDER_PATTERN = re.compile(
+    r"'\{\s*([^{}'\"]*?)\s*\}'|"
+    r'"\{\s*([^{}\'"]*?)\s*\}"|'
+    r'\{\s*([^{}\'"]*?)\s*\}|'
+    r'(\?)')
+
+
+def _validate_bigquery_identifier(
+    identifier: str, param_name: str, pattern: re.Pattern[str]) -> None:
+  if (not identifier or '--' in identifier or '/*' in identifier or
+      '*/' in identifier or not pattern.match(identifier)):
+    raise ValueError(f"Invalid BigQuery {param_name}: {identifier!r}")
+
+
+def _parse_restriction_template(
+    row_restriction_template: str
+) -> tuple[str, list[Optional[Union[int, str]]]]:
+  """Normalizes `{}` / `'{}'` / `?` placeholders into `?` positional parameters.
+
+  Returns:
+    A tuple of `(normalized_sql_template, placeholder_specs)` where each entry
+    in `placeholder_specs` is `None` (next sequential value), an `int` index,
+    or a `str` field name.
+  """
+  specs: list[Optional[Union[int, str]]] = []
+  seq_idx = 0
+
+  def _replace(match: re.Match[str]) -> str:
+    nonlocal seq_idx
+    q_single, q_double, unquoted, qmark = match.groups()
+    if qmark is not None:
+      specs.append(seq_idx)
+      seq_idx += 1
+      return '?'
+    raw_spec = (
+        q_single if q_single is not None else
+        (q_double if q_double is not None else unquoted))
+    spec = (raw_spec or '').strip()
+    if not spec:
+      specs.append(seq_idx)
+      seq_idx += 1
+    elif spec.isdigit():
+      specs.append(int(spec))
+    else:
+      specs.append(spec)
+    return '?'
+
+  normalized = _TEMPLATE_PLACEHOLDER_PATTERN.sub(
+      _replace, row_restriction_template)
+  return normalized, specs
+
+
+def _infer_bq_scalar_type(value: Any) -> str:
+  if isinstance(value, bool):
+    return 'BOOL'
+  if isinstance(value, int):
+    return 'INT64'
+  if isinstance(value, float):
+    return 'FLOAT64'
+  if isinstance(value, decimal.Decimal):
+    return 'NUMERIC'
+  if isinstance(value, (bytes, bytearray)):
+    return 'BYTES'
+  if isinstance(value, datetime.datetime):
+    return 'TIMESTAMP' if value.tzinfo is not None else 'DATETIME'
+  if isinstance(value, datetime.date):
+    return 'DATE'
+  if isinstance(value, datetime.time):
+    return 'TIME'
+  return 'STRING'
+
+
+def _to_query_parameter(
+    value: Any,
+    name: Optional[str] = None
+) -> Union[bigquery.ScalarQueryParameter, bigquery.ArrayQueryParameter]:
+  if hasattr(value, 'to_api_repr'):
+    return value
+  if isinstance(value, (list, tuple)):
+    non_null = next((item for item in value if item is not None), None)
+    elem_type = (
+        _infer_bq_scalar_type(non_null) if non_null is not None else 'STRING')
+    return bigquery.ArrayQueryParameter(name, elem_type, list(value))
+  param_type = _infer_bq_scalar_type(value)
+  if param_type == 'STRING' and value is not None and not isinstance(value,
+                                                                     str):
+    value = str(value)
+  return bigquery.ScalarQueryParameter(name, param_type, value)
+
 
 def _validate_bigquery_metadata(
-    table_name, row_restriction_template, fields, condition_value_fn, query_fn):
+    table_name,
+    row_restriction_template,
+    fields,
+    column_names,
+    condition_value_fn,
+    query_fn):
   if query_fn:
     if bool(table_name or row_restriction_template or fields or
             condition_value_fn):
@@ -54,6 +156,10 @@ def _validate_bigquery_metadata(
       raise ValueError(
           "Please provide exactly one of `fields` or "
           "`condition_value_fn`")
+    _validate_bigquery_identifier(table_name, 'table_name', _TABLE_NAME_PATTERN)
+  if column_names:
+    for col in column_names:
+      _validate_bigquery_identifier(col, 'column_name', _COLUMN_NAME_PATTERN)
 
 
 class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
@@ -142,19 +248,26 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         table_name,
         row_restriction_template,
         fields,
+        column_names,
         condition_value_fn,
         query_fn)
     self.project = project
     self.column_names = column_names
     self.select_fields = ",".join(column_names) if column_names else '*'
     self.row_restriction_template = row_restriction_template
+    (
+        self._normalized_row_restriction_template,
+        self._placeholder_specs,
+    ) = _parse_restriction_template(row_restriction_template)
     self.table_name = table_name
     self.fields = fields if fields else []
     self.condition_value_fn = condition_value_fn
     self.query_fn = query_fn
     self.query_template = (
-        "SELECT %s FROM %s WHERE %s" %
-        (self.select_fields, self.table_name, self.row_restriction_template))
+        "SELECT %s FROM %s WHERE %s" % (
+            self.select_fields,
+            self.table_name,
+            self._normalized_row_restriction_template))
     self.throw_exception_on_empty_results = throw_exception_on_empty_results
     self.kwargs = kwargs
     self._batching_kwargs = {}
@@ -168,9 +281,46 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
 
-  def _execute_query(self, query: str):
+  def _build_row_parameters(
+      self,
+      current_values: Sequence[Any],
+      request_dict: Optional[Mapping[str, Any]] = None,
+  ) -> list[Union[bigquery.ScalarQueryParameter, bigquery.ArrayQueryParameter]]:
+    if not self._placeholder_specs:
+      return [_to_query_parameter(v) for v in current_values]
+    params: list[Union[bigquery.ScalarQueryParameter,
+                       bigquery.ArrayQueryParameter]] = []
+    for pos, spec in enumerate(self._placeholder_specs):
+      if isinstance(spec, int):
+        if spec >= len(current_values):
+          raise ValueError(
+              f"Placeholder index {spec} out of range for "
+              f"{len(current_values)} condition value(s).")
+        val = current_values[spec]
+      elif isinstance(spec, str):
+        if request_dict is not None and spec in request_dict:
+          val = request_dict[spec]
+        elif spec in self.fields:
+          val = current_values[self.fields.index(spec)]
+        elif pos < len(current_values):
+          val = current_values[pos]
+        else:
+          raise KeyError(
+              f"Placeholder field {spec!r} not found in input `beam.Row`.")
+      else:
+        val = current_values[pos]
+      params.append(_to_query_parameter(val))
+    return params
+
+  def _execute_query(
+      self, query: str, query_parameters: Optional[Sequence[Any]] = None):
     try:
-      results = self.client.query(query=query).result()
+      if query_parameters is not None:
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=list(query_parameters))
+        results = self.client.query(query=query, job_config=job_config).result()
+      else:
+        results = self.client.query(query=query).result()
       row_list = [dict(row.items()) for row in results]
       if not row_list:
         return None
@@ -196,16 +346,17 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
 
   def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):
     if isinstance(request, list):
-      values = []
+      query_parameters: list[Any] = []
       responses = []
       requests_map: dict[Any, list[beam.Row]] = defaultdict(list)
       batch_size = len(request)
-      raw_query = self.query_template
+      query = self.query_template
       if batch_size > 1:
         batched_condition_template = ' or '.join(
-            [fr'({self.row_restriction_template})'] * batch_size)
-        raw_query = self.query_template.replace(
-            self.row_restriction_template, batched_condition_template)
+            [f'({self._normalized_row_restriction_template})'] * batch_size)
+        query = (
+            "SELECT %s FROM %s WHERE %s" %
+            (self.select_fields, self.table_name, batched_condition_template))
       for req in request:
         request_dict = req._asdict()
         try:
@@ -216,11 +367,11 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
           raise KeyError(
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
-        values.extend(current_values)
+        query_parameters.extend(
+            self._build_row_parameters(current_values, request_dict))
         requests_map[self.create_row_key(req)].append(req)
-      query = raw_query.format(*values)
 
-      responses_dict = self._execute_query(query)
+      responses_dict = self._execute_query(query, query_parameters)
       unmatched_requests = {
           key: list(reqs)
           for key, reqs in requests_map.items()
@@ -243,23 +394,30 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       return responses
     else:
       request_dict = request._asdict()
+      single_query_parameters: Optional[list[Any]] = None
       if self.query_fn:
-        # if a query_fn is provided then it return a list of values
-        # that should be populated into the query template string.
-        query = self.query_fn(request)
+        query_result = self.query_fn(request)
+        if isinstance(query_result, tuple):
+          query, raw_params = query_result
+          single_query_parameters = [_to_query_parameter(v) for v in raw_params]
+        else:
+          query = query_result
       else:
         values = (
             self.condition_value_fn(request) if self.condition_value_fn else
             list(map(request_dict.get, self.fields)))
-        # construct the query.
-        query = self.query_template.format(*values)
-      response_dict = self._execute_query(query)
+        query = self.query_template
+        single_query_parameters = self._build_row_parameters(
+            values, request_dict)
+      response_dict = self._execute_query(query, single_query_parameters)
       if response_dict is None:
         if self.throw_exception_on_empty_results:
           raise ValueError(f"no matching row found for query: {query}")
         else:
           _LOGGER.warning('no matching row found for query: %s', query)
         return request, beam.Row()
+      if isinstance(response_dict, list):
+        response_dict = response_dict[0]
       return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
