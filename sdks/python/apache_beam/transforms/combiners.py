@@ -807,7 +807,7 @@ class ToSingleElementCollection(CombinerWithoutDefaults):
       side_input = pvalue.AsIter(pcoll | core.Map(lambda x: x))
 
       timestamped = lambda s: window.TimestampedValue(
-          post_process(s), window.GlobalWindow().end)
+          s, window.GlobalWindow().end)
 
       if self.has_defaults:
         process = lambda _, s: [timestamped(post_process(s))]
