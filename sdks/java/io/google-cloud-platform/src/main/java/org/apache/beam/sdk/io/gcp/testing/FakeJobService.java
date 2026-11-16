@@ -120,6 +120,7 @@ public class FakeJobService implements JobService, Serializable {
           String, String, JobInfo>
       allJobs;
   private static int numExtractJobCalls;
+  private static int numLoadJobCalls;
 
   private static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table<
           String, String, List<ResourceId>>
@@ -127,7 +128,6 @@ public class FakeJobService implements JobService, Serializable {
   private static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table<
           String, String, JobStatistics>
       dryRunQueryResults;
-  private static Job lastLoadJob;
 
   public FakeJobService() {
     this(0);
@@ -145,9 +145,9 @@ public class FakeJobService implements JobService, Serializable {
   public static void setUp() {
     allJobs = HashBasedTable.create();
     numExtractJobCalls = 0;
+    numLoadJobCalls = 0;
     filesForLoadJobs = HashBasedTable.create();
     dryRunQueryResults = HashBasedTable.create();
-    lastLoadJob = null;
   }
 
   @Override
@@ -156,15 +156,17 @@ public class FakeJobService implements JobService, Serializable {
       throws IOException {
     synchronized (FakeJobService.class) {
       verifyUniqueJobId(jobRef.getJobId());
+      ++numLoadJobCalls;
+
       Job job = new Job();
       job.setJobReference(jobRef);
-      job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
-      job.setKind(" bigquery#job");
+      job.setConfiguration(jobConfig.setLoad(loadConfig));
+      job.setKind(" bigquery#loadJob");
       job.setStatus(new JobStatus().setState("PENDING"));
 
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
-      if (loadConfig.getSourceUris().size() > 0) {
+      if (!loadConfig.getSourceUris().isEmpty()) {
         ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
         ImmutableList.Builder<ResourceId> loadFiles = ImmutableList.builder();
         for (String filename : loadConfig.getSourceUris()) {
@@ -178,7 +180,6 @@ public class FakeJobService implements JobService, Serializable {
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
-      lastLoadJob = job;
     }
   }
 
@@ -212,6 +213,12 @@ public class FakeJobService implements JobService, Serializable {
   public int getNumExtractJobCalls() {
     synchronized (FakeJobService.class) {
       return numExtractJobCalls;
+    }
+  }
+
+  public int getNumLoadJobCalls() {
+    synchronized (FakeJobService.class) {
+      return numLoadJobCalls;
     }
   }
 
@@ -293,7 +300,7 @@ public class FakeJobService implements JobService, Serializable {
 
   public Job getLastLoadJob() {
     synchronized (FakeJobService.class) {
-      return lastLoadJob;
+      return getAllJobs().stream().reduce((prev, next) -> next).orElse(null);
     }
   }
 

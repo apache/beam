@@ -229,9 +229,13 @@ public class BigQueryIOWriteTest implements Serializable {
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
 
-  @Parameters(name = "useStorageApi={0}, useStorageApiApproximate={1}, useStreaming={2}")
+  @Parameters(
+      name = "useStorageApi={0}, useStorageApiApproximate={1}, useStreaming={2}, useLoadJob={3}")
   public static Iterable<Object[]> data() {
-    return ImmutableList.of(new Object[] {false, false, false}, new Object[] {false, false, true});
+    return ImmutableList.of(
+        new Object[] {false, false, false, false},
+        new Object[] {false, false, true, false},
+        new Object[] {false, false, false, true});
   }
 
   @Parameter(0)
@@ -242,6 +246,9 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Parameter(2)
   public boolean useStreaming;
+
+  @Parameter(3)
+  public boolean useLoadJob;
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
@@ -5319,5 +5326,39 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
+
+  @Test
+  public void testFileLoadsJobWithReservationCreated() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    assumeTrue(useLoadJob);
+
+    String reservationId = "projects/project-id/locations/location/reservations/reservation-id";
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.FILE_LOADS)
+            .withReservation(reservationId)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+
+    assertThat(fakeJobService.getNumLoadJobCalls() > 0, is(true));
+    assertThat(
+        fakeJobService.getAllJobs().stream()
+            .anyMatch(job -> reservationId.equals(job.getConfiguration().getReservation())),
+        is(true));
   }
 }
