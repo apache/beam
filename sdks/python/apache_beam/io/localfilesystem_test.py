@@ -228,6 +228,15 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
 
+  def test_match_bare_relative_glob_in_cwd(self):
+    """Bare relative globs should match files in the current directory."""
+    with self.tmpdir_as_cwd():
+      open('users.json', 'a').close()
+      open('other.json', 'a').close()
+      result = self.fs.match(['users.json*'])[0]
+      files = [f.path for f in result.metadata_list]
+      self.assertEqual(files, ['users.json'])
+
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
