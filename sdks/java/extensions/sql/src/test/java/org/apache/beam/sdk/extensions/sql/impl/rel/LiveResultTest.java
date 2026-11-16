@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -126,6 +128,23 @@ public class LiveResultTest {
       }
     }
     assertThat(rows, containsInAnyOrder("1:a", "2:b", "1:a", "1:aa", "2:b"));
+  }
+
+  @Test
+  public void enumeratorReadsTheRows() throws Exception {
+    BeamRelNode node =
+        BeamSqlEnv.readOnly("test", ImmutableMap.of("changes", new ChangesTable(Source.ONCE)))
+            .parseQuery("SELECT id FROM changes");
+    Enumerator<Object> rows =
+        BeamEnumerableConverter.toEnumerable(
+                PipelineOptionsFactory.create(), node, new AtomicBoolean())
+            .enumerator();
+    List<Long> ids = new ArrayList<>();
+    while (rows.moveNext()) {
+      ids.add((Long) rows.current());
+    }
+    rows.close();
+    assertThat(ids, containsInAnyOrder(1L, 2L, 1L, 1L, 2L));
   }
 
   @Test

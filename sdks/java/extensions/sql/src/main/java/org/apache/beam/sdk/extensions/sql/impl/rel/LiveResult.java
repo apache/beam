@@ -144,8 +144,12 @@ public final class LiveResult {
     @Nullable State end = null;
     try {
       end = pipelineResult.waitUntilFinish();
-    } catch (RuntimeException e) {
-      failure = e;
+      if (end == State.FAILED) {
+        failure = new IllegalStateException("The pipeline failed");
+      }
+    } catch (Throwable e) {
+      // The DirectRunner rethrows an Error, like NoClassDefFoundError, without wrapping it.
+      failure = e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
       end = State.FAILED;
     } finally {
       state = end == null ? State.UNKNOWN : end;
@@ -159,7 +163,7 @@ public final class LiveResult {
   void add(ValueKind kind, Row row) {
     Change change = new Change(kind, row);
     try {
-      while (!closed) {
+      while (!closed && !cancelFlag.get()) {
         if (changes.offerLast(change, 100, TimeUnit.MILLISECONDS)) {
           return;
         }

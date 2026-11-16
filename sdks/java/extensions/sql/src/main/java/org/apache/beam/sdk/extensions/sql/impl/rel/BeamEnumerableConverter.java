@@ -69,9 +69,8 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumera
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.AbstractEnumerable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.AbstractEnumerable2;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerable;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Linq4j;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.BlockBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.Expression;
@@ -232,21 +231,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   /** The rows of a {@link LiveResult} as they arrive. Closing them cancels the pipeline. */
-  private static class LiveRows extends AbstractEnumerable<Object> {
+  private static class LiveRows extends AbstractEnumerable2<Object> {
     private final LiveResult result;
 
     LiveRows(LiveResult result) {
       this.result = result;
     }
 
-    @Override
-    public Enumerator<Object> enumerator() {
-      return Linq4j.iterableEnumerator(this);
-    }
-
     /**
-     * JDBC reads the rows through this iterator. Unlike the default one, it doesn't wait for the
-     * next row before it returns the current one, which would hold back the newest row.
+     * JDBC reads the rows through this iterator, and {@link #enumerator()} wraps it. It doesn't
+     * wait for the next row before it returns the current one, which would hold back the newest
+     * row.
      */
     @Override
     public Iterator<Object> iterator() {
@@ -263,7 +258,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           // No rows come after the pipeline ends, so then an empty poll means there are no more.
           boolean finished = result.isFinished();
           try {
-            next = result.poll(100, TimeUnit.MILLISECONDS);
+            next = result.poll(finished ? 0 : 100, TimeUnit.MILLISECONDS);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             break;
