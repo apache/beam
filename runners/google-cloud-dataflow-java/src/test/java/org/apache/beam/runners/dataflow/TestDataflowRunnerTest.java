@@ -119,7 +119,19 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner.fromOptions(options);
     assertEquals("gs://test/test-job-1/output/results", options.getTempLocation());
     assertEquals("gs://test/test-job-1/output/results", options.getGcpTempLocation());
-    assertEquals("gs://test/staging/", options.getStagingLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsScopesUnversionedTempRootStagingLocationByDate() {
+    options.setJobName("test-job-unversioned-staging");
+    options.setStagingLocation("gs://test/staging");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals(
+        "gs://test/test-job-unversioned-staging/output/results", options.getTempLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
   }
 
   @Test

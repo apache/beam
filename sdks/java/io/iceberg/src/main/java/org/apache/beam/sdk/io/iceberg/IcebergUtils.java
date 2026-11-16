@@ -479,7 +479,13 @@ public class IcebergUtils {
         Optional.ofNullable(icebergMap).ifPresent(v -> rec.setField(name, v));
         break;
       default:
-        // Do nothing for unsupported types
+        // no conversion for this type, so only a null can be written
+        if (value.getValue(name) != null) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Cannot write field '%s': Iceberg type %s is not supported.",
+                  name, field.type()));
+        }
         break;
     }
   }

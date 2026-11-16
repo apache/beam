@@ -29,7 +29,7 @@ on:
         description: Integer RC version for the release (e.g. 3 for RC3)
         required: false
   schedule:
-  - cron: "0 6 * * 1"
+  - cron: "0 6 * * *"
 env:
   docker_registry: gcr.io
   release: "${{ github.event.inputs.RELEASE || '2.77.0' }}"

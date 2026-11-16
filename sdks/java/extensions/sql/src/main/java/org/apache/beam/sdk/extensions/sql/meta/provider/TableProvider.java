@@ -37,7 +37,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * connection parameters.
  *
  * <p>To support {@code WITH ('key' = value, ...)} options on your tables, override {@link
- * BeamSqlTable#forRead} and {@link BeamSqlTable#forWrite} in the tables this provider builds.
+ * BeamSqlTable#forRead} and {@link BeamSqlTable#forWrite} in the tables this provider builds. To
+ * support {@code CHANGES(...)}, override {@link BeamSqlTable#forChanges} as well, and {@link
+ * BeamSqlTable#getChangeMetadataColumns} if the changes have metadata columns.
  */
 public interface TableProvider {
   /** Gets the table type this provider handles. */

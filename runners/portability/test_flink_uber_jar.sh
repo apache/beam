@@ -109,6 +109,27 @@ java \
   -jar "$FLINK_MINI_CLUSTER_JAR" \
   --rest-port "$FLINK_PORT" \
   --rest-bind-address localhost &
+FLINK_PID=$!
+
+for i in $(seq 1 60); do
+  # Signal 0 checks whether the backgrounded Flink process is still alive without
+  # actually sending a signal, so we fail fast if it crashed during startup.
+  if ! kill -0 "$FLINK_PID" 2>/dev/null; then
+    echo "Flink mini cluster exited prematurely"
+    rm -rf "$ENV_DIR"
+    exit 1
+  fi
+  if python -c "import urllib.request; urllib.request.urlopen('http://localhost:$FLINK_PORT/v1/config', timeout=1)" >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$i" -eq 60 ]]; then
+    echo "Timed out waiting for Flink mini cluster on port $FLINK_PORT"
+    kill "$FLINK_PID" || true
+    rm -rf "$ENV_DIR"
+    exit 1
+  fi
+  sleep 1
+done
 
 PIPELINE_PY="
 import apache_beam as beam

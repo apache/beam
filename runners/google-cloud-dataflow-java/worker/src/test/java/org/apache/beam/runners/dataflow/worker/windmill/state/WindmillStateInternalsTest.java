@@ -2492,6 +2492,53 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListClearRangeAllBucketsClearsIdsAvailable() throws Exception {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+    assertBuildable(commitBuilder);
+
+    // Clear the entire 5-minute bucket; idsAvailable becomes empty and its ValueState must be
+    // cleared in Windmill rather than left behind.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochSecond(300));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    ByteString idsAvailableKey = systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR);
+    List<TagValue> idsAvailableUpdates =
+        commitBuilder.getValueUpdatesList().stream()
+            .filter(tv -> tv.getTag().equals(idsAvailableKey))
+            .collect(Collectors.toList());
+    assertEquals(1, idsAvailableUpdates.size());
+    assertEquals(0, idsAvailableUpdates.get(0).getValue().getData().size());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
   public void testOrderedListMergePendingAdds() {
     SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
     orderedListFuture.set(null);

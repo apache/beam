@@ -268,7 +268,10 @@ public class BeamSqlCliIcebergTest {
     p.run().waitUntilFinish();
 
     String[][] invalidStatements = {
-      {"SELECT * FROM orders WITH ('mode' = 'append')", "does not support WITH options for reads"},
+      {
+        "SELECT * FROM orders WITH ('mode' = 'append')",
+        "WITH options on an Iceberg read are only accepted with CHANGES(...), got [mode]"
+      },
       {
         "INSERT INTO orders WITH ('partition_fields' = ARRAY['id']) SELECT * FROM orders",
         "Option 'partition_fields' cannot be set in WITH: it applies only when the write creates"

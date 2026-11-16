@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg;
+package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -41,8 +42,11 @@ import org.slf4j.LoggerFactory;
  * A PTransform that buffers elements and outputs them to one of two TupleTags based on the total
  * size of the bundle in finish_bundle.
  *
+ * <p>For internal use only; no backwards-compatibility guarantees.
+ *
  * @param <T> The type of elements in the input PCollection.
  */
+@Internal
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
