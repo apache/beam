@@ -18,6 +18,8 @@
 import logging
 import unittest
 
+import numpy as np
+
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -29,6 +31,22 @@ DATA = [
     beam.Row(a='y', b=1, c=103),
     beam.Row(a='y', b=2, c=104),
 ]
+
+
+@beam.typehints.with_output_types(int)
+class _CountDistinctCombineFn(beam.CombineFn):
+  def create_accumulator(self):
+    return set()
+
+  def add_input(self, acc, element):
+    acc.add(element)
+    return acc
+
+  def merge_accumulators(self, accumulators):
+    return set().union(*accumulators)
+
+  def extract_output(self, acc):
+    return len(acc)
 
 
 class YamlCombineTest(unittest.TestCase):
@@ -184,6 +202,44 @@ class YamlCombineTest(unittest.TestCase):
           equal_to([
               beam.Row(b=1, biggest=[103, 102]),
               beam.Row(b=2, biggest=[104]),
+          ]))
+
+  def test_combine_fn_output_types(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          f'''
+          type: Combine
+          config:
+            language: python
+            group_by: a
+            combine:
+              cnt:
+                fn: count
+                value: c
+              avg_c:
+                fn: mean
+                value: c
+              grouped:
+                fn: group
+                value: c
+              distinct_b:
+                fn: '{__name__}._CountDistinctCombineFn'
+                value: b
+          ''')
+      fields = dict(result.element_type._fields)
+      self.assertEqual(fields['cnt'], int)
+      self.assertEqual(fields['avg_c'], float)
+      self.assertEqual(fields['grouped'], beam.typehints.List[np.int64])
+      self.assertEqual(fields['distinct_b'], int)
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(
+                  a='x', cnt=2, avg_c=101.5, grouped=[101, 102], distinct_b=1),
+              beam.Row(
+                  a='y', cnt=2, avg_c=103.5, grouped=[103, 104], distinct_b=2),
           ]))
 
 
