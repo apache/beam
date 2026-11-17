@@ -488,14 +488,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ready {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startEventTimeBundle(watermark, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -511,14 +511,14 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 				}
 				if ptimeEventsReady {
 					bundleID, ok, reschedule, pendingAdjustment := ss.startProcessingTimeBundle(em, emNow, nextBundID)
+					if pendingAdjustment != 0 {
+						em.addPending(pendingAdjustment)
+					}
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.changedStages.insert(stageID)
 					}
 					if ok {
-						if pendingAdjustment > 0 {
-							em.addPending(pendingAdjustment)
-						}
 						rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
 						em.inprogressBundles.insert(rb.BundleID)
@@ -754,6 +754,9 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 		ret.state = map[LinkID]map[typex.Window]map[string]StateData{}
 	}
 	for link, winMap := range ss.state {
+		if link == (LinkID{}) {
+			continue
+		}
 		for w, keyMap := range winMap {
 			for key := range keys {
 				data, ok := keyMap[key]
@@ -1458,25 +1461,28 @@ func (ss *stageState) releaseDelayedResiduals(em *ElementManager, emNow mtime.Ti
 	return ss.AddPending(em, due) - len(due)
 }
 
-func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
-	// Check on triggers for this key.
-	// Callers must hold em.refreshCond.L
-	count := 0
+// initAggStateLocked initializes the aggregation state map for win and key.
+// Callers must hold ss.mu.
+func (ss *stageState) initAggStateLocked(win typex.Window, key string) {
 	if ss.state == nil {
 		ss.state = make(map[LinkID]map[typex.Window]map[string]StateData)
 	}
-	// We use an empty linkID as the key into state for aggregations.
 	lv, ok := ss.state[LinkID{}]
 	if !ok {
 		lv = make(map[typex.Window]map[string]StateData)
 		ss.state[LinkID{}] = lv
 	}
-	wv, ok := lv[window]
-	if !ok {
-		wv = make(map[string]StateData)
-		lv[window] = wv
+	if _, ok := lv[win]; !ok {
+		lv[win] = make(map[string]StateData)
 	}
-	state := wv[key]
+}
+
+func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
+	// Check on triggers for this key.
+	// Callers must hold em.refreshCond.L
+	count := 0
+	ss.initAggStateLocked(window, key)
+	state := ss.state[LinkID{}][window][key]
 	endOfWindowReached := window.MaxTimestamp() < ss.input
 	ready := ss.strat.IsTriggerReady(triggerInput{
 		newElementCount:    1,
@@ -1486,6 +1492,9 @@ func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window t
 
 	if ready {
 		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		if ss.strat.Trigger != nil && state.getTriggerState(ss.strat.Trigger).finished {
+			state.Pane.IsLast = true
+		}
 	} else {
 		if pts := ss.strat.GetAfterProcessingTimeTriggers(); pts != nil {
 			for _, t := range pts {
@@ -1678,9 +1687,8 @@ func (*ordinaryStageKind) addPending(ss *stageState, em *ElementManager, newPend
 // computeNextTriggeredPane produces the correct pane relative to the previous pane,
 // and the end of window state.
 func computeNextTriggeredPane(pane typex.PaneInfo, endOfWindowReached bool) typex.PaneInfo {
-	// This is the first firing, since index and first are both
-	// set to their zero values.
-	if pane.Index == 0 && !pane.IsFirst {
+	firstFiring := pane.Index == 0 && !pane.IsFirst
+	if firstFiring {
 		pane.IsFirst = true
 	} else {
 		pane.Index++
@@ -1688,7 +1696,11 @@ func computeNextTriggeredPane(pane typex.PaneInfo, endOfWindowReached bool) type
 	}
 	if endOfWindowReached {
 		pane.Timing = typex.PaneLate
-		pane.NonSpeculativeIndex++
+		if firstFiring {
+			pane.NonSpeculativeIndex = 0
+		} else {
+			pane.NonSpeculativeIndex++
+		}
 	} else {
 		pane.Timing = typex.PaneEarly
 		pane.NonSpeculativeIndex = -1
@@ -1699,24 +1711,22 @@ func computeNextTriggeredPane(pane typex.PaneInfo, endOfWindowReached bool) type
 // computeNextWatermarkPane computes the next pane given the previous pane,
 // when the watermark passes either the End of Window, or End of Window plus
 // the allowed lateness.
-func computeNextWatermarkPane(pane typex.PaneInfo) typex.PaneInfo {
-	// The pane state is still early: this is the OnTime firing.
+func computeNextWatermarkPane(pane typex.PaneInfo, isLateForOutput bool) typex.PaneInfo {
 	switch pane.Timing {
 	case typex.PaneEarly:
-		// We haven't fired ontime yet.
-		pane.Timing = typex.PaneOnTime
+		if isLateForOutput {
+			pane.Timing = typex.PaneLate
+		} else {
+			pane.Timing = typex.PaneOnTime
+		}
 		pane.NonSpeculativeIndex = 0
 
 	case typex.PaneOnTime:
-		// This must be the closing pane after an ontime pane.
 		pane.Timing = typex.PaneLate
 		pane.NonSpeculativeIndex++
 	case typex.PaneLate:
-		// We have had some other late pane.
 		pane.NonSpeculativeIndex++
 	}
-	// This is the first firing, since index and first are both
-	// set to their zero values.
 	if pane.Index == 0 && !pane.IsFirst {
 		pane.IsFirst = true
 	} else {
@@ -2160,7 +2170,7 @@ keysPerBundle:
 			}
 			handledWindows.insert(elm.window)
 
-			state.Pane = computeNextWatermarkPane(state.Pane)
+			state.Pane = computeNextWatermarkPane(state.Pane, elm.window.MaxTimestamp() < ss.output)
 			// Determine if this is the last pane.
 			// Check if this is the post closing firing, which will be the last one.
 			// Unless it's the ontime pane, at which point it can never be last.
@@ -2311,7 +2321,9 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 		// triggers don't hold back the watermark, so no holds are in the triggered bundle.
 		var pendingAdjustment int
 		var elems []element
-		state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
+		key := string(e.keyBytes)
+		ss.initAggStateLocked(e.window, key)
+		state := ss.state[LinkID{}][e.window][key]
 		endOfWindowReached := e.window.MaxTimestamp() < ss.input
 		ready := ss.strat.IsTriggerReady(triggerInput{
 			newElementCount:    0,
@@ -2321,14 +2333,21 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 
 		if ready {
 			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+			if ss.strat.Trigger != nil && state.getTriggerState(ss.strat.Trigger).finished {
+				state.Pane.IsLast = true
+			}
 
 			// We're going to process this trigger!
-			elems, pendingAdjustment = ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
+			elems, pendingAdjustment = ss.buildTriggeredBundle(em, key, e.window)
 			toProcess = append(toProcess, elems...)
 
-			ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
+			ss.state[LinkID{}][e.window][key] = state
 
-			panesInBundle = append(panesInBundle, bundlePane{})
+			panesInBundle = append(panesInBundle, bundlePane{
+				win:  e.window,
+				key:  key,
+				pane: state.Pane,
+			})
 		}
 
 		return toProcess, panesInBundle, pendingAdjustment
