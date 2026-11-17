@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+import os
 import tempfile
 from collections.abc import Callable
 from collections.abc import Mapping
@@ -144,10 +145,11 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
 
   def __enter__(self):
     """Connect with the Feast feature store."""
-    local_repo_path = download_fs_yaml_file(self.feature_store_yaml_path)
+    self._local_repo_path = download_fs_yaml_file(self.feature_store_yaml_path)
     try:
-      self.store = FeatureStore(fs_yaml_file=local_repo_path)
+      self.store = FeatureStore(fs_yaml_file=self._local_repo_path)
     except Exception:
+      self._remove_local_repo_path()
       raise RuntimeError(
           'Invalid feature store yaml file provided. Make sure '
           'the %s contains the valid configuration for Feast feature store.' %
@@ -157,6 +159,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         self.features = self.store.get_feature_service(
             self.feature_service_name)
       except Exception:
+        self._remove_local_repo_path()
         raise RuntimeError(
             'Could not find the feature service %s for the feature '
             'store configured in %s.' %
@@ -183,18 +186,50 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     # Since we do this per entity, the list of feature values only contain
     # a single element at position 0.
     response_dict = {k: v[0] for k, v in feature_values.items()}
+    # The entity key columns are echoed back by Feast and are not features;
+    # a feature that is absent from the online store comes back as `None`.
+    missing_features = [
+        name for name, value in response_dict.items()
+        if name not in entity_dict and value is None
+    ]
+    if missing_features:
+      if self._exception_level == ExceptionLevel.RAISE:
+        raise ValueError(
+            'No feature values found for features %s for the entity: %s.' %
+            (missing_features, entity_dict))
+      if self._exception_level == ExceptionLevel.WARN:
+        _LOGGER.warning(
+            'No feature values found for features %s for the entity: %s.',
+            missing_features,
+            entity_dict)
     return request, beam.Row(**response_dict)
+
+  def _remove_local_repo_path(self):
+    """Delete the temp feature-store YAML downloaded in `__enter__`."""
+    local_repo_path = getattr(self, '_local_repo_path', None)
+    if local_repo_path:
+      try:
+        os.remove(local_repo_path)
+      except OSError:
+        pass
+      self._local_repo_path = None
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     """Clean the instantiated Feast feature store client."""
     self.store = None
+    self._remove_local_repo_path()
 
   def get_cache_key(self, request: beam.Row) -> str:
     """Returns a string formatted with unique entity-id for the feature values.
     """
     if self.entity_row_fn:
       entity_dict = self.entity_row_fn(request)
-      entity_id = list(entity_dict.keys())[0]
-    else:
-      entity_id = self.entity_id
-    return 'entity_id: %s' % request._asdict()[entity_id]
+      # Build the cache key from the entity key/value pairs returned by
+      # `entity_row_fn`. The returned mapping may use entity names that are not
+      # columns on the input row, so we must not index back into the request.
+      # Sorting keeps the key stable and collision-free for compound
+      # (multi-entity) mappings.
+      key = ', '.join(
+          '%s: %s' % (name, entity_dict[name]) for name in sorted(entity_dict))
+      return 'entity_id: %s' % key
+    return 'entity_id: %s' % request._asdict()[self.entity_id]
