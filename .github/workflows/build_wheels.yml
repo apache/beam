@@ -242,6 +242,11 @@ jobs:
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
         py_version: ["cp311-", "cp312-", "cp313-", "cp314-"]
     steps:
+    - name: Checkout GitHub Actions
+      uses: actions/checkout@v7
+      with:
+        sparse-checkout: .github/actions
+        persist-credentials: false
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v8
       with:
@@ -263,41 +268,15 @@ jobs:
       # runner).
       if: ${{ matrix.os_python.arch == 'aarch64' && !matrix.os_python.cibw_archs }}
       name: Set up QEMU
-    - name: Install cibuildwheel
-      # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==3.4.0 setuptools
-    - name: Build wheel
+    - name: Build wheels
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      working-directory: apache-beam-source
-      env:
-        CIBW_BUILD: ${{ matrix.py_version }}*
-        # TODO: https://github.com/apache/beam/issues/23048
-        CIBW_SKIP: "*-musllinux_*"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
-      # note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
-      run: |
-        cibuildwheel --print-build-identifiers
-        for attempt in 1 2 3; do
-          if cibuildwheel --output-dir wheelhouse; then
-            exit 0
-          fi
-          echo "cibuildwheel failed on attempt ${attempt}. Will retry."
-          rm -rf wheelhouse
-        done
-        exit 1
-      shell: bash
-    - name: install sha512sum on MacOS
-      if: startsWith(matrix.os_python.os, 'macos')
-      run: brew install coreutils
-    - name: Add checksums
-      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      working-directory: apache-beam-source/wheelhouse/
-      run: |
-        for file in *.whl; do
-          sha512sum $file > ${file}.sha512
-        done
-      shell: bash
+      uses: ./.github/actions/build-python-wheels
+      with:
+        package-dir: apache-beam-source
+        output-dir: apache-beam-source/wheelhouse
+        build-identifiers: "${{ matrix.py_version }}*"
+        archs-linux: ${{ matrix.os_python.arch }}
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       uses: actions/upload-artifact@v7
@@ -307,34 +286,14 @@ jobs:
     - name: Build RC wheels
       # Only build wheel if it is one of the target versions for this platform, otherwise no-op
       if: ${{ needs.build_source.outputs.is_rc == 1 && contains(matrix.os_python.python, matrix.py_version) }}
-      working-directory: apache-beam-source-rc
-      env:
-        CIBW_BUILD: ${{ matrix.py_version }}*
-        # TODO: https://github.com/apache/beam/issues/23048
-        CIBW_SKIP: "*-musllinux_*"
-        CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
-      # note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
-      run: |
-        cibuildwheel --print-build-identifiers
-        for attempt in 1 2 3; do
-          if cibuildwheel --output-dir wheelhouse; then
-            exit 0
-          fi
-          echo "cibuildwheel failed on attempt ${attempt}. Will retry."
-          rm -rf wheelhouse
-        done
-        exit 1
-      shell: bash
-    - name: Add RC checksums
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      working-directory: apache-beam-source-rc/wheelhouse/
-      run: |
-        for file in *.whl; do
-          sha512sum $file > ${file}.sha512
-        done
-      shell: bash
+      uses: ./.github/actions/build-python-wheels
+      with:
+        package-dir: apache-beam-source-rc
+        output-dir: apache-beam-source-rc/wheelhouse
+        build-identifiers: "${{ matrix.py_version }}*"
+        archs-linux: ${{ matrix.os_python.arch }}
     - name: Upload RC wheels as artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      if: ${{ needs.build_source.outputs.is_rc == 1 && contains(matrix.os_python.python, matrix.py_version) }}
       uses: actions/upload-artifact@v7
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
