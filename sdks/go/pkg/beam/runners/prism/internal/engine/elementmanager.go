@@ -1109,6 +1109,10 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			elm.family = tentativeKey.Family
 
 			if stage.processingTimeTimersFamilies[elm.family] {
+				if elm.sequence < 0 {
+					pendingProcessingTimers = append(pendingProcessingTimers, fireElement{timer: elm})
+					continue
+				}
 				// Conditionally rebase processing time or always rebase?
 				newTimerFire := rebaseProcessingTime(emNow, elm.timestamp)
 				elm.timestamp = elm.holdTimestamp // Processing Time always uses the hold timestamp as the resulting event time.
@@ -1993,7 +1997,7 @@ keysPerBundle:
 					timerCleared = true
 					continue // Timer has "fired" already, so this can be ignored.
 				}
-				if e.timestamp != lastSet.firing {
+				if e.sequence < 0 || e.timestamp != lastSet.firing || e.holdTimestamp != lastSet.hold {
 					timerCleared = true
 					continue
 				}

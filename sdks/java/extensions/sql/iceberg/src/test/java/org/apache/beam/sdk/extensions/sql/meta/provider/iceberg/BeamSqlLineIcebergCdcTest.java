@@ -72,9 +72,8 @@ public class BeamSqlLineIcebergCdcTest {
                 + " ARRAY['_change_type', '_commit_snapshot_sequence_number']);",
             "CREATE EXTERNAL TABLE orders_mirror (id BIGINT, name VARCHAR,"
                 + " PRIMARY KEY (id) NOT ENFORCED) TYPE 'iceberg';",
-            "INSERT INTO orders_mirror WITH ('mode' = 'merge-on-read') SELECT * FROM"
-                + " CHANGES(orders) WITH ('include_metadata_columns' ="
-                + " ARRAY['_commit_snapshot_sequence_number']);");
+            "INSERT INTO orders_mirror WITH ('mode' = 'merge-on-read')"
+                + " SELECT *, _commit_snapshot_sequence_number FROM CHANGES(orders);");
 
     assertThat(
         output,
@@ -93,8 +92,7 @@ public class BeamSqlLineIcebergCdcTest {
             "USE CATALOG cdc_catalog;",
             "USE DATABASE db;",
             "SELECT * FROM orders_mirror;",
-            "SELECT id, _change_type FROM CHANGES(orders)"
-                + " WITH ('include_metadata_columns' = ARRAY['_change_type']) WHERE id = 2;");
+            "SELECT id, _change_type FROM CHANGES(orders) WHERE id = 2;");
 
     assertThat(
         mirror,

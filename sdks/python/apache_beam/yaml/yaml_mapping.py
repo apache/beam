@@ -19,6 +19,7 @@
 import datetime
 import itertools
 import json
+import keyword
 import re
 import threading
 from collections import abc
@@ -319,7 +320,8 @@ def _expand_python_mapping_func(
     # for each field individually.
     source = '\n'.join(['def fn(__row__):'] + [
         f'  {name} = __row__.{name}'
-        for name in original_fields if name in expression
+        for name in original_fields if name in expression and
+        name.isidentifier() and not keyword.iskeyword(name)
     ] + ['  return (' + expression + ')'])
 
   else:
@@ -871,8 +873,21 @@ def _AssignTimestamps(
   """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
-  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
-                          ).with_input_types(T).with_output_types(T)
+  return pcoll | beam.Map(
+      lambda x: TimestampedValue(x, _to_timestamp(timestamp_fn(x)))
+  ).with_input_types(T).with_output_types(T)
+
+
+def _to_timestamp(ts):
+  if isinstance(ts, str):
+    return Timestamp.from_rfc3339(ts)
+  elif isinstance(ts, datetime.datetime):
+    if ts.tzinfo is None:
+      ts = ts.replace(tzinfo=datetime.timezone.utc)
+    else:
+      ts = ts.astimezone(datetime.timezone.utc)
+    return Timestamp.from_utc_datetime(ts)
+  return ts
 
 
 class PaneInfoTuple(NamedTuple):
