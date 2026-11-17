@@ -19,8 +19,10 @@ package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -84,5 +86,10 @@ class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
   @Override
   public void abort() throws Exception {
     underlyingParDoFn.abort();
+  }
+
+  @Override
+  public @Nullable DoFnInfo<?, ?> getDoFnInfo() throws Exception {
+    return underlyingParDoFn.getDoFnInfo();
   }
 }

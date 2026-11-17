@@ -32,6 +32,7 @@
 --influx_measurement=result_table_row_inference_stream
 --mode=streaming
 --input_subscription=projects/apache-beam-testing/subscriptions/table_row_inference_benchmark
+--input_file=gs://apache-beam-ml/testing/inputs/table_rows_100k_benchmark.jsonl
 --window_size_sec=60
 --trigger_interval_sec=30
 --timeout_ms=1800000

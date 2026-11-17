@@ -656,10 +656,11 @@ Tips for using the Dataflow runner:
 
 ### Formatting CHANGES.md
 
-When updating the `CHANGES.md` file with your changes, use the following Gradle command to ensure proper formatting:
+When updating the `CHANGES.md` file with noteworthy user-facing changes (minor changes that do not affect public API functionality — such as test-only updates, typos, CI/build fixes, or internal refactors — do not need an entry), use the following Gradle commands to ensure proper formatting and validation:
 
 ```shell
 ./gradlew formatChanges
+./gradlew validateChanges
 ```
 
 This command:

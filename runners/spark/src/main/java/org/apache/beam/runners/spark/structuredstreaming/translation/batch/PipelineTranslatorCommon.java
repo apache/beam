@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
@@ -67,6 +68,8 @@ public class PipelineTranslatorCommon extends PipelineTranslator {
     TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch<>());
 
     TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Redistribute.RedistributeByKey.class, new ReshuffleTranslatorBatch<>());
     TRANSFORM_TRANSLATORS.put(
         Reshuffle.ViaRandomKey.class, new ReshuffleTranslatorBatch.ViaRandomKey<>());
 

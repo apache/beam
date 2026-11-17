@@ -108,6 +108,30 @@ if [[ $CHECK_FLOCK -eq 0 ]]; then
   fi
 fi
 
+wait_for_port() {
+  local port=$1
+  local srv_pid=$2
+  local name=$3
+  local logfile=$4
+  local elapsed=0
+  while [ $elapsed -lt 60 ]; do
+    if ! kill -0 "$srv_pid" >/dev/null 2>&1; then
+      echo "$name expansion service (pid $srv_pid) exited prematurely. Logs:"
+      cat "$logfile" || true
+      return 1
+    fi
+    if python -c "import socket, sys; s = socket.socket(); res = s.connect_ex(('localhost', int(sys.argv[1]))); s.close(); sys.exit(0 if res == 0 else 1)" "$port" >/dev/null 2>&1; then
+      echo "$name expansion service is listening @ $port"
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "Timed out waiting 60s for $name expansion service @ $port. Logs:"
+  cat "$logfile" || true
+  return 1
+}
+
 case $STARTSTOP in
   start)
     if [ -f "$pid" ]; then
@@ -115,24 +139,38 @@ case $STARTSTOP in
       exit 0
     fi
 
+    source $PYTHON_VIRTUALENV_DIR/bin/activate
+
     echo "Launching Java expansion service @ $JAVA_PORT"
-    java -jar $JAVA_EXPANSION_SERVICE_JAR $JAVA_PORT --javaClassLookupAllowlistFile="$JAVA_EXPANSION_SERVICE_ALLOWLIST_FILE" >$TEMP_DIR/$FILE_BASE-java.log 2>&1 </dev/null &
-    mypid=$!
-    if kill -0 $mypid >/dev/null 2>&1; then
-      echo $mypid >> $pid
+    if [[ $CHECK_FLOCK -eq 0 ]]; then
+      java -jar $JAVA_EXPANSION_SERVICE_JAR $JAVA_PORT --javaClassLookupAllowlistFile="$JAVA_EXPANSION_SERVICE_ALLOWLIST_FILE" >$TEMP_DIR/$FILE_BASE-java.log 2>&1 </dev/null 200>&- &
+    else
+      java -jar $JAVA_EXPANSION_SERVICE_JAR $JAVA_PORT --javaClassLookupAllowlistFile="$JAVA_EXPANSION_SERVICE_ALLOWLIST_FILE" >$TEMP_DIR/$FILE_BASE-java.log 2>&1 </dev/null &
+    fi
+    java_pid=$!
+    if kill -0 $java_pid >/dev/null 2>&1; then
+      echo $java_pid >> $pid
     else
       echo "Can't start Java expansion service."
+      exit 1
     fi
 
     echo "Launching Python expansion service @ $PYTHON_PORT"
-    source $PYTHON_VIRTUALENV_DIR/bin/activate
-    python -m $PYTHON_EXPANSION_SERVICE_MODULE -p $PYTHON_PORT --fully_qualified_name_glob "$PYTHON_EXPANSION_SERVICE_ALLOWLIST_GLOB" >$TEMP_DIR/$FILE_BASE-python.log 2>&1 </dev/null &
-    mypid=$!
-    if kill -0 $mypid >/dev/null 2>&1; then
-      echo $mypid >> $pid
+    if [[ $CHECK_FLOCK -eq 0 ]]; then
+      python -m $PYTHON_EXPANSION_SERVICE_MODULE -p $PYTHON_PORT --fully_qualified_name_glob "$PYTHON_EXPANSION_SERVICE_ALLOWLIST_GLOB" >$TEMP_DIR/$FILE_BASE-python.log 2>&1 </dev/null 200>&- &
+    else
+      python -m $PYTHON_EXPANSION_SERVICE_MODULE -p $PYTHON_PORT --fully_qualified_name_glob "$PYTHON_EXPANSION_SERVICE_ALLOWLIST_GLOB" >$TEMP_DIR/$FILE_BASE-python.log 2>&1 </dev/null &
+    fi
+    python_pid=$!
+    if kill -0 $python_pid >/dev/null 2>&1; then
+      echo $python_pid >> $pid
     else
       echo "Can't start Python expansion service."
+      exit 1
     fi
+
+    wait_for_port "$JAVA_PORT" "$java_pid" "Java" "$TEMP_DIR/$FILE_BASE-java.log" || exit 1
+    wait_for_port "$PYTHON_PORT" "$python_pid" "Python" "$TEMP_DIR/$FILE_BASE-python.log" || exit 1
     ;;
   stop)
     if [ -f "$pid" ]; then

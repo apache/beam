@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -41,6 +40,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
+import org.apache.iceberg.hadoop.HadoopConfigurable;
 import org.apache.iceberg.io.FileIO;
 import org.junit.Before;
 import org.junit.Rule;
@@ -252,8 +252,9 @@ public class SideInputTableTest {
     SideInputTable tableWithConf = new SideInputTable(spec, ImmutableMap.of(), conf);
     FileIO io = tableWithConf.io();
     assertNotNull(io);
-    assertTrue("FileIO must implement Configurable", io instanceof Configurable);
-    assertEquals("custom-value-456", ((Configurable) io).getConf().get("custom.sideinput.prop"));
+    assertTrue("FileIO must implement Configurable", io instanceof HadoopConfigurable);
+    assertEquals(
+        "custom-value-456", ((HadoopConfigurable) io).getConf().get("custom.sideinput.prop"));
 
     // Test constructor accepting IcebergCatalogConfig
     IcebergCatalogConfig catalogConfig =
@@ -266,8 +267,8 @@ public class SideInputTableTest {
     SideInputTable tableFromCatalogConfig = new SideInputTable(specFromConfig, catalogConfig);
     FileIO ioFromConfig = tableFromCatalogConfig.io();
     assertNotNull(ioFromConfig);
-    assertTrue("FileIO must implement Configurable", ioFromConfig instanceof Configurable);
-    assertEquals("val-789", ((Configurable) ioFromConfig).getConf().get("catalog.conf.prop"));
+    assertTrue("FileIO must implement Configurable", ioFromConfig instanceof HadoopConfigurable);
+    assertEquals("val-789", ((HadoopConfigurable) ioFromConfig).getConf().get("catalog.conf.prop"));
 
     // Test constructor accepting EncryptionManager and hadoopConf
     SerializableTableSpec specWithEncryption = SerializableTableSpec.fromTable(tableId, realTable);
@@ -275,10 +276,11 @@ public class SideInputTableTest {
         new SideInputTable(specWithEncryption, PlaintextEncryptionManager.instance(), conf);
     FileIO ioWithEncryption = tableWithEncryptionAndConf.io();
     assertNotNull(ioWithEncryption);
-    assertTrue("FileIO must implement Configurable", ioWithEncryption instanceof Configurable);
+    assertTrue(
+        "FileIO must implement Configurable", ioWithEncryption instanceof HadoopConfigurable);
     assertEquals(
         "custom-value-456",
-        ((Configurable) ioWithEncryption).getConf().get("custom.sideinput.prop"));
+        ((HadoopConfigurable) ioWithEncryption).getConf().get("custom.sideinput.prop"));
 
     // Test constructor rejecting null catalogConfig
     assertThrows(

@@ -215,7 +215,14 @@ class _InferenceAPIHandler(ModelHandler):
         self._config.api_url,
         headers=self._config.authorization_token,
         json={"inputs": batch})
-    return response.json()
+    response.raise_for_status()
+    result = response.json()
+    # Reject {"error": ...} so it is not treated as embedding values.
+    if isinstance(result, dict) and 'error' in result:
+      raise RuntimeError(
+          'Hugging Face Inference API error for %s: %s' %
+          (self._config.api_url, result['error']))
+    return result
 
 
 class InferenceAPIEmbeddings(EmbeddingsManager):

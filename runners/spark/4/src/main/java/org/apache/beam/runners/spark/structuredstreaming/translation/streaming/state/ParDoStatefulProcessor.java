@@ -65,6 +65,12 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
   }
 
   @Override
+  public ParDoStatefulProcessor<K, V, OutputT> copy() {
+    return new ParDoStatefulProcessor<>(
+        doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics);
+  }
+
+  @Override
   protected void processElements(
       K key,
       Iterator<WindowedValue<KV<K, V>>> rows,

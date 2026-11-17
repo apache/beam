@@ -523,6 +523,10 @@ tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
+val changesLanguagePattern = "Java|Python|Go|Kotlin|TypeScript|YAML"
+val changesRunnerPattern = "Dataflow|Flink|Jet|Kafka-Stream|Prism|Spark"
+val changesTagPattern = "$changesLanguagePattern|$changesRunnerPattern"
+
 tasks.register("formatChanges") {
   group = "formatting"
   description = "Formats CHANGES.md according to the template structure"
@@ -577,6 +581,7 @@ tasks.register("formatChanges") {
           "## Highlights",
           "## I/Os",
           "## New Features / Improvements",
+          "## Improvements",
           "## Breaking Changes",
           "## Deprecations",
           "## Bugfixes",
@@ -603,6 +608,7 @@ tasks.register("formatChanges") {
         }
 
         // Only add sections that actually exist with content
+        val bracketedTagRegex = Regex("\\[(?:$changesTagPattern)(?:/(?:$changesTagPattern))*\\]")
         for (section in expectedSections) {
           if (sectionContent.containsKey(section)) {
             formattedLines.add("")
@@ -620,15 +626,9 @@ tasks.register("formatChanges") {
 
             // Format content according to template rules
             val formattedContent = content.map { line ->
-              // Convert SDK language references from [Language] to (Language)
-              line.replace(Regex("\\[([^\\]]*(?:Java|Python|Go|Kotlin|TypeScript|YAML)[^\\]]*)\\]")) { matchResult ->
-                val languages = matchResult.groupValues[1]
-                // Only convert if it's clearly a language reference (not a link or other content)
-                if (languages.matches(Regex(".*(?:Java|Python|Go|Kotlin|TypeScript|YAML).*"))) {
-                  "($languages)"
-                } else {
-                  matchResult.value
-                }
+              // Convert SDK language and runner references from [Language]/[Runner] to (Language)/(Runner)
+              line.replace(bracketedTagRegex) { matchResult ->
+                "(${matchResult.value.substring(1, matchResult.value.length - 1)})"
               }
             }
 
@@ -645,7 +645,7 @@ tasks.register("formatChanges") {
     }
 
     // Write formatted content back
-    changesFile.writeText(formattedLines.joinToString("\n"))
+    changesFile.writeText(formattedLines.joinToString("\n") + "\n")
     println("CHANGES.md has been formatted according to template structure")
   }
 }
@@ -724,6 +724,9 @@ tasks.register("validateChanges") {
     items.put(lastline, item)
     println("Starting validation from line ${i+1}")
 
+    val bracketedTagRegex = Regex("\\[(?:$changesTagPattern)(?:/(?:$changesTagPattern))*\\]")
+    val linkRegex = Regex("\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)")
+
     items.forEach { (i, line) ->
       if (line.startsWith("* ")) {
         println("Checking line ${i+1}: $line")
@@ -732,17 +735,13 @@ tasks.register("validateChanges") {
         if (line.startsWith("* [comment]:")) {
           println("  Skipping comment line")
         } else {
-          // Rule 1: Check if language references use parentheses instead of brackets
-          val languagePattern = "\\[(Java|Python|Go|Kotlin|TypeScript|YAML)(?:/(?:Java|Python|Go|Kotlin|TypeScript|YAML))*\\]"
-          val languageRegex = Regex(languagePattern)
-
-          // Check if there's a language reference in brackets
-          val matches = languageRegex.findAll(line).toList()
+          // Rule 1: Check if language or runner references use parentheses instead of brackets
+          val matches = bracketedTagRegex.findAll(line).toList()
           if (matches.isNotEmpty()) {
             for (match in matches) {
               val matchText = match.value
               val matchPosition = match.range.first
-              println("  Found language reference: $matchText at position $matchPosition")
+              println("  Found bracketed language/runner reference: $matchText at position $matchPosition")
 
               // Check if this is part of an issue link or URL
               val beforeMatch = if (matchPosition > 0) line.substring(0, matchPosition) else ""
@@ -753,19 +752,16 @@ tasks.register("validateChanges") {
               println("  Is part of link: $isPartOfLink")
 
               if (!isPartOfLink) {
-                val error = "Line ${i+1}: Language references should use parentheses () instead of brackets []: $line"
+                val error = "Line ${i+1}: Language/runner references should use parentheses () instead of brackets []: $line"
                 println("  Adding error: $error")
                 errors.add(error)
               }
             }
           } else {
-            println("  No bracketed language reference found")
+            println("  No bracketed language/runner reference found")
           }
 
           // Rule 2: Check if each entry links an issue or a PR
-          val linkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)"
-          val linkRegex = Regex(linkPattern)
-
           val hasLink = linkRegex.containsMatchIn(line)
           println("  Has issue link: $hasLink")
 
