@@ -253,7 +253,8 @@ class PandasTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(pandas_type_compatibility.dtype_to_fieldtype(bytes), bytes)
     self.assertEqual(pandas_type_compatibility.dtype_to_fieldtype(object), Any)
     self.assertEqual(
-        pandas_type_compatibility.dtype_to_fieldtype(np.int64), np.int64)
+        pandas_type_compatibility.dtype_to_fieldtype(np.dtype('int64')),
+        np.int64)
 
 
 if __name__ == '__main__':
