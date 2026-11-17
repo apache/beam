@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming.state;
 
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.tuple;
+
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -34,23 +37,28 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import scala.Tuple2;
 import scala.collection.Iterator;
 
 /** Runs a stateful {@link DoFn} within Spark 4 Structured Streaming {@code transformWithState}. */
-public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor<K, V, OutputT> {
+public abstract class ParDoStatefulProcessor<K, V, OutputT, OutT extends @NonNull Object>
+    extends BeamStatefulProcessor<K, V, OutT> {
 
-  private final DoFn<KV<K, V>, OutputT> doFn;
-  private final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
-  private final Supplier<PipelineOptions> optionsSupplier;
-  private final MetricsAccumulator metrics;
+  protected final DoFn<KV<K, V>, OutputT> doFn;
+  protected final DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory;
+  protected final Supplier<PipelineOptions> optionsSupplier;
+  protected final MetricsAccumulator metrics;
   private final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
 
   private transient boolean needsBundleStart;
 
-  public ParDoStatefulProcessor(
+  private ParDoStatefulProcessor(
       DoFn<KV<K, V>, OutputT> doFn,
       DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
       KvCoder<K, V> inputCoder,
@@ -64,10 +72,31 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
     this.metrics = metrics;
   }
 
-  @Override
-  public ParDoStatefulProcessor<K, V, OutputT> copy() {
-    return new ParDoStatefulProcessor<>(
+  /** Processor emitting {@link WindowedValue} rows for a single output tag. */
+  public static <K, V, OutputT>
+      ParDoStatefulProcessor<K, V, OutputT, WindowedValue<OutputT>> singleOutput(
+          DoFn<KV<K, V>, OutputT> doFn,
+          DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
+          KvCoder<K, V> inputCoder,
+          WindowingStrategy<?, ?> windowingStrategy,
+          Supplier<PipelineOptions> optionsSupplier,
+          MetricsAccumulator metrics) {
+    return new SingleOut<>(
         doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics);
+  }
+
+  /** Processor emitting {@code (tagColIdx, WindowedValue)} tuples for multiple output tags. */
+  public static <K, V, OutputT, OutT>
+      ParDoStatefulProcessor<K, V, OutputT, Tuple2<Integer, WindowedValue<OutT>>> multiOutput(
+          DoFn<KV<K, V>, OutputT> doFn,
+          DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
+          KvCoder<K, V> inputCoder,
+          WindowingStrategy<?, ?> windowingStrategy,
+          Supplier<PipelineOptions> optionsSupplier,
+          MetricsAccumulator metrics,
+          Map<String, Integer> tagColIdx) {
+    return new MultiOut<>(
+        doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics, tagColIdx);
   }
 
   @Override
@@ -158,5 +187,70 @@ public class ParDoStatefulProcessor<K, V, OutputT> extends BeamStatefulProcessor
         windowingStrategy,
         cleanupTimer,
         stateCleaner);
+  }
+
+  private static final class SingleOut<K, V, OutputT>
+      extends ParDoStatefulProcessor<K, V, OutputT, WindowedValue<OutputT>> {
+    private SingleOut(
+        DoFn<KV<K, V>, OutputT> doFn,
+        DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
+        KvCoder<K, V> inputCoder,
+        WindowingStrategy<?, ?> windowingStrategy,
+        Supplier<PipelineOptions> optionsSupplier,
+        MetricsAccumulator metrics) {
+      super(doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics);
+    }
+
+    @Override
+    public SingleOut<K, V, OutputT> copy() {
+      return new SingleOut<>(
+          doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics);
+    }
+
+    @Override
+    protected WindowedValueMultiReceiver createOutputReceiver() {
+      return new WindowedValueMultiReceiver() {
+        @Override
+        public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          appendOutput((WindowedValue<OutputT>) output);
+        }
+      };
+    }
+  }
+
+  private static final class MultiOut<K, V, OutputT, OutT>
+      extends ParDoStatefulProcessor<K, V, OutputT, Tuple2<Integer, WindowedValue<OutT>>> {
+    private final Map<String, Integer> tagColIdx;
+
+    private MultiOut(
+        DoFn<KV<K, V>, OutputT> doFn,
+        DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory,
+        KvCoder<K, V> inputCoder,
+        WindowingStrategy<?, ?> windowingStrategy,
+        Supplier<PipelineOptions> optionsSupplier,
+        MetricsAccumulator metrics,
+        Map<String, Integer> tagColIdx) {
+      super(doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics);
+      this.tagColIdx = tagColIdx;
+    }
+
+    @Override
+    public MultiOut<K, V, OutputT, OutT> copy() {
+      return new MultiOut<>(
+          doFn, runnerFactory, inputCoder, windowingStrategy, optionsSupplier, metrics, tagColIdx);
+    }
+
+    @Override
+    protected WindowedValueMultiReceiver createOutputReceiver() {
+      return new WindowedValueMultiReceiver() {
+        @Override
+        public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          Integer columnIdx = tagColIdx.get(tag.getId());
+          if (columnIdx != null) {
+            appendOutput(tuple(columnIdx, (WindowedValue<OutT>) output));
+          }
+        }
+      };
+    }
   }
 }
