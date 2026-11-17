@@ -276,6 +276,11 @@ class JsonUtilsTest(unittest.TestCase):
               'type': 'object', 'properties': {}, 'additionalProperties': False
           })
 
+  def test_json_schema_to_beam_schema_missing_properties(self):
+    with self.assertRaisesRegex(
+        ValueError, r"Missing properties for \{'type': 'object'\}\."):
+      json_utils.json_schema_to_beam_schema({'type': 'object'})
+
 
 if __name__ == '__main__':
   unittest.main()
