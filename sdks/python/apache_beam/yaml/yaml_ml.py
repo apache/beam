@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from importlib import import_module
+import inspect
 import logging
 import pkgutil
 import sys
@@ -99,6 +100,7 @@ _TYPE_MAP: dict[str, Any] = {
 def _parse_type_spec(spec: Any) -> Any:
   if spec is None:
     return Any
+  spec = SafeLineLoader.strip_metadata(spec)
   if isinstance(spec, type) or spec is Any:
     return spec
   if isinstance(spec, str):
@@ -139,6 +141,27 @@ class _FunctionModelHandler(ModelHandler[Any, Any, Any]):
     super().__init__(**kwargs)
     self._inference_fn = inference_fn
     self._load_model_fn = load_model_fn
+    self._arity: Optional[int] = None
+
+  def _get_arity(self) -> int:
+    if self._arity is not None:
+      return self._arity
+    try:
+      sig = inspect.signature(self._inference_fn)
+      params = list(sig.parameters.values())
+      if any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params):
+        self._arity = 3
+        return 3
+      positional = [
+          p for p in params if p.kind in (
+              inspect.Parameter.POSITIONAL_ONLY,
+              inspect.Parameter.POSITIONAL_OR_KEYWORD)
+      ]
+      self._arity = len(positional)
+      return self._arity
+    except Exception:
+      self._arity = 3
+      return 3
 
   def load_model(self) -> Any:
     if self._load_model_fn is not None:
@@ -150,13 +173,12 @@ class _FunctionModelHandler(ModelHandler[Any, Any, Any]):
       batch: Sequence[Any],
       model: Any,
       inference_args: Optional[dict[str, Any]] = None) -> Iterable[Any]:
-    try:
+    arity = self._get_arity()
+    if arity >= 3:
       return self._inference_fn(batch, model, inference_args)
-    except TypeError:
-      try:
-        return self._inference_fn(batch, model)
-      except TypeError:
-        return [self._inference_fn(item) for item in batch]
+    if arity == 2:
+      return self._inference_fn(batch, model)
+    return [self._inference_fn(item) for item in batch]
 
 
 class _LazyYamlModelHandler(ModelHandler[Any, Any, Any]):
@@ -191,6 +213,25 @@ class _LazyYamlModelHandler(ModelHandler[Any, Any, Any]):
     if self._underlying is None:
       self._underlying = self._handler_factory()
     return self._underlying
+
+  def set_environment_vars(self):
+    super().set_environment_vars()
+    self._get_underlying().set_environment_vars()
+
+  def get_metrics_namespace(self) -> str:
+    if self._underlying is not None:
+      return self._underlying.get_metrics_namespace()
+    return 'RunInference'
+
+  def get_num_bytes(self, batch: Sequence[Any]) -> int:
+    return self._get_underlying().get_num_bytes(batch)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._get_underlying().update_model_path(model_path=model_path)
+
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    if self._underlying is not None:
+      self._underlying.validate_inference_args(inference_args)
 
   def load_model(self) -> Any:
     model = self._get_underlying().load_model()
@@ -264,9 +305,15 @@ def _make_input_field_preprocess_fn(
       if mode == 'numpy':
         import numpy as np
         return np.asarray(val)
+      if mode == 'pandas':
+        import pandas as pd
+        return pd.DataFrame([{field_name: val}])
       if mode == 'torch':
         import torch
         return torch.as_tensor(val)
+      if mode == 'torch_keyed':
+        import torch
+        return {field_name: torch.as_tensor(val)}
       return val
 
     return _extract_single
@@ -285,9 +332,15 @@ def _make_input_field_preprocess_fn(
     if mode == 'numpy':
       import numpy as np
       return np.asarray(vals)
+    if mode == 'pandas':
+      import pandas as pd
+      return pd.DataFrame([{f: v for f, v in zip(field_names, vals)}])
     if mode == 'torch':
       import torch
       return torch.as_tensor(vals)
+    if mode == 'torch_keyed':
+      import torch
+      return {f: torch.as_tensor(v) for f, v in zip(field_names, vals)}
     return {f: v for f, v in zip(field_names, vals)}
 
   return _extract_multi
@@ -628,7 +681,6 @@ class HuggingFacePipelineModelHandlerProvider(ModelHandlerProvider):
 
 @ModelHandlerProvider.register_handler_type('PyTorch')
 @ModelHandlerProvider.register_handler_type('PytorchModelHandlerTensor')
-@ModelHandlerProvider.register_handler_type('PytorchModelHandlerKeyedTensor')
 class PytorchModelHandlerProvider(ModelHandlerProvider):
   def __init__(
       self,
@@ -697,7 +749,7 @@ class PytorchModelHandlerProvider(ModelHandlerProvider):
         preprocess,
         postprocess,
         input_field=input_field,
-        input_mode='torch')
+        input_mode='torch_keyed' if keyed_tensor else 'torch')
 
   @staticmethod
   def validate(config):
@@ -709,9 +761,15 @@ class PytorchModelHandlerProvider(ModelHandlerProvider):
           "both 'state_dict_path' and 'model_class'.")
 
 
+@ModelHandlerProvider.register_handler_type('PytorchModelHandlerKeyedTensor')
+class PytorchKeyedTensorModelHandlerProvider(PytorchModelHandlerProvider):
+  def __init__(self, **kwargs):
+    kwargs.setdefault('keyed_tensor', True)
+    super().__init__(**kwargs)
+
+
 @ModelHandlerProvider.register_handler_type('Sklearn')
 @ModelHandlerProvider.register_handler_type('SklearnModelHandlerNumpy')
-@ModelHandlerProvider.register_handler_type('SklearnModelHandlerPandas')
 class SklearnModelHandlerProvider(ModelHandlerProvider):
   def __init__(
       self,
@@ -733,6 +791,7 @@ class SklearnModelHandlerProvider(ModelHandlerProvider):
     inference_fn_obj = (
         self.parse_processing_transform(inference_fn, 'inference_fn')
         if inference_fn else None)
+    is_pandas = str(input_data_type).lower() == 'pandas'
 
     def _build_sklearn_handler():
       try:
@@ -747,8 +806,7 @@ class SklearnModelHandlerProvider(ModelHandlerProvider):
           ModelFileType.JOBLIB
           if str(model_file_type).lower() == 'joblib' else ModelFileType.PICKLE)
       handler_cls = (
-          SklearnModelHandlerPandas if str(input_data_type).lower() == 'pandas'
-          else SklearnModelHandlerNumpy)
+          SklearnModelHandlerPandas if is_pandas else SklearnModelHandlerNumpy)
       extra: dict[str, Any] = {}
       if inference_fn_obj is not None:
         extra['inference_fn'] = inference_fn_obj
@@ -773,12 +831,19 @@ class SklearnModelHandlerProvider(ModelHandlerProvider):
         preprocess,
         postprocess,
         input_field=input_field,
-        input_mode='numpy')
+        input_mode='pandas' if is_pandas else 'numpy')
 
   @staticmethod
   def validate(config):
     if not config or not config.get('model_uri'):
       raise ValueError("Sklearn model handler requires 'model_uri'.")
+
+
+@ModelHandlerProvider.register_handler_type('SklearnModelHandlerPandas')
+class SklearnPandasModelHandlerProvider(SklearnModelHandlerProvider):
+  def __init__(self, **kwargs):
+    kwargs.setdefault('input_data_type', 'pandas')
+    super().__init__(**kwargs)
 
 
 @ModelHandlerProvider.register_handler_type('Custom')
@@ -974,7 +1039,9 @@ class _YamlRunInferenceTransform(beam.PTransform):
     self._output_field = output_field
     self._inference_args = inference_args
     self._flatten_predictions = flatten_predictions
-    self._output_type = output_type
+    self._output_type = (
+        SafeLineLoader.strip_metadata(output_type)
+        if output_type is not None else None)
     self._declarative_mode = declarative_mode
     self._exception_handling_args: Optional[dict[str, Any]] = None
 
@@ -993,7 +1060,11 @@ class _YamlRunInferenceTransform(beam.PTransform):
       ]
     if self._output_type is not None:
       return [(self._output_field, _parse_type_spec(self._output_type))]
-    return [(self._output_field, self._provider.inference_output_type())]
+    inferred_type = (
+        Any if
+        (self._declarative_mode and not self._provider._has_custom_postprocess)
+        else self._provider.inference_output_type())
+    return [(self._output_field, inferred_type)]
 
   def infer_output_type(self, input_type):
     try:
@@ -1005,8 +1076,11 @@ class _YamlRunInferenceTransform(beam.PTransform):
       return typehints.Any
     if not base_fields:
       return typehints.Any
-    return RowTypeConstraint.from_fields(
-        base_fields + self._output_fields_for_inference())
+    new_fields = self._output_fields_for_inference()
+    new_names = {name for name, _ in new_fields}
+    filtered_base = [(name, typ) for name, typ in base_fields
+                     if name not in new_names]
+    return RowTypeConstraint.from_fields(filtered_base + new_fields)
 
   def expand(self, pcoll):
     inferred_schema = self.infer_output_type(pcoll.element_type)
