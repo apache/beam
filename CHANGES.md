@@ -123,6 +123,7 @@
 
 ### Package upgrades
 * [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+* (Python) Upgraded the `vllm` extra to vLLM 0.32.0, which requires `openai>=2.25.0`, `transformers>=5.16.1`, and `torch==2.13.0` ([#41005](https://github.com/apache/beam/issues/41005)).
 
 ### API changes
 * [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
@@ -153,6 +154,7 @@
 * (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
 * (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
+* (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
