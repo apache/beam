@@ -53,6 +53,35 @@ public class DeterministicRebalanceTest {
     return counts;
   }
 
+  /**
+   * Returns the number of elements each receiver gets when sender {@code i} emits {@code
+   * elementsPerSender[i]} elements.
+   */
+  private static int[] receiverCounts(int[] elementsPerSender, int numReceivers) {
+    int[] counts = new int[numReceivers];
+    for (int sender = 0; sender < elementsPerSender.length; sender++) {
+      DeterministicRoundRobinPartitioner partitioner = new DeterministicRoundRobinPartitioner();
+      long key = SenderKey.of(sender, elementsPerSender.length);
+      for (int k = 0; k < elementsPerSender[sender]; k++) {
+        counts[partitioner.partition(key, numReceivers)]++;
+      }
+    }
+    return counts;
+  }
+
+  /**
+   * Returns per-sender element counts where only senders {@code first} to {@code first + numBusy -
+   * 1} of {@code numSenders} have elements, {@code numElements} in total, dealt round-robin.
+   */
+  private static int[] consecutiveBusySenders(
+      int numSenders, int first, int numBusy, int numElements) {
+    int[] elementsPerSender = new int[numSenders];
+    for (int k = 0; k < numElements; k++) {
+      elementsPerSender[first + k % numBusy]++;
+    }
+    return elementsPerSender;
+  }
+
   private static void assertBalanced(int[] counts, int numElements) {
     assertEquals(numElements, Arrays.stream(counts).sum());
     int min = Arrays.stream(counts).min().getAsInt();
@@ -96,6 +125,54 @@ public class DeterministicRebalanceTest {
     int max = Arrays.stream(counts).max().getAsInt();
     int bound = (numSenders + numReceivers - 1) / numReceivers;
     assertTrue("got min " + min + " and max " + max, min > 0 && max - min <= bound);
+  }
+
+  @Test
+  public void testConsecutiveBusySendersSpreadOverAllReceivers() {
+    // 48 file patterns statically assigned to the first 48 of 1,760 subtasks match 4,885 files,
+    // about 102 per busy sender. Start channels floor(i * N / M) = i made their round-robin ranges
+    // overlap on receivers 0 to 147, up to 48 files each, while the other receivers got none.
+    int numSenders = 1_760;
+    int numElements = 4_885;
+    int fairShare = (numElements + numSenders - 1) / numSenders;
+    for (int first : new int[] {0, 800, numSenders - 48}) {
+      int[] counts =
+          receiverCounts(consecutiveBusySenders(numSenders, first, 48, numElements), numSenders);
+      assertEquals(numElements, Arrays.stream(counts).sum());
+      int min = Arrays.stream(counts).min().getAsInt();
+      int max = Arrays.stream(counts).max().getAsInt();
+      assertTrue(
+          "busy senders from " + first + ": got min " + min + " and max " + max,
+          min > 0 && max <= fairShare + 2);
+    }
+  }
+
+  @Test
+  public void testBlockOfBusySendersStaysCloseToBalanced() {
+    // 200 consecutive busy senders of 2,000 with 100 elements each: 10 per receiver would be even.
+    int[] counts = receiverCounts(consecutiveBusySenders(2_000, 0, 200, 20_000), 2_000);
+    int min = Arrays.stream(counts).min().getAsInt();
+    int max = Arrays.stream(counts).max().getAsInt();
+    assertTrue("got min " + min + " and max " + max, min >= 7 && max <= 13);
+  }
+
+  @Test
+  public void testStartChannelsArePermutationOfEvenlySpacedChannels() {
+    // With as many receivers as senders, every sender must start on a different channel, which
+    // keeps inputs where every sender has elements exactly as balanced as evenly spaced starts.
+    List<Integer> sizes = new ArrayList<>();
+    for (int m = 1; m <= 600; m++) {
+      sizes.add(m);
+    }
+    sizes.addAll(Arrays.asList(1_760, 6_900, 13_800, 65_536));
+    for (int numSenders : sizes) {
+      boolean[] seen = new boolean[numSenders];
+      for (int sender = 0; sender < numSenders; sender++) {
+        int channel = DeterministicRebalance.startChannel(sender, numSenders, numSenders);
+        assertTrue("duplicate start channel for " + numSenders + " senders", !seen[channel]);
+        seen[channel] = true;
+      }
+    }
   }
 
   @Test
