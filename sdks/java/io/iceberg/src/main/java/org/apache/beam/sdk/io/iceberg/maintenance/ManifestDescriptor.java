@@ -159,7 +159,7 @@ public abstract class ManifestDescriptor {
         getPath());
     Set<Integer> sourceIds = new HashSet<>();
     for (PartitionField field : spec.fields()) {
-      sourceIds.add(field.sourceId());
+      sourceIds.addAll(field.sourceIds());
     }
     return toBuilder()
         .setPartitionSpecJson(PartitionSpecParser.toJson(spec))
