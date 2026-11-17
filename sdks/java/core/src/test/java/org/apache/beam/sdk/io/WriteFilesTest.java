@@ -537,7 +537,7 @@ public class WriteFilesTest {
     WriteFiles<String, Void, String> write =
         WriteFiles.to(SimpleSink.makeSimpleSink(getBaseOutputDirectory(), paneAwarePolicy))
             .withWindowedWrites()
-            .withNumShards(3)
+            .withRunnerDeterminedSharding()
             .withDirectWriteByteThreshold(thresholdBytes);
     p.apply(testStream)
         .apply(
@@ -579,7 +579,7 @@ public class WriteFilesTest {
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink())
             .withWindowedWrites()
-            .withNumShards(3)
+            .withRunnerDeterminedSharding()
             .withDirectWriteByteThreshold(1L);
     p.apply(testStream)
         .apply(
@@ -710,6 +710,36 @@ public class WriteFilesTest {
     assertEquals(0L, counterValue(result, "directWriteBundles"));
   }
 
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteDisabledWithFixedSharding() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(new Instant(0L))
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 30), String.class))
+            .advanceWatermarkToInfinity();
+
+    // A 1-byte threshold would otherwise write every bundle directly.
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(1L);
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
   /** Routes each element to a destination chosen by {@code destinationOf}, without side inputs. */
   private static class PerElementDestinations extends DynamicDestinations<String, String, String> {
     private final ResourceId baseOutputDirectory;
@@ -746,6 +776,15 @@ public class WriteFilesTest {
   private PipelineResult runPerDestinationDirectWrite(
       List<String> elements, SerializableFunction<String, String> destinationOf, long threshold)
       throws IOException {
+    return runPerDestinationDirectWrite(elements, destinationOf, threshold, null);
+  }
+
+  private PipelineResult runPerDestinationDirectWrite(
+      List<String> elements,
+      SerializableFunction<String, String> destinationOf,
+      long threshold,
+      @Nullable Integer maxNumWritersPerBundle)
+      throws IOException {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(new Instant(0L))
@@ -763,8 +802,11 @@ public class WriteFilesTest {
     WriteFiles<String, String, String> write =
         WriteFiles.to(sink)
             .withWindowedWrites()
-            .withNumShards(3)
+            .withRunnerDeterminedSharding()
             .withDirectWriteByteThreshold(threshold);
+    if (maxNumWritersPerBundle != null) {
+      write = write.withMaxNumWritersPerBundle(maxNumWritersPerBundle);
+    }
     p.apply(testStream)
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
         .apply(write)
@@ -790,6 +832,23 @@ public class WriteFilesTest {
             elements, e -> "file" + (Integer.parseInt(e.substring(8)) % 10), 50L);
 
     assertEquals(0L, counterValue(result, "directWriteBundles"));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteMoreLargeDestinationsThanWriters() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    // Every element reaches the 1-byte threshold, across 5 destinations but only 2 writers per
+    // bundle. Only 2 destinations are written directly; the rest take the grouped path, and
+    // checkFileContents verifies every record was written.
+    PipelineResult result =
+        runPerDestinationDirectWrite(
+            elements, e -> "file" + (Integer.parseInt(e.substring(8)) % 5), 1L, 2);
+
+    assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
   }
 
   @Test
@@ -830,7 +889,7 @@ public class WriteFilesTest {
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink())
             .withWindowedWrites()
-            .withNumShards(3)
+            .withRunnerDeterminedSharding()
             .withDirectWriteByteThreshold(thresholdBytes);
     p.apply(testStream)
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))

@@ -68,6 +68,10 @@ import org.slf4j.LoggerFactory;
  * bundle elements of keys that are neither buffered nor lifted are emitted to the small tag
  * immediately.
  *
+ * <p>With {@link #withMaxLiftedKeys}, at most that many keys are lifted per bundle. Once the limit
+ * is reached, the remaining buffered elements are emitted to the small tag, and for the rest of the
+ * bundle elements of keys that are not lifted are emitted to the small tag immediately.
+ *
  * <p>Every element keeps its own timestamp and window.
  *
  * <p>For internal use only; no backwards-compatibility guarantees.
@@ -87,6 +91,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
   final TupleTag<T> largeBatchTag;
   final long threshold;
   final long maxBufferedBytes;
+  final int maxLiftedKeys;
   final SerializableFunction<T, Integer> elementSizer;
   final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
 
@@ -111,6 +116,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     final TupleTag<T> largeBatchTag;
     final long threshold;
     final long maxBufferedBytes;
+    final int maxLiftedKeys;
     final SerializableFunction<T, Integer> elementSizer;
     final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
 
@@ -119,8 +125,9 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     private transient @MonotonicNonNull Set<Object> liftedKeys;
     // Reset in startBundle; not transient so SpotBugs doesn't flag them as unrestored state.
     private long bufferedBytes;
-    // Set once the memory cap has been exceeded in this bundle: keys that are neither buffered nor
-    // lifted are no longer tracked and go to the small output immediately.
+    // Set once the memory cap is exceeded or the lifted key limit is reached in this bundle: keys
+    // that are neither buffered nor lifted are no longer tracked and go to the small output
+    // immediately.
     private boolean keysFinalized;
 
     BundleLiftDoFn(
@@ -153,10 +160,29 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         long maxBufferedBytes,
         SerializableFunction<T, Integer> elementSizer,
         @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+      this(
+          smallBatchTag,
+          largeBatchTag,
+          threshold,
+          maxBufferedBytes,
+          Integer.MAX_VALUE,
+          elementSizer,
+          keyFn);
+    }
+
+    BundleLiftDoFn(
+        TupleTag<T> smallBatchTag,
+        TupleTag<T> largeBatchTag,
+        long threshold,
+        long maxBufferedBytes,
+        int maxLiftedKeys,
+        SerializableFunction<T, Integer> elementSizer,
+        @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
       this.smallBatchTag = smallBatchTag;
       this.largeBatchTag = largeBatchTag;
       this.threshold = threshold;
       this.maxBufferedBytes = maxBufferedBytes;
+      this.maxLiftedKeys = maxLiftedKeys;
       this.elementSizer = elementSizer;
       this.keyFn = keyFn;
     }
@@ -225,6 +251,16 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
             buffer.elements.size(),
             largeBatchTag.getId());
         emit(buffer, receiver.get(largeBatchTag));
+        if (liftedKeys.size() >= maxLiftedKeys) {
+          // No other key can be lifted in this bundle; release the remaining buffers.
+          keysFinalized = true;
+          OutputReceiver<T> small = receiver.get(smallBatchTag);
+          for (KeyBuffer<T> other : buffers.values()) {
+            emit(other, small);
+          }
+          buffers.clear();
+          bufferedBytes = 0L;
+        }
         return;
       }
 
@@ -359,16 +395,11 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     @Override
     public Integer apply(T element) {
       try {
-        long bytes;
-        if (coder.isRegisterByteSizeObserverCheap(element)) {
-          SizeObserver observer = new SizeObserver();
-          coder.registerByteSizeObserver(element, observer);
-          observer.advance();
-          bytes = observer.bytes;
-        } else {
-          bytes = CoderUtils.encodeToByteArray(coder, element).length;
-        }
-        return (int) Math.min(bytes, Integer.MAX_VALUE);
+        // Even when not cheap, this counts the encoded bytes without allocating a byte array.
+        SizeObserver observer = new SizeObserver();
+        coder.registerByteSizeObserver(element, observer);
+        observer.advance();
+        return (int) Math.min(observer.bytes, Integer.MAX_VALUE);
       } catch (Exception e) {
         throw new RuntimeException("Failed to estimate the encoded size of an element", e);
       }
@@ -389,6 +420,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       TupleTag<T> largeBatchTag,
       long threshold,
       long maxBufferedBytes,
+      int maxLiftedKeys,
       SerializableFunction<T, Integer> elementSizer,
       @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
     if (smallBatchTag == null || largeBatchTag == null) {
@@ -404,11 +436,15 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       throw new IllegalArgumentException(
           "maxBufferedBytes must be at least the threshold, so a key can reach the threshold");
     }
+    if (maxLiftedKeys <= 0) {
+      throw new IllegalArgumentException("maxLiftedKeys must be positive");
+    }
 
     this.smallBatchTag = smallBatchTag;
     this.largeBatchTag = largeBatchTag;
     this.threshold = threshold;
     this.maxBufferedBytes = maxBufferedBytes;
+    this.maxLiftedKeys = maxLiftedKeys;
     this.elementSizer = elementSizer;
     this.keyFn = keyFn;
   }
@@ -430,6 +466,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         largeBatchTag,
         threshold,
         defaultMaxBufferedBytes(threshold),
+        Integer.MAX_VALUE,
         elementSizer,
         null);
   }
@@ -446,7 +483,13 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
    */
   public BundleLifter<T> withKeyFn(SerializableFunction<T, ? extends @Nullable Object> keyFn) {
     return new BundleLifter<>(
-        smallBatchTag, largeBatchTag, threshold, maxBufferedBytes, elementSizer, keyFn);
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
   }
 
   /**
@@ -455,18 +498,50 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
    */
   public BundleLifter<T> withMaxBufferedBytes(long maxBufferedBytes) {
     return new BundleLifter<>(
-        smallBatchTag, largeBatchTag, threshold, maxBufferedBytes, elementSizer, keyFn);
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
+  }
+
+  /**
+   * Returns a copy that lifts at most {@code maxLiftedKeys} keys per bundle (unlimited by default).
+   * Must be positive.
+   */
+  public BundleLifter<T> withMaxLiftedKeys(int maxLiftedKeys) {
+    return new BundleLifter<>(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
   }
 
   @Override
   public PCollectionTuple expand(PCollection<T> input) {
     final TupleTag<Void> mainOutputTag = new TupleTag<Void>() {};
 
-    return input.apply(
-        "BundleLiftDoFn",
-        ParDo.of(
-                new BundleLiftDoFn<>(
-                    smallBatchTag, largeBatchTag, threshold, maxBufferedBytes, elementSizer, keyFn))
-            .withOutputTags(mainOutputTag, TupleTagList.of(smallBatchTag).and(largeBatchTag)));
+    PCollectionTuple outputs =
+        input.apply(
+            "BundleLiftDoFn",
+            ParDo.of(
+                    new BundleLiftDoFn<>(
+                        smallBatchTag,
+                        largeBatchTag,
+                        threshold,
+                        maxBufferedBytes,
+                        maxLiftedKeys,
+                        elementSizer,
+                        keyFn))
+                .withOutputTags(mainOutputTag, TupleTagList.of(smallBatchTag).and(largeBatchTag)));
+    // Both outputs contain input elements unchanged.
+    outputs.get(smallBatchTag).setCoder(input.getCoder());
+    outputs.get(largeBatchTag).setCoder(input.getCoder());
+    return outputs;
   }
 }

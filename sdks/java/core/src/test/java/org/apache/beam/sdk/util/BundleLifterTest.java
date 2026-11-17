@@ -278,6 +278,43 @@ public class BundleLifterTest {
   }
 
   @Test
+  public void testMaxLiftedKeys() throws Exception {
+    // Threshold 2, keyed by x % 3, at most one lifted key. Key 1 is lifted by 4, which releases key
+    // 2's buffer to the small output; after that only key 1 goes to the large output.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(
+            new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 2, 100, 1, x -> 1, x -> x % 3));
+
+    tester.startBundle();
+    for (int i : new int[] {1, 2, 4}) {
+      tester.processElement(i);
+    }
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 4));
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(2));
+
+    for (int i : new int[] {5, 7, 3}) {
+      tester.processElement(i);
+    }
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 4, 7));
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(2, 5, 3));
+    tester.finishBundle();
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(2, 5, 3));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testNonPositiveMaxLiftedKeysIsRejected() {
+    BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxLiftedKeys(0);
+  }
+
+  @Test
+  public void testWithMaxLiftedKeys() {
+    assertEquals(
+        3, BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxLiftedKeys(3).maxLiftedKeys);
+    assertEquals(
+        Integer.MAX_VALUE, BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).maxLiftedKeys);
+  }
+
+  @Test
   public void testPreservesEachElementsWindowAndTimestamp() throws Exception {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
