@@ -95,6 +95,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -456,8 +457,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /**
-   * Returns a new {@link WriteFiles} that fuses with preceding stages and writes large input
-   * from a single bundle directly to temporary files.
+   * Returns a new {@link WriteFiles} that fuses with preceding stages and writes large input from a
+   * single bundle directly to temporary files.
    *
    * <p>Records are buffered per window, pane and destination until their encoded size reaches
    * {@code thresholdBytes}; those that reach it are written straight to temporary files. Smaller
@@ -465,9 +466,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * finalization, which may override {@link #withNumShards(int)} (the number of files per window
    * can differ from the configured number of shards).
    *
-   * <p>Direct writes are only used for unbounded inputs with non-merging windows whose dynamic
-   * destinations don't use side inputs. Otherwise the threshold is ignored, a warning is logged,
-   * and the grouped write path is used.
+   * <p>Direct writes are only used for unbounded inputs with non-merging windows and discarding
+   * fired panes, whose dynamic destinations don't use side inputs. Otherwise the threshold is
+   * ignored, a warning is logged, and the grouped write path is used.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withDirectWriteByteThreshold(
       long thresholdBytes) {
@@ -626,6 +627,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // unmerged windows.
       if (input.getWindowingStrategy().needsMerge()) {
         disabledReasons.add("the windowing strategy uses merging windows");
+      }
+      // Accumulating panes re-emit earlier records in every firing, but direct writes write each
+      // record only once.
+      if (input.getWindowingStrategy().getMode() == AccumulationMode.ACCUMULATING_FIRED_PANES) {
+        disabledReasons.add("the windowing strategy accumulates fired panes");
       }
       if (disabledReasons.isEmpty()) {
         // Shard numbers are assigned in finalize across both the direct and grouped files, so any

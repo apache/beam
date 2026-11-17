@@ -96,12 +96,15 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
@@ -485,16 +488,75 @@ public class WriteFilesTest {
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
   public void testDirectWriteNonDefaultTriggerLargeBundles() throws IOException {
-    runDirectWriteNonDefaultTrigger(1L);
+    runDirectWriteNonDefaultTrigger(1L, Repeatedly.forever(AfterPane.elementCountAtLeast(5)));
   }
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
   public void testDirectWriteNonDefaultTriggerSmallBundles() throws IOException {
-    runDirectWriteNonDefaultTrigger(Long.MAX_VALUE);
+    runDirectWriteNonDefaultTrigger(
+        Long.MAX_VALUE, Repeatedly.forever(AfterPane.elementCountAtLeast(5)));
   }
 
-  private void runDirectWriteNonDefaultTrigger(long thresholdBytes) throws IOException {
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteProcessingTimeTriggerLargeBundles() throws IOException {
+    runDirectWriteNonDefaultTrigger(
+        1L,
+        Repeatedly.forever(
+            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardSeconds(1))));
+  }
+
+  private void runDirectWriteNonDefaultTrigger(long thresholdBytes, Trigger trigger)
+      throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(startInstant)
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceProcessingTime(Duration.standardSeconds(2))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceProcessingTime(Duration.standardSeconds(2))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceProcessingTime(Duration.standardSeconds(2))
+            .advanceWatermarkToInfinity();
+
+    FilenamePolicy paneAwarePolicy =
+        new PaneAwarePerWindowFiles(
+            getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
+            "simple");
+
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(SimpleSink.makeSimpleSink(getBaseOutputDirectory(), paneAwarePolicy))
+            .withWindowedWrites()
+            .withNumShards(3)
+            .withDirectWriteByteThreshold(thresholdBytes);
+    p.apply(testStream)
+        .apply(
+            Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                .triggering(trigger)
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(1)))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    PipelineResult result = p.run();
+
+    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
+    assertDirectWriteMetrics(result, thresholdBytes);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  public void testDirectWriteDisabledWithAccumulatingPanes() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
@@ -512,29 +574,26 @@ public class WriteFilesTest {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
             .advanceWatermarkToInfinity();
 
-    FilenamePolicy paneAwarePolicy =
-        new PaneAwarePerWindowFiles(
-            getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE),
-            "simple");
-
+    // A 1-byte threshold would otherwise write every bundle directly. The trigger fires once per
+    // window, so accumulating doesn't repeat records and the file contents can be checked exactly.
     WriteFiles<String, Void, String> write =
-        WriteFiles.to(SimpleSink.makeSimpleSink(getBaseOutputDirectory(), paneAwarePolicy))
+        WriteFiles.to(makeSimpleSink())
             .withWindowedWrites()
             .withNumShards(3)
-            .withDirectWriteByteThreshold(thresholdBytes);
+            .withDirectWriteByteThreshold(1L);
     p.apply(testStream)
         .apply(
             Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
-                .discardingFiredPanes()
-                .withAllowedLateness(Duration.standardMinutes(1)))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.ZERO))
         .apply(write)
         .getPerDestinationOutputFilenames()
         .apply(new VerifyFilesExist<>());
     PipelineResult result = p.run();
 
     checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertDirectWriteMetrics(result, thresholdBytes);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
   }
 
   private static class SideInputDestinations extends DynamicDestinations<String, String, String> {
