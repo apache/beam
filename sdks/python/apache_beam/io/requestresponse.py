@@ -847,6 +847,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
           should_backoff=self._should_backoff,
           repeater=self._repeater)
 
+    errors = None
     if self._exception_handling_args is not None:
       main_tag = self._exception_handling_args.get('main_tag', 'good')
       dead_letter_tag = self._exception_handling_args.get(
@@ -855,22 +856,14 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
           **self._exception_handling_args)
       responses = call_result[main_tag]
       errors = call_result[dead_letter_tag]
-
       if self._batching_kwargs:
-        responses = responses | "FlattenBatch" >> beam.ParDo(FlattenBatch())
         errors = (
             errors
             | "FlattenBatchErrors" >> beam.FlatMap(
                 lambda x: [(r, x[1])
                            for r in x[0]] if isinstance(x[0], list) else [x]))
-
-      if self._cache:
-        _ = responses | self._cache.get_write()
-        responses = (cached_responses, responses) | beam.Flatten()
-
-      return {main_tag: responses, dead_letter_tag: errors}  # type: ignore[return-value]
-
-    responses = inputs | call_transform
+    else:
+      responses = inputs | call_transform
 
     # if batching is enabled then handle accordingly.
     if self._batching_kwargs:
@@ -879,6 +872,9 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     if self._cache:
       # write to cache.
       _ = responses | self._cache.get_write()
-      return (cached_responses, responses) | beam.Flatten()
+      responses = (cached_responses, responses) | beam.Flatten()
+
+    if errors is not None:
+      return {main_tag: responses, dead_letter_tag: errors}  # type: ignore[return-value]
 
     return responses

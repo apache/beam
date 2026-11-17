@@ -78,11 +78,13 @@ def enrichment_transform(
     Args:
         enrichment_handler (str): Specifies the source from where data needs
           to be extracted into the pipeline for enriching data. One of
-          "BigQuery", "BigTable", "FeastFeatureStore" or "VertexAIFeatureStore".
+          "File", "BigQuery", "BigTable", "FeastFeatureStore" or
+          "VertexAIFeatureStore".
         handler_config (str): Specifies the parameters for the respective
           enrichment_handler in a YAML/JSON format. To see the full set of
           handler_config parameters, see their corresponding doc pages:
 
+            - [FileEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.file.html#apache_beam.transforms.enrichment_handlers.file.FileEnrichmentHandler)
             - [BigQueryEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigquery.html#apache_beam.transforms.enrichment_handlers.bigquery.BigQueryEnrichmentHandler)
             - [BigTableEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler)
             - [FeastFeatureStoreEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.feast_feature_store.html#apache_beam.transforms.enrichment_handlers.feast_feature_store.FeastFeatureStoreEnrichmentHandler)

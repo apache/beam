@@ -218,6 +218,16 @@ class TestFileEnrichmentHandler(unittest.TestCase):
       with self.assertRaises(ValueError):
         handler(beam.Row(id=999))
 
+  def test_csv_utf8_bom_and_pretty_json(self):
+    bom_csv_path = os.path.join(self.temp_dir.name, 'bom_catalog.csv')
+    with open(bom_csv_path, 'wb') as f:
+      f.write(b'\xef\xbb\xbfsku_id,category\nSKU-1,electronics\n')
+    csv_handler = FileEnrichmentHandler(path=bom_csv_path, join_key='sku_id')
+    self.assertEqual(csv_handler.get_output_schema(), [('category', str)])
+    with csv_handler:
+      _, resp = csv_handler(beam.Row(sku_id='SKU-1'))
+      self.assertEqual(resp, beam.Row(category='electronics'))
+
 
 if __name__ == '__main__':
   unittest.main()

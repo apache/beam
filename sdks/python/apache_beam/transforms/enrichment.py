@@ -105,6 +105,7 @@ class _EnrichmentJoinFn(beam.DoFn):
       on_miss: str = 'null',
       prefix: Optional[str] = None,
       null_fields: Optional[list[str]] = None,
+      source_handler: Optional[Any] = None,
       dead_letter_tag: Optional[str] = None,
   ):
     self._join_fn = join_fn
@@ -112,7 +113,18 @@ class _EnrichmentJoinFn(beam.DoFn):
     self._on_miss = on_miss
     self._prefix = prefix
     self._null_fields = list(null_fields) if null_fields else []
+    self._source_handler = source_handler
     self._dead_letter_tag = dead_letter_tag
+
+  def setup(self):
+    if (not self._null_fields and self._source_handler is not None and
+        hasattr(self._source_handler, 'get_output_schema')):
+      try:
+        self._null_fields = [
+            name for name, _ in self._source_handler.get_output_schema()
+        ]
+      except Exception:
+        pass
 
   @staticmethod
   def _is_miss(response: Any) -> bool:
@@ -170,6 +182,8 @@ class _EnrichmentJoinFn(beam.DoFn):
       else:
         left_dict = self._to_dict(request)
         right_dict = self._to_dict(response)
+        if not self._null_fields and right_dict:
+          self._null_fields = list(right_dict.keys())
         if self._prefix:
           right_dict = {f"{self._prefix}{k}": v for k, v in right_dict.items()}
         yield self._join_fn(left_dict, right_dict)
@@ -273,7 +287,27 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   def _get_handler_schema(self) -> list[tuple[str, Any]]:
     if hasattr(self._source_handler, 'get_output_schema'):
       return list(self._source_handler.get_output_schema())
+    for attr in (
+        'select_fields',
+        'column_names',
+        'feature_ids',
+        'feature_names',
+        'output_fields',
+    ):
+      cols = getattr(self._source_handler, attr, None)
+      if isinstance(cols, (list, tuple)) and cols and all(isinstance(c, str)
+                                                          for c in cols):
+        return [(c, Any) for c in cols]
     return []
+
+  @staticmethod
+  def _make_optional_type(field_type: Any) -> Any:
+    if field_type is Any or field_type is typehints.Any:
+      return field_type
+    if (getattr(field_type, '__origin__', None) is Union and
+        type(None) in getattr(field_type, '__args__', ())):
+      return field_type
+    return Optional[field_type]
 
   def infer_output_type(self, input_type):
     if self._use_custom_types or self._custom_join_fn is not None:
@@ -297,8 +331,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       target_name = f"{self._prefix}{field_name}" if self._prefix else field_name
       if target_name not in existing_names:
         effective_type = (
-            Optional[field_type] if
-            (self._on_miss == 'null' and field_type is not Any) else field_type)
+            self._make_optional_type(field_type)
+            if self._on_miss == 'null' else field_type)
         output_fields.append((target_name, effective_type))
         existing_names.add(target_name)
     return RowTypeConstraint.from_fields(output_fields)
@@ -348,6 +382,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
                   on_miss=self._on_miss,
                   prefix=self._prefix,
                   null_fields=null_fields,
+                  source_handler=self._source_handler,
                   dead_letter_tag=dead_letter_tag)).with_outputs(
                       dead_letter_tag, main=main_tag))
       main_output = join_result[main_tag]
@@ -368,7 +403,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
                 use_custom_types=self._use_custom_types,
                 on_miss=self._on_miss,
                 prefix=self._prefix,
-                null_fields=null_fields)))
+                null_fields=null_fields,
+                source_handler=self._source_handler)))
     if inferred_type != typehints.Any:
       output.element_type = inferred_type
     return output

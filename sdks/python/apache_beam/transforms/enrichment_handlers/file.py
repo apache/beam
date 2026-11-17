@@ -16,6 +16,7 @@
 #
 import csv
 import io
+import itertools
 import json
 import logging
 import math
@@ -283,6 +284,11 @@ class FileEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       return list(self._select_fields)
     return [c for c in all_columns if c != self._join_key]
 
+  def _effective_text_encoding(self) -> str:
+    if self._encoding.lower().replace('_', '-') in ('utf-8', 'utf8'):
+      return 'utf-8-sig'
+    return self._encoding
+
   def _load_parquet(self, file_paths: list[str]) -> _LookupTable:
     if pa is None or pq is None:
       raise ImportError(
@@ -290,8 +296,7 @@ class FileEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     tables = []
     for file_path in file_paths:
       with FileSystems.open(file_path, 'rb') as f:
-        data = f.read()
-      tables.append(pq.read_table(pa.BufferReader(data)))
+        tables.append(pq.read_table(f))
 
     combined = pa.concat_tables(tables) if len(tables) > 1 else tables[0]
     target_cols = self._determine_target_columns(combined.column_names)
@@ -325,12 +330,21 @@ class FileEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def _load_csv(self, file_paths: list[str]) -> _LookupTable:
     raw_rows: list[dict[str, Optional[str]]] = []
     fieldnames: list[str] = []
+    seen_fieldnames: set[str] = set()
+    text_encoding = self._effective_text_encoding()
     for file_path in file_paths:
       with FileSystems.open(file_path, 'rb') as f:
-        text = f.read().decode(self._encoding)
+        text = f.read().decode(text_encoding)
+      if not text.strip():
+        continue
       reader = csv.DictReader(io.StringIO(text), delimiter=self._delimiter)
-      if reader.fieldnames and not fieldnames:
-        fieldnames = list(reader.fieldnames)
+      if reader.fieldnames:
+        file_cols = list(reader.fieldnames)
+        self._determine_target_columns(file_cols)
+        for col in file_cols:
+          if col not in seen_fieldnames:
+            seen_fieldnames.add(col)
+            fieldnames.append(col)
       for row in reader:
         raw_rows.append(row)
 
@@ -361,27 +375,42 @@ class FileEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
     return _LookupTable(records, str_records, schema)
 
+  @staticmethod
+  def _parse_json_text(text: str, file_path: str) -> list[dict[str, Any]]:
+    stripped = text.strip()
+    if not stripped:
+      return []
+    if stripped.startswith('['):
+      parsed = json.loads(stripped)
+      if not isinstance(parsed, list):
+        raise ValueError(
+            f"Expected JSON array of objects in '{file_path}', got "
+            f"{type(parsed).__name__}.")
+      return parsed
+    try:
+      parsed = json.loads(stripped)
+      if isinstance(parsed, list):
+        return parsed
+      if isinstance(parsed, dict):
+        return [parsed]
+      raise ValueError(
+          f"Expected JSON object or array of objects in '{file_path}', got "
+          f"{type(parsed).__name__}.")
+    except json.JSONDecodeError:
+      return [
+          json.loads(line) for line in stripped.splitlines() if line.strip()
+      ]
+
   def _load_json(self, file_paths: list[str]) -> _LookupTable:
     raw_rows: list[dict[str, Any]] = []
     all_columns: list[str] = []
     seen_columns: set[str] = set()
+    text_encoding = self._effective_text_encoding()
 
     for file_path in file_paths:
       with FileSystems.open(file_path, 'rb') as f:
-        text = f.read().decode(self._encoding).strip()
-      if not text:
-        continue
-      if self._format == 'json' and text.startswith('['):
-        parsed = json.loads(text)
-        if not isinstance(parsed, list):
-          raise ValueError(
-              f"Expected JSON array of objects in '{file_path}', got "
-              f"{type(parsed).__name__}.")
-        file_rows = parsed
-      else:
-        file_rows = [
-            json.loads(line) for line in text.splitlines() if line.strip()
-        ]
+        text = f.read().decode(text_encoding)
+      file_rows = self._parse_json_text(text, file_path)
       for row in file_rows:
         if not isinstance(row, dict):
           raise ValueError(
@@ -422,13 +451,69 @@ class FileEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       return self._load_json(file_paths)
     raise ValueError(f"Unsupported file format: {self._format}")
 
+  def _peek_schema(self) -> list[tuple[str, Any]]:
+    """Infers output schema from file metadata/sample without loading all rows."""
+    file_paths = self._resolve_paths()
+    first_path = file_paths[0]
+    text_encoding = self._effective_text_encoding()
+
+    if self._format == 'parquet':
+      if pa is None or pq is None:
+        raise ImportError(
+            "pyarrow is required to read Parquet files in "
+            "FileEnrichmentHandler.")
+      with FileSystems.open(first_path, 'rb') as f:
+        arrow_schema = pq.read_schema(f)
+      target_cols = self._determine_target_columns(list(arrow_schema.names))
+      return [(c, _arrow_type_to_python_type(arrow_schema.field(c).type))
+              for c in target_cols]
+
+    if self._format in ('csv', 'tsv'):
+      with FileSystems.open(first_path, 'rb') as f:
+        text_stream = io.TextIOWrapper(f, encoding=text_encoding)
+        reader = csv.DictReader(text_stream, delimiter=self._delimiter)
+        fieldnames = list(reader.fieldnames or [])
+        sample_rows = list(itertools.islice(reader, 100))
+      target_cols = self._determine_target_columns(fieldnames)
+      schema: list[tuple[str, Any]] = []
+      for c in target_cols:
+        col_raw = [r.get(c) for r in sample_rows]
+        _, col_type = _infer_and_convert_csv_column(
+            col_raw, parse_types=self._parse_csv_types)
+        schema.append((c, col_type))
+      return schema
+
+    if self._format in ('json', 'jsonl'):
+      with FileSystems.open(first_path, 'rb') as f:
+        text_stream = io.TextIOWrapper(f, encoding=text_encoding)
+        if self._format == 'jsonl':
+          lines = [
+              line for line in itertools.islice(text_stream, 100)
+              if line.strip()
+          ]
+          sample_rows = self._parse_json_text('\n'.join(lines), first_path)
+        else:
+          sample_rows = self._parse_json_text(text_stream.read(), first_path)
+      all_columns: list[str] = []
+      seen: set[str] = set()
+      for row in sample_rows:
+        if isinstance(row, dict):
+          for k in row.keys():
+            if k not in seen:
+              seen.add(k)
+              all_columns.append(k)
+      target_cols = self._determine_target_columns(all_columns)
+      return [(c, _infer_python_column_type([r.get(c) for r in sample_rows]))
+              for c in target_cols]
+
+    return []
+
   def get_output_schema(self) -> list[tuple[str, Any]]:
     """Returns the static `(field_name, field_type)` schema of enriched fields."""
     if self._cached_schema is not None:
       return list(self._cached_schema)
     try:
-      table = self._shared_handle.acquire(self._load_lookup_table)
-      self._cached_schema = list(table.schema)
+      self._cached_schema = self._peek_schema()
       return list(self._cached_schema)
     except Exception:
       if self._select_fields is not None:
