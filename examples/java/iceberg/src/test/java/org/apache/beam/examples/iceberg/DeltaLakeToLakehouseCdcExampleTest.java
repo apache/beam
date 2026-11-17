@@ -19,13 +19,20 @@ package org.apache.beam.examples.iceberg;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample.Options;
 import org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcUtils.LakehouseTableSpec;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -92,5 +99,76 @@ public class DeltaLakeToLakehouseCdcExampleTest {
     assertEquals("_commit_version", writeConfig.get("sequence_number_column"));
     assertFalse(writeConfig.containsKey("change_type_column"));
     assertFalse(writeConfig.containsKey("change_type_map"));
+  }
+
+  @Test
+  public void testWaitForPipelineResultDefaultsAndBehaviors() {
+    Options options = PipelineOptionsFactory.as(Options.class);
+    assertTrue(options.getWaitUntilFinish());
+
+    AtomicBoolean waited = new AtomicBoolean(false);
+    PipelineResult doneResult =
+        stubPipelineResult(
+            () -> {
+              waited.set(true);
+              return PipelineResult.State.DONE;
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(doneResult, true);
+    assertTrue(waited.get());
+
+    AtomicBoolean skippedWaitCalled = new AtomicBoolean(false);
+    PipelineResult asyncResult =
+        stubPipelineResult(
+            () -> {
+              skippedWaitCalled.set(true);
+              return PipelineResult.State.DONE;
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(asyncResult, false);
+    assertFalse(skippedWaitCalled.get());
+
+    PipelineResult failedResult = stubPipelineResult(() -> PipelineResult.State.FAILED);
+    assertThrows(
+        IllegalStateException.class,
+        () -> DeltaLakeToLakehouseCdcExample.waitForPipelineResult(failedResult, true));
+
+    // Dataflow Flex Template launches return a DataflowTemplateJob whose waitUntilFinish() throws
+    // UnsupportedOperationException; waitForPipelineResult should return cleanly.
+    PipelineResult templateJobResult =
+        stubPipelineResult(
+            () -> {
+              throw new UnsupportedOperationException(
+                  "The result of template creation should not be used.");
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(templateJobResult, true);
+  }
+
+  private static PipelineResult stubPipelineResult(
+      Supplier<PipelineResult.State> waitUntilFinishSupplier) {
+    return new PipelineResult() {
+      @Override
+      public State getState() {
+        return State.UNKNOWN;
+      }
+
+      @Override
+      public State cancel() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public State waitUntilFinish(Duration duration) {
+        return waitUntilFinishSupplier.get();
+      }
+
+      @Override
+      public State waitUntilFinish() {
+        return waitUntilFinishSupplier.get();
+      }
+
+      @Override
+      public MetricResults metrics() {
+        throw new UnsupportedOperationException();
+      }
+    };
   }
 }
