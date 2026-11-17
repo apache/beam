@@ -312,6 +312,174 @@ class RunInferenceJobSubmissionTest(unittest.TestCase):
           pipeline.to_runner_api(), pipeline.runner, pipeline.options)
     self.assertEqual(attempted_imports, [])
 
+  def test_declarative_providers_lazy_offline_graph_construction(self):
+    from apache_beam.yaml import yaml_ml  # pylint: disable=unused-import
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with test_utils.block_imports(
+        'tensorflow',
+        'torch',
+        'transformers',
+        'sklearn',
+        'google.cloud.aiplatform') as attempted_imports:
+      pipeline = beam.Pipeline(options=ml_opts)
+      _ = pipeline | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements:
+                  - {comment_text: "I love Apache Beam!", feat: 1.5}
+            - type: RunInference
+              name: HFInference
+              config:
+                provider: HuggingFacePipeline
+                model_config:
+                  task: text-classification
+                  model: distilbert/distilbert-base-uncased-finetuned-sst-2-english
+                  large_model: true
+                input_field: comment_text
+                output_field: sentiment
+                flatten_predictions: true
+                min_batch_size: 8
+                max_batch_size: 64
+            - type: RunInference
+              name: VertexInference
+              config:
+                provider: VertexAI
+                model_config:
+                  endpoint_id: "1234567890"
+                  project: my-gcp-project
+                  location: us-central1
+                input_field: comment_text
+                output_field: vertex_pred
+            - type: RunInference
+              name: SklearnInference
+              config:
+                provider: Sklearn
+                model_config:
+                  model_uri: gs://my-bucket/model.pkl
+                input_field: feat
+                output_field: sk_pred
+          ''')
+      beam.Pipeline.from_runner_api(
+          pipeline.to_runner_api(), pipeline.runner, pipeline.options)
+    self.assertEqual(attempted_imports, [])
+
+  def test_declarative_run_inference_flatten_predictions_and_schema(self):
+    from apache_beam.typehints.row_type import RowTypeConstraint
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    inputs = [
+        beam.Row(id=1, comment_text='Apache Beam is awesome'),
+        beam.Row(id=2, comment_text='Bad experience'),
+    ]
+    with beam.Pipeline(options=ml_opts) as p:
+      input_pcoll = p | beam.Create(inputs)
+      res = input_pcoll | YamlTransform(
+          '''
+          type: RunInference
+          config:
+            provider: Custom
+            model_config:
+              inference_fn: |
+                def infer(batch, model, args=None):
+                  return [
+                    {"label": "POSITIVE" if "awesome" in x else "NEGATIVE",
+                     "score": 0.95 if "awesome" in x else 0.15}
+                    for x in batch
+                  ]
+            input_field: comment_text
+            output_field: sentiment
+            flatten_predictions: true
+          ''')
+      self.assertEqual(
+          res.element_type,
+          RowTypeConstraint.from_fields([
+              ('id', int),
+              ('comment_text', str),
+              ('sentiment_label', str),
+              ('sentiment_score', float),
+          ]),
+      )
+      assert_that(
+          res,
+          equal_to([
+              beam.Row(
+                  id=1,
+                  comment_text='Apache Beam is awesome',
+                  sentiment_label='POSITIVE',
+                  sentiment_score=0.95),
+              beam.Row(
+                  id=2,
+                  comment_text='Bad experience',
+                  sentiment_label='NEGATIVE',
+                  sentiment_score=0.15),
+          ]),
+      )
+
+  def test_run_inference_error_handling_dlq_and_poison_pill_isolation(self):
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    inputs = [
+        beam.Row(id=1, comment_text='valid one'),
+        beam.Row(id=2, comment_text='POISON_PILL'),
+        beam.Row(id=3, comment_text='valid two'),
+        beam.Row(id=4, comment_text=None),
+    ]
+    with beam.Pipeline(options=ml_opts) as p:
+      input_pcoll = p | beam.Create(inputs)
+      result = input_pcoll | YamlTransform(
+          '''
+          type: composite
+          input:
+            events: input
+          transforms:
+            - type: RunInference
+              name: ScoreComments
+              input: events
+              config:
+                provider: Custom
+                model_config:
+                  inference_fn: |
+                    def infer(batch, model, args=None):
+                      if any("POISON_PILL" in x for x in batch):
+                        raise ValueError("Poison pill in batch")
+                      return [{"label": "OK", "score": float(len(x))} for x in batch]
+                input_field: comment_text
+                output_field: sentiment
+                flatten_predictions: true
+                min_batch_size: 3
+                max_batch_size: 4
+                error_handling:
+                  output: failed_inferences
+          output:
+            good: ScoreComments
+            dlq: ScoreComments.failed_inferences
+          ''')
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(
+                  id=1,
+                  comment_text='valid one',
+                  sentiment_label='OK',
+                  sentiment_score=9.0),
+              beam.Row(
+                  id=3,
+                  comment_text='valid two',
+                  sentiment_label='OK',
+                  sentiment_score=9.0),
+          ]),
+          label='CheckGood',
+      )
+      assert_that(
+          result['dlq'] | beam.Map(lambda r: r.element.id),
+          equal_to([2, 4]),
+          label='CheckDLQ',
+      )
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
