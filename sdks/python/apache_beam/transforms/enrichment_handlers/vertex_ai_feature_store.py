@@ -42,6 +42,15 @@ def _not_found_err_message(
       (feature_store_name, feature_view_name, entity_id))
 
 
+def _handle_missing_entity(
+    request: beam.Row, exception_level: ExceptionLevel, message: str):
+  if exception_level == ExceptionLevel.WARN:
+    _LOGGER.warning(message)
+  elif exception_level != ExceptionLevel.QUIET:
+    raise ValueError(message)
+  return request, beam.Row()
+
+
 class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
                                                                     beam.Row]):
   """Enrichment handler to interact with Vertex AI Feature Store.
@@ -169,15 +178,11 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
               data_format=aiplatform.gapic.FeatureViewDataFormat.PROTO_STRUCT,
           ))
     except NotFound:
-      if self.exception_level == ExceptionLevel.WARN:
-        _LOGGER.warning(
-            _not_found_err_message(
-                self.feature_store_name, self.feature_view_name, entity_id))
-        return request, beam.Row()
-      elif self.exception_level == ExceptionLevel.RAISE:
-        raise ValueError(
-            _not_found_err_message(
-                self.feature_store_name, self.feature_view_name, entity_id))
+      return _handle_missing_entity(
+          request,
+          self.exception_level,
+          _not_found_err_message(
+              self.feature_store_name, self.feature_view_name, entity_id))
     response_dict = dict(response.proto_struct)
     return request, beam.Row(**response_dict)
 
@@ -300,7 +305,9 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
               entity_id=entity_id,
               feature_selector=selector))
     except NotFound:
-      raise ValueError(
+      return _handle_missing_entity(
+          request,
+          self.exception_level,
           _not_found_err_message(
               self.feature_store_id, self.entity_type_id, entity_id))
 
