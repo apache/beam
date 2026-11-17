@@ -189,10 +189,16 @@ class SqlShellTest(unittest.TestCase):
       self.assertEqual(ctx2.exception.exit_code, 2)
 
     self.assertTrue(bool(sql._installed_beam_version()))
+    self.assertEqual(sql._resolve_version('2.79.0-snapshot'), '2.79.0-SNAPSHOT')
+    self.assertEqual(sql._resolve_version('2.79.0-Snapshot'), '2.79.0-SNAPSHOT')
     with mock.patch.object(sql,
                            '_installed_beam_version',
                            return_value='2.75.0'):
       self.assertEqual(sql._resolve_version(None), '2.75.0')
+    with mock.patch.object(sql,
+                           '_installed_beam_version',
+                           return_value='2.79.0-snapshot'):
+      self.assertEqual(sql._resolve_version(None), '2.79.0-SNAPSHOT')
     metadata = (
         '<metadata><versioning><versions>'
         '<version>2.9.0</version><version>2.75.0</version>'
@@ -244,10 +250,15 @@ class SqlShellTest(unittest.TestCase):
             }]
         }
     })
+    ios_urls = []
     out = io.StringIO()
-    with mock.patch.object(sql, '_fetch_text', return_value=solr_ios), \
+    with mock.patch.object(
+        sql,
+        '_fetch_text',
+        side_effect=lambda u: (ios_urls.append(u) or solr_ios)), \
          contextlib.redirect_stdout(out):
       self.assertEqual(sql.run(list_ios=True), 0)
+    self.assertNotIn('+AND+v:', ios_urls[0])
     self.assertIn('csv parquet', out.getvalue())
     self.assertNotIn('upgrade', out.getvalue())
     with mock.patch.object(sql, '_fetch_text', return_value=None), \
@@ -274,10 +285,15 @@ class SqlShellTest(unittest.TestCase):
             }]
         }
     })
-    with mock.patch.object(sql, '_fetch_text', return_value=solr_runners), \
+    runner_urls = []
+    with mock.patch.object(
+        sql,
+        '_fetch_text',
+        side_effect=lambda u: (runner_urls.append(u) or solr_runners)), \
          contextlib.redirect_stdout(io.StringIO()) as out_r:
       self.assertEqual(sql.run(version='2.79.0', list_runners=True), 0)
       self.assertIn('DataflowRunner', out_r.getvalue())
+    self.assertIn('+AND+v:2.79.0', runner_urls[0])
     with mock.patch.object(sql, '_fetch_text', return_value=None), \
          contextlib.redirect_stdout(io.StringIO()), \
          contextlib.redirect_stderr(io.StringIO()):
@@ -307,6 +323,29 @@ class SqlShellTest(unittest.TestCase):
       with self.assertRaisesRegex(SqlError, 'exceeded maximum size'):
         sql._download_https(
             'https://repo.maven.apache.org/big.jar', dest, max_bytes=4)
+    real_mkstemp = tempfile.mkstemp
+    opened_fds = []
+
+    def tracking_mkstemp(*args, **kwargs):
+      fd, path = real_mkstemp(*args, **kwargs)
+      opened_fds.append(fd)
+      return fd, path
+
+    fail_dest = os.path.join(self.tmp, 'dl_err', 'fail.jar')
+    with (
+        mock.patch('tempfile.mkstemp', side_effect=tracking_mkstemp),
+        mock.patch.object(
+            sql,
+            '_https_urlopen',
+            side_effect=sql.urllib.error.URLError('connection reset')),
+    ):
+      with self.assertRaisesRegex(SqlError, 'failed to download') as dl_ctx:
+        sql._download_https('https://repo.maven.apache.org/fail.jar', fail_dest)
+      self.assertEqual(dl_ctx.exception.exit_code, 1)
+    self.assertEqual(len(opened_fds), 1)
+    with self.assertRaises(OSError):
+      os.fstat(opened_fds[0])
+    self.assertEqual(os.listdir(os.path.dirname(fail_dest)), [])
     with mock.patch.object(sql,
                            '_https_urlopen',
                            side_effect=lambda _u, timeout: contextlib.

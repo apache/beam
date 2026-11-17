@@ -40,6 +40,7 @@ import textwrap
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -242,12 +243,12 @@ def _resolve_version(version):
   if version:
     if '..' in version or not _VALID_ARTIFACT_PART.match(version.lower()):
       raise SqlError(f'invalid Beam version {version!r}', _EXIT_USAGE)
-    return version
+    return re.sub(r'-snapshot$', '-SNAPSHOT', version, flags=re.IGNORECASE)
   installed = _installed_beam_version()
   if ('.dev' not in installed and
       not re.search(r'rc\d+$', installed, re.IGNORECASE) and
       '..' not in installed and _VALID_ARTIFACT_PART.match(installed.lower())):
-    return installed
+    return re.sub(r'-snapshot$', '-SNAPSHOT', installed, flags=re.IGNORECASE)
   # A development checkout (`2.XX.0.dev`) has no published Maven JARs; fall
   # back to the latest release on Maven Central, matching `beam-sql.sh`.
   versions = _fetch_maven_versions()
@@ -455,31 +456,33 @@ def _download_https(url, dest_path, max_bytes: int = 32 * 1024 * 1024):
     raise ValueError(f'expected https:// URL, got {url!r}')
   dest_dir = os.path.dirname(os.path.abspath(dest_path)) or '.'
   os.makedirs(dest_dir, mode=0o700, exist_ok=True)
-  fd, tmp_path = tempfile.mkstemp(prefix='.tmp_dl_', suffix='.part', dir=dest_dir)
+  fd, tmp_path = tempfile.mkstemp(
+      prefix='.tmp_dl_', suffix='.part', dir=dest_dir)
+  fd_open = True
   try:
     with _https_urlopen(url, timeout=30) as resp:
       data = resp.read(max_bytes + 1)
     if len(data) > max_bytes:
-      os.close(fd)
       raise SqlError(
           f'download from {url} exceeded maximum size ({max_bytes:,} bytes)',
           _EXIT_FAILED)
-    with os.fdopen(fd, 'wb') as f:
+    f_obj = os.fdopen(fd, 'wb')
+    fd_open = False
+    with f_obj as f:
       f.write(data)
     _replace_with_nt_retry(
         tmp_path,
         dest_path,
         accept_existing_valid_jar=str(dest_path).lower().endswith('.jar'))
   except (urllib.error.URLError, OSError) as e:
-    with contextlib.suppress(OSError):
-      if os.path.exists(tmp_path):
-        os.remove(tmp_path)
     raise SqlError(f'failed to download {url}: {e}', _EXIT_FAILED) from None
-  except Exception:
+  finally:
+    if fd_open:
+      with contextlib.suppress(OSError):
+        os.close(fd)
     with contextlib.suppress(OSError):
       if os.path.exists(tmp_path):
         os.remove(tmp_path)
-    raise
 
 
 def _validated_dep_version(env_var: str, default: str) -> str:
@@ -727,10 +730,13 @@ def _fetch_maven_versions():
       reverse=True)
 
 
-def _query_maven_artifacts(prefix, excluded_re):
+def _query_maven_artifacts(prefix, excluded_re, version=None):
+  version_filter = (
+      f'+AND+v:{urllib.parse.quote(str(version), safe="._-")}'
+      if version else '')
   url = (
       'https://search.maven.org/solrsearch/select?'
-      f'q=g:org.apache.beam+AND+a:{prefix}*&rows=100&wt=json')
+      f'q=g:org.apache.beam+AND+a:{prefix}*{version_filter}&rows=100&wt=json')
   body = _fetch_text(url)
   if not body:
     return []
@@ -790,7 +796,8 @@ def _list_ios():
 
 def _list_runners(version):
   safe_ver = _sanitize_log_token(version)
-  runners = _query_maven_artifacts('beam-runners-', _EXCLUDED_RUNNER_RE)
+  runners = _query_maven_artifacts(
+      'beam-runners-', _EXCLUDED_RUNNER_RE, version=version)
   if not runners:
     print(
         f'warning: could not fetch runners for Beam {safe_ver} from Maven '
