@@ -1204,23 +1204,20 @@ public class PubsubIOTest {
     Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.PRODUCER);
     Mockito.verify(mockSpan).end();
   }
+/** Records every published message instead of sending it. */
+private static class CapturingPubsubClient extends PubsubTestClient {
+  private static final List<OutgoingMessage> PUBLISHED_MESSAGES = new ArrayList<>();
 
-  /** Records every published message instead of sending it. */
-    private static class CapturingPubsubClient extends PubsubTestClient {
-          private static final List<OutgoingMessage> PUBLISHED_MESSAGES = new ArrayList<>();
-
-          @Override
-          public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) {
-                  PUBLISHED_MESSAGES.addAll(outgoingMessages);
-                  return outgoingMessages.size();
-          }
-
-          static List<OutgoingMessage> published() {
-                  return PUBLISHED_MESSAGES;
-          }
-
-          static void clear() {
-                  PUBLISHED_MESSAGES.clear();
+    @Override
+    public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) {
+      PUBLISHED_MESSAGES.addAll(outgoingMessages);
+      return outgoingMessages.size();
+    }
+  static List<OutgoingMessage> published() {
+      return PUBLISHED_MESSAGES;
+      }
+            static void clear() {
+            PUBLISHED_MESSAGES.clear();
           }
     }
 
@@ -1235,6 +1232,7 @@ public class PubsubIOTest {
                     @Nullable String rootUrlOverride) {
                   return new CapturingPubsubClient();
           }
+  
       @Override
       public PubsubClient newClient(
                   @Nullable String timestampAttribute,
@@ -1266,10 +1264,8 @@ public class PubsubIOTest {
     @Test
     public void testBoundedWriteGeneratesFreshIdAttribute() {
           PubsubMessage message =
-                    new PubsubMessage(
-                                  "same-payload".getBytes(StandardCharsets.UTF_8), Collections.emptyMap());
-          List<OutgoingMessage> published =
-                    runBoundedWrite(ImmutableList.of(message, message));
+                    new PubsubMessage(                      "same-payload".getBytes(StandardCharsets.UTF_8), Collections.emptyMap());
+          List<OutgoingMessage> published =            runBoundedWrite(ImmutableList.of(message, message));
           assertThat(published.size(), is(2));
           assertNotNull(published.get(0).recordId());
           assertNotNull(published.get(1).recordId());
