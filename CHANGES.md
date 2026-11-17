@@ -155,6 +155,7 @@
 * (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
 * (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
+* (Java) `PubsubIO` bounded writes now size each publish request by its encoded size, as the JSON or gRPC client sends it. Batches of messages with attributes or ordering keys no longer exceed Pub/Sub's 10 MB request limit, and a message too large for any request fails the write with `SizeLimitExceededException`. `withMaxBatchBytesSize` now limits the encoded request in bytes, and its default is 10 MB ([#28011](https://github.com/apache/beam/issues/28011)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

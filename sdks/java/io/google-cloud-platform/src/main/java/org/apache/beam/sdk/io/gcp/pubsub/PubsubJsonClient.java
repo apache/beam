@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.json.JsonHttpContent;
+import com.google.api.client.util.IOUtils;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
 import com.google.api.services.pubsub.Pubsub.Projects.Topics;
@@ -133,19 +135,47 @@ public class PubsubJsonClient extends PubsubClient {
     // Nothing to close.
   }
 
+  /**
+   * The message as {@link #publish} sends it, except that its data is not set yet.
+   *
+   * <p>N.B. publishTime and messageId are intentionally not set on the message that is published.
+   */
+  private PubsubMessage toPublishedMessage(OutgoingMessage outgoingMessage) {
+    PubsubMessage pubsubMessage = new PubsubMessage();
+    pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
+    if (!outgoingMessage.getMessage().getOrderingKey().isEmpty()) {
+      pubsubMessage.setOrderingKey(outgoingMessage.getMessage().getOrderingKey());
+    }
+    return pubsubMessage;
+  }
+
+  /** The number of bytes of the JSON that {@link #publish} sends for {@code model}. */
+  private long jsonSize(Object model) throws IOException {
+    return IOUtils.computeLength(new JsonHttpContent(pubsub.getJsonFactory(), model));
+  }
+
+  @Override
+  public long publishRequestBaseSize(TopicPath topic) throws IOException {
+    // A request is {"messages":[...]} with a comma after each message but the last. Counting a
+    // comma with every message makes the request of no messages one byte larger than its base.
+    return jsonSize(new PublishRequest().setMessages(ImmutableList.of())) - 1;
+  }
+
+  @Override
+  public long publishRequestMessageSize(OutgoingMessage outgoingMessage) throws IOException {
+    // The data field is base64 without padding, so it takes 4n/3 rounded up characters of the JSON,
+    // none of which needs an escape sequence. The rest of the message is serialized to count it.
+    long dataSize = (4L * outgoingMessage.getMessage().getData().size() + 2) / 3;
+    return jsonSize(toPublishedMessage(outgoingMessage).setData("")) + dataSize + 1;
+  }
+
   @Override
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage pubsubMessage =
-          new PubsubMessage().encodeData(outgoingMessage.getMessage().getData().toByteArray());
-      pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
-      if (!outgoingMessage.getMessage().getOrderingKey().isEmpty()) {
-        pubsubMessage.setOrderingKey(outgoingMessage.getMessage().getOrderingKey());
-      }
-
-      // N.B. publishTime and messageId are intentionally not set on the message that is published
-      pubsubMessages.add(pubsubMessage);
+      pubsubMessages.add(
+          toPublishedMessage(outgoingMessage)
+              .encodeData(outgoingMessage.getMessage().getData().toByteArray()));
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
     PublishResponse response =

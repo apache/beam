@@ -26,6 +26,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.client.util.DateTime;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedOutputStream;
+import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PubsubMessage;
 import java.io.Closeable;
 import java.io.IOException;
@@ -471,6 +473,28 @@ public abstract class PubsubClient implements Closeable {
    */
   public abstract int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
       throws IOException;
+
+  /**
+   * Returns the size in bytes of a request that publishes no messages to {@code topic}, as {@link
+   * #publish} encodes it.
+   *
+   * <p>Together with {@link #publishRequestMessageSize} this gives the exact size of a publish
+   * request, so a caller can keep a batch within the size that Pub/Sub accepts. The default
+   * implementation measures the protocol buffer encoding that {@link PubsubGrpcClient} sends.
+   */
+  public long publishRequestBaseSize(TopicPath topic) throws IOException {
+    return CodedOutputStream.computeStringSize(PublishRequest.TOPIC_FIELD_NUMBER, topic.getPath());
+  }
+
+  /**
+   * Returns the number of bytes that {@code message} adds to a publish request, as {@link #publish}
+   * encodes it. The default implementation measures the protocol buffer encoding that {@link
+   * PubsubGrpcClient} sends.
+   */
+  public long publishRequestMessageSize(OutgoingMessage message) throws IOException {
+    return CodedOutputStream.computeMessageSize(
+        PublishRequest.MESSAGES_FIELD_NUMBER, message.getMessage());
+  }
 
   /**
    * Request the next batch of up to {@code batchSize} messages from {@code subscription}. Return
