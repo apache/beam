@@ -464,10 +464,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * <p>Within a bundle, records are buffered in memory per window, pane and destination until their
    * encoded size reaches {@code thresholdBytes}; those that reach it are written straight to
    * temporary files. Smaller groups keep the existing grouped path so output files stay large.
+   * Shard numbers are assigned at finalization, which may override {@link #withNumShards(int)} (the
+   * number of files per window can differ from the configured number of shards).
    *
-   * <p>Direct writes are used without a fixed number of shards, with non-merging windows and
-   * discarding fired panes, whose dynamic destinations don't use side inputs. Otherwise the
-   * threshold is ignored, a warning is logged, and the grouped write path is used.
+   * <p>Direct writes are only used for unbounded inputs, or bounded inputs with a fixed number of
+   * shards, with non-merging windows and discarding fired panes, whose dynamic destinations don't
+   * use side inputs. Otherwise the threshold is ignored, a warning is logged, and the grouped write
+   * path is used.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withDirectWriteByteThreshold(
       long thresholdBytes) {
@@ -619,12 +622,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     Long directWriteThreshold = getDirectWriteByteThreshold();
     if (directWriteThreshold != null) {
       List<String> disabledReasons = new ArrayList<>();
-      if (input.isBounded() == IsBounded.BOUNDED) {
-        disabledReasons.add("the input is bounded");
-      }
-      // Direct writes can't guarantee a fixed number of files.
-      if (fixedSharding) {
-        disabledReasons.add("a fixed number of shards is set");
+      // Without a fixed shard count, bounded inputs already write each bundle directly.
+      if (input.isBounded() == IsBounded.BOUNDED && !fixedSharding) {
+        disabledReasons.add("the input is bounded without a fixed number of shards");
       }
       if (!getSideInputs().isEmpty()) {
         disabledReasons.add("dynamic destinations use side inputs");
@@ -680,7 +680,54 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
     }
     PCollection<List<FileResult<DestinationT>>> tempFileResults;
-    if (fixedSharding) {
+    if (directFiles != null) {
+      // Shard numbers are assigned in finalize across both the direct and grouped files, so any
+      // fixed shard count is not enforced there.
+      PCollection<FileResult<DestinationT>> groupedFiles;
+      if (fixedSharding) {
+        groupedFiles =
+            groupedInput
+                .apply(
+                    "WriteShardedBundlesToTempFiles",
+                    new WriteShardedBundlesToTempFiles(
+                        destinationCoder, fileResultCoder, numShardsView))
+                .apply(
+                    "DropShardNum",
+                    ParDo.of(
+                        new DoFn<FileResult<DestinationT>, FileResult<DestinationT>>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            c.output(c.element().withShard(UNKNOWN_SHARDNUM));
+                          }
+                        }))
+                .setCoder(fileResultCoder);
+      } else {
+        groupedFiles =
+            writeAutoShardedRecordsToTempFiles(
+                groupedInput,
+                destinationCoder,
+                fileResultCoder,
+                getBatchSizeOrDefault(),
+                getBatchSizeBytesOrDefault(),
+                getBatchMaxBufferingDurationOrDefault());
+      }
+      // The grouped files went through a GroupByKey, so their trigger is the continuation
+      // trigger. Match it so FlattenTempFiles accepts both inputs.
+      directFiles.setWindowingStrategyInternal(groupedFiles.getWindowingStrategy());
+      // Group all temp files per destination so each window/pane firing is finalized together.
+      // Every file is stamped with this firing's pane so files from different firings of the
+      // same window get distinct names.
+      tempFileResults =
+          groupTempFilesByDestination(
+              PCollectionList.of(directFiles)
+                  .and(groupedFiles)
+                  .apply("FlattenTempFiles", Flatten.pCollections())
+                  .setCoder(fileResultCoder),
+              destinationCoder,
+              fileResultCoder,
+              "GroupTempFilesByDestination",
+              /* stampFiringPane= */ true);
+    } else if (fixedSharding) {
       tempFileResults =
           input
               .apply(
@@ -696,7 +743,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                     "WriteUnshardedBundlesToTempFiles",
                     new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
                 .apply("GatherTempFileResults", new GatherResults<>(fileResultCoder));
-      } else if (directFiles == null) {
+      } else {
         tempFileResults =
             input.apply(
                 "WriteAutoShardedBundlesToTempFiles",
@@ -706,39 +753,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                     getBatchSizeOrDefault(),
                     getBatchSizeBytesOrDefault(),
                     getBatchMaxBufferingDurationOrDefault()));
-      } else {
-        PCollection<FileResult<DestinationT>> groupedFiles =
-            writeAutoShardedRecordsToTempFiles(
-                groupedInput,
-                destinationCoder,
-                fileResultCoder,
-                getBatchSizeOrDefault(),
-                getBatchSizeBytesOrDefault(),
-                getBatchMaxBufferingDurationOrDefault());
-        // The grouped files went through a GroupByKey, so their trigger is the continuation
-        // trigger. Match it so FlattenTempFiles accepts both inputs.
-        directFiles.setWindowingStrategyInternal(groupedFiles.getWindowingStrategy());
-        // Group all temp files per destination so each window/pane firing is finalized together.
-        // Every file is stamped with this firing's pane so files from different firings of the
-        // same window get distinct names.
-        tempFileResults =
-            groupTempFilesByDestination(
-                PCollectionList.of(directFiles)
-                    .and(groupedFiles)
-                    .apply("FlattenTempFiles", Flatten.pCollections())
-                    .setCoder(fileResultCoder),
-                destinationCoder,
-                fileResultCoder,
-                "GroupTempFilesByDestination",
-                /* stampFiringPane= */ true);
       }
     }
 
-    // With direct writes, shard numbers are assigned in finalize across all files of a firing.
     return tempFileResults.apply(
         "FinalizeTempFileBundles",
         new FinalizeTempFileBundles(
-            numShardsView,
+            directFiles != null ? null : numShardsView,
             destinationCoder,
             /* assignShardNumbersInFinalize= */ directFiles != null));
   }
