@@ -1235,6 +1235,13 @@ public class PubsubIOTest {
                     @Nullable String rootUrlOverride) {
                   return new CapturingPubsubClient();
           }
+      @Override
+      public PubsubClient newClient(
+                  @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options) {
+                  return new CapturingPubsubClient();
+      }
 
           @Override
           public String getKind() {
