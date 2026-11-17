@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.78.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2780-2026-11-??) for this release.
+See the [download page](/get-started/downloads/#2780-2026-11-17) for this release.
 
 <!--more-->
 
