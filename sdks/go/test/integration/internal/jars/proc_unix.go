@@ -19,15 +19,12 @@
 
 package jars
 
-import (
-	"golang.org/x/sys/unix"
-	"os"
-)
+import "golang.org/x/sys/unix"
 
-// UnixProcess wraps os.Process and changes the Kill function to perform a more
+// UnixProcess wraps exec.Cmd and changes the Kill function to perform a more
 // graceful shutdown, mainly for compatibility with the timeout command.
 type UnixProcess struct {
-	proc *os.Process // The os.Process for the running jar.
+	commandProcess
 }
 
 // Kill gracefully shuts down the process. It is recommended to use this
@@ -35,5 +32,5 @@ type UnixProcess struct {
 func (p *UnixProcess) Kill() error {
 	// Avoid using SIGKILL. If the jar is wrapped in the timeout command
 	// SIGKILL will kill the timeout and leave the jar running.
-	return p.proc.Signal(unix.SIGTERM)
+	return p.Process.Signal(unix.SIGTERM)
 }
