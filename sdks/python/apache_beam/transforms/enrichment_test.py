@@ -16,6 +16,7 @@
 #
 
 import logging
+from typing import Any
 import unittest
 
 import apache_beam as beam
@@ -136,6 +137,44 @@ class TestEnrichmentTransform(unittest.TestCase):
           result['failed_enrichment'] | beam.Map(lambda x: x[0]),
           equal_to([beam.Row(id=2), beam.Row(id=3)]),
           label='CheckDLQ',
+      )
+
+  def test_join_fn_exception_routed_to_dlq_and_column_names_schema(self):
+    class _ColNamesHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+      column_names = ['extra']
+
+      def __call__(self, request: beam.Row, *args, **kwargs):
+        if request.id == 1:
+          return request, beam.Row(extra='ok')
+        return request, beam.Row()
+
+    def _failing_join(left, right):
+      if left.get('id') == 1:
+        raise RuntimeError('join failure')
+      return cross_join(left, right)
+
+    handler = _ColNamesHandler()
+    enrichment = Enrichment(handler, on_miss='null')
+    self.assertEqual(enrichment._get_handler_schema(), [('extra', Any)])
+
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | beam.Create([beam.Row(id=1), beam.Row(id=2)])
+          | Enrichment(
+              handler,
+              join_fn=_failing_join,
+              on_miss='null',
+          ).with_exception_handling(main_tag='good', dead_letter_tag='errors'))
+      assert_that(
+          res['good'],
+          equal_to([beam.Row(id=2, extra=None)]),
+          label='CheckGoodJoin',
+      )
+      assert_that(
+          res['errors'] | beam.Map(lambda x: x[0]),
+          equal_to([beam.Row(id=1)]),
+          label='CheckJoinDLQ',
       )
 
 

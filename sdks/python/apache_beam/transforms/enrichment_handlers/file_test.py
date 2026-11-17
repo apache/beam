@@ -18,6 +18,7 @@ import json
 import os
 import tempfile
 import unittest
+from typing import Any
 from typing import Optional
 
 import apache_beam as beam
@@ -227,6 +228,106 @@ class TestFileEnrichmentHandler(unittest.TestCase):
     with csv_handler:
       _, resp = csv_handler(beam.Row(sku_id='SKU-1'))
       self.assertEqual(resp, beam.Row(category='electronics'))
+
+  def test_schema_inference_json_jsonl_and_arrow_types(self):
+    jsonl_path = self._write_jsonl(
+        'types.jsonl',
+        [
+            {
+                'id': '001',
+                'count': 5,
+                'flag': True,
+                'score': 1.5,
+                'tags': ['a', 'b'],
+                'empty_col': None,
+            },
+            {
+                'id': '002',
+                'count': 10,
+                'flag': False,
+                'score': 2,
+                'tags': ['c'],
+                'empty_col': None,
+            },
+        ],
+    )
+    jsonl_handler = FileEnrichmentHandler(path=jsonl_path, join_key='id')
+    schema = dict(jsonl_handler.get_output_schema())
+    self.assertEqual(schema['count'], int)
+    self.assertEqual(schema['flag'], bool)
+    self.assertEqual(schema['score'], float)
+
+    json_path = self._write_json(
+        'single.json',
+        [{
+            'id': 1, 'label': 'one', 'nullable': None
+        }, {
+            'id': 2, 'label': 'two', 'nullable': 'val'
+        }],
+    )
+    json_handler = FileEnrichmentHandler(path=json_path, join_key='id')
+    self.assertEqual(
+        json_handler.get_output_schema(),
+        [('label', str), ('nullable', Optional[str])],
+    )
+
+    if pa is not None and pq is not None:
+      pq_path = self._write_parquet(
+          'all_types.parquet',
+          {
+              'id': [1, 2],
+              'flag': [True, False],
+              'raw': [b'x', b'y'],
+              'items': [[1, 2], [3]],
+              'opt_val': [1.0, None],
+          },
+      )
+      pq_handler = FileEnrichmentHandler(path=pq_path, join_key='id')
+      pq_schema = dict(pq_handler.get_output_schema())
+      self.assertEqual(pq_schema['flag'], bool)
+      self.assertEqual(pq_schema['raw'], bytes)
+      self.assertEqual(pq_schema['items'], list[int])
+      with pq_handler:
+        _, resp = pq_handler(beam.Row(id=1))
+        self.assertEqual(resp.flag, True)
+        self.assertEqual(pq_handler.get_cache_key(beam.Row(id=1)), 'id: 1')
+
+  def test_error_branches_and_warn_level(self):
+    with self.assertRaises(ValueError):
+      FileEnrichmentHandler(path='no_extension', join_key='id')
+    self.assertEqual(
+        FileEnrichmentHandler._infer_format('archive.csv.gz'), 'csv')
+
+    missing_handler = FileEnrichmentHandler(
+        path=os.path.join(self.temp_dir.name, 'nonexistent.csv'),
+        join_key='id',
+        select_fields=['name'],
+    )
+    self.assertEqual(missing_handler.get_output_schema(), [('name', Any)])
+    with self.assertRaises(FileNotFoundError):
+      missing_handler.__enter__()
+
+    csv_path = self._write_csv('small.csv', 'id,code,val\n1,00123,abc\n')
+    bad_key_handler = FileEnrichmentHandler(
+        path=csv_path, join_key='missing_col')
+    with self.assertRaises(KeyError):
+      bad_key_handler.__enter__()
+
+    bad_select_handler = FileEnrichmentHandler(
+        path=csv_path, join_key='id', select_fields=['missing_select'])
+    with self.assertRaises(KeyError):
+      bad_select_handler.__enter__()
+
+    warn_handler = FileEnrichmentHandler(
+        path=csv_path,
+        join_key='id',
+        exception_level=ExceptionLevel.WARN,
+    )
+    with warn_handler:
+      _, miss_resp = warn_handler(beam.Row(id=999))
+      self.assertEqual(miss_resp, beam.Row())
+      with self.assertRaises(KeyError):
+        warn_handler(beam.Row(wrong_field=1))
 
 
 if __name__ == '__main__':

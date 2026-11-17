@@ -263,6 +263,20 @@ class EnrichmentTransformTest(unittest.TestCase):
             label='CheckTimeoutDLQ',
         )
 
+  def test_yaml_enrichment_unknown_and_missing_handler_errors(self):
+    from apache_beam.yaml.yaml_enrichment import enrichment_transform
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        ['--yaml_experimental_features=Enrichment'])) as p:
+      pcoll = p | beam.Create([Row(id=1)])
+      with self.assertRaises(ValueError):
+        _ = pcoll | 'Unknown' >> enrichment_transform(
+            enrichment_handler='UnknownSource', handler_config={})
+      with mock.patch(
+          'apache_beam.yaml.yaml_enrichment.BigTableEnrichmentHandler', None):
+        with self.assertRaises(ValueError):
+          _ = pcoll | 'MissingDep' >> enrichment_transform(
+              enrichment_handler='BigTable', handler_config={})
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
