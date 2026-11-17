@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -249,6 +250,125 @@ public class SourceRecordJsonTest implements Serializable {
     String json = new SourceRecordJson(buildEnvelopeRecord(postgresSource(), null), true).toJson();
     assertFalse(json.contains("\"op\""));
     assertTrue(json.contains("\"lsn\":37094192"));
+  }
+
+  @Test
+  public void testChangeSchemaEvent() {
+    Schema keySchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.mysql.SchemaChangeKey")
+            .field("databaseName", Schema.STRING_SCHEMA)
+            .build();
+    Schema columnSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.schema.Column")
+            .version(1)
+            .field("name", Schema.STRING_SCHEMA)
+            .field("jdbcType", Schema.INT32_SCHEMA)
+            .field("nativeType", Schema.OPTIONAL_INT32_SCHEMA)
+            .field("typeName", Schema.STRING_SCHEMA)
+            .field("typeExpression", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("charsetName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("length", Schema.OPTIONAL_INT32_SCHEMA)
+            .field("scale", Schema.OPTIONAL_INT32_SCHEMA)
+            .field("position", Schema.INT32_SCHEMA)
+            .field("optional", Schema.OPTIONAL_BOOLEAN_SCHEMA)
+            .field("autoIncremented", Schema.OPTIONAL_BOOLEAN_SCHEMA)
+            .field("generated", Schema.OPTIONAL_BOOLEAN_SCHEMA)
+            .field("comment", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("defaultValueExpression", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("enumValues", SchemaBuilder.array(Schema.STRING_SCHEMA).optional().build())
+            .build();
+    Schema tableSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.schema.Table")
+            .version(1)
+            .optional()
+            .field("defaultCharsetName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field(
+                "primaryKeyColumnNames",
+                SchemaBuilder.array(Schema.STRING_SCHEMA).optional().build())
+            .field("columns", SchemaBuilder.array(columnSchema).build())
+            .field("comment", Schema.OPTIONAL_STRING_SCHEMA)
+            .build();
+    Schema changeSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.schema.Change")
+            .version(1)
+            .field("type", Schema.STRING_SCHEMA)
+            .field("id", Schema.STRING_SCHEMA)
+            .field("table", tableSchema)
+            .build();
+    Schema valueSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector.mysql.SchemaChangeValue")
+            .field("ts_ms", Schema.INT64_SCHEMA)
+            .field("databaseName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("schemaName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("ddl", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("tableChanges", SchemaBuilder.array(changeSchema).build())
+            .build();
+
+    String ddl =
+        "ALTER TABLE inventory.customers MODIFY COLUMN first_name TEXT "
+            + "CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL";
+    Struct idColumn =
+        new Struct(columnSchema)
+            .put("name", "id")
+            .put("jdbcType", 4)
+            .put("typeName", "INT")
+            .put("typeExpression", "INT")
+            .put("position", 1)
+            .put("optional", false)
+            .put("autoIncremented", true)
+            .put("generated", true);
+    Struct firstNameColumn =
+        new Struct(columnSchema)
+            .put("name", "first_name")
+            .put("jdbcType", 12)
+            .put("typeName", "TEXT")
+            .put("typeExpression", "TEXT")
+            .put("charsetName", "utf8mb4")
+            .put("position", 2)
+            .put("optional", false)
+            .put("autoIncremented", false)
+            .put("generated", false);
+    Struct table =
+        new Struct(tableSchema)
+            .put("defaultCharsetName", "utf8mb4")
+            .put("primaryKeyColumnNames", Collections.singletonList("id"))
+            .put("columns", Arrays.asList(idColumn, firstNameColumn));
+    Struct change =
+        new Struct(changeSchema)
+            .put("type", "ALTER")
+            .put("id", "\"inventory\".\"customers\"")
+            .put("table", table);
+    Struct key = new Struct(keySchema).put("databaseName", "inventory");
+    Struct value =
+        new Struct(valueSchema)
+            .put("ts_ms", 1794617055223L)
+            .put("databaseName", "inventory")
+            .put("ddl", ddl)
+            .put("tableChanges", Collections.singletonList(change));
+    SourceRecord record = new SourceRecord(null, null, null, keySchema, key, valueSchema, value);
+
+    String expectedJson =
+        "{\"databaseName\":\"inventory\",\"schemaName\":null,\"ddl\":\"ALTER TABLE inventory.customers "
+            + "MODIFY COLUMN first_name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL\","
+            + "\"ts_ms\":1794617055223,\"tableChanges\":[{\"type\":\"ALTER\",\"id\":\"\\\"inventory\\\".\\\"customers\\\"\","
+            + "\"table\":{\"defaultCharsetName\":\"utf8mb4\",\"comment\":null,"
+            + "\"primaryKeyColumnNames\":[\"id\"],\"columns\":["
+            + "{\"name\":\"id\",\"jdbcType\":4,\"nativeType\":null,\"typeName\":\"INT\","
+            + "\"typeExpression\":\"INT\",\"charsetName\":null,\"length\":null,\"scale\":null,"
+            + "\"position\":1,\"optional\":false,\"autoIncremented\":true,\"generated\":true,"
+            + "\"comment\":null,\"defaultValueExpression\":null,\"enumValues\":null},"
+            + "{\"name\":\"first_name\",\"jdbcType\":12,\"nativeType\":null,\"typeName\":\"TEXT\","
+            + "\"typeExpression\":\"TEXT\",\"charsetName\":\"utf8mb4\",\"length\":null,\"scale\":null,"
+            + "\"position\":2,\"optional\":false,\"autoIncremented\":false,\"generated\":false,"
+            + "\"comment\":null,\"defaultValueExpression\":null,\"enumValues\":null}]}}]}";
+
+    assertEquals(expectedJson, new SourceRecordJson(record).toJson());
+    assertEquals(expectedJson, new SourceRecordJson(record, true).toJson());
   }
 
   private static SchemaBuilder sourceSchemaBuilder() {

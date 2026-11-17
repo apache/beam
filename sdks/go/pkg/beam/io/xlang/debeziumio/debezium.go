@@ -148,6 +148,8 @@ func MaxTimeToRun(r int64) readOption {
 // a string with format [propertyName=property;]*
 // Set provide.transaction.metadata=true to add a transaction key to records and
 // emit transaction BEGIN/END records.
+// Set include.schema.changes=true to emit schema change records (MySQL, Oracle
+// and SQL Server).
 func ConnectionProperties(cp []string) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.ConnectionProperties = cp
