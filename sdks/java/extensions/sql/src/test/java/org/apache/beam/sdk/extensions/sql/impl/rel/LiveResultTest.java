@@ -184,7 +184,9 @@ public class LiveResultTest {
       assertTrue(showing.await(30, TimeUnit.SECONDS));
       statement.cancel();
       // The statement ends quietly: cancelling is how the user leaves the viewer.
-      query.get(30, TimeUnit.SECONDS).close();
+      try (ResultSet result = query.get(30, TimeUnit.SECONDS)) {
+        assertFalse(result.next());
+      }
     } finally {
       executor.shutdownNow();
     }
