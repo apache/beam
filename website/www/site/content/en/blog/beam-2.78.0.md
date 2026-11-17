@@ -25,7 +25,7 @@ See the [download page](/get-started/downloads/#2780-2026-11-??) for this releas
 
 <!--more-->
 
-For more information on changes in 2.78.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/44).
+For more information on changes in 2.78.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/46).
 
 ## Highlights
 
