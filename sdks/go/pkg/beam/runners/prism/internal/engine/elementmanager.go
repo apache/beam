@@ -1477,6 +1477,21 @@ func (ss *stageState) initAggStateLocked(win typex.Window, key string) {
 	}
 }
 
+// hasPendingForWindowLocked reports whether key has unemitted elements for win.
+// Callers must hold ss.mu.
+func (ss *stageState) hasPendingForWindowLocked(key string, win typex.Window) bool {
+	dnt := ss.pendingByKeys[key]
+	if dnt == nil {
+		return false
+	}
+	for _, e := range dnt.elements {
+		if e.window == win {
+			return true
+		}
+	}
+	return false
+}
+
 func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
 	// Check on triggers for this key.
 	// Callers must hold em.refreshCond.L
@@ -1781,7 +1796,7 @@ func (ss *stageState) buildTriggeredBundle(em *ElementManager, key string, win t
 	// also all previous elements as well, which are duplicated at
 	// at every pane.
 	accumulationDiff := 0
-	if ss.strat.Accumulating {
+	if ss.strat.Accumulating && !ss.isTriggerFinished(win, key) {
 		// When accumulating, we need to retain all elements until the last pane firing.
 		for _, e := range toProcess {
 			heap.Push(&dnt.elements, e)
@@ -2319,9 +2334,11 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 	return handleProcessingTimeTimer(ss, em, emNow, func(e element, toProcess []element, holdsInBundle map[mtime.Time]int, panesInBundle []bundlePane) ([]element, []bundlePane, int) {
 		// Different from `buildProcessingTimeBundle` for stateful stage,
 		// triggers don't hold back the watermark, so no holds are in the triggered bundle.
-		var pendingAdjustment int
-		var elems []element
 		key := string(e.keyBytes)
+		if !ss.hasPendingForWindowLocked(key, e.window) {
+			// Another bundle emitted the elements of this window. Do not advance the pane.
+			return toProcess, panesInBundle, 0
+		}
 		ss.initAggStateLocked(e.window, key)
 		state := ss.state[LinkID{}][e.window][key]
 		endOfWindowReached := e.window.MaxTimestamp() < ss.input
@@ -2330,26 +2347,25 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			endOfWindowReached: endOfWindowReached,
 			emNow:              emNow,
 		}, &state)
-
-		if ready {
-			state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
-			if ss.strat.Trigger != nil && state.getTriggerState(ss.strat.Trigger).finished {
-				state.Pane.IsLast = true
-			}
-
-			// We're going to process this trigger!
-			elems, pendingAdjustment = ss.buildTriggeredBundle(em, key, e.window)
-			toProcess = append(toProcess, elems...)
-
+		if !ready {
 			ss.state[LinkID{}][e.window][key] = state
-
-			panesInBundle = append(panesInBundle, bundlePane{
-				win:  e.window,
-				key:  key,
-				pane: state.Pane,
-			})
+			return toProcess, panesInBundle, 0
 		}
 
+		state.Pane = computeNextTriggeredPane(state.Pane, endOfWindowReached)
+		if ss.strat.Trigger != nil && state.getTriggerState(ss.strat.Trigger).finished {
+			state.Pane.IsLast = true
+		}
+		// buildTriggeredBundle reads the trigger state, so store it first.
+		ss.state[LinkID{}][e.window][key] = state
+
+		elems, pendingAdjustment := ss.buildTriggeredBundle(em, key, e.window)
+		toProcess = append(toProcess, elems...)
+		panesInBundle = append(panesInBundle, bundlePane{
+			win:  e.window,
+			key:  key,
+			pane: state.Pane,
+		})
 		return toProcess, panesInBundle, pendingAdjustment
 	})
 }

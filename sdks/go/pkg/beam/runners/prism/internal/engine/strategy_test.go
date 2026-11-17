@@ -726,6 +726,31 @@ func TestOnWatermarkFire(t *testing.T) {
 			t.Fatal("OrFinally did not reset finished Main subtrigger")
 		}
 
+		var stateComposite StateData
+		orfComposite := &TriggerOrFinally{
+			Main: &TriggerElementCount{ElementCount: 2},
+			Finally: &TriggerAfterAny{SubTriggers: []Trigger{
+				&TriggerAfterEndOfWindow{},
+			}},
+		}
+		(WinStrat{Trigger: orfComposite}).OnWatermarkFire(&stateComposite)
+		if !stateComposite.getTriggerState(orfComposite).finished {
+			t.Fatal("OrFinally did not finish when composite Finally finished on watermark")
+		}
+
+		var stateCount StateData
+		finallyCount := &TriggerElementCount{ElementCount: 2}
+		orfCount := &TriggerOrFinally{
+			Main:    &TriggerElementCount{ElementCount: 5},
+			Finally: finallyCount,
+		}
+		wsOrfCount := WinStrat{Trigger: orfCount}
+		wsOrfCount.IsTriggerReady(triggerInput{newElementCount: 1}, &stateCount)
+		wsOrfCount.OnWatermarkFire(&stateCount)
+		if wsOrfCount.IsTriggerReady(triggerInput{newElementCount: 1}, &stateCount) {
+			t.Fatal("OrFinally kept the partial count of Finally after OnWatermarkFire")
+		}
+
 		var state3 StateData
 		rep := &TriggerRepeatedly{Repeated: &TriggerAfterEndOfWindow{}}
 		(WinStrat{Trigger: rep}).OnWatermarkFire(&state3)

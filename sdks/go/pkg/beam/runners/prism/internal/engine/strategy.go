@@ -531,12 +531,10 @@ func (t *TriggerOrFinally) onWatermarkFire(state *StateData) {
 	if state.getTriggerState(t).finished {
 		return
 	}
-	if eow, ok := t.Finally.(*TriggerAfterEndOfWindow); ok {
-		eow.onWatermarkFire(state)
-		if state.getTriggerState(eow).finished {
-			triggerClearAndFinish(t, state)
-			return
-		}
+	t.Finally.onWatermarkFire(state)
+	if state.getTriggerState(t.Finally).finished {
+		triggerClearAndFinish(t, state)
+		return
 	}
 	t.Main.onWatermarkFire(state)
 	if state.getTriggerState(t.Main).finished {
