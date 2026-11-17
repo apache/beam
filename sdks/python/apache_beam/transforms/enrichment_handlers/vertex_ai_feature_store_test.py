@@ -21,6 +21,9 @@ try:
   from google.api_core.exceptions import NotFound
   from google.api_core.exceptions import PermissionDenied
 
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
+
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import \
       VertexAIFeatureStoreLegacyEnrichmentHandler
@@ -91,6 +94,74 @@ class TestVertexAIFeatureStoreHandlerInit(unittest.TestCase):
           row_key='row_key',
           client_options={'api_endpoint': 'region@google.com'},
       )
+
+
+class TestVertexAIFeatureStoreHandlerMissingEntity(unittest.TestCase):
+  def _make_handler(self, legacy, exception_level):
+    with mock.patch(
+        'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.'
+        'aiplatform') as mock_aiplatform:
+      common = dict(
+          project='project',
+          location='us-central1',
+          api_endpoint='us-central1-aiplatform.googleapis.com',
+          row_key='user_id',
+          exception_level=exception_level,
+      )
+      if legacy:
+        handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
+            **common,
+            feature_store_id='store',
+            entity_type_id='entity',
+            feature_ids=['feature'],
+        )
+        client = mock_aiplatform.gapic.FeaturestoreOnlineServingServiceClient
+        client.return_value.entity_type_path.return_value = 'entity-type'
+        client.return_value.read_feature_values.side_effect = NotFound(
+            'missing entity')
+      else:
+        handler = VertexAIFeatureStoreEnrichmentHandler(
+            **common, feature_store_name='store', feature_view_name='view')
+        client = mock_aiplatform.gapic.FeatureOnlineStoreServiceClient
+        client.return_value.feature_view_path.return_value = 'feature-view'
+        client.return_value.fetch_feature_values.side_effect = NotFound(
+            'missing entity')
+      handler.__enter__()
+    self.addCleanup(handler.__exit__, None, None, None)
+    return handler
+
+  def test_quiet_returns_empty_row_without_logging(self):
+    request = beam.Row(user_id='missing')
+    for legacy in (False, True):
+      with self.subTest(legacy=legacy):
+        handler = self._make_handler(legacy, ExceptionLevel.QUIET)
+        with self.assertNoLogs(
+            'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store',
+            level='WARNING'):
+          actual_request, response = handler(request)
+        self.assertEqual(actual_request, request)
+        self.assertEqual(response._asdict(), {})
+
+  def test_warn_logs_and_returns_empty_row(self):
+    request = beam.Row(user_id='missing')
+    for legacy in (False, True):
+      with self.subTest(legacy=legacy):
+        handler = self._make_handler(legacy, ExceptionLevel.WARN)
+        with self.assertLogs(
+            'apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store',
+            level='WARNING') as logs:
+          actual_request, response = handler(request)
+        self.assertEqual(actual_request, request)
+        self.assertEqual(response._asdict(), {})
+        self.assertIn('has entity_id: missing', logs.output[0])
+
+  def test_raise_reports_missing_entity(self):
+    request = beam.Row(user_id='missing')
+    for legacy in (False, True):
+      with self.subTest(legacy=legacy):
+        handler = self._make_handler(legacy, ExceptionLevel.RAISE)
+        with self.assertRaisesRegex(ValueError, 'has entity_id: missing'):
+          handler(request)
 
 
 if __name__ == '__main__':
