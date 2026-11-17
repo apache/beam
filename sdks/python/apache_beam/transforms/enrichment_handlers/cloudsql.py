@@ -306,7 +306,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     """
     self._connection_config = connection_config
     self._query_config = query_config
-    self._column_names = ",".join(column_names) if column_names else "*"
+    if column_names:
+      columns = list(column_names)
+      if isinstance(query_config, TableFieldsQueryConfig):
+        for field in query_config.where_clause_fields:
+          if field not in columns:
+            columns.append(field)
+      self._column_names = ",".join(columns)
+    else:
+      self._column_names = "*"
     self.kwargs = kwargs
     self._batching_kwargs = {}
     table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
@@ -349,19 +357,12 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def _process_batch_request(self, requests: list[beam.Row]):
     """Process batch requests and match responses to original requests."""
-    values, responses = [], []
-    requests_map: dict[Any, Any] = {}
+    responses = []
+    response_map: dict[Any, beam.Row] = {}
     batch_size = len(requests)
 
     # Build the appropriate query (single or batched).
     raw_query = self._build_batch_query(requests, batch_size)
-
-    # Extract where_clause_fields values and map the generated request key to
-    # the original request object..
-    for req in requests:
-      current_values = self._extract_values_from_request(req)
-      values.extend(current_values)
-      requests_map[self.create_row_key(req)] = req
 
     # Build named parameters dictionary for parameterized query.
     param_dict = self._build_parameters_dict(requests, batch_size)
@@ -372,8 +373,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     for response in result:
       response_row = beam.Row(**response)  # type: ignore[arg-type]
       response_key = self.create_row_key(response_row)
-      if response_key in requests_map:
-        responses.append((requests_map[response_key], response_row))
+      if response_key is not None:
+        response_map.setdefault(response_key, response_row)
+
+    for req in requests:
+      req_key = self.create_row_key(req)
+      if req_key is not None and req_key in response_map:
+        responses.append((req, response_map[req_key]))
+      else:
+        responses.append((req, beam.Row()))
     return responses
 
   def _execute_query(
@@ -600,15 +608,36 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def create_row_key(self, row: beam.Row):
     if isinstance(self._query_config, TableFunctionQueryConfig):
-      return tuple(self._query_config.where_clause_value_fn(row))
+      try:
+        return tuple(self._query_config.where_clause_value_fn(row))
+      except (KeyError, AttributeError, TypeError):
+        return None
     if isinstance(self._query_config, TableFieldsQueryConfig):
       row_dict = row._asdict()
-      return (
-          tuple(
-              row_dict[where_clause_field]
-              for where_clause_field in self._query_config.where_clause_fields))
+      try:
+        return tuple(
+            row_dict[where_clause_field]
+            for where_clause_field in self._query_config.where_clause_fields)
+      except KeyError:
+        return None
     raise ValueError(
         "Either where_clause_fields or where_clause_value_fn must be specified")
+
+  def _get_single_cache_key(self, req: beam.Row) -> str:
+    req_dict = req._asdict()
+    try:
+      if isinstance(self._query_config, TableFunctionQueryConfig):
+        current_values = self._query_config.where_clause_value_fn(req)
+      else:
+        current_values = [
+            req_dict[field] for field in self._query_config.where_clause_fields
+        ]
+      key = ";".join(["%s"] * len(current_values))
+      return key % tuple(current_values)
+    except KeyError as e:
+      raise KeyError(
+          "Make sure the values passed in `where_clause_fields` are the "
+          "keys in the input `beam.Row`." + str(e))
 
   def get_cache_key(self, request: Union[beam.Row, list[beam.Row]]):
     if isinstance(self._query_config, CustomQueryConfig):
@@ -618,41 +647,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
           "TableFunctionQueryConfig instead.")
 
     if isinstance(request, list):
-      cache_keys = []
-      for req in request:
-        req_dict = req._asdict()
-        try:
-          if isinstance(self._query_config, TableFunctionQueryConfig):
-            current_values = self._query_config.where_clause_value_fn(req)
-          elif isinstance(self._query_config, TableFieldsQueryConfig):
-            current_values = [
-                req_dict[field]
-                for field in self._query_config.where_clause_fields
-            ]
-          key = ';'.join(map(repr, current_values))
-          cache_keys.append(key)
-        except KeyError as e:
-          raise KeyError(
-              "Make sure the values passed in `where_clause_fields` are the "
-              "keys in the input `beam.Row`." + str(e))
-      return cache_keys
-    else:
-      req_dict = request._asdict()
-      try:
-        if isinstance(self._query_config, TableFunctionQueryConfig):
-          current_values = self._query_config.where_clause_value_fn(request)
-        else:  # TableFieldsQueryConfig.
-          current_values = [
-              req_dict[field]
-              for field in self._query_config.where_clause_fields
-          ]
-        key = ";".join(["%s"] * len(current_values))
-        cache_key = key % tuple(current_values)
-      except KeyError as e:
-        raise KeyError(
-            "Make sure the values passed in `where_clause_fields` are the "
-            "keys in the input `beam.Row`." + str(e))
-      return cache_key
+      return [self._get_single_cache_key(req) for req in request]
+    return self._get_single_cache_key(request)
 
   def __exit__(self, _exc_type, _exc_val, _exc_tb):
     self._engine.dispose(close=True)
