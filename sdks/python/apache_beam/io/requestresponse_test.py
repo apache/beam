@@ -178,6 +178,106 @@ class TestCaller(unittest.TestCase):
         beam.metrics.MetricsFilter().with_name('responses'))
     self.assertEqual(metrics['counters'][0].committed, 1)
 
+  def test_batched_caller_preserves_event_timestamps_and_windows(self):
+    from apache_beam.testing.util import assert_that
+    from apache_beam.testing.util import equal_to
+    from apache_beam.transforms.enrichment import Enrichment
+    from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+    from apache_beam.transforms.window import FixedWindows
+    from apache_beam.transforms.window import TimestampedValue
+
+    class _OutOfOrderBatchedHandler(EnrichmentSourceHandler):
+      def __call__(self, request, *args, **kwargs):
+        # Return responses in reverse order to verify per-request timestamp
+        # matching even when the handler reorders batch results.
+        return [(req, beam.Row(tier=f'tier_{req.id}'))
+                for req in reversed(request)]
+
+      def batch_elements_kwargs(self):
+        return {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+            'element_size_fn': lambda _: 1,
+        }
+
+    inputs = [
+        TimestampedValue(beam.Row(id=1), 1700000045.0),
+        TimestampedValue(beam.Row(id=2), 1700000055.0),
+        TimestampedValue(beam.Row(id=3), 1700000125.0),
+    ]
+
+    with TestPipeline() as p:
+      enriched = (
+          p
+          | beam.Create(inputs)
+          | Enrichment(_OutOfOrderBatchedHandler()))
+      with_timestamps = enriched | 'CaptureTimestamps' >> beam.Map(
+          lambda row, ts=beam.DoFn.TimestampParam:
+          (row.id, row.tier, float(ts)))
+      assert_that(
+          with_timestamps,
+          equal_to([
+              (1, 'tier_1', 1700000045.0),
+              (2, 'tier_2', 1700000055.0),
+              (3, 'tier_3', 1700000125.0),
+          ]),
+          label='CheckTimestamps',
+      )
+
+      windowed_counts = (
+          enriched
+          | beam.WindowInto(FixedWindows(60))
+          | beam.Map(lambda row: (row.id // 3, 1))
+          | beam.CombinePerKey(sum))
+      assert_that(
+          windowed_counts,
+          equal_to([(0, 2), (1, 1)]),
+          label='CheckFixedWindows',
+      )
+
+      pre_windowed = (
+          p
+          | 'CreatePreWindowed' >> beam.Create(inputs)
+          | 'PreWindow' >> beam.WindowInto(FixedWindows(60))
+          | 'EnrichPreWindowed' >> Enrichment(_OutOfOrderBatchedHandler())
+          | 'CapturePreWindowed' >> beam.Map(
+              lambda row, ts=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
+              (row.id, float(ts), float(w.start), float(w.end))))
+      assert_that(
+          pre_windowed,
+          equal_to([
+              (1, 1700000045.0, 1700000040.0, 1700000100.0),
+              (2, 1700000055.0, 1700000040.0, 1700000100.0),
+              (3, 1700000125.0, 1700000100.0, 1700000160.0),
+          ]),
+          label='CheckPreWindowed',
+      )
+
+  def test_reattach_window_metadata_equality_and_positional(self):
+    from apache_beam.io.requestresponse import _reattach_window_metadata
+    from apache_beam.io.requestresponse import _WindowedRequest
+    from apache_beam.transforms.window import GlobalWindow
+    from apache_beam.utils.timestamp import Timestamp
+
+    w1 = _WindowedRequest(beam.Row(id=1), Timestamp(100), (GlobalWindow(), ))
+    w2 = _WindowedRequest(beam.Row(id=2), Timestamp(200), (GlobalWindow(), ))
+
+    # Reconstructed Row objects (different object id, equal value) in reverse.
+    reconstructed_responses = [
+        (beam.Row(id=2), beam.Row(val='b')),
+        (beam.Row(id=1), beam.Row(val='a')),
+    ]
+    matched = _reattach_window_metadata([w1, w2], reconstructed_responses)
+    self.assertEqual([float(m.timestamp) for m in matched], [200.0, 100.0])
+
+    # Positional non-tuple responses.
+    pos_matched = _reattach_window_metadata([w1, w2], ['resp1', 'resp2'])
+    self.assertEqual([float(m.timestamp) for m in pos_matched], [100.0, 200.0])
+
+    # Scalar response fallback.
+    scalar_matched = _reattach_window_metadata([w1], 'single_resp')
+    self.assertEqual(float(scalar_matched[0].timestamp), 100.0)
+
 
 if __name__ == '__main__':
   unittest.main()

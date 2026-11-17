@@ -137,6 +137,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed batched `RequestResponseIO` and `Enrichment` resetting per-element event-time timestamps to `END_OF_GLOBAL_WINDOW` (`window.max_timestamp()`) ([#41348](https://github.com/apache/beam/issues/41348)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
 * (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
 * (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
