@@ -159,6 +159,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         self.features = self.store.get_feature_service(
             self.feature_service_name)
       except Exception:
+        self._remove_local_repo_path()
         raise RuntimeError(
             'Could not find the feature service %s for the feature '
             'store configured in %s.' %

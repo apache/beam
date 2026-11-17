@@ -154,6 +154,32 @@ class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
       handler.__exit__(None, None, None)
       self.assertFalse(os.path.exists(local_repo_path))
 
+  def test_enter_removes_downloaded_yaml_file_when_feature_service_missing(
+      self):
+    gcs_file = mock.MagicMock()
+    gcs_file.read.return_value = b'project: test\nprovider: local\n'
+    mock_open = mock.MagicMock()
+    mock_open.return_value.__enter__.return_value = gcs_file
+    mock_store = mock.MagicMock()
+    mock_store.return_value.get_feature_service.side_effect = ValueError(
+        'no such feature service')
+    downloaded = []
+    real_download = feast_feature_store.download_fs_yaml_file
+
+    def _download(path):
+      downloaded.append(real_download(path))
+      return downloaded[-1]
+
+    with mock.patch(self._MODULE + '.FileSystems.open', mock_open), \
+        mock.patch(self._MODULE + '.FeatureStore', mock_store), \
+        mock.patch(self._MODULE + '.download_fs_yaml_file', _download):
+      handler = self._build_handler(
+          feature_service_name='missing_service', entity_id='user_id')
+      with self.assertRaises(RuntimeError):
+        handler.__enter__()
+    self.assertEqual(len(downloaded), 1)
+    self.assertFalse(os.path.exists(downloaded[0]))
+
 
 if __name__ == '__main__':
   unittest.main()
