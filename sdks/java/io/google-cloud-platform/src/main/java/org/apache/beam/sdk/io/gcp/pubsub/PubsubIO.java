@@ -1930,18 +1930,18 @@ public class PubsubIO {
         // - Size validation makes no distinction between JSON and Protobuf encoding
         // - Accounting for HTTP to gRPC transcoding is non-trivial
         PreparePubsubWriteDoFn.validatePubsubMessage(message, maxPublishBatchByteSize);
-              // If an id attribute is configured, use the id the message already
-                  // carries, or generate a fresh random id for this element.
-                  @Nullable String recordId = null;
-                  @Nullable String idAttribute = getIdAttribute();
-                  if (idAttribute != null) {
-                            recordId = message.getAttribute(idAttribute);
-                              if (recordId == null || recordId.isEmpty()) {
-                                            recordId = UUID.randomUUID().toString();
-                              }
-                  }
-                  final OutgoingMessage msg =
-                              OutgoingMessage.of(message, timestamp.getMillis(), recordId, message.getTopic());
+        // If an id attribute is configured, use the id the message already
+        // carries, or generate a fresh random id for this element.
+        @Nullable String recordId = null;
+        @Nullable String idAttribute = getIdAttribute();
+        if (idAttribute != null) {
+          recordId = message.getAttribute(idAttribute);
+          if (recordId == null || recordId.isEmpty()) {
+            recordId = UUID.randomUUID().toString();
+          }
+        }
+        final OutgoingMessage msg =
+            OutgoingMessage.of(message, timestamp.getMillis(), recordId, message.getTopic());
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         // - Size validation makes no distinction between JSON and Protobuf encoding
         // - Accounting for HTTP to gRPC transcoding is non-trivial
