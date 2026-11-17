@@ -248,6 +248,32 @@ func (em *ElementManager) canHoldWatermark() bool {
 	return em.sawResidual.Load() || em.testStreamHandler != nil
 }
 
+// reachesStateful reports whether stageID or a downstream primary consumer is
+// a stateful stage without side inputs.
+func (em *ElementManager) reachesStateful(stageID string) bool {
+	visited := set[string]{}
+	stack := []string{stageID}
+	for len(stack) > 0 {
+		id := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if visited.present(id) {
+			continue
+		}
+		visited.insert(id)
+		ss := em.stages[id]
+		if ss == nil {
+			continue
+		}
+		if _, ok := ss.kind.(*statefulStageKind); ok && len(ss.sides) == 0 {
+			return true
+		}
+		for _, out := range ss.outputIDs {
+			stack = append(stack, em.consumers[out]...)
+		}
+	}
+	return false
+}
+
 func (em *ElementManager) addPending(v int) {
 	em.livePending.Add(int64(v))
 	em.pendingElements.Add(v)
@@ -881,7 +907,8 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 	// Record consumers with new data when an upstream watermark can stay held,
-	// so updateWatermarks still schedules them.
+	// so updateWatermarks still schedules them. For TestStream without residuals,
+	// limit this to paths reaching a stateful stage to keep aggregate scheduling unchanged.
 	if len(residuals.Data) > 0 {
 		em.sawResidual.Store(true)
 	}
@@ -958,7 +985,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 				count = consumer.AddPending(em, newPending)
 			}
 			em.addPending(count)
-			if changedConsumers != nil && count > 0 {
+			if changedConsumers != nil && count > 0 && (em.sawResidual.Load() || em.reachesStateful(sID)) {
 				changedConsumers.insert(sID)
 			}
 		}
