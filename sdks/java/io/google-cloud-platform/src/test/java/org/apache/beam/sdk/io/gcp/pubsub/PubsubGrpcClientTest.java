@@ -48,6 +48,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -275,6 +276,84 @@ public class PubsubGrpcClientTest {
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  private static OutgoingMessage outgoing(
+      byte[] data,
+      ImmutableMap<String, String> attributes,
+      String orderingKey,
+      @Nullable String recordId) {
+    return OutgoingMessage.of(
+        PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(data))
+            .putAllAttributes(attributes)
+            .setOrderingKey(orderingKey)
+            .build(),
+        MESSAGE_TIME_MS,
+        recordId,
+        null);
+  }
+
+  @Test
+  public void publishRequestSizesAddUpToTheSerializedRequest() throws IOException {
+    initializeClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE);
+
+    List<OutgoingMessage> messages = new ArrayList<>();
+    // Data of these lengths needs a length prefix of one, two and three bytes.
+    for (int length : new int[] {0, 1, 127, 128, 16_383, 16_384}) {
+      messages.add(outgoing(new byte[length], ImmutableMap.of(), "", null));
+    }
+    messages.add(outgoing(DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, "", RECORD_ID));
+    messages.add(
+        outgoing(
+            DATA.getBytes(StandardCharsets.UTF_8),
+            ImmutableMap.of("k".repeat(130), "v".repeat(130)),
+            "orderingKey",
+            RECORD_ID));
+
+    // The largest attributes Pub/Sub allows.
+    ImmutableMap.Builder<String, String> largestAttributes = ImmutableMap.builder();
+    for (int i = 0; i < 100; i++) {
+      largestAttributes.put(String.format("%03d", i) + "k".repeat(253), "v".repeat(1024));
+    }
+    messages.add(outgoing(new byte[10], largestAttributes.build(), "orderingKey", RECORD_ID));
+
+    List<List<OutgoingMessage>> batches = new ArrayList<>();
+    for (OutgoingMessage message : messages) {
+      batches.add(ImmutableList.of(message));
+    }
+    batches.add(messages);
+
+    final List<PublishRequest> requestsReceived = new ArrayList<>();
+    PublisherImplBase publisherImplBase =
+        new PublisherImplBase() {
+          @Override
+          public void publish(
+              PublishRequest request, StreamObserver<PublishResponse> responseObserver) {
+            requestsReceived.add(request);
+            responseObserver.onNext(
+                PublishResponse.newBuilder()
+                    .addAllMessageIds(Collections.nCopies(request.getMessagesCount(), MESSAGE_ID))
+                    .build());
+            responseObserver.onCompleted();
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
+    try {
+      for (List<OutgoingMessage> batch : batches) {
+        long expected = client.publishRequestBaseSize(TOPIC);
+        for (OutgoingMessage message : batch) {
+          expected += client.publishRequestMessageSize(message);
+        }
+
+        assertEquals(batch.size(), client.publish(TOPIC, batch));
+
+        assertEquals(expected, Iterables.getLast(requestsReceived).getSerializedSize());
+      }
     } finally {
       server.shutdownNow();
     }

@@ -45,6 +45,7 @@ import com.google.api.services.pubsub.model.Topic;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -288,6 +290,76 @@ public class PubsubJsonClientTest {
             null);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
+  }
+
+  private static OutgoingMessage outgoing(
+      byte[] data, Map<String, String> attributes, String orderingKey, @Nullable String recordId) {
+    return OutgoingMessage.of(
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(data))
+            .putAllAttributes(attributes)
+            .setOrderingKey(orderingKey)
+            .build(),
+        MESSAGE_TIME,
+        recordId,
+        null);
+  }
+
+  private static void assertSizesAddUpToTheBodyThatIsSent(
+      String description, List<OutgoingMessage> messages) throws IOException {
+    RecordingPubsub received = new RecordingPubsub();
+    PubsubClient recordingClient =
+        new PubsubJsonClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, received.newPubsub());
+    long expected = recordingClient.publishRequestBaseSize(TOPIC);
+    for (OutgoingMessage message : messages) {
+      expected += recordingClient.publishRequestMessageSize(message);
+    }
+
+    assertEquals(messages.size(), recordingClient.publish(TOPIC, messages));
+
+    assertEquals(description, ImmutableList.of((int) expected), received.bodyBytes);
+  }
+
+  @Test
+  public void publishRequestSizesAddUpToTheBodyThatIsSent() throws IOException {
+    List<OutgoingMessage> messages = new ArrayList<>();
+
+    // Data of each length from 0 to 5 bytes ends in a different group of base64 characters.
+    for (int length = 0; length <= 5; length++) {
+      messages.add(outgoing(new byte[length], ImmutableMap.of(), "", null));
+    }
+    byte[] everyByte = new byte[256];
+    for (int i = 0; i < everyByte.length; i++) {
+      everyByte[i] = (byte) i;
+    }
+    messages.add(outgoing(everyByte, ImmutableMap.of(), "", RECORD_ID));
+    messages.add(outgoing(new byte[100_000], ImmutableMap.of(), ORDERING_KEY, RECORD_ID));
+    messages.add(
+        outgoing(DATA.getBytes(StandardCharsets.UTF_8), ImmutableMap.of("k", "v"), "", null));
+
+    // Characters that JSON writes as escape sequences or as several bytes.
+    for (String text :
+        ImmutableList.of(
+            "quote \" backslash \\ slash /",
+            "markup <b> & 'single' = equals",
+            "controls \u0000 \u0001 \b \t \n \f \r \u001f \u007f",
+            "line \u2028 and paragraph \u2029 separators",
+            "latin \u00e9 greek \u03b1 han \u4e2d emoji \ud83d\ude00")) {
+      messages.add(
+          outgoing(text.getBytes(StandardCharsets.UTF_8), ImmutableMap.of(text, text), text, text));
+    }
+
+    // The largest attributes Pub/Sub allows, whose control characters grow to six bytes each.
+    Map<String, String> largestAttributes = new HashMap<>();
+    for (int i = 0; i < 100; i++) {
+      largestAttributes.put(String.format("%03d", i) + "k".repeat(253), "\u0001".repeat(1024));
+    }
+    messages.add(outgoing(new byte[10], largestAttributes, ORDERING_KEY, RECORD_ID));
+
+    for (int i = 0; i < messages.size(); i++) {
+      assertSizesAddUpToTheBodyThatIsSent("message " + i, ImmutableList.of(messages.get(i)));
+    }
+    assertSizesAddUpToTheBodyThatIsSent("all messages", messages);
   }
 
   @Test

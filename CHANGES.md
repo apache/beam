@@ -141,6 +141,7 @@
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
+* (Java) `PubsubIO` bounded writes now size each publish request by its encoded size, as the JSON or gRPC client sends it. Batches of messages with attributes or ordering keys no longer exceed Pub/Sub's 10 MB request limit, and a message too large for any request fails the write with `SizeLimitExceededException`. `withMaxBatchBytesSize` now limits the encoded request in bytes, and its default is 10 MB ([#28011](https://github.com/apache/beam/issues/28011)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

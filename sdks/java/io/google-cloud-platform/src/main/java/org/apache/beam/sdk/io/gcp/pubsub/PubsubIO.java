@@ -1461,11 +1461,8 @@ public class PubsubIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-    /**
-     * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
-     * four bytes.
-     */
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1000 * 1000) / 4) * 3;
+    /** Pub/Sub rejects a publish request of more than 10 MB. */
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = 10 * 1000 * 1000;
 
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
@@ -1681,8 +1678,12 @@ public class PubsubIO {
     }
 
     /**
-     * Writes to Pub/Sub are limited by 10mb in general. This attribute controls the maximum allowed
-     * bytes to be sent to Pub/Sub in a single batched message.
+     * Writes to Pub/Sub are limited by 10mb in general. This attribute controls the maximum size in
+     * bytes of the request that a batch of messages is sent in, as the client encodes the request:
+     * the payloads, attributes and ordering keys of the messages all count, and so does the base64
+     * encoding that the JSON client applies to the payloads. The default is 10mb.
+     *
+     * <p>A message that cannot fit into a request of this size fails the write.
      */
     public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
       return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
@@ -1881,11 +1882,15 @@ public class PubsubIO {
     public class PubsubBoundedWriter extends DoFn<PubsubMessage, Void> {
       private class OutgoingData {
         List<OutgoingMessage> messages;
+        // The size of the publish request that holds the messages, as the client encodes it.
         long bytes;
+        // The size of a publish request that holds no messages.
+        final long emptyRequestBytes;
 
-        OutgoingData() {
+        OutgoingData(long emptyRequestBytes) {
           this.messages = Lists.newArrayList();
-          this.bytes = 0;
+          this.emptyRequestBytes = emptyRequestBytes;
+          this.bytes = emptyRequestBytes;
         }
       }
 
@@ -1929,8 +1934,7 @@ public class PubsubIO {
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         // - Size validation makes no distinction between JSON and Protobuf encoding
         // - Accounting for HTTP to gRPC transcoding is non-trivial
-        final int messageSize =
-            PreparePubsubWriteDoFn.validatePubsubMessage(message, maxPublishBatchByteSize);
+        PreparePubsubWriteDoFn.validatePubsubMessage(message, maxPublishBatchByteSize);
         // NOTE: The record id is always null since it will be assigned by Pub/Sub.
         final OutgoingMessage msg =
             OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
@@ -1943,20 +1947,36 @@ public class PubsubIO {
           pubsubTopic = PubsubTopic.fromPath(checkArgumentNotNull(msg.topic()));
         }
 
+        // The client knows how it encodes a request, so it measures what the message adds to it.
+        final PubsubClient client = checkStateNotNull(pubsubClient);
+        final long messageSize = client.publishRequestMessageSize(msg);
+        final long emptyRequestBytes =
+            client.publishRequestBaseSize(
+                PubsubClient.topicPathFromName(pubsubTopic.project, pubsubTopic.topic));
+        if (emptyRequestBytes + messageSize > maxPublishBatchByteSize) {
+          throw new SizeLimitExceededException(
+              "Pubsub message takes up "
+                  + messageSize
+                  + " bytes of a publish request, which exceeds the maximum request size of "
+                  + maxPublishBatchByteSize
+                  + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
+        }
+
         // Checking before adding the message stops us from violating max batch size or
         // bytes
         String orderingKey = getPublishWithOrderingKey() ? msg.getMessage().getOrderingKey() : "";
         final OutgoingData currentTopicAndOrderingKeyOutput =
             checkStateNotNull(output)
-                .computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
-        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+                .computeIfAbsent(
+                    KV.of(pubsubTopic, orderingKey), t -> new OutgoingData(emptyRequestBytes));
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
                 && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
-                    >= maxPublishBatchByteSize)) {
+                    > maxPublishBatchByteSize)) {
           publish(pubsubTopic, currentTopicAndOrderingKeyOutput.messages);
           currentTopicAndOrderingKeyOutput.messages.clear();
-          currentTopicAndOrderingKeyOutput.bytes = 0;
+          currentTopicAndOrderingKeyOutput.bytes =
+              currentTopicAndOrderingKeyOutput.emptyRequestBytes;
         }
 
         currentTopicAndOrderingKeyOutput.messages.add(msg);

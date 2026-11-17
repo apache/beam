@@ -20,10 +20,16 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PublishRequest;
+import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.Schema;
+import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import org.apache.avro.AvroTypeException;
 import org.apache.avro.SchemaParseException;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -36,6 +42,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /** Tests for helper classes and methods in PubsubClient. */
 @RunWith(JUnit4.class)
@@ -156,6 +163,37 @@ public class PubsubClientTest {
     thrown.expect(NumberFormatException.class);
     // Year 10000 out of range.
     parse("10000-10-29T23:41:41.123999Z");
+  }
+
+  //
+  // Publish request sizes
+  //
+
+  @Test
+  public void defaultPublishRequestSizesAreTheSizeOfTheProtocolBufferRequest() throws IOException {
+    PubsubClient client = Mockito.mock(PubsubClient.class, Mockito.CALLS_REAL_METHODS);
+    TopicPath topic = PubsubClient.topicPathFromName("test", "something");
+    List<OutgoingMessage> messages =
+        ImmutableList.of(
+            OutgoingMessage.of(PubsubMessage.getDefaultInstance(), 0L, null, null),
+            OutgoingMessage.of(
+                PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFrom(new byte[300]))
+                    .putAttributes("k", "v")
+                    .setOrderingKey("orderingKey")
+                    .build(),
+                0L,
+                null,
+                null));
+
+    PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
+    long sizes = client.publishRequestBaseSize(topic);
+    for (OutgoingMessage message : messages) {
+      request.addMessages(message.getMessage());
+      sizes += client.publishRequestMessageSize(message);
+    }
+
+    assertEquals(request.build().getSerializedSize(), sizes);
   }
 
   //
