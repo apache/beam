@@ -1209,7 +1209,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * Annotation for the method that truncates the restriction of a <a
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into a bounded one.
    * This method is invoked when a pipeline is being <a
-   * href="https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#">drained</a>.
+   * href="https://beam.apache.org/documentation/programming-guide/#truncating-during-drain">drained</a>.
    *
    * <p>This method is used to perform truncation of the restriction while it is not actively being
    * processed.

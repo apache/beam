@@ -36,7 +36,6 @@ configurations {
 dependencies {
   implementation project(":sdks:java:extensions:sql")
   implementation "jline:jline:2.14.6"
-  permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   implementation "sqlline:sqlline:1.4.0"
   implementation library.java.vendored_calcite_1_40_0
   permitUnusedDeclared library.java.vendored_calcite_1_40_0

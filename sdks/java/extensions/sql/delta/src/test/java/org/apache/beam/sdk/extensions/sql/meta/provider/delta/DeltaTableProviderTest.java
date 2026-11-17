@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -276,5 +278,178 @@ public class DeltaTableProviderTest {
         () ->
             deltaTable.buildIOReader(
                 null, new DefaultTableFilter(Collections.emptyList()), ImmutableList.of("id")));
+  }
+
+  @Test
+  public void testForReadRejectsOptions() {
+    Table table = fakeTable("my_table", "/path/to/delta/table", "{}");
+    DeltaTable deltaTable = (DeltaTable) provider.buildBeamSqlTable(table);
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                deltaTable.forRead(
+                    ImmutableMap.of("include_metadata_columns", ImmutableList.of("_change_type"))));
+    assertEquals(
+        "WITH options on a Delta Lake read are only accepted with CHANGES(...), got"
+            + " [include_metadata_columns]",
+        exception.getMessage());
+  }
+
+  @Test
+  public void testForChangesBuildsDeltaChangesTable() {
+    Table table =
+        fakeTable(
+            "my_table",
+            "/path/to/delta/table",
+            "{\"hadoop_config\": {\"fs.gs.project.id\": \"my-project\"}}");
+    DeltaTable deltaTable = (DeltaTable) provider.buildBeamSqlTable(table);
+
+    DeltaChangesTable changesTable =
+        (DeltaChangesTable)
+            deltaTable.forChanges(
+                ChangeRange.versions(1L, 3L),
+                ImmutableMap.of(
+                    "include_metadata_columns",
+                    ImmutableList.of("_commit_timestamp", "_change_type", "_commit_version")),
+                ImmutableList.of());
+
+    assertEquals(
+        ImmutableList.of("id", "name", "_change_type", "_commit_version", "_commit_timestamp"),
+        changesTable.getSchema().getFieldNames());
+    assertEquals(
+        Schema.FieldType.STRING, changesTable.getSchema().getField("_change_type").getType());
+    assertEquals(
+        Schema.FieldType.INT64, changesTable.getSchema().getField("_commit_version").getType());
+    assertEquals(
+        Schema.FieldType.DATETIME,
+        changesTable.getSchema().getField("_commit_timestamp").getType());
+    assertEquals(
+        ImmutableMap.of(
+            "table",
+            "/path/to/delta/table",
+            "hadoop_config",
+            ImmutableMap.of("fs.gs.project.id", "my-project"),
+            "include_metadata_columns",
+            ImmutableList.of("_change_type", "_commit_version", "_commit_timestamp")),
+        changesTable.getConfig());
+    assertEquals(PCollection.IsBounded.BOUNDED, changesTable.isBounded());
+    UnsupportedOperationException writeError =
+        assertThrows(UnsupportedOperationException.class, () -> changesTable.buildIOWriter(null));
+    assertEquals(
+        "CHANGES of Delta Lake table '/path/to/delta/table' cannot be written.",
+        writeError.getMessage());
+  }
+
+  @Test
+  public void testForChangesValidationErrors() {
+    DeltaTable deltaTable =
+        (DeltaTable)
+            provider.buildBeamSqlTable(fakeTable("my_table", "/path/to/delta/table", "{}"));
+    DeltaTable pinnedVersionTable =
+        (DeltaTable)
+            provider.buildBeamSqlTable(
+                fakeTable("my_table", "/path/to/delta/table", "{\"version\": 1}"));
+    DeltaTable pinnedTimestampTable =
+        (DeltaTable)
+            provider.buildBeamSqlTable(
+                fakeTable(
+                    "my_table",
+                    "/path/to/delta/table",
+                    "{\"timestamp\": \"2026-01-01T00:00:00Z\"}"));
+
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    pinnedVersionTable.forChanges(
+                        ChangeRange.versions(0L, 1L), ImmutableMap.of(), ImmutableList.of()))
+            .getMessage()
+            .contains("pins the version it reads"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    pinnedTimestampTable.forChanges(
+                        ChangeRange.versions(0L, 1L), ImmutableMap.of(), ImmutableList.of()))
+            .getMessage()
+            .contains("pins the version it reads"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(ChangeRange.all(), ImmutableMap.of(), ImmutableList.of()))
+            .getMessage()
+            .contains("needs a start"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(null, 2L), ImmutableMap.of(), ImmutableList.of()))
+            .getMessage()
+            .contains("needs a start"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("start_version", 0L),
+                        ImmutableList.of()))
+            .getMessage()
+            .contains("Option 'start_version' cannot be set in WITH"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("table", "/other"),
+                        ImmutableList.of()))
+            .getMessage()
+            .contains("Option 'table' cannot be set in WITH"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("bogus", 1L),
+                        ImmutableList.of()))
+            .getMessage()
+            .contains("Unknown option 'bogus' for a CHANGES read"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("include_metadata_columns", ImmutableList.of("_bogus")),
+                        ImmutableList.of()))
+            .getMessage()
+            .contains("Unknown metadata column '_bogus'"));
+
+    DeltaTable collidingTable =
+        (DeltaTable)
+            provider.buildBeamSqlTable(
+                Table.builder()
+                    .name("colliding")
+                    .location("/path/to/delta/table")
+                    .schema(Schema.builder().addStringField("_change_type").build())
+                    .type("delta")
+                    .properties(TableUtils.parseProperties("{}"))
+                    .build());
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    collidingTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of(
+                            "include_metadata_columns", ImmutableList.of("_change_type")),
+                        ImmutableList.of()))
+            .getMessage()
+            .contains("Metadata column '_change_type' collides with a column of the table"));
   }
 }

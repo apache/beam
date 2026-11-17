@@ -27,6 +27,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import jline.TerminalFactory;
+import jline.UnixTerminal;
+import jline.internal.Log;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
@@ -65,6 +68,9 @@ public class BeamSqlLine {
       @Nullable OutputStream errorStream)
       throws IOException {
     String[] modifiedArgs = checkConnectionArgs(args);
+    // JLine uses UnixTerminal on Linux and macOS. We swap in a subclass that lets us interrupt the
+    // terminal
+    TerminalFactory.registerFlavor(TerminalFactory.Flavor.UNIX, InterruptRestoringTerminal.class);
     SqlLine sqlLine = new SqlLine();
 
     if (outputStream != null) {
@@ -76,5 +82,41 @@ public class BeamSqlLine {
     }
 
     return sqlLine.begin(modifiedArgs, inputStream, true);
+  }
+
+  /**
+   * Makes sure Ctrl+C can always stop a running query.
+   *
+   * <p>JLine turns off Ctrl+C while it reads a line, then turns it back on. Sometimes it forgets to
+   * hand it back, and Ctrl+C can't stop queries anymore. This class saves the Ctrl+C character and
+   * hands it back when needed.
+   */
+  public static class InterruptRestoringTerminal extends UnixTerminal {
+    private @Nullable String intr;
+
+    public InterruptRestoringTerminal() throws Exception {}
+
+    @Override
+    public void init() throws Exception {
+      super.init();
+      // Remember the Ctrl+C setting before JLine takes it over.
+      String value = getSettings().getPropertyAsString("intr");
+      intr = "<undef>".equals(value) ? null : value;
+    }
+
+    @Override
+    public void enableInterruptCharacter() {
+      String value = intr;
+      try {
+        if (value != null) {
+          getSettings().set("intr", value);
+        }
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        Log.error("Failed to enable interrupt character", e);
+      }
+    }
   }
 }

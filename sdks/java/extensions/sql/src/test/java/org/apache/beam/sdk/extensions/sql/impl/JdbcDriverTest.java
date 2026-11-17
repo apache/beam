@@ -38,7 +38,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -482,11 +481,11 @@ public class JdbcDriverTest {
       }
       assertCancels(insert, insertRun);
 
-      for (String select :
-          Arrays.asList("SELECT sequence FROM seq", "SELECT sequence FROM seq LIMIT 1000000")) {
-        Statement statement = connection.createStatement();
-        assertCancels(statement, executor.submit(() -> statement.executeQuery(select)));
-      }
+      // A SELECT without LIMIT returns rows while its pipeline runs. LiveResultTest cancels it.
+      Statement select = connection.createStatement();
+      assertCancels(
+          select,
+          executor.submit(() -> select.executeQuery("SELECT sequence FROM seq LIMIT 1000000")));
     } finally {
       executor.shutdownNow();
     }
