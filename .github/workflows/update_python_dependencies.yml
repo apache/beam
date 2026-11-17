@@ -38,7 +38,6 @@ jobs:
   set-properties:
     runs-on: [self-hosted, ubuntu-24.04, highmem]
     outputs:
-      properties: ${{ steps.test-properties.outputs.properties }}
       should_run: ${{ steps.check_cadence.outputs.should_run }}
     steps:
       - name: Check release cadence
@@ -57,14 +56,6 @@ jobs:
             echo "Exiting early. We only update dependencies in week 1 and week 3 after we cut the release"
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Checkout code
-        if: steps.check_cadence.outputs.should_run == 'true'
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - id: test-properties
-        if: steps.check_cadence.outputs.should_run == 'true'
-        uses: ./.github/actions/setup-default-test-properties
 
   update_python_dependencies:
     if: needs.set-properties.outputs.should_run == 'true'
