@@ -1264,8 +1264,8 @@ private static class CapturingPubsubClient extends PubsubTestClient {
     @Test
     public void testBoundedWriteGeneratesFreshIdAttribute() {
           PubsubMessage message =
-                    new PubsubMessage(                      "same-payload".getBytes(StandardCharsets.UTF_8), Collections.emptyMap());
-          List<OutgoingMessage> published =            runBoundedWrite(ImmutableList.of(message, message));
+                    new PubsubMessage("same-payload".getBytes(StandardCharsets.UTF_8), Collections.emptyMap());
+          List<OutgoingMessage> published =   runBoundedWrite(ImmutableList.of(message, message));
           assertThat(published.size(), is(2));
           assertNotNull(published.get(0).recordId());
           assertNotNull(published.get(1).recordId());
