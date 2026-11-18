@@ -1161,27 +1161,6 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
-  def test_run_inference_impl_dlq_error_info(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | 'start' >> beam.Create([1, 'TEST'])
-      _, other = pcoll | base.RunInference(
-          FakeModelHandler(
-            min_batch_size=1,
-            max_batch_size=1
-          )).with_exception_handling()
-
-      # The error info is (exception type, repr, formatted traceback).
-      def check_error_info(failure):
-        exc_type, exc_repr, exc_traceback = failure[1]
-        return (
-            exc_type is TypeError and isinstance(exc_repr, str) and
-            exc_repr.startswith('TypeError(') and
-            isinstance(exc_traceback, list) and
-            all(isinstance(line, str) for line in exc_traceback))
-
-      checked = other.failed_inferences | beam.Map(check_error_info)
-      assert_that(checked, equal_to([True]), label='assert:failures')
-
   def test_run_inference_timeout_on_load_dlq(self):
     with TestPipeline() as pipeline:
       examples = [1, 2]

@@ -1794,22 +1794,17 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         failed_postprocessing = other.failed_postprocessing
 
     failed_inferences is in the form
-    PCollection[tuple[failed batch, error info]].
+    PCollection[tuple[failed batch, exception]].
 
     failed_preprocessing is in the form
-    list[PCollection[tuple[failed record, error info]]], where each element of
+    list[PCollection[tuple[failed record, exception]]]], where each element of
     the list corresponds to a preprocess function. These PCollections are
     in the same order that the preprocess functions are applied.
 
     failed_postprocessing is in the form
-    list[PCollection[tuple[failed record, error info]]], where each element of
+    list[PCollection[tuple[failed record, exception]]]], where each element of
     the list corresponds to a postprocess function. These PCollections are
     in the same order that the postprocess functions are applied.
-
-    error info is not the exception object itself, but a tuple of
-    (exception type, repr of the exception, formatted traceback), where the
-    formatted traceback is the list of strings returned by
-    traceback.format_exception().
 
 
     Args:
