@@ -20,14 +20,20 @@ from typing import Optional
 
 import apache_beam as beam
 from apache_beam.yaml import options
+from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
 try:
   from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.file import FileEnrichmentHandler
+except ImportError:
+  Enrichment = None  # type: ignore
+  FileEnrichmentHandler = None  # type: ignore
+
+try:
   from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
 except ImportError:
-  Enrichment = None  # type: ignore
   BigQueryEnrichmentHandler = None  # type: ignore
   BigTableEnrichmentHandler = None  # type: ignore
   VertexAIFeatureStoreEnrichmentHandler = None  # type: ignore
@@ -39,11 +45,14 @@ except ImportError:
 
 
 @beam.ptransform.ptransform_fn
+@maybe_with_exception_handling_transform_fn
 def enrichment_transform(
     pcoll,
     enrichment_handler: str,
     handler_config: dict[str, Any],
-    timeout: Optional[float] = 30):
+    timeout: Optional[float] = 30,
+    on_miss: Optional[str] = 'null',
+    prefix: Optional[str] = None):
   # pylint: disable=line-too-long
 
   """
@@ -69,17 +78,24 @@ def enrichment_transform(
     Args:
         enrichment_handler (str): Specifies the source from where data needs
           to be extracted into the pipeline for enriching data. One of
-          "BigQuery", "BigTable", "FeastFeatureStore" or "VertexAIFeatureStore".
+          "File", "BigQuery", "BigTable", "FeastFeatureStore" or
+          "VertexAIFeatureStore".
         handler_config (str): Specifies the parameters for the respective
           enrichment_handler in a YAML/JSON format. To see the full set of
           handler_config parameters, see their corresponding doc pages:
 
+            - [FileEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.file.html#apache_beam.transforms.enrichment_handlers.file.FileEnrichmentHandler)
             - [BigQueryEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigquery.html#apache_beam.transforms.enrichment_handlers.bigquery.BigQueryEnrichmentHandler)
             - [BigTableEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler)
             - [FeastFeatureStoreEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.feast_feature_store.html#apache_beam.transforms.enrichment_handlers.feast_feature_store.FeastFeatureStoreEnrichmentHandler)
             - [VertexAIFeatureStoreEnrichmentHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler)
         timeout (float): Timeout for source requests in seconds. Defaults to 30
           seconds.
+        on_miss (str): Behavior when a lookup key is not found: `"null"`
+          (left join, default), `"drop"` (inner join), `"dlq"` (route to
+          `error_handling` output), or `"fail"` (raise error).
+        prefix (str): Optional string prefix prepended to enriched field names
+          to avoid column collisions.
     """
   options.YamlOptions.check_enabled(pcoll.pipeline, 'Enrichment')
 
@@ -95,6 +111,7 @@ def enrichment_transform(
         "Please install using 'pip install feast[gcp]' and try again.")
 
   handler_map = {
+      'File': FileEnrichmentHandler,
       'BigQuery': BigQueryEnrichmentHandler,
       'BigTable': BigTableEnrichmentHandler,
       'FeastFeatureStore': FeastFeatureStoreEnrichmentHandler,
@@ -104,5 +121,11 @@ def enrichment_transform(
   if enrichment_handler not in handler_map:
     raise ValueError(f"Unknown enrichment source: {enrichment_handler}")
 
+  if handler_map[enrichment_handler] is None:
+    raise ValueError(
+        f"gcp dependencies not installed. Cannot use {enrichment_handler} "
+        f"handler. Please install using 'pip install apache-beam[gcp]'.")
+
   handler = handler_map[enrichment_handler](**handler_config)
-  return pcoll | Enrichment(source_handler=handler, timeout=timeout)
+  return pcoll | Enrichment(
+      source_handler=handler, timeout=timeout, on_miss=on_miss, prefix=prefix)
