@@ -24,13 +24,18 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -40,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWork
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
+import org.apache.beam.runners.dataflow.worker.windmill.client.TriggeredScheduledExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -466,6 +472,346 @@ public class GrpcDirectGetWorkStreamTest {
     testStub.injectResponse(createResponse(chunks3, 0));
 
     assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
+  }
+
+  @Test
+  public void testSetBudget_rapidUpdatesBeforeAsyncSend_doesNotExceedMaxBudget()
+      throws InterruptedException {
+    ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+    try {
+      int expectedRequests = 3;
+      CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
+      TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
+      GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
+      serviceRegistry.addService(testStub);
+      stream =
+          createDirectGetWorkStream(
+              GetWorkBudget.noBudget(),
+              NO_OP_WORK_ITEM_SCHEDULER,
+              singleThreadExecutor,
+              Duration.ZERO);
+      stream.start();
+
+      // Hold the async sender thread so rapid updates queue up before any extension is sent.
+      CountDownLatch holdExecutor = holdExecutor(singleThreadExecutor);
+      stream.setBudget(GetWorkBudget.builder().setItems(10).setBytes(100).build());
+      stream.setBudget(GetWorkBudget.builder().setItems(20).setBytes(200).build());
+      stream.setBudget(GetWorkBudget.builder().setItems(30).setBytes(300).build());
+      holdExecutor.countDown();
+
+      assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
+
+      List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
+      assertThat(requests).hasSize(expectedRequests);
+      assertHeader(requests.get(0), GetWorkBudget.noBudget());
+      assertThat(requests.get(1).hasRequestExtension()).isTrue();
+      assertThat(requests.get(2).hasRequestExtension()).isTrue();
+      // Extensions sent across all updates must sum to the 30/300 target without double-counting.
+      long totalExtensionItems =
+          requests.stream().skip(1).mapToLong(r -> r.getRequestExtension().getMaxItems()).sum();
+      long totalExtensionBytes =
+          requests.stream().skip(1).mapToLong(r -> r.getRequestExtension().getMaxBytes()).sum();
+      assertThat(totalExtensionItems).isEqualTo(30L);
+      assertThat(totalExtensionBytes).isEqualTo(300L);
+    } finally {
+      shutdownStreamAndExecutor(singleThreadExecutor);
+    }
+  }
+
+  @Test
+  public void testConsumedWorkItems_batchedChunkDoesNotOverRequestBudget()
+      throws InterruptedException {
+    ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+    try {
+      int expectedRequests = 3;
+      CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
+      TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
+      GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
+      GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(3).setBytes(1000).build();
+      Set<Windmill.WorkItem> scheduledWorkItems = Collections.synchronizedSet(new HashSet<>());
+      serviceRegistry.addService(testStub);
+      stream =
+          createDirectGetWorkStream(
+              initialBudget,
+              (work,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  drainMode,
+                  appliedFinalizeIds,
+                  getWorkStreamLatencies) -> scheduledWorkItems.add(work),
+              singleThreadExecutor,
+              Duration.ZERO);
+      stream.start();
+
+      Windmill.WorkItem workItem1 = createWorkItem("somewhat_long_key1", 1L);
+      Windmill.WorkItem workItem2 = createWorkItem("somewhat_long_key2", 2L);
+      Windmill.WorkItem workItem3 = createWorkItem("somewhat_long_key3", 3L);
+
+      CountDownLatch holdExecutor = holdExecutor(singleThreadExecutor);
+      // Inject 3 items in a single response while the executor is blocked. Item 2 brings
+      // in-flight items down to 1 (<= 2/2) and records a +2 extension; Item 3 must observe that
+      // updated budget and NOT queue a duplicate extension.
+      testStub.injectResponse(createResponse(workItem1, workItem2, workItem3));
+      holdExecutor.countDown();
+
+      // Raise max budget; delta must reflect the +2 extension already recorded by Item 2.
+      GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(10).setBytes(2000).build();
+      stream.setBudget(finalBudget);
+
+      assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
+      assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
+
+      List<Windmill.StreamingGetWorkRequest> requests = requestObserver.sent();
+      assertThat(requests).hasSize(expectedRequests);
+      assertHeader(requests.get(0), initialBudget);
+      long itemSize = workItem1.getSerializedSize();
+      assertThat(requests.get(1).getRequestExtension())
+          .isEqualTo(extension(GetWorkBudget.builder().setItems(2).setBytes(2 * itemSize).build()));
+      assertThat(requests.get(2).getRequestExtension())
+          .isEqualTo(
+              extension(GetWorkBudget.builder().setItems(8).setBytes(1000 + itemSize).build()));
+    } finally {
+      shutdownStreamAndExecutor(singleThreadExecutor);
+    }
+  }
+
+  @Test
+  public void testHalfClosePhysicalStream_staleExtensionAndClosingResponse_isolatedFromNewEpoch()
+      throws InterruptedException {
+    DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
+    try {
+      MultiStreamTestStub stub = new MultiStreamTestStub(2);
+      serviceRegistry.addService(stub);
+      GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(1).setBytes(100).build();
+      Set<Windmill.WorkItem> scheduledWorkItems = Collections.synchronizedSet(new HashSet<>());
+      stream =
+          createDirectGetWorkStream(
+              initialBudget,
+              (work,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  drainMode,
+                  appliedFinalizeIds,
+                  getWorkStreamLatencies) -> scheduledWorkItems.add(work),
+              executor,
+              Duration.ofSeconds(60));
+      stream.start();
+      assertHeader(stub.takeRequest(0), initialBudget);
+
+      // Deliver only the first chunk of workItem1 on stream 0 before half-close.
+      Windmill.WorkItem workItem1 = createWorkItem("split_across_half_close", 1L);
+      Windmill.WorkItem workItem2 = createWorkItem("after_half_close", 2L);
+      ByteString item1Bytes = workItem1.toByteString();
+      int splitIdx = item1Bytes.size() / 2;
+      stub.injectResponse(
+          0,
+          createResponse(
+              Collections.singletonList(item1Bytes.substring(0, splitIdx)),
+              item1Bytes.size() - splitIdx));
+
+      // Queue an epoch-1 extension task without executing it yet, then half-close stream 0 into
+      // stream 1 (epoch 2).
+      GetWorkBudget intermediateBudget = GetWorkBudget.builder().setItems(4).setBytes(1000).build();
+      executor.deferring = true;
+      stream.setBudget(intermediateBudget);
+      executor.deferring = false;
+
+      assertTrue(executor.unblockNextFuture());
+      assertHeader(stub.takeRequest(1), intermediateBudget);
+
+      // Complete workItem1 and send workItem2 on closing stream 0; scheduler must deliver both
+      // items while epoch 2 ignores their budget consumption.
+      stub.injectResponse(
+          0,
+          createResponse(
+              Arrays.asList(item1Bytes.substring(splitIdx), workItem2.toByteString()), 0));
+      assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2);
+
+      // Drain the stale epoch-1 extension task; streamEpoch gating must drop it.
+      executor.drainDeferred();
+      flushExecutor(executor);
+
+      GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(20).setBytes(5000).build();
+      stream.setBudget(finalBudget);
+      Windmill.StreamingGetWorkRequest stream1Ext = stub.takeRequest(1);
+      assertTrue(stream1Ext.hasRequestExtension());
+      assertThat(stream1Ext.getRequestExtension())
+          .isEqualTo(extension(finalBudget.subtract(intermediateBudget)));
+      assertThat(stub.requests(0)).isEmpty();
+      assertThat(stub.requests(1)).isEmpty();
+      assertThat(stub.streamCount()).isEqualTo(2);
+    } finally {
+      shutdownStreamAndExecutor(executor);
+    }
+  }
+
+  // Blocks a single-threaded executor until countDown() so async sends queue deterministically.
+  private static CountDownLatch holdExecutor(ScheduledExecutorService executor)
+      throws InterruptedException {
+    CountDownLatch hold = new CountDownLatch(1);
+    CountDownLatch blocked = new CountDownLatch(1);
+    executor.execute(
+        () -> {
+          blocked.countDown();
+          try {
+            hold.await(5, TimeUnit.SECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
+    assertTrue(blocked.await(5, TimeUnit.SECONDS));
+    return hold;
+  }
+
+  private void shutdownStreamAndExecutor(ScheduledExecutorService executor)
+      throws InterruptedException {
+    if (stream != null) {
+      stream.shutdown();
+    }
+    inProcessChannel.shutdownNow();
+    if (stream != null) {
+      assertTrue(stream.awaitTermination(5, TimeUnit.SECONDS));
+    }
+    executor.shutdownNow();
+  }
+
+  private static void flushExecutor(ScheduledExecutorService executor) throws InterruptedException {
+    CountDownLatch flushed = new CountDownLatch(1);
+    executor.execute(flushed::countDown);
+    assertTrue(flushed.await(5, TimeUnit.SECONDS));
+  }
+
+  private static Windmill.WorkItem createWorkItem(String key, long token) {
+    return Windmill.WorkItem.newBuilder()
+        .setKey(ByteString.copyFromUtf8(key))
+        .setWorkToken(token)
+        .setShardingKey(token)
+        .setCacheToken(token)
+        .build();
+  }
+
+  private GrpcDirectGetWorkStream createDirectGetWorkStream(
+      GetWorkBudget initialBudget,
+      WorkItemScheduler workItemScheduler,
+      ScheduledExecutorService executor,
+      Duration halfClosePhysicalStreamAfter) {
+    return (GrpcDirectGetWorkStream)
+        GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+            .setScheduledExecutorServiceSupplier(() -> executor)
+            .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(halfClosePhysicalStreamAfter)
+            .build()
+            .createDirectGetWorkStream(
+                WindmillConnection.builder()
+                    .setStubSupplier(
+                        () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                    .build(),
+                Windmill.GetWorkRequest.newBuilder()
+                    .setClientId(TEST_JOB_HEADER.getClientId())
+                    .setJobId(TEST_JOB_HEADER.getJobId())
+                    .setProjectId(TEST_JOB_HEADER.getProjectId())
+                    .setWorkerId(TEST_JOB_HEADER.getWorkerId())
+                    .setMaxItems(initialBudget.items())
+                    .setMaxBytes(initialBudget.bytes())
+                    .build(),
+                mock(HeartbeatSender.class),
+                mock(GetDataClient.class),
+                mock(WorkCommitter.class),
+                workItemScheduler);
+  }
+
+  /** Buffers {@code execute()} tasks on demand to replay stale tasks after a half-close. */
+  private static final class DeferrableScheduledExecutorService
+      extends TriggeredScheduledExecutorService {
+    private final List<Runnable> deferred = Collections.synchronizedList(new ArrayList<>());
+    private volatile boolean deferring;
+
+    @Override
+    public void execute(Runnable command) {
+      if (deferring) {
+        deferred.add(command);
+      } else {
+        super.execute(command);
+      }
+    }
+
+    private void drainDeferred() {
+      List<Runnable> tasks;
+      synchronized (deferred) {
+        tasks = new ArrayList<>(deferred);
+        deferred.clear();
+      }
+      if (!tasks.isEmpty()) {
+        super.execute(() -> tasks.forEach(Runnable::run));
+      }
+    }
+  }
+
+  private static class MultiStreamTestStub
+      extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
+    private final List<BlockingQueue<Windmill.StreamingGetWorkRequest>> requestsPerStream;
+    private final List<CountDownLatch> streamStartedLatches;
+    private final List<StreamObserver<Windmill.StreamingGetWorkResponseChunk>> responseObservers =
+        Collections.synchronizedList(new ArrayList<>());
+
+    private MultiStreamTestStub(int expectedStreams) {
+      this.requestsPerStream = new ArrayList<>(expectedStreams);
+      this.streamStartedLatches = new ArrayList<>(expectedStreams);
+      for (int i = 0; i < expectedStreams; i++) {
+        requestsPerStream.add(new LinkedBlockingQueue<>());
+        streamStartedLatches.add(new CountDownLatch(1));
+      }
+    }
+
+    @Override
+    public synchronized StreamObserver<Windmill.StreamingGetWorkRequest> getWorkStream(
+        StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver) {
+      int streamIdx = responseObservers.size();
+      responseObservers.add(responseObserver);
+      BlockingQueue<Windmill.StreamingGetWorkRequest> streamRequests =
+          streamIdx < requestsPerStream.size()
+              ? requestsPerStream.get(streamIdx)
+              : new LinkedBlockingQueue<>();
+      if (streamIdx < streamStartedLatches.size()) {
+        streamStartedLatches.get(streamIdx).countDown();
+      }
+      return new StreamObserver<Windmill.StreamingGetWorkRequest>() {
+        @Override
+        public void onNext(Windmill.StreamingGetWorkRequest request) {
+          streamRequests.add(request);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {}
+
+        @Override
+        public void onCompleted() {}
+      };
+    }
+
+    private Windmill.StreamingGetWorkRequest takeRequest(int streamIdx)
+        throws InterruptedException {
+      assertTrue(streamStartedLatches.get(streamIdx).await(5, TimeUnit.SECONDS));
+      return checkNotNull(
+          requestsPerStream.get(streamIdx).poll(5, TimeUnit.SECONDS),
+          "Timed out waiting for request on stream %s",
+          streamIdx);
+    }
+
+    private BlockingQueue<Windmill.StreamingGetWorkRequest> requests(int streamIdx) {
+      return requestsPerStream.get(streamIdx);
+    }
+
+    private int streamCount() {
+      return responseObservers.size();
+    }
+
+    private void injectResponse(int streamIdx, Windmill.StreamingGetWorkResponseChunk chunk)
+        throws InterruptedException {
+      assertTrue(streamStartedLatches.get(streamIdx).await(5, TimeUnit.SECONDS));
+      responseObservers.get(streamIdx).onNext(chunk);
+    }
   }
 
   private static class GetWorkStreamTestStub
