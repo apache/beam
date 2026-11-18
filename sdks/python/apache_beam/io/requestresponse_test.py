@@ -278,6 +278,10 @@ class TestCaller(unittest.TestCase):
     scalar_matched = _reattach_window_metadata([w1], 'single_resp')
     self.assertEqual(float(scalar_matched[0].timestamp), 100.0)
 
+    from apache_beam.io.requestresponse import FlattenBatch
+    self.assertEqual(
+        list(FlattenBatch().process(['raw_a', 'raw_b'])), ['raw_a', 'raw_b'])
+
 
 if __name__ == '__main__':
   unittest.main()
