@@ -726,13 +726,14 @@ tasks.register("validateChanges") {
 
     val bracketedTagRegex = Regex("\\[(?:$changesTagPattern)(?:/(?:$changesTagPattern))*\\]")
     val linkRegex = Regex("\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)")
+    val noIssueLinkRegex = Regex("""<!--\s*no-issue-link:\s*(?!--)\S(?:(?!--).)*?-->""")
 
     items.forEach { (i, line) ->
       if (line.startsWith("* ")) {
         println("Checking line ${i+1}: $line")
 
         // Skip comment lines
-        if (line.startsWith("* [comment]:")) {
+        if (line.startsWith("[comment]: #")) {
           println("  Skipping comment line")
         } else {
           // Rule 1: Check if language or runner references use parentheses instead of brackets
@@ -761,12 +762,12 @@ tasks.register("validateChanges") {
             println("  No bracketed language/runner reference found")
           }
 
-          // Rule 2: Check if each entry links an issue or a PR
-          val hasLink = linkRegex.containsMatchIn(line)
+          // Rule 2: Check if each entry links an issue or a PR (or opts out with <!-- no-issue-link: reason -->)
+          val hasLink = linkRegex.containsMatchIn(line) || noIssueLinkRegex.containsMatchIn(line)
           println("  Has issue link: $hasLink")
 
           if (!hasLink) {
-            val error = "Line ${i+1}: Missing or malformed issue link. Each entry must end with a reference to an Issue or a PR, for example: ([#X](https://github.com/apache/beam/issues/X)): $line"
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry must end with a reference to an Issue or a PR, for example: ([#X](https://github.com/apache/beam/issues/X)), or opt out with <!-- no-issue-link: reason -->: $line"
             println("  Adding error: $error")
             errors.add(error)
           }
