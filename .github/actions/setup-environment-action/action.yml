@@ -142,7 +142,7 @@ runs:
         echo "${cargo_bin}" >> "${GITHUB_PATH}"
         rustc --version
         cargo --version
-    - name: Install protoc
+    - name: Install protoc (Rust)
       if: ${{ inputs.rust-version != '' }}
       uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
