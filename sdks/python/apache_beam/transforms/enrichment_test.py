@@ -16,8 +16,8 @@
 #
 
 import logging
-from typing import Any
 import unittest
+from typing import Any
 
 import apache_beam as beam
 from apache_beam.io.requestresponse import NoOpsRepeater
