@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
@@ -104,49 +105,44 @@ public class IcebergUtils {
           .put(Timestamp.IDENTIFIER, java.time.Instant.class)
           .build();
 
-  /**
-   * Parses Iceberg {@code timestamp} strings: an ISO-8601 date and time, optionally separated by a
-   * space, a {@code 'T'}, or both, e.g. {@code 2024-10-08T13:18:20.053} or {@code 2024-10-08
-   * 13:18:20.053}.
-   */
-  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+  private static final DateTimeFormatter TIMESTAMP_SPACE_FORMATTER =
       new DateTimeFormatterBuilder()
           .parseCaseInsensitive()
           .append(ISO_LOCAL_DATE)
-          .optionalStart()
           .appendLiteral(' ')
-          .optionalEnd()
-          .optionalStart()
-          .appendLiteral('T')
-          .optionalEnd()
           .append(ISO_LOCAL_TIME)
           .toFormatter()
           .withResolverStyle(ResolverStyle.STRICT)
           .withChronology(IsoChronology.INSTANCE);
 
-  /**
-   * Parses Iceberg {@code timestamptz} strings: {@link #TIMESTAMP_FORMATTER}, then an optional
-   * offset, then an optional space and zone ID, e.g. {@code 2024-10-08T13:18:20.053Z}, {@code
-   * 2024-10-08 13:18:20.053+03:27} or {@code 2024-10-08 13:18:20.053 UTC}. If both are present, the
-   * offset takes precedence. Without either, UTC is assumed.
-   */
-  private static final DateTimeFormatter TIMESTAMPTZ_FORMATTER =
+  private static final DateTimeFormatter TIMESTAMPTZ_SPACE_FORMATTER =
       new DateTimeFormatterBuilder()
-          .append(TIMESTAMP_FORMATTER)
-          .optionalStart()
+          .append(TIMESTAMP_SPACE_FORMATTER)
           .parseLenient()
           .appendOffsetId()
           .parseStrict()
-          .optionalEnd()
-          .optionalStart()
-          .appendLiteral(' ')
-          .parseCaseSensitive()
-          .appendZoneRegionId()
-          .optionalEnd()
           .toFormatter()
           .withResolverStyle(ResolverStyle.STRICT)
-          .withChronology(IsoChronology.INSTANCE)
-          .withZone(ZoneOffset.UTC);
+          .withChronology(IsoChronology.INSTANCE);
+
+  // Parse timestamptz strings that end with a space and a zone ID instead of an offset, e.g.
+  // "2024-10-08T13:18:20.053 UTC" and "2024-10-08 13:18:20.053 America/New_York".
+  private static final DateTimeFormatter TIMESTAMPTZ_ZONE_ID_FORMATTER =
+      zoneIdFormatter(ISO_LOCAL_DATE_TIME);
+
+  private static final DateTimeFormatter TIMESTAMPTZ_SPACE_ZONE_ID_FORMATTER =
+      zoneIdFormatter(TIMESTAMP_SPACE_FORMATTER);
+
+  private static DateTimeFormatter zoneIdFormatter(DateTimeFormatter localDateTimeFormatter) {
+    return new DateTimeFormatterBuilder()
+        .append(localDateTimeFormatter)
+        .appendLiteral(' ')
+        .parseCaseSensitive()
+        .appendZoneRegionId()
+        .toFormatter()
+        .withResolverStyle(ResolverStyle.STRICT)
+        .withChronology(IsoChronology.INSTANCE);
+  }
 
   private static Schema.FieldType icebergTypeToBeamFieldType(
       final Type type, @Nullable String updateCompatibilityVersion) {
@@ -582,9 +578,21 @@ public class IcebergUtils {
       } else if (beamValue instanceof Long) { // FieldType.INT64
         return DateTimeUtil.timestamptzFromMicros((Long) beamValue);
       } else if (beamValue instanceof String) { // FieldType.STRING
-        return ZonedDateTime.parse((String) beamValue, TIMESTAMPTZ_FORMATTER)
-            .withZoneSameInstant(ZoneOffset.UTC)
-            .toOffsetDateTime();
+        String value = (String) beamValue;
+        if (hasZoneId(value)) {
+          return ZonedDateTime.parse(
+                  value,
+                  hasSpaceSeparator(value)
+                      ? TIMESTAMPTZ_SPACE_ZONE_ID_FORMATTER
+                      : TIMESTAMPTZ_ZONE_ID_FORMATTER)
+              .withZoneSameInstant(ZoneOffset.UTC)
+              .toOffsetDateTime();
+        }
+        OffsetDateTime offsetDateTime =
+            hasSpaceSeparator(value)
+                ? OffsetDateTime.parse(value, TIMESTAMPTZ_SPACE_FORMATTER)
+                : OffsetDateTime.parse(value);
+        return offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC);
       } else {
         throw new UnsupportedOperationException(
             "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
@@ -601,11 +609,23 @@ public class IcebergUtils {
     } else if (beamValue instanceof Long) { // FieldType.INT64
       return DateTimeUtil.timestampFromMicros((Long) beamValue);
     } else if (beamValue instanceof String) { // FieldType.STRING
-      return LocalDateTime.parse((String) beamValue, TIMESTAMP_FORMATTER);
+      String value = (String) beamValue;
+      return hasSpaceSeparator(value)
+          ? LocalDateTime.parse(value, TIMESTAMP_SPACE_FORMATTER)
+          : LocalDateTime.parse(value);
     } else {
       throw new UnsupportedOperationException(
           "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
     }
+  }
+
+  private static boolean hasSpaceSeparator(String timestamp) {
+    return timestamp.length() > 10 && timestamp.charAt(10) == ' ';
+  }
+
+  // A space after the date and time, as in "2024-10-08 13:18:20.053 UTC", comes before a zone ID.
+  private static boolean hasZoneId(String timestamp) {
+    return timestamp.lastIndexOf(' ') > 10;
   }
 
   /** Converts a {@link StructLike} to a Beam {@link Row}. */

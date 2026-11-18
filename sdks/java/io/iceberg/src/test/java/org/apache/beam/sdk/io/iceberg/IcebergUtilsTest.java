@@ -338,27 +338,17 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testTimestampWithZoneStringWithoutZoneIsUtc() {
-      OffsetDateTime expected =
-          OffsetDateTime.of(2024, 10, 8, 9, 51, 20, 53_000_000, ZoneOffset.UTC);
-      for (String val : Arrays.asList("2024-10-08T09:51:20.053", "2024-10-08 09:51:20.053")) {
-        checkRowValueToRecordValue(
-            Schema.FieldType.STRING, val, Types.TimestampType.withZone(), expected);
-      }
-    }
-
-    @Test
-    public void testTimestampWithZoneStringWithOffsetAndZoneId() {
-      // The offset takes precedence over the zone ID.
-      OffsetDateTime expected =
-          OffsetDateTime.of(2024, 10, 8, 9, 51, 20, 53_000_000, ZoneOffset.UTC);
+    public void testTimestampWithZoneStringWithoutExactlyOneOffsetOrZoneId() {
       for (String val :
           Arrays.asList(
+              "2024-10-08T09:51:20.053",
+              "2024-10-08 09:51:20.053",
               "2024-10-08 09:51:20.053Z UTC",
               "2024-10-08 13:18:20.053+03:27 America/New_York",
               "2024-10-08T13:18:20.053+03:27 UTC")) {
-        checkRowValueToRecordValue(
-            Schema.FieldType.STRING, val, Types.TimestampType.withZone(), expected);
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val));
       }
     }
 
@@ -394,33 +384,19 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testTimestampStringWithOptionalSeparator() {
-      // A space followed by 'T', or no separator at all, is also accepted.
-      LocalDateTime localDateTime = LocalDateTime.of(2024, 10, 8, 13, 18, 20, 53_000_000);
-      for (String val : Arrays.asList("2024-10-08 T13:18:20.053", "2024-10-0813:18:20.053")) {
-        checkRowValueToRecordValue(
-            Schema.FieldType.STRING, val, Types.TimestampType.withoutZone(), localDateTime);
-        checkRowValueToRecordValue(
-            Schema.FieldType.STRING,
-            val + "Z",
-            Types.TimestampType.withZone(),
-            localDateTime.atOffset(ZoneOffset.UTC));
-      }
-    }
-
-    @Test
     public void testTimestampStringWithInvalidSeparator() {
       for (String val :
           Arrays.asList(
-              "2024-10-08  13:18:20.053",
-              "2024-10-08T 13:18:20.053",
-              "2024-10-08T13:18:20.053 13:18:20.053")) {
+              "2024-10-08 T13:18:20.053", "2024-10-0813:18:20.053", "2024-10-08  13:18:20.053")) {
         assertThrows(
             DateTimeParseException.class,
             () -> toIcebergRecord(Types.TimestampType.withoutZone(), val));
         assertThrows(
             DateTimeParseException.class,
             () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + " UTC"));
       }
     }
 
