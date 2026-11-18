@@ -127,6 +127,7 @@
 ### Package upgrades
 * [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
 * (Python) Upgraded the `vllm` extra to vLLM 0.32.0, which requires `openai>=2.25.0`, `transformers>=5.16.1`, and `torch==2.13.0` ([#41005](https://github.com/apache/beam/issues/41005)).
+* (Python) Python SDK container images (including ML images) and the Python expansion service image are now based on Debian 13 (trixie) instead of Debian 12 (bookworm). Custom images that extend `apache/beam_python3.X_sdk` and install system packages may need updates for packages renamed in trixie (for example, versioned libraries). Native extensions built from source now use GCC 14. To stay on bookworm, build a custom image from `python:3.X-bookworm` and copy `/opt/apache/beam` from the Beam SDK image (see [custom containers](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image)) ([#41458](https://github.com/apache/beam/issues/41458)).
 
 ### API changes
 * [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
