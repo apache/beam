@@ -348,6 +348,16 @@ public class DeltaLakeToLakehouseCdcExample {
     void setCatalogUri(String value);
 
     @Description(
+        "Optional stable identifier for the Iceberg CDC sink ('sink_id'), used to namespace "
+            + "idempotency tokens written to Iceberg snapshot summaries. For batch CDC runs, "
+            + "passing a deterministic range-scoped sinkId (for example "
+            + "'delta_lake_to_lakehouse_cdc_sync-v2-to-v4') allows the Iceberg CDC sink to "
+            + "recognize and skip duplicate commits if the same range is retried after committing.")
+    @Nullable String getSinkId();
+
+    void setSinkId(@Nullable String value);
+
+    @Description(
         "If true (default), waits until the pipeline reaches a terminal state before returning "
             + "from main(). Set to false for asynchronous submission. Note that when launched as a "
             + "Dataflow Flex Template, Dataflow returns a DataflowTemplateJob and this pipeline "
@@ -434,6 +444,11 @@ public class DeltaLakeToLakehouseCdcExample {
       if (!equalityCols.isEmpty()) {
         writeConfig.put("equality_columns", equalityCols);
       }
+    }
+
+    @Nullable String sinkId = options.getSinkId();
+    if (sinkId != null && !sinkId.trim().isEmpty()) {
+      writeConfig.put("sink_id", sinkId.trim());
     }
     return writeConfig;
   }

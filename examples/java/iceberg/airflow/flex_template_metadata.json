@@ -96,6 +96,13 @@
       "paramType": "TEXT"
     },
     {
+      "name": "sinkId",
+      "label": "Iceberg CDC Sink ID",
+      "helpText": "Optional stable identifier for the Iceberg CDC sink ('sink_id') used for idempotency tokens in snapshot summaries (e.g., '<dag_id>-v2-to-v4'). Retries reusing the same sinkId skip already-committed ranges.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
       "name": "waitUntilFinish",
       "label": "Wait Until Finish",
       "helpText": "If true, waits until the pipeline completes. When launched as a Dataflow Flex Template, the pipeline automatically exits after submitting the job graph.",

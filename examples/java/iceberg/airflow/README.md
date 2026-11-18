@@ -137,8 +137,10 @@ gcloud dataflow flex-template build \
      --location="us-central1" \
      --source="examples/java/iceberg/airflow/delta_lake_to_lakehouse_cdc_dag.py"
    ```
-4. Set the initial commit watermark variable to the baseline commit version
-   already covered by your initial snapshot:
+4. **Initialize the commit watermark variable (required before the first run)**
+   to the baseline commit version already covered by your initial snapshot (the
+   DAG fails fast if neither this Variable nor `initial_synced_version` in run
+   config is set):
    ```bash
    gcloud composer environments run my-composer-env \
      --location="us-central1" \
@@ -191,34 +193,55 @@ export AIRFLOW__CORE__LOAD_EXAMPLES=False
 
 ## How Delta Version ID Boundaries Are Handled
 
-`delta_lake_to_lakehouse_cdc_dag.py` protects against duplicate inserts, missed
-commits, and schema-evolution mismatches with five safeguards:
+`delta_lake_to_lakehouse_cdc_dag.py` protects against duplicate commits, missed
+commits, and schema-evolution mismatches with six safeguards:
 
-1. **Inclusive Boundary Math (`start_version = last_synced_version + 1`)**:
+1. **Explicit Baseline Watermark Required**:
+   `initial_synced_version` defaults to `null`. On the first run, the DAG fails
+   fast unless either the Airflow watermark Variable
+   (`delta_to_lakehouse_cdc_last_synced_version`) has been initialized or
+   `initial_synced_version` is explicitly passed in DAG run config—preventing
+   an overlooked config from silently re-applying commits from the beginning.
+2. **Inclusive Boundary Math (`start_version = last_synced_version + 1`)**:
    Both `startVersion` and `endVersion` in `Managed.DELTA_LAKE_CDC` are
    inclusive. Each run starts strictly at `last_synced_version + 1` so no commit
    is ever re-applied.
-2. **Explicit Upper-Bound Pinning**: Before launching Dataflow,
+3. **Explicit Upper-Bound Pinning**: Before launching Dataflow,
    `resolve_version_boundary` queries the Delta `_delta_log` to pin `endVersion`
    explicitly. Commits written to Delta Lake while Dataflow is running are
    cleanly deferred to the next DAG run.
-3. **Caught-Up Short-Circuiting**: When `start_version > latest_version`,
+4. **Caught-Up Short-Circuiting**: When `start_version > latest_version`,
    `branch_on_new_commits` routes to `skip_no_new_commits` without submitting an
    invalid Dataflow job.
-4. **CDF Validation & Schema-Evolution Boundary Splitting**:
+5. **CDF Validation & Schema-Evolution Gating**:
    - Verifies `delta.enableChangeDataFeed = true` holds across
      `[start_version, end_version]`.
    - When `stop_before_schema_change=True` (default) and a schema change occurs
      at commit `V > start_version`, caps `end_version = V - 1` so all commits
-     preceding the schema change migrate cleanly first. You can then apply the
-     corresponding `ALTER TABLE` schema update on the target Lakehouse Iceberg
-     table and let the next DAG run resume from commit `V`.
+     preceding the schema change migrate cleanly first.
+   - On the subsequent run when `start_version == V`, the DAG **fails fast**
+     until you apply the corresponding `ALTER TABLE` schema update on the target
+     Lakehouse Iceberg table and trigger one run with
+     `{"acknowledged_schema_change_version": V}` (keeping schema-change gating
+     active for any later schema changes).
    - Optionally limits commits per job via `max_versions_per_run`.
-5. **Concurrency Control & Atomic Watermark Advancement**:
-   - `max_active_runs=1` prevents overlapping runs from reading the same
-     watermark.
+6. **End-to-End Idempotency (`sink_id` + Pending Range) & Atomic Watermark
+   Advancement**:
+   - `max_active_runs=1` prevents overlapping runs from racing on the watermark,
+     and `retries=0` prevents blind automatic Dataflow re-submissions if a
+     failure occurs after commit.
+   - Before launching Dataflow, `resolve_version_boundary` computes a
+     deterministic, range-scoped `--sinkId`
+     (`<dag_id>-v{start_version}-to-v{end_version}`), passes it to the Iceberg
+     CDC sink (`sink_id`), and persists `{start_version, end_version, sink_id}`
+     in `<watermark_variable>_pending`.
+   - If Airflow fails after the Dataflow job has already committed to Iceberg
+     (before `advance_version_watermark` finishes), the next run detects the
+     pending Variable and reuses the **exact same commit range and `sink_id`**.
+     Beam's Iceberg CDC sink checks its `beam.cdc.committed-through-ms.<sink_id>`
+     snapshot token, recognizes that the range already committed, and skips
+     writing duplicate commits cleanly.
    - `DataflowStartFlexTemplateOperator` runs with `wait_until_finished=True`,
      and `advance_version_watermark` updates
-     `delta_to_lakehouse_cdc_last_synced_version = end_version` only after the
-     Dataflow job finishes in `JOB_STATE_DONE`. Failed runs leave the watermark
-     unchanged for safe retries.
+     `delta_to_lakehouse_cdc_last_synced_version = end_version` before clearing
+     the pending Variable.
