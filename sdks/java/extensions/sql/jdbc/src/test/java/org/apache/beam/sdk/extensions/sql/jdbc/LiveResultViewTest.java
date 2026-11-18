@@ -63,12 +63,13 @@ public class LiveResultViewTest {
   private final PipedOutputStream keys = new PipedOutputStream();
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
   private int firstNewFrame;
+  private Terminal terminal;
   private Connection connection;
   private Statement statement;
 
   @Before
   public void setUp() throws Exception {
-    Terminal terminal =
+    terminal =
         new ExternalTerminal("test", "xterm-256color", new PipedInputStream(keys), screen, UTF_8);
     terminal.setSize(new Size(80, 12));
     LiveResult.setViewer(new LiveResultView(() -> terminal, frames::add));
@@ -126,6 +127,24 @@ public class LiveResultViewTest {
     assertThat(screen.toString(UTF_8.name()), containsString("Live view closed after"));
   }
 
+  @Test
+  public void drawsEachRowOnItsOwnLine() throws Exception {
+    Future<ResultSet> query = executor.submit(() -> statement.executeQuery("SELECT * FROM seq"));
+    awaitFrame(lines -> rows(lines).size() == 8);
+    // A resize redraws the whole screen at the new size.
+    terminal.setSize(new Size(100, 16));
+    awaitFrame(lines -> lines.size() == 16 && rows(lines).size() == 12);
+    press("q");
+    query.get(30, TimeUnit.SECONDS).close();
+
+    // Rows that wrap into each other look like one long line to terminals that keep track of
+    // wrapped lines.
+    String output = screen.toString(UTF_8.name());
+    int resized = output.lastIndexOf("\033[2J");
+    assertEquals(0, wraps(output.substring(output.indexOf("\033[2J"), resized), 80));
+    assertEquals(0, wraps(output.substring(resized, output.indexOf("\033[?1049l")), 100));
+  }
+
   private void press(String key) throws IOException {
     firstNewFrame = frames.size();
     keys.write(key.getBytes(UTF_8));
@@ -164,5 +183,65 @@ public class LiveResultViewTest {
 
   private static List<String> cells(String line) {
     return Arrays.stream(line.split("│")).map(String::trim).collect(toList());
+  }
+
+  /**
+   * Counts the characters that {@code output} writes past the end of a row {@code width} columns
+   * wide, which the terminal wraps onto the next row. It follows the cursor's column through the
+   * kinds of sequences that the view writes.
+   */
+  private static int wraps(String output, int width) {
+    int wraps = 0;
+    // At width, the cursor is past the last column, and the next character wraps.
+    int column = 0;
+    for (int i = 0; i < output.length(); ) {
+      char c = output.charAt(i++);
+      if (c == '\033' && output.charAt(i) == '[') {
+        int end = i + 1;
+        while (output.charAt(end) < '@' || output.charAt(end) > '~') {
+          end++;
+        }
+        String params = output.substring(i + 1, end);
+        int n = params.matches("\\d+") ? Integer.parseInt(params) : 1;
+        switch (output.charAt(end)) {
+          case 'C':
+            column = Math.min(width - 1, column + n);
+            break;
+          case 'D':
+            column = Math.max(0, Math.min(column, width - 1) - n);
+            break;
+          case 'G':
+            column = n - 1;
+            break;
+          case 'H':
+            column =
+                params.contains(";")
+                    ? Integer.parseInt(params.substring(params.indexOf(';') + 1)) - 1
+                    : 0;
+            break;
+          case 'L':
+          case 'M':
+            column = 0;
+            break;
+          default:
+            // Moves up or down, clears, or sets the style.
+        }
+        i = end + 1;
+      } else if (c == '\033') {
+        // ESC ( B picks a character set. The view's other escapes are two characters long.
+        i += output.charAt(i) == '(' ? 2 : 1;
+      } else if (c == '\r') {
+        column = 0;
+      } else if (c == '\b') {
+        column = Math.max(0, Math.min(column, width - 1) - 1);
+      } else if (c >= ' ' && !Character.isLowSurrogate(c)) {
+        if (column == width) {
+          wraps++;
+          column = 0;
+        }
+        column++;
+      }
+    }
+    return wraps;
   }
 }
