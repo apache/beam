@@ -49,8 +49,21 @@ public abstract class JobInvoker {
   }
 
   private ListeningExecutorService createExecutorService(String name) {
+    final ClassLoader classLoader = getClass().getClassLoader();
+    ThreadFactory baseFactory = Executors.defaultThreadFactory();
     ThreadFactory threadFactory =
-        new ThreadFactoryBuilder().setNameFormat(name).setDaemon(true).build();
+        new ThreadFactoryBuilder()
+            .setThreadFactory(
+                r -> {
+                  Thread t = baseFactory.newThread(r);
+                  // Prevent job invoker threads from inheriting a transient task classloader
+                  // (e.g. a closed Spark ExecutorClassLoader) from gRPC executor threads.
+                  t.setContextClassLoader(classLoader);
+                  return t;
+                })
+            .setNameFormat(name)
+            .setDaemon(true)
+            .build();
     return MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(threadFactory));
   }
 

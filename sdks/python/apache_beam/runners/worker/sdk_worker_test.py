@@ -432,6 +432,34 @@ class SdkWorkerTest(unittest.TestCase):
     mock_bundle_processor.process_bundle.assert_called_once_with(
         instruction_id, 'stream_xyz')
 
+  def test_cancelled_state_request_logs_info(self):
+    state_handler = sdk_worker.GrpcStateHandler(mock.MagicMock())
+    state_handler._context.process_instruction_id = 'bundle_1'
+    cancelled_response = beam_fn_api_pb2.StateResponse(
+        id='1',
+        error='Work item cancelled by runner',
+        error_reason=beam_fn_api_pb2.StateResponse.ErrorReason.CANCELLED)
+    state_handler._request = mock.MagicMock(
+        return_value=sdk_worker._Future().set(cancelled_response))
+
+    with self.assertRaises(sdk_worker.WorkCancelledException):
+      state_handler._blocking_request(beam_fn_api_pb2.StateRequest())
+
+    with mock.patch('grpc.channel_ready_future'):
+      harness = sdk_worker.SdkHarness('localhost:0')
+    request = beam_fn_api_pb2.InstructionRequest(instruction_id='bundle_1')
+    with mock.patch.object(sdk_worker._LOGGER, 'info') as mock_info, \
+         mock.patch.object(sdk_worker._LOGGER, 'error') as mock_error:
+      harness._execute(
+          lambda: state_handler._blocking_request(
+              beam_fn_api_pb2.StateRequest()),
+          request)
+      mock_info.assert_called_once()
+      mock_error.assert_not_called()
+    response = harness._responses.get_nowait()
+    self.assertEqual(response.instruction_id, 'bundle_1')
+    self.assertIn('Work item cancelled by runner', response.error)
+
 
 class CachingStateHandlerTest(unittest.TestCase):
   def test_caching(self):

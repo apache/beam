@@ -192,6 +192,11 @@ class Scope(LightweightScope):
     self.input_providers = input_providers
     self._all_followers = None
 
+  def __reduce__(self):
+    # Scope is construction-only, but closures attached in create_ptransform
+    # can pull it (and all providers) into user DoFn pickles. Stub it out.
+    return str, ('Pickled YAML scope stub.', )
+
   def followers(self, transform_name):
     if self._all_followers is None:
       self._all_followers = collections.defaultdict(list)

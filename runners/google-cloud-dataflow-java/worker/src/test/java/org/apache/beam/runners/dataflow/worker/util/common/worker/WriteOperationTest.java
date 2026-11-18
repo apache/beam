@@ -21,9 +21,11 @@ import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -181,5 +183,62 @@ public class WriteOperationTest {
     inOrder.verify(context).enterFinish();
     inOrder.verify(sinkWriter).close();
     inOrder.verify(finishCloseable).close();
+  }
+
+  @Test
+  public void testFinishKey() throws Exception {
+    OperationContext mockContext = mock(OperationContext.class);
+    when(mockContext.counterFactory()).thenReturn(counterSet);
+    when(mockContext.nameContext()).thenReturn(NameContextsForTests.nameContextForTest());
+    Closeable startCloseable = mock(Closeable.class);
+    Closeable processCloseable = mock(Closeable.class);
+    when(mockContext.enterStart()).thenReturn(startCloseable);
+    when(mockContext.enterProcess()).thenReturn(processCloseable);
+
+    Sink sink = mock(Sink.class);
+    Sink.SinkWriter sinkWriter = mock(Sink.SinkWriter.class);
+    when(sink.writer()).thenReturn(sinkWriter);
+
+    WriteOperation operation = WriteOperation.forTest(sink, mockContext);
+    operation.start();
+    operation.finishKey("key1");
+
+    verify(mockContext).enterProcess();
+    verify(sinkWriter).finishKey("key1");
+    verify(processCloseable).close();
+  }
+
+  @Test
+  public void testFinishKey_unstarted_throwsException() throws Exception {
+    Sink sink = mock(Sink.class);
+    WriteOperation operation = WriteOperation.forTest(sink, context);
+
+    assertThrows(AssertionError.class, () -> operation.finishKey("key1"));
+  }
+
+  @Test
+  public void testFinishKey_nullKey() throws Exception {
+    Sink sink = mock(Sink.class);
+    Sink.SinkWriter sinkWriter = mock(Sink.SinkWriter.class);
+    when(sink.writer()).thenReturn(sinkWriter);
+
+    WriteOperation operation = WriteOperation.forTest(sink, context);
+    operation.start();
+    operation.finishKey(null);
+
+    verify(sinkWriter).finishKey(null);
+  }
+
+  @Test
+  public void testFinishKey_exceptionPropagates() throws Exception {
+    Sink sink = mock(Sink.class);
+    Sink.SinkWriter sinkWriter = mock(Sink.SinkWriter.class);
+    when(sink.writer()).thenReturn(sinkWriter);
+    doThrow(new IOException("finishKey error")).when(sinkWriter).finishKey("key1");
+
+    WriteOperation operation = WriteOperation.forTest(sink, context);
+    operation.start();
+
+    assertThrows(IOException.class, () -> operation.finishKey("key1"));
   }
 }

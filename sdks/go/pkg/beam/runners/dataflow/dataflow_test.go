@@ -24,9 +24,12 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestDontUseFlagAsPipelineOption(t *testing.T) {
@@ -364,6 +367,67 @@ func TestGetJobOptions_DockerGCROverride(t *testing.T) {
 	}
 }
 
+func TestGetContainerImage_CustomBaseRepository(t *testing.T) {
+	const base = "docker.example.com/my-prefix/cloud-dataflow/v1beta3"
+	for _, value := range []string{base, base + "/", " " + base + " "} {
+		resetGlobals()
+		*jobopts.EnvironmentType = "docker"
+		*containerBaseRepository = value
+
+		if got, want := getContainerImage(context.Background()), base+"/beam_go_sdk:"+core.SdkVersion; got != want {
+			t.Errorf("getContainerImage() with base repository %q = %q, want %q", value, got, want)
+		}
+	}
+}
+
+func TestGetContainerImage_SdkContainerImageTakesPrecedenceOverBaseRepository(t *testing.T) {
+	resetGlobals()
+	*jobopts.EnvironmentType = "docker"
+	*containerBaseRepository = "docker.example.com/prefix"
+	*image = "testContainerImageOverride"
+
+	if got, want := getContainerImage(context.Background()), "testContainerImageOverride"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestUpdateBeamContainerImagesForDataflow(t *testing.T) {
+	const base = "docker.example.com/my-prefix/cloud-dataflow/v1beta3"
+	const sdkImage = "apache/beam_go_sdk:2.60.0"
+	tests := map[string]struct {
+		urn, image, want string
+	}{
+		"xlang":      {graphx.URNEnvDocker, "apache/beam_java11_sdk:2.60.0", base + "/beam_java11_sdk:2.60.0"},
+		"xlangRC":    {graphx.URNEnvDocker, "apache/beam_python3.11_sdk:2.60.0rc1", base + "/beam_python3.11_sdk:2.60.0"},
+		"sdkImage":   {graphx.URNEnvDocker, sdkImage, sdkImage},
+		"nonBeam":    {graphx.URNEnvDocker, "other_org/beam_java11_sdk:2.60.0", "other_org/beam_java11_sdk:2.60.0"},
+		"overridden": {graphx.URNEnvDocker, "gcr.io/my-project/beam_java11_sdk:2.60.0", "gcr.io/my-project/beam_java11_sdk:2.60.0"},
+		"notDocker":  {"beam:env:process:v1", "apache/beam_java11_sdk:2.60.0", "apache/beam_java11_sdk:2.60.0"},
+	}
+	envs := map[string]*pipepb.Environment{}
+	for name, test := range tests {
+		pl, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: test.image})
+		if err != nil {
+			t.Fatal(err)
+		}
+		envs[name] = &pipepb.Environment{Urn: test.urn, Payload: pl}
+	}
+	p := &pipepb.Pipeline{Components: &pipepb.Components{Environments: envs}}
+
+	if err := updateBeamContainerImagesForDataflow(p, base, sdkImage); err != nil {
+		t.Fatalf("updateBeamContainerImagesForDataflow() returned error %v", err)
+	}
+	for name, test := range tests {
+		var payload pipepb.DockerPayload
+		if err := proto.Unmarshal(p.GetComponents().GetEnvironments()[name].GetPayload(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if got := payload.GetContainerImage(); got != test.want {
+			t.Errorf("%s: container image = %q, want %q", name, got, test.want)
+		}
+	}
+}
+
 func TestGetJobOptions_TransformMapping(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = "gs://testStagingLocation"
@@ -584,6 +648,7 @@ func resetGlobals() {
 	*gcpopts.Project = ""
 	*gcpopts.Region = ""
 	*image = ""
+	*containerBaseRepository = ""
 	*jobopts.EnvironmentType = ""
 	*jobopts.EnvironmentConfig = ""
 	*jobopts.Experiments = ""

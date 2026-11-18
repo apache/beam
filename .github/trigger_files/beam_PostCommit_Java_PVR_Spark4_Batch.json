@@ -1,4 +1,5 @@
 {
   "comment": "Modify this file in a trivial way to cause this test suite to run.",
-  "https://github.com/apache/beam/pull/39990": "removing dead code from FnApiDoFnRunner"
+  "https://github.com/apache/beam/pull/39990": "removing dead code from FnApiDoFnRunner",
+  "https://github.com/apache/beam/issues/40427": "Spark ValidatesRunner tests run serially"
 }

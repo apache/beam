@@ -61,22 +61,24 @@ type Server struct {
 	execute func(*Job)
 
 	// Artifact hack
-	artifacts map[string][]byte
+	artifacts   map[string][]byte
+	artifactsMu sync.RWMutex
 
 	mw *worker.MultiplexW
 }
 
-// NewServer acquires the indicated port.
+// NewServer acquires the indicated port on localhost.
 func NewServer(port int, execute func(*Job)) *Server {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
 	s := &Server{
-		lis:     lis,
-		jobs:    make(map[string]*Job),
-		execute: execute,
-		logger:  slog.Default(), // TODO substitute with a configured logger.
+		lis:       lis,
+		jobs:      make(map[string]*Job),
+		execute:   execute,
+		artifacts: map[string][]byte{},
+		logger:    slog.Default(), // TODO substitute with a configured logger.
 	}
 	s.logger.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
 	opts := []grpc.ServerOption{

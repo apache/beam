@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.data;
 import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -50,6 +51,7 @@ import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.logging.LoggingClient;
 import org.apache.beam.fn.harness.logging.LoggingClientFactory;
+import org.apache.beam.fn.harness.state.WorkCancelledException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -699,6 +701,88 @@ public class PCollectionConsumerRegistryTest {
 
       assertEquals(expectedEntry, actualEntryCulled);
 
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void doesNotLogWorkCancelledException() throws Exception {
+    final String pTransformId = "pTransformId";
+    final String message = "Work item cancelled";
+    final String instructionId = "instruction";
+    final Exception thrownException = new RuntimeException(new WorkCancelledException(message));
+
+    AtomicBoolean clientClosedStream = new AtomicBoolean();
+    Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
+    AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
+        new AtomicReference<>();
+    CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
+        TestStreams.withOnNext(
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
+            .withOnCompleted(
+                () -> {
+                  clientClosedStream.set(true);
+                  outboundServerObserver.get().onCompleted();
+                })
+            .build();
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.LogEntry.List> logging(
+                      StreamObserver<BeamFnApi.LogControl> outboundObserver) {
+                    outboundServerObserver.set(outboundObserver);
+                    return inboundServerObserver;
+                  }
+                })
+            .build();
+    server.start();
+    ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
+    ExecutionStateSampler.ExecutionStateTracker stateTracker = sampler.create();
+    stateTracker.start("process-bundle");
+    ExecutionStateSampler.ExecutionState state =
+        stateTracker.create("shortId", pTransformId, pTransformId, "process");
+    state.activate();
+
+    BeamFnLoggingMDC.setInstructionId(instructionId);
+    BeamFnLoggingMDC.setStateTracker(stateTracker);
+
+    try (LoggingClient ignored =
+        LoggingClientFactory.createAndStart(
+            PipelineOptionsFactory.create(),
+            apiServiceDescriptor,
+            (Endpoints.ApiServiceDescriptor descriptor) -> channel)) {
+
+      ShortIdMap shortIds = new ShortIdMap();
+      BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+      PCollectionConsumerRegistry consumers =
+          new PCollectionConsumerRegistry(
+              stateTracker, shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
+      FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
+
+      consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
+
+      FnDataReceiver<WindowedValue<String>> wrapperConsumer =
+          (FnDataReceiver<WindowedValue<String>>)
+              (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
+
+      doThrow(thrownException).when(consumer).accept(any());
+      expectedException.expect(is(thrownException));
+
+      wrapperConsumer.accept(valueInGlobalWindow("elem"));
+
+    } finally {
+      assertTrue(values.isEmpty());
       server.shutdownNow();
     }
   }

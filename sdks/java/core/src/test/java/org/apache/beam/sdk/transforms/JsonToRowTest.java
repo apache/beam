@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -316,6 +319,8 @@ public class JsonToRowTest implements Serializable {
 
     PCollection<Row> personRows = results.getResults();
     PCollection<Row> errorsWithMsg = results.getFailedToParseLines();
+
+    assertThat(errorsWithMsg.getSchema(), equalTo(customSchema));
 
     PAssert.that(personRows).containsInAnyOrder(PERSON_ROWS);
 

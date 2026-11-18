@@ -19,10 +19,19 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
+import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
+import com.solacesystems.jcsmp.XMLMessageProducer;
+import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.junit.Before;
 import org.junit.Test;
@@ -102,5 +111,98 @@ public class BasicAuthWriterSessionTest {
     assertEquals(
         Long.valueOf(50),
         Long.valueOf(props.getIntegerProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE)));
+  }
+
+  @Test
+  public void testRecreateProducerAndSessionAfterClose() {
+    AtomicInteger sessionsCreated = new AtomicInteger();
+    AtomicBoolean lastSessionClosed = new AtomicBoolean(false);
+    AtomicBoolean lastProducerClosed = new AtomicBoolean(false);
+
+    JcsmpSessionService service =
+        new JcsmpSessionService() {
+          private final JCSMPProperties props = new JCSMPProperties();
+
+          @Override
+          JCSMPProperties jcsmpProperties() {
+            return props;
+          }
+
+          @Override
+          Queue queue() {
+            return null;
+          }
+
+          @Override
+          public boolean equals(Object other) {
+            return this == other;
+          }
+
+          @Override
+          public int hashCode() {
+            return System.identityHashCode(this);
+          }
+
+          @Override
+          JCSMPSession createWriteSessionObject(SolaceIO.SubmissionMode mode) {
+            sessionsCreated.incrementAndGet();
+            AtomicBoolean sessionClosed = new AtomicBoolean(false);
+            lastSessionClosed.set(false);
+            return (JCSMPSession)
+                Proxy.newProxyInstance(
+                    JCSMPSession.class.getClassLoader(),
+                    new Class<?>[] {JCSMPSession.class},
+                    (proxy, method, args) -> {
+                      switch (method.getName()) {
+                        case "connect":
+                          return null;
+                        case "closeSession":
+                          sessionClosed.set(true);
+                          lastSessionClosed.set(true);
+                          return null;
+                        case "isClosed":
+                          return sessionClosed.get();
+                        case "getMessageProducer":
+                          AtomicBoolean producerClosed = new AtomicBoolean(false);
+                          lastProducerClosed.set(false);
+                          return Proxy.newProxyInstance(
+                              XMLMessageProducer.class.getClassLoader(),
+                              new Class<?>[] {XMLMessageProducer.class},
+                              (pProxy, pMethod, pArgs) -> {
+                                switch (pMethod.getName()) {
+                                  case "isClosed":
+                                    return producerClosed.get();
+                                  case "close":
+                                    producerClosed.set(true);
+                                    lastProducerClosed.set(true);
+                                    return null;
+                                  default:
+                                    throw new UnsupportedOperationException(pMethod.getName());
+                                }
+                              });
+                        default:
+                          throw new UnsupportedOperationException(method.getName());
+                      }
+                    });
+          }
+        };
+
+    MessageProducer firstProducer =
+        service.getInitializedProducer(SolaceIO.SubmissionMode.HIGHER_THROUGHPUT);
+    assertSame(
+        firstProducer, service.getInitializedProducer(SolaceIO.SubmissionMode.HIGHER_THROUGHPUT));
+    assertEquals(1, sessionsCreated.get());
+    assertFalse(lastSessionClosed.get());
+    assertFalse(lastProducerClosed.get());
+
+    service.close();
+    assertTrue(lastProducerClosed.get());
+    assertTrue(lastSessionClosed.get());
+
+    MessageProducer secondProducer =
+        service.getInitializedProducer(SolaceIO.SubmissionMode.HIGHER_THROUGHPUT);
+    assertNotSame(firstProducer, secondProducer);
+    assertEquals(2, sessionsCreated.get());
+    assertFalse(secondProducer.isClosed());
   }
 }

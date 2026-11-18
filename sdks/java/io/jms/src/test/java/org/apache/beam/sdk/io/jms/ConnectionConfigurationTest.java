@@ -22,9 +22,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSException;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -79,22 +79,22 @@ public class ConnectionConfigurationTest {
     }
 
     @Override
-    public javax.jms.JMSContext createContext() {
+    public jakarta.jms.JMSContext createContext() {
       return null;
     }
 
     @Override
-    public javax.jms.JMSContext createContext(int sessionMode) {
+    public jakarta.jms.JMSContext createContext(int sessionMode) {
       return null;
     }
 
     @Override
-    public javax.jms.JMSContext createContext(String username, String password) {
+    public jakarta.jms.JMSContext createContext(String username, String password) {
       return null;
     }
 
     @Override
-    public javax.jms.JMSContext createContext(String username, String password, int sessionMode) {
+    public jakarta.jms.JMSContext createContext(String username, String password, int sessionMode) {
       return null;
     }
   }
@@ -137,11 +137,12 @@ public class ConnectionConfigurationTest {
   public void testClientsNotSlippedIntoRuntimeDependencies() {
     // Verify IBM MQ client is not present on runtime classpath
     assertThrows(
-        ClassNotFoundException.class, () -> Class.forName("com.ibm.mq.jms.MQConnectionFactory"));
+        ClassNotFoundException.class,
+        () -> Class.forName("com.ibm.mq.jakarta.jms.MQConnectionFactory"));
 
     ConnectionConfiguration config =
         ConnectionConfiguration.create("tcp://localhost:1414")
-            .withConnectionFactoryClassName("com.ibm.mq.jms.MQConnectionFactory");
+            .withConnectionFactoryClassName("com.ibm.mq.jakarta.jms.MQConnectionFactory");
     IllegalArgumentException exception =
         assertThrows(IllegalArgumentException.class, config::createConnectionFactory);
     assertTrue(exception.getCause() instanceof ClassNotFoundException);

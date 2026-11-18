@@ -85,20 +85,30 @@ def json_type_to_beam_type(json_type: dict[str, Any]) -> schema_pb2.FieldType:
   if not isinstance(json_type, dict) or 'type' not in json_type:
     raise ValueError(f'Malformed type {json_type}.')
   type_name = json_type['type']
+  nullable = bool(json_type.get('nullable', False))
+  if isinstance(type_name, list):
+    non_null_types = [t for t in type_name if t != 'null']
+    if 'null' in type_name:
+      nullable = True
+    if len(non_null_types) != 1:
+      raise ValueError(f'Unable to convert {json_type} to a Beam schema.')
+    type_name = non_null_types[0]
+
   if type_name in JSON_ATOMIC_TYPES_TO_BEAM:
-    return schema_pb2.FieldType(
+    beam_type = schema_pb2.FieldType(
         atomic_type=JSON_ATOMIC_TYPES_TO_BEAM[type_name])
   elif type_name == 'array':
-    return schema_pb2.FieldType(
+    beam_type = schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(
             element_type=json_type_to_beam_type(json_type['items'])))
   elif type_name == 'object':
     if 'properties' in json_type:
-      return schema_pb2.FieldType(
+      beam_type = schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
-              schema=json_schema_to_beam_schema(json_type)))
+              schema=json_schema_to_beam_schema(dict(json_type,
+                                                     type='object'))))
     elif 'additionalProperties' in json_type:
-      return schema_pb2.FieldType(
+      beam_type = schema_pb2.FieldType(
           map_type=schema_pb2.MapType(
               key_type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
               value_type=json_type_to_beam_type(
@@ -109,6 +119,10 @@ def json_type_to_beam_type(json_type: dict[str, Any]) -> schema_pb2.FieldType:
           f'got {json_type}.')
   else:
     raise ValueError(f'Unable to convert {json_type} to a Beam schema.')
+
+  if nullable:
+    beam_type.nullable = True
+  return beam_type
 
 
 def beam_schema_to_json_schema(

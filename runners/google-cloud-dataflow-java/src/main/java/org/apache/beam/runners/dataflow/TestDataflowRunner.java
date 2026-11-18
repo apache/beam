@@ -19,29 +19,44 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
+import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
+import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -58,17 +73,70 @@ import org.slf4j.LoggerFactory;
 })
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+
+  @VisibleForTesting
+  static final String DAILY_STAGING_DIR = "staging-" + LocalDate.now(ZoneOffset.UTC);
+
+  static final String MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY =
+      "beam.dataflow.maxConcurrentStandaloneJobs";
+  private static final int DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS = 12;
+
+  /**
+   * Per-JVM cap on concurrently running standalone jobs. The permit count is a system property set
+   * once per test JVM by Gradle ({@link #MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY}).
+   *
+   * <p>Every path that runs a test as a job of its own takes a permit here: tests that are not
+   * eligible for batching, tests whose batch turned out to be a batch of one, and tests executed
+   * again standalone after a merged job yielded no verdict for them. The last group can arrive in a
+   * burst (every member of an abandoned merged job at once), which is exactly when a shared cap
+   * matters. Merged jobs do not take a permit: there are only ever a handful in flight per JVM
+   * (bounded by test threads divided by batch size), each stands in for up to a whole batch of
+   * tests, and queueing one behind single-test jobs would invert that priority.
+   *
+   * <p>Fair, so the test that has waited longest for a permit is next: with many test threads per
+   * JVM an unfair semaphore can let a test starve behind a steady stream of newer arrivals.
+   */
+  private static final Semaphore STANDALONE_SEMAPHORE =
+      new Semaphore(
+          Math.max(
+              1,
+              Integer.getInteger(
+                  MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS)),
+          true);
+
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
+
+  /**
+   * Backoff for job submissions rejected by the service for quota (HTTP 429). Many test JVMs share
+   * the project's job-creation quota with no coordination between them, so a rejection usually just
+   * means a brief burst; waiting it out beats failing the test. Roughly 30s, 1m, 2m, 2m, 2m (with
+   * jitter), i.e. up to five retries over about eight minutes.
+   */
+  private static final FluentBackoff SUBMISSION_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(Duration.standardSeconds(30))
+          .withMaxBackoff(Duration.standardMinutes(2))
+          .withMaxRetries(5);
 
   private final TestDataflowPipelineOptions options;
   private final DataflowClient dataflowClient;
   private final DataflowRunner runner;
+  private final DataflowTestBatchCoordinator batchCoordinator;
+  private Sleeper sleeper = Sleeper.DEFAULT;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowRunner(TestDataflowPipelineOptions options, DataflowClient client) {
+    this(options, client, DataflowTestBatchCoordinator.shared());
+  }
+
+  TestDataflowRunner(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
     this.options = options;
     this.dataflowClient = client;
     this.runner = DataflowRunner.fromOptions(options);
+    this.batchCoordinator = batchCoordinator;
   }
 
   /** Constructs a runner from the provided options. */
@@ -85,6 +153,23 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       tempLocation = tempLocation.substring(0, tempLocation.length() - File.separator.length());
     }
     dataflowOptions.setTempLocation(tempLocation);
+    String defaultPerJobStagingLocation =
+        FileSystems.matchNewDirectory(tempLocation, "staging").toString();
+    String unversionedSharedStagingLocation =
+        FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), "staging").toString();
+    String rawStagingLocation = dataflowOptions.getStagingLocation();
+    String configuredStagingLocation =
+        rawStagingLocation != null
+            ? FileSystems.matchNewDirectory(rawStagingLocation).toString()
+            : null;
+    // Scope shared test staging directories by UTC date so tests running on the same day reuse
+    // staged JARs without referencing objects near the 7-day GCS lifecycle deletion threshold.
+    if (defaultPerJobStagingLocation.equals(configuredStagingLocation)
+        || unversionedSharedStagingLocation.equals(configuredStagingLocation)) {
+      dataflowOptions.setStagingLocation(
+          FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), DAILY_STAGING_DIR)
+              .toString());
+    }
 
     return new TestDataflowRunner(
         dataflowOptions, DataflowClient.create(options.as(DataflowPipelineOptions.class)));
@@ -96,17 +181,115 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return new TestDataflowRunner(options, client);
   }
 
+  @VisibleForTesting
+  static TestDataflowRunner fromOptionsAndClient(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
+    return new TestDataflowRunner(options, client, batchCoordinator);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     return run(pipeline, runner);
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    return batchCoordinator.isEligibleForBatching(pipeline, options)
+        ? batchCoordinator.runInBatch((TestPipeline) pipeline, options, this, runner)
+        : runStandalone(pipeline, runner);
+  }
+
+  @VisibleForTesting
+  void setSleeper(Sleeper sleeper) {
+    this.sleeper = sleeper;
+  }
+
+  /**
+   * Submits {@code pipeline} through {@code runner}, retrying with backoff while the service
+   * rejects the submission for quota (HTTP 429). Any other failure propagates immediately.
+   */
+  DataflowPipelineJob submit(DataflowRunner runner, Pipeline pipeline) {
+    BackOff backOff = BackOffAdapter.toGcpBackOff(SUBMISSION_BACKOFF_FACTORY.backoff());
+    while (true) {
+      try {
+        return runner.run(pipeline);
+      } catch (RuntimeException e) {
+        GoogleJsonResponseException quota = quotaRejection(e);
+        if (quota == null) {
+          throw e;
+        }
+        boolean retry;
+        try {
+          retry = BackOffUtils.next(sleeper, backOff);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
+        } catch (IOException ioe) {
+          throw e;
+        }
+        if (!retry) {
+          LOG.warn("Dataflow job submission still rejected for quota after retries; giving up.");
+          throw e;
+        }
+        LOG.warn(
+            "Dataflow job submission rejected for quota ({}); retrying.",
+            quota.getDetails() != null ? quota.getDetails().getMessage() : quota.getMessage());
+      }
+    }
+  }
+
+  /** The HTTP 429 response behind {@code t}, if that is what caused it. */
+  @VisibleForTesting
+  static @Nullable GoogleJsonResponseException quotaRejection(Throwable t) {
+    java.util.Optional<GoogleJsonResponseException> handledCause =
+        Throwables.getCausalChain(t).stream()
+            .filter(cause -> cause instanceof GoogleJsonResponseException)
+            .map(cause -> (GoogleJsonResponseException) cause)
+            .filter(cause -> cause.getStatusCode() == 429)
+            .findAny();
+    return handledCause.orElse(null);
+  }
+
+  /**
+   * Runs {@code pipeline} as its own Dataflow job, holding a permit from {@link
+   * #STANDALONE_SEMAPHORE} for its duration.
+   */
+  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
+    boolean acquired = false;
+    try {
+      STANDALONE_SEMAPHORE.acquire();
+      acquired = true;
+      return runStandaloneInternal(pipeline, runner);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      if (acquired) {
+        STANDALONE_SEMAPHORE.release();
+      }
+    }
+  }
+
+  /**
+   * Fetches {@code job} with {@code JOB_VIEW_ALL}, which carries per-stage execution states and the
+   * stage-to-user-step description needed to attribute stages to batch members. Returns {@code
+   * null} if the service call fails.
+   */
+  @Nullable Job getJobWithExecutionDetails(DataflowPipelineJob job) {
+    try {
+      return dataflowClient.getJob(job.getJobId(), "JOB_VIEW_ALL");
+    } catch (IOException e) {
+      LOG.warn("Failed to get execution details for Dataflow job {}: ", job.getJobId(), e);
+      return null;
+    }
+  }
+
+  private DataflowPipelineJob runStandaloneInternal(Pipeline pipeline, DataflowRunner runner) {
     updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = options.as(TestPipelineOptions.class);
-    final DataflowPipelineJob job;
-    job = runner.run(pipeline);
+    final DataflowPipelineJob job = submit(runner, pipeline);
 
     LOG.info(
         "Running Dataflow job {} with {} expected assertions.",
@@ -157,14 +340,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
-  @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
-  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
     // we try to terminate early by polling and canceling if we see
     // an error message
-    options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+    Future<?> cancelOnError =
+        options.getExecutorService().submit(new CancelOnError(job, messageHandler));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
@@ -177,15 +359,27 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (InterruptedException e) {
       Thread.interrupted();
       return false;
+    } finally {
+      cancelOnError.cancel(true);
     }
 
     // Getting the final state may have timed out; it may not indicate a failure.
     // This cancellation may be the second
     if (finalState == null || !finalState.isTerminal()) {
-      LOG.info(
-          "Dataflow job {} took longer than {} seconds to complete, cancelling.",
-          job.getJobId(),
-          options.getTestTimeoutSeconds());
+      if (messageHandler.hasSeenRetryableInfrastructureError()) {
+        LOG.warn(
+            "Dataflow job {} did not complete within {} seconds while the service was retrying an"
+                + " infrastructure error; cancelling. The failure is most likely capacity, not the"
+                + " test: {}",
+            job.getJobId(),
+            options.getTestTimeoutSeconds(),
+            messageHandler.getErrorMessage());
+      } else {
+        LOG.info(
+            "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+            job.getJobId(),
+            options.getTestTimeoutSeconds());
+      }
       try {
         job.cancel();
       } catch (IOException e) {
@@ -193,8 +387,98 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
+      // Retryable infrastructure errors do not count: if the job still reached DONE, the service
+      // recovered from them and the pipeline ran to completion.
       return finalState == State.DONE && !messageHandler.hasSeenError();
     }
+  }
+
+  /** How waiting on a merged job ended; see {@link #waitForMergedJobTermination}. */
+  static final class MergedJobWait {
+    enum Kind {
+      /** The job reached {@link #terminalState}. */
+      TERMINATED,
+      /** The job was still running when the timeout passed. */
+      TIMED_OUT,
+      /**
+       * The job's state could not be fetched for long enough that polling gave up before the
+       * timeout; the job itself may be perfectly healthy.
+       */
+      POLLING_FAILED,
+      /** The waiting thread was interrupted. */
+      INTERRUPTED
+    }
+
+    final Kind kind;
+    final @Nullable State terminalState;
+
+    private MergedJobWait(Kind kind, @Nullable State terminalState) {
+      this.kind = kind;
+      this.terminalState = terminalState;
+    }
+
+    static MergedJobWait terminated(State state) {
+      return new MergedJobWait(Kind.TERMINATED, state);
+    }
+
+    static MergedJobWait of(Kind kind) {
+      return new MergedJobWait(kind, null);
+    }
+
+    @Override
+    public String toString() {
+      return kind == Kind.TERMINATED ? "terminated in state " + terminalState : kind.toString();
+    }
+  }
+
+  /**
+   * Waits up to {@code timeout} (negative for no limit) for a merged test job to terminate, feeding
+   * its log messages to {@code messageHandler}.
+   *
+   * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
+   * the verdict for several tests at once, so it is never allowed to block them forever. A merged
+   * streaming job is additionally watched by {@link CancelOnError}, exactly like a standalone
+   * streaming job: a failing step would otherwise retry until the timeout.
+   *
+   * <p>{@link DataflowPipelineJob#waitUntilFinish} reports both "deadline passed" and "could not
+   * reach the service" as {@code null}; the two are told apart here by the time spent, since
+   * polling gives up well before a sane timeout. The distinction matters because the right reaction
+   * differs: a job that outlived its timeout should be cancelled, a job that merely could not be
+   * observed should be left alone.
+   */
+  MergedJobWait waitForMergedJobTermination(
+      DataflowPipelineJob job, Duration timeout, ErrorMonitorMessagesHandler messageHandler) {
+    @Nullable Future<?> cancelOnError =
+        options.isStreaming()
+            ? options.getExecutorService().submit(new CancelOnError(job, messageHandler))
+            : null;
+    long startNanos = System.nanoTime();
+    try {
+      State state = job.waitUntilFinish(timeout, messageHandler);
+      if (state != null && state.isTerminal()) {
+        return MergedJobWait.terminated(state);
+      }
+      long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+      boolean bounded = timeout.getMillis() > 0;
+      return MergedJobWait.of(
+          bounded && elapsedMillis >= timeout.getMillis()
+              ? MergedJobWait.Kind.TIMED_OUT
+              : MergedJobWait.Kind.POLLING_FAILED);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return MergedJobWait.of(MergedJobWait.Kind.INTERRUPTED);
+    } finally {
+      if (cancelOnError != null) {
+        cancelOnError.cancel(true);
+      }
+    }
+  }
+
+  /** An {@link ErrorMonitorMessagesHandler} for {@code job} that also logs every message. */
+  static ErrorMonitorMessagesHandler errorMonitorFor(DataflowPipelineJob job) {
+    return new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
   }
 
   /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */
@@ -253,21 +537,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return Optional.absent();
     }
 
-    int successes = 0;
-    int failures = 0;
-    for (MetricUpdate metric : metrics.getMetrics()) {
-      if (metric.getName() == null
-          || metric.getName().getContext() == null
-          || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
-        // Don't double count using the non-tentative version of the metric.
-        continue;
-      }
-      if (PAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
-        successes += ((BigDecimal) metric.getScalar()).intValue();
-      } else if (PAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
-        failures += ((BigDecimal) metric.getScalar()).intValue();
-      }
-    }
+    PAssertCounts counts = countPAssertCounters(metrics, step -> true);
+    int successes = counts.successes;
+    int failures = counts.failures;
 
     if (failures > 0) {
       LOG.info(
@@ -309,6 +581,68 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.absent();
   }
 
+  /** Totals of the tentative {@link PAssert} success and failure counters reported by a job. */
+  static final class PAssertCounts {
+    final int successes;
+    final int failures;
+
+    PAssertCounts(int successes, int failures) {
+      this.successes = successes;
+      this.failures = failures;
+    }
+
+    /** Whether no assertion failed and at least {@code expectedAssertions} succeeded. */
+    boolean satisfy(int expectedAssertions) {
+      return failures == 0 && successes >= expectedAssertions;
+    }
+
+    @Override
+    public String toString() {
+      return successes + " success, " + failures + " failures";
+    }
+  }
+
+  /**
+   * Sums the {@link PAssert} success and failure counters in {@code metrics}, considering only the
+   * updates whose Dataflow step (the {@code step} entry of the metric context, or the empty string
+   * if absent) is accepted by {@code stepFilter}. Only the tentative flavour of each counter is
+   * counted so that its committed duplicate does not double count.
+   */
+  static PAssertCounts countPAssertCounters(JobMetrics metrics, Predicate<String> stepFilter) {
+    int successes = 0;
+    int failures = 0;
+    List<MetricUpdate> updates = metrics.getMetrics();
+    if (updates == null) {
+      return new PAssertCounts(successes, failures);
+    }
+    for (MetricUpdate metric : updates) {
+      MetricStructuredName name = metric.getName();
+      if (name == null) {
+        continue;
+      }
+      boolean isSuccess = PAssert.SUCCESS_COUNTER.equals(name.getName());
+      boolean isFailure = PAssert.FAILURE_COUNTER.equals(name.getName());
+      if (!isSuccess && !isFailure) {
+        continue;
+      }
+      Map<String, String> context = name.getContext();
+      if (context == null || !context.containsKey(TENTATIVE_COUNTER)) {
+        continue;
+      }
+      String step = context.get("step");
+      if (!stepFilter.test(step == null ? "" : step)) {
+        continue;
+      }
+      int value = ((BigDecimal) metric.getScalar()).intValue();
+      if (isSuccess) {
+        successes += value;
+      } else {
+        failures += value;
+      }
+    }
+    return new PAssertCounts(successes, failures);
+  }
+
   @VisibleForTesting
   @Nullable JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
@@ -328,52 +662,103 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Monitors job log output messages for errors.
    *
-   * <p>Creates an error message representing the concatenation of all error messages seen.
+   * <p>Errors come in two kinds. A <i>fatal</i> error is a failure of the pipeline itself: a {@link
+   * PAssert} that did not hold, user code that threw, a worker crash. A <i>retryable
+   * infrastructure</i> error is one the service announces it will recover from on its own, such as
+   * a worker pool that could not be started because the zone was out of capacity. The service keeps
+   * retrying those and the job usually goes on to succeed, so they must not be treated as a verdict
+   * on the test: {@link #hasSeenError()} reports fatal errors only. Both kinds are kept for {@link
+   * #getErrorMessage()}, so that a job that never recovers still reports the real cause.
    */
-  private static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
+  static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuilder errorMessage;
+    private final StringBuilder retryableErrorMessage;
     private volatile boolean hasSeenError;
+    private boolean hasSeenRetryableInfrastructureError;
 
-    private ErrorMonitorMessagesHandler(
-        DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+    ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuilder();
+      this.retryableErrorMessage = new StringBuilder();
       this.hasSeenError = false;
+      this.hasSeenRetryableInfrastructureError = false;
     }
 
     @Override
     public void process(List<JobMessage> messages) {
       messageHandler.process(messages);
       for (JobMessage message : messages) {
-        if ("JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
-          LOG.info(
-              "Dataflow job {} threw exception. Failure message was: {}",
+        if (!"JOB_MESSAGE_ERROR".equals(message.getMessageImportance())) {
+          continue;
+        }
+        String text = Strings.nullToEmpty(message.getMessageText());
+        if (isRetryableInfrastructureError(text)) {
+          LOG.warn(
+              "Dataflow job {} reported an infrastructure error that the service will retry;"
+                  + " waiting for it to recover: {}",
               job.getJobId(),
-              message.getMessageText());
-          errorMessage.append(message.getMessageText());
+              text);
+          retryableErrorMessage.append(text);
+          hasSeenRetryableInfrastructureError = true;
+        } else {
+          LOG.info(
+              "Dataflow job {} threw exception. Failure message was: {}", job.getJobId(), text);
+          errorMessage.append(text);
           hasSeenError = true;
         }
       }
     }
 
+    /** Whether a fatal error has been reported; retryable infrastructure errors do not count. */
     boolean hasSeenError() {
       return hasSeenError;
     }
 
+    boolean hasSeenRetryableInfrastructureError() {
+      return hasSeenRetryableInfrastructureError;
+    }
+
+    /**
+     * The fatal error messages seen so far, or, if there were none, the retryable infrastructure
+     * error messages. Empty if no error was reported at all.
+     */
     String getErrorMessage() {
-      return errorMessage.toString();
+      return errorMessage.length() > 0 ? errorMessage.toString() : retryableErrorMessage.toString();
+    }
+
+    /**
+     * Whether {@code text} is a {@code JOB_MESSAGE_ERROR} that Dataflow itself reports as transient
+     * and keeps retrying, so that it says nothing about the pipeline under test. Kept deliberately
+     * narrow: only wording in which the service states that it will retry, plus the Compute Engine
+     * stockout that dominates ValidatesRunner failures. Anything else is fatal.
+     */
+    @VisibleForTesting
+    static boolean isRetryableInfrastructureError(String text) {
+      if (text.contains("ZONE_RESOURCE_POOL_EXHAUSTED")) {
+        return true;
+      }
+      if (text.contains("Startup of the worker pool") && text.contains("failed to bring up")) {
+        return true;
+      }
+      return text.contains("The service will retry");
     }
   }
 
-  private static class CancelOnError implements Callable<Void> {
+  /**
+   * Polls a job and cancels it as soon as {@code messageHandler} has seen a fatal error. Used for
+   * streaming jobs, where a failing step retries forever instead of failing the job. Retryable
+   * infrastructure errors do not trigger cancellation; the service is given until the test timeout
+   * to recover from them.
+   */
+  static class CancelOnError implements Callable<Void> {
 
     private final DataflowPipelineJob job;
     private final ErrorMonitorMessagesHandler messageHandler;
 
-    public CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
     }

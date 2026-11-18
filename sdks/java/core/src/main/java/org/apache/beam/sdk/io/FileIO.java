@@ -396,6 +396,7 @@ public class FileIO {
         .setIgnoreWindowing(false)
         .setAutoSharding(false)
         .setNoSpilling(false)
+        .setEvictWritersWhenFull(false)
         .build();
   }
 
@@ -410,6 +411,7 @@ public class FileIO {
         .setIgnoreWindowing(false)
         .setAutoSharding(false)
         .setNoSpilling(false)
+        .setEvictWritersWhenFull(false)
         .build();
   }
 
@@ -1059,6 +1061,8 @@ public class FileIO {
 
     abstract boolean getNoSpilling();
 
+    abstract boolean getEvictWritersWhenFull();
+
     abstract @Nullable Integer getMaxNumWritersPerBundle();
 
     abstract @Nullable Integer getBatchSize();
@@ -1116,6 +1120,8 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setEvictWritersWhenFull(boolean evictWritersWhenFull);
 
       abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(
           @Nullable Integer maxNumWritersPerBundle);
@@ -1366,6 +1372,11 @@ public class FileIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withEvictWritersWhenFull()}. */
+    public Write<DestinationT, UserT> withEvictWritersWhenFull() {
+      return toBuilder().setEvictWritersWhenFull(true).build();
+    }
+
     /**
      * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
      * WriteFiles#withMaxNumWritersPerBundle()}.
@@ -1511,6 +1522,7 @@ public class FileIO {
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
       resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
+      resolvedSpec.setEvictWritersWhenFull(getEvictWritersWhenFull());
       if (getMaxNumWritersPerBundle() != null) {
         resolvedSpec.setMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       }
@@ -1534,6 +1546,9 @@ public class FileIO {
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getEvictWritersWhenFull()) {
+        writeFiles = writeFiles.withEvictWritersWhenFull();
       }
       if (getMaxNumWritersPerBundle() != null) {
         writeFiles = writeFiles.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());

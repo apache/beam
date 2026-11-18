@@ -39,7 +39,10 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports, unused-import
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  if not GCS_INSTALLED:
+    raise unittest.SkipTest('GCP dependencies are not installed')
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 

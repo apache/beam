@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesImpulse;
@@ -28,10 +29,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for Impulse. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class ImpulseTest {
   @Rule public transient TestPipeline p = TestPipeline.create();
 

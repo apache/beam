@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -85,7 +86,7 @@ public class AssignCdcKeysTest {
   @Rule public transient TemporaryFolder tmp = new TemporaryFolder();
   @Rule public final TestName testName = new TestName();
 
-  private static final String SEQ_COL = CdcWriteConfig.DEFAULT_SEQUENCE_NUMBER_COLUMN;
+  private static final String SEQ_COL = IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER;
   private static final int NUM_SHARDS = 8;
 
   private static final org.apache.iceberg.Schema ICEBERG_SCHEMA =

@@ -228,6 +228,34 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
 
+  def test_match_relative_glob_in_cwd(self):
+    with self.tmpdir_as_cwd():
+      open('users.json-00000-of-00002', 'a').close()
+      open('users.json-00001-of-00002', 'a').close()
+      open('other.txt', 'a').close()
+      os.mkdir('subdir')
+      open(os.path.join('subdir', 'nested.json'), 'a').close()
+
+      result = self.fs.match(['users.json*'])[0]
+      files = [f.path for f in result.metadata_list]
+      self.assertCountEqual(
+          files, ['users.json-00000-of-00002', 'users.json-00001-of-00002'])
+
+      nested = self.fs.match(['**'])[0]
+      nested_files = [f.path for f in nested.metadata_list]
+      self.assertCountEqual(
+          nested_files,
+          [
+              'users.json-00000-of-00002',
+              'users.json-00001-of-00002',
+              'other.txt',
+              os.path.join('subdir', 'nested.json'),
+          ])
+
+      self.fs.delete(['users.json*'])
+      self.assertFalse(self.fs.exists('users.json-00000-of-00002'))
+      self.assertTrue(self.fs.exists('other.txt'))
+
   def test_copy(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')

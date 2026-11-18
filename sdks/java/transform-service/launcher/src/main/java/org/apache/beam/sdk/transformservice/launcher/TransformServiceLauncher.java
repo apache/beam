@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transformservice.launcher;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,6 +47,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Can be either used programatically or as an executable jar.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class TransformServiceLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(TransformServiceLauncher.class);

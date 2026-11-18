@@ -40,7 +40,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link TokenizationBigTableIO} class for writing data from template to BigTable. */
+/** The {@link TokenizationBigTableIO} class for writing data from template to Bigtable. */
 public class TokenizationBigTableIO {
 
   /** Logger for class. */
@@ -101,7 +101,7 @@ public class TokenizationBigTableIO {
                                   .build())
                           .build())
               .collect(Collectors.toSet());
-      // Converting key value to BigTable format
+      // Converting key value to Bigtable format
       String columnName = in.getString(options.getBigTableKeyColumnName());
       if (columnName != null) {
         ByteString key = ByteString.copyFrom(columnName, StandardCharsets.UTF_8);
@@ -128,31 +128,31 @@ public class TokenizationBigTableIO {
 
   /**
    * Necessary {@link PipelineOptions} options for Pipelines that perform write operations to
-   * BigTable.
+   * Bigtable.
    */
   public interface BigTableOptions extends PipelineOptions {
 
-    @Description("Id of the project where the Cloud BigTable instance to write into is located.")
+    @Description("Id of the project where the Cloud Bigtable instance to write into is located.")
     String getBigTableProjectId();
 
     void setBigTableProjectId(String bigTableProjectId);
 
-    @Description("Id of the Cloud BigTable instance to write into.")
+    @Description("Id of the Cloud Bigtable instance to write into.")
     String getBigTableInstanceId();
 
     void setBigTableInstanceId(String bigTableInstanceId);
 
-    @Description("Id of the Cloud BigTable table to write into.")
+    @Description("Id of the Cloud Bigtable table to write into.")
     String getBigTableTableId();
 
     void setBigTableTableId(String bigTableTableId);
 
-    @Description("Column name to use as a key in Cloud BigTable.")
+    @Description("Column name to use as a key in Cloud Bigtable.")
     String getBigTableKeyColumnName();
 
     void setBigTableKeyColumnName(String bigTableKeyColumnName);
 
-    @Description("Column family name to use in Cloud BigTable.")
+    @Description("Column family name to use in Cloud Bigtable.")
     String getBigTableColumnFamilyName();
 
     void setBigTableColumnFamilyName(String bigTableColumnFamilyName);

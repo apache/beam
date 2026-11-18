@@ -16,10 +16,23 @@
  * limitations under the License.
  */
 
-import * as serialize_closures from "serialize-closures";
+// Polyfill deprecated util helpers removed in Node 24+ that are still used by
+// serialize-closures.
+const nodeUtil = require("util");
+if (typeof nodeUtil.isPrimitive !== "function") {
+  nodeUtil.isPrimitive = (val: unknown): boolean =>
+    val === null || (typeof val !== "object" && typeof val !== "function");
+}
+if (typeof nodeUtil.isArray !== "function") {
+  nodeUtil.isArray = Array.isArray;
+}
+if (typeof nodeUtil.isFunction !== "function") {
+  nodeUtil.isFunction = (val: unknown): boolean => typeof val === "function";
+}
 
 const registeredModules: string[] = [];
-export const registeredObjects: serialize_closures.BuiltinRecord[] = [];
+export const registeredObjects: import("serialize-closures").BuiltinRecord[] =
+  [];
 const registeredObjectSet: Set<any> = new Set();
 
 /**

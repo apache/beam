@@ -32,6 +32,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.utils import retry
 
 INPUT_TOPIC = 'wc_topic_input'
 OUTPUT_TOPIC = 'wc_topic_output'
@@ -51,27 +52,41 @@ class StreamingWordCountIT(unittest.TestCase):
     # Set up PubSub environment.
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
-    self.input_topic = self.pub_client.create_topic(
+    self.sub_client = pubsub.SubscriberClient()
+
+    gcp_retry = retry.with_exponential_backoff(
+        num_retries=3,
+        initial_delay_secs=2,
+        retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter
+    )
+
+    self.input_topic = gcp_retry(self.pub_client.create_topic)(
         name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
-    self.output_topic = self.pub_client.create_topic(
+    self.output_topic = gcp_retry(self.pub_client.create_topic)(
         name=self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
 
-    self.sub_client = pubsub.SubscriberClient()
-    self.input_sub = self.sub_client.create_subscription(
+    self.input_sub = gcp_retry(self.sub_client.create_subscription)(
         name=self.sub_client.subscription_path(
             self.project, INPUT_SUB + self.uuid),
         topic=self.input_topic.name)
-    self.output_sub = self.sub_client.create_subscription(
+    self.output_sub = gcp_retry(self.sub_client.create_subscription)(
         name=self.sub_client.subscription_path(
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name,
         ack_deadline_seconds=60)
+    import time
+    time.sleep(10)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
     logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
+    futures = []
     for n in range(num_messages):
-      self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
+      futures.append(
+          self.pub_client.publish(
+              self.input_topic.name, str(n).encode('utf-8')))
+    for future in futures:
+      future.result()
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(
@@ -88,7 +103,7 @@ class StreamingWordCountIT(unittest.TestCase):
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     pubsub_msg_verifier = PubSubMessageMatcher(
-        self.project, self.output_sub.name, expected_msg, timeout=400)
+        self.project, self.output_sub.name, expected_msg, timeout=600)
     extra_opts = {
         'input_subscription': self.input_sub.name,
         'output_topic': self.output_topic.name,

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.solace.it;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,25 +36,29 @@ public class SolaceContainerManager {
   public static final String USERNAME = "username";
   public static final String TOPIC_NAME = "test_topic";
   private static final Logger LOG = LoggerFactory.getLogger(SolaceContainerManager.class);
+  private static final int JCSMP_PORT = 55555;
+  private static final int SEMP_PORT = 8080;
+  private static final int MAX_COMMAND_ATTEMPTS = 30;
   private final SolaceContainer container;
-  int jcsmpPortMapped = findAvailablePort();
-  int sempPortMapped = findAvailablePort();
+  int jcsmpPortMapped;
+  int sempPortMapped;
 
-  public SolaceContainerManager() throws IOException {
+  public SolaceContainerManager() {
+    // Let Docker pick the host ports. Reserving a free port up front and binding it later races
+    // with anything else that grabs the port in between.
     this.container =
-        new SolaceContainer(DockerImageName.parse("solace/solace-pubsub-standard:10.7")) {
-          {
-            addFixedExposedPort(jcsmpPortMapped, 55555);
-            addFixedExposedPort(sempPortMapped, 8080);
-          }
-        }.withVpn(VPN_NAME)
+        new SolaceContainer(DockerImageName.parse("solace/solace-pubsub-standard:10.7"))
+            .withVpn(VPN_NAME)
             .withCredentials(USERNAME, PASSWORD)
             .withTopic(TOPIC_NAME, Service.SMF)
+            .withExposedPorts(SEMP_PORT, JCSMP_PORT)
             .withLogConsumer(new Slf4jLogConsumer(LOG));
   }
 
   public void start() {
     container.start();
+    jcsmpPortMapped = container.getMappedPort(JCSMP_PORT);
+    sempPortMapped = container.getMappedPort(SEMP_PORT);
   }
 
   void createQueueWithSubscriptionTopic(String queueName) {
@@ -79,8 +82,11 @@ public class SolaceContainerManager {
         "{\"topicEndpointName\":\""
             + TOPIC_NAME
             + "\",\"accessType\":\"exclusive\",\"permission\":\"modify-topic\",\"ingressEnabled\":true,\"egressEnabled\":true}");
-    executeCommand(
+    // The tests read from this queue, so fail the setup instead of letting them time out later.
+    // --fail makes curl exit with an error on HTTP errors, e.g. while SEMP is still starting up.
+    executeCommandWithRetries(
         "curl",
+        "--fail",
         "http://localhost:8080/SEMP/v2/config/msgVpns/" + VPN_NAME + "/queues",
         "-X",
         "POST",
@@ -92,8 +98,9 @@ public class SolaceContainerManager {
         "{\"queueName\":\""
             + queueName
             + "\",\"accessType\":\"non-exclusive\",\"maxMsgSpoolUsage\":200,\"permission\":\"consume\",\"ingressEnabled\":true,\"egressEnabled\":true}");
-    executeCommand(
+    executeCommandWithRetries(
         "curl",
+        "--fail",
         "http://localhost:8080/SEMP/v2/config/msgVpns/"
             + VPN_NAME
             + "/queues/"
@@ -109,17 +116,35 @@ public class SolaceContainerManager {
         "{\"subscriptionTopic\":\"" + TOPIC_NAME + "\"}");
   }
 
-  private void executeCommand(String... command) {
+  private boolean executeCommand(String... command) {
     try {
       ExecResult execResult = container.execInContainer(command);
       if (execResult.getExitCode() != 0) {
         logCommandError(execResult.getStderr(), command);
-      } else {
-        LOG.info("{}", execResult.getStdout());
+        return false;
       }
+      LOG.info("{}", execResult.getStdout());
+      return true;
     } catch (IOException | InterruptedException e) {
       logCommandError(e.getMessage(), command);
+      return false;
     }
+  }
+
+  private void executeCommandWithRetries(String... command) {
+    for (int attempt = 1; attempt <= MAX_COMMAND_ATTEMPTS; attempt++) {
+      if (executeCommand(command)) {
+        return;
+      }
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    throw new IllegalStateException(
+        "Could not execute command " + String.join(" ", command) + " in the Solace container");
   }
 
   private void logCommandError(String error, String... command) {
@@ -169,20 +194,5 @@ public class SolaceContainerManager {
     }
 
     executeCommand(command.toArray(new String[0]));
-  }
-
-  private static int findAvailablePort() throws IOException {
-    ServerSocket s = new ServerSocket(0);
-    try {
-      return s.getLocalPort();
-    } finally {
-      s.close();
-      try {
-        // Some systems don't free the port for future use immediately.
-        Thread.sleep(100);
-      } catch (InterruptedException exn) {
-        // ignore
-      }
-    }
   }
 }

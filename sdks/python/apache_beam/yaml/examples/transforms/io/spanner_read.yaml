@@ -20,14 +20,14 @@ pipeline:
 
     # Reading data from a Spanner database. The table used here has the following columns:
     # shipment_id (String), customer_id (String), shipment_date (String), shipment_cost (Float64), customer_name (String), customer_email (String)
-    # ReadFromSpanner transform is called using project_id, instance_id, database_id and a query
+    # ReadFromSpanner transform is called using project, instance, database and a query
     # A table with a list of columns can also be specified instead of a query
     - type: ReadFromSpanner
       name: ReadShipments
       config:
-        project_id: 'apache-beam-testing'
-        instance_id: 'shipment-test'
-        database_id: 'shipment'
+        project: 'apache-beam-testing'
+        instance: 'shipment-test'
+        database: 'shipment'
         query: 'SELECT * FROM shipments'
 
     # Filtering the data based on a specific condition

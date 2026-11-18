@@ -212,7 +212,7 @@ public class WriteFilesTranslation {
             .getPayload());
   }
 
-  static class RawWriteFiles extends PTransformTranslation.RawPTransform<PInput, POutput>
+  static final class RawWriteFiles extends PTransformTranslation.RawPTransform<PInput, POutput>
       implements WriteFilesLike {
 
     private final RunnerApi.PTransform protoTransform;

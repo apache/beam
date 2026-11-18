@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -39,9 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
@@ -80,7 +79,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
         (TransformEvaluator<T>)
             createEvaluator(
                 (AppliedPTransform) application,
-                (PCollection<InputT>) inputBundle.getPCollection(),
+                (PCollection<InputT>) checkStateNotNull(inputBundle.getPCollection()),
                 inputBundle.getKey(),
                 ParDoTranslation.getSideInputs(application),
                 (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(application),

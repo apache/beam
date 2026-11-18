@@ -49,7 +49,9 @@ class LeaderBoardTest(unittest.TestCase):
                        beam.window.TimestampedValue(elem, elem['timestamp'])))
 
   def test_leader_board_teams(self):
-    with TestPipeline() as p:
+    # Prism fires the early processing time pane and the on time pane.
+    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    with TestPipeline(options=test_options) as p:
       result = (
           self.create_data(p)
           | leader_board.CalculateTeamScores(

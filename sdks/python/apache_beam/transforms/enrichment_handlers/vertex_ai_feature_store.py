@@ -18,6 +18,7 @@ import logging
 
 import proto
 from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import PermissionDenied
 from google.cloud import aiplatform
 
 import apache_beam as beam
@@ -86,7 +87,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         for the feature values.
       exception_level: a `enum.Enum` value from
         `apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel`
-        to set the level when an empty row is returned from the BigTable query.
+        to set the level when an empty row is returned from the Bigtable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
         `aiplatform.gapic.FeatureOnlineStoreServiceClient`.
@@ -113,7 +114,16 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     try:
       admin_client = aiplatform.gapic.FeatureOnlineStoreAdminServiceClient(
           **self.kwargs)
-    except Exception:
+      location_path = admin_client.common_location_path(
+          project=self.project, location=self.location)
+      feature_store_path = admin_client.feature_online_store_path(
+          project=self.project,
+          location=self.location,
+          feature_online_store=self.feature_store_name)
+      # creating the client doesn't check permissions, this RPC does.
+      feature_store = admin_client.get_feature_online_store(
+          name=feature_store_path)
+    except PermissionDenied:
       _LOGGER.warning(
           'Due to insufficient admin permission, could not verify '
           'the existence of feature store. If the `exception_level` '
@@ -121,15 +131,6 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
           'otherwise the data enrichment will not happen without '
           'throwing an error.')
     else:
-      location_path = admin_client.common_location_path(
-          project=self.project, location=self.location)
-      feature_store_path = admin_client.feature_online_store_path(
-          project=self.project,
-          location=self.location,
-          feature_online_store=self.feature_store_name)
-      feature_store = admin_client.get_feature_online_store(
-          name=feature_store_path)
-
       if not feature_store:
         raise NotFound(
             'Vertex AI Feature Store %s does not exists in %s' %
@@ -229,7 +230,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         for the feature values.
       exception_level: a `enum.Enum` value from
         `apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel`
-        to set the level when an empty row is returned from the BigTable query.
+        to set the level when an empty row is returned from the Bigtable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
         `aiplatform.gapic.FeaturestoreOnlineServingServiceClient`.

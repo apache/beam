@@ -432,6 +432,13 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
         end='a' * 100 + 'e',
         fraction=1.0)
 
+  def test_key_to_fraction_long_keys(self):
+    for start, key, end in (
+        (b'a' * 400, b'm' * 400, b'z' * 400),
+        ('a' * 400, 'm' * 400, 'z' * 400)):
+      with self.subTest(key_type=type(key).__name__):
+        self.assertAlmostEqual(0.48, self.key_to_fraction(key, start, end))
+
   def test_tiny(self):
     # test bytes keys
     self._check(fraction=.5**20, key=b'\0\0\x10')

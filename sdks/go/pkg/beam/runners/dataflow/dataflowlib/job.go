@@ -27,8 +27,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"golang.org/x/oauth2/google"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/api/option"
 	"google.golang.org/protobuf/proto"
 
 	// Importing to get the side effect of the remote execution hook. See init().
@@ -36,7 +37,10 @@ import (
 )
 
 // JobOptions capture the various options for submitting jobs
-// to Dataflow.
+// to Dataflow. When adding a new option that is also read from
+// sdk_pipeline_options.options (by the Dataflow service, worker harness,
+// Managed Transforms, or cross-language SDK harnesses), also add it to
+// dataflowOptions and populate it in Translate.
 type JobOptions struct {
 	// Name is the job name.
 	Name string
@@ -185,11 +189,18 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:       modelURL,
-					PipelineProtoHash: pipelineProtoHash,
-					Region:            opts.Region,
-					Experiments:       opts.Experiments,
-					TempLocation:      opts.TempLocation,
+					PipelineURL:                    modelURL,
+					PipelineProtoHash:              pipelineProtoHash,
+					Project:                        opts.Project,
+					JobName:                        opts.Name,
+					Region:                         opts.Region,
+					Experiments:                    opts.Experiments,
+					DataflowServiceOptions:         opts.DataflowServiceOptions,
+					TempLocation:                   opts.TempLocation,
+					DiskProvisionedIops:            opts.DiskProvisionedIops,
+					DiskProvisionedThroughputMibps: opts.DiskProvisionedThroughputMibps,
+					Streaming:                      opts.Streaming,
+					NumberOfWorkerHarnessThreads:   opts.WorkerHarnessThreads,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -312,20 +323,22 @@ func currentStateMessage(currentState, jobID string) (bool, string, error) {
 
 // NewClient creates a new dataflow client with default application credentials
 // and CloudPlatformScope. The Dataflow endpoint is optionally overridden.
+//
+// In non-default universes (e.g. Trusted Partner Cloud), the universe domain
+// is taken from GOOGLE_CLOUD_UNIVERSE_DOMAIN or, if unset, from the default
+// credentials.
 func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
-	cl, err := google.DefaultClient(ctx, df.CloudPlatformScope)
-	if err != nil {
-		return nil, err
-	}
-	client, err := df.New(cl)
-	if err != nil {
-		return nil, err
-	}
+	opts := []option.ClientOption{option.WithScopes(df.CloudPlatformScope)}
 	if endpoint != "" {
 		log.Infof(ctx, "Dataflow endpoint override: %s", endpoint)
-		client.BasePath = endpoint
+		opts = append(opts, option.WithEndpoint(endpoint))
 	}
-	return client, nil
+	// The client ignores the credentials' universe domain, and requests fail
+	// if it differs from the configured one (googleapis.com by default).
+	if ud := gcpx.GetUniverseDomain(ctx); ud != "" {
+		opts = append(opts, option.WithUniverseDomain(ud))
+	}
+	return df.NewService(ctx, opts...)
 }
 
 // GetRunningJobByName gets a Dataflow job running by its name and returns an
@@ -358,17 +371,25 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
 }
 
-// dataflowOptions provides Dataflow with non Go-specific pipeline options. These are the only
-// pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
-// needed for cross-language transforms in Dataflow must be declared here.
+// dataflowOptions provides Dataflow with non Go-specific pipeline options in
+// sdk_pipeline_options.options. These are the only pipeline options read by
+// cross-language SDK harnesses, Dataflow Managed Transforms expansion, and
+// Dataflow worker harness / provisioning components that inspect top-level
+// sdk_pipeline_options.options rather than beam:option:go_options:v1.
+// Any field added here must also be populated in Translate above.
 type dataflowOptions struct {
 	Experiments                    []string `json:"experiments,omitempty"`
+	DataflowServiceOptions         []string `json:"dataflowServiceOptions,omitempty"`
 	PipelineURL                    string   `json:"pipelineUrl"`
 	PipelineProtoHash              string   `json:"pipelineProtoHash,omitempty"`
+	Project                        string   `json:"project,omitempty"`
+	JobName                        string   `json:"jobName,omitempty"`
 	Region                         string   `json:"region"`
 	TempLocation                   string   `json:"tempLocation"`
-	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`
-	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps"`
+	DiskProvisionedIops            int64    `json:"diskProvisionedIops,omitempty"`
+	DiskProvisionedThroughputMibps int64    `json:"diskProvisionedThroughputMibps,omitempty"`
+	Streaming                      bool     `json:"streaming,omitempty"`
+	NumberOfWorkerHarnessThreads   int64    `json:"numberOfWorkerHarnessThreads,omitempty"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {

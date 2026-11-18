@@ -36,10 +36,12 @@ public class BeamWindowRule extends ConverterRule {
   @Override
   public RelNode convert(RelNode relNode) {
     Window w = (Window) relNode;
+    RelNode input = w.getInput();
     return new BeamWindowRel(
         w.getCluster(),
         w.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        w.getInput(),
+        // Convert input to BeamLogicalConvention so inputs from CALC_TO_WINDOW can be planned.
+        convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         w.getConstants(),
         w.getRowType(),
         w.groups);

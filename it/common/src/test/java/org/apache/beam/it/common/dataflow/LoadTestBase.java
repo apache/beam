@@ -47,6 +47,8 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.common.monitoring.MonitoringClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
@@ -81,6 +83,12 @@ public abstract class LoadTestBase {
       Pattern.compile(
           "^All workers have finished the startup processes and began to receive work requests.*$");
   private static final Pattern WORKER_STOP_PATTERN = Pattern.compile("^Stopping worker pool.*$");
+
+  /** How often Cloud Monitoring is polled for the data of a job that just finished. */
+  private static final Duration METRICS_POLL_INTERVAL = Duration.ofSeconds(20);
+
+  /** How long Cloud Monitoring is polled at most before giving up on the data of a job. */
+  private static final Duration METRICS_POLL_TIMEOUT = Duration.ofMinutes(6);
 
   protected static final Credentials CREDENTIALS = TestProperties.googleCredentials();
   protected static final CredentialsProvider CREDENTIALS_PROVIDER =
@@ -247,7 +255,12 @@ public abstract class LoadTestBase {
     metrics.put("ElapsedTime", monitoringClient.getElapsedTime(project, launchInfo));
 
     Double dataProcessed =
-        monitoringClient.getDataProcessed(project, launchInfo, config.inputPCollection());
+        monitoringClient.getDataProcessed(
+            project,
+            launchInfo,
+            RUNNER_V2.equals(launchInfo.runner())
+                ? config.inputPCollectionV2()
+                : config.inputPCollection());
     if (dataProcessed != null) {
       metrics.put("EstimatedDataProcessedGB", dataProcessed / 1e9d);
     }
@@ -331,16 +344,41 @@ public abstract class LoadTestBase {
       throws IOException, InterruptedException, ParseException {
     Map<String, Double> metrics = pipelineLauncher.getMetrics(project, region, launchInfo.jobId());
     if (launchInfo.runner().contains("Dataflow")) {
-      // monitoring metrics take up to 3 minutes to show up
-      // TODO(pranavbhandari): We should use a library like http://awaitility.org/ to poll for
-      // metrics instead of hard coding X minutes.
-      LOG.info("Sleeping for 4 minutes to query Dataflow runner metrics.");
-      Thread.sleep(Duration.ofMinutes(4).toMillis());
+      // Monitoring metrics take a few minutes to show up, so wait for them to be there instead of
+      // sleeping for a fixed amount of time.
+      waitUntilMonitoringDataAvailable(launchInfo);
       computeDataflowMetrics(metrics, launchInfo, config);
     } else if ("DirectRunner".equalsIgnoreCase(launchInfo.runner())) {
       computeDirectMetrics(metrics, launchInfo);
     }
     return metrics;
+  }
+
+  /** Waits until Cloud Monitoring has data for the given job. */
+  private void waitUntilMonitoringDataAvailable(LaunchInfo launchInfo) {
+    LOG.info("Waiting for the monitoring data of {} to be available.", launchInfo.jobId());
+    try {
+      Awaitility.await("monitoring data of " + launchInfo.jobId())
+          .atMost(METRICS_POLL_TIMEOUT)
+          .pollInterval(METRICS_POLL_INTERVAL)
+          .until(() -> monitoringDataAvailable(launchInfo));
+    } catch (ConditionTimeoutException e) {
+      LOG.warn(
+          "No monitoring data found for {} after {} minutes. The metrics of this job are"
+              + " incomplete.",
+          launchInfo.jobId(),
+          METRICS_POLL_TIMEOUT.toMinutes());
+    }
+  }
+
+  /** Returns whether Cloud Monitoring has data for the given job. */
+  private boolean monitoringDataAvailable(LaunchInfo launchInfo) {
+    try {
+      return monitoringClient.getElapsedTime(project, launchInfo) != null;
+    } catch (ParseException | RuntimeException e) {
+      LOG.warn("Error while querying the monitoring data of {}.", launchInfo.jobId(), e);
+      return false;
+    }
   }
 
   /**

@@ -321,7 +321,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           if self._escapechar is not None and self._is_escaped(read_buffer,
                                                                next_delim):
             # Skip an escaped delimiter.
-            current_pos = next_delim + delimiter_len + 1
+            current_pos = next_delim + delimiter_len
             continue
           else:
             # Found a delimiter. Accepting that as the next delimiter.
@@ -1104,6 +1104,11 @@ try:
       kwargs['file_naming'] = file_naming
     if lines is None:
       lines = orient == 'records'
+    # pandas defaults to double_precision=10, which silently rounds floats to
+    # 10 decimal places. Use pandas' maximum (15) unless the caller overrides
+    # it. Floats that need 16-17 significant digits to round-trip exactly may
+    # still be rounded.
+    kwargs.setdefault('double_precision', 15)
     return 'WriteToJson' >> WriteViaPandas(
         'json', path, orient=orient, lines=lines, **kwargs)
 

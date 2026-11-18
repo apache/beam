@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1109,6 +1110,76 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, hasDisplayItem("foo", defaultValue));
+  }
+
+  @Test
+  public void testExplicitlySetPropertiesIgnoresLazilyBoundDefaults() {
+    HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(options), not(hasItem("foo")));
+
+    // Reading a default binds it, but does not make it explicitly set.
+    assertEquals("bar", options.getFoo());
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(options), not(hasItem("foo")));
+
+    // Setting it, even to the default value, does.
+    options.setFoo("bar");
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(options), hasItem("foo"));
+  }
+
+  @Test
+  public void testExplicitlySetPropertiesIncludesArgumentsAndJsonOptions() throws Exception {
+    FooOptions options = PipelineOptionsFactory.fromArgs("--foo=baz").as(FooOptions.class);
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(options), hasItem("foo"));
+
+    FooOptions deserialized = serializeDeserialize(FooOptions.class, options);
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(deserialized), hasItem("foo"));
+  }
+
+  @Test
+  public void testSerializationWithoutDefaultsMarkerIsUnchangedAndCountsAllAsExplicit()
+      throws Exception {
+    HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
+    assertEquals("bar", options.getFoo()); // binds the default
+
+    JsonNode serialized = MAPPER.readTree(MAPPER.writeValueAsString(options));
+    assertTrue(serialized.has("options"));
+    assertTrue(serialized.has("display_data"));
+    assertTrue(serialized.has("revision"));
+    assertFalse("defaults marker must be opt-in", serialized.has("defaults"));
+
+    HasDefaults deserialized = serializeDeserialize(HasDefaults.class, options);
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(deserialized), hasItem("foo"));
+  }
+
+  @Test
+  public void testSerializationWithDefaultsMarkerPreservesExplicitness() throws Exception {
+    HasDefaults options = PipelineOptionsFactory.fromArgs("--foo=explicit").as(HasDefaults.class);
+    options.as(ObjectPipelineOptions.class).getValue(); // binds a default
+
+    byte[] serialized =
+        MAPPER
+            .writer()
+            .withAttribute(PipelineOptionsFactory.SERIALIZE_DEFAULTS_ATTRIBUTE, true)
+            .writeValueAsBytes(options);
+    JsonNode tree = MAPPER.readTree(serialized);
+    assertTrue(tree.get("options").has("value"));
+    assertThat(
+        MAPPER.convertValue(tree.get("defaults"), new TypeReference<List<String>>() {}),
+        hasItem("value"));
+
+    PipelineOptions deserialized = MAPPER.readValue(serialized, PipelineOptions.class);
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(deserialized), hasItem("foo"));
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(deserialized), not(hasItem("value")));
+    // The marked default is still served from the JSON.
+    assertNull(deserialized.as(ObjectPipelineOptions.class).getValue());
+
+    // Setting the property on the copy makes it explicit.
+    deserialized.as(ObjectPipelineOptions.class).setValue("set");
+    assertThat(PipelineOptionsFactory.explicitlySetProperties(deserialized), hasItem("value"));
+
+    // A further serialization without the attribute drops the marker again.
+    JsonNode reserialized = MAPPER.readTree(MAPPER.writeValueAsString(deserialized));
+    assertFalse(reserialized.has("defaults"));
   }
 
   @Test

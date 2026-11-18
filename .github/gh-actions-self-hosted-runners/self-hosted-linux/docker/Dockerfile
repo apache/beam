@@ -18,7 +18,7 @@
 
 FROM ubuntu:20.04
 
-ARG RUNNER_VERSION=2.296.2
+ARG RUNNER_VERSION=2.337.0
 
 RUN apt-get -yqq update
 # Install APT packages

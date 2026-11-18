@@ -278,10 +278,12 @@ class StateCacheTest(unittest.TestCase):
         target=load_key, args=(t2_output, ))
     t2.start()
 
+    # Record the time before joining the barrier so that it is guaranteed to
+    # happen before either thread resumes and starts loading. Both threads
+    # block in the barrier until this thread arrives.
+    current_time_ns = time.time_ns()
     # Wait for both threads to start
     threads_running.wait()
-    # Record the time and wait for the load to start
-    current_time_ns = time.time_ns()
     event.acquire()
     t1.join()
     t2.join()

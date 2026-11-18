@@ -130,6 +130,29 @@ public class CollectDistinctSchemasTest {
         out);
   }
 
+  /** One file under dt=.../region=EU/, one under dt=.../ only: the group keeps [dt]. */
+  @Test
+  public void testPartitionKeysInPathIntersect() {
+    List<SchemaGroup> out =
+        combine(
+            withPartitionKeysInPath(ID_NAME, Arrays.asList("dt", "region")),
+            withPartitionKeysInPath(ID_NAME, Arrays.asList("dt")),
+            withPartitionKeysInPath(NAME_ID, NONE));
+    assertEquals(
+        Arrays.asList(
+            SchemaGroup.of(ID_NAME, 2, NONE, Arrays.asList("dt")),
+            SchemaGroup.of(NAME_ID, 1, NONE, NONE)),
+        out);
+  }
+
+  @Test
+  public void testAccumulatorCoderRoundTripWithPartitionKeysInPath() throws Exception {
+    Coder<Map<String, Group>> coder = fn.getAccumulatorCoder(null, null);
+    Map<String, Group> accumulator =
+        fn.addInput(fn.createAccumulator(), withPartitionKeysInPath(ID_NAME, Arrays.asList("dt")));
+    CoderProperties.coderDecodeEncodeEqual(coder, accumulator);
+  }
+
   @Test
   public void testEmptyInput() {
     assertEquals(Arrays.asList(), combine());
@@ -180,6 +203,10 @@ public class CollectDistinctSchemasTest {
 
   private static SchemaGroup group(String json, long files, List<String> proven) {
     return SchemaGroup.of(json, files, proven);
+  }
+
+  private static SchemaGroup withPartitionKeysInPath(String json, List<String> keys) {
+    return SchemaGroup.of(json, 1, NONE, keys);
   }
 
   private static String json(Schema schema) {

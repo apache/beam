@@ -19,10 +19,15 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,15 +37,25 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -49,7 +64,9 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -68,13 +85,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link TestDataflowRunner}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private DataflowClient mockClient;
@@ -94,12 +110,43 @@ public class TestDataflowRunnerTest {
     options.setGcpCredential(new TestCredential());
     options.setRunner(TestDataflowRunner.class);
     options.setPathValidatorClass(NoopPathValidator.class);
+    FileSystems.setDefaultPipelineOptions(options);
   }
 
   @Test
   public void testToString() {
     assertEquals(
         "TestDataflowRunner#TestAppName", TestDataflowRunner.fromOptions(options).toString());
+  }
+
+  @Test
+  public void testFromOptionsUsesSharedStagingLocationUnderTempRoot() {
+    options.setJobName("test-job-1");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-1/output/results", options.getTempLocation());
+    assertEquals("gs://test/test-job-1/output/results", options.getGcpTempLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsScopesUnversionedTempRootStagingLocationByDate() {
+    options.setJobName("test-job-unversioned-staging");
+    options.setStagingLocation("gs://test/staging");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals(
+        "gs://test/test-job-unversioned-staging/output/results", options.getTempLocation());
+    assertEquals(
+        "gs://test/" + TestDataflowRunner.DAILY_STAGING_DIR + "/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsPreservesExplicitStagingLocation() {
+    options.setJobName("test-job-2");
+    options.setStagingLocation("gs://custom-bucket/custom-staging/");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-2/output/results", options.getTempLocation());
+    assertEquals("gs://custom-bucket/custom-staging/", options.getStagingLocation());
   }
 
   @Test
@@ -421,6 +468,194 @@ public class TestDataflowRunnerTest {
     runner.run(pipeline, mockRunner);
   }
 
+  /**
+   * Unlike batch jobs (which wait for a terminal job state and ignore {@link
+   * TestDataflowRunner.ErrorMonitorMessagesHandler#hasSeenError()}), streaming jobs poll {@code
+   * hasSeenError()} via {@link TestDataflowRunner.CancelOnError} to cancel and fail on the first
+   * {@code JOB_MESSAGE_ERROR}. Transient service errors that state {@code "The service will retry"}
+   * must not trigger early cancellation or fail a streaming job that ultimately succeeds.
+   */
+  @Test
+  public void testRunStreamingJobThatSucceedsDespiteRetriableServiceError() throws Exception {
+    options.setStreaming(true);
+    Pipeline pipeline = TestPipeline.create(options);
+    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3));
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.DONE);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              JobMessage message = new JobMessage();
+              message.setMessageText(
+                  "Startup of the worker pool in us-central1-c failed to bring up any of the"
+                      + " desired 1 workers. This is likely a quota issue or a Compute Engine"
+                      + " stockout. The service will retry.");
+              message.setTime(TimeUtil.toCloudTime(Instant.now()));
+              message.setMessageImportance("JOB_MESSAGE_ERROR");
+              ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+              return State.DONE;
+            });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    when(mockClient.getJobMetrics(anyString()))
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+
+    assertEquals(mockJob, runner.run(pipeline, mockRunner));
+    verify(mockJob, never()).cancel();
+  }
+
+  /** Verbatim wording of the stockout error that dominates streaming ValidatesRunner failures. */
+  private static final String STOCKOUT_ERROR =
+      "Startup of the worker pool in us-central1-c failed to bring up any of the desired 1"
+          + " workers. This is likely a quota issue or a Compute Engine stockout. The service will"
+          + " retry. For troubleshooting steps, see"
+          + " https://cloud.google.com/dataflow/docs/guides/common-errors#worker-pool-failure for"
+          + " help troubleshooting. ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS: Instance"
+          + " 'createtest0testcreate-run-10220559-928j-harness-zqmh' creation failed: The zone"
+          + " 'projects/apache-beam-testing/zones/us-central1-c' does not have enough resources"
+          + " available to fulfill the request.  '(resource type:compute)'.";
+
+  private static JobMessage errorMessage(String text) {
+    JobMessage message = new JobMessage();
+    message.setMessageText(text);
+    message.setTime(TimeUtil.toCloudTime(Instant.now()));
+    message.setMessageImportance("JOB_MESSAGE_ERROR");
+    return message;
+  }
+
+  /**
+   * If the service never recovers from the infrastructure error, the job runs into the test
+   * timeout; it is then cancelled and the failure names the infrastructure error as the cause.
+   */
+  @Test
+  public void testStreamingJobTimingOutOnInfrastructureErrorFailsWithThatCause() throws Exception {
+    options.setStreaming(true);
+    options.setTestTimeoutSeconds(1L);
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3));
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              ((JobMessagesHandler) invocation.getArguments()[1])
+                  .process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
+              return null; // timed out
+            });
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    try {
+      runner.run(pipeline, mockRunner);
+      fail("expected the test to fail");
+    } catch (RuntimeException expected) {
+      assertThat(expected.getMessage(), containsString("ZONE_RESOURCE_POOL_EXHAUSTED"));
+    }
+    verify(mockJob).cancel();
+  }
+
+  /**
+   * Once {@code waitUntilFinish} exits, {@link TestDataflowRunner.CancelOnError} must be cancelled
+   * even if the job is not in a terminal state (such as {@code POLLING_FAILED}, where the job is
+   * intentionally left running and {@code getState()} returns {@link State#UNKNOWN}).
+   */
+  @Test
+  public void testCancelOnErrorStoppedWhenStreamingWaitExitsOnNonTerminalJob() throws Exception {
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      options.setStreaming(true);
+      options.setExecutorService(executor);
+      TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+
+      CountDownLatch pollerStarted = new CountDownLatch(1);
+      DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+      when(mockJob.getJobId()).thenReturn("test-job");
+      when(mockJob.getState())
+          .thenAnswer(
+              invocation -> {
+                pollerStarted.countDown();
+                return State.UNKNOWN;
+              });
+      when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
+          .thenAnswer(
+              invocation -> {
+                assertTrue(pollerStarted.await(5, TimeUnit.SECONDS));
+                return null; // polling gave up well before the timeout
+              });
+
+      TestDataflowRunner.MergedJobWait wait =
+          runner.waitForMergedJobTermination(
+              mockJob, Duration.standardMinutes(10), TestDataflowRunner.errorMonitorFor(mockJob));
+      assertEquals(TestDataflowRunner.MergedJobWait.Kind.POLLING_FAILED, wait.kind);
+
+      // An orderly shutdown only finishes once running tasks exit; without cancel(true) on the
+      // CancelOnError future, it would keep polling State.UNKNOWN every 3s forever.
+      executor.shutdown();
+      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testErrorMonitorKeepsFatalAndInfrastructureErrorsApart() {
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getJobId()).thenReturn("test-job");
+    TestDataflowRunner.ErrorMonitorMessagesHandler handler =
+        new TestDataflowRunner.ErrorMonitorMessagesHandler(mockJob, messages -> {});
+
+    handler.process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
+    assertThat(handler.hasSeenError(), equalTo(false));
+    assertThat(handler.hasSeenRetryableInfrastructureError(), equalTo(true));
+    // With no fatal error, the infrastructure error is what gets reported.
+    assertThat(handler.getErrorMessage(), containsString("ZONE_RESOURCE_POOL_EXHAUSTED"));
+
+    handler.process(Arrays.asList(errorMessage("java.lang.AssertionError: BadAssert")));
+    assertThat(handler.hasSeenError(), equalTo(true));
+    // Once there is a fatal error, it takes precedence in the reported message.
+    assertThat(handler.getErrorMessage(), containsString("BadAssert"));
+    assertThat(handler.getErrorMessage(), not(containsString("ZONE_RESOURCE_POOL_EXHAUSTED")));
+  }
+
+  @Test
+  public void testRetryableInfrastructureErrorClassification() {
+    assertThat(
+        TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(
+            STOCKOUT_ERROR),
+        equalTo(true));
+    assertThat(
+        TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(
+            "Startup of the worker pool in us-central1-a failed to bring up any of the desired 1"
+                + " workers. QUOTA_EXCEEDED: Quota 'CPUS' exceeded."),
+        equalTo(true));
+    // Pipeline failures of every shape are fatal.
+    for (String fatal :
+        Arrays.asList(
+            "java.lang.RuntimeException: org.apache.beam.sdk.util.UserCodeException:"
+                + " java.lang.AssertionError: BadAssert: Expected: iterable with items",
+            "java.lang.IllegalStateException: ProbeExplode deliberate failure for 2",
+            "Workflow failed. Causes: S01:Read/Impulse+ParDo failed.",
+            "The worker lost contact with the service.",
+            "")) {
+      assertThat(
+          fatal,
+          TestDataflowRunner.ErrorMonitorMessagesHandler.isRetryableInfrastructureError(fatal),
+          equalTo(false));
+    }
+  }
+
   @Test
   public void testGetJobMetricsThatSucceeds() throws Exception {
     DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
@@ -648,5 +883,107 @@ public class TestDataflowRunnerTest {
 
     @Override
     public void describeTo(Description description) {}
+  }
+
+  /** A sleeper that records requested sleeps instead of performing them. */
+  private static class RecordingSleeper implements Sleeper {
+    final List<Long> sleepsMillis = new ArrayList<>();
+
+    @Override
+    public void sleep(long millis) {
+      sleepsMillis.add(millis);
+    }
+  }
+
+  private static RuntimeException quotaRejection() {
+    GoogleJsonError details = new GoogleJsonError();
+    details.setMessage("Quota exceeded for quota metric 'Job creation requests'");
+    GoogleJsonResponseException http429 =
+        new GoogleJsonResponseException(
+            new HttpResponseException.Builder(429, "Too Many Requests", new HttpHeaders()),
+            details);
+    // DataflowRunner wraps the service exception exactly like this.
+    return new RuntimeException(
+        "Failed to create a workflow job: " + details.getMessage(), http429);
+  }
+
+  @Test
+  public void testSubmitRetriesQuotaRejections() {
+    Pipeline p = Pipeline.create(options);
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class)))
+        .thenThrow(quotaRejection())
+        .thenThrow(quotaRejection())
+        .thenReturn(mockJob);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    assertSame(mockJob, runner.submit(mockRunner, p));
+    verify(mockRunner, Mockito.times(3)).run(p);
+    assertEquals(2, sleeper.sleepsMillis.size());
+    for (long sleep : sleeper.sleepsMillis) {
+      assertThat(sleep, greaterThan(0L));
+    }
+  }
+
+  @Test
+  public void testSubmitDoesNotRetryOtherFailures() {
+    Pipeline p = Pipeline.create(options);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    RuntimeException failure = new RuntimeException("Failed to create a workflow job: bad graph");
+    when(mockRunner.run(any(Pipeline.class))).thenThrow(failure);
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    try {
+      runner.submit(mockRunner, p);
+      fail("Expected the submission failure to propagate");
+    } catch (RuntimeException e) {
+      assertSame(failure, e);
+    }
+    verify(mockRunner, Mockito.times(1)).run(p);
+    assertThat(sleeper.sleepsMillis, empty());
+  }
+
+  @Test
+  public void testSubmitGivesUpAfterRepeatedQuotaRejections() {
+    Pipeline p = Pipeline.create(options);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              throw quotaRejection();
+            });
+
+    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
+    RecordingSleeper sleeper = new RecordingSleeper();
+    runner.setSleeper(sleeper);
+
+    try {
+      runner.submit(mockRunner, p);
+      fail("Expected the submission to fail once retries are exhausted");
+    } catch (RuntimeException e) {
+      assertThat(TestDataflowRunner.quotaRejection(e), notNullValue());
+    }
+    // One initial attempt plus a bounded number of retries, each preceded by a sleep.
+    int attempts = Mockito.mockingDetails(mockRunner).getInvocations().size();
+    assertThat(attempts, greaterThan(1));
+    assertEquals(attempts - 1, sleeper.sleepsMillis.size());
+  }
+
+  @Test
+  public void testQuotaRejectionDetection() {
+    assertThat(TestDataflowRunner.quotaRejection(quotaRejection()), notNullValue());
+    assertNull(TestDataflowRunner.quotaRejection(new RuntimeException("boom")));
+    GoogleJsonResponseException http400 =
+        new GoogleJsonResponseException(
+            new HttpResponseException.Builder(400, "Bad Request", new HttpHeaders()),
+            new GoogleJsonError());
+    assertNull(TestDataflowRunner.quotaRejection(new RuntimeException("wrapped", http400)));
   }
 }

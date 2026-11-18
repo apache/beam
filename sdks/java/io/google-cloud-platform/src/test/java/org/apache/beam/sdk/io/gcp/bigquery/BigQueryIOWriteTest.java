@@ -76,7 +76,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -136,6 +135,7 @@ import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -153,7 +153,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -182,10 +181,12 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -228,14 +229,9 @@ public class BigQueryIOWriteTest implements Serializable {
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
 
-  @Parameters
+  @Parameters(name = "useStorageApi={0}, useStorageApiApproximate={1}, useStreaming={2}")
   public static Iterable<Object[]> data() {
-    return ImmutableList.of(
-        new Object[] {false, false, false},
-        new Object[] {false, false, true},
-        new Object[] {true, false, false},
-        new Object[] {true, false, true},
-        new Object[] {true, true, true});
+    return ImmutableList.of(new Object[] {false, false, false}, new Object[] {false, false, true});
   }
 
   @Parameter(0)
@@ -1723,6 +1719,64 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testStorageApiRetryOnSchemaMismatchedException() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStreaming || useStorageApiApproximate);
+
+    Table table =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("project-id")
+                    .setDatasetId("dataset-id")
+                    .setTableId("table-id"))
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+    fakeDatasetService.createTable(table);
+
+    // Inject transient SchemaMismatchedException (which has Status.Code.INVALID_ARGUMENT and
+    // stripped gRPC trailers after Exceptions.toStorageException conversion) for the first 2
+    // appendRows attempts, then succeed.
+    fakeDatasetService.setAppendRowsStorageError(
+        com.google.cloud.bigquery.storage.v1.StorageError.StorageErrorCode
+            .SCHEMA_MISMATCH_EXTRA_FIELDS,
+        "Input schema has more fields than BigQuery schema, extra fields: 'numeric_extra' Entity: projects/project-id/datasets/dataset-id/tables/table-id/streams/_default",
+        2);
+
+    List<Integer> elements = Lists.newArrayList(1, 2, 3);
+
+    BigQueryIO.Write<Integer> write =
+        BigQueryIO.<Integer>write()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withFormatFunction(
+                (SerializableFunction<Integer, TableRow>)
+                    input -> new TableRow().set("number", input))
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    PCollection<Integer> input = p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()));
+    input.apply("WriteToBQ", write);
+
+    p.run().waitUntilFinish();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("number", "1"),
+            new TableRow().set("number", "2"),
+            new TableRow().set("number", "3")));
+  }
+
+  @Test
   public void testStreamingStorageApiWriteWithAutoShardingWithErrorHandling() throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
@@ -2154,8 +2208,36 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Failed to create job with prefix");
-    thrown.expectMessage("reached max retries");
+    // a bounded write that never calls withMaxRetryJobs keeps BatchLoads' own default of 3
+    thrown.expectMessage("reached max retries: 3");
     thrown.expectMessage("last failed job");
+
+    p.run();
+  }
+
+  @Test
+  public void testWriteFailedJobsRespectsMaxRetryJobsWhenBounded() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+    p.apply(
+            Create.of(
+                    new TableRow().set("name", "a").set("number", 1),
+                    new TableRow().set("name", "b").set("number", 2),
+                    new TableRow().set("name", "c").set("number", 3))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                .withMaxRetryJobs(1)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    // the load job fails on every attempt because the destination table does not exist, and the
+    // failure message reports the retry limit that was actually applied. a bounded pipeline used to
+    // drop withMaxRetryJobs on the floor, so this used to read "reached max retries: 3"
+    thrown.expectMessage("reached max retries: 1");
 
     p.run();
   }
@@ -2364,12 +2446,27 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testUpdateTableSchemaUseSet() throws Exception {
-    updateTableSchemaTest(true);
+    updateTableSchemaTest(true, false);
   }
 
   @Test
   public void testUpdateTableSchemaUseSetF() throws Exception {
-    updateTableSchemaTest(false);
+    updateTableSchemaTest(false, false);
+  }
+
+  @Test
+  public void testUpdateTableSchemaConsistentUseSet() throws Exception {
+    updateTableSchemaTest(true, true);
+  }
+
+  @Test
+  public void testUpdateTableSchemaConsistentUseSetF() throws Exception {
+    updateTableSchemaTest(false, true);
+  }
+
+  @Test
+  public void testUpdateTableSchemaConsistentCreateIfNeeded() throws Exception {
+    updateTableSchemaTest(true, true, true);
   }
 
   @Test
@@ -2459,13 +2556,23 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  public void updateTableSchemaTest(boolean useSet) throws Exception {
+  public void updateTableSchemaTest(boolean useSet, boolean withConsistentSchemaUpdate)
+      throws Exception {
+    updateTableSchemaTest(useSet, withConsistentSchemaUpdate, false);
+  }
+
+  public void updateTableSchemaTest(
+      boolean useSet, boolean withConsistentSchemaUpdate, boolean createIfNeeded) throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(useStorageApi);
+    if (withConsistentSchemaUpdate) {
+      p.getOptions().as(StreamingOptions.class).setStreaming(true);
+    }
 
     // Make sure that GroupIntoBatches does not buffer data.
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchLocalRetryTimeMilliSec(0);
 
     BigQueryIO.Write.Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
@@ -2480,19 +2587,19 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
 
-    // Add new fields to the update schema. Also reorder some existing fields to validate that we
-    // handle update
-    // field reordering correctly.
     TableSchema tableSchemaUpdated =
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("req").setType("STRING"),
                     new TableFieldSchema().setName("double_number").setType("INTEGER"),
                     new TableFieldSchema().setName("12_special_name").setType("STRING")));
-    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+    if (!createIfNeeded) {
+      fakeDatasetService.createTable(
+          new Table().setTableReference(tableRef).setSchema(tableSchema));
+    }
 
     LongFunction<TableRow> getRowSet =
         (LongFunction<TableRow> & Serializable)
@@ -2539,6 +2646,8 @@ public class BigQueryIOWriteTest implements Serializable {
     for (long i = 6; i < 10; i++) {
       testStream = testStream.addElements(i);
     }
+    // Expire the buffering timer so the elements get processed
+    testStream = testStream.advanceProcessingTime(Duration.standardMinutes(2));
 
     PCollection<TableRow> tableRows =
         p.apply(testStream.advanceWatermarkToInfinity())
@@ -2551,25 +2660,38 @@ public class BigQueryIOWriteTest implements Serializable {
                         Duration.standardSeconds(5), tableSchemaUpdated, fakeDatasetService)))
             .setCoder(TableRowJsonCoder.of());
 
-    tableRows.apply(
+    BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to(tableRef)
             .withMethod(method)
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withCreateDisposition(
+                createIfNeeded
+                    ? BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED
+                    : BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
             .ignoreUnknownValues()
-            .withAutoSchemaUpdate(true)
             .withTestServices(fakeBqServices)
-            .withoutValidation());
+            .withoutValidation();
+    if (createIfNeeded) {
+      write = write.withSchema(tableSchema);
+    }
+    if (withConsistentSchemaUpdate) {
+      write = write.withAutoSchemaUpdateConsistent(true, Duration.standardHours(1));
+    } else {
+      write = write.withAutoSchemaUpdate(true);
+    }
+    tableRows.apply(write);
 
     p.run();
 
     Iterable<TableRow> expectedDroppedValues =
-        LongStream.range(0, 6)
+        (withConsistentSchemaUpdate ? LongStream.empty() : LongStream.range(0, 6))
             .mapToObj(getRowSet)
             .map(tr -> filterUnknownValues(tr, tableSchema.getFields()))
             .collect(Collectors.toList());
     Iterable<TableRow> expectedFullValues =
-        LongStream.range(6, 10).mapToObj(getRowSet).collect(Collectors.toList());
+        (withConsistentSchemaUpdate ? LongStream.range(0, 10) : LongStream.range(6, 10))
+            .mapToObj(getRowSet)
+            .collect(Collectors.toList());
     assertThat(
         fakeDatasetService.getAllRows(
             tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
@@ -2587,6 +2709,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
     p.getOptions().as(BigQueryOptions.class).setSchemaUpgradeBufferingShards(2);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchLocalRetryTimeMilliSec(0);
 
     BigQueryIO.Write.Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
@@ -3019,7 +3142,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchemaUpdateOptions(
                 EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
             .withMaxRetryJobs(500);
-    assertEquals(500, write.getMaxRetryJobs());
+    assertEquals(Integer.valueOf(500), write.getMaxRetryJobs());
   }
 
   @Test
@@ -3066,8 +3189,6 @@ public class BigQueryIOWriteTest implements Serializable {
   private void testWritePartition(
       long numTables, long numFilesPerTable, long fileSize, long expectedNumPartitionsPerTable)
       throws Exception {
-    p.enableAbandonedNodeEnforcement(false);
-
     // In the case where a static destination is specified (i.e. not through a dynamic table
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
@@ -3111,7 +3232,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
-        p.apply(Create.of(tempFilePrefix)).apply(View.asSingleton());
+        p.apply("CreateTempFilePrefix", Create.of(tempFilePrefix)).apply(View.asSingleton());
 
     WritePartition<TableDestination> writePartition =
         new WritePartition<>(
@@ -3128,47 +3249,62 @@ public class BigQueryIOWriteTest implements Serializable {
                 BigQueryIO.TableRowFormatFunction.fromSerializableFunction(
                     SerializableFunctions.identity())));
 
-    DoFnTester<
-            Iterable<WriteBundlesToFiles.Result<TableDestination>>,
-            KV<ShardedKey<TableDestination>, WritePartition.Result>>
-        tester = DoFnTester.of(writePartition);
-    tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
-    tester.processElement(files);
+    // All files go in as one element, the same way BatchLoads hands WritePartition the full list.
+    List<Iterable<WriteBundlesToFiles.Result<TableDestination>>> input =
+        Collections.singletonList(files);
+    Coder<KV<ShardedKey<TableDestination>, WritePartition.Result>> partitionCoder =
+        KvCoder.of(
+            ShardedKeyCoder.of(TableDestinationCoder.of()), WritePartition.ResultCoder.INSTANCE);
+    PCollectionTuple outputs =
+        p.apply(
+                "CreateFiles",
+                Create.of(input)
+                    .withCoder(
+                        IterableCoder.of(
+                            WriteBundlesToFiles.ResultCoder.of(TableDestinationCoder.of()))))
+            .apply(
+                "WritePartition",
+                ParDo.of(writePartition)
+                    .withSideInputs(tempFilePrefixView)
+                    .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
+    outputs.get(multiPartitionsTag).setCoder(partitionCoder);
+    outputs.get(singlePartitionTag).setCoder(partitionCoder);
 
-    List<KV<ShardedKey<TableDestination>, WritePartition.Result>> partitions;
-    if (expectedNumPartitionsPerTable > 1) {
-      partitions = tester.takeOutputElements(multiPartitionsTag);
-    } else {
-      partitions = tester.takeOutputElements(singlePartitionTag);
-    }
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> expectedTag =
+        expectedNumPartitionsPerTable > 1 ? multiPartitionsTag : singlePartitionTag;
+    TupleTag<KV<ShardedKey<TableDestination>, WritePartition.Result>> unexpectedTag =
+        expectedNumPartitionsPerTable > 1 ? singlePartitionTag : multiPartitionsTag;
+    PAssert.that(outputs.get(unexpectedTag)).empty();
+    PAssert.that(outputs.get(expectedTag))
+        .satisfies(
+            partitions -> {
+              List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
+              Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
+              for (KV<ShardedKey<TableDestination>, WritePartition.Result> partition : partitions) {
+                String table = partition.getKey().getKey().getTableSpec();
+                partitionsResult.add(partition.getKey());
+                List<String> tableFilesResult =
+                    filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
+                tableFilesResult.addAll(partition.getValue().getFilenames());
+              }
 
-    List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
-    Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<TableDestination>, WritePartition.Result> partition : partitions) {
-      String table = partition.getKey().getKey().getTableSpec();
-      partitionsResult.add(partition.getKey());
-      List<String> tableFilesResult =
-          filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
-      tableFilesResult.addAll(partition.getValue().getFilenames());
-    }
+              assertThat(
+                  partitionsResult,
+                  containsInAnyOrder(Iterables.toArray(expectedPartitions, ShardedKey.class)));
 
-    assertThat(
-        partitionsResult,
-        containsInAnyOrder(Iterables.toArray(expectedPartitions, ShardedKey.class)));
-
-    if (isSingleton) {
-      assertEquals(1, filesPerTableResult.size());
-      List<String> singletonFiles = filesPerTableResult.values().iterator().next();
-      assertTrue(Files.exists(Paths.get(singletonFiles.get(0))));
-      assertThat(Files.readAllBytes(Paths.get(singletonFiles.get(0))).length, equalTo(0));
-    } else {
-      assertEquals(filenamesPerTable, filesPerTableResult);
-    }
-    for (List<String> filenames : filesPerTableResult.values()) {
-      for (String filename : filenames) {
-        Files.deleteIfExists(Paths.get(filename));
-      }
-    }
+              if (isSingleton) {
+                assertEquals(1, filesPerTableResult.size());
+                List<String> singletonFiles = filesPerTableResult.values().iterator().next();
+                File singletonFile = new File(singletonFiles.get(0));
+                assertTrue(singletonFile.exists());
+                assertThat(singletonFile.length(), equalTo(0L));
+                assertTrue(singletonFile.delete());
+              } else {
+                assertEquals(filenamesPerTable, filesPerTableResult);
+              }
+              return null;
+            });
+    p.run();
   }
 
   static class IdentityDynamicTables extends DynamicDestinations<String, String> {

@@ -23,6 +23,7 @@ import static org.apache.beam.it.neo4j.Neo4jResourceManagerUtils.generateDatabas
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -84,7 +85,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
   @VisibleForTesting
   @SuppressWarnings("nullness")
   Neo4jResourceManager(@Nullable Driver neo4jDriver, Neo4jContainer<?> container, Builder builder) {
-    super(container, builder);
+    super(withNeo4jConfig(container, builder.neo4jConfig), builder);
 
     this.adminPassword = builder.adminPassword;
     this.connectionString =
@@ -205,12 +206,22 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     return adminPassword;
   }
 
+  private static Neo4jContainer<?> withNeo4jConfig(
+      Neo4jContainer<?> container, Map<String, String> config) {
+    config.forEach(
+        (key, value) -> {
+          container.withNeo4jConfig(key, value);
+        });
+    return container;
+  }
+
   /** Builder for {@link Neo4jResourceManager}. */
   public static final class Builder
       extends TestContainerResourceManager.Builder<Neo4jResourceManager> {
 
     private @Nullable String databaseName;
     private @Nullable DatabaseWaitOption waitOption;
+    private Map<String, String> neo4jConfig = new HashMap<>();
 
     private String adminPassword;
 
@@ -263,6 +274,11 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
 
     public Builder setAdminPassword(String password) {
       this.adminPassword = password;
+      return this;
+    }
+
+    public Builder addNeo4jConfig(String key, String value) {
+      neo4jConfig.put(key, value);
       return this;
     }
 

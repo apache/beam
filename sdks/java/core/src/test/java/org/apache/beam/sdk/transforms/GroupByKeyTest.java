@@ -55,6 +55,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -94,9 +95,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
 @SuppressWarnings({
@@ -104,7 +103,6 @@ import org.junit.runners.JUnit4;
   "unchecked",
   "unused"
 })
-@RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
@@ -112,7 +110,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -617,7 +615,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Tests validating GroupByKey behaviors with windowing. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class WindowTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)

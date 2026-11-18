@@ -243,6 +243,10 @@ class ExternalProvider(Provider):
             underlying_transform_identifier=urn,
             update_compatibility_version=self._managed_replacement[type])
 
+      known_fields = set(
+          self.schema_transforms()[urn].configuration_schema._fields)
+      args = {k: v for k, v in args.items() if k in known_fields}
+
       return external.SchemaAwareExternalTransform(
           urn,
           self._service,
@@ -759,6 +763,23 @@ def dicts_to_rows(o):
     return o
 
 
+def to_dict(value):
+  """Recursively converts Row, NamedTuple, or Mapping objects to dicts, omitting
+  fields with None values."""
+  if value is None:
+    return None
+  if hasattr(value, '_asdict'):
+    return {k: to_dict(v) for k, v in value._asdict().items() if v is not None}
+  elif hasattr(value, 'as_dict'):
+    return {k: to_dict(v) for k, v in value.as_dict().items() if v is not None}
+  elif isinstance(value, (list, tuple)):
+    return [to_dict(v) for v in value]
+  elif isinstance(value, Mapping):
+    return {k: to_dict(v) for k, v in value.items() if v is not None}
+  else:
+    return value
+
+
 def _unify_element_with_schema(element, target_schema):
   """Convert an element to match the target schema, preserving existing
     fields only."""
@@ -828,11 +849,6 @@ class YamlProviders:
       self._elements = elements
 
     def expand(self, pcoll):
-      def to_dict(row):
-        # filter None when comparing
-        temp_dict = {k: v for k, v in row._asdict().items() if v is not None}
-        return dict(temp_dict.items())
-
       return assert_that(
           pcoll | beam.Map(to_dict),
           equal_to([to_dict(e) for e in dicts_to_rows(self._elements)]))
@@ -1014,7 +1030,11 @@ class YamlProviders:
       input PCollections. Fields are made optional to handle missing values.
       If fields have different types, they are unified to Optional[Any].
       """
+      from apache_beam.typehints.native_type_compatibility import _match_is_optional
+      from apache_beam.typehints.native_type_compatibility import extract_optional_type
       from apache_beam.typehints.schemas import named_fields_from_element_type
+      from apache_beam.typehints.schemas import named_fields_to_schema
+      from apache_beam.typehints.schemas import named_tuple_from_schema
 
       # Collect all schemas
       schemas = []
@@ -1030,20 +1050,42 @@ class YamlProviders:
       if not schemas:
         return None
 
-      # Merge all field names and types.
-      all_field_names = set().union(*(s.keys() for s in schemas))
+      # If all PCollections have identical schemas, no unification is needed.
+      if len(schemas) == len(pcolls) and all(
+          list(s.items()) == list(schemas[0].items()) for s in schemas):
+        return None
+
+      def unwrap_type(t):
+        if _match_is_optional(t):
+          return extract_optional_type(t), True
+        return t, False
+
+      # Maintain deterministic field ordering across all input schemas.
+      all_field_names = list(
+          dict.fromkeys(name for s in schemas for name in s.keys()))
       unified_fields = {}
+      has_unschematized_pcoll = len(schemas) < len(pcolls)
+
       for name in all_field_names:
-        present_types = {s[name] for s in schemas if name in s}
-        if len(present_types) > 1:
+        is_optional = has_unschematized_pcoll or (
+            len([s for s in schemas if name in s]) < len(schemas))
+        unwrapped_types = set()
+        for s in schemas:
+          if name in s:
+            inner_type, was_optional = unwrap_type(s[name])
+            unwrapped_types.add(inner_type)
+            if was_optional:
+              is_optional = True
+
+        if len(unwrapped_types) > 1:
           unified_fields[name] = Optional[Any]
         else:
-          unified_fields[name] = Optional[present_types.pop()]
+          concrete_type = unwrapped_types.pop()
+          unified_fields[name] = (
+              Optional[concrete_type] if is_optional else concrete_type)
 
       # Create unified schema
       if unified_fields:
-        from apache_beam.typehints.schemas import named_fields_to_schema
-        from apache_beam.typehints.schemas import named_tuple_from_schema
         unified_schema = named_fields_to_schema(list(unified_fields.items()))
         return named_tuple_from_schema(unified_schema)
 
@@ -1120,7 +1162,7 @@ class YamlProviders:
     @staticmethod
     def _parse_duration(value, name):
       time_units = {
-          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 24
       }
       value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
       # Default to seconds if time unit suffix is not defined

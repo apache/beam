@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.coders;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -109,9 +111,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of elements handled by this coder
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroCoder<T> extends CustomCoder<T> {
 
   private static final Cache<AvroCoderCacheKey, AvroCoder<?>> AVRO_CODER_CACHE =
@@ -137,7 +136,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * suite for encoding and decoding.
    */
   public static <T> AvroCoder<T> specific(Class<T> type) {
-    return specific(type, new SpecificData(type.getClassLoader()).getSchema(type));
+    return specific(type, specificSchemaOf(type));
+  }
+
+  @SuppressWarnings("nullness") // SpecificData tolerates a null class loader but is unannotated
+  private static Schema specificSchemaOf(Class<?> type) {
+    return new SpecificData(type.getClassLoader()).getSchema(type);
   }
 
   /**
@@ -167,7 +171,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * suite for encoding and decoding.
    */
   public static <T> AvroCoder<T> reflect(Class<T> type) {
-    return reflect(type, new ReflectData(type.getClassLoader()).getSchema(type));
+    return reflect(type, reflectSchemaOf(type));
+  }
+
+  @SuppressWarnings("nullness") // ReflectData tolerates a null class loader but is unannotated
+  private static Schema reflectSchemaOf(Class<?> type) {
+    return new ReflectData(type.getClassLoader()).getSchema(type);
   }
 
   /**
@@ -395,10 +404,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
   // writer and reader are unused but kept for serialization update compatibility.
   @SuppressWarnings("unused")
-  private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer = null;
+  private final @Nullable EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer = null;
 
   @SuppressWarnings("unused")
-  private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader = null;
+  private final @Nullable EmptyOnDeserializationThreadLocal<DatumReader<T>> reader = null;
 
   // datumReader and datumWriter are initialized in the constructor and
   // on deserialization (see readObject).
@@ -424,7 +433,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    initializeAvroDatumReaderAndWriter();
+    this.datumReader = datumFactory.apply(schema, schema);
+    this.datumWriter = datumFactory.apply(schema);
   }
 
   /** Returns the type this coder encodes/decodes. */
@@ -473,6 +483,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
     BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
     // Save the potentially-new instance for later.
     decoder.set(decoderInstance);
+    return readWithoutReuse(decoderInstance);
+  }
+
+  @SuppressWarnings("nullness") // DatumReader.read accepts a null reuse but is unannotated
+  private T readWithoutReuse(BinaryDecoder decoderInstance) throws IOException {
     return datumReader.read(null, decoderInstance);
   }
 
@@ -808,10 +823,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
 
     private void checkArray(String context, TypeDescriptor<?> type, Schema schema) {
-      TypeDescriptor<?> elementType = null;
+      TypeDescriptor<?> elementType;
       if (type.isArray()) {
         // The type is an array (with ordering)-> deterministic iff the element is deterministic.
-        elementType = type.getComponentType();
+        elementType = checkNotNull(type.getComponentType());
       } else if (isSubtypeOf(type, Collection.class)) {
         if (isSubtypeOf(type, List.class, SortedSet.class)) {
           // Ordered collection -> deterministic iff the element is deterministic
@@ -895,14 +910,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
       this.datumReader = cachedCoder.get().datumReader;
       this.datumWriter = cachedCoder.get().datumWriter;
     } else {
-      initializeAvroDatumReaderAndWriter();
+      Schema schema = this.schemaSupplier.get();
+      this.datumReader = this.datumFactory.apply(schema, schema);
+      this.datumWriter = this.datumFactory.apply(schema);
     }
-  }
-
-  private void initializeAvroDatumReaderAndWriter() {
-    this.datumReader =
-        this.datumFactory.apply(this.schemaSupplier.get(), this.schemaSupplier.get());
-    this.datumWriter = this.datumFactory.apply(this.schemaSupplier.get());
   }
 
   enum AvroCoderType {

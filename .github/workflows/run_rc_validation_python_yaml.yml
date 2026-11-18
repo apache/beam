@@ -61,9 +61,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 300
     env: # Job-level env vars
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-      GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-      GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
       RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
       GCE_REGION: 'us-central1'
       RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}

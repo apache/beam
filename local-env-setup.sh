@@ -55,7 +55,7 @@ if [ "$kernelname" = "Linux" ]; then
         exit
     fi
 
-    for ver in 3.10 3.11 3.12 3.13 3.14 3; do
+    for ver in 3.11 3.12 3.13 3.14 3; do
         apt install --yes python$ver-venv
     done
 
@@ -66,6 +66,13 @@ if [ "$kernelname" = "Linux" ]; then
     else
         echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
+    fi
+
+    type -P rustc > /dev/null 2>&1
+    rustExists=$?
+    if [ $rustExists -ne 0 ]; then
+        echo "Installing rust via rustup..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     fi
 
 # Running on Mac
@@ -89,7 +96,7 @@ elif [ "$kernelname" = "Darwin" ]; then
         echo "Installing openjdk@8"
         brew install openjdk@8
     fi
-    for ver in 3.10 3.11 3.12 3.13 3.14; do
+    for ver in 3.11 3.12 3.13 3.14; do
       if brew ls --versions python@$ver > /dev/null; then
           echo "python@$ver already installed. Skipping"
           brew info python@$ver
@@ -142,6 +149,24 @@ elif [ "$kernelname" = "Darwin" ]; then
     else
         echo "Go is required. Install it manually from https://golang.org/doc/install and rerun the script."
         exit
+    fi
+
+    type -P rustc > /dev/null 2>&1
+    rustExists=$?
+    if [ $rustExists -eq 0 ]; then
+        echo "rust already installed. Skipping"
+    else
+        echo "Installing rust"
+        brew install rust
+    fi
+
+    type -P protoc > /dev/null 2>&1
+    protocExists=$?
+    if [ $protocExists -eq 0 ]; then
+        echo "protobuf already installed. Skipping"
+    else
+        echo "Installing protobuf"
+        brew install protobuf
     fi
 
 else echo "Unrecognized Kernel Name: $kernelname"

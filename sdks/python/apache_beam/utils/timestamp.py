@@ -26,6 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 import datetime
 import re
 import time
+import zoneinfo
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -44,7 +45,10 @@ DurationTypes = Union[int, float, 'Duration']
 TimestampDurationTypes = Union[int, float, 'Duration', 'Timestamp']
 
 # Powers of ten indexed by exponent
-_POW_10 = {i: 10**i for i in range(10)}
+_POW_10 = tuple(10**i for i in range(10))
+_EPOCH_DATETIME_UTC = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+_EPOCH_DATETIME_NAIVE = datetime.datetime(1970, 1, 1)
+_RFC3339_SUBMICRO_RE = re.compile(r'[0-9]{2}[.,]([0-9]{7,})')
 
 
 class Timestamp(object):
@@ -64,7 +68,7 @@ class Timestamp(object):
   fraction of a second (e.g. 3 for millis, 6 for micros, 9 for
   nanos). Defaults to microseconds.
   If ``seconds`` is a float, the fractional part will be captured up
-  to ``precision`` digits.
+  to ``precision`` digits, rounded to the nearest subsecond unit.
 
   Lossy conversion operations will throw an error unless
   ``allow_lossy_conversion=True`` is specified (e.g. see ``to_utc_datetime``).
@@ -107,7 +111,10 @@ class Timestamp(object):
             'use subseconds instead.' % precision)
       subseconds = micros
     self._precision = precision
-    total = int(seconds * _POW_10[precision]) + int(subseconds)
+    # Round (rather than truncate) so that float inputs like 2.000002, which
+    # cannot be represented exactly in binary, land on the nearest subsecond
+    # unit instead of one unit low.
+    total = round(seconds * _POW_10[precision]) + int(subseconds)
     self._seconds, self._subseconds = divmod(total, _POW_10[precision])
 
   def _total(self, precision: int) -> int:
@@ -149,7 +156,7 @@ class Timestamp(object):
 
   @staticmethod
   def _epoch_datetime_utc() -> datetime.datetime:
-    return datetime.datetime.fromtimestamp(0, pytz.utc)
+    return _EPOCH_DATETIME_UTC
 
   @classmethod
   def from_utc_datetime(cls, dt: datetime.datetime) -> 'Timestamp':
@@ -163,9 +170,10 @@ class Timestamp(object):
           "dt has no timezone info " +
           "(https://docs.python.org/3/library/datetime.html" +
           "#aware-and-naive-objects): %s" % dt)
-    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
+    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc and not (
+        isinstance(dt.tzinfo, zoneinfo.ZoneInfo) and dt.tzinfo.key == 'UTC'):
       raise ValueError('dt not in UTC: %s' % dt)
-    duration = dt - cls._epoch_datetime_utc()
+    duration = dt - _EPOCH_DATETIME_UTC
     # Avoid total_seconds(): its float result can be off by a microsecond.
     return Timestamp(
         seconds=duration.days * 86400 + duration.seconds,
@@ -186,7 +194,9 @@ class Timestamp(object):
       rfc3339: String in RFC 3339 form.
     """
     try:
-      dt = dateutil.parser.isoparse(rfc3339).astimezone(pytz.UTC)
+      dt = dateutil.parser.isoparse(rfc3339)
+      dt = dt.replace(
+          tzinfo=pytz.UTC) if dt.tzinfo is None else dt.astimezone(pytz.UTC)
     except ValueError as e:
       raise ValueError(
           "Could not parse RFC 3339 string '{}' due to error: '{}'.".format(
@@ -194,7 +204,7 @@ class Timestamp(object):
     timestamp = cls.from_utc_datetime(dt)
     # dateutil silently truncates fractional seconds to microseconds; parse
     # any sub-microsecond digits ourselves to avoid losing precision.
-    fraction = re.search(r'[0-9]{2}[.,]([0-9]{7,})', rfc3339)
+    fraction = _RFC3339_SUBMICRO_RE.search(rfc3339)
     if fraction:
       digits = fraction.group(1)
       if len(digits) > cls.NANOS_PRECISION:
@@ -326,9 +336,7 @@ class Timestamp(object):
                                                     self._precision]
     # We can't easily construct a datetime object from microseconds, so we
     # create one at the epoch and add an appropriate timedelta interval.
-    epoch = self._epoch_datetime_utc()
-    if not has_tz:
-      epoch = epoch.replace(tzinfo=None)
+    epoch = _EPOCH_DATETIME_UTC if has_tz else _EPOCH_DATETIME_NAIVE
     return epoch + datetime.timedelta(
         seconds=self._seconds, microseconds=micros_of_second)
 
@@ -338,8 +346,8 @@ class Timestamp(object):
       # Append 'Z' for UTC timezone.
       return self.to_utc_datetime().isoformat() + 'Z'
     # format the fractional second manually
-    whole_second_datetime = self._epoch_datetime_utc().replace(
-        tzinfo=None) + datetime.timedelta(seconds=self._seconds)
+    whole_second_datetime = _EPOCH_DATETIME_NAIVE + datetime.timedelta(
+        seconds=self._seconds)
     result = whole_second_datetime.isoformat()
     if self._subseconds:
       result = result + '.%0*d' % (self._precision, self._subseconds)
@@ -410,10 +418,20 @@ class Timestamp(object):
         < other._subseconds * _POW_10[precision - other._precision])
 
   def __gt__(self, other: TimestampDurationTypes) -> bool:
-    return not (self < other or self == other)
+    return not self <= other
 
   def __le__(self, other: TimestampDurationTypes) -> bool:
-    return self < other or self == other
+    if isinstance(other, Duration):
+      return self._total(Timestamp.NANOS_PRECISION) <= other.micros * 1000
+    other = Timestamp.of(other)
+    if self._seconds != other._seconds:
+      return self._seconds < other._seconds
+    if self._precision == other._precision:
+      return self._subseconds <= other._subseconds
+    precision = max(self._precision, other._precision)
+    return (
+        self._subseconds * _POW_10[precision - self._precision]
+        <= other._subseconds * _POW_10[precision - other._precision])
 
   def __ge__(self, other: TimestampDurationTypes) -> bool:
     return not self < other
@@ -494,7 +512,10 @@ class Duration(object):
       self,
       seconds: Union[int, float] = 0,
       micros: Union[int, float] = 0) -> None:
-    self.micros = int(seconds * 1000000) + int(micros)
+    # Round rather than truncate, as the Timestamp constructor does: the float
+    # multiplication can land just below the exact integer (for example
+    # 2.000002 * 1e6 == 2000001.9999999998) and int() would drop a microsecond.
+    self.micros = round(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> 'Duration':
@@ -580,10 +601,13 @@ class Duration(object):
     return self.micros < other.micros
 
   def __gt__(self, other: TimestampDurationTypes) -> bool:
-    return not (self < other or self == other)
+    return not self <= other
 
   def __le__(self, other: TimestampDurationTypes) -> bool:
-    return self < other or self == other
+    if isinstance(other, Timestamp):
+      return self.micros * 1000 <= other.nanos
+    other = Duration.of(other)
+    return self.micros <= other.micros
 
   def __ge__(self, other: TimestampDurationTypes) -> bool:
     return not self < other

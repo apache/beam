@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.QueryResponse;
@@ -68,7 +69,8 @@ public class BigQuerySchemaUpdateOptionsIT {
       new BigqueryClient("BigQuerySchemaUpdateOptionsIT");
 
   private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_schema_update_options_"
+      TEMP_DATASET_PREFIX
+          + "schema_update_options_"
           + System.currentTimeMillis()
           + "_"
           + new SecureRandom().nextInt(32);

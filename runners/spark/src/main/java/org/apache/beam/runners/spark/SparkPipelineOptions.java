@@ -86,4 +86,13 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
   boolean isCacheDisabled();
 
   void setCacheDisabled(boolean value);
+
+  @Description(
+      "Run portable pipelines on the Dataset-based backend. Experimental. Unbounded input, user"
+          + " state and timers are not supported on this backend yet, see"
+          + " https://github.com/apache/beam/issues/36841.")
+  @Default.Boolean(false)
+  boolean getUseStructuredStreaming();
+
+  void setUseStructuredStreaming(boolean value);
 }

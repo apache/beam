@@ -36,6 +36,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
@@ -63,7 +64,9 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
   private BigtableTableAdminClient tableAdminClient;
   private BigtableDataClient dataClient;
   private String tableId =
-      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC")));
+      String.format(
+          "BTSimpleWriteIT-%tF-%<tH-%<tM-%<tS-%<tL-%s",
+          LocalDateTime.now(ZoneId.of("UTC")), UUID.randomUUID().toString().substring(0, 8));
   private String projectId;
   private String instanceId;
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> writeTransform;

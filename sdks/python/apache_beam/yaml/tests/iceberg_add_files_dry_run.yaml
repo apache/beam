@@ -1,0 +1,185 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+
+pipelines:
+  # Pipeline 1: files with two columns
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+        - type: WriteToParquet
+          config:
+            path: "{TEMP_DIR}/data/narrow"
+            file_name_suffix: ".parquet"
+            num_shards: 1
+
+  # Pipeline 2: files with an extra column
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {label: "389a", rank: 2, bool: false}
+              - {label: "3821b", rank: 3, bool: true}
+        - type: WriteToParquet
+          config:
+            path: "{TEMP_DIR}/data/wide"
+            file_name_suffix: ".parquet"
+            num_shards: 1
+
+  # Pipeline 3: a dry run against a table that does not exist yet; the report is written as JSON
+  # from the dry_run_report output, the way a user keeps it
+  - pipeline:
+      transforms:
+        - type: ReadMatchFiles
+          name: Match
+          config:
+            file_pattern: "{TEMP_DIR}/data/*.parquet"
+        - type: MapToFields
+          name: Paths
+          input: Match
+          config:
+            language: python
+            fields:
+              path:
+                callable: "lambda row: row.path"
+                output_type: string
+        - type: IcebergAddFiles
+          name: DryRun
+          input: Paths
+          config:
+            table: "default.table"
+            catalog_properties:
+              type: "hadoop"
+              warehouse: "{TEMP_DIR}/dir"
+            schema_evolution_options: [ALLOW_FIELD_ADDITION]
+            dry_run: true
+        - type: WriteToJson
+          name: WriteReport
+          input: DryRun.dry_run_report
+          config:
+            path: "{TEMP_DIR}/report.json"
+        # The full report, as a real run against this input would decide it. The report is one
+        # row with nested fields; the two assertions below read it the way a user would: the
+        # verdict, the file counts and the table a real run would create (from the union, every
+        # column optional) come from the top level, the per-schema entries from an Explode.
+        - type: MapToFields
+          name: Verdict
+          input: DryRun.dry_run_report
+          config:
+            language: python
+            fields:
+              allowed: allowed
+              reason: reason
+              would_create_table: would_create_table
+              files_allowed: files_allowed
+              files_incompatible: files_incompatible
+              files_unreadable: files_unreadable
+              files_unchecked: files_unchecked
+              unchecked_registered: unchecked_registered
+              table_changes: table_changes
+              config_problems: config_problems
+              created_schema: created_table.schema
+              created_columns: created_table.columns
+        - type: AssertEqual
+          name: AssertVerdict
+          input: Verdict
+          config:
+            elements:
+              - allowed: true
+                reason: ""
+                would_create_table: true
+                files_allowed: 2
+                files_incompatible: 0
+                files_unreadable: 0
+                files_unchecked: 0
+                unchecked_registered: false
+                table_changes: []
+                config_problems: []
+                created_schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"bool","required":false,"type":"boolean"}},{{"id":2,"name":"label","required":false,"type":"string"}},{{"id":3,"name":"rank","required":false,"type":"long"}}]}}'
+                created_columns: ["create optional bool boolean", "create optional label string", "create optional rank long"]
+        # one entry per distinct schema (canonical JSON), most common first
+        - type: Explode
+          name: Schemas
+          input: DryRun.dry_run_report
+          config:
+            fields: [schemas]
+        - type: MapToFields
+          name: SchemaEntries
+          input: Schemas
+          config:
+            language: python
+            fields:
+              schema_key: schemas.schema_key
+              schema: schemas.schema
+              num_files: schemas.num_files
+              changes: schemas.changes
+              allowed: schemas.allowed
+              reason: schemas.reason
+        - type: AssertEqual
+          name: AssertSchemas
+          input: SchemaEntries
+          config:
+            elements:
+              - schema_key: "s27e62d"
+                schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"bool","required":true,"type":"boolean"}},{{"id":2,"name":"label","required":true,"type":"string"}},{{"id":3,"name":"rank","required":true,"type":"long"}}]}}'
+                num_files: 1
+                changes: []
+                allowed: true
+                reason: ""
+              - schema_key: "s48334d"
+                schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"label","required":true,"type":"string"}},{{"id":2,"name":"rank","required":true,"type":"long"}}]}}'
+                num_files: 1
+                changes: []
+                allowed: true
+                reason: ""
+
+    providers:
+      - type: python
+        config: { }
+        transforms:
+          ReadMatchFiles: 'apache_beam.io.fileio.MatchFiles'
+
+  # Pipeline 4: the report was written (nested fields come back as strings through ReadFromJson,
+  # so only the scalar columns are compared here; the full row is asserted above)
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJson
+          config:
+            path: "{TEMP_DIR}/report.json*"
+        - type: MapToFields
+          config:
+            fields:
+              allowed: allowed
+              would_create_table: would_create_table
+              files_allowed: files_allowed
+              files_incompatible: files_incompatible
+        - type: AssertEqual
+          config:
+            elements:
+              - {allowed: true, would_create_table: true, files_allowed: 2, files_incompatible: 0}

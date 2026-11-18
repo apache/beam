@@ -43,10 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>{@link #combineFn} can also be used manually, in combination with state and with the {@link
  * Combine} transform.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class Sample {
 
   /** Returns a {@link CombineFn} that computes a fixed-sized uniform sample of its inputs. */
@@ -282,6 +279,7 @@ public class Sample {
     }
 
     @Override
+    @SuppressWarnings("nullness") // the output is null when the input is empty
     public T extractOutput(List<T> accumulator) {
       Iterator<T> it = internal.extractOutput(accumulator).iterator();
       return it.hasNext() ? it.next() : null;
@@ -293,7 +291,7 @@ public class Sample {
    *
    * @param <T> the type of the elements
    */
-  public static class FixedSizedSampleFn<T>
+  public static final class FixedSizedSampleFn<T>
       extends CombineFn<
           T, Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>, Iterable<T>> {
     private final int sampleSize;

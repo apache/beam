@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListUpdateRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -74,6 +75,7 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
@@ -2387,6 +2389,158 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListDeleteRangeThenAddPersist() throws Exception {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    // Clear a sub-range [2ms, 4ms) and then add an element at 2ms within that cleared range.
+    orderedListState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(2000, updates.getDeletes(0).getRange().getStart());
+    assertEquals(4000, updates.getDeletes(0).getRange().getLimit());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // Verify that the sub-range deletion for [2ms, 3ms) was removed when "hello" was added at 2ms,
+    // so clearing the rest of the 5-minute bucket [0, 2ms) and [4ms, 5m) in the next work item
+    // does not wipe out id tracking for the bucket.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochMilli(2));
+    orderedListState.clearRange(Instant.ofEpochMilli(4), Instant.ofEpochSecond(300));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+    assertBuildable(commitBuilder);
+
+    // Adding another element at 2ms in a subsequent work item should get the next id (1), not 0.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("world", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // Now clear the entire 5-minute bucket [0, 5m) and add a new element in the same work item.
+    // The delete should be processed before the add, resetting the bucket's ids to start at
+    // NEW_RANGE_MIN_ID (0) for the new element while preserving its id tracking for future adds.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochSecond(300));
+    orderedListState.add(TimestampedValue.of("afterFullClear1", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("afterFullClear1", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+
+    // A subsequent add in the same bucket should receive NEW_RANGE_MIN_ID + 1.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("afterFullClear2", Instant.ofEpochMilli(2)));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+    assertEquals("afterFullClear2", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(0).getId());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testOrderedListClearRangeAllBucketsClearsIdsAvailable() throws Exception {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+    assertBuildable(commitBuilder);
+
+    // Clear the entire 5-minute bucket; idsAvailable becomes empty and its ValueState must be
+    // cleared in Windmill rather than left behind.
+    resetUnderTest();
+    orderedListState = underTest.state(NAMESPACE, addr);
+    orderedListState.clearRange(Instant.EPOCH, Instant.ofEpochSecond(300));
+
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    ByteString idsAvailableKey = systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR);
+    List<TagValue> idsAvailableUpdates =
+        commitBuilder.getValueUpdatesList().stream()
+            .filter(tv -> tv.getTag().equals(idsAvailableKey))
+            .collect(Collectors.toList());
+    assertEquals(1, idsAvailableUpdates.size());
+    assertEquals(0, idsAvailableUpdates.get(0).getValue().getData().size());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
   public void testOrderedListMergePendingAdds() {
     SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
     orderedListFuture.set(null);
@@ -3703,6 +3857,300 @@ public class WindmillStateInternalsTest {
     Mockito.verify(mockReader, times(2))
         .bagFuture(eq(key(NAMESPACE, "combining")), eq(STATE_FAMILY), Mockito.<Coder<int[]>>any());
     Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testMultimapReadLaterSkipsCachedAndNonexistentKeys() {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] cachedKey = "cachedKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] emptyKey = "emptyKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] removedKey = "removedKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] putOnlyKey = "putOnlyKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] absentKey = "absentKey".getBytes(StandardCharsets.UTF_8);
+
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(cachedKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(1, 2)));
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(emptyKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(Collections.emptyList()));
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(putOnlyKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(10)));
+
+    // Populate cache for cachedKey (valuesCached) and emptyKey (KNOWN_NONEXISTENT).
+    assertThat(multimapState.get(cachedKey).read(), Matchers.containsInAnyOrder(1, 2));
+    assertThat(multimapState.get(emptyKey).read(), Matchers.emptyIterable());
+    multimapState.remove(removedKey);
+    multimapState.put(putOnlyKey, 20);
+
+    // readLater() on cached, nonexistent, and locally removed keys must not hit mockReader again.
+    multimapState.get(dup(cachedKey)).readLater();
+    multimapState.get(dup(emptyKey)).readLater();
+    multimapState.get(dup(removedKey)).readLater();
+    // putOnlyKey still needs a backend read because Windmill may have additional persisted values.
+    multimapState.get(dup(putOnlyKey)).readLater();
+
+    Mockito.verify(mockReader, times(1))
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(cachedKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+    Mockito.verify(mockReader, times(1))
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(emptyKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+    Mockito.verify(mockReader, never())
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(removedKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+    Mockito.verify(mockReader, times(1))
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(putOnlyKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+
+    // Weighted keys().read() sets allKeysKnown = true; absentKey should not trigger a read.
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(multimapEntry(cachedKey))));
+    multimapState.keys().read();
+    multimapState.get(absentKey).readLater();
+    Mockito.verify(mockReader, never())
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(absentKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+
+    // clear() sets complete = true; any key should not trigger a read.
+    multimapState.clear();
+    final byte[] postClearKey = "postClearKey".getBytes(StandardCharsets.UTF_8);
+    multimapState.get(postClearKey).readLater();
+    Mockito.verify(mockReader, never())
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(postClearKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+  }
+
+  @Test
+  public void testMultimapReadLaterContagiousCacheMiss() {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    List<byte[]> warmKeys = new ArrayList<>();
+    for (int i = 0; i < 9; i++) {
+      byte[] k = ("warm" + i).getBytes(StandardCharsets.UTF_8);
+      warmKeys.add(k);
+      when(mockReader.multimapFetchSingleEntryFuture(
+              encodeWithCoder(k, ByteArrayCoder.of()),
+              key(NAMESPACE, tag),
+              STATE_FAMILY,
+              VarIntCoder.of()))
+          .thenReturn(Futures.immediateFuture(weightedList(i)));
+      assertThat(multimapState.get(k).read(), Matchers.contains(i));
+    }
+
+    byte[] coldKey = "cold".getBytes(StandardCharsets.UTF_8);
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(coldKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(99)));
+
+    Mockito.clearInvocations(mockReader);
+
+    List<ReadableState<Iterable<Integer>>> futures = new ArrayList<>();
+    for (byte[] warmKey : warmKeys) {
+      futures.add(multimapState.get(dup(warmKey)).readLater());
+    }
+    futures.add(multimapState.get(coldKey).readLater());
+
+    for (byte[] warmKey : warmKeys) {
+      Mockito.verify(mockReader, never())
+          .multimapFetchSingleEntryFuture(
+              encodeWithCoder(warmKey, ByteArrayCoder.of()),
+              key(NAMESPACE, tag),
+              STATE_FAMILY,
+              VarIntCoder.of());
+    }
+    Mockito.verify(mockReader, times(1))
+        .multimapFetchSingleEntryFuture(
+            encodeWithCoder(coldKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of());
+
+    for (ReadableState<Iterable<Integer>> f : futures) {
+      f.read();
+    }
+
+    for (byte[] warmKey : warmKeys) {
+      Mockito.verify(mockReader, never())
+          .multimapFetchSingleEntryFuture(
+              encodeWithCoder(warmKey, ByteArrayCoder.of()),
+              key(NAMESPACE, tag),
+              STATE_FAMILY,
+              VarIntCoder.of());
+    }
+  }
+
+  @Test
+  public void testMultimapMetadataReadLaterSkipsWhenKnown() {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] existingKey = "existing".getBytes(StandardCharsets.UTF_8);
+    final byte[] putKey = "put".getBytes(StandardCharsets.UTF_8);
+
+    // put() marks key as KNOWN_EXIST; isEmpty().readLater() and containsKey(putKey).readLater()
+    // should not hit Windmill.
+    multimapState.put(putKey, 1);
+    multimapState.isEmpty().readLater();
+    multimapState.containsKey(dup(putKey)).readLater();
+    Mockito.verifyNoInteractions(mockReader);
+
+    // Weighted keys().read() sets allKeysKnown = true and existingKey as KNOWN_EXIST (with
+    // valuesCached = false).
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, tag), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(multimapEntry(existingKey))));
+    multimapState.keys().read();
+    Mockito.clearInvocations(mockReader);
+
+    multimapState.keys().readLater();
+    multimapState.isEmpty().readLater();
+    multimapState.containsKey(dup(existingKey)).readLater();
+    Mockito.verifyNoInteractions(mockReader);
+  }
+
+  @Test
+  public void testMapViaMultimapReadLaterSkipsCachedRemovedAndPutKeys() {
+    final String tag = "map";
+    StateTag<MapState<byte[], Integer>> addr =
+        StateTags.map(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] cachedKey = "cachedKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] removedKey = "removedKey".getBytes(StandardCharsets.UTF_8);
+    final byte[] putKey = "putKey".getBytes(StandardCharsets.UTF_8);
+
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(cachedKey, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(weightedList(42)));
+
+    assertEquals(Integer.valueOf(42), mapState.get(cachedKey).read());
+    mapState.remove(removedKey);
+    mapState.put(putKey, 7);
+    Mockito.clearInvocations(mockReader);
+
+    mapState.get(dup(cachedKey)).readLater();
+    mapState.get(dup(removedKey)).readLater();
+    mapState.get(dup(putKey)).readLater();
+    mapState.isEmpty().readLater();
+
+    Mockito.verifyNoInteractions(mockReader);
+  }
+
+  @Test
+  public void testMapReadLaterAndReadSkipCachedKeys() throws Exception {
+    final String tag = "map";
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map(tag, StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey("missing", StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(Futures.immediateFuture(null));
+
+    // Populate negativeCache via a null read.
+    assertNull(mapState.get("missing").read());
+    // Populate cachedValues via put.
+    mapState.put("present", 1);
+    // Populate localRemovals via remove.
+    mapState.remove("removed");
+
+    Mockito.clearInvocations(mockReader);
+
+    assertNull(mapState.get("missing").readLater().read());
+    assertEquals(Integer.valueOf(1), mapState.get("present").readLater().read());
+    assertNull(mapState.get("removed").readLater().read());
+    assertEquals(Integer.valueOf(1), mapState.putIfAbsent("present", 2).read());
+    assertNull(mapState.putIfAbsent("removed", 2).read());
+    assertFalse(mapState.isEmpty().readLater().read());
+
+    Mockito.verifyNoInteractions(mockReader);
+
+    // clear() sets complete = true; uncached key should also skip mockReader.
+    mapState.clear();
+    assertNull(mapState.get("afterClear").readLater().read());
+    Mockito.verifyNoInteractions(mockReader);
+  }
+
+  @Test
+  public void testSetStateReadLaterSkipsCachedKeys() throws Exception {
+    // 1. Streaming Engine mode (WindmillMapViaMultimap)
+    final String seTag = "setSe";
+    StateTag<SetState<String>> seAddr = StateTags.set(seTag, StringUtf8Coder.of());
+    SetState<String> seSet = underTestMapViaMultimap.state(NAMESPACE, seAddr);
+
+    seSet.add("a");
+    seSet.remove("b");
+    seSet.contains("a").readLater();
+    seSet.contains("b").readLater();
+    seSet.isEmpty().readLater();
+    Mockito.verifyNoInteractions(mockReader);
+
+    when(mockReader.multimapFetchAllFuture(
+            true, key(NAMESPACE, seTag), STATE_FAMILY, BooleanCoder.of()))
+        .thenReturn(Futures.immediateFuture(new WeightedList<>(Collections.emptyList())));
+    seSet.read();
+    Mockito.clearInvocations(mockReader);
+    seSet.readLater();
+    seSet.contains("absent").readLater();
+    Mockito.verifyNoInteractions(mockReader);
+
+    // 2. Legacy WindmillMap mode
+    final String mapTag = "setMap";
+    StateTag<SetState<String>> mapAddr = StateTags.set(mapTag, StringUtf8Coder.of());
+    SetState<String> mapSet = underTest.state(NAMESPACE, mapAddr);
+
+    mapSet.add("x");
+    mapSet.remove("y");
+    mapSet.contains("x").readLater().read();
+    mapSet.contains("y").readLater().read();
+    assertFalse(mapSet.addIfAbsent("x").readLater().read());
+    assertFalse(mapSet.isEmpty().readLater().read());
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   private void disableCompactOnWrite() {

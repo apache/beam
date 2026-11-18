@@ -161,7 +161,8 @@ public interface DataflowPipelineOptions
    * SDK version was released.
    *
    * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
-   * #getApiRootUrl()} is used as the root URL.
+   * #getApiRootUrl()} is used as the root URL (or, if that is not set, the root URL resolved by the
+   * Google API client library).
    */
   @Description(
       "The URL for the Dataflow API. If the string contains \"://\", this"

@@ -90,9 +90,14 @@ public interface SparkCommonPipelineOptions
    */
   @Internal
   static void prepareFilesToStage(SparkCommonPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
+    if (!isLocalSparkMaster(options)) {
       PipelineResources.prepareFilesForStaging(options);
     }
+  }
+
+  @Internal
+  static boolean isLocalSparkMaster(SparkCommonPipelineOptions options) {
+    return options.getSparkMaster().matches("local\\[?[0-9\\*,]*\\]?");
   }
 
   /**
@@ -102,7 +107,15 @@ public interface SparkCommonPipelineOptions
   class StorageLevelFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return SparkStructuredStreamingRunner.class.equals(options.getRunner())
+      Class<?> runner;
+      try {
+        runner = options.getRunner();
+      } catch (IllegalArgumentException e) {
+        // Portable pipelines (e.g. from the Python SDK) don't set a runner, and the default
+        // DirectRunner lookup throws when it isn't on the classpath.
+        runner = null;
+      }
+      return SparkStructuredStreamingRunner.class.equals(runner)
           ? "MEMORY_AND_DISK"
           : "MEMORY_ONLY";
     }

@@ -23,6 +23,7 @@ import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.fn.harness.state.WorkCancelledException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -151,11 +152,19 @@ public class BeamFnControlClient {
           .setInstructionId(value.getInstructionId())
           .build();
     } catch (Exception e) {
-      LOG.error(
-          "Exception while trying to handle {} {}",
-          BeamFnApi.InstructionRequest.class.getSimpleName(),
-          value.getInstructionId(),
-          e);
+      if (WorkCancelledException.isWorkCancelledException(e)) {
+        LOG.info(
+            "Instruction {} {} cancelled by runner",
+            BeamFnApi.InstructionRequest.class.getSimpleName(),
+            value.getInstructionId(),
+            e);
+      } else {
+        LOG.error(
+            "Exception while trying to handle {} {}",
+            BeamFnApi.InstructionRequest.class.getSimpleName(),
+            value.getInstructionId(),
+            e);
+      }
       return BeamFnApi.InstructionResponse.newBuilder()
           .setInstructionId(value.getInstructionId())
           .setError(getStackTraceAsString(e))

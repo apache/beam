@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.solace.write;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -35,6 +33,8 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multiset;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,10 +118,10 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws IOException {
     List<Solace.Record> currentBundle = getCurrentBundle();
-    Set<String> messageIdsToAck = null;
+    Multiset<String> messageIdsToAck = null;
 
     if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
-      messageIdsToAck = new HashSet<>();
+      messageIdsToAck = HashMultiset.create();
       for (Solace.Record record : currentBundle) {
         messageIdsToAck.add(record.getMessageId());
       }
@@ -151,7 +151,11 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
           solaceSessionServiceWithProducer()
               .getInitializedProducer(getSubmissionMode())
               .publishBatch(
-                  records, shouldPublishLatencyMetrics(), getDestinationFn(), getDeliveryMode());
+                  records,
+                  shouldPublishLatencyMetrics(),
+                  getDestinationFn(),
+                  getDeliveryMode(),
+                  getBundleResultsQueue());
       sentToBroker.inc(entriesPublished);
     } catch (Exception e) {
       batchesRejectedByBroker.inc();
@@ -163,7 +167,7 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
                 .setError(String.format("Batch could not be published. Error: %s", e.getMessage()))
                 .setLatencyNanos(System.nanoTime())
                 .build();
-        solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+        getBundleResultsQueue().add(errorPublish);
       }
     }
   }

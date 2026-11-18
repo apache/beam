@@ -106,8 +106,8 @@ var htfConfig = {
   setDisabledButtonClass: "disable-button"
 }
 var htf = new CategoriesFilter(htfConfig);
-$("#load-button").click(function(){
-    $(this).toggleClass('tf-filter-item');
+document.getElementById("load-button").addEventListener("click", function(){
+    this.classList.toggle('tf-filter-item');
     htf.showMore();
     htf.showCheck(htfConfig.filters[0].name, false);
 });

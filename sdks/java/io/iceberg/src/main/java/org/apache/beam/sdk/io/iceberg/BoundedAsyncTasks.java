@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -100,7 +101,9 @@ class BoundedAsyncTasks<T> {
     executor.shutdownNow();
   }
 
-  private void drainFinished(Consumer<T> onDone) throws Exception {
+  /** Delivers every task that has finished, in queue order, without blocking. */
+  @VisibleForTesting
+  void drainFinished(Consumer<T> onDone) throws Exception {
     Iterator<Future<T>> iterator = active.iterator();
     while (iterator.hasNext()) {
       Future<T> future = iterator.next();

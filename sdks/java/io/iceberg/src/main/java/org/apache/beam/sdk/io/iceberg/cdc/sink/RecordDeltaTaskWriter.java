@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,6 +94,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * row that was already flushed when a later change superseded it. Collapsing means the superseded
  * row is never written at all.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 abstract class RecordDeltaTaskWriter {
 
   private final PartitionSpec spec;

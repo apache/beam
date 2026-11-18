@@ -54,8 +54,6 @@ rules:
   addLabels: ['flink']
 - contains: '[x] Component: Prism'
   addLabels: ['prism']
-- contains: '[x] Component: Twister2'
-  addLabels: ['twister2']
 - contains: '[x] Component: Hazelcast'
   addLabels: ['jet']
 - contains: '[x] Component: Google Cloud Dataflow Runner'

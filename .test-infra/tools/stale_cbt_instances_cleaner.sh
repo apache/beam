@@ -22,35 +22,65 @@ set -euo pipefail
 
 PROJECT=apache-beam-testing
 
-# get first 50 instances
-CBT_INSTANCES=`cbt -project=$PROJECT listinstances | awk 'NR>2 {print $1} NR==52{exit}'`
+# Get first 50 instances.
+CBT_INSTANCES=$(cbt -project="$PROJECT" listinstances | awk 'NR>2 {print $1} NR==52 {exit}')
 
-CLEANUP_INSTANCE_TEMPLATES=(bt-read-tests bt-write-xlang test[a-z]+)
+CLEANUP_INSTANCE_TEMPLATES=(bt-read-tests bt-write-xlang bt-cdc-tests test[a-z]+)
 
-# A grace period of 5 days
-GRACE_PERIOD=$((`date +%s` - 24 * 3600 * 5))
-# count number of failed api calls
+# A grace period of 5 days.
+GRACE_PERIOD=$(($(date +%s) - 24 * 3600 * 5))
+
+# Count number of failed API calls.
 declare -i failed_calls=0
 
-for instance in ${CBT_INSTANCES[@]}; do
-  for template in ${CLEANUP_INSTANCE_TEMPLATES[@]}; do
+# Disable change streams before deleting an instance.
+disable_change_streams() {
+  local instance=$1
+  local tables
+  local table
+
+  tables=$(gcloud bigtable instances tables list \
+    --instances="$instance" \
+    --project="$PROJECT" \
+    --format="value(name)") || return 1
+
+  while IFS= read -r table; do
+    [[ -z "$table" ]] && continue
+
+    # Extract table ID from the full resource name.
+    table=${table##*/}
+
+    if ! gcloud bigtable instances tables update "$table" \
+      --instance="$instance" \
+      --project="$PROJECT" \
+      --clear-change-stream-retention-period \
+      --quiet; then
+      echo "Failed to disable change stream for table $table in $instance"
+      return 1
+    fi
+  done <<< "$tables"
+}
+
+for instance in $CBT_INSTANCES; do
+  for template in "${CLEANUP_INSTANCE_TEMPLATES[@]}"; do
     pattern=$template-"([0-9]{8})"-
     if [[ $instance =~ $pattern ]]; then
       CREATE_DATE=${BASH_REMATCH[1]}
       if [[ $OSTYPE == "linux-gnu"* ]]; then
-        # skip if not a valid date
-        CREATED=`date -d ${CREATE_DATE} +%s` || continue
+        # Skip if not a valid date.
+        CREATED=$(date -d "$CREATE_DATE" +%s) || continue
       elif [[ $OSTYPE == "darwin"* ]]; then
-        # date command usage depending on OS
-        CREATED=`date -ju -f "%Y%m%d-%H%M%S" ${CREATE_DATE}-000000 +%s` || continue
+        CREATED=$(date -ju -f "%Y%m%d-%H%M%S" "${CREATE_DATE}-000000" +%s) || continue
       else
         echo "Unsupported OS $OSTYPE"
         exit 1
       fi
       if [[ $GRACE_PERIOD -gt $CREATED ]]; then
-        if cbt -project=$PROJECT deleteinstance $instance; then
+        if disable_change_streams "$instance" &&
+           cbt -project="$PROJECT" deleteinstance "$instance"; then
           echo "Deleted $instance (created $CREATE_DATE)"
         else
+          echo "Failed to delete $instance"
           failed_calls+=1
         fi
       fi

@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * External Sorter based on <a
  * href="https://github.com/lemire/externalsortinginjava">lemire/externalsortinginjava</a>.
  */
-class NativeFileSorter {
+final class NativeFileSorter {
 
   private static final Logger LOG = LoggerFactory.getLogger(NativeFileSorter.class);
 
@@ -140,6 +140,8 @@ class NativeFileSorter {
     } finally {
       inputStream.close();
     }
+    // Every record is in a sorted block now, so the unsorted copy can go.
+    Files.deleteIfExists(dataFile.toPath());
     return files;
   }
 
@@ -204,10 +206,18 @@ class NativeFileSorter {
 
   private @Nullable KV<byte[], byte[]> readKeyValueOrFail(InputStream inputStream) {
     try {
-      return readKeyValue(inputStream);
-    } catch (EOFException e) {
-      return null;
+      @Nullable KV<byte[], byte[]> kv = readKeyValue(inputStream); // null at end of file
+      if (kv == null) {
+        // The block is used up: release its file handle now
+        inputStream.close();
+      }
+      return kv;
     } catch (IOException e) {
+      try {
+        inputStream.close();
+      } catch (IOException closeError) {
+        e.addSuppressed(closeError);
+      }
       throw new IllegalStateException(e);
     }
   }

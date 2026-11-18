@@ -107,6 +107,46 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
+  public void rootIsUnnamedByDefault() {
+    assertThat(hierarchy.getCurrent().isRootNode(), is(true));
+    assertThat(hierarchy.getCurrent().getFullName(), equalTo(""));
+  }
+
+  @Test
+  public void setRootNameRenamesRoot() {
+    hierarchy.setRootName("myRoot");
+    TransformHierarchy.Node root = hierarchy.getCurrent();
+    assertThat(root.isRootNode(), is(true));
+    // Pipeline builds every full name from getCurrent().getFullName(), so naming the root is what
+    // makes all subsequently applied transforms "myRoot/...".
+    assertThat(root.getFullName(), equalTo("myRoot"));
+
+    TransformHierarchy.Node node =
+        hierarchy.pushNode("myRoot/Create", PBegin.in(pipeline), Create.of(1));
+    assertThat(node.getEnclosingNode(), equalTo(root));
+    assertThat(node.getFullName(), equalTo("myRoot/Create"));
+    hierarchy.popNode();
+    assertThat(hierarchy.getCurrent(), equalTo(root));
+    assertThat(hierarchy.getCurrent().getFullName(), equalTo("myRoot"));
+  }
+
+  @Test
+  public void setRootNameAfterPushFails() {
+    hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    hierarchy.popNode();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("already contains transforms");
+    hierarchy.setRootName("tooLate");
+  }
+
+  @Test
+  public void setRootNameWhileInsideCompositeFails() {
+    hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    thrown.expect(IllegalStateException.class);
+    hierarchy.setRootName("tooLate");
+  }
+
+  @Test
   public void emptyCompositeSucceeds() {
     PCollection<Long> created =
         PCollection.createPrimitiveOutputInternal(

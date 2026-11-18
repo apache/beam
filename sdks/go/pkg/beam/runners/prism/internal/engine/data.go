@@ -322,9 +322,10 @@ func findRange(bag [][]byte, start, end int64) (int, int) {
 }
 
 func (d *TentativeData) ClearOrderedListState(stateID LinkID, wKey, uKey []byte, start, end int64) {
-	winMap := d.state[stateID]
-	w := d.toWindow(wKey)
-	kMap := winMap[w]
+	kMap := d.clearState(stateID, wKey)
+	if kMap == nil {
+		return
+	}
 	data := kMap[string(uKey)]
 
 	lo, hi := findRange(data.Bag, start, end)

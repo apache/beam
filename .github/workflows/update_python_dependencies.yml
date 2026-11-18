@@ -32,22 +32,33 @@ permissions:
   statuses: read
 
 env:
-  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   set-properties:
     runs-on: [self-hosted, ubuntu-24.04, highmem]
     outputs:
-      properties: ${{ steps.test-properties.outputs.properties }}
+      should_run: ${{ steps.check_cadence.outputs.should_run }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - id: test-properties
-        uses: ./.github/actions/setup-default-test-properties
+      - name: Check release cadence
+        id: check_cadence
+        env:
+          GH_EVENT: ${{ github.event_name }}
+        run: |
+          # Take the current date, subtract from a release cut date in the past (Oct 28, 2026),
+          # then get the num days % 42 (our release cadence is 42 days).
+          # This will ensure it only runs in week 1 and week 3 after a release branch has been cut,
+          # preserving a ~3-week soak window before the next release cut.
+          days_diff=$(( ($(date +%s) - $(date --date="261028" +%s) )/(60*60*24)%42 ))
+          if [[ $GH_EVENT == 'workflow_dispatch' || $days_diff -le 6 || ( $days_diff -ge 14 && $days_diff -le 20 ) ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Exiting early. We only update dependencies in week 1 and week 3 after we cut the release"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
 
   update_python_dependencies:
+    if: needs.set-properties.outputs.should_run == 'true'
     runs-on: [self-hosted, ubuntu-24.04, main]
     needs: set-properties
     name: Update Python Dependencies
@@ -61,7 +72,6 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.10
             3.11
             3.12
             3.13
@@ -84,23 +94,14 @@ jobs:
       - name: Commit Changes and create new PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_EVENT: ${{ github.event_name }}
         run: |
-          # Take the current date, subtract from a release cut date in the past (Mar 6, 2024),
-          # then get the num days % 42 (our release cadence is 42 days).
-          # This will ensure it only runs the week after a release branch has been cut.
-          days_diff=$(( ($(date +%s) - $(date --date="240306" +%s) )/(60*60*24)%42 ))
-          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
-            echo "Exiting early. We only update dependencies the week after we cut the release"
-            exit 0
-          fi
           branchName=weekly_update_python_dependencies_$(date +%s)
           git checkout -b $branchName
           git add -A
-          git diff-index --quiet HEAD || gitdiff=$? || echo $?
-          if [[ $gitDiff != 0 ]]; then
+          if ! git diff --cached --quiet; then
             echo "Changes are ready to commit"
             git commit -m "Update Python Dependencies" --quiet
+            gh auth setup-git
             git push origin $branchName --quiet
             GITHUB_PR_URL=$(gh pr create --title "Update Python Dependencies" --label "python" --body "This PR was created by automation - by default this does not execute tests due to a limitation in GitHub Actions. To review this PR, please (1) review the contents to make sure all dependency upgrades are formatted correctly, (2) close and reopen the PR (3) Approve/merge if tests pass successfully.")
             echo "Link of the new PR  $GITHUB_PR_URL"

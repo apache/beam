@@ -37,6 +37,9 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.utils import python_callable
 
+_SIMPLE_OPS = None
+_INT_ONE_OPS = None
+
 
 class TypeInferenceError(ValueError):
   """Error to raise when type inference failed."""
@@ -360,9 +363,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       dis.dis(f, show_caches=True)
     else:
       dis.dis(f)
-  from . import opcodes
-  simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
-  from . import intrinsic_one_ops
+  global _SIMPLE_OPS, _INT_ONE_OPS
+  if _SIMPLE_OPS is None:
+    from . import intrinsic_one_ops
+    from . import opcodes
+    _SIMPLE_OPS = {k.upper(): v for k, v in opcodes.__dict__.items()}
+    _INT_ONE_OPS = intrinsic_one_ops.INT_ONE_OPS
+  simple_ops = _SIMPLE_OPS
 
   co = f.__code__
   code = co.co_code
@@ -578,7 +585,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         # Handle comprehensions always having an arg of 0 for CALL
         # See https://github.com/python/cpython/issues/102403 for context.
-        if (pop_count == 1 and last_real_opname == 'GET_ITER' and
+        # In 3.15 the GET_ITER for a generator expression's iterable moved
+        # into the generator's own code object, so the CALL is no longer
+        # preceded by a GET_ITER in the calling frame.
+        if (pop_count == 1 and
+            (last_real_opname == 'GET_ITER' or sys.version_info >= (3, 15)) and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
             getattr(state.stack[-2].value, '__name__', None)
             in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
@@ -692,11 +703,20 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # so jump 4 more bytes.
         jmp += 4
       jmp_state = state.copy()
-      jmp_state.stack.pop()
-      state.stack.append(element_type(state.stack[-1]))
+      if sys.version_info >= (3, 15):
+        # In 3.15 the iterator occupies two stack slots (iter, index_or_null)
+        # and both are popped when the iterator is exhausted.
+        jmp_state.stack[-2:] = []
+        state.stack.append(element_type(state.stack[-2]))
+      else:
+        jmp_state.stack.pop()
+        state.stack.append(element_type(state.stack[-1]))
     elif opname == 'POP_ITER':
-      # Introduced in 3.14.
-      state.stack.pop()
+      # Introduced in 3.14. Pops (iter, index_or_null) in 3.15.
+      if sys.version_info >= (3, 15):
+        state.stack[-2:] = []
+      else:
+        state.stack.pop()
     elif opname == 'COPY_FREE_VARS':
       # Helps with calling closures, but since we aren't executing
       # them we can treat this as a no-op
@@ -740,7 +760,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       # Introduced in 3.12. The arg is an index into a table of
       # operations reproduced in INT_ONE_OPS. Not all ops are
       # relevant for our type checking infrastructure.
-      int_op = intrinsic_one_ops.INT_ONE_OPS[arg]
+      int_op = _INT_ONE_OPS[arg]
       if debug:
         print("Executing intrinsic one op", int_op.__name__.upper())
       int_op(state, arg)

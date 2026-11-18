@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.TestUtils.LINES;
 
 import java.io.File;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -32,10 +33,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for PDone. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class PDoneTest {
 
   @Rule public final TestPipeline p = TestPipeline.create();

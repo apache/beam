@@ -20,9 +20,12 @@ package org.apache.beam.sdk.extensions.gcp.storage;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -30,11 +33,13 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
@@ -42,6 +47,8 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -267,5 +274,59 @@ public class GcsFileSystemTest {
     return FluentIterable.from(matchResult.metadata())
         .transform(metadata -> ((GcsResourceId) metadata.resourceId()).getGcsPath().toString())
         .toList();
+  }
+
+  private GcsFileSystem fileSystemWithMetrics(boolean enabled) {
+    GcsOptions gcsOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    gcsOptions.setGcsUtil(mockGcsUtil);
+    gcsOptions.setGcsPerformanceMetrics(enabled);
+    return new GcsFileSystem(gcsOptions);
+  }
+
+  private static long counter(MetricsContainerImpl container, String name) {
+    return container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, name)).getCumulative();
+  }
+
+  private static List<GcsResourceId> resourceIds(String... uris) {
+    return FluentIterable.from(uris)
+        .transform(uri -> GcsResourceId.fromGcsPath(GcsPath.fromUri(uri)))
+        .toList();
+  }
+
+  @Test
+  public void testOperationMetricsAreOffByDefault() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
+      fileSystemWithMetrics(false)
+          .rename(resourceIds("gs://bucket/from"), resourceIds("gs://bucket/to"));
+    }
+    assertEquals(0L, counter(container, "gcs_op_rename_count"));
+    assertEquals(0L, counter(container, "gcs_op_rename_msec"));
+  }
+
+  @Test
+  public void testRenameRecordsObjectCountWhenEnabled() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
+      fileSystemWithMetrics(true)
+          .rename(
+              resourceIds("gs://bucket/a", "gs://bucket/b"),
+              resourceIds("gs://bucket/c", "gs://bucket/d"));
+    }
+    assertEquals(2L, counter(container, "gcs_op_rename_count"));
+  }
+
+  @Test
+  public void testFailedOperationIsStillRecorded() throws Exception {
+    doThrow(new IOException("boom")).when(mockGcsUtil).copy(any(), any());
+
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
+      fileSystemWithMetrics(true).copy(resourceIds("gs://bucket/a"), resourceIds("gs://bucket/b"));
+      fail("Expected the copy to propagate the IOException");
+    } catch (IOException expected) {
+      // The point of the test is that the finally block still recorded the attempt.
+    }
+    assertEquals(1L, counter(container, "gcs_op_copy_count"));
   }
 }

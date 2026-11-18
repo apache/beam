@@ -29,6 +29,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
@@ -39,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -68,7 +71,7 @@ public class WorkFailureProcessorTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
   }
@@ -294,5 +297,65 @@ public class WorkFailureProcessorTest {
     runWork.await();
     assertThat(invalidWork).isEmpty();
     assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesUnfailedWorkOnWorkCancellingException()
+      throws Throwable {
+    CountDownLatch runWork1 = new CountDownLatch(1);
+    Set<Work> executedWork2 = new HashSet<>();
+    ExecutableWork work1 = createWork(ignored -> runWork1.countDown());
+    ExecutableWork work2 = createWork(executedWork2::add);
+    work2.work().setFailed();
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        UserCodeException.wrap(new RuntimeException(new WorkCancellingException(2L))),
+        invalidWork::add);
+
+    runWork1.await();
+    assertThat(executedWork2).isEmpty();
+    assertThat(invalidWork).containsExactly(work2.work());
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesUnfailedWorkOnWorkItemCancelledException()
+      throws Throwable {
+    CountDownLatch runWork1 = new CountDownLatch(1);
+    Set<Work> executedWork2 = new HashSet<>();
+    ExecutableWork work1 = createWork(ignored -> runWork1.countDown());
+    ExecutableWork work2 = createWork(executedWork2::add);
+    work2.work().setFailed();
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        UserCodeException.wrap(new RuntimeException(new WorkItemCancelledException(2L))),
+        invalidWork::add);
+
+    runWork1.await();
+    assertThat(executedWork2).isEmpty();
+    assertThat(invalidWork).containsExactly(work2.work());
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
+  }
+
+  @Test
+  public void isWorkItemCancelledException_handlesCircularCausalChain() {
+    RuntimeException exception1 = new RuntimeException("err1");
+    RuntimeException exception2 = new RuntimeException("err2", exception1);
+    exception1.initCause(exception2);
+
+    assertThat(WorkItemCancelledException.isWorkItemCancelledException(exception1)).isFalse();
+    assertThat(WorkCancellingException.isWorkCancellingException(exception1)).isFalse();
   }
 }

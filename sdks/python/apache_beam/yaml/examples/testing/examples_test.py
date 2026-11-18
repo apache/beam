@@ -187,10 +187,12 @@ def test_pubsub_read(
 
   if topic == 'test-topic':
     pubsub_messages = PUBSUB_TOPICS['test-topic']
+    schema = RowTypeConstraint.from_fields([('label', str), ('rank', int)])
     return (
         pcoll
         | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
-        | beam.Map(lambda element: beam.Row(**element)))
+        |
+        beam.Map(lambda element: beam.Row(**element)).with_output_types(schema))
   elif topic == 'taxi-ride-topic':
     pubsub_messages = PUBSUB_TOPICS['taxi-ride-topic']
     schema = input_data.TaxiRideEventSchema
@@ -669,6 +671,7 @@ def _kafka_test_preprocessor(
     'test_gcs_text_to_bigquery_yaml',
     'test_sqlserver_to_bigquery_yaml',
     'test_postgres_to_bigquery_yaml',
+    'test_cloudsql_to_bigquery_yaml',
     'test_kafka_to_iceberg_yaml',
     'test_pubsub_to_iceberg_yaml',
     'test_oracle_to_bigquery_yaml',
@@ -682,7 +685,11 @@ def _kafka_test_preprocessor(
     'test_wordCountImport_yaml',
     'test_wordCountInheritance_yaml',
     'test_iceberg_to_alloydb_yaml',
-    'test_bigquery_write_yaml'
+    'test_bigquery_write_yaml',
+    'test_mongodb_to_bigquery_yaml',
+    'test_gcs_avro_to_cloud_bigtable_yaml',
+    'test_bigquery_to_bigtable_yaml',
+    'test_pubsub_to_splunk_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -749,6 +756,43 @@ def _file_io_read_test_preprocessor(
             transform['type'],
             'path',
             env.input_file(file_name, INPUT_FILES[file_name]))
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_gcs_avro_to_cloud_bigtable_yaml'])
+def _avro_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Avro.
+
+  This preprocessor replaces any ReadFromAvro transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  Avro files.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromAvro transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromAvro':
+        config = transform['config']
+        file_name = config['path'].split('/')[-1]
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_FILES[file_name]
 
   return test_spec
 
@@ -825,8 +869,8 @@ def _spanner_io_read_test_preprocessor(
     for transform in pipeline.get('transforms', []):
       if transform.get('type', '').startswith('ReadFromSpanner'):
         config = transform['config']
-        instance, database = config['instance_id'], config['database_id']
-        if table := config.get('table', None) is None:
+        instance, database = config['instance'], config['database']
+        if (table := config.get('table')) is None:
           table = config.get('query', '').split('FROM')[-1].strip()
         transform['type'] = 'Create'
         transform['config'] = {
@@ -846,6 +890,44 @@ def _spanner_io_read_test_preprocessor(
                 for column in element if column in columns
             } for element in elements]
         transform['config']['elements'] = elements
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_bigquery_to_bigtable_yaml'])
+def _bigquery_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from BigQuery.
+
+  This preprocessor replaces any ReadFromBigQuery transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  BigQuery tables.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromBigQuery transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromBigQuery':
+        config = transform['config']
+        dataset, table = config['table'].split('.')[-2:]
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            'BigQuery', str(dataset), str(table))]
 
   return test_spec
 
@@ -882,7 +964,8 @@ def _enrichment_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_pubsub_topic_to_bigquery_yaml',
     'test_pubsub_subscription_to_bigquery_yaml',
-    'test_pubsub_to_iceberg_yaml'
+    'test_pubsub_to_iceberg_yaml',
+    'test_pubsub_to_splunk_yaml'
 ])
 def _pubsub_io_read_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -931,6 +1014,7 @@ def __sqlserver_io_read_test_preprocessor(
 
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_postgres_to_bigquery_yaml',
+    'test_cloudsql_to_bigquery_yaml',
 ])
 def __postgres_io_read_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
@@ -968,6 +1052,45 @@ def __mysql_io_read_test_preprocessor(
   """
   return _db_io_read_test_processor(
       test_spec, lambda url: url.split('/')[3].split('?')[0], 'MySql')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_mongodb_to_bigquery_yaml',
+])
+def _mongodb_io_read_test_preprocessor(
+    test_spec: dict, expected: list[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from MongoDB.
+
+  This preprocessor replaces any ReadFromMongoDB transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on an active
+  MongoDB instance.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromMongoDB transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromMongoDB':
+        config = transform['config']
+        database, collection = config['database'], config['collection']
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            'MongoDB', str(database), str(collection))]
+
+  return test_spec
 
 
 def _db_io_read_test_processor(
@@ -1309,7 +1432,8 @@ INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
     'youtube-comments.csv': input_data.youtube_comments_csv(),
-    'system-logs.csv': input_data.system_logs_csv()
+    'system-logs.csv': input_data.system_logs_csv(),
+    'shipments.avro': input_data.shipments_data()
 }
 
 KAFKA_TOPICS = {'test-topic': input_data.kafka_messages_data()}
@@ -1327,20 +1451,19 @@ INPUT_TABLES = {
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
+    ('BigQuery', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Jdbc', 'shipment', 'shipments'): input_data.shipments_data(),
     ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Oracle', 'shipment', 'shipments'): input_data.shipments_data(),
-    ('MySql', 'shipment', 'shipments'): input_data.shipments_data()
+    ('MySql', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('MongoDB', 'shipment', 'shipments'): input_data.shipments_data()
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
-BlueprintTest = YamlExamplesTestSuite(
-    'BlueprintExamplesTest',
-    os.path.join(YAML_DOCS_DIR, '../transforms/blueprint/*.yaml')).run()
 ElementWiseTest = YamlExamplesTestSuite(
     'ElementwiseExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
@@ -1355,6 +1478,9 @@ IOTest = YamlExamplesTestSuite(
 MLTest = YamlExamplesTestSuite(
     'MLExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/ml/**/*.yaml')).run()
+PipelinesTest = YamlExamplesTestSuite(
+    'PipelinesExamplesTest',
+    os.path.join(YAML_DOCS_DIR, '../transforms/pipelines/*.yaml')).run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -27,10 +27,10 @@ A suite of YAML pipeline examples is currently located under the directory
 These examples leverage the built-in `Combine` transform for performing simple
 aggregations including sum, mean, count, etc.
 
-### [Blueprints](../../sdks/python/apache_beam/yaml/examples/transforms/blueprint)
+### [Pipelines](../../sdks/python/apache_beam/yaml/examples/transforms/pipelines)
 
 These examples leverage DF or other existing templates and convert them to yaml
-blueprints.
+pipelines.
 
 ### [Element-wise](../../sdks/python/apache_beam/yaml/examples/transforms/elementwise)
 

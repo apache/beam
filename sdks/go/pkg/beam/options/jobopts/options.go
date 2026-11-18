@@ -209,6 +209,8 @@ func GetPipelineResourceHints() resource.Hints {
 			h = resource.Accelerator(val)
 		case "cpu_count", "beam:resources:cpu_count:v1":
 			h = resource.ParseCPUCount(val)
+		case "max_active_bundles_per_worker", "beam:resources:max_active_bundles_per_worker:v1":
+			h = resource.ParseMaxActiveBundlesPerWorker(val)
 		default:
 			if strings.HasPrefix(name, "beam:resources:") {
 				h = stringHint{urn: name, value: val}

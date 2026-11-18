@@ -24,8 +24,8 @@ providers:
     folder: ''
     folderUid: ''
     type: file
-    disableDeletion: false
-    editable: true
+    disableDeletion: true
+    editable: false
     updateIntervalSeconds: 3600
     options:
       path: /etc/beamgrafana/dashboards
@@ -34,8 +34,8 @@ providers:
     folder: 'Performance tests metrics'
     folderUid: ''
     type: file
-    disableDeletion: false
-    editable: true
+    disableDeletion: true
+    editable: false
     updateIntervalSeconds: 3600
     options:
       path: /etc/beamgrafana/dashboards/perftests_metrics
@@ -44,8 +44,8 @@ providers:
     folder: 'Home'
     folderUid: ''
     type: file
-    disableDeletion: false
-    editable: true
+    disableDeletion: true
+    editable: false
     updateIntervalSeconds: 3600
     options:
       path: /etc/beamgrafana/dashboards/home

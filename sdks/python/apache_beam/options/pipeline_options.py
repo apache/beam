@@ -24,6 +24,7 @@ import difflib
 import json
 import logging
 import os
+import sys
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -51,6 +52,7 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
+    'AwsOptions',
     'S3Options'
 ]
 
@@ -88,6 +90,57 @@ def _static_value_provider_of(value_type):
     return StaticValueProvider(value_type, value)
 
   return _f
+
+
+def _find_positions(args: Sequence[str],
+                    flags: Sequence[str]) -> list[Optional[int]]:
+  """Returns the index in flags of each of args.
+
+  args is expected to be a subsequence of flags, such as the unknown args that
+  argparse returns from parse_known_args. The position of an arg that cannot be
+  found is None.
+  """
+  positions: list[Optional[int]] = []
+  start = 0
+  for arg in args:
+    try:
+      position = flags.index(arg, start)
+    except ValueError:
+      positions.append(None)
+      continue
+    positions.append(position)
+    start = position + 1
+  return positions
+
+
+def _has_separate_value(
+    unknown_args: Sequence[str],
+    i: int,
+    all_flags: Sequence[str],
+    positions: Sequence[Optional[int]]) -> bool:
+  """Returns whether the unknown flag unknown_args[i] is followed by its value.
+
+  The value has to be the next unknown arg and also the arg that directly
+  follows the flag in all_flags, so that a flag is not given a stray value from
+  further along the command line. A flag written as --flag=value already
+  carries its value, so nothing after it belongs to it.
+
+  Args:
+    unknown_args: the args that argparse did not recognize, in their original
+      order.
+    i: the index of the flag in unknown_args.
+    all_flags: the complete list of flags that unknown_args came from.
+    positions: the index in all_flags of each of unknown_args, as returned by
+      _find_positions.
+  """
+  if '=' in unknown_args[i]:
+    return False
+  if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+    return False
+  position = positions[i]
+  if position is None or position + 1 >= len(all_flags):
+    return False
+  return not all_flags[position + 1].startswith('-')
 
 
 class _BeamArgumentParser(argparse.ArgumentParser):
@@ -534,6 +587,13 @@ class PipelineOptions(HasDisplayData):
           parser.add_argument(arg, **kwargs)
         seen.add(arg)
 
+      # Unknown args are returned in their original order, but they are not
+      # necessarily adjacent in the original flags, e.g. a known option may
+      # sit between an unknown flag and a stray value. Find where each one
+      # came from so that a value is only given to the flag right before it.
+      all_flags = sys.argv[1:] if self._flags is None else list(self._flags)
+      positions = _find_positions(unknown_args, all_flags)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -544,7 +604,7 @@ class PipelineOptions(HasDisplayData):
         if not unknown_args[i].startswith('-'):
           i += 1
           continue
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+        if not _has_separate_value(unknown_args, i, all_flags, positions):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             add_new_arg(unknown_args[i], action='store_true')
@@ -812,6 +872,11 @@ class StreamingOptions(PipelineOptions):
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
+    parser.add_argument(
+        '--desired_num_unbounded_source_splits',
+        type=int,
+        default=0,
+        help='The desired number of initial splits for UnboundedSources.')
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -1032,10 +1097,12 @@ class GoogleCloudOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--dataflow_endpoint',
-        default=cls.DATAFLOW_ENDPOINT,
+        default='',
         help=(
-            'The URL for the Dataflow API. If not set, the default public URL '
-            'will be used.'))
+            'The URL for the Dataflow API. If not set, the endpoint is '
+            'resolved by the Google Cloud client library, which honors '
+            'GOOGLE_CLOUD_UNIVERSE_DOMAIN and otherwise uses the default '
+            'public URL (%s).' % cls.DATAFLOW_ENDPOINT))
     # Remote execution must check that this option is not None.
     parser.add_argument(
         '--project',
@@ -1205,12 +1272,34 @@ class GoogleCloudOptions(PipelineOptions):
         'Entries are key value pairs separated by = '
         '(e.g. --gcs_custom_audit_entry key=value) or a JSON string '
         '(e.g. --gcs_custom_audit_entries=\'{ "user": "test", "id": "12" }\').')
+    parser.add_argument(
+        '--gcs_read_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when reading from GCS. A '
+        'larger buffer reduces the number of requests sent to GCS at the '
+        'cost of more memory per reader. When unset, the GCS client in Beam '
+        'uses its default buffer size (16 MiB).')
+    parser.add_argument(
+        '--gcs_write_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when writing to GCS. Must be '
+        'a multiple of 256 KiB, since writes are performed as resumable '
+        'uploads. A larger buffer reduces the number of requests sent to GCS '
+        'at the cost of more memory per writer. When unset, the GCS client '
+        'in Beam uses its default buffer size (16 MiB).')
 
   def _create_default_gcs_bucket(self):
     try:
       from apache_beam.io.gcp import gcsio
     except ImportError:
       _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
+    if not gcsio.GCS_INSTALLED:
+      _LOGGER.warning(
+          'Unable to create default GCS bucket because GCP dependencies are '
+          'not installed.')
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
@@ -1229,7 +1318,12 @@ class GoogleCloudOptions(PipelineOptions):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
-      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+      if not gcsio.GCS_INSTALLED:
+        _LOGGER.warning(
+            'Unable to check soft delete policy because GCP dependencies are '
+            'not installed.')
+        return
+      if gcsio.GcsIO(pipeline_options=self).is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
             "Bucket %s used as %s has soft-delete policy enabled."
@@ -1243,8 +1337,10 @@ class GoogleCloudOptions(PipelineOptions):
             arg_name,
             n=1,
             key="message")
-    except ImportError:
-      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+    except Exception as e:  # pylint: disable=broad-except
+      # This check only emits a warning, so it must not block pipeline
+      # submission.
+      _LOGGER.warning('Unable to check soft delete policy: %s', e)
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
@@ -1304,6 +1400,24 @@ class GoogleCloudOptions(PipelineOptions):
           validator.validate_repeatable_argument_passed_as_list(
               self, 'dataflow_service_options'))
 
+    if (self.gcs_read_buffer_size_bytes is not None and
+        self.gcs_read_buffer_size_bytes <= 0):
+      errors.append(
+          '--gcs_read_buffer_size_bytes must be a positive number of bytes, '
+          'got %s.' % self.gcs_read_buffer_size_bytes)
+
+    if self.gcs_write_buffer_size_bytes is not None:
+      # GCS resumable uploads require the chunk size to be a multiple of
+      # 256 KiB. Checking here avoids a failure deep inside the GCS client
+      # on the first flush.
+      write_buffer_size_multiple = 256 * 1024
+      if (self.gcs_write_buffer_size_bytes <= 0 or
+          self.gcs_write_buffer_size_bytes % write_buffer_size_multiple != 0):
+        errors.append(
+            '--gcs_write_buffer_size_bytes must be a positive multiple of '
+            '%d bytes, got %s.' %
+            (write_buffer_size_multiple, self.gcs_write_buffer_size_bytes))
+
     return errors
 
   def get_cloud_profiler_service_name(self):
@@ -1320,6 +1434,57 @@ class GoogleCloudOptions(PipelineOptions):
       return os.environ["JOB_NAME"]
 
     return None
+
+
+class BigQueryOptions(PipelineOptions):
+  """BigQuery-specific options, mirroring Java's ``BigQueryOptions``.
+
+  Option names (``dest``) are chosen so that they map to the Java option names
+  when pipeline options are passed to Java, e.g. to cross-language BigQuery
+  transforms: Java converts ``big_query_endpoint`` to ``bigQueryEndpoint``.
+  """
+
+  # Alternative attribute names, mapped to the option names they stand for.
+  _ATTRIBUTE_ALIASES = {
+      'bigquery_endpoint': 'big_query_endpoint',
+      'bigquery_quota_project_id': 'big_query_quota_project_id',
+  }
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bigquery_endpoint',
+        '--big_query_endpoint',
+        dest='big_query_endpoint',
+        default=None,
+        help=(
+            'The root URL for the BigQuery API, e.g. '
+            '"https://bigquery.googleapis.com". If not set, the endpoint is '
+            'derived from the GOOGLE_CLOUD_UNIVERSE_DOMAIN environment '
+            'variable when present, and otherwise the default public URL is '
+            'used. Also passed to Java cross-language BigQuery transforms as '
+            'bigQueryEndpoint.'))
+    parser.add_argument(
+        '--bigquery_quota_project_id',
+        '--big_query_quota_project_id',
+        dest='big_query_quota_project_id',
+        default=None,
+        help=(
+            'GCP project ID used for quota and billing attribution of '
+            'BigQuery API requests (sets the x-goog-user-project header), if '
+            'different from the project the data resides in. Honored by '
+            'ReadFromBigQuery, ReadAllFromBigQuery, WriteToBigQuery with '
+            'FILE_LOADS or STREAMING_INSERTS, and ReadBigQueryChangeHistory; '
+            'STORAGE_WRITE_API (Java-backed) does not use it yet. The '
+            'credentials used must have the serviceusage.services.use '
+            'permission on this project. Also passed to Java cross-language '
+            'BigQuery transforms as bigQueryQuotaProjectId.'))
+
+  def __getattr__(self, name):
+    return super().__getattr__(self._ATTRIBUTE_ALIASES.get(name, name))
+
+  def __setattr__(self, name, value):
+    super().__setattr__(self._ATTRIBUTE_ALIASES.get(name, name), value)
 
 
 class AzureOptions(PipelineOptions):
@@ -1518,6 +1683,19 @@ class WorkerOptions(PipelineOptions):
             'identify the container image to override and the second value '
             'gives the replacement container image.'))
     parser.add_argument(
+        '--dataflow_container_base_repository',
+        default=None,
+        help=(
+            'Base repository (registry host and path prefix) from which the '
+            'Dataflow runner pulls its default SDK container images, e.g. '
+            'docker.example.com/my-project/cloud-dataflow/v1beta3. The '
+            'runner appends the image name and tag, e.g. '
+            '<base>/beam_python3.11_sdk:<version>. This is also used for the '
+            'default images of cross-language Apache Beam environments. '
+            'Ignored for the local SDK image if --sdk_container_image is set. '
+            'If not set, the Google Cloud Dataflow default '
+            '(gcr.io/cloud-dataflow/v1beta3) is used.'))
+    parser.add_argument(
         '--default_sdk_harness_log_level',
         default=None,
         help=(
@@ -1581,10 +1759,15 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'The time limit (in minutes) for any PTransform to finish '
-            'processing a single element. If exceeded, the SDK worker '
-            'process self-terminates and processing may be restarted '
-            'by a runner.'))
+            'The time limit (in minutes) for any fused stage to finish '
+            'processing a single bundle. A fused stage may include '
+            'multiple consecutive PTransforms. It will also include the '
+            'IO steps used to populate data in the stage (this may be '
+            'a pipeline-level IO or an internal read like reading from a '
+            'Reshuffle or GroupByKey). Exact stage boundaries are determined '
+            'by the pipeline runner. If the timeout is exceeded, the SDK '
+            'worker process self-terminates and processing may be restarted '
+            'by a runner. All in-progress work in this bundle will be lost'))
 
   def validate(self, validator):
     errors = []
@@ -2343,42 +2526,165 @@ class OptionsContext(object):
     return options
 
 
-class S3Options(PipelineOptions):
+# Client settings shared by all AWS clients. Each is configured in AwsOptions as
+# --aws_<setting>, and can be overridden for one service by a service options
+# class (see AwsOptions.get_client_settings), e.g. --s3_<setting> in S3Options.
+_AWS_CLIENT_SETTINGS = (
+    'access_key_id',
+    'secret_access_key',
+    'session_token',
+    'endpoint_url',
+    'region_name',
+    'verify',
+    'disable_ssl',
+)
+
+
+class AwsOptions(PipelineOptions):
+  """Default options for creating AWS service clients.
+
+  These settings apply to every AWS client Beam creates. A service options
+  class can override any of them for its own client, e.g. ``--s3_endpoint_url``
+  in :class:`S3Options` overrides ``--aws_endpoint_url`` for S3 only. Use
+  :meth:`get_client_settings` to get the effective settings for a service.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
-    # These options are passed to the S3 IO Client
+    parser.add_argument(
+        '--aws_access_key_id',
+        default=None,
+        help=(
+            'The access key ID to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
+    parser.add_argument(
+        '--aws_secret_access_key',
+        default=None,
+        help=(
+            'The secret access key to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
+    parser.add_argument(
+        '--aws_session_token',
+        default=None,
+        help=(
+            'The session token to use when creating AWS clients. If '
+            '--aws_credentials_secret_manager is set, this is a secret spec '
+            'parsed by that secret manager.'))
+    parser.add_argument(
+        '--aws_credentials_secret_manager',
+        default=None,
+        help=(
+            'Secret manager used to parse --aws_access_key_id, '
+            '--aws_secret_access_key and --aws_session_token (and their '
+            'service-specific overrides, e.g. --s3_access_key_id) as secret '
+            'specs (a JSON string or plain text), e.g. '
+            'GoogleCloudSecretManager. For example: '
+            '--aws_credentials_secret_manager=GoogleCloudSecretManager '
+            '--aws_secret_access_key=\'{"name": "my-key", "project": "p"}\'. '
+            'If not set, these options are used as raw credentials.'))
+    parser.add_argument(
+        '--aws_endpoint_url',
+        default=None,
+        help='The complete URL to use for the constructed AWS clients.')
+    parser.add_argument(
+        '--aws_region_name',
+        default=None,
+        help='The name of the region associated with the AWS clients.')
+    parser.add_argument(
+        '--aws_verify',
+        default=None,
+        help='Whether or not to verify SSL certificates with the AWS clients.')
+    parser.add_argument(
+        '--aws_disable_ssl',
+        default=False,
+        action='store_true',
+        help=(
+            'Whether or not to use SSL with the AWS clients. '
+            'By default, SSL is used.'))
+
+  def get_client_settings(
+      self,
+      service_options: Optional['PipelineOptions'] = None) -> dict[str, Any]:
+    """Returns the effective client settings for an AWS service.
+
+    Starts from the ``--aws_*`` defaults and applies the overrides set in
+    ``service_options``. A service options class opts in by defining
+    ``AWS_CLIENT_SETTINGS_PREFIX`` (e.g. ``'s3'``) and options named
+    ``<prefix>_<setting>`` for the settings it can override (e.g.
+    ``s3_endpoint_url``). An override applies when it is set (not None/False).
+
+    Args:
+      service_options: Optional options view for a specific service, e.g.
+        ``options.view_as(S3Options)``.
+
+    Returns:
+      A dict keyed by setting name (``access_key_id``, ``secret_access_key``,
+      ``session_token``, ``endpoint_url``, ``region_name``, ``verify``,
+      ``disable_ssl``).
+    """
+    settings = {
+        name: getattr(self, 'aws_' + name)
+        for name in _AWS_CLIENT_SETTINGS
+    }
+    prefix = getattr(service_options, 'AWS_CLIENT_SETTINGS_PREFIX', None)
+    if prefix:
+      for name in _AWS_CLIENT_SETTINGS:
+        override = getattr(service_options, '%s_%s' % (prefix, name), None)
+        if override:
+          settings[name] = override
+    return settings
+
+
+class S3Options(PipelineOptions):
+  """Options for the S3 client.
+
+  ``--s3_api_version`` is S3-specific. The other options override the
+  corresponding ``--aws_*`` default in :class:`AwsOptions` for S3 only, e.g. to
+  point S3 at an S3-compatible endpoint while other AWS clients use the
+  defaults.
+  """
+  AWS_CLIENT_SETTINGS_PREFIX = 's3'
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--s3_access_key_id',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The access key ID for the S3 client. Overrides '
+        '--aws_access_key_id.')
     parser.add_argument(
         '--s3_secret_access_key',
         default=None,
-        help='The secret key to use when creating the s3 client.')
+        help='The secret access key for the S3 client. Overrides '
+        '--aws_secret_access_key.')
     parser.add_argument(
         '--s3_session_token',
         default=None,
-        help='The session token to use when creating the s3 client.')
+        help='The session token for the S3 client. Overrides '
+        '--aws_session_token.')
     parser.add_argument(
         '--s3_endpoint_url',
         default=None,
-        help='The complete URL to use for the constructed s3 client.')
+        help='The complete URL to use for the S3 client. Overrides '
+        '--aws_endpoint_url.')
     parser.add_argument(
         '--s3_region_name',
         default=None,
-        help='The name of the region associated with the s3 client.')
-    parser.add_argument(
-        '--s3_api_version',
-        default=None,
-        help='The API version to use with the s3 client.')
+        help='The name of the region associated with the S3 client. '
+        'Overrides --aws_region_name.')
     parser.add_argument(
         '--s3_verify',
         default=None,
-        help='Whether or not to verify SSL certificates with the s3 client.')
+        help='Whether or not to verify SSL certificates with the S3 client. '
+        'Overrides --aws_verify.')
     parser.add_argument(
         '--s3_disable_ssl',
         default=False,
         action='store_true',
-        help=(
-            'Whether or not to use SSL with the s3 client. '
-            'By default, SSL is used.'))
+        help='Disable SSL for the S3 client, even if --aws_disable_ssl is not '
+        'set.')
+    parser.add_argument(
+        '--s3_api_version',
+        default=None,
+        help='The API version to use with the S3 client.')

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -66,6 +67,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SortedMultiset;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultiset;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -129,10 +131,7 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-class WatermarkManager<ExecutableT, CollectionT> {
+class WatermarkManager<ExecutableT extends @NonNull Object, CollectionT extends @NonNull Object> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -233,11 +232,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
     private final SortedMultiset<TimerData> pendingTimers;
 
     // Entries in this table represent the authoritative timestamp for which
-    // a per-key-and-StateNamespace timer is set.
-    private final Map<StructuralKey<?>, Map<String, TimerData>> existingTimers;
+    // a per-key-and-StateNamespace timer is set. The key is null for a keyless (empty) TimerUpdate.
+    private final Map<@Nullable StructuralKey<?>, Map<String, TimerData>> existingTimers;
 
     // This per-key sorted set allows quick retrieval of timers that should fire for a key
-    private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
+    private final Map<@Nullable StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
     private final AtomicReference<Instant> currentWatermark;
 
@@ -299,9 +298,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
         minInputWatermark = INSTANT_ORDERING.min(minInputWatermark, inputWatermark.get());
       }
       if (!pendingElements.isEmpty()) {
+        // Guarded by the isEmpty() check above, so firstEntry() is always present.
         minInputWatermark =
             INSTANT_ORDERING.min(
-                minInputWatermark, pendingElements.firstEntry().getElement().getMinimumTimestamp());
+                minInputWatermark,
+                checkStateNotNull(pendingElements.firstEntry()).getElement().getMinimumTimestamp());
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
@@ -326,7 +327,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private Instant getMinimumOutputTimestamp(SortedMultiset<TimerData> timers) {
-      Instant minimumOutputTimestamp = timers.firstEntry().getElement().getOutputTimestamp();
+      // Only called with a non-empty multiset, so firstEntry() is always present.
+      Instant minimumOutputTimestamp =
+          checkStateNotNull(timers.firstEntry()).getElement().getOutputTimestamp();
       for (TimerData timerData : timers) {
         minimumOutputTimestamp =
             INSTANT_ORDERING.min(timerData.getOutputTimestamp(), minimumOutputTimestamp);
@@ -430,7 +433,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
-    public synchronized void updateHold(Object key, Instant newHold) {
+    public synchronized void updateHold(@Nullable Object key, Instant newHold) {
       if (newHold == null) {
         holds.removeHold(key);
       } else {
@@ -509,7 +512,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
     private final Collection<Bundle<?, ?>> pendingBundles;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> processingTimers;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> synchronizedProcessingTimers;
-    private final Map<StructuralKey<?>, Map<String, TimerData>> existingTimers;
+    // The key is null for a keyless (empty) TimerUpdate; keyed timers always carry a non-null key.
+    private final Map<@Nullable StructuralKey<?>, Map<String, TimerData>> existingTimers;
 
     private final NavigableSet<TimerData> pendingTimers;
 
@@ -622,10 +626,12 @@ class WatermarkManager<ExecutableT, CollectionT> {
       Map<String, TimerData> existingTimersForKey =
           existingTimers.computeIfAbsent(update.key, k -> Maps.newHashMap());
 
+      // A TimerUpdate carrying set or deleted timers was built via builder(key), so its key is
+      // non-null; only the keyless empty() update has a null key and it carries no such timers.
       HashSet<String> newSetTimers = Sets.newHashSet();
       for (TimerData addedTimer : update.setTimers.values()) {
         NavigableSet<TimerData> timerQueue =
-            processQueueForDomain(update.key, addedTimer.getDomain());
+            processQueueForDomain(checkStateNotNull(update.key), addedTimer.getDomain());
         if (timerQueue == null) {
           continue;
         }
@@ -643,7 +649,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
       for (TimerData deletedTimer : update.deletedTimers.values()) {
         NavigableSet<TimerData> timerQueue =
-            processQueueForDomain(update.key, deletedTimer.getDomain());
+            processQueueForDomain(checkStateNotNull(update.key), deletedTimer.getDomain());
         if (timerQueue == null) {
           continue;
         }
@@ -749,7 +755,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
       this.latestRefresh = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
-    public synchronized void updateHold(Object key, Instant newHold) {
+    public synchronized void updateHold(@Nullable Object key, Instant newHold) {
       if (newHold == null) {
         holds.removeHold(key);
       } else {
@@ -838,15 +844,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * <p>The result collection retains ordering of timers (from earliest to latest).
    */
   private static synchronized Map<StructuralKey<?>, List<TimerData>> extractFiredTimers(
-      Instant latestTime, Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {
+      Instant latestTime,
+      Map<? extends @Nullable StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {
     Map<StructuralKey<?>, List<TimerData>> result = new HashMap<>();
-    Set<StructuralKey<?>> emptyKeys = new HashSet<>();
-    for (Map.Entry<StructuralKey<?>, NavigableSet<TimerData>> pendingTimers :
+    Set<@Nullable StructuralKey<?>> emptyKeys = new HashSet<>();
+    for (Map.Entry<? extends @Nullable StructuralKey<?>, NavigableSet<TimerData>> pendingTimers :
         objectTimers.entrySet()) {
       NavigableSet<TimerData> timers = pendingTimers.getValue();
       if (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
         ArrayList<TimerData> keyFiredTimers = new ArrayList<>();
-        result.put(pendingTimers.getKey(), keyFiredTimers);
+        // A non-empty timer set is only ever stored under a non-null key.
+        result.put(checkStateNotNull(pendingTimers.getKey()), keyFiredTimers);
         while (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
           keyFiredTimers.add(timers.first());
           timers.remove(timers.first());
@@ -909,12 +917,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @param getName a function for producing a short identifier for the executable in watermark
    *     tracing log messages.
    */
-  public static <ExecutableT, CollectionT>
-      WatermarkManager<ExecutableT, ? super CollectionT> create(
+  public static <ExecutableT extends @NonNull Object, CollectionT extends @NonNull Object>
+      WatermarkManager<ExecutableT, CollectionT> create(
           Clock clock,
-          ExecutableGraph<ExecutableT, ? super CollectionT> graph,
+          ExecutableGraph<ExecutableT, CollectionT> graph,
           Function<ExecutableT, String> getName) {
-    return new WatermarkManager<>(clock, graph, getName);
+    WatermarkManager<ExecutableT, CollectionT> watermarkManager =
+        new WatermarkManager<>(clock, graph, getName);
+    // Populate the per-transform watermarks after construction completes, because
+    // getTransformWatermark reads instance state and must run on a fully-initialized receiver.
+    watermarkManager.initializeTransformWatermarks();
+    return watermarkManager;
   }
 
   private WatermarkManager(
@@ -931,7 +944,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
     this.pendingRefreshes = new HashSet<>();
 
     transformToWatermarks = new HashMap<>();
+  }
 
+  private void initializeTransformWatermarks() {
     for (ExecutableT rootTransform : graph.getRootTransforms()) {
       getTransformWatermark(rootTransform);
     }
@@ -979,23 +994,19 @@ class WatermarkManager<ExecutableT, CollectionT> {
     return wms;
   }
 
-  private static <ExecutableT> Consumer<TimerData> timerUpdateConsumer(
+  private static <ExecutableT extends @NonNull Object> Consumer<TimerData> timerUpdateConsumer(
       Map<ExecutableT, Set<String>> transformsWithAlreadyExtractedTimers, ExecutableT executable) {
 
     return update -> {
       String timerIdWithNs = update.stringKey();
       synchronized (transformsWithAlreadyExtractedTimers) {
-        transformsWithAlreadyExtractedTimers.compute(
-            executable,
-            (k, v) -> {
-              if (v != null) {
-                v.remove(timerIdWithNs);
-                if (v.isEmpty()) {
-                  v = null;
-                }
-              }
-              return v;
-            });
+        Set<String> extracted = transformsWithAlreadyExtractedTimers.get(executable);
+        if (extracted != null) {
+          extracted.remove(timerIdWithNs);
+          if (extracted.isEmpty()) {
+            transformsWithAlreadyExtractedTimers.remove(executable);
+          }
+        }
       }
     };
   }
@@ -1037,7 +1048,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * @return a snapshot of the input watermark and output watermark for the provided executable
    */
   public TransformWatermarks getWatermarks(ExecutableT executable) {
-    return transformToWatermarks.get(executable);
+    // Every executable in the graph is registered during construction, so a watermark is present.
+    return checkStateNotNull(transformToWatermarks.get(executable));
   }
 
   public void initialize(
@@ -1046,7 +1058,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, ? extends Iterable<Bundle<?, CollectionT>>> rootEntry :
           initialBundles.entrySet()) {
-        TransformWatermarks rootWms = transformToWatermarks.get(rootEntry.getKey());
+        TransformWatermarks rootWms =
+            checkStateNotNull(transformToWatermarks.get(rootEntry.getKey()));
         for (Bundle<?, ? extends CollectionT> initialBundle : rootEntry.getValue()) {
           rootWms.addPending(initialBundle);
         }
@@ -1129,7 +1142,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
   private void applyNUpdates(int numUpdates) {
     synchronized (pendingUpdates) {
       for (int i = 0; !pendingUpdates.isEmpty() && ((i < numUpdates) || (numUpdates <= 0)); i++) {
-        PendingWatermarkUpdate<ExecutableT, CollectionT> pending = pendingUpdates.poll();
+        // Guarded by the isEmpty() check in the loop condition, so poll() returns non-null.
+        PendingWatermarkUpdate<ExecutableT, CollectionT> pending =
+            checkStateNotNull(pendingUpdates.poll());
         applyPendingUpdate(pending);
         pendingRefreshes.add(pending.getExecutable());
       }
@@ -1148,7 +1163,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
         pending.getUnprocessedInputs(),
         pending.getOutputs());
 
-    TransformWatermarks transformWms = transformToWatermarks.get(executable);
+    TransformWatermarks transformWms = checkStateNotNull(transformToWatermarks.get(executable));
     transformWms.setEventTimeHold(
         inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
 
@@ -1172,7 +1187,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * information about the parameters of this method.
    */
   private void updatePending(
-      Bundle<?, ? extends CollectionT> input,
+      @Nullable Bundle<?, ? extends CollectionT> input,
       TimerUpdate timerUpdate,
       ExecutableT executable,
       @Nullable Bundle<?, ? extends CollectionT> unprocessedInputs,
@@ -1181,13 +1196,15 @@ class WatermarkManager<ExecutableT, CollectionT> {
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
     for (Bundle<?, ? extends CollectionT> bundle : outputs) {
-      for (ExecutableT consumer : graph.getPerElementConsumers(bundle.getPCollection())) {
-        TransformWatermarks watermarks = transformToWatermarks.get(consumer);
+      for (ExecutableT consumer :
+          graph.getPerElementConsumers(checkStateNotNull(bundle.getPCollection()))) {
+        TransformWatermarks watermarks = checkStateNotNull(transformToWatermarks.get(consumer));
         watermarks.addPending(bundle);
       }
     }
 
-    TransformWatermarks completedTransform = transformToWatermarks.get(executable);
+    TransformWatermarks completedTransform =
+        checkStateNotNull(transformToWatermarks.get(executable));
     if (unprocessedInputs != null) {
       // Add the unprocessed inputs
       completedTransform.addPending(unprocessedInputs);
@@ -1225,7 +1242,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
   }
 
   private Set<ExecutableT> refreshWatermarks(final ExecutableT toRefresh) {
-    TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
+    TransformWatermarks myWatermarks = checkStateNotNull(transformToWatermarks.get(toRefresh));
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
       Set<ExecutableT> additionalRefreshes = new HashSet<>();
@@ -1296,17 +1313,17 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * as the key is arbitrarily ordered via identity, rather than object equality.
    */
   private static final class KeyedHold implements Comparable<KeyedHold> {
-    private static final Ordering<Object> KEY_ORDERING = Ordering.arbitrary().nullsLast();
+    private static final Ordering<@Nullable Object> KEY_ORDERING = Ordering.arbitrary().nullsLast();
 
-    private final Object key;
+    private final @Nullable Object key;
     private final Instant timestamp;
 
     /** Create a new KeyedHold with the specified key and timestamp. */
-    public static KeyedHold of(Object key, Instant timestamp) {
+    public static KeyedHold of(@Nullable Object key, Instant timestamp) {
       return new KeyedHold(key, MoreObjects.firstNonNull(timestamp, THE_END_OF_TIME.get()));
     }
 
-    private KeyedHold(Object key, Instant timestamp) {
+    private KeyedHold(@Nullable Object key, Instant timestamp) {
       this.key = key;
       this.timestamp = timestamp;
     }
@@ -1349,6 +1366,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
   private static class PerKeyHolds {
     private final Map<Object, KeyedHold> keyedHolds;
+    // The single hold for a keyless (null-key) update, tracked separately so keyedHolds never needs
+    // a null map key.
+    private @Nullable KeyedHold keylessHold;
     private final NavigableSet<KeyedHold> allHolds;
 
     private PerKeyHolds() {
@@ -1371,13 +1391,23 @@ class WatermarkManager<ExecutableT, CollectionT> {
     public void updateHold(@Nullable Object key, Instant newHold) {
       removeHold(key);
       KeyedHold newKeyedHold = KeyedHold.of(key, newHold);
-      keyedHolds.put(key, newKeyedHold);
+      if (key == null) {
+        keylessHold = newKeyedHold;
+      } else {
+        keyedHolds.put(key, newKeyedHold);
+      }
       allHolds.add(newKeyedHold);
     }
 
     /** Removes the hold of the provided key. */
-    public void removeHold(Object key) {
-      KeyedHold oldHold = keyedHolds.remove(key);
+    public void removeHold(@Nullable Object key) {
+      KeyedHold oldHold;
+      if (key == null) {
+        oldHold = keylessHold;
+        keylessHold = null;
+      } else {
+        oldHold = keyedHolds.remove(key);
+      }
       if (oldHold != null) {
         allHolds.remove(oldHold);
       }
@@ -1459,11 +1489,11 @@ class WatermarkManager<ExecutableT, CollectionT> {
       return eventOutputUpdate.union(syncOutputUpdate);
     }
 
-    private void setEventTimeHold(Object key, Instant newHold) {
+    private void setEventTimeHold(@Nullable Object key, Instant newHold) {
       outputWatermark.updateHold(key, newHold);
     }
 
-    private void setSynchronizedProcessingTimeHold(Object key, Instant newHold) {
+    private void setSynchronizedProcessingTimeHold(@Nullable Object key, Instant newHold) {
       synchronizedProcessingOutputWatermark.updateHold(key, newHold);
     }
 
@@ -1556,7 +1586,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * the input to the executed step.
    */
   public static class TimerUpdate {
-    private final StructuralKey<?> key;
+    private final @Nullable StructuralKey<?> key;
     private final Iterable<? extends TimerData> completedTimers;
     private final Map<TimerKey, ? extends TimerData> setTimers;
     private final Map<TimerKey, ? extends TimerData> deletedTimers;
@@ -1640,7 +1670,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     private TimerUpdate(
-        StructuralKey<?> key,
+        @Nullable StructuralKey<?> key,
         Iterable<? extends TimerData> completedTimers,
         Map<TimerKey, ? extends TimerData> setTimers,
         Map<TimerKey, ? extends TimerData> deletedTimers) {
@@ -1651,7 +1681,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @VisibleForTesting
-    StructuralKey<?> getKey() {
+    @Nullable StructuralKey<?> getKey() {
       return key;
     }
 

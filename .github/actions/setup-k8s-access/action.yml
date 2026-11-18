@@ -16,10 +16,6 @@
 # under the License.
 
 
-#Action used to trigger a failed check re-run within a PR using a comment. Add this action to your workflow with an if condition 
-#to check if the comment is present 
-#If the check is failed this will trigger it again. If its not failed a new instance of workflow will run which will not show in the status box or checks tab in the PR and can be found in the actions tab https://github.com/apache/beam/actions
-
 name: "Setup Kuberenetes Access"
 description: Sets up kuberenetes access in gcp for the current workflow
 inputs:

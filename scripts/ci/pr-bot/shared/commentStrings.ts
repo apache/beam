@@ -22,6 +22,7 @@ const { NO_MATCHING_LABEL } = require("./constants");
 export interface AssignReviewerOptions {
   labels?: (string | Label)[];
   notices?: string[];
+  backupReviewers?: { [label: string]: string };
 }
 
 // Custom notices for specific labels
@@ -63,10 +64,14 @@ export function assignReviewer(
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
+    let backupReviewer = options?.backupReviewers?.[label];
     if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+    if (backupReviewer) {
+      commentString += `Backup reviewer: ${backupReviewer} (if the main reviewer is unresponsive, you can escalate to them by tagging their username)\n`;
     }
   }
 
@@ -86,11 +91,11 @@ The PR bot will only process comments in the main thread (not review comments).`
 }
 
 export function failingChecksCantAssign(): string {
-  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers`";
+  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers` (or comment `/summarize-failures` for a summary of the failing checks).";
 }
 
 export function someChecksFailing(reviewersToNotify: string[]): string {
-  return `Some checks have failed: @${reviewersToNotify.join(" ")}`;
+  return `Some checks have failed: @${reviewersToNotify.join(" ")} (comment \`/summarize-failures\` for a summary of the failing checks)`;
 }
 
 export function stopNotifications(reason: string): string {
@@ -158,10 +163,14 @@ export function assignNewReviewer(
 
   for (const label in labelToReviewerMapping) {
     const reviewer = labelToReviewerMapping[label];
+    const backupReviewer = options?.backupReviewers?.[label];
     if (label === NO_MATCHING_LABEL) {
       commentString += `R: @${reviewer} added as fallback since no labels match configuration\n`;
     } else {
       commentString += `R: @${reviewer} for label ${label}.\n`;
+    }
+    if (backupReviewer) {
+      commentString += `Backup reviewer: ${backupReviewer} (if the main reviewer is unresponsive, you can escalate to them by tagging their username)\n`;
     }
   }
 

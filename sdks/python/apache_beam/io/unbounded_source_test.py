@@ -47,6 +47,8 @@ from apache_beam.io.unbounded_source import _UnboundedSourceRestrictionCoder
 from apache_beam.io.unbounded_source import _UnboundedSourceRestrictionProvider
 from apache_beam.io.unbounded_source import _UnboundedSourceRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.runners import sdf_utils
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -360,6 +362,25 @@ class RestrictionProviderTest(unittest.TestCase):
     self.assertTrue(all(split.checkpoint_mark is None for split in splits))
     self.assertTrue(
         all(split.finalization_checkpoint_mark is None for split in splits))
+
+  def test_initial_split_uses_desired_num_unbounded_source_splits_option(self):
+    split_log = []
+
+    class _SplitSource(UnboundedCountingSource):
+      @override
+      def split(self, desired_num_splits, options=None):
+        split_log.append((desired_num_splits, options))
+        return [self]
+
+    source = _SplitSource(5)
+    provider = _UnboundedSourceRestrictionProvider()
+    restriction = _UnboundedSourceRestriction(source=source)
+    options = PipelineOptions(['--desired_num_unbounded_source_splits=5'])
+
+    with scoped_pipeline_options(options):
+      list(provider.split(source, restriction))
+
+    self.assertEqual(split_log, [(5, None)])
 
   def test_initial_split_does_not_split_checkpointed_restriction(self):
     split_log = []

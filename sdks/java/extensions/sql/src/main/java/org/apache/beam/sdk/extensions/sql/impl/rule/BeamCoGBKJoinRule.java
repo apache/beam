@@ -17,16 +17,28 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCoGBKJoinRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.JoinRelType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgramBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 /**
  * Rule to convert {@code LogicalJoin} node to {@code BeamCoGBKJoinRel} node.
@@ -55,6 +67,12 @@ public class BeamCoGBKJoinRule extends RelOptRule {
     if (BeamJoinRel.containsSeekableInput(call.rel(0))) {
       return false;
     }
+    // Bounded pure cross joins are handled by BeamCrossJoinRule.
+    if (((Join) call.rel(0)).getCondition().isAlwaysTrue()
+        && BeamJoinRel.getBoundednessOfRelNode(call.rel(1)) == PCollection.IsBounded.BOUNDED
+        && BeamJoinRel.getBoundednessOfRelNode(call.rel(2)) == PCollection.IsBounded.BOUNDED) {
+      return false;
+    }
     PCollection.IsBounded boundednessOfLeftRel = BeamJoinRel.getBoundednessOfRelNode(call.rel(1));
     PCollection.IsBounded boundednessOfRightRel = BeamJoinRel.getBoundednessOfRelNode(call.rel(2));
     return (boundednessOfLeftRel == boundednessOfRightRel);
@@ -63,6 +81,49 @@ public class BeamCoGBKJoinRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     Join join = (Join) call.rel(0);
+
+    RexNode condition = join.getCondition();
+    List<RexNode> conjuncts = new ArrayList<>();
+    RelOptUtil.decomposeConjunction(condition, conjuncts);
+
+    List<RexNode> equiConditions = new ArrayList<>();
+    List<RexNode> residualConditions = new ArrayList<>();
+    int leftFieldCount = join.getLeft().getRowType().getFieldCount();
+
+    for (RexNode conjunct : conjuncts) {
+      if (isEquiJoinConjunct(conjunct, leftFieldCount)) {
+        equiConditions.add(conjunct);
+      } else {
+        residualConditions.add(conjunct);
+      }
+    }
+
+    if (equiConditions.isEmpty()
+        || (!residualConditions.isEmpty() && join.getJoinType() != JoinRelType.INNER)) {
+      BeamCoGBKJoinRel rel =
+          new BeamCoGBKJoinRel(
+              join.getCluster(),
+              join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+              convert(
+                  join.getLeft(),
+                  join.getLeft().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+              convert(
+                  join.getRight(),
+                  join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+              condition,
+              join.getVariablesSet(),
+              join.getJoinType());
+      call.transformTo(rel);
+      return;
+    }
+
+    RexBuilder rexBuilder = join.getCluster().getRexBuilder();
+    RexNode finalEquiCondition;
+    if (equiConditions.size() == 1) {
+      finalEquiCondition = equiConditions.get(0);
+    } else {
+      finalEquiCondition = rexBuilder.makeCall(SqlStdOperatorTable.AND, equiConditions);
+    }
 
     BeamCoGBKJoinRel rel =
         new BeamCoGBKJoinRel(
@@ -74,9 +135,63 @@ public class BeamCoGBKJoinRule extends RelOptRule {
             convert(
                 join.getRight(),
                 join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-            join.getCondition(),
+            finalEquiCondition,
             join.getVariablesSet(),
             join.getJoinType());
-    call.transformTo(rel);
+
+    if (residualConditions.isEmpty()) {
+      call.transformTo(rel);
+    } else {
+      RexNode finalResidualCondition;
+      if (residualConditions.size() == 1) {
+        finalResidualCondition = residualConditions.get(0);
+      } else {
+        finalResidualCondition = rexBuilder.makeCall(SqlStdOperatorTable.AND, residualConditions);
+      }
+      RexProgramBuilder programBuilder = new RexProgramBuilder(rel.getRowType(), rexBuilder);
+      programBuilder.addIdentity();
+      programBuilder.addCondition(finalResidualCondition);
+      BeamCalcRel calcRel =
+          new BeamCalcRel(
+              join.getCluster(),
+              join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+              rel,
+              programBuilder.getProgram());
+      call.transformTo(calcRel);
+    }
+  }
+
+  private static int extractInputIndex(RexNode node) {
+    if (node instanceof RexInputRef) {
+      return ((RexInputRef) node).getIndex();
+    }
+    if (node instanceof RexFieldAccess) {
+      return extractInputIndex(((RexFieldAccess) node).getReferenceExpr());
+    }
+    return -1;
+  }
+
+  private boolean isEquiJoinConjunct(RexNode conjunct, int leftFieldCount) {
+    if (!(conjunct instanceof RexCall)) {
+      return false;
+    }
+    RexCall call = (RexCall) conjunct;
+    if (!call.getOperator().getName().equals("=")) {
+      return false;
+    }
+    if (call.getOperands().size() != 2) {
+      return false;
+    }
+    RexNode op0 = call.getOperands().get(0);
+    RexNode op1 = call.getOperands().get(1);
+
+    int idx0 = extractInputIndex(op0);
+    int idx1 = extractInputIndex(op1);
+    if (idx0 < 0 || idx1 < 0) {
+      return false;
+    }
+    boolean op0Left = idx0 < leftFieldCount;
+    boolean op1Left = idx1 < leftFieldCount;
+    return op0Left != op1Left;
   }
 }

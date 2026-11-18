@@ -17,9 +17,11 @@ package protox
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	protobufw "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -79,5 +81,43 @@ func TestBytesPackingInvertibility(t *testing.T) {
 
 	if !bytes.Equal(b, data) {
 		t.Errorf("Got %v, wanted %v", b, data)
+	}
+}
+
+func TestDeterministicEncoding(t *testing.T) {
+	fields := make(map[string]*structpb.Value)
+	for i := 0; i < 32; i++ {
+		fields[fmt.Sprintf("key_%02d", i)] = structpb.NewNumberValue(float64(i))
+	}
+	msg := &structpb.Struct{Fields: fields}
+
+	wantBytes := MustEncode(msg)
+	wantBase64, err := EncodeBase64(msg)
+	if err != nil {
+		t.Fatalf("EncodeBase64 failed: %v", err)
+	}
+	wantAny, err := PackProto(msg)
+	if err != nil {
+		t.Fatalf("PackProto failed: %v", err)
+	}
+
+	for i := 0; i < 50; i++ {
+		if got := MustEncode(msg); !bytes.Equal(got, wantBytes) {
+			t.Fatalf("MustEncode produced non-deterministic bytes on iteration %d", i)
+		}
+		gotBase64, err := EncodeBase64(msg)
+		if err != nil {
+			t.Fatalf("EncodeBase64 failed: %v", err)
+		}
+		if gotBase64 != wantBase64 {
+			t.Fatalf("EncodeBase64 produced non-deterministic output on iteration %d", i)
+		}
+		gotAny, err := PackProto(msg)
+		if err != nil {
+			t.Fatalf("PackProto failed: %v", err)
+		}
+		if !bytes.Equal(gotAny.GetValue(), wantAny.GetValue()) {
+			t.Fatalf("PackProto produced non-deterministic bytes on iteration %d", i)
+		}
 	}
 }

@@ -38,6 +38,35 @@ class RetryOnClientErrorTest(unittest.TestCase):
 
 
 class ModelHandlerArgConditions(unittest.TestCase):
+  def test_max_batch_weight_requires_element_size_fn(self):
+    with self.assertRaisesRegex(ValueError,
+                                "max_batch_weight requires element_size_fn"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          max_batch_weight=100)
+
+  def test_max_batch_weight_cannot_combine_with_length_batching(self):
+    with self.assertRaisesRegex(
+        ValueError, "cannot be combined with length-based batching"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          max_batch_weight=100,
+          element_size_fn=len,
+          batch_length_fn=len)
+
+  def test_batch_bucket_boundaries_require_batch_length_fn(self):
+    with self.assertRaisesRegex(
+        ValueError, "batch_bucket_boundaries requires batch_length_fn"):
+      VertexAIModelHandlerJSON(
+          endpoint_id="1",
+          project="testproject",
+          location="us-central1",
+          batch_bucket_boundaries=[16, 32])
+
   def test_exception_on_private_without_network(self):
     self.assertRaises(
         ValueError,
@@ -46,6 +75,40 @@ class ModelHandlerArgConditions(unittest.TestCase):
         project="testproject",
         location="us-central1",
         private=True)
+
+
+class RetrieveEndpointErrorMessageTest(unittest.TestCase):
+  def _create_handler(self):
+    import unittest.mock as mock
+
+    with mock.patch.object(VertexAIModelHandlerJSON,
+                           '_retrieve_endpoint',
+                           return_value=None):
+      with mock.patch('google.cloud.aiplatform.init'):
+        return VertexAIModelHandlerJSON(
+            endpoint_id="1", project="testproject", location="us-central1")
+
+  def test_endpoint_without_models_message(self):
+    import unittest.mock as mock
+
+    handler = self._create_handler()
+    endpoint = mock.Mock()
+    endpoint.list_models.return_value = []
+    with mock.patch('google.cloud.aiplatform.Endpoint', return_value=endpoint):
+      with self.assertRaisesRegex(
+          ValueError, r'^Endpoint 123 has no models deployed to it\.$'):
+        handler._retrieve_endpoint('123', 'us-central1', False)
+
+  def test_unreachable_endpoint_message(self):
+    import unittest.mock as mock
+
+    handler = self._create_handler()
+    endpoint = mock.Mock()
+    endpoint.list_models.side_effect = RuntimeError('boom')
+    with mock.patch('google.cloud.aiplatform.Endpoint', return_value=endpoint):
+      with self.assertRaisesRegex(
+          ValueError, r'^Failed to contact endpoint 123, got exception: boom$'):
+        handler._retrieve_endpoint('123', 'us-central1', False)
 
 
 class ParseInvokeResponseTest(unittest.TestCase):

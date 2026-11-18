@@ -30,7 +30,9 @@ import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helpers for cloud communication. */
 public class DataflowTransport {
@@ -59,28 +61,42 @@ public class DataflowTransport {
     }
   }
 
-  /** Returns a Google Cloud Dataflow client builder. */
+  /**
+   * Returns a Google Cloud Dataflow client builder.
+   *
+   * <p>The root URL and service path are only set on the builder when the user configured them via
+   * {@code dataflowEndpoint} and/or {@code apiRootUrl}. Otherwise, the endpoint is resolved by the
+   * Google API client library, which honors {@code GOOGLE_CLOUD_UNIVERSE_DOMAIN} and otherwise uses
+   * the default public URL. Note that calling {@link Dataflow.Builder#setRootUrl} (even with the
+   * default URL) disables this resolution.
+   */
   public static Dataflow.Builder newDataflowClient(DataflowPipelineOptions options) {
-    String servicePath = options.getDataflowEndpoint();
-    ApiComponents components;
-    if (servicePath.contains("://")) {
-      components = apiComponentsFromUrl(servicePath);
-    } else {
-      components = new ApiComponents(options.getApiRootUrl(), servicePath);
-    }
+    Dataflow.Builder builder =
+        new Dataflow.Builder(
+                getTransport(),
+                getJsonFactory(),
+                chainHttpRequestInitializer(
+                    options.getGcpCredential(),
+                    // Do not log 404. It clutters the output and is possibly even required by the
+                    // caller.
+                    new RetryHttpRequestInitializer(ImmutableList.of(404))))
+            .setApplicationName(options.getAppName())
+            .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
 
-    return new Dataflow.Builder(
-            getTransport(),
-            getJsonFactory(),
-            chainHttpRequestInitializer(
-                options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the
-                // caller.
-                new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setApplicationName(options.getAppName())
-        .setRootUrl(components.rootUrl)
-        .setServicePath(components.servicePath)
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+    String servicePath = options.getDataflowEndpoint();
+    @Nullable String apiRootUrl = options.getApiRootUrl();
+    if (!Strings.isNullOrEmpty(servicePath) && servicePath.contains("://")) {
+      ApiComponents components = apiComponentsFromUrl(servicePath);
+      builder.setRootUrl(components.rootUrl).setServicePath(components.servicePath);
+    } else {
+      if (apiRootUrl != null && !apiRootUrl.isEmpty()) {
+        builder.setRootUrl(apiRootUrl);
+      }
+      if (!Strings.isNullOrEmpty(servicePath)) {
+        builder.setServicePath(servicePath);
+      }
+    }
+    return builder;
   }
 
   private static HttpRequestInitializer chainHttpRequestInitializer(

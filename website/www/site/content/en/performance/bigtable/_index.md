@@ -1,5 +1,5 @@
 ---
-title: "BigTable Performance"
+title: "Bigtable Performance"
 ---
 
 <!--
@@ -16,35 +16,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# BigTable Performance
+# Bigtable Performance
 
 The following graphs show various metrics when reading from and writing to
-BigTable. See the [glossary](/performance/glossary) for definitions.
+Bigtable. See the [glossary](/performance/glossary) for definitions.
 
 ## Read
 
-### What is the estimated cost to read from BigTable?
+### What is the estimated cost to read from Bigtable?
 
 {{< performance_looks io="bigtable" read_or_write="read" section="test_name" >}}
 
-### How has various metrics changed when reading from BigTable for different Beam SDK versions?
+### How has various metrics changed when reading from Bigtable for different Beam SDK versions?
 
 {{< performance_looks io="bigtable" read_or_write="read" section="version" >}}
 
-### How has various metrics changed over time when reading from BigTable?
+### How has various metrics changed over time when reading from Bigtable?
 
 {{< performance_looks io="bigtable" read_or_write="read" section="date" >}}
 
 ## Write
 
-### What is the estimated cost to write to BigTable?
+### What is the estimated cost to write to Bigtable?
 
 {{< performance_looks io="bigtable" read_or_write="write" section="test_name" >}}
 
-### How has various metrics changed when writing to BigTable for different Beam SDK versions?
+### How has various metrics changed when writing to Bigtable for different Beam SDK versions?
 
 {{< performance_looks io="bigtable" read_or_write="write" section="version" >}}
 
-### How has various metrics changed over time when writing to BigTable?
+### How has various metrics changed over time when writing to Bigtable?
 
 {{< performance_looks io="bigtable" read_or_write="write" section="date" >}}

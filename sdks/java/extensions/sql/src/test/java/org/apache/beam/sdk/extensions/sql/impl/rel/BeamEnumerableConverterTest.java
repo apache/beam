@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -77,7 +78,8 @@ public class BeamEnumerableConverterTest {
           ImmutableList.of(ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ZERO)));
       BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
-      Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+      Enumerable<Object> enumerable =
+          BeamEnumerableConverter.toEnumerable(options, node, new AtomicBoolean());
       Enumerator<Object> enumerator = enumerable.enumerator();
 
       assertTrue(enumerator.moveNext());
@@ -97,7 +99,8 @@ public class BeamEnumerableConverterTest {
                   rexBuilder.makeBigintLiteral(BigDecimal.ONE)));
       BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
-      Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+      Enumerable<Object> enumerable =
+          BeamEnumerableConverter.toEnumerable(options, node, new AtomicBoolean());
       Enumerator<Object> enumerator = enumerable.enumerator();
 
       assertTrue(enumerator.moveNext());
@@ -173,7 +176,8 @@ public class BeamEnumerableConverterTest {
               new FakeTable(),
               null);
 
-      Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+      Enumerable<Object> enumerable =
+          BeamEnumerableConverter.toEnumerable(options, node, new AtomicBoolean());
       Enumerator<Object> enumerator = enumerable.enumerator();
 
       assertTrue(enumerator.moveNext());
@@ -225,7 +229,8 @@ public class BeamEnumerableConverterTest {
                   rexBuilder.makeNullLiteral(CalciteUtils.toRelDataType(TYPE_FACTORY, fieldType))));
       BeamRelNode node = new BeamValuesRel(cluster, type, tuples, RelTraitSet.createEmpty());
 
-      Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+      Enumerable<Object> enumerable =
+          BeamEnumerableConverter.toEnumerable(options, node, new AtomicBoolean());
       Enumerator<Object> enumerator = enumerable.enumerator();
 
       assertTrue(enumerator.moveNext());

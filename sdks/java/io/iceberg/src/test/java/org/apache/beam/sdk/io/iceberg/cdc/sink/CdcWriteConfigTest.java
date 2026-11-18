@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.ValueKind;
 import org.junit.Test;
@@ -44,7 +45,8 @@ public class CdcWriteConfigTest {
     CdcWriteConfig config = CdcWriteConfig.builder().setSinkId(SINK_ID).build();
 
     assertThat(
-        config.getSequenceNumberColumn(), equalTo(CdcWriteConfig.DEFAULT_SEQUENCE_NUMBER_COLUMN));
+        config.getSequenceNumberColumn(),
+        equalTo(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER));
     assertThat(config.getNumShards(), equalTo(CdcWriteConfig.DEFAULT_NUM_SHARDS));
     // Unset shards_per_partition resolves to num_shards: the resolved int carries no cap.
     assertThat(config.getShardsPerPartition(), equalTo(CdcWriteConfig.DEFAULT_NUM_SHARDS));

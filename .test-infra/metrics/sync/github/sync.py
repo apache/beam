@@ -139,6 +139,34 @@ def initDbTablesIfNeeded():
     if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {GH_SYNC_METADATA_TABLE_NAME}")
 
+  cursor.execute("""
+    DO $$
+    BEGIN
+      REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+      IF EXISTS (
+          SELECT FROM pg_catalog.pg_roles WHERE rolname = 'kubeproxyuser_ro')
+      THEN
+        REVOKE ALL ON SCHEMA public FROM kubeproxyuser_ro;
+        GRANT USAGE ON SCHEMA public TO kubeproxyuser_ro;
+        REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, kubeproxyuser_ro;
+        GRANT SELECT ON ALL TABLES IN SCHEMA public TO kubeproxyuser_ro;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public
+          REVOKE ALL ON TABLES FROM PUBLIC, kubeproxyuser_ro;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public
+          GRANT SELECT ON TABLES TO kubeproxyuser_ro;
+        IF EXISTS (
+            SELECT FROM pg_catalog.pg_roles WHERE rolname = 'cloudsqlsuperuser')
+        THEN
+          REVOKE cloudsqlsuperuser FROM kubeproxyuser_ro;
+        END IF;
+        ALTER ROLE kubeproxyuser_ro
+          NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
+        ALTER ROLE kubeproxyuser_ro SET default_transaction_read_only = on;
+      END IF;
+    END
+    $$;
+  """)
+
   cursor.close()
   connection.commit()
 

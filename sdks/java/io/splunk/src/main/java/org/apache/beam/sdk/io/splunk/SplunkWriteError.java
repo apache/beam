@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.splunk;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -28,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A class for capturing errors that occur while writing {@link SplunkEvent} to Splunk's Http Event
  * Collector (HEC) end point.
  */
-@DefaultSchema(AutoValueSchema.class)
+@DefaultSchema(SplunkWriteErrorSchemaProvider.class)
 @AutoValue
 public abstract class SplunkWriteError {
 

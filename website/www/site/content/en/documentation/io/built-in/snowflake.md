@@ -571,7 +571,7 @@ public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
 {{< /highlight >}}
 ### Additional write options
 #### Transformation query
-The `.withQueryTransformation()` option for the `write()` operation accepts a SQL query as a String value, which will be performed while transfering data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax,  see the [Snowflake Documentation](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters).
+The `.withQueryTransformation()` option for the `write()` operation accepts a SQL query as a String value, which will be performed while transferring data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax,  see the [Snowflake Documentation](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters).
 
 Usage:
 {{< highlight >}}

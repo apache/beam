@@ -19,6 +19,7 @@ package org.apache.beam.it.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSpec;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -95,7 +96,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryStreamingLT");
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_load_test_" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "sink_load_test_" + System.nanoTime();
 
   private TestConfiguration config;
   private Integer crashIntervalSeconds;

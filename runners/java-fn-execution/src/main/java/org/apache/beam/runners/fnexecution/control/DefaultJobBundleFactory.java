@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class DefaultJobBundleFactory implements JobBundleFactory {
+public final class DefaultJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultJobBundleFactory.class);
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 

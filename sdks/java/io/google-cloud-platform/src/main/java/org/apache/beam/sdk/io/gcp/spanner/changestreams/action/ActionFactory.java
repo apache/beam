@@ -177,6 +177,7 @@ public class ActionFactory implements Serializable {
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord}s
    * @param metrics metrics gathering class
    * @param realTimeCheckpointInterval the duration added to current time for the end timestamp
+   * @param openTelemetry instance for trace reporting
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(

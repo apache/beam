@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.Covariant;
 import org.joda.time.Instant;
 
 /**
@@ -41,6 +42,8 @@ import org.joda.time.Instant;
  *
  * @param <V> the type of the value
  */
+// Immutable, so the value type may be widened.
+@Covariant(0)
 public class TimestampedValue<V extends @Nullable Object> {
   /**
    * Returns a new {@link TimestampedValue} with the {@link BoundedWindow#TIMESTAMP_MIN_VALUE

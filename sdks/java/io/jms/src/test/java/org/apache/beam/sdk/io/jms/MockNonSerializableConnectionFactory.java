@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSContext;
-import javax.jms.JMSException;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSContext;
+import jakarta.jms.JMSException;
 
 public class MockNonSerializableConnectionFactory implements ConnectionFactory {
   @Override
