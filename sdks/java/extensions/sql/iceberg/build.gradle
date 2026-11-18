@@ -49,6 +49,7 @@ dependencies {
   testImplementation project(":sdks:java:extensions:sql:jdbc").sourceSets.main.output
   testRuntimeOnly "jline:jline:2.14.6"
   testRuntimeOnly "sqlline:sqlline:1.4.0"
+  testImplementation "org.jline:jline:3.30.17"
   testImplementation library.java.junit
   testImplementation library.java.google_api_services_bigquery
   testImplementation "org.apache.iceberg:iceberg-api:1.12.0"

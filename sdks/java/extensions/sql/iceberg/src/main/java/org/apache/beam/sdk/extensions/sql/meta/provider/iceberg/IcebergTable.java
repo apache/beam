@@ -157,8 +157,15 @@ final class IcebergTable extends SchemaBaseBeamTable {
 
   /** Returns the table's changes for a {@code CHANGES(...)} call. */
   @Override
-  public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
-    return IcebergChangesTable.of(this, changes, options);
+  public BeamSqlTable forChanges(
+      ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
+    return IcebergChangesTable.of(this, changes, options, metadataColumns);
+  }
+
+  /** The metadata columns of the Iceberg CDC read, such as {@code _change_type}. */
+  @Override
+  public List<String> getChangeMetadataColumns() {
+    return IcebergCdcMetadataColumns.SUPPORTED_COLUMNS;
   }
 
   /**

@@ -574,15 +574,13 @@ public class BeamSqlDeltaTest {
             "Bob:20:70.0:USA:delete:2:" + ts2));
 
     assertThat(
-        rows(
-            "SELECT name, age, _change_type, _commit_version FROM CHANGES(persons_cdc, 0, 1)"
-                + " WITH ('include_metadata_columns' = ARRAY['_change_type', '_commit_version'])"),
+        rows("SELECT name, age, _change_type, _commit_version FROM CHANGES(persons_cdc, 0, 1)"),
         containsInAnyOrder("Alice:30:insert:0", "Bob:20:insert:0", "Charlie:40:insert:1"));
 
     assertThat(
         rows(
             "SELECT name, age, _change_type FROM CHANGES(persons_cdc, start_version => 2,"
-                + " end_version => 2) WITH ('include_metadata_columns' = ARRAY['_change_type'])"
+                + " end_version => 2)"
                 + " WHERE _change_type <> 'update_preimage'"),
         containsInAnyOrder("Alice:31:update_postimage", "Bob:20:delete"));
 

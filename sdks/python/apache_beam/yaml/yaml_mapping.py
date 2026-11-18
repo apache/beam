@@ -19,6 +19,7 @@
 import datetime
 import itertools
 import json
+import keyword
 import re
 import threading
 from collections import abc
@@ -319,7 +320,8 @@ def _expand_python_mapping_func(
     # for each field individually.
     source = '\n'.join(['def fn(__row__):'] + [
         f'  {name} = __row__.{name}'
-        for name in original_fields if name in expression
+        for name in original_fields if name in expression and
+        name.isidentifier() and not keyword.iskeyword(name)
     ] + ['  return (' + expression + ')'])
 
   else:
@@ -329,7 +331,14 @@ def _expand_python_mapping_func(
 
 
 def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
-  """Returns a callable converting rows of the given type to Json objects."""
+  """Returns a callable validating values against the given Beam schema type."""
+  if beam_type.nullable:
+    non_null_type = schema_pb2.FieldType()
+    non_null_type.CopyFrom(beam_type)
+    non_null_type.nullable = False
+    non_null_validator = _validator(non_null_type)
+    return lambda x: x is None or non_null_validator(x)
+
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     if beam_type.atomic_type == schema_pb2.BOOLEAN:
@@ -347,22 +356,24 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
           f'Unknown or unsupported atomic type: {beam_type.atomic_type}')
   elif type_info == "array_type":
     element_validator = _validator(beam_type.array_type.element_type)
-    return lambda value: all(element_validator(e) for e in value)
+    return lambda value: value is not None and all(
+        element_validator(e) for e in value)
   elif type_info == "iterable_type":
     element_validator = _validator(beam_type.iterable_type.element_type)
-    return lambda value: all(element_validator(e) for e in value)
+    return lambda value: value is not None and all(
+        element_validator(e) for e in value)
   elif type_info == "map_type":
     key_validator = _validator(beam_type.map_type.key_type)
     value_validator = _validator(beam_type.map_type.value_type)
-    return lambda value: all(
+    return lambda value: value is not None and all(
         key_validator(k) and value_validator(v) for (k, v) in value.items())
   elif type_info == "row_type":
     validators = {
         field.name: _validator(field.type)
         for field in beam_type.row_type.schema.fields
     }
-    return lambda row: all(
-        validator(getattr(row, name))
+    return lambda row: row is not None and all(
+        hasattr(row, name) and validator(getattr(row, name))
         for (name, validator) in validators.items())
   else:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
@@ -871,8 +882,21 @@ def _AssignTimestamps(
   """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
-  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
-                          ).with_input_types(T).with_output_types(T)
+  return pcoll | beam.Map(
+      lambda x: TimestampedValue(x, _to_timestamp(timestamp_fn(x)))
+  ).with_input_types(T).with_output_types(T)
+
+
+def _to_timestamp(ts):
+  if isinstance(ts, str):
+    return Timestamp.from_rfc3339(ts)
+  elif isinstance(ts, datetime.datetime):
+    if ts.tzinfo is None:
+      ts = ts.replace(tzinfo=datetime.timezone.utc)
+    else:
+      ts = ts.astimezone(datetime.timezone.utc)
+    return Timestamp.from_utc_datetime(ts)
+  return ts
 
 
 class PaneInfoTuple(NamedTuple):
