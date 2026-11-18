@@ -152,7 +152,7 @@ public class LiveResultView implements LiveResult.Viewer {
           if (dirty && now - lastFrame >= FRAME_MILLIS) {
             List<AttributedString> lines =
                 screen.render(size.getColumns(), size.getRows(), status(result, state, elapsed));
-            display.update(lines, size.cursorPos(size.getRows() - 1, 0));
+            display.update(endLines(lines), size.cursorPos(size.getRows() - 1, 0));
             frames.accept(lines.stream().map(AttributedString::toString).collect(toList()));
             lastFrame = now;
             shownState = state;
@@ -223,6 +223,18 @@ public class LiveResultView implements LiveResult.Viewer {
               numbers.format(hiddenLogs), hiddenLogs == 1 ? "message" : "messages");
     }
     return summary;
+  }
+
+  /**
+   * Ends each line with a newline. {@link Display} takes a line without one to wrap into the next
+   * line, and gets to the next row by writing past the end of the row. Terminals that keep track of
+   * wrapped lines then see the whole view as one long line, and some of them lay that line out
+   * again on their own when they're resized.
+   */
+  private static List<AttributedString> endLines(List<AttributedString> lines) {
+    return lines.stream()
+        .map(line -> AttributedString.join(AttributedString.EMPTY, line, AttributedString.NEWLINE))
+        .collect(toList());
   }
 
   private static KeyMap<Runnable> keys(Terminal terminal, LiveResultScreen screen, Runnable quit) {
