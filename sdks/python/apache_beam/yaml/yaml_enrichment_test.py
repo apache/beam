@@ -186,7 +186,7 @@ class EnrichmentTransformTest(unittest.TestCase):
               join_key: sku_id
               select_fields: [category, unit_cost]
             prefix: sku_
-            on_miss: null
+            on_miss: 'null'
           ''')
       assert_that(
           res_null,
