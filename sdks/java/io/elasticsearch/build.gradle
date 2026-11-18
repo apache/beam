@@ -37,4 +37,6 @@ dependencies {
   implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
   implementation "org.elasticsearch.client:elasticsearch-rest-client:7.17.22"
   testImplementation project(path: ":sdks:java:io:common")
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
 }

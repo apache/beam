@@ -2733,9 +2733,7 @@ public class ElasticsearchIO {
 
       @Setup
       public void setup() throws IOException {
-        ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
-
-        restClient = connectionConfiguration.createClient();
+        restClient = createClient();
 
         retryBackoff =
             FluentBackoff.DEFAULT.withMaxRetries(0).withInitialBackoff(RETRY_INITIAL_BACKOFF);
@@ -2750,9 +2748,47 @@ public class ElasticsearchIO {
       }
 
       @StartBundle
-      public void startBundle(@SuppressWarnings("unused") StartBundleContext context) {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext context)
+          throws IOException {
+        getRunningClient();
         batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
+      }
+
+      @VisibleForTesting
+      RestClient createClient() throws IOException {
+        return spec.getConnectionConfiguration().createClient();
+      }
+
+      /**
+       * Returns the {@link RestClient} of this DoFn, replacing it first if it is no longer running.
+       *
+       * <p>A {@link RestClient} whose I/O reactor has stopped, for example after an {@link Error}
+       * such as an {@link OutOfMemoryError} on one of its I/O dispatcher threads, rejects every
+       * request ("I/O reactor status: STOPPED") and never recovers. The client is created once per
+       * DoFn instance in {@link #setup()}, so without this check a long-lived DoFn instance (e.g.
+       * in a streaming pipeline) would keep failing until the instance is discarded. See <a
+       * href="https://github.com/apache/beam/issues/27094">#27094</a>.
+       *
+       * <p>{@link RestClient#isRunning()} only reads the client's in-memory status and sends no
+       * request, so this is cheap enough to call before every request. A running client is always
+       * reused; a new client is created only to replace a stopped one, and the stopped one is
+       * closed to release its threads, so a DoFn instance holds at most one client at a time.
+       */
+      private RestClient getRunningClient() throws IOException {
+        RestClient current = restClient;
+        if (current == null || !current.isRunning()) {
+          LOG.warn("Elasticsearch RestClient is not running, creating a new one.");
+          restClient = createClient();
+          if (current != null) {
+            try {
+              current.close();
+            } catch (IOException | RuntimeException e) {
+              LOG.warn("Failed to close the stopped Elasticsearch RestClient", e);
+            }
+          }
+        }
+        return restClient;
       }
 
       @FinishBundle
@@ -2883,7 +2919,7 @@ public class ElasticsearchIO {
           Request request = new Request("POST", endPoint);
           request.addParameters(Collections.emptyMap());
           request.setEntity(requestBody);
-          response = restClient.performRequest(request);
+          response = getRunningClient().performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
         } catch (java.io.IOException ex) {
           if (spec.getRetryConfiguration() == null || !isRetryableClientException(ex)) {
@@ -2964,7 +3000,7 @@ public class ElasticsearchIO {
             Request request = new Request(method, endpoint);
             request.addParameters(params);
             request.setEntity(requestBody);
-            response = restClient.performRequest(request);
+            response = getRunningClient().performRequest(request);
             responseEntity = new BufferedHttpEntity(response.getEntity());
           } catch (java.io.IOException ex) {
             if (isRetryableClientException(ex)) {

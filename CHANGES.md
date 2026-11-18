@@ -64,6 +64,7 @@
 ## Bugfixes
 
 * (Java) Improved the error message when decoding with a ProtoCoder for the raw `com.google.protobuf.Message` type (for example inferred from a generic `T extends Message`): it now explains how to fix it instead of surfacing a `NoSuchMethodException` ([#19713](https://github.com/apache/beam/issues/19713)).
+* (Java) ElasticsearchIO `Write`/`BulkIO` now replaces its Elasticsearch `RestClient` when the client's I/O reactor has stopped, instead of failing every later request with "I/O reactor status: STOPPED" until the worker restarts ([#27094](https://github.com/apache/beam/issues/27094)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
