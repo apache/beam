@@ -51,6 +51,8 @@ import org.jline.utils.NonBlockingReader;
  *
  * <p>The view opens its own JLine 3 terminal while it's on screen, next to the shell's jline2 line
  * editor. That terminal leaves the JVM's signal handlers alone, so the shell keeps handling Ctrl+C.
+ * Console logging is held back while the view is open, and warnings and errors print once it
+ * closes.
  */
 public class LiveResultView implements LiveResult.Viewer {
   /** Opens the terminal that the view draws on. The view closes it when it's done. */
@@ -98,6 +100,8 @@ public class LiveResultView implements LiveResult.Viewer {
     Runnable quit = () -> {};
     long start = System.currentTimeMillis();
     long end = 0;
+    // Log lines would draw over the view, so hold them back until it closes.
+    HeldLogs logs = HeldLogs.hold();
     try (Terminal terminal = terminals.open()) {
       KeyMap<Runnable> keys = keys(terminal, screen, quit);
       BindingReader bindings = new BindingReader(terminal.reader());
@@ -176,9 +180,11 @@ public class LiveResultView implements LiveResult.Viewer {
         terminal.puts(Capability.exit_ca_mode);
         terminal.setAttributes(original);
         long elapsed = (end == 0 ? System.currentTimeMillis() : end) - start;
-        terminal.writer().println(summary(screen, elapsed));
+        terminal.writer().println(summary(screen, elapsed, logs.getHiddenCount()));
         terminal.flush();
       }
+    } finally {
+      logs.close();
     }
   }
 
@@ -201,13 +207,22 @@ public class LiveResultView implements LiveResult.Viewer {
     return new LiveResultScreen.Status(state, elapsed, message);
   }
 
-  private static String summary(LiveResultScreen screen, long elapsedMillis) {
+  private static String summary(LiveResultScreen screen, long elapsedMillis, int hiddenLogs) {
+    NumberFormat numbers = NumberFormat.getIntegerInstance(Locale.US);
     long rows = screen.getReceivedCount();
-    return String.format(
-        "Live view closed after %s %s in %s.",
-        NumberFormat.getIntegerInstance(Locale.US).format(rows),
-        rows == 1 ? "row" : "rows",
-        LiveResultScreen.elapsed(elapsedMillis));
+    String summary =
+        String.format(
+            "Live view closed after %s %s in %s.",
+            numbers.format(rows),
+            rows == 1 ? "row" : "rows",
+            LiveResultScreen.elapsed(elapsedMillis));
+    if (hiddenLogs > 0) {
+      summary +=
+          String.format(
+              " Hid %s log %s while it was open.",
+              numbers.format(hiddenLogs), hiddenLogs == 1 ? "message" : "messages");
+    }
+    return summary;
   }
 
   private static KeyMap<Runnable> keys(Terminal terminal, LiveResultScreen screen, Runnable quit) {
