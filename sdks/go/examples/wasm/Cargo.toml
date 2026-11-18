@@ -27,9 +27,6 @@ name = "greet"
 path = "greet.rs"
 
 [dependencies]
-# wee_aloc is a WebAssembly optimized allocator, which is needed to use non-numeric types like strings.
-# See https://docs.rs/wee_alloc/latest/wee_alloc/
-wee_alloc = "0.4.5"
 
 # Below settings dramatically reduce wasm output size
 # See https://rustwasm.github.io/book/reference/code-size.html#optimizing-builds-for-code-sizewasm-opt -Oz -o
@@ -38,3 +35,4 @@ wee_alloc = "0.4.5"
 opt-level = "z"
 lto = true
 codegen-units = 1
+strip = "symbols"
