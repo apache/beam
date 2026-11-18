@@ -29,6 +29,6 @@
 --influx_measurement=torch_inference_imagenet_resnet152
 --pretrained_model_name=resnet152
 --device=CPU
---input_file=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input_file=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --model_state_dict_path=gs://apache-beam-ml/models/torchvision.models.resnet152.pth
 --runner=DataflowRunner

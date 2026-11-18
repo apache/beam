@@ -87,6 +87,8 @@ class TableRowInferenceBenchmarkTest(DataflowCostBenchmark):
     if mode == 'streaming':
       if self.opts.input_subscription:
         extra_opts['input_subscription'] = self.opts.input_subscription
+      if self.opts.input_file:
+        extra_opts['input_file'] = self.opts.input_file
       extra_opts['window_size_sec'] = (
           self.opts.window_size_sec
           if self.opts.window_size_sec is not None else 60)
