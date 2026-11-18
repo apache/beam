@@ -86,13 +86,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup repository
-        uses: ./.github/actions/setup-action
+        uses: $/.github/actions/setup-action
       - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+        uses: $/.github/actions/setup-environment-action
         with:
           java-version: default
           rust-version: default
       - name: run Rust PreCommit tasks
-        uses: ./.github/actions/gradle-command-self-hosted-action
+        uses: $/.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:rust:check :sdks:rust:build :sdks:rust:test
