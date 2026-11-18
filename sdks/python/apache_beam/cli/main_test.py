@@ -21,12 +21,16 @@ import io
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
 import apache_beam as beam
 from apache_beam.cli import main as cli
+from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import subprocess_server
 
@@ -89,7 +93,14 @@ def _read_lines(prefix):
 
 class ParserTest(unittest.TestCase):
   def test_usage_errors_exit_with_2(self):
-    for argv in ([], ['run'], ['nosuchcommand', 'x']):
+    for argv in (
+        [],
+        ['run'],
+        ['pipe'],
+        ['pipe', '--from', 'a.csv'],
+        ['pipe', '--to', 'b.csv'],
+        ['nosuchcommand', 'x'],
+    ):
       with self.subTest(argv=argv):
         with contextlib.redirect_stderr(io.StringIO()):
           with self.assertRaises(SystemExit) as e:
@@ -172,6 +183,14 @@ class RunTest(unittest.TestCase):
     self.assertIn('ZeroDivisionError', message)
     self.assertNotIn('Traceback', message)
 
+    # Also check when `wait_until_finish` returns a non-DONE state directly.
+    result = mock.Mock()
+    result.wait_until_finish.return_value = cli.PipelineState.FAILED
+    with mock.patch.object(beam.Pipeline, 'run', return_value=result):
+      code, _, err = _run_cli(['run', path])
+    self.assertEqual(code, cli.EXIT_PIPELINE_FAILED)
+    self.assertIn('pipeline finished in state FAILED', err)
+
   def test_invalid_pipeline_exits_with_2(self):
     path = self._pipeline_file(INVALID_PIPELINE)
     code, _, err = _run_cli(['run', path])
@@ -212,6 +231,11 @@ class RunTest(unittest.TestCase):
 
   def test_missing_package_exits_with_4(self):
     path = self._pipeline_file(PIPELINE)
+    with mock.patch.dict(sys.modules, {'apache_beam.yaml': None}):
+      code, _, err = _run_cli(['run', path])
+    self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+    self.assertIn('apache-beam[yaml]', err)
+
     with mock.patch.object(yaml_main,
                            'build_pipeline_components_from_argv',
                            side_effect=ImportError('No module named x')):
@@ -327,7 +351,268 @@ class RunTest(unittest.TestCase):
     self.assertIn('Cancelled the pipeline.', err)
 
 
+@unittest.skipIf(
+    yaml_main is None or jsonschema is None, 'requires the [yaml] extra')
+class PipeTest(unittest.TestCase):
+  def setUp(self):
+    self.tmp = tempfile.mkdtemp()
+    self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+    self.input = os.path.join(self.tmp, 'users.csv')
+    with open(self.input, 'w') as f:
+      f.write('name,age\nAda,36\nLinus,17\n')
+    self.output = os.path.join(self.tmp, 'out', 'users.json')
+
+  def test_pipes_csv_to_json_and_lists_the_files(self):
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        self.input,
+        '--to',
+        self.output,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('Wrote 1 file:', out)
+    self.assertEqual([json.loads(line) for line in _read_lines(self.output)],
+                     [{
+                         'name': 'Ada', 'age': 36
+                     }, {
+                         'name': 'Linus', 'age': 17
+                     }])
+
+    # Also check bare filenames in the current working directory.
+    cwd = os.getcwd()
+    self.addCleanup(os.chdir, cwd)
+    os.chdir(self.tmp)
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        'users.csv',
+        '--to',
+        'relative_users.json',
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('Wrote 1 file:\n  relative_users.json', out)
+    code, _, err = _run_cli(
+        ['pipe', '--from', 'users.csv', '--to', 'relative_users.json'])
+    self.assertEqual(code, cli.EXIT_USAGE)
+    self.assertIn('beam pipe never overwrites data', err)
+
+  def test_backslash_sequences_in_paths(self):
+    tricky_input = os.path.join(self.tmp, r'C_\Users\tmp_users.csv')
+    tricky_output = os.path.join(self.tmp, r'C_\Users\out\users.json')
+    os.makedirs(os.path.dirname(tricky_input), exist_ok=True)
+    os.makedirs(os.path.dirname(tricky_output), exist_ok=True)
+    shutil.copyfile(self.input, tricky_input)
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        tricky_input,
+        '--to',
+        tricky_output,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('Wrote 1 file:', out)
+    self.assertEqual(len(_read_lines(tricky_output)), 2)
+
+  def test_refuses_existing_output(self):
+    os.makedirs(os.path.dirname(self.output), exist_ok=True)
+    for i in range(7):
+      with open(f'{self.output}-0000{i}-of-00007', 'w') as f:
+        f.write('keep me\n')
+    code, _, err = _run_cli(['pipe', '--from', self.input, '--to', self.output])
+    self.assertEqual(code, cli.EXIT_USAGE)
+    self.assertIn('beam pipe never overwrites data', err)
+    self.assertIn('... and 2 more', err)
+    with open(f'{self.output}-00000-of-00007') as f:
+      self.assertEqual(f.read(), 'keep me\n')
+
+  def test_pipes_csv_to_parquet_and_back_to_json(self):
+    parquet_prefix = os.path.join(self.tmp, 'out', 'users.parquet')
+    json_prefix = os.path.join(self.tmp, 'out', 'roundtrip.json')
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        self.input,
+        '--to',
+        parquet_prefix,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('Wrote 1 file:', out)
+
+    code, out, _ = _run_cli([
+        'pipe',
+        '--from',
+        parquet_prefix + '*',
+        '--to',
+        json_prefix,
+        '--runner=DirectRunner'
+    ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertEqual([json.loads(line) for line in _read_lines(json_prefix)],
+                     [{
+                         'name': 'Ada', 'age': 36
+                     }, {
+                         'name': 'Linus', 'age': 17
+                     }])
+
+  def test_filesystem_options_and_errors(self):
+    # Fresh CLI invocations start with FileSystems._pipeline_options == None;
+    # _refuse_existing_output must run after Pipeline(options=...) sets it.
+    seen_projects = []
+
+    def check_options_on_match(_patterns):
+      opts = FileSystems._pipeline_options
+      seen_projects.append(
+          opts.view_as(GoogleCloudOptions).project if opts else None)
+      raise BeamIOError(
+          'Match operation failed',
+          {'gs://b/u*': RuntimeError('GCP dependencies are not installed')})
+
+    FileSystems._pipeline_options = None
+    with mock.patch.object(FileSystems,
+                           'match',
+                           side_effect=check_options_on_match):
+      code, _, err = _run_cli([
+          'pipe',
+          '--from',
+          self.input,
+          '--to',
+          'gs://b/users.json',
+          '--project=my-custom-project'
+      ])
+    self.assertEqual(seen_projects, ['my-custom-project'])
+    self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+    self.assertIn('GCP dependencies are not installed', err)
+
+    # Missing extras raised as ValueError or wrapped in BeamIOError exit with 4.
+    for exc in [
+        ValueError('Unable to get filesystem from specified path'),
+        BeamIOError('Unable to get the Filesystem',
+                    {'hdfs://b/u*': ImportError('Failed to import hdfs')}),
+    ]:
+      with self.subTest(exc=exc):
+        with mock.patch.object(FileSystems, 'match', side_effect=exc):
+          code, _, err = _run_cli(
+              ['pipe', '--from', self.input, '--to', 's3://bucket/users.json'])
+        self.assertEqual(code, cli.EXIT_MISSING_PACKAGE)
+
+    # Remote access / configuration errors exit with 2 before running (and show
+    # tracebacks only with --verbose), and 1 if post-run listing fails.
+    io_err = BeamIOError(
+        'Match operation failed',
+        {'s3://bucket/users.json*': RuntimeError('403 Forbidden')})
+    with mock.patch.object(FileSystems, 'match', side_effect=io_err):
+      code, _, err = _run_cli(
+          ['pipe', '--from', self.input, '--to', 's3://bucket/users.json'])
+      self.assertEqual(code, cli.EXIT_USAGE)
+      self.assertIn('403 Forbidden', err)
+      self.assertNotIn('Traceback', err)
+
+      code, _, err = _run_cli([
+          'pipe',
+          '--from',
+          self.input,
+          '--to',
+          's3://bucket/users.json',
+          '--verbose'
+      ])
+      self.assertEqual(code, cli.EXIT_USAGE)
+      self.assertIn('Traceback', err)
+
+    real_match = FileSystems.match
+    output_checks = 0
+
+    def fail_post_run_match(patterns, *args, **kwargs):
+      nonlocal output_checks
+      if patterns == [self.output + '*']:
+        output_checks += 1
+        if output_checks == 2:
+          raise io_err
+      return real_match(patterns, *args, **kwargs)
+
+    result = mock.Mock()
+    result.wait_until_finish.return_value = cli.PipelineState.DONE
+    with (
+        mock.patch.object(beam.Pipeline, 'run', return_value=result),
+        mock.patch.object(FileSystems, 'match',
+                          side_effect=fail_post_run_match),
+    ):
+      code, _, err = _run_cli(
+          ['pipe', '--from', self.input, '--to', self.output])
+    self.assertEqual(code, cli.EXIT_PIPELINE_FAILED)
+    self.assertIn('403 Forbidden', err)
+
+  def test_no_wait_and_failure_and_ctrl_c_exit_codes(self):
+    result = mock.Mock()
+    result.state = cli.PipelineState.RUNNING
+    with mock.patch.object(beam.Pipeline, 'run', return_value=result):
+      code, out, _ = _run_cli([
+          'pipe',
+          '--from',
+          self.input,
+          '--to',
+          self.output,
+          '--no_wait_until_finish'
+      ])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertIn('not waiting for completion', out)
+    self.assertNotIn('Wrote', out)
+
+    result.wait_until_finish.side_effect = RuntimeError('worker crashed')
+    with mock.patch.object(beam.Pipeline, 'run', return_value=result):
+      code, _, err = _run_cli(
+          ['pipe', '--from', self.input, '--to', self.output])
+    self.assertEqual(code, cli.EXIT_PIPELINE_FAILED)
+    self.assertIn('worker crashed', err)
+
+    result.wait_until_finish.side_effect = KeyboardInterrupt
+    with mock.patch.object(beam.Pipeline, 'run', return_value=result):
+      code, _, err = _run_cli(
+          ['pipe', '--from', self.input, '--to', self.output])
+    self.assertEqual(code, cli.EXIT_INTERRUPTED)
+    self.assertIn('Cancelled the pipeline.', err)
+
+  def test_dry_run_prints_a_pipeline_that_beam_run_runs(self):
+    for flag in ('--dry-run', '--dry_run'):
+      with self.subTest(flag=flag):
+        code, out, err = _run_cli(
+            ['pipe', '--from', self.input, '--to', self.output, flag])
+        self.assertEqual(code, cli.EXIT_OK)
+        self.assertTrue(out.startswith('# Generated by: beam pipe --from'))
+        self.assertIn('Dry run:', err)
+        self.assertEqual(glob.glob(self.output + '*'), [])
+
+    saved = os.path.join(self.tmp, 'pipeline.yaml')
+    with open(saved, 'w') as f:
+      f.write(out)
+    code, _, _ = _run_cli(['run', saved, '--runner=DirectRunner'])
+    self.assertEqual(code, cli.EXIT_OK)
+    self.assertEqual(len(_read_lines(self.output)), 2)
+
+  def test_flag_errors_exit_with_2(self):
+    code, _, err = _run_cli(['pipe', '--from', self.input, '--to', 'out/x'])
+    self.assertEqual(code, cli.EXIT_USAGE)
+    self.assertIn('add --to-format', err)
+
+
 class HelpersTest(unittest.TestCase):
+  def test_local_paths_warning_only_for_remote_runners(self):
+    for argv, warned in [([], False), (['--runner=PrismRunner'], False),
+                         (['--runner=dataflow'], True)]:
+      with self.subTest(argv=argv):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+          cli._warn_if_local_paths(
+              ['users.csv', 'file:///tmp/a.csv', 'gs://b/out'],
+              PipelineOptions(argv))
+        self.assertEqual('users.csv' in err.getvalue(), warned)
+        self.assertEqual('file:///tmp/a.csv' in err.getvalue(), warned)
+        self.assertNotIn('gs://b/out', err.getvalue())
+
   def test_cancel_failure_is_reported(self):
     result = mock.Mock()
     result.cancel.side_effect = RuntimeError('job not found')
@@ -385,6 +670,7 @@ class HelpersTest(unittest.TestCase):
         cli._summarize(ZeroDivisionError('division by zero')),
         'ZeroDivisionError: division by zero')
     self.assertEqual(cli._summarize(RuntimeError('boom')), 'boom')
+    self.assertEqual(cli._summarize(RuntimeError('')), "RuntimeError('')")
 
 
 if __name__ == '__main__':

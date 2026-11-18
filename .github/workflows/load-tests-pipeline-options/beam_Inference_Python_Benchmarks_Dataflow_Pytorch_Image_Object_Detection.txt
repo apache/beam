@@ -31,6 +31,6 @@
 --resize_shorter_side=800
 --score_threshold=0.5
 --max_detections=50
---input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--input=gs://apache-beam-ml/testing/inputs/it_imagenet_validation_inputs.txt
 --model_state_dict_path=gs://apache-beam-ml/models/torchvision.detection.fasterrcnn_resnet50_fpn.pth
 --runner=DataflowRunner
