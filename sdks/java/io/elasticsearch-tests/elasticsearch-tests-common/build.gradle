@@ -42,6 +42,9 @@ dependencies {
   implementation library.java.junit
   implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   implementation library.java.testcontainers_elasticsearch
+  implementation library.java.testcontainers_toxiproxy
+  // Version used by library.java.testcontainers_toxiproxy
+  implementation "eu.rekawek.toxiproxy:toxiproxy-java:2.1.7"
 
   runtimeOnly library.java.log4j2_api
   runtimeOnly library.java.log4j2_core
