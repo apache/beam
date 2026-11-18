@@ -28,6 +28,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* `on_miss` (`null`, `drop`, `dlq`, `fail`) and `prefix` added to Python `Enrichment`, with dead-letter routing for lookup misses and RPC failures through `RequestResponseIO` ([#41356](https://github.com/apache/beam/issues/41356)).
 
 ## Improvements
 
