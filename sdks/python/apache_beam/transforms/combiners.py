@@ -894,14 +894,6 @@ class ToList(ToSingleElementCollection):
       return self.expand_2_78_0(pcoll)
 
     return self._expand(pcoll, list)
-    if pcoll.pipeline.options.is_compat_version_prior_to('2.77.8'):
-      if self.has_defaults:
-        return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
-      else:
-        return pcoll | self.label >> core.CombineGlobally(
-            ToListCombineFn()).without_defaults()
-
-    return self._expand(pcoll, list)
 
 
 @with_input_types(T)
@@ -952,7 +944,6 @@ class ToDict(ToSingleElementCollection):
   Note that this forces the entire PCollection to be processed on a single
   machine.
   """
-  def expand(self, pcoll):
   def expand_2_78_0(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
@@ -963,13 +954,6 @@ class ToDict(ToSingleElementCollection):
   def expand(self, pcoll):
     if pcoll.pipeline.options.is_compat_version_prior_to('2.79.0'):
       return self.expand_2_78_0(pcoll)
-
-    return self._expand(pcoll, dict)
-      if self.has_defaults:
-        return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
-      else:
-        return pcoll | self.label >> core.CombineGlobally(
-            ToDictCombineFn()).without_defaults()
 
     return self._expand(pcoll, dict)
 
