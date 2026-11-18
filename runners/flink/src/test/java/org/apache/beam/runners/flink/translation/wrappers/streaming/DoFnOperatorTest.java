@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -2319,6 +2320,138 @@ public class DoFnOperatorTest {
             new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("A", new Instant(10))),
             new Watermark(20),
             new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("B", new Instant(20))),
+            new Watermark(100)));
+
+    testHarness.close();
+  }
+
+  /**
+   * Ensures that the output watermark does not pass the output timestamp of an event-time timer
+   * which has fired but is still buffered because of {@code @RequiresStableInput}.
+   */
+  @Test
+  public void testExactlyOnceBufferingOutputWatermarkHoldsForBufferedTimers() throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setMaxBundleSize(1L);
+    options.setCheckpointingInterval(1L);
+    options.setCheckpointingMode("EXACTLY_ONCE");
+    options.setNumConcurrentCheckpoints(1);
+
+    TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
+    WindowedValues.FullWindowedValueCoder<KV<String, String>> windowedValueCoder =
+        WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE);
+
+    final String timerId = "timer";
+    DoFn<KV<String, String>, KV<String, String>> doFn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+          @TimerId(timerId)
+          private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements and fired timers
+          @RequiresStableInput
+          public void processElement(@TimerId(timerId) Timer timer) {
+            timer.set(new Instant(50));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of("key", "timer"));
+          }
+        };
+
+    DoFnOperator.MultiOutputOutputManagerFactory<KV<String, String>> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(
+            outputTag,
+            WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
+
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            keyCoder,
+            keySelector,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator, keySelector, keySelector.getProducedType());
+
+    testHarness.open();
+
+    // The element is buffered until the checkpoint completes; then it is processed and sets the
+    // event-time timer.
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "a"), new Instant(10))));
+    testHarness.snapshot(1L, 0L);
+    doFnOperator.notifyCheckpointComplete(1L);
+
+    // The watermark fires the timer, but the timer is buffered until the next checkpoint completes.
+    // Firing the timer starts a bundle, so no watermark is emitted yet.
+    testHarness.processWatermark(new Watermark(100));
+
+    // Advancing processing time finishes the bundle and then advances the output watermark, which
+    // must be held at the output timestamp of the buffered timer.
+    testHarness.setProcessingTime(10_000L);
+    testHarness.setProcessingTime(20_000L);
+    assertThat(
+        "The fired timer @50 is still buffered; output watermark must be held at 50",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(50L));
+
+    testHarness.snapshot(2L, 0L);
+    doFnOperator.notifyCheckpointComplete(2L);
+    assertThat(
+        "The buffered timer has been processed; output watermark must advance to input watermark",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(100L));
+
+    boolean timerOutputSeen = false;
+    for (Object record : testHarness.getOutput()) {
+      if (record instanceof Watermark) {
+        assertThat(
+            "Watermark " + record + " was emitted before the buffered timer output @50",
+            ((Watermark) record).getTimestamp(),
+            lessThanOrEqualTo(50L));
+      } else if (record instanceof StreamRecord) {
+        @SuppressWarnings("unchecked")
+        WindowedValue<KV<String, String>> value =
+            ((StreamRecord<WindowedValue<KV<String, String>>>) record).getValue();
+        if (KV.of("key", "timer").equals(value.getValue())) {
+          assertThat(value.getTimestamp(), is(new Instant(50)));
+          timerOutputSeen = true;
+          break;
+        }
+      }
+    }
+    assertTrue("Timer output not found in " + testHarness.getOutput(), timerOutputSeen);
+
+    assertThat(
+        testHarness.getOutput(),
+        contains(
+            new Watermark(50),
+            new StreamRecord<>(
+                WindowedValues.timestampedValueInGlobalWindow(
+                    KV.of("key", "timer"), new Instant(50))),
             new Watermark(100)));
 
     testHarness.close();
