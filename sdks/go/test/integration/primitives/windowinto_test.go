@@ -37,6 +37,11 @@ func TestValidateWindowedSideInputs(t *testing.T) {
 	ptest.BuildAndRun(t, ValidateWindowedSideInputs)
 }
 
+func TestValidateWindowedSideInputsAfterGBK(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValidateWindowedSideInputsAfterGBK)
+}
+
 func TestTriggerDefault(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TriggerDefault)
