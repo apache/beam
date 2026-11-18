@@ -153,6 +153,40 @@ class DataChannelTest(unittest.TestCase):
     self.assertEqual(
         list(channel.input_elements('instruction', ['input'])), [data])
 
+  def test_grpc_data_channel_final_data_payload(self):
+    channel = data_plane._GrpcDataChannel()
+    self.addCleanup(channel.close)
+    first = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction', transform_id='input', data=b'abc')
+    last = beam_fn_api_pb2.Elements.Data(
+        instruction_id='instruction',
+        transform_id='input',
+        data=b'def',
+        is_last=True)
+    channel._read_inputs(
+        iter([
+            beam_fn_api_pb2.Elements(data=[first]),
+            beam_fn_api_pb2.Elements(data=[last]),
+        ]))
+    self.assertEqual(
+        list(channel.input_elements('instruction', ['input'])), [first, last])
+
+  def test_grpc_data_channel_final_timer_payload(self):
+    for payload in (b'', b'abc'):
+      with self.subTest(payload=payload):
+        channel = data_plane._GrpcDataChannel()
+        self.addCleanup(channel.close)
+        timers = beam_fn_api_pb2.Elements.Timers(
+            instruction_id='instruction',
+            transform_id='input',
+            timer_family_id='timer',
+            timers=payload,
+            is_last=True)
+        channel._read_inputs(iter([beam_fn_api_pb2.Elements(timers=[timers])]))
+        self.assertEqual(
+            list(channel.input_elements('instruction', [('input', 'timer')])),
+            [timers] if payload else [])
+
   def test_grpc_data_channel_input_aborted(self):
     channel = data_plane._GrpcDataChannel()
     self.addCleanup(channel.close)
@@ -166,6 +200,21 @@ class DataChannelTest(unittest.TestCase):
   def test_in_memory_data_channel(self):
     channel = data_plane.InMemoryDataChannel()
     self._data_channel_test(channel, channel.inverse())
+
+  def test_in_memory_data_channel_final_timer_payload(self):
+    for payload in (b'', b'abc'):
+      with self.subTest(payload=payload):
+        channel = data_plane.InMemoryDataChannel()
+        timers = beam_fn_api_pb2.Elements.Timers(
+            instruction_id='instruction',
+            transform_id='input',
+            timer_family_id='timer',
+            timers=payload,
+            is_last=True)
+        channel._inputs.append(timers)
+        self.assertEqual(
+            list(channel.input_elements('instruction', [('input', 'timer')])),
+            [timers] if payload else [])
 
   def _data_channel_test(self, server, client, time_based_flush=False):
     self._data_channel_test_one_direction(server, client, time_based_flush)
