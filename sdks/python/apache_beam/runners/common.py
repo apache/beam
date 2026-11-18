@@ -1717,14 +1717,22 @@ class _OutputHandler(OutputHandler):
             (object_type, results))
 
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if
     #  performance_runtime_type_check is active, without harming performance
     output_element_count = 0
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_yields_batches:
         # process yields elements
@@ -1771,11 +1779,22 @@ class _OutputHandler(OutputHandler):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      results = []
+      if self.per_element_output_counter is not None:
+        self.per_element_output_counter.add_input(0)
+      return
 
     output_element_count = 0
+    empty_windowed_value = (
+        windowed_input_batch.as_empty_windowed_value()
+        if self._process_batch_yields_elements else None)
     for result in results:
-      tag, result = self._handle_tagged_output(result)
+      if isinstance(result, TaggedOutput):
+        tag = result.tag
+        if not isinstance(tag, str):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+      else:
+        tag = None
 
       if not self._process_batch_yields_elements:
         # process_batch yields batches
@@ -1801,7 +1820,7 @@ class _OutputHandler(OutputHandler):
         assert isinstance(windowed_input_batch, HomogeneousWindowedBatch)
 
         windowed_value = self._maybe_propagate_windowing_info(
-            windowed_input_batch.as_empty_windowed_value(), result)
+            empty_windowed_value, result)
 
         output_element_count += 1
 
@@ -1832,14 +1851,6 @@ class _OutputHandler(OutputHandler):
 
     else:
       return windowed_input_element.with_value(result)
-
-  def _handle_tagged_output(self, result):
-    if isinstance(result, TaggedOutput):
-      tag = result.tag
-      if not isinstance(tag, str):
-        raise TypeError('In %s, tag %s is not a string' % (self, tag))
-      return tag, result.value
-    return None, result
 
   def _write_value_to_tag(self, tag, windowed_value, watermark_estimator):
     if watermark_estimator is not None:

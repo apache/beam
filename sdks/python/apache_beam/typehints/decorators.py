@@ -175,6 +175,40 @@ def _annotation_namespaces(fn):
   return getattr(target, '__globals__', {}), localns
 
 
+def _is_convertible_type_hint(hint):
+  """Whether a resolved annotation converts to a valid Beam type hint.
+
+  A string annotation can resolve to something Beam cannot represent, e.g. a
+  protobuf enum (an ``EnumTypeWrapper`` instance, not a type) used as
+  ``Mapping[str, 'schema_pb2.FeatureType']``, or a typing construct that
+  convert_to_beam_type does not support, such as ``Generator[int]``. The
+  converted hint is validated (rather than the resolved annotation) so that
+  TypeVars, NewTypes and ``type`` aliases, which convert to valid hints, are
+  still resolved.
+  """
+  if hint is None or hint is Ellipsis:
+    return True
+  origin = get_origin(hint)
+  if origin is Literal:
+    # Literal arguments are values, not types.
+    return True
+  args = get_args(hint)
+  if origin is typing.Annotated:
+    args = args[:1]  # The remaining arguments are metadata.
+  for arg in args:
+    # A list is a Callable parameter list, e.g. the [int] in
+    # Callable[[int], str].
+    for inner in (arg if isinstance(arg, list) else [arg]):
+      if not _is_convertible_type_hint(inner):
+        return False
+  try:
+    validate_composite_type_param(
+        convert_to_beam_type(hint), 'Resolved type annotation')
+  except (TypeError, ValueError):
+    return False
+  return True
+
+
 def _resolve_annotation(annotation, globalns, localns):
   if not _contains_forward_ref(annotation):
     return annotation
@@ -186,12 +220,17 @@ def _resolve_annotation(annotation, globalns, localns):
 
   one_hint.__annotations__ = {'value': annotation}
   try:
-    return typing.get_type_hints(
+    resolved = typing.get_type_hints(
         one_hint, globalns=globalns, localns=localns,
         include_extras=True)['value']
   except (AttributeError, NameError, SyntaxError, TypeError):
     # convert_to_beam_type maps unresolved strings and ForwardRefs to Any.
     return annotation
+  if not _is_convertible_type_hint(resolved):
+    # Keep the annotation unresolved so that convert_to_beam_type maps it to
+    # Any, as it did before string annotations were resolved.
+    return annotation
+  return resolved
 
 
 def get_signature(func):

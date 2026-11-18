@@ -32,6 +32,7 @@ import itertools
 import json
 import logging
 import random
+import sys
 import threading
 from dataclasses import dataclass
 from dataclasses import field
@@ -219,7 +220,7 @@ class DataInputOperation(RunnerIOOperation):
     self.consumer = next(iter(consumers.values()))
     self.splitting_lock = threading.Lock()
     self.index = -1
-    self.stop = float('inf')
+    self.stop = sys.maxsize
     self.started = False
 
   def setup(self, data_sampler=None):
@@ -246,21 +247,23 @@ class DataInputOperation(RunnerIOOperation):
 
   def process_encoded(self, encoded_windowed_values: bytes) -> None:
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
+    decode_from_stream = self.windowed_coder_impl.decode_from_stream
+    output = self.receivers[0].receive
+    splitting_lock = self.splitting_lock
     while input_stream.size() > 0:
-      with self.splitting_lock:
+      with splitting_lock:
         if self.index == self.stop - 1:
           return
         self.index += 1
       try:
-        decoded_value = self.windowed_coder_impl.decode_from_stream(
-            input_stream, True)
+        decoded_value = decode_from_stream(input_stream, True)
       except Exception as exn:
         coder = str(self.windowed_coder)
         step = self.name_context.step_name
         raise ValueError(
             f"Error decoding input stream with coder {coder} in step {step}"
         ) from exn
-      self.output(decoded_value)
+      output(decoded_value)
 
   def monitoring_infos(
       self, transform_id: str, tag_to_pcollection_id: dict[str, str]
@@ -377,7 +380,7 @@ class DataInputOperation(RunnerIOOperation):
   def reset(self) -> None:
     with self.splitting_lock:
       self.index = -1
-      self.stop = float('inf')
+      self.stop = sys.maxsize
     super().reset()
 
 
@@ -988,6 +991,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
+    self._key_coder_impl = key_coder.get_impl() if key_coder else None
+    self._window_coder_impl = window_coder.get_impl() if window_coder else None
     # A mapping of {timer_family_id: TimerInfo}
     self._timers_info: dict[str, TimerInfo] = {}
     self._all_states: dict[tuple, FnApiUserRuntimeStateTypes] = {}
@@ -998,9 +1003,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
   def get_timer(
       self, timer_spec: userstate.TimerSpec, key, window, timestamp,
       pane) -> OutputTimer:
-    assert self._timers_info[timer_spec.name].output_stream is not None
-    timer_coder_impl = self._timers_info[timer_spec.name].timer_coder_impl
-    output_stream = self._timers_info[timer_spec.name].output_stream
+    timer_info = self._timers_info[timer_spec.name]
+    assert timer_info.output_stream is not None
     return OutputTimer(
         key,
         window,
@@ -1008,8 +1012,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
         pane,
         timer_spec.time_domain,
         timer_spec.name,
-        timer_coder_impl,
-        output_stream)
+        timer_info.timer_coder_impl,
+        timer_info.output_stream)
 
   def get_state(self, *args: Any) -> FnApiUserRuntimeStateTypes:
     state_handle = self._all_states.get(args)
@@ -1030,9 +1034,9 @@ class FnApiUserStateContext(userstate.UserStateContext):
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
+                  window=self._window_coder_impl.encode(window),
                   # State keys are expected in nested encoding format
-                  key=self._key_coder.encode_nested(key))),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
@@ -1048,9 +1052,9 @@ class FnApiUserStateContext(userstate.UserStateContext):
               bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
+                  window=self._window_coder_impl.encode(window),
                   # State keys are expected in nested encoding format
-                  key=self._key_coder.encode_nested(key))),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
     elif isinstance(state_spec, userstate.OrderedListStateSpec):
       return SynchronousOrderedListRuntimeState(
@@ -1060,8 +1064,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
               OrderedListUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
-                  window=self._window_coder.encode(window),
-                  key=self._key_coder.encode_nested(key))),
+                  window=self._window_coder_impl.encode(window),
+                  key=self._key_coder_impl.encode_nested(key))),
           value_coder=state_spec.coder)
     else:
       raise NotImplementedError(state_spec)

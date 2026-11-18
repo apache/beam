@@ -110,13 +110,23 @@ class LocalFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
+    is_cwd = not dir_or_prefix
+    if is_cwd:
+      dir_or_prefix = os.curdir
     if not self.exists(dir_or_prefix):
       return
 
+    curdir_prefix = os.curdir + os.sep
+
     def list_files(root):
       for dirpath, _, files in os.walk(root):
+        if is_cwd:
+          if dirpath == os.curdir:
+            dirpath = ''
+          elif dirpath.startswith(curdir_prefix):
+            dirpath = dirpath[len(curdir_prefix):]
         for filename in files:
-          yield self.join(dirpath, filename)
+          yield self.join(dirpath, filename) if dirpath else filename
 
     try:
       for f in list_files(dir_or_prefix):
