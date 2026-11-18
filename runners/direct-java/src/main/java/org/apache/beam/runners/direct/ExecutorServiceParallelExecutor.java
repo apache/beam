@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -81,6 +82,9 @@ final class ExecutorServiceParallelExecutor
   private final ExecutorService metricsExecutor;
 
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
+
+  /** Released once {@link #stop()} has torn the pipeline down. */
+  private final CountDownLatch stopped = new CountDownLatch(1);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
@@ -269,13 +273,13 @@ final class ExecutorServiceParallelExecutor
         if (update == null) {
           // there are no updates to process and no updates will ever be published because the
           // executor is shutdown
-          return pipelineState.get();
+          return finalState(completionTime);
         }
       }
 
       if (update != null) {
         if (isTerminalStateUpdate(update)) {
-          return pipelineState.get();
+          return finalState(completionTime);
         }
 
         if (update.thrown.isPresent()) {
@@ -292,6 +296,22 @@ final class ExecutorServiceParallelExecutor
     }
 
     return null;
+  }
+
+  /**
+   * Returns the pipeline's terminal state. A cancelled pipeline gets that state before it is torn
+   * down, so this first waits for {@link #stop()} to finish, until {@code completionTime}. Returns
+   * null if the teardown doesn't finish by then.
+   */
+  private @Nullable State finalState(Instant completionTime) throws InterruptedException {
+    State state = pipelineState.get();
+    if (state == State.CANCELLED) {
+      long remainingMillis = Math.max(0, completionTime.getMillis() - Instant.now().getMillis());
+      if (!stopped.await(remainingMillis, TimeUnit.MILLISECONDS)) {
+        return null;
+      }
+    }
+    return state;
   }
 
   @Override
@@ -311,7 +331,11 @@ final class ExecutorServiceParallelExecutor
     // failure. Failures that were reported before the cancel come first and are still thrown.
     pipelineState.compareAndSet(State.RUNNING, State.CANCELLED);
     visibleUpdates.cancelled();
-    shutdownIfNecessary(State.CANCELLED);
+    try {
+      shutdownIfNecessary(State.CANCELLED);
+    } finally {
+      stopped.countDown();
+    }
   }
 
   private void shutdownIfNecessary(State newState) {

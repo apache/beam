@@ -324,11 +324,12 @@ public class DirectRunnerTest implements Serializable {
   private static AtomicInteger processedAfterCancel;
   private static CountDownLatch processing;
   private static CountDownLatch tornDown;
+  private static AtomicBoolean teardownFinished;
 
   /**
    * Cancels a pipeline while one bundle is running and another is waiting for a thread. The running
-   * bundle fails once the pipeline is torn down. The pipeline must still end as cancelled, and the
-   * waiting bundle must not run.
+   * bundle fails once the pipeline is torn down. The pipeline must still end as cancelled, {@code
+   * waitUntilFinish} must return only after the teardown, and the waiting bundle must not run.
    */
   @Test
   public void cancelWithRunningAndQueuedWorkReturnsCancelled() throws Exception {
@@ -336,6 +337,7 @@ public class DirectRunnerTest implements Serializable {
     processedAfterCancel = new AtomicInteger();
     processing = new CountDownLatch(1);
     tornDown = new CountDownLatch(1);
+    teardownFinished = new AtomicBoolean();
 
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setRunner(DirectRunner.class);
@@ -360,6 +362,7 @@ public class DirectRunnerTest implements Serializable {
                 return result.cancel();
               });
       assertThat(result.waitUntilFinish(Duration.standardMinutes(1)), is(State.CANCELLED));
+      assertThat(teardownFinished.get(), is(true));
       assertThat(cancelled.get(1, TimeUnit.MINUTES), is(State.CANCELLED));
       assertThat(processedAfterCancel.get(), equalTo(0));
     } finally {
@@ -389,6 +392,7 @@ public class DirectRunnerTest implements Serializable {
       // Give the failure above, and the bundle waiting behind it, time to run before the cancel
       // returns.
       Thread.sleep(1000);
+      teardownFinished.set(true);
     }
   }
 
