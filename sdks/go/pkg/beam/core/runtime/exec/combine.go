@@ -74,7 +74,11 @@ func (n *Combine) Up(ctx context.Context) error {
 
 	n.states = metrics.NewPTransformState(n.PID)
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
+	// Tag the Setup context with this transform's ID, as ParDo does, so
+	// metrics incremented in Setup are attributed to this transform.
+	// See apache/beam#27038.
+	setupCtx := metrics.SetPTransformID(ctx, n.PID)
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
