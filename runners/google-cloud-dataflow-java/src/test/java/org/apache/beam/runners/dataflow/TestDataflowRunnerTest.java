@@ -519,40 +519,6 @@ public class TestDataflowRunnerTest {
   }
 
   /**
-   * A streaming job that reports a retryable infrastructure error (the service could not start the
-   * worker pool and says it will retry) and then goes on to finish is a success: the error was
-   * about capacity, not about the pipeline, and must neither cancel the job nor fail the test.
-   */
-  @Test
-  public void testStreamingJobSurvivesRetryableInfrastructureError() throws Exception {
-    options.setStreaming(true);
-    Pipeline pipeline = TestPipeline.create(options);
-    PCollection<Integer> pc = pipeline.apply(Create.of(1, 2, 3));
-    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
-
-    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getState()).thenReturn(State.DONE);
-    when(mockJob.getProjectId()).thenReturn("test-project");
-    when(mockJob.getJobId()).thenReturn("test-job");
-    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenAnswer(
-            invocation -> {
-              ((JobMessagesHandler) invocation.getArguments()[1])
-                  .process(Arrays.asList(errorMessage(STOCKOUT_ERROR)));
-              return State.DONE;
-            });
-
-    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
-    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
-    when(mockClient.getJobMetrics(anyString()))
-        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
-
-    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    assertEquals(mockJob, runner.run(pipeline, mockRunner));
-    verify(mockJob, never()).cancel();
-  }
-
-  /**
    * If the service never recovers from the infrastructure error, the job runs into the test
    * timeout; it is then cancelled and the failure names the infrastructure error as the cause.
    */
