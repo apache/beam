@@ -104,6 +104,22 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(label='389a', conductor=389, rank=2),
           ]))
 
+  def test_python_expression_skips_keyword_named_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(
+        ['status', 'in'], expression="status in ('ACTIVE', 'PENDING')")
+    self.assertTrue(fn(beam.Row(status='ACTIVE')))
+    self.assertFalse(fn(beam.Row(status='DONE')))
+
+  def test_python_expression_skips_non_identifier_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(
+        ['status', 'my col'], expression="status == 'my col'")
+    self.assertTrue(fn(beam.Row(status='my col')))
+
+  def test_python_expression_binds_referenced_identifier_fields(self):
+    fn = yaml_mapping._expand_python_mapping_func(['a', 'b'],
+                                                  expression='a + b')
+    self.assertEqual(fn(beam.Row(a=1, b=2)), 3)
+
   def test_explode(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -200,6 +216,47 @@ class YamlMappingTest(unittest.TestCase):
                   output_type: string  # This is a lie.
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
+
+  def test_validate_nullable_output_types(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(a=1, b='abc'),
+          beam.Row(a=0, b='xy'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: MapToFields
+          input: input
+          config:
+            language: python
+            fields:
+              opt_union:
+                expression: "b if a > 0 else None"
+                output_type:
+                  type: [string, 'null']
+              opt_flag:
+                expression: "a if a > 0 else None"
+                output_type:
+                  type: integer
+                  nullable: true
+              nested:
+                callable: "lambda row: beam.Row(x=row.b if row.a > 0 else None)"
+                output_type:
+                  type: object
+                  properties:
+                    x:
+                      type: string
+          ''')
+      self.assertEqual(
+          dict(result.element_type._fields)['opt_union'],
+          beam.typehints.Optional[str])
+      self.assertEqual(
+          dict(result.element_type._fields)['opt_flag'],
+          beam.typehints.Optional[np.int64])
+      assert_that(
+          result | beam.Map(lambda r: (r.opt_union, r.opt_flag, r.nested.x)),
+          equal_to([('abc', 1, 'abc'), (None, None, None)]))
 
   def test_partition(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(

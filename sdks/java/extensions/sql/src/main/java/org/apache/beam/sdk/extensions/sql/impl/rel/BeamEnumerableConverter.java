@@ -227,6 +227,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     if (failure != null) {
       throw failure;
     }
+    // Ctrl+C closes the view by cancelling the statement. Clear the flag so that the statement
+    // ends the same way as when the user quits with q, instead of failing as cancelled.
+    cancelFlag.set(false);
     return Linq4j.emptyEnumerable();
   }
 

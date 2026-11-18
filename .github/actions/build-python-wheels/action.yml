@@ -1,0 +1,86 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: 'Build Python wheels'
+description: 'Builds Apache Beam Python wheels using cibuildwheel.'
+
+inputs:
+  package-dir:
+    description: 'Path to the unpacked Python package source directory.'
+    required: true
+  output-dir:
+    description: 'Directory where built wheels and SHA-512 checksums will be written.'
+    required: true
+  build-identifiers:
+    description: 'Space-separated cibuildwheel CIBW_BUILD pattern(s), e.g. "cp311-*" or "cp311-manylinux_x86_64 cp312-manylinux_x86_64".'
+    required: true
+  archs-linux:
+    description: 'cibuildwheel CIBW_ARCHS_LINUX value (e.g. auto, x86_64, aarch64).'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build wheels with cibuildwheel
+      shell: bash
+      env:
+        PACKAGE_DIR: ${{ inputs.package-dir }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        CIBW_BUILD: ${{ inputs.build-identifiers }}
+        CIBW_ARCHS_LINUX: ${{ inputs.archs-linux }}
+        # TODO: https://github.com/apache/beam/issues/23048
+        CIBW_SKIP: "*-musllinux_*"
+        CIBW_BEFORE_BUILD: 'pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools'
+      run: |
+        set -euo pipefail
+
+        # Note: sync cibuildwheel version with sdks/python/build.gradle bdistPy* tasks.
+        python -m pip install cibuildwheel==3.4.0 setuptools
+        python -m cibuildwheel --print-build-identifiers "${PACKAGE_DIR}"
+
+        # Note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel
+        # occasionally times out; retry up to 3 times.
+        built=false
+        for attempt in 1 2 3; do
+          if python -m cibuildwheel --output-dir "${OUTPUT_DIR}" "${PACKAGE_DIR}"; then
+            built=true
+            break
+          fi
+          echo "cibuildwheel failed on attempt ${attempt}/3. Will retry."
+          rm -rf "${OUTPUT_DIR}"
+        done
+        if [[ "${built}" != "true" ]]; then
+          exit 1
+        fi
+
+        if command -v sha512sum >/dev/null 2>&1; then
+          hash_cmd=(sha512sum)
+        else
+          hash_cmd=(shasum -a 512)
+        fi
+        (
+          cd "${OUTPUT_DIR}"
+          shopt -s nullglob
+          wheels=(*.whl)
+          if (( ${#wheels[@]} == 0 )); then
+            echo "No wheels produced in ${OUTPUT_DIR}" >&2
+            exit 1
+          fi
+          for file in "${wheels[@]}"; do
+            "${hash_cmd[@]}" "${file}" > "${file}.sha512"
+          done
+        )
