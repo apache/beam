@@ -306,8 +306,12 @@ final class ExecutorServiceParallelExecutor
 
   @Override
   public void stop() {
-    shutdownIfNecessary(State.CANCELLED);
+    // Mark the pipeline cancelled before tearing it down. Work that is still running can fail once
+    // the pipeline is torn down, and waitUntilFinish must see the cancellation before any such
+    // failure. Failures that were reported before the cancel come first and are still thrown.
+    pipelineState.compareAndSet(State.RUNNING, State.CANCELLED);
     visibleUpdates.cancelled();
+    shutdownIfNecessary(State.CANCELLED);
   }
 
   private void shutdownIfNecessary(State newState) {

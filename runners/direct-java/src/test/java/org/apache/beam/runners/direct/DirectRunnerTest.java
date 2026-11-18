@@ -40,6 +40,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,6 +48,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -316,6 +318,78 @@ public class DirectRunnerTest implements Serializable {
     cancelResult.get();
     // If cancel doesn't work, this will hang forever
     result.get().waitUntilFinish();
+  }
+
+  private static AtomicBoolean cancelRequested;
+  private static AtomicInteger processedAfterCancel;
+  private static CountDownLatch processing;
+  private static CountDownLatch tornDown;
+
+  /**
+   * Cancels a pipeline while one bundle is running and another is waiting for a thread. The running
+   * bundle fails once the pipeline is torn down. The pipeline must still end as cancelled, and the
+   * waiting bundle must not run.
+   */
+  @Test
+  public void cancelWithRunningAndQueuedWorkReturnsCancelled() throws Exception {
+    cancelRequested = new AtomicBoolean();
+    processedAfterCancel = new AtomicInteger();
+    processing = new CountDownLatch(1);
+    tornDown = new CountDownLatch(1);
+
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setRunner(DirectRunner.class);
+    options.setBlockOnRun(false);
+    // With one thread, the second bundle waits behind the first one, which doesn't finish until the
+    // pipeline is torn down.
+    options.setTargetParallelism(1);
+    Pipeline p = Pipeline.create(options);
+    PCollection<byte[]> impulse = p.apply(Impulse.create());
+    impulse.apply("First", ParDo.of(new FailAfterTeardownFn()));
+    impulse.apply("Second", ParDo.of(new FailAfterTeardownFn()));
+    PipelineResult result = p.run();
+
+    // Cancel from another thread while this one waits for the pipeline, like the Beam SQL shell.
+    ExecutorService canceller = Executors.newSingleThreadExecutor();
+    try {
+      Future<State> cancelled =
+          canceller.submit(
+              () -> {
+                checkState(processing.await(1, TimeUnit.MINUTES));
+                cancelRequested.set(true);
+                return result.cancel();
+              });
+      assertThat(result.waitUntilFinish(Duration.standardMinutes(1)), is(State.CANCELLED));
+      assertThat(cancelled.get(1, TimeUnit.MINUTES), is(State.CANCELLED));
+      assertThat(processedAfterCancel.get(), equalTo(0));
+    } finally {
+      canceller.shutdownNow();
+    }
+  }
+
+  /**
+   * Holds on to its first element until the pipeline is torn down and then fails, like work that
+   * runs against a cancelled pipeline. Counts the elements it gets after the cancel.
+   */
+  private static class FailAfterTeardownFn extends DoFn<byte[], byte[]> {
+    @ProcessElement
+    public void processElement() throws InterruptedException {
+      if (cancelRequested.get()) {
+        processedAfterCancel.incrementAndGet();
+        return;
+      }
+      processing.countDown();
+      checkState(tornDown.await(1, TimeUnit.MINUTES));
+      throw new IllegalStateException("Processed an element after the pipeline was torn down");
+    }
+
+    @Teardown
+    public void teardown() throws InterruptedException {
+      tornDown.countDown();
+      // Give the failure above, and the bundle waiting behind it, time to run before the cancel
+      // returns.
+      Thread.sleep(1000);
+    }
   }
 
   @Test

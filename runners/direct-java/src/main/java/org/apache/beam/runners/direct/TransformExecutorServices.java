@@ -74,7 +74,7 @@ final class TransformExecutorServices {
     public void schedule(TransformExecutor work) {
       if (active.get()) {
         try {
-          executor.submit(work);
+          executor.submit(skipIfShutDown(work));
         } catch (RejectedExecutionException rejected) {
           boolean stillActive = active.get();
           if (stillActive) {
@@ -100,6 +100,15 @@ final class TransformExecutorServices {
     public void shutdown() {
       active.set(false);
     }
+
+    /** Wraps the work so that it doesn't run if this is shut down while it waits for a thread. */
+    private Runnable skipIfShutDown(TransformExecutor work) {
+      return () -> {
+        if (active.get()) {
+          work.run();
+        }
+      };
+    }
   }
 
   /**
@@ -115,7 +124,7 @@ final class TransformExecutorServices {
 
     private AtomicReference<@Nullable TransformExecutor> currentlyEvaluating;
     private final Queue<TransformExecutor> workQueue;
-    private boolean active = true;
+    private volatile boolean active = true;
 
     private SerialTransformExecutor(ExecutorService executor) {
       this.executor = executor;
@@ -163,13 +172,22 @@ final class TransformExecutorServices {
           TransformExecutor newWork = workQueue.poll();
           if (active && newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
-              executor.submit(newWork);
+              executor.submit(skipIfShutDown(newWork));
             } else {
               workQueue.offer(newWork);
             }
           }
         }
       }
+    }
+
+    /** Wraps the work so that it doesn't run if this is shut down while it waits for a thread. */
+    private Runnable skipIfShutDown(TransformExecutor work) {
+      return () -> {
+        if (active) {
+          work.run();
+        }
+      };
     }
 
     @Override
