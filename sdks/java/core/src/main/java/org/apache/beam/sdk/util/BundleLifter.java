@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * is reached, the remaining buffered elements are emitted to the small tag, and for the rest of the
  * bundle elements of keys that are not lifted are emitted to the small tag immediately.
  *
- * <p>Every element keeps its own timestamp, window and pane.
+ * <p>Every element keeps its own timestamp and window.
  *
  * <p>For internal use only; no backwards-compatibility guarantees.
  *
@@ -251,9 +251,9 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
             buffer.elements.size(),
             buffer.sizeBytes,
             smallBatchTag.getId());
+        // FinishBundleContext.output has no PaneInfo/WindowedValue overload yet.
         for (BufferedElement<T> e : buffer.elements) {
-          context.outputWindowedValue(
-              smallBatchTag, e.value, e.timestamp, Collections.singletonList(e.window), e.pane);
+          context.output(smallBatchTag, e.value, e.timestamp, e.window);
         }
         buffer.elements.clear();
       }
@@ -333,11 +333,13 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     private final BoundedWindow window;
     private final PaneInfo pane;
     private final Object key;
+    private final int hashCode;
 
     WindowedKey(BoundedWindow window, PaneInfo pane, Object key) {
       this.window = window;
       this.pane = pane;
       this.key = key;
+      this.hashCode = Objects.hash(window, pane, key);
     }
 
     @Override
@@ -349,12 +351,15 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         return false;
       }
       WindowedKey other = (WindowedKey) o;
-      return window.equals(other.window) && pane.equals(other.pane) && key.equals(other.key);
+      return hashCode == other.hashCode
+          && window.equals(other.window)
+          && pane.equals(other.pane)
+          && key.equals(other.key);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(window, pane, key);
+      return hashCode;
     }
   }
 
