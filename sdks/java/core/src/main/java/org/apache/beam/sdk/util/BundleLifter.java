@@ -184,7 +184,9 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
       if (liftedKeys.contains(key)) {
         // This key already reached the threshold in this bundle; stream it through.
-        receiver.get(largeBatchTag).output(element);
+        receiver
+            .get(largeBatchTag)
+            .outputWindowedValue(element, timestamp, Collections.singletonList(window), pane);
         return;
       }
 
@@ -192,7 +194,9 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
       if (buffer == null) {
         if (keysFinalized) {
           // The memory cap was exceeded earlier in this bundle; don't track new keys.
-          receiver.get(smallBatchTag).output(element);
+          receiver
+              .get(smallBatchTag)
+              .outputWindowedValue(element, timestamp, Collections.singletonList(window), pane);
           return;
         }
         buffer = new KeyBuffer<>();
@@ -274,14 +278,15 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
     /**
      * Emits the smallest keys to the small output until at most half of {@code maxBufferedBytes}
-     * remains buffered, so each call frees a large chunk and the sort's cost stays amortized.
+     * remains buffered (keeping at least one key so it can still reach {@code threshold}), so each
+     * call frees a large chunk and the sort's cost stays amortized.
      */
     private void evictSmallestKeys(Map<Object, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
       long target = maxBufferedBytes / 2;
       List<Map.Entry<Object, KeyBuffer<T>>> bySize = new ArrayList<>(buffers.entrySet());
       bySize.sort(Comparator.comparingLong(entry -> entry.getValue().sizeBytes));
       for (Map.Entry<Object, KeyBuffer<T>> entry : bySize) {
-        if (bufferedBytes <= target) {
+        if (bufferedBytes <= target || buffers.size() <= 1) {
           break;
         }
         KeyBuffer<T> buffer = entry.getValue();
