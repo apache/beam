@@ -31,7 +31,7 @@
 
 ## Improvements
 
-* [comment]: generic improvements if not covered in following sections.
+[comment]: # "generic improvements if not covered in following sections."
 
 ### New Feature
 
@@ -44,16 +44,19 @@
 
 ## Breaking Changes
 
-* [comment]: generic breaking changes if not covered in following sections.
+[comment]: # "generic breaking changes if not covered in following sections."
 
 ### Package upgrades
-* [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+
+[comment]: # "dependency upgrades (e.g. major version) and migrations that may introduce breaking change"
 
 ### API changes
-* [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
+
+[comment]: # "Public facing interface changes that may introduce breaking change or change of behaviors"
 
 ### Upgrade compatibility
-* [comment]: changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version
+
+[comment]: # "changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version"
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
@@ -83,6 +86,7 @@
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 * (Java) Spark 4 runner: the Structured Streaming runner now supports streaming pipelines ([#36841](https://github.com/apache/beam/issues/36841)).
+* (Python) Multiple core SDK performance improvements across windowing and timestamps, `DoFn`/batching/worker hot paths, core combiners, and bounded file writes; see the Performance section below for details. <!-- no-issue-link: summarize performance improvements -->
 
 ## I/Os
 
@@ -93,17 +97,18 @@
 
 ## Improvements
 
-* [comment]: generic improvements if not covered in following sections.
+[comment]: # "generic improvements if not covered in following sections."
 
 ### New Feature
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline ([#40891](https://github.com/apache/beam/issues/40891)).
+* (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline. `beam pipe --from SOURCE --to SINK` reads and writes CSV, JSON, Parquet or Avro files, and `--dry-run` prints the equivalent pipeline to save and run with `beam run` ([#40891](https://github.com/apache/beam/issues/40891)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
 * (Go) Added the standard `millis_instant` and `decimal` logical types for cross-language rows ([#39684](https://github.com/apache/beam/issues/39684)).
 * [Beam SQL] Added `PRIMARY KEY (...) NOT ENFORCED` to `CREATE EXTERNAL TABLE`, and `ALTER TABLE ... ADD/DROP PRIMARY KEY` ([#40826](https://github.com/apache/beam/issues/40826)).
 * [Beam SQL] Added a `WITH (...)` clause to set per-statement connector options in `FROM` and `INSERT INTO` ([#40848](https://github.com/apache/beam/issues/40848)).
 * [Beam SQL] Added `CHANGES(table [, start [, end]])` to read a table's changes in `FROM`, starting with Iceberg tables. A query can select metadata columns such as `_change_type` by name, without listing them in `include_metadata_columns` ([#40982](https://github.com/apache/beam/issues/40982)).
+* [Beam SQL] Added a live view to the SQL shell. A streaming (unbounded) SELECT shows its rows as they arrive, with an `op` column for each row's change kind ([#41313](https://github.com/apache/beam/issues/41313)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 
@@ -111,25 +116,33 @@
 
 * Optimized (Java/Python) SDK ([#X](https://github.com/apache/beam/issues/X)).
 * Optimized (Dataflow/Flink) runner ([#X](https://github.com/apache/beam/issues/X)).
-* (Java) Flink runner: the batch-only `--lazyBatchGroupingInputs` option is enabled by default (disable it with `--lazyBatchGroupingInputs=false`). Records sent to GroupByKey and Combine operators keep their values encoded until they are accessed, so Flink can move them from the network into its sorter without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Java) Flink runner: the batch-only `--lengthPrefixBatchRecords` option is enabled by default (disable it with `--lengthPrefixBatchRecords=false`). Each record is prefixed with its encoded length, so Flink's sorter can spill records to disk without decoding and re-encoding them ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Flink) `Reshuffle` in batch distributes elements round-robin from deterministic start channels instead of random ones, so inputs with few elements per sender stay balanced ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Java) Flink runner: the batch-only `--sortedBatchCombine` option is enabled by default (disable it with `--sortedBatchCombine=false`). GroupByKey and Combine in the global window with the default trigger then finish with a dedicated operator that relies on Flink sorting its input by key, instead of keyed state and timers ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Java) Flink runner: enabled three batch-only `GroupByKey`/`Combine` optimizations by default (each can be disabled with `=false`) — `--lazyBatchGroupingInputs` (keeps values encoded until accessed), `--lengthPrefixBatchRecords` (prefixes records with encoded length so Flink's sorter spills without decoding/re-encoding), and `--sortedBatchCombine` (uses a sort-based operator for global-window default-trigger combines instead of keyed state and timers) ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Java) Flink runner: improved batch load balancing by distributing `Reshuffle` elements round-robin from deterministic start channels instead of random ones, and by re-splitting and balancing bounded sources (e.g. BigQuery exports) across source readers ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Python) Optimized windowing and timestamp primitives to avoid per-element allocations: fixed `GlobalWindow` singleton re-initialization in `__init__` ([#40910](https://github.com/apache/beam/pull/40910)); switched `FixedWindows`/`SlidingWindows`/`Sessions.assign` ([#41135](https://github.com/apache/beam/pull/41135)) and `IntervalWindow` `<`/`intersects`/`union` ([#41136](https://github.com/apache/beam/pull/41136)) to direct integer microsecond arithmetic; and precomputed epoch/regex constants with direct `__le__`/`__gt__` comparisons in `Timestamp` and `Duration` ([#41110](https://github.com/apache/beam/pull/41110)).
+* (Python) Optimized `DoFn`, batching, and SDK worker hot paths: grouped `HomogeneousWindowedBatch.from_windowed_values` on tuples instead of transient `WindowedValue`s ([#41111](https://github.com/apache/beam/pull/41111)); Cythonized `PerWindowInvoker._invoke_process_per_window` and skipped non-SDF allocations ([#41159](https://github.com/apache/beam/pull/41159)); hoisted `as_empty_windowed_value()` and fast-pathed `results is None` in `_OutputHandler` ([#41162](https://github.com/apache/beam/pull/41162)) while inlining `_handle_tagged_output` ([#41209](https://github.com/apache/beam/pull/41209)); and hoisted loop lookups and cached coder implementations in `DataInputOperation` and `FnApiUserStateContext` ([#41173](https://github.com/apache/beam/pull/41173)).
+* (Python) Optimized core combiners: `ToListCombineFn` and `ConcatListCombineFn` replace quadratic `sum(accumulators, [])` merges with linear `itertools.chain.from_iterable` (and in-place `extend()` in `ConcatListCombineFn.add_input`); `CountCombineFn.add_inputs` uses O(1) `len()` for `Sized` inputs; and `TopCombineFn`/`SampleCombineFn` operate directly on the underlying heap ([#41062](https://github.com/apache/beam/pull/41062)).
+* (Python) `WriteImpl._expand_bounded` (used by bounded file sinks such as `WriteToText`, `WriteToAvro`, `WriteToParquet`, and `WriteToTFRecord`) now skips the redundant per-element `WindowInto(GlobalWindows())` pass when the upstream `PCollection` already uses the default global windowing strategy ([#40911](https://github.com/apache/beam/pull/40911)).
+* (Java) Added support for `--experiments=java_gc=<GC>` (`UseParallelGC`, `UseG1GC`, or `UseZGC`; defaults to `UseParallelGC`) in the portable Java SDK harness container, enabling alternative JVM garbage collectors on memory-constrained workers ([#41029](https://github.com/apache/beam/pull/41029)).
 
 ## Breaking Changes
 
-* [comment]: generic breaking changes if not covered in following sections.
+[comment]: # "generic breaking changes if not covered in following sections."
+* (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ### Package upgrades
-* [comment]: dependency upgrades (e.g. major version) and migrations that may introduce breaking change
+
+[comment]: # "dependency upgrades (e.g. major version) and migrations that may introduce breaking change"
 * (Python) Upgraded the `vllm` extra to vLLM 0.32.0, which requires `openai>=2.25.0`, `transformers>=5.16.1`, and `torch==2.13.0` ([#41005](https://github.com/apache/beam/issues/41005)).
+* (Python) Python SDK container images (including ML images) and the Python expansion service image are now based on Debian 13 (trixie) instead of Debian 12 (bookworm). Custom images that extend `apache/beam_python3.X_sdk` and install system packages may need updates for packages renamed in trixie (for example, versioned libraries). Native extensions built from source now use GCC 14. To stay on bookworm, build a custom image from `python:3.X-bookworm` and copy `/opt/apache/beam` from the Beam SDK image (see [custom containers](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image)) ([#41458](https://github.com/apache/beam/issues/41458)).
 
 ### API changes
-* [comment]: Public facing interface changes that may introduce breaking change or change of behaviors
+
+[comment]: # "Public facing interface changes that may introduce breaking change or change of behaviors"
 
 ### Upgrade compatibility
-* [comment]: changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version
+
+[comment]: # "changes that affect existing streaming pipeline upgrade compatibility but not launching new pipeline compiled with new Beam version"
 
 ## Deprecations
 
@@ -138,6 +151,7 @@
 ## Bugfixes
 
 * (Python) Fixed RunInference failing with `TypeError: cannot create weak reference to 'dict' object` when `ModelHandler.load_model()` returns a model that can't be weakly referenced, such as a `dict` or `list` ([#41351](https://github.com/apache/beam/issues/41351)).
+* (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
 * (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
 * (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
@@ -147,6 +161,7 @@
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
+* (Java) IcebergIO now writes `uuid` values as given instead of hashing them, and no longer wraps `Timestamp.MICROS` values outside about 1677 to 2262. This is a breaking change: rows written earlier with this sink will keep the old values, so new CDC writes keyed on a `uuid` column won't match them ([#41250](https://github.com/apache/beam/pull/41250)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
 * (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
@@ -154,8 +169,10 @@
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
 * (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
+* (Python) Fixed MLTransform embeddings created with `columns=`, the RAG embedding transforms and `VertexAIMultiModalEmbeddings` modifying their input elements, so that other transforms reading the same PCollection could see the embeddings ([#41233](https://github.com/apache/beam/issues/41233)).
+* (Python) Dataflow runner: artifacts from different environments that share a name but have different content (for example each environment's `requirements.txt` in a Beam YAML pipeline with a `pythonPackage` provider) are now staged to distinct objects in the staging location instead of overwriting each other, which made workers fail the staged-file integrity check ([#40699](https://github.com/apache/beam/issues/40699)).
+* (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
 
@@ -167,7 +184,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.78.0] - 2026-11-??
+# [2.78.0] - 2026-11-17
 
 ## I/Os
 

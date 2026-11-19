@@ -19,13 +19,20 @@ package org.apache.beam.examples.iceberg;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample.Options;
 import org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcUtils.LakehouseTableSpec;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,10 +71,34 @@ public class DeltaLakeToLakehouseCdcExampleTest {
     assertEquals("_commit_version", writeConfig.get("sequence_number_column"));
     assertEquals("_change_type", writeConfig.get("change_type_column"));
     assertEquals(Arrays.asList("employee_id"), writeConfig.get("equality_columns"));
+    assertFalse(writeConfig.containsKey("sink_id"));
     Map<String, String> catalogProps = (Map<String, String>) writeConfig.get("catalog_properties");
     assertEquals("rest", catalogProps.get("type"));
     assertEquals("gs://my-lakehouse-warehouse-bucket", catalogProps.get("warehouse"));
     assertEquals("my-gcp-project", catalogProps.get("header.x-goog-user-project"));
+  }
+
+  @Test
+  public void testBuildLakehouseCdcWriteConfigWithSinkId() {
+    Options options = PipelineOptionsFactory.as(Options.class);
+    options.setDeltaTable("gs://my-delta-lake-bucket/delta_lake/employee_data/");
+    options.setLakehouseTable(
+        "my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table");
+    options.setEqualityColumns("employee_id");
+    options.setStartVersion(2L);
+    options.setEndVersion(4L);
+
+    LakehouseTableSpec spec = DeltaLakeToLakehouseCdcUtils.resolveLakehouseTableSpec(options);
+
+    options.setSinkId("   ");
+    Map<String, Object> blankSinkWriteConfig =
+        DeltaLakeToLakehouseCdcExample.buildLakehouseCdcWriteConfig(options, spec);
+    assertFalse(blankSinkWriteConfig.containsKey("sink_id"));
+
+    options.setSinkId("  delta_lake_to_lakehouse_cdc_sync-v2-to-v4  ");
+    Map<String, Object> withSinkWriteConfig =
+        DeltaLakeToLakehouseCdcExample.buildLakehouseCdcWriteConfig(options, spec);
+    assertEquals("delta_lake_to_lakehouse_cdc_sync-v2-to-v4", withSinkWriteConfig.get("sink_id"));
   }
 
   @Test
@@ -92,5 +123,76 @@ public class DeltaLakeToLakehouseCdcExampleTest {
     assertEquals("_commit_version", writeConfig.get("sequence_number_column"));
     assertFalse(writeConfig.containsKey("change_type_column"));
     assertFalse(writeConfig.containsKey("change_type_map"));
+  }
+
+  @Test
+  public void testWaitForPipelineResultDefaultsAndBehaviors() {
+    Options options = PipelineOptionsFactory.as(Options.class);
+    assertTrue(options.getWaitUntilFinish());
+
+    AtomicBoolean waited = new AtomicBoolean(false);
+    PipelineResult doneResult =
+        stubPipelineResult(
+            () -> {
+              waited.set(true);
+              return PipelineResult.State.DONE;
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(doneResult, true);
+    assertTrue(waited.get());
+
+    AtomicBoolean skippedWaitCalled = new AtomicBoolean(false);
+    PipelineResult asyncResult =
+        stubPipelineResult(
+            () -> {
+              skippedWaitCalled.set(true);
+              return PipelineResult.State.DONE;
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(asyncResult, false);
+    assertFalse(skippedWaitCalled.get());
+
+    PipelineResult failedResult = stubPipelineResult(() -> PipelineResult.State.FAILED);
+    assertThrows(
+        IllegalStateException.class,
+        () -> DeltaLakeToLakehouseCdcExample.waitForPipelineResult(failedResult, true));
+
+    // Dataflow Flex Template launches return a DataflowTemplateJob whose waitUntilFinish() throws
+    // UnsupportedOperationException; waitForPipelineResult should return cleanly.
+    PipelineResult templateJobResult =
+        stubPipelineResult(
+            () -> {
+              throw new UnsupportedOperationException(
+                  "The result of template creation should not be used.");
+            });
+    DeltaLakeToLakehouseCdcExample.waitForPipelineResult(templateJobResult, true);
+  }
+
+  private static PipelineResult stubPipelineResult(
+      Supplier<PipelineResult.State> waitUntilFinishSupplier) {
+    return new PipelineResult() {
+      @Override
+      public State getState() {
+        return State.UNKNOWN;
+      }
+
+      @Override
+      public State cancel() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public State waitUntilFinish(Duration duration) {
+        return waitUntilFinishSupplier.get();
+      }
+
+      @Override
+      public State waitUntilFinish() {
+        return waitUntilFinishSupplier.get();
+      }
+
+      @Override
+      public MetricResults metrics() {
+        throw new UnsupportedOperationException();
+      }
+    };
   }
 }
