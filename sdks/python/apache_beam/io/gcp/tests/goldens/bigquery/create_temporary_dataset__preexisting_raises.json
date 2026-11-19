@@ -1,0 +1,31 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "create_temporary_dataset__preexisting_raises",
+  "description": "Beam-generated temp dataset already exists: RuntimeError, retried by the Beam decorator",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    }
+  ]
+}

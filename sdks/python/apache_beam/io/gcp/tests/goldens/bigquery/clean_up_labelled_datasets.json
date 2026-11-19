@@ -1,0 +1,31 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "clean_up_labelled_datasets",
+  "description": "_clean_up_beam_labelled_temporary_datasets('p', labels=...): datasets.list with a label filter, then delete each dataset",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets",
+      "query": {
+        "filter": "labels.beam:temp labels.step:s1 "
+      }
+    },
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/beam_ds_1",
+      "query": {
+        "deleteContents": "True"
+      }
+    },
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/beam_ds_2",
+      "query": {
+        "deleteContents": "True"
+      }
+    }
+  ]
+}

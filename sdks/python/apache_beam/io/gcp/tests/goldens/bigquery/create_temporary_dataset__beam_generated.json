@@ -1,0 +1,26 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "create_temporary_dataset__beam_generated",
+  "description": "create_temporary_dataset('p','US') with a Beam-generated temp dataset name (24 h default table expiration)",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": {
+        "datasetReference": {
+          "datasetId": "beam_temp_dataset_<UUID>",
+          "projectId": "p"
+        },
+        "defaultTableExpirationMs": "86400000",
+        "location": "US"
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets",
+      "query": {}
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_load_job__uris_schema_labels",
+  "description": "perform_load_job with GCS URIs, explicit schema, dispositions, source format and labels",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "labels": {
+            "step_name": "s"
+          },
+          "load": {
+            "autodetect": false,
+            "createDisposition": "CREATE_IF_NEEDED",
+            "destinationTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "schema": {
+              "fields": [
+                {
+                  "mode": "REQUIRED",
+                  "name": "a",
+                  "type": "STRING"
+                },
+                {
+                  "fields": [
+                    {
+                      "mode": "NULLABLE",
+                      "name": "x",
+                      "type": "INTEGER"
+                    },
+                    {
+                      "description": "nested ts",
+                      "mode": "NULLABLE",
+                      "name": "y",
+                      "type": "TIMESTAMP"
+                    }
+                  ],
+                  "mode": "REPEATED",
+                  "name": "r",
+                  "type": "RECORD"
+                }
+              ]
+            },
+            "sourceFormat": "NEWLINE_DELIMITED_JSON",
+            "sourceUris": [
+              "gs://b/a.json",
+              "gs://b/b.json"
+            ],
+            "useAvroLogicalTypes": true,
+            "writeDisposition": "WRITE_APPEND"
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

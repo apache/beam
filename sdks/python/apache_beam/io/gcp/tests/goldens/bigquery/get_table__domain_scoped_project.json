@@ -1,0 +1,13 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_table__domain_scoped_project",
+  "description": "get_table('google.com:p','d','t'): ':' is sent unencoded",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/google.com:p/datasets/d/tables/t",
+      "query": {}
+    }
+  ]
+}

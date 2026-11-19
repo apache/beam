@@ -1,0 +1,19 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "clean_up_temporary_dataset__user_configured",
+  "description": "clean_up_temporary_dataset('p') with temp_dataset_id='user_ds': only the temp table is deleted",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/user_ds",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/user_ds/tables/beam_temp_table_<UUID>",
+      "query": {}
+    }
+  ]
+}

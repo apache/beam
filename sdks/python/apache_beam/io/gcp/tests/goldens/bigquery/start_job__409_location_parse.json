@@ -1,0 +1,33 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "start_job__409_location_parse",
+  "description": "jobs.insert 409 Already Exists: no retry; location parsed from the error message onto the returned reference",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "copy": {
+            "destinationTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "dst"
+            },
+            "sourceTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "src"
+            }
+          },
+          "labels": {}
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_or_create_table__exists_append",
+  "description": "get_or_create_table on an existing table with WRITE_APPEND: a single GET",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    }
+  ]
+}

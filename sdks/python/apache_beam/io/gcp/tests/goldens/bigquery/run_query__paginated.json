@@ -1,0 +1,63 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "run_query__paginated",
+  "description": "run_query: query job (generated id), getQueryResults jobComplete=false retried, then two pages",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "dryRun": false,
+          "labels": {},
+          "query": {
+            "allowLargeResults": true,
+            "destinationEncryptionConfiguration": {},
+            "destinationTable": {
+              "datasetId": "temp_ds",
+              "projectId": "p",
+              "tableId": "beam_temp_table_<UUID>"
+            },
+            "flattenResults": false,
+            "priority": "INTERACTIVE",
+            "query": "SELECT x FROM d.t",
+            "useLegacySql": false
+          }
+        },
+        "jobReference": {
+          "jobId": "<UUID>",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/queries/<UUID>",
+      "query": {
+        "location": "US",
+        "maxResults": "10000"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/queries/<UUID>",
+      "query": {
+        "location": "US",
+        "maxResults": "10000"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/queries/<UUID>",
+      "query": {
+        "location": "US",
+        "maxResults": "10000",
+        "pageToken": "page_2_token"
+      }
+    }
+  ]
+}

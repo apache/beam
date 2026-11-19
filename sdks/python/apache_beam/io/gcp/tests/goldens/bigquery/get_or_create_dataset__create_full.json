@@ -1,0 +1,33 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_or_create_dataset__create_full",
+  "description": "get_or_create_dataset on a missing dataset with location, labels, kms_key and default_table_expiration_ms",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d",
+      "query": {}
+    },
+    {
+      "body": {
+        "datasetReference": {
+          "datasetId": "d",
+          "projectId": "p"
+        },
+        "defaultEncryptionConfiguration": {
+          "kmsKeyName": "projects/p/locations/eu/keyRings/r/cryptoKeys/k"
+        },
+        "defaultTableExpirationMs": "3600000",
+        "labels": {
+          "k1": "v1",
+          "k2": "v2"
+        },
+        "location": "EU"
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets",
+      "query": {}
+    }
+  ]
+}

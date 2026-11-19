@@ -1,0 +1,46 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "create_table__schema_only",
+  "description": "_create_table('p','d','t', nested/repeated schema)",
+  "requests": [
+    {
+      "body": {
+        "schema": {
+          "fields": [
+            {
+              "mode": "REQUIRED",
+              "name": "a",
+              "type": "STRING"
+            },
+            {
+              "fields": [
+                {
+                  "mode": "NULLABLE",
+                  "name": "x",
+                  "type": "INTEGER"
+                },
+                {
+                  "description": "nested ts",
+                  "mode": "NULLABLE",
+                  "name": "y",
+                  "type": "TIMESTAMP"
+                }
+              ],
+              "mode": "REPEATED",
+              "name": "r",
+              "type": "RECORD"
+            }
+          ]
+        },
+        "tableReference": {
+          "datasetId": "d",
+          "projectId": "p",
+          "tableId": "t"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables",
+      "query": {}
+    }
+  ]
+}
