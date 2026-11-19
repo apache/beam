@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import bz2
 import glob
+import gzip
 import importlib
 import math
 import os
@@ -127,6 +129,42 @@ A     B
     with beam.Pipeline() as p:
       pcoll = p | beam.io.ReadFromCsv(input + 'empty.csv')
       assert_that(pcoll, equal_to([]))
+
+  @parameterized.expand([
+      ('gzip', 'csv.gz', gzip.compress, False),
+      ('bzip2', 'csv.bz2', bz2.compress, False),
+      ('gzip_splittable', 'csv.gz', gzip.compress, True),
+  ])
+  def test_read_compressed_csv(self, _, suffix, compress, splittable):
+    rows = [(ix, f'row {ix}') for ix in range(100)]
+    contents = 'id,name\n' + ''.join(f'{ix},{name}\n' for ix, name in rows)
+    input = self.temp_dir()
+    with open(f'{input}tmp.{suffix}', 'wb') as fout:
+      fout.write(compress(contents.encode('utf-8')))
+    with beam.Pipeline() as p:
+      pcoll = p | beam.io.ReadFromCsv(
+          f'{input}tmp.{suffix}', splittable=splittable)
+      assert_that(pcoll | beam.Map(tuple), equal_to(rows))
+
+  def test_read_compressed_csv_split(self):
+    # A split must not hand a compressed file to a second restriction.
+    input = self.temp_dir()
+    with open(f'{input}tmp.csv.gz', 'wb') as fout:
+      fout.write(gzip.compress(b'id\n' + b'1\n' * 100))
+    readable_file = fileio.ReadableFile(
+        beam.io.filesystems.FileSystems.match([f'{input}tmp.csv.gz'
+                                               ])[0].metadata_list[0])
+    dofn = io._ReadFromPandasDoFn(
+        pd.read_csv, (), {'chunksize': 10},
+        binary=True,
+        incremental=True,
+        splitter=io._TextFileSplitter((), {}))
+    tracker = dofn.create_tracker(dofn.initial_restriction(readable_file))
+    frames = dofn.process(
+        readable_file, {readable_file.metadata.path: 0}, tracker=tracker)
+    next(frames)
+    _, residual = tracker.try_split(0)
+    self.assertGreater(residual.start, 0)
 
   def test_sharding_parameters(self):
     data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
