@@ -360,7 +360,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
       The number of bytes of data for a batch of Tensors.
     """
-    return sum((el.element_size() for tensor in batch for el in tensor))
+    return sum(tensor.element_size() * tensor.nelement() for tensor in batch)
 
   def get_metrics_namespace(self) -> str:
     """
@@ -609,7 +609,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
     """
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     return sum(
-        (el.element_size() for tensor in batch for el in tensor.values()))
+        el.element_size() * el.nelement() for tensor in batch
+        for el in tensor.values())
 
   def get_metrics_namespace(self) -> str:
     """
