@@ -67,6 +67,11 @@ public class BeamCalciteTable extends AbstractQueryableTable
     return new BeamCalciteTable(table, ImmutableMap.of(), null);
   }
 
+  /** The table that this Calcite table adapts. */
+  BeamSqlTable getBeamSqlTable() {
+    return beamTable;
+  }
+
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteUtils.toCalciteRowType(this.beamTable.getSchema(), typeFactory);

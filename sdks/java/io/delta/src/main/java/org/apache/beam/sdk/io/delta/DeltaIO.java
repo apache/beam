@@ -91,7 +91,13 @@ public class DeltaIO {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
   }
 
-  /** Reads change data feed (CDC) from a Delta Lake table. */
+  /**
+   * Reads change data feed (CDC) from a Delta Lake table.
+   *
+   * <p>Change Data Feed ({@code delta.enableChangeDataFeed = true}) must have been enabled on the
+   * table for every version that the read covers, since Delta Lake writers only record the changes
+   * of a commit while it is enabled. Otherwise the read fails.
+   */
   public static ReadChanges readChanges() {
     return new AutoValue_DeltaIO_ReadChanges.Builder().build();
   }
@@ -389,6 +395,21 @@ public class DeltaIO {
           resolvedStartVersion == resolvedEndVersion
               ? startSnapshot
               : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      // Fail early if Change Data Feed was not enabled at either end of the range.
+      // CreateCDCReadTasksDoFn additionally verifies every change of the table configuration within
+      // the range while reading the commits of the range.
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedStartVersion,
+          startSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedEndVersion,
+          endSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
       StructType startDeltaSchema = startSnapshot.getSchema();
       StructType deltaSchema = endSnapshot.getSchema();
       if (startDeltaSchema == null || deltaSchema == null) {

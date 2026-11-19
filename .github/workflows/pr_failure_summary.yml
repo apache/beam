@@ -122,6 +122,7 @@ jobs:
 
           ❌ **<failedCount> failed check(s)** (out of <totalChecks> total) on [`<shortSha>`](https://github.com/__REPOSITORY__/commit/<headSha>) — grouped into **<K> root-cause group(s)**. *(include "<inProgress> check(s) still running" if > 0)*
 
+          > [!IMPORTANT]
           > **TL;DR:** 1-2 sentence executive summary of what broke and what to fix first.
 
           ### 1. <Concise root-cause title> (<M> check(s))

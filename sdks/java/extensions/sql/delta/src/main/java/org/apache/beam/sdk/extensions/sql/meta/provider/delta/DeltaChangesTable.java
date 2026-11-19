@@ -51,10 +51,10 @@ import org.joda.time.Instant;
 /**
  * The changes of a Delta Lake table, for a {@code CHANGES(...)} call, read from the table's Change
  * Data Feed through {@link Managed#DELTA_LAKE_CDC}. Rows carry their change kind as their {@code
- * ValueKind}, and the {@code include_metadata_columns} option appends the metadata columns {@code
- * _change_type}, {@code _commit_version} and {@code _commit_timestamp}. {@code _change_type} holds
- * the change types of Delta Lake: {@code insert}, {@code update_preimage}, {@code update_postimage}
- * and {@code delete}.
+ * ValueKind}. The metadata columns {@code _change_type}, {@code _commit_version} and {@code
+ * _commit_timestamp} are appended when the query names them or the {@code include_metadata_columns}
+ * option lists them. {@code _change_type} holds the change types of Delta Lake: {@code insert},
+ * {@code update_preimage}, {@code update_postimage} and {@code delete}.
  *
  * <p>A Delta Lake table only records its changes from the version that enabled Change Data Feed on
  * it, so the range needs a start. When the pipeline is built, the range is resolved to the versions
@@ -92,7 +92,8 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
     this.config = config;
   }
 
-  static DeltaChangesTable of(DeltaTable table, ChangeRange range, Map<String, Object> options) {
+  static DeltaChangesTable of(
+      DeltaTable table, ChangeRange range, Map<String, Object> options, List<String> named) {
     Map<String, Object> checked =
         ManagedOptions.check(options, READ_CONFIG_SCHEMA, OWNED_OPTIONS, "a CHANGES read");
     checkArgument(
@@ -110,7 +111,7 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
         table.tableLocation);
 
     Schema tableSchema = table.getSchema();
-    List<String> metadataColumns = metadataColumns(checked, tableSchema);
+    List<String> metadataColumns = metadataColumns(checked, named, tableSchema);
     Schema.Builder schema = Schema.builder().addFields(tableSchema.getFields());
     metadataColumns.forEach(column -> schema.addField(metadataField(column)));
 
@@ -121,9 +122,10 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
     return new DeltaChangesTable(schema.build(), table, range, ImmutableMap.copyOf(config));
   }
 
-  /** The requested metadata columns, in the order of {@link DeltaIO#METADATA_COLUMNS}. */
+  /** The metadata columns that the option lists or the query names, in their order in DeltaIO. */
   @SuppressWarnings("unchecked")
-  private static List<String> metadataColumns(Map<String, Object> options, Schema tableSchema) {
+  private static List<String> metadataColumns(
+      Map<String, Object> options, List<String> named, Schema tableSchema) {
     List<String> requested =
         (List<String>) options.getOrDefault(INCLUDE_METADATA_COLUMNS, ImmutableList.of());
     for (String column : requested) {
@@ -138,7 +140,7 @@ class DeltaChangesTable extends SchemaBaseBeamTable {
           column);
     }
     return DeltaIO.METADATA_COLUMNS.stream()
-        .filter(requested::contains)
+        .filter(column -> requested.contains(column) || named.contains(column))
         .collect(ImmutableList.toImmutableList());
   }
 
