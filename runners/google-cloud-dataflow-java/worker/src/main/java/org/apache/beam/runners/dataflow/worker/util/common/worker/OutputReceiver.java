@@ -27,37 +27,65 @@ import java.util.List;
  * Additionally, it invokes output counters who track size information for elements passing through.
  */
 public class OutputReceiver implements Receiver {
+  private static final Receiver[] EMPTY_RECEIVERS = new Receiver[0];
+  private static final ElementCounter[] EMPTY_COUNTERS = new ElementCounter[0];
+
   private final List<Receiver> outputs = new ArrayList<>();
   private final HashMap<String, ElementCounter> outputCounters = new LinkedHashMap<>();
+  private Receiver[] outputsArray = EMPTY_RECEIVERS;
+  private ElementCounter[] outputCountersArray = EMPTY_COUNTERS;
 
   /** Adds a new receiver that this OutputReceiver forwards to. */
   public void addOutput(Receiver receiver) {
     outputs.add(receiver);
+    outputsArray = outputs.toArray(new Receiver[0]);
   }
 
   public void addOutputCounter(ElementCounter outputCounter) {
     outputCounters.put(Integer.toString(outputCounters.size()), outputCounter);
+    outputCountersArray = outputCounters.values().toArray(new ElementCounter[0]);
   }
 
   public void addOutputCounter(String counterName, ElementCounter outputCounter) {
     outputCounters.put(counterName, outputCounter);
+    outputCountersArray = outputCounters.values().toArray(new ElementCounter[0]);
   }
 
   @Override
   public void process(Object elem) throws Exception {
-    for (ElementCounter counter : outputCounters.values()) {
-      counter.update(elem);
-    }
-
-    // Fan-out.
-    for (Receiver out : outputs) {
-      if (out != null) {
-        out.process(elem);
+    ElementCounter[] counters = this.outputCountersArray;
+    int numCounters = counters.length;
+    if (numCounters == 1) {
+      counters[0].update(elem);
+    } else {
+      for (int i = 0; i < numCounters; i++) {
+        counters[i].update(elem);
       }
     }
 
-    for (ElementCounter counter : outputCounters.values()) {
-      counter.finishLazyUpdate(elem);
+    // Fan-out.
+    Receiver[] outs = this.outputsArray;
+    int numOuts = outs.length;
+    if (numOuts == 1) {
+      Receiver out = outs[0];
+      if (out != null) {
+        out.process(elem);
+      }
+    } else {
+      for (int i = 0; i < numOuts; i++) {
+        Receiver out = outs[i];
+        if (out != null) {
+          out.process(elem);
+        }
+      }
+    }
+
+    if (numCounters == 1) {
+      counters[0].finishLazyUpdate(elem);
+    } else {
+      for (int i = 0; i < numCounters; i++) {
+        counters[i].finishLazyUpdate(elem);
+      }
     }
   }
 

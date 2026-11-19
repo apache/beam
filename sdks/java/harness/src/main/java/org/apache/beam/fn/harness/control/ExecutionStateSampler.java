@@ -250,6 +250,7 @@ public class ExecutionStateSampler {
 
     @Override
     public Counter getCounter(MetricName metricName) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getCounter(metricName);
       }
@@ -258,6 +259,7 @@ public class ExecutionStateSampler {
 
     @Override
     public Distribution getDistribution(MetricName metricName) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getDistribution(metricName);
       }
@@ -266,6 +268,7 @@ public class ExecutionStateSampler {
 
     @Override
     public Gauge getGauge(MetricName metricName) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getGauge(metricName);
       }
@@ -274,6 +277,7 @@ public class ExecutionStateSampler {
 
     @Override
     public StringSet getStringSet(MetricName metricName) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getStringSet(metricName);
       }
@@ -282,6 +286,7 @@ public class ExecutionStateSampler {
 
     @Override
     public BoundedTrie getBoundedTrie(MetricName metricName) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getBoundedTrie(metricName);
       }
@@ -290,6 +295,7 @@ public class ExecutionStateSampler {
 
     @Override
     public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+      tracker.metricsAccessed = true;
       if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getHistogram(metricName, bucketType);
       }
@@ -337,6 +343,12 @@ public class ExecutionStateSampler {
     private final AtomicReference<@Nullable ExecutionStateImpl> currentStateLazy;
     // If an exception occurs, this will be to state at the time of exception.
     private boolean inErrorState = false;
+    // Tracks whether start() registered this tracker with activeStateTrackers.
+    private boolean active = false;
+    // Tracks whether metrics containers were accessed since the last reset.
+    private boolean metricsAccessed = false;
+    // Tracks whether monitoring data was reported since the last reset.
+    private volatile boolean monitoringReported = false;
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
@@ -361,6 +373,7 @@ public class ExecutionStateSampler {
      * associated for the current bundle execution.
      */
     public MetricsContainerStepMap getMetricsContainerRegistry() {
+      this.metricsAccessed = true;
       return metricsContainerRegistry;
     }
 
@@ -637,6 +650,7 @@ public class ExecutionStateSampler {
       this.startTimeMillis.lazySet(nowMillis);
       this.lastTransitionTimeMillis.lazySet(nowMillis);
       this.trackedThread.lazySet(Thread.currentThread());
+      this.active = true;
       synchronized (activeStateTrackers) {
         activeStateTrackers.add(this);
       }
@@ -644,6 +658,7 @@ public class ExecutionStateSampler {
 
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
+      this.monitoringReported = true;
       for (ExecutionStateImpl executionState : executionStates) {
         executionState.updateMonitoringData(monitoringData);
       }
@@ -651,6 +666,7 @@ public class ExecutionStateSampler {
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
+      this.monitoringReported = true;
       for (ExecutionStateImpl executionState : executionStates) {
         executionState.updateMonitoringData(monitoringData);
       }
@@ -662,12 +678,26 @@ public class ExecutionStateSampler {
      */
     @Override
     public void reset() {
-      synchronized (activeStateTrackers) {
-        activeStateTrackers.remove(this);
+      if (!active
+          && !monitoringReported
+          && !metricsAccessed
+          && numTransitions == 0
+          && !inErrorState) {
+        return;
+      }
+      if (active) {
+        synchronized (activeStateTrackers) {
+          activeStateTrackers.remove(this);
+          for (ExecutionStateImpl executionState : executionStates) {
+            executionState.reset();
+          }
+          this.transitionsAtLastSample = 0;
+        }
+        this.active = false;
+      } else if (monitoringReported) {
         for (ExecutionStateImpl executionState : executionStates) {
           executionState.reset();
         }
-        this.transitionsAtLastSample = 0;
       }
       this.processBundleId.lazySet(null);
       this.trackedThread.lazySet(null);
@@ -675,7 +705,11 @@ public class ExecutionStateSampler {
       this.numTransitions = 0;
       this.numTransitionsLazy.lazySet(0);
       this.lastTransitionTimeMillis.lazySet(0);
-      this.metricsContainerRegistry.reset();
+      if (metricsAccessed) {
+        this.metricsContainerRegistry.reset();
+        this.metricsAccessed = false;
+      }
+      this.monitoringReported = false;
       this.inErrorState = false;
       BeamFnLoggingMDC.setStateTracker(null);
     }

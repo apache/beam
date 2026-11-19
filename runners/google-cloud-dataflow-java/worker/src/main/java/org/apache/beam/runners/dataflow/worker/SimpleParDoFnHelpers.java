@@ -103,6 +103,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
   protected @Nullable DoFnSignature fnSignature;
+  private boolean hasState;
 
   SimpleParDoFnHelpers(
       PipelineOptions options,
@@ -148,7 +149,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   }
 
   boolean hasState() {
-    return fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
+    return hasState;
   }
 
   void startBundle(Receiver... receivers) throws Exception {
@@ -162,17 +163,35 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   void reallyStartBundle() throws Exception {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
+    final Integer mainReceiverIndex = outputTupleTagsToReceiverIndices.get(mainOutputTag);
+    final @Nullable Receiver mainReceiver =
+        receivers != null && mainReceiverIndex != null ? receivers[mainReceiverIndex] : null;
     WindowedValueMultiReceiver outputManager =
         new WindowedValueMultiReceiver() {
-          final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
+          private @Nullable Map<TupleTag<?>, OutputReceiver> undeclaredOutputs;
+          private @Nullable TupleTag<?> lastTag;
+          private @Nullable Receiver lastReceiver;
 
+          @SuppressWarnings("ReferenceEquality")
           private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
-            Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
-            if (receiverIndex != null) {
-              return receivers[receiverIndex];
-            } else {
-              return undeclaredOutputs.get(tag);
+            if (tag == mainOutputTag && mainReceiver != null) {
+              return mainReceiver;
             }
+            if (tag == lastTag) {
+              return lastReceiver;
+            }
+            Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
+            Receiver receiver;
+            if (receiverIndex != null) {
+              receiver = receivers[receiverIndex];
+            } else {
+              receiver = undeclaredOutputs == null ? null : undeclaredOutputs.get(tag);
+            }
+            if (receiver != null) {
+              lastTag = tag;
+              lastReceiver = receiver;
+            }
+            return receiver;
           }
 
           @Override
@@ -195,7 +214,12 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
                   DataflowOutputCounter.create(
                       outputName, counterFactory, stepContext.getNameContext(), isStreaming);
               undeclaredReceiver.addOutputCounter(outputCounter);
+              if (undeclaredOutputs == null) {
+                undeclaredOutputs = new HashMap<>();
+              }
               undeclaredOutputs.put(tag, undeclaredReceiver);
+              lastTag = tag;
+              lastReceiver = undeclaredReceiver;
               receiver = undeclaredReceiver;
             }
 
@@ -214,6 +238,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
         };
     activeFnInfo = (DoFnInfo) doFnInstanceManager.get();
     fnSignature = DoFnSignatures.getSignature(activeFnInfo.getDoFn().getClass());
+    hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
 
     fnRunner =
         runnerFactory.createRunner(
@@ -244,6 +269,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       fnRunner = null;
       activeFnInfo = null;
       fnSignature = null;
+      hasState = false;
       sideInputProcessor = null;
     }
   }
@@ -252,6 +278,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
     doFnInstanceManager.abort(activeFnInfo);
     fnRunner = null;
     activeFnInfo = null;
+    hasState = false;
   }
 
   DoFnInfo<InputT, OutputT> getDoFnInfo() throws Exception {

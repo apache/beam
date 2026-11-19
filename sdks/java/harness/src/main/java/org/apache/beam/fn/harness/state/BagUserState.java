@@ -24,16 +24,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
 /**
  * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
@@ -127,6 +130,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
+    long encodedBytes = 0;
     if (!newValues.isEmpty()) {
       // Batch values up to a arbitrary limit to reduce overhead of write
       // requests. We treat this limit as strict to ensure that large elements
@@ -135,6 +139,7 @@ public class BagUserState<T> {
       for (T newValue : newValues) {
         int previousSize = out.size();
         valueCoder.encode(newValue, out);
+        encodedBytes = LongMath.saturatedAdd(encodedBytes, out.size() - previousSize);
         if (out.size() > BAG_APPEND_BATCHING_LIMIT && previousSize > 0) {
           // Respect the batching limit by outputting the previous batch of
           // elements.
@@ -161,12 +166,16 @@ public class BagUserState<T> {
     }
 
     // Modify the underlying cached state depending on the mutations performed
+    WeightedList<T> weightedNewValues =
+        WeightedList.of(
+            newValues,
+            LongMath.saturatedAdd(encodedBytes, newValues.size() * Caches.REFERENCE_SIZE));
     if (isCleared) {
       // Note this takes ownership of newValues. This object is no longer used after it has been
       // closed.
-      oldValues.clearAndAppend(newValues);
+      oldValues.clearAndAppend(weightedNewValues);
     } else {
-      oldValues.append(newValues);
+      oldValues.append(weightedNewValues);
     }
   }
 }

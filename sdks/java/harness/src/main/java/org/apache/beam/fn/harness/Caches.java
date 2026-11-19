@@ -20,10 +20,9 @@ package org.apache.beam.fn.harness;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
@@ -78,6 +78,29 @@ public final class Caches {
     }
     if (o instanceof Weighted) {
       return ((Weighted) o).getWeight() + REFERENCE_SIZE + 8;
+    }
+    if (o instanceof byte[]) {
+      return 16L + ((byte[]) o).length;
+    }
+    if (o instanceof String) {
+      return 40L + 2L * ((String) o).length();
+    }
+    if (o instanceof ByteString) {
+      return 40L + ((ByteString) o).size();
+    }
+    if (o instanceof Long || o instanceof Double) {
+      return 24L;
+    }
+    if (o instanceof Integer
+        || o instanceof Float
+        || o instanceof Boolean
+        || o instanceof Byte
+        || o instanceof Short
+        || o instanceof Character) {
+      return 16L;
+    }
+    if (o instanceof Enum<?>) {
+      return REFERENCE_SIZE;
     }
     try {
       return MEMORY_METER.measureDeep(o);
@@ -177,12 +200,22 @@ public final class Caches {
    */
   public static <K, V> Cache<K, V> subCache(
       Cache<?, ?> cache, Object keyPrefix, Object... additionalKeyPrefix) {
+    if (cache instanceof ClearableCache) {
+      ClearableCache<?, ?> clearable = (ClearableCache<?, ?>) cache;
+      return new ClearableCache<>(
+          clearable.cache,
+          clearable.keyPrefix.subKey(keyPrefix, additionalKeyPrefix),
+          clearable.maxWeightInBytes,
+          clearable.weightInBytes,
+          clearable.trackedKeys);
+    }
     if (cache instanceof SubCache) {
+      SubCache<?, ?> subCache = (SubCache<?, ?>) cache;
       return new SubCache<>(
-          ((SubCache<?, ?>) cache).cache,
-          ((SubCache<?, ?>) cache).keyPrefix.subKey(keyPrefix, additionalKeyPrefix),
-          ((SubCache<?, ?>) cache).maxWeightInBytes,
-          ((SubCache<?, ?>) cache).weightInBytes);
+          subCache.cache,
+          subCache.keyPrefix.subKey(keyPrefix, additionalKeyPrefix),
+          subCache.maxWeightInBytes,
+          subCache.weightInBytes);
     }
     throw new IllegalArgumentException(
         String.format(
@@ -265,12 +298,12 @@ public final class Caches {
    * specified prefixes.
    */
   private static class SubCache<K, V> implements Cache<K, V> {
-    private final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
+    final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
             CompositeKey, WeightedValue<Object>>
         cache;
-    private final CompositeKeyPrefix keyPrefix;
-    private final long maxWeightInBytes;
-    private final LongAdder weightInBytes;
+    final CompositeKeyPrefix keyPrefix;
+    final long maxWeightInBytes;
+    final LongAdder weightInBytes;
 
     SubCache(
         org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
@@ -296,8 +329,11 @@ public final class Caches {
 
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
+      return computeIfAbsentInternal(keyPrefix.valueKey(key), key, loadingFunction);
+    }
+
+    V computeIfAbsentInternal(CompositeKey compositeKey, K key, Function<K, V> loadingFunction) {
       try {
-        CompositeKey compositeKey = keyPrefix.valueKey(key);
         return (V)
             cache
                 .get(
@@ -313,7 +349,10 @@ public final class Caches {
 
     @Override
     public void put(K key, V value) {
-      CompositeKey compositeKey = keyPrefix.valueKey(key);
+      putInternal(keyPrefix.valueKey(key), value);
+    }
+
+    void putInternal(CompositeKey compositeKey, V value) {
       cache.put(compositeKey, addWeightedValue(compositeKey, checkNotNull(value), weightInBytes));
     }
 
@@ -342,10 +381,12 @@ public final class Caches {
     public static final CompositeKeyPrefix ROOT = new CompositeKeyPrefix(new Object[0], 0);
 
     private final Object[] namespace;
+    private final int namespaceHashCode;
     private final long weight;
 
     private CompositeKeyPrefix(Object[] namespace, long weight) {
       this.namespace = namespace;
+      this.namespaceHashCode = Arrays.hashCode(namespace);
       this.weight = weight;
     }
 
@@ -363,7 +404,7 @@ public final class Caches {
     }
 
     <K> CompositeKey valueKey(@Nullable K k) {
-      return new CompositeKey(namespace, weight, k);
+      return new CompositeKey(namespace, namespaceHashCode, weight, k);
     }
 
     boolean isProperPrefixOf(CompositeKey otherKey) {
@@ -396,14 +437,20 @@ public final class Caches {
   /** A tuple of key parts used to represent a key within a cache. */
   @VisibleForTesting
   static class CompositeKey implements Weighted {
-    private final Object[] namespace;
-    private final @Nullable Object key;
-    private final long weight;
+    private static final long UNCOMPUTED_WEIGHT = Long.MIN_VALUE;
 
-    private CompositeKey(Object[] namespace, long namespaceWeight, @Nullable Object key) {
+    private final Object[] namespace;
+    private final int namespaceHashCode;
+    private final long namespaceWeight;
+    private final @Nullable Object key;
+    private volatile long weight = UNCOMPUTED_WEIGHT;
+
+    private CompositeKey(
+        Object[] namespace, int namespaceHashCode, long namespaceWeight, @Nullable Object key) {
       this.namespace = namespace;
+      this.namespaceHashCode = namespaceHashCode;
+      this.namespaceWeight = namespaceWeight;
       this.key = key;
-      this.weight = namespaceWeight + weigh(key);
     }
 
     @Override
@@ -424,65 +471,92 @@ public final class Caches {
         return false;
       }
       CompositeKey that = (CompositeKey) o;
-      return Arrays.equals(namespace, that.namespace) && Objects.equals(key, that.key);
+      return namespaceHashCode == that.namespaceHashCode
+          && Objects.equals(key, that.key)
+          && Arrays.equals(namespace, that.namespace);
     }
 
     @Override
     public int hashCode() {
-      return Arrays.hashCode(namespace);
+      return 31 * namespaceHashCode + Objects.hashCode(key);
     }
 
     @Override
     public long getWeight() {
-      return weight + 24 + REFERENCE_SIZE * namespace.length;
+      long w = this.weight;
+      if (w == UNCOMPUTED_WEIGHT) {
+        w = namespaceWeight + weigh(key) + 24 + REFERENCE_SIZE * namespace.length;
+        this.weight = w;
+      }
+      return w;
     }
   }
 
   /**
    * A cache that tracks keys that have been inserted into the cache and supports clearing them.
    *
-   * <p>The set of keys that are tracked are only those provided to {@link #peek} and {@link
-   * #computeIfAbsent}.
+   * <p>The set of keys that are tracked are those inserted via {@link #put} and {@link
+   * #computeIfAbsent}, including entries inserted through {@link Caches#subCache} views of this
+   * cache.
    */
   @SuppressWarnings("nullness")
   public static class ClearableCache<K, V> extends SubCache<K, V> {
-    private final Set<K> weakHashSet;
+    private final Set<CompositeKey> trackedKeys;
 
     public ClearableCache(Cache<K, V> cache) {
-      super(
-          ((SubCache<K, V>) cache).cache,
-          ((SubCache<CompositeKey, V>) cache).keyPrefix,
-          ((SubCache<CompositeKey, V>) cache).maxWeightInBytes,
-          ((SubCache<CompositeKey, V>) cache).weightInBytes);
-      // We specifically use a weak hash map so that once the key is no longer referenced we don't
-      // have to keep track of it anymore and the weak hash map will garbage collect it for us.
-      this.weakHashSet = Collections.newSetFromMap(new WeakHashMap<>());
+      this(
+          ((SubCache<?, ?>) cache).cache,
+          ((SubCache<?, ?>) cache).keyPrefix,
+          ((SubCache<?, ?>) cache).maxWeightInBytes,
+          ((SubCache<?, ?>) cache).weightInBytes,
+          ConcurrentHashMap.newKeySet());
+    }
+
+    private ClearableCache(
+        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
+                CompositeKey, WeightedValue<Object>>
+            cache,
+        CompositeKeyPrefix keyPrefix,
+        long maxWeightInBytes,
+        LongAdder weightInBytes,
+        Set<CompositeKey> trackedKeys) {
+      super(cache, keyPrefix, maxWeightInBytes, weightInBytes);
+      this.trackedKeys = trackedKeys;
     }
 
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
-      weakHashSet.add(key);
-      return super.computeIfAbsent(key, loadingFunction);
+      CompositeKey compositeKey = keyPrefix.valueKey(key);
+      if (maxWeightInBytes > 0) {
+        trackedKeys.add(compositeKey);
+      }
+      return computeIfAbsentInternal(compositeKey, key, loadingFunction);
     }
 
     @Override
     public void put(K key, V value) {
-      weakHashSet.add(key);
-      super.put(key, value);
+      CompositeKey compositeKey = keyPrefix.valueKey(key);
+      if (maxWeightInBytes > 0) {
+        trackedKeys.add(compositeKey);
+      }
+      putInternal(compositeKey, value);
     }
 
     @Override
     public void remove(K key) {
-      weakHashSet.remove(key);
-      super.remove(key);
+      CompositeKey compositeKey = keyPrefix.valueKey(key);
+      if (maxWeightInBytes > 0) {
+        trackedKeys.remove(compositeKey);
+      }
+      cache.invalidate(compositeKey);
     }
 
     /** Removes all tracked keys from the cache. */
     public void clear() {
-      for (K key : weakHashSet) {
-        super.remove(key);
+      if (!trackedKeys.isEmpty()) {
+        cache.invalidateAll(trackedKeys);
+        trackedKeys.clear();
       }
-      weakHashSet.clear();
     }
   }
 }

@@ -59,7 +59,9 @@ import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -90,6 +92,9 @@ import org.joda.time.format.PeriodFormat;
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
 public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+
+  private static final long MIN_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+  private static final long MAX_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
 
   private final PipelineOptions options;
 
@@ -125,6 +130,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private final @Nullable DoFnSchemaInformation doFnSchemaInformation;
 
   private final Map<String, PCollectionView<?>> sideInputMapping;
+
+  private @Nullable DoFnProcessContext reusableProcessContext;
+  private boolean reusableProcessContextInUse = false;
+  private @Nullable TupleTag<?> lastValidatedOutputTag;
 
   /** Constructor. */
   public SimpleDoFnRunner(
@@ -189,7 +198,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
     Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
-    if (openTelemetryContext == null) {
+    if (openTelemetryContext == null || openTelemetryContext == Context.current()) {
       processElementInternal(compressedElem);
     } else {
       try (Scope ignore = openTelemetryContext.makeCurrent()) {
@@ -200,8 +209,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private void processElementInternal(WindowedValue<InputT> compressedElem) {
     if (observesWindow) {
-      for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
-        invokeProcessElement(elem);
+      if (compressedElem instanceof WindowedValues.SingleWindowedValue) {
+        invokeProcessElement(compressedElem);
+      } else {
+        for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
+          invokeProcessElement(elem);
+        }
       }
     } else {
       invokeProcessElement(compressedElem);
@@ -228,10 +241,28 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
-    try {
-      invoker.invokeProcessElement(new DoFnProcessContext(elem));
-    } catch (Exception e) {
-      throw wrapUserCodeException(e);
+    if (!reusableProcessContextInUse) {
+      DoFnProcessContext context = reusableProcessContext;
+      if (context == null) {
+        context = new DoFnProcessContext();
+        reusableProcessContext = context;
+      }
+      reusableProcessContextInUse = true;
+      context.setElement(elem);
+      try {
+        invoker.invokeProcessElement(context);
+      } catch (Exception e) {
+        throw wrapUserCodeException(e);
+      } finally {
+        context.clearElement();
+        reusableProcessContextInUse = false;
+      }
+    } else {
+      try {
+        invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      } catch (Exception e) {
+        throw wrapUserCodeException(e);
+      }
     }
   }
 
@@ -271,6 +302,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
   private void checkTimestamp(Instant elemTimestamp, Instant timestamp) {
+    long skewMillis = fn.getAllowedTimestampSkew().getMillis();
+    long tsMillis = timestamp.getMillis();
+    long elemMillis = elemTimestamp.getMillis();
+    if (skewMillis == 0L) {
+      if (tsMillis >= elemMillis && tsMillis <= MAX_TIMESTAMP_MILLIS) {
+        return;
+      }
+    } else if (skewMillis > 0L) {
+      long lowerBoundMillis =
+          elemMillis < Long.MIN_VALUE + skewMillis ? MIN_TIMESTAMP_MILLIS : elemMillis - skewMillis;
+      if (tsMillis >= lowerBoundMillis && tsMillis <= MAX_TIMESTAMP_MILLIS) {
+        return;
+      }
+    }
+    checkTimestampSlowPath(elemTimestamp, timestamp);
+  }
+
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestampSlowPath(Instant elemTimestamp, Instant timestamp) {
     Instant lowerBound;
     try {
       lowerBound = elemTimestamp.minus(fn.getAllowedTimestampSkew());
@@ -293,8 +343,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
   }
 
+  @SuppressWarnings("ReferenceEquality")
   private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
-    checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
+    if (tag != mainOutputTag && tag != lastValidatedOutputTag) {
+      checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
+      lastValidatedOutputTag = tag;
+    }
     outputManager.output(tag, windowedElem);
   }
 
@@ -392,13 +446,39 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * single element.
    */
   private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-    final WindowedValue<InputT> elem;
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT>, OutputBuilderSupplier {
+    private @Nullable WindowedValue<InputT> elem;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
-    private final OutputBuilderSupplier builderSupplier;
+    private @Nullable OutputReceiver<OutputT> cachedOutputReceiver;
+    private @Nullable OutputReceiver<Row> cachedOutputRowReceiver;
+    private @Nullable MultiOutputReceiver cachedMultiOutputReceiver;
+
+    private DoFnProcessContext() {
+      fn.super();
+    }
+
+    private DoFnProcessContext(WindowedValue<InputT> elem) {
+      fn.super();
+      this.elem = elem;
+    }
+
+    private void setElement(WindowedValue<InputT> elem) {
+      this.elem = elem;
+    }
+
+    private void clearElement() {
+      this.elem = null;
+      if (this.namespace != null) {
+        this.namespace = null;
+      }
+    }
+
+    private WindowedValue<InputT> currentElem() {
+      return checkStateNotNull(elem, "DoFnProcessContext accessed outside of @ProcessElement");
+    }
 
     /**
      * The state namespace for this context.
@@ -414,10 +494,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return namespace;
     }
 
-    private DoFnProcessContext(WindowedValue<InputT> elem) {
-      fn.super();
-      this.elem = elem;
-      this.builderSupplier = OutputBuilderSuppliers.supplierForElement(elem);
+    @Override
+    public <T> WindowedValues.Builder<T> builder(T value) {
+      return WindowedValues.builder(currentElem(), value);
+    }
+
+    @Override
+    public <T> WindowedValue<T> build(T value) {
+      return WindowedValues.ofWithCurrentContext(currentElem(), value);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWithTimestamp(T value, Instant timestamp) {
+      return WindowedValues.ofWithCurrentContext(currentElem(), value, timestamp);
     }
 
     @Override
@@ -427,30 +516,30 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public InputT element() {
-      return elem.getValue();
+      return currentElem().getValue();
     }
 
     @Override
     public CausedByDrain causedByDrain() {
-      return elem.causedByDrain();
+      return currentElem().causedByDrain();
     }
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       checkNotNull(view, "View passed to sideInput cannot be null");
-      BoundedWindow window = Iterables.getOnlyElement(windows());
+      BoundedWindow window = window();
       return SimpleDoFnRunner.this.sideInput(
           view, view.getWindowMappingFn().getSideInputWindow(window));
     }
 
     @Override
     public PaneInfo pane() {
-      return elem.getPaneInfo();
+      return currentElem().getPaneInfo();
     }
 
     @Override
     public void output(OutputT output) {
-      output(mainOutputTag, output);
+      outputManager.output(mainOutputTag, currentElem().withValue(output));
     }
 
     @Override
@@ -470,7 +559,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
+      SimpleDoFnRunner.this.outputWindowedValue(tag, currentElem().withValue(output));
     }
 
     @Override
@@ -480,15 +569,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
+      checkTimestamp(currentElem().getTimestamp(), windowedValue.getTimestamp());
       SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
-      checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
+      WindowedValue<InputT> current = currentElem();
+      checkTimestamp(current.getTimestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValues.ofWithCurrentContext(current, output, timestamp));
     }
 
     @Override
@@ -498,46 +589,43 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      builderSupplier
-          .builder(output)
-          .setTimestamp(timestamp)
-          .setWindows(windows)
-          .setPaneInfo(paneInfo)
-          .setReceiver(
-              wv -> {
-                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
-                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
-              })
-          .output();
+      WindowedValue<InputT> current = currentElem();
+      checkTimestamp(current.getTimestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValues.ofWithCurrentContext(current, output, timestamp, windows, paneInfo));
     }
 
     @Override
     public Instant timestamp() {
-      return elem.getTimestamp();
+      return currentElem().getTimestamp();
     }
 
     @Override
     public @Nullable String currentRecordId() {
-      return elem.getRecordId();
+      return currentElem().getRecordId();
     }
 
     @Override
     public @Nullable Long currentRecordOffset() {
-      return elem.getRecordOffset();
+      return currentElem().getRecordOffset();
     }
 
     @Override
     public ValueKind valueKind() {
-      return elem.getValueKind();
+      return currentElem().getValueKind();
     }
 
     public Collection<? extends BoundedWindow> windows() {
-      return elem.getWindows();
+      return currentElem().getWindows();
     }
 
     @Override
     public BoundedWindow window() {
-      return Iterables.getOnlyElement(elem.getWindows());
+      WindowedValue<InputT> current = currentElem();
+      if (current instanceof WindowedValues.SingleWindowedValue) {
+        return ((WindowedValues.SingleWindowedValue) current).getWindow();
+      }
+      return Iterables.getOnlyElement(current.getWindows());
     }
 
     @Override
@@ -619,12 +707,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
-      return elem.causedByDrain();
+      return currentElem().causedByDrain();
     }
 
     @Override
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
-      return elem.getValueKind();
+      return currentElem().getValueKind();
     }
 
     @Override
@@ -641,19 +729,166 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
+      OutputReceiver<OutputT> receiver = cachedOutputReceiver;
+      if (receiver == null) {
+        receiver = new DirectOutputReceiver<>(mainOutputTag);
+        cachedOutputReceiver = receiver;
+      }
+      return receiver;
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      checkStateNotNull(mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
-      return DoFnOutputReceivers.rowReceiver(
-          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
+      OutputReceiver<Row> receiver = cachedOutputRowReceiver;
+      if (receiver == null) {
+        checkStateNotNull(
+            mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
+        receiver =
+            DoFnOutputReceivers.rowReceiver(this, this, mainOutputTag, mainOutputSchemaCoder);
+        cachedOutputRowReceiver = receiver;
+      }
+      return receiver;
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
+      MultiOutputReceiver receiver = cachedMultiOutputReceiver;
+      if (receiver == null) {
+        receiver = new CachedMultiOutputReceiver(outputReceiver(doFn));
+        cachedMultiOutputReceiver = receiver;
+      }
+      return receiver;
+    }
+
+    private final class DirectOutputReceiver<T>
+        implements OutputReceiver<T>, WindowedValueReceiver<T> {
+      private final TupleTag<T> tag;
+
+      DirectOutputReceiver(TupleTag<T> tag) {
+        this.tag = tag;
+      }
+
+      @Override
+      public void output(T output) {
+        WindowedValue<InputT> current = currentElem();
+        Instant ts = current.getTimestamp();
+        checkTimestamp(ts, ts);
+        outputManager.output(tag, WindowedValues.ofWithCurrentContext(current, output, ts));
+      }
+
+      @Override
+      public void outputWithTimestamp(T output, Instant timestamp) {
+        WindowedValue<InputT> current = currentElem();
+        checkTimestamp(current.getTimestamp(), timestamp);
+        outputManager.output(tag, WindowedValues.ofWithCurrentContext(current, output, timestamp));
+      }
+
+      @Override
+      public OutputBuilder<T> builder(T value) {
+        return WindowedValues.builder(currentElem(), value).setReceiver(this);
+      }
+
+      @Override
+      public void output(WindowedValue<T> windowedValue) {
+        checkTimestamp(currentElem().getTimestamp(), windowedValue.getTimestamp());
+        outputManager.output(tag, windowedValue);
+      }
+    }
+
+    private final class CachedMultiOutputReceiver implements MultiOutputReceiver {
+      private final OutputReceiver<OutputT> mainReceiver;
+      private final TupleTag<?> @Nullable [] extraTags;
+      private final OutputReceiver<?> @Nullable [] extraReceivers;
+      private final @Nullable Map<TupleTag<?>, OutputReceiver<?>> extraReceiversMap;
+
+      @SuppressWarnings("unchecked")
+      CachedMultiOutputReceiver(OutputReceiver<OutputT> mainReceiver) {
+        this.mainReceiver = mainReceiver;
+        int extraCount = outputTags.size() - 1;
+        if (extraCount <= 0) {
+          this.extraTags = null;
+          this.extraReceivers = null;
+          this.extraReceiversMap = null;
+        } else if (extraCount <= 8) {
+          TupleTag<?>[] tags = new TupleTag<?>[extraCount];
+          OutputReceiver<?>[] receivers = new OutputReceiver<?>[extraCount];
+          int i = 0;
+          for (TupleTag<?> tag : outputTags) {
+            if (!mainOutputTag.equals(tag)) {
+              tags[i] = tag;
+              receivers[i] = new DirectOutputReceiver<>((TupleTag<Object>) tag);
+              i++;
+            }
+          }
+          this.extraTags = tags;
+          this.extraReceivers = receivers;
+          this.extraReceiversMap = null;
+        } else {
+          Map<TupleTag<?>, OutputReceiver<?>> map = new HashMap<>(extraCount * 2);
+          for (TupleTag<?> tag : outputTags) {
+            if (!mainOutputTag.equals(tag)) {
+              map.put(tag, new DirectOutputReceiver<>((TupleTag<Object>) tag));
+            }
+          }
+          this.extraTags = null;
+          this.extraReceivers = null;
+          this.extraReceiversMap = map;
+        }
+      }
+
+      @Override
+      @SuppressWarnings({"unchecked", "ReferenceEquality"})
+      public <T> OutputReceiver<T> get(TupleTag<T> tag) {
+        if (tag == mainOutputTag) {
+          return (OutputReceiver<T>) mainReceiver;
+        }
+        TupleTag<?>[] tags = this.extraTags;
+        if (tags != null) {
+          OutputReceiver<?>[] receivers = checkStateNotNull(this.extraReceivers);
+          for (int i = 0; i < tags.length; i++) {
+            if (tags[i] == tag) {
+              return (OutputReceiver<T>) receivers[i];
+            }
+          }
+        }
+        return getSlowPath(tag);
+      }
+
+      @SuppressWarnings("unchecked")
+      private <T> OutputReceiver<T> getSlowPath(TupleTag<T> tag) {
+        if (mainOutputTag.equals(tag)) {
+          return (OutputReceiver<T>) mainReceiver;
+        }
+        TupleTag<?>[] tags = this.extraTags;
+        if (tags != null) {
+          OutputReceiver<?>[] receivers = checkStateNotNull(this.extraReceivers);
+          for (int i = 0; i < tags.length; i++) {
+            if (tags[i].equals(tag)) {
+              return (OutputReceiver<T>) receivers[i];
+            }
+          }
+        } else if (extraReceiversMap != null) {
+          OutputReceiver<?> cached = extraReceiversMap.get(tag);
+          if (cached != null) {
+            return (OutputReceiver<T>) cached;
+          }
+        }
+        return DoFnOutputReceivers.windowedReceiver(
+            DoFnProcessContext.this, DoFnProcessContext.this, tag);
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
+        Coder<T> outputCoder = (Coder<T>) checkNotNull(outputCoders).get(tag);
+        checkStateNotNull(outputCoder, "No output tag for %s ", tag);
+        Preconditions.checkState(
+            outputCoder instanceof SchemaCoder,
+            "Output with tag %s must have a schema in order to call getRowReceiver",
+            tag);
+        return DoFnOutputReceivers.rowReceiver(
+            DoFnProcessContext.this, DoFnProcessContext.this, tag, (SchemaCoder<T>) outputCoder);
+      }
     }
 
     @Override

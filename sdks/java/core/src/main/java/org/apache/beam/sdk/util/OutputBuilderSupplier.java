@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.joda.time.Instant;
 
 @Internal
 @FunctionalInterface
@@ -26,4 +28,17 @@ public interface OutputBuilderSupplier {
   // Returns WindowedValues.Builder so that downstream can setReceiver (when tag is specified)
   // but we need the value at a minimum in order to fix the type variable
   <OutputT> WindowedValues.Builder<OutputT> builder(OutputT value);
+
+  /** Builds a {@link WindowedValue} for {@code value} using the supplier's template metadata. */
+  default <OutputT> WindowedValue<OutputT> build(OutputT value) {
+    return builder(value).build();
+  }
+
+  /**
+   * Builds a {@link WindowedValue} for {@code value} with the given {@code timestamp} using the
+   * supplier's template metadata.
+   */
+  default <OutputT> WindowedValue<OutputT> buildWithTimestamp(OutputT value, Instant timestamp) {
+    return builder(value).setTimestamp(timestamp).build();
+  }
 }

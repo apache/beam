@@ -58,6 +58,15 @@ public abstract class ElementByteSizeObserver implements Observer {
     update(null, obj);
   }
 
+  /** Updates the observer with a primitive byte size, avoiding {@link Long} boxing. */
+  public void update(long byteSize) {
+    if (scalingFactor == 1.0) {
+      totalSize += byteSize;
+    } else {
+      totalSize += (long) (scalingFactor * byteSize);
+    }
+  }
+
   /** Sets a multiplier to use on observed sizes. */
   public void setScalingFactor(double scalingFactor) {
     this.scalingFactor = scalingFactor;
@@ -66,9 +75,9 @@ public abstract class ElementByteSizeObserver implements Observer {
   @Override
   public void update(Observable obs, Object obj) {
     if (obj instanceof Long) {
-      totalSize += (long) (scalingFactor * (Long) obj);
+      update(((Long) obj).longValue());
     } else if (obj instanceof Integer) {
-      totalSize += (long) (scalingFactor * (Integer) obj);
+      update(((Integer) obj).longValue());
     } else {
       throw new AssertionError("unexpected parameter object");
     }

@@ -23,6 +23,7 @@ import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,9 +32,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import java.util.stream.Collectors;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
@@ -58,6 +61,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -265,26 +269,167 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    */
   public static class DataflowExecutionStateTracker extends ExecutionStateTracker {
 
+    private static final long NANOS_PER_MILLI = 1_000_000L;
+    private static final StepProcessingStats[] EMPTY_STEP_STATS = new StepProcessingStats[0];
+
+    private static final AtomicReferenceFieldUpdater<DataflowExecutionStateTracker, String>
+        ACTIVE_STEP_NAME_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(
+                DataflowExecutionStateTracker.class, String.class, "activeStepName");
+    private static final AtomicLongFieldUpdater<DataflowExecutionStateTracker>
+        ACTIVE_START_NANOS_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(
+                DataflowExecutionStateTracker.class, "activeStartNanos");
+
+    /**
+     * Lock-free per-step processing time summary written exclusively by the tracked execution
+     * thread (via release stores) and snapshotted by concurrent heartbeat/lull/completion reader
+     * threads via a sequence lock.
+     */
+    static final class StepProcessingStats {
+      private static final AtomicLongFieldUpdater<StepProcessingStats> SEQ_UPDATER =
+          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "seq");
+      private static final AtomicLongFieldUpdater<StepProcessingStats> COUNT_UPDATER =
+          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "count");
+      private static final AtomicLongFieldUpdater<StepProcessingStats> SUM_UPDATER =
+          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "sum");
+      private static final AtomicIntegerFieldUpdater<StepProcessingStats> MIN_UPDATER =
+          AtomicIntegerFieldUpdater.newUpdater(StepProcessingStats.class, "min");
+      private static final AtomicIntegerFieldUpdater<StepProcessingStats> MAX_UPDATER =
+          AtomicIntegerFieldUpdater.newUpdater(StepProcessingStats.class, "max");
+
+      final String stepName;
+
+      // Non-volatile shadows exclusively accessed by the execution thread (or under tracker lock
+      // during reset).
+      private long localSeq;
+      private long localCount;
+      private long localSum;
+      private int localMin = Integer.MAX_VALUE;
+      private int localMax = Integer.MIN_VALUE;
+
+      // Volatile fields written via lazySet (store-release) by the execution thread and read by
+      // concurrent reader threads. Even seq = stable, odd seq = multi-field update in progress.
+      private volatile long seq;
+      private volatile long count;
+      private volatile long sum;
+      private volatile int min = Integer.MAX_VALUE;
+      private volatile int max = Integer.MIN_VALUE;
+
+      StepProcessingStats(String stepName) {
+        this.stepName = stepName;
+      }
+
+      void recordZeroMillis() {
+        // Common fast path: once min <= 0 <= max is established, sum/min/max do not change for a
+        // 0 ms element, so only count needs a single release store.
+        if (localMin <= 0 && localMax >= 0) {
+          COUNT_UPDATER.lazySet(this, ++localCount);
+          return;
+        }
+        record(0);
+      }
+
+      void record(int processingTimeMillis) {
+        long nextSeq = ++localSeq;
+        SEQ_UPDATER.lazySet(this, nextSeq);
+        long newCount = ++localCount;
+        COUNT_UPDATER.lazySet(this, newCount);
+        if (processingTimeMillis != 0) {
+          long newSum = localSum + processingTimeMillis;
+          localSum = newSum;
+          SUM_UPDATER.lazySet(this, newSum);
+        }
+        if (processingTimeMillis < localMin) {
+          localMin = processingTimeMillis;
+          MIN_UPDATER.lazySet(this, processingTimeMillis);
+        }
+        if (processingTimeMillis > localMax) {
+          localMax = processingTimeMillis;
+          MAX_UPDATER.lazySet(this, processingTimeMillis);
+        }
+        SEQ_UPDATER.lazySet(this, ++localSeq);
+      }
+
+      void reset() {
+        long nextSeq = ++localSeq;
+        SEQ_UPDATER.lazySet(this, nextSeq);
+        localCount = 0L;
+        localSum = 0L;
+        localMin = Integer.MAX_VALUE;
+        localMax = Integer.MIN_VALUE;
+        COUNT_UPDATER.lazySet(this, 0L);
+        SUM_UPDATER.lazySet(this, 0L);
+        MIN_UPDATER.lazySet(this, Integer.MAX_VALUE);
+        MAX_UPDATER.lazySet(this, Integer.MIN_VALUE);
+        SEQ_UPDATER.lazySet(this, ++localSeq);
+      }
+
+      @Nullable IntSummaryStatistics snapshot() {
+        for (int attempt = 0; attempt < 8; attempt++) {
+          long s1 = seq;
+          if ((s1 & 1L) != 0L) {
+            continue;
+          }
+          long c = count;
+          if (c == 0L) {
+            if (seq == s1) {
+              return null;
+            }
+            continue;
+          }
+          long total = sum;
+          int lo = min;
+          int hi = max;
+          if (seq == s1 && lo <= hi) {
+            return new IntSummaryStatistics(c, lo, hi, total);
+          }
+        }
+        long c = count;
+        if (c == 0L) {
+          return null;
+        }
+        int lo = min;
+        int hi = max;
+        long total = sum;
+        if (lo > hi) {
+          lo = 0;
+          hi = 0;
+        }
+        return new IntSummaryStatistics(c, lo, hi, total);
+      }
+    }
+
     private final ElementExecutionTracker elementExecutionTracker;
     private final DataflowOperationContext.DataflowExecutionState otherState;
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
 
     private final boolean isStreaming;
+    private final boolean isSimpleStateTransition;
+    private final boolean supportsFastProcessTransition;
 
-    /**
-     * Metadata on the message whose processing is currently being managed by this tracker. If no
-     * message is actively being processed, activeMessageMetadata will be null.
-     */
-    @GuardedBy("this")
-    @Nullable
-    private ActiveMessageMetadata activeMessageMetadata = null;
+    // Published via release stores in order (activeStartNanos -> activeStepName) so a concurrent
+    // reader acquiring activeStepName before reading activeStartNanos can never attribute an older
+    // step's start time to a newly entered step.
+    private volatile @Nullable String activeStepName = null;
+    private volatile long activeStartNanos = 0L;
+
+    // Non-volatile shadows exclusively accessed by the execution thread (or under lock in reset()).
+    private @Nullable StepProcessingStats localActiveStepStats = null;
+    private long localActiveStartNanos = 0L;
+    private @Nullable String lastLookupStepName = null;
+    private @Nullable StepProcessingStats lastLookupStepStats = null;
 
     /** Clock used to either provide real system time or mocked to virtualize time for testing. */
     private final Clock clock;
 
+    // Registered step stats: map guarded by this only on one-time registration; copy-on-write
+    // array enables lock-free iteration on reads and lock-free lookup on enterState().
     @GuardedBy("this")
-    private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
+    private final Map<String, StepProcessingStats> stepStatsByName = new HashMap<>();
+
+    private volatile StepProcessingStats[] stepStatsArray = EMPTY_STEP_STATS;
 
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
@@ -332,6 +477,122 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       } else {
         this.isStreaming = false;
       }
+      boolean noOpElementTracker =
+          this.elementExecutionTracker == ElementExecutionTracker.NO_OP_INSTANCE;
+      this.isSimpleStateTransition = !this.isStreaming && noOpElementTracker;
+      this.supportsFastProcessTransition = noOpElementTracker;
+    }
+
+    @Override
+    public boolean supportsDirectTransition() {
+      return getClass() == DataflowExecutionStateTracker.class && isSimpleStateTransition;
+    }
+
+    boolean supportsFastProcessElementTransition() {
+      return getClass() == DataflowExecutionStateTracker.class && supportsFastProcessTransition;
+    }
+
+    boolean isStreaming() {
+      return isStreaming;
+    }
+
+    @Override
+    public synchronized void reset() {
+      super.reset();
+      localActiveStepStats = null;
+      localActiveStartNanos = 0L;
+      ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
+      ACTIVE_START_NANOS_UPDATER.lazySet(this, 0L);
+      lastLookupStepName = null;
+      lastLookupStepStats = null;
+      StepProcessingStats[] statsArr = this.stepStatsArray;
+      for (int i = 0; i < statsArr.length; i++) {
+        statsArr[i].reset();
+      }
+    }
+
+    synchronized StepProcessingStats getOrCreateStepStats(String userStepName) {
+      StepProcessingStats existing = stepStatsByName.get(userStepName);
+      if (existing != null) {
+        return existing;
+      }
+      StepProcessingStats created = new StepProcessingStats(userStepName);
+      stepStatsByName.put(userStepName, created);
+      StepProcessingStats[] oldArr = this.stepStatsArray;
+      StepProcessingStats[] newArr = Arrays.copyOf(oldArr, oldArr.length + 1);
+      newArr[oldArr.length] = created;
+      this.stepStatsArray = newArr;
+      return created;
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private StepProcessingStats getStepStatsFast(String userStepName) {
+      if (userStepName == lastLookupStepName && lastLookupStepStats != null) {
+        return lastLookupStepStats;
+      }
+      StepProcessingStats[] arr = this.stepStatsArray;
+      for (int i = 0; i < arr.length; i++) {
+        StepProcessingStats candidate = arr[i];
+        if (candidate.stepName == userStepName || candidate.stepName.equals(userStepName)) {
+          lastLookupStepName = userStepName;
+          lastLookupStepStats = candidate;
+          return candidate;
+        }
+      }
+      StepProcessingStats stats = getOrCreateStepStats(userStepName);
+      lastLookupStepName = userStepName;
+      lastLookupStepStats = stats;
+      return stats;
+    }
+
+    private static void recordElapsedNanos(StepProcessingStats stats, long elapsedNanos) {
+      if (elapsedNanos < NANOS_PER_MILLI) {
+        stats.recordZeroMillis();
+      } else {
+        stats.record((int) (elapsedNanos / NANOS_PER_MILLI));
+      }
+    }
+
+    private void setActiveMessage(StepProcessingStats stepStats, long startNanos) {
+      localActiveStepStats = stepStats;
+      localActiveStartNanos = startNanos;
+      ACTIVE_START_NANOS_UPDATER.lazySet(this, startNanos);
+      ACTIVE_STEP_NAME_UPDATER.lazySet(this, stepStats.stepName);
+    }
+
+    private void clearActiveMessage() {
+      localActiveStepStats = null;
+      ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
+    }
+
+    /**
+     * Allocation-free, lock-free streaming counterpart to {@link #enterState(ExecutionState)} for
+     * {@code process} states with a pre-registered {@link StepProcessingStats}. Must be paired with
+     * {@link #exitStreamingProcessDirect(ExecutionState)}.
+     */
+    final @Nullable ExecutionState enterStreamingProcessDirect(
+        ExecutionState newState, StepProcessingStats stepStats) {
+      final ExecutionState previous = enterStateDirect(newState);
+      long nowNanos = System.nanoTime();
+      StepProcessingStats prevActive = localActiveStepStats;
+      if (prevActive != null) {
+        recordElapsedNanos(prevActive, nowNanos - localActiveStartNanos);
+      }
+      setActiveMessage(stepStats, nowNanos);
+      return previous;
+    }
+
+    /**
+     * Allocation-free, lock-free streaming counterpart to closing the {@link Closeable} returned by
+     * {@link #enterState(ExecutionState)} for {@code process} states.
+     */
+    final void exitStreamingProcessDirect(@Nullable ExecutionState previous) {
+      StepProcessingStats active = localActiveStepStats;
+      if (active != null) {
+        recordElapsedNanos(active, System.nanoTime() - localActiveStartNanos);
+        clearActiveMessage();
+      }
+      exitStateDirect(previous);
     }
 
     @Override
@@ -363,22 +624,27 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           .append(DURATION_FORMATTER.print(lullDuration.toPeriod()))
           .append(" without completing")
           .append("\n");
-      synchronized (this) {
-        if (this.activeMessageMetadata != null) {
-          message.append(
-              "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
-          message.append(
-              "Time spent in this step(millis): "
-                  + (clock.currentTimeMillis()
-                      - getActiveMessageMetadata().get().stopwatch().elapsed(TimeUnit.MILLISECONDS))
-                  + "\n");
-        }
-        message.append("Processing times in each step(millis)\n");
-        for (Map.Entry<String, IntSummaryStatistics> entry :
-            this.processingTimesByStep.entrySet()) {
-          message.append("Step name: " + entry.getKey() + "\n");
-          message.append("Time spent in this step: " + entry.getValue().toString() + "\n");
-        }
+      Optional<ActiveMessageMetadata> activeMetadata = getActiveMessageMetadata();
+      if (activeMetadata.isPresent()) {
+        message
+            .append("Current user step name: ")
+            .append(activeMetadata.get().userStepName())
+            .append("\n");
+        message
+            .append("Time spent in this step(millis): ")
+            .append(
+                clock.currentTimeMillis()
+                    - activeMetadata.get().stopwatch().elapsed(TimeUnit.MILLISECONDS))
+            .append("\n");
+      }
+      message.append("Processing times in each step(millis)\n");
+      for (Map.Entry<String, IntSummaryStatistics> entry :
+          getProcessingTimesByStepCopy().entrySet()) {
+        message.append("Step name: ").append(entry.getKey()).append("\n");
+        message
+            .append("Time spent in this step: ")
+            .append(entry.getValue().toString())
+            .append("\n");
       }
 
       if (trackedThread != null) {
@@ -421,32 +687,47 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      */
     @Override
     public Closeable enterState(ExecutionState newState) {
-      Closeable baseCloseable = super.enterState(newState);
+      if (isSimpleStateTransition) {
+        return super.enterState(newState);
+      }
       final boolean isDataflowProcessElementState =
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
-      if (isDataflowProcessElementState) {
-        DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-        if (isStreaming) {
-          if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
-            recordActiveMessageInProcessingTimesMap();
-            synchronized (this) {
-              this.activeMessageMetadata =
-                  ActiveMessageMetadata.create(
-                      newDFState.getStepName().userName(), Stopwatch.createStarted());
-            }
+      if (!isDataflowProcessElementState) {
+        return super.enterState(newState);
+      }
+      DataflowExecutionState newDFState = (DataflowExecutionState) newState;
+      final ExecutionState previous = enterStateDirect(newState);
+      if (isStreaming) {
+        NameContext stepName = newDFState.getStepName();
+        String userName = stepName != null ? stepName.userName() : null;
+        if (userName != null) {
+          StepProcessingStats stepStats = getStepStatsFast(userName);
+          long nowNanos = System.nanoTime();
+          StepProcessingStats prevActive = localActiveStepStats;
+          if (prevActive != null) {
+            recordElapsedNanos(prevActive, nowNanos - localActiveStartNanos);
           }
+          setActiveMessage(stepStats, nowNanos);
         }
+      }
+      final boolean trackElementExecution =
+          elementExecutionTracker != ElementExecutionTracker.NO_OP_INSTANCE;
+      if (trackElementExecution) {
         elementExecutionTracker.enter(newDFState.getStepName());
       }
 
       return () -> {
-        if (isDataflowProcessElementState) {
-          if (isStreaming) {
-            recordActiveMessageInProcessingTimesMap();
+        if (isStreaming) {
+          StepProcessingStats active = localActiveStepStats;
+          if (active != null) {
+            recordElapsedNanos(active, System.nanoTime() - localActiveStartNanos);
+            clearActiveMessage();
           }
+        }
+        if (trackElementExecution) {
           elementExecutionTracker.exit();
         }
-        baseCloseable.close();
+        exitStateDirect(previous);
       };
     }
 
@@ -454,45 +735,58 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return this.workItemId;
     }
 
-    public synchronized Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
-      return Optional.ofNullable(activeMessageMetadata);
-    }
+    private static Stopwatch createStopwatchStartedAt(long startNanos) {
+      Ticker ticker =
+          new Ticker() {
+            private boolean firstRead = true;
 
-    public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
-      Map<String, IntSummaryStatistics> processingTimesCopy =
-          processingTimesByStep.entrySet().stream()
-              .collect(
-                  Collectors.toMap(
-                      e -> e.getKey(),
-                      e -> {
-                        IntSummaryStatistics clone = new IntSummaryStatistics();
-                        clone.combine(e.getValue());
-                        return clone;
-                      }));
-      return processingTimesCopy;
-    }
-
-    /**
-     * Transitions the metadata for the currently active message to an entry in the completed
-     * processing times map. Sets the activeMessageMetadata to null after the entry has been
-     * recorded.
-     */
-    private synchronized void recordActiveMessageInProcessingTimesMap() {
-      if (this.activeMessageMetadata == null) {
-        return;
-      }
-      int processingTime =
-          (int) this.activeMessageMetadata.stopwatch().elapsed(TimeUnit.MILLISECONDS);
-      this.processingTimesByStep.compute(
-          this.activeMessageMetadata.userStepName(),
-          (k, v) -> {
-            if (v == null) {
-              v = new IntSummaryStatistics();
+            @Override
+            public long read() {
+              if (firstRead) {
+                firstRead = false;
+                return startNanos;
+              }
+              return System.nanoTime();
             }
-            v.accept(processingTime);
-            return v;
-          });
-      this.activeMessageMetadata = null;
+          };
+      return Stopwatch.createStarted(ticker);
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
+      for (int attempt = 0; attempt < 4; attempt++) {
+        String stepName = activeStepName;
+        if (stepName == null) {
+          return Optional.empty();
+        }
+        long startNanos = activeStartNanos;
+        if (activeStepName == stepName) {
+          return Optional.of(
+              ActiveMessageMetadata.create(stepName, createStopwatchStartedAt(startNanos)));
+        }
+      }
+      String stepName = activeStepName;
+      if (stepName == null) {
+        return Optional.empty();
+      }
+      return Optional.of(ActiveMessageMetadata.create(stepName, Stopwatch.createStarted()));
+    }
+
+    public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
+      StepProcessingStats[] statsArray = this.stepStatsArray;
+      if (statsArray.length == 0) {
+        return new HashMap<>();
+      }
+      Map<String, IntSummaryStatistics> processingTimesCopy =
+          new HashMap<>(Math.max(4, statsArray.length * 2));
+      for (int i = 0; i < statsArray.length; i++) {
+        StepProcessingStats stats = statsArray[i];
+        IntSummaryStatistics snapshot = stats.snapshot();
+        if (snapshot != null) {
+          processingTimesCopy.put(stats.stepName, snapshot);
+        }
+      }
+      return processingTimesCopy;
     }
   }
 }

@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
-import java.util.Observer;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -234,7 +233,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
    * just notifies an outerObserver about this event. Additionally, the outerObserver is notified
    * about additional separators that are transparently added by this coder.
    */
-  private static class IteratorObserver implements Observer {
+  private static class IteratorObserver extends ElementByteSizeObserver {
     private final ElementByteSizeObserver outerObserver;
     private final boolean countable;
 
@@ -253,17 +252,25 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     }
 
     @Override
+    protected void reportElementSize(long elementByteSize) {}
+
+    @Override
+    public void update(long byteSize) {
+      if (countable) {
+        outerObserver.update(byteSize);
+      } else {
+        // Additional 1 byte is due to hasNext = true flag.
+        outerObserver.update(1L + byteSize);
+      }
+    }
+
+    @Override
     public void update(Observable obs, Object obj) {
       if (!(obj instanceof Long)) {
         throw new AssertionError("unexpected parameter object");
       }
 
-      if (countable) {
-        outerObserver.update(obs, obj);
-      } else {
-        // Additional 1 byte is due to hasNext = true flag.
-        outerObserver.update(obs, 1 + (long) obj);
-      }
+      update(((Long) obj).longValue());
     }
   }
 }
