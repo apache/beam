@@ -18,8 +18,10 @@
 [workspace]
 resolver = "3"
 members = [
+    "beam",
     "beam/model",
     "beam/derive",
+    "beam/core",
 ]
 
 [workspace.package]
@@ -75,9 +77,17 @@ prost-types = "0.14"
 tonic = { version = "0.14", features = ["tls-native-roots"] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+serde = { version = "1.0", features = ["derive"] }
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "3", features = ["full"] }
+
+# Internal workspace crates
+beam = { package = "apache-beam", path = "beam", version = "2.79.0-SNAPSHOT" }
+beam_core = { package = "apache-beam-core", path = "beam/core", version = "2.79.0-SNAPSHOT" }
+beam_model = { package = "apache-beam-model", path = "beam/model", version = "2.79.0-SNAPSHOT" }
 
 # Keep file:line in panic backtraces without full DWARF debug info.
 [profile.dev]
