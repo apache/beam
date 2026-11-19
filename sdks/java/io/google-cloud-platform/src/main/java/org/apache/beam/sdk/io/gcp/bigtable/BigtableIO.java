@@ -41,6 +41,7 @@ import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1495,20 +1496,46 @@ public class BigtableIO {
     }
 
     @Teardown
-    public void tearDown() throws IOException {
+    public void tearDown() {
       // in case of exception in processElement, finishBundle will not be called
       // cleanup resources allocated in startBundle
+      boolean interrupted = Thread.interrupted();
       try {
         if (bigtableWriter != null) {
-          bigtableWriter.close();
-          bigtableWriter = null;
+          try {
+            bigtableWriter.close();
+          } catch (Exception e) {
+            interrupted |= hasInterruptedCause(e);
+            LOG.warn("Failed to close Bigtable writer during teardown", e);
+          } finally {
+            bigtableWriter = null;
+          }
         }
       } finally {
+        interrupted |= Thread.interrupted();
         if (serviceEntry != null) {
-          serviceEntry.close();
-          serviceEntry = null;
+          try {
+            serviceEntry.close();
+          } catch (Exception e) {
+            interrupted |= hasInterruptedCause(e);
+            LOG.warn("Failed to close Bigtable service during teardown", e);
+          } finally {
+            serviceEntry = null;
+          }
+        }
+        if (interrupted) {
+          Thread.currentThread().interrupt();
         }
       }
+    }
+
+    private static boolean hasInterruptedCause(@Nullable Throwable t) {
+      for (int depth = 0; t != null && depth < 20; t = t.getCause(), depth++) {
+        if (t instanceof InterruptedException || t instanceof InterruptedIOException) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override

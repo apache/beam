@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -955,6 +956,41 @@ public class BigtableServiceImplTest {
     assertEquals(
         "Family", captor.getValue().toProto().getMutations(0).getSetCell().getFamilyName());
     underTest.close();
+  }
+
+  /**
+   * Once {@code close()} calls {@code closeAsync()}, the underlying batcher is permanently closed;
+   * a second {@code close()} after an interrupted or failed wait must be a non-blocking no-op
+   * rather than failing on stale state or blocking again on the same future.
+   */
+  @Test
+  public void testCloseAgainAfterInterruptedClose() throws IOException {
+    doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher((String) any());
+    SettableApiFuture<Void> closeFuture = SettableApiFuture.create();
+    when(mockBatcher.closeAsync()).thenReturn(closeFuture);
+
+    BigtableService.Writer underTest =
+        new BigtableServiceImpl.BigtableWriterImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            TABLE_ID,
+            Duration.millis(60000));
+
+    // The close future isn't done, so close() waits on it and sees the interrupt.
+    Thread.currentThread().interrupt();
+    try {
+      IOException e = assertThrows(IOException.class, underTest::close);
+      assertTrue(e.getCause() instanceof InterruptedException);
+      // close() restores the interrupt flag; clear it before verifying the second close.
+      assertTrue(Thread.interrupted());
+    } finally {
+      Thread.interrupted();
+    }
+
+    // Even while closeFuture is still pending, a second close() is a non-blocking no-op.
+    underTest.close();
+    verify(mockBatcher, times(1)).closeAsync();
   }
 
   private void verifyMetricWasSet(String method, String status, long count) {
