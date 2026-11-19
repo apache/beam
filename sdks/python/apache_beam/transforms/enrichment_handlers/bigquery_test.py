@@ -49,10 +49,6 @@ def _query_fn(row: beam.Row):
   return ('SELECT * FROM project.dataset.table WHERE id = ?', [row.id])
 
 
-def _tuple_query_fn_for_payload(row: beam.Row):
-  return ('SELECT * FROM project.dataset.table WHERE id = ?', [row.id])
-
-
 class TestBigQueryEnrichment(unittest.TestCase):
   def setUp(self) -> None:
     self.project = 'apache-beam-testing'
@@ -265,7 +261,7 @@ class TestBigQueryEnrichment(unittest.TestCase):
   def test_query_fn_with_parameterized_tuple(self):
     handler = BigQueryEnrichmentHandler(
         project=self.project,
-        query_fn=_tuple_query_fn_for_payload,
+        query_fn=_query_fn,
         throw_exception_on_empty_results=False,
     )
     handler.client = mock.MagicMock()

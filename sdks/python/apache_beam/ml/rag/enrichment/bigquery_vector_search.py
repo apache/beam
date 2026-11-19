@@ -35,6 +35,7 @@ from apache_beam.transforms.enrichment_handlers.bigquery import COLUMN_NAME_PATT
 from apache_beam.transforms.enrichment_handlers.bigquery import MAX_BQ_QUERY_PARAMETERS
 from apache_beam.transforms.enrichment_handlers.bigquery import SIMPLE_IDENTIFIER_PATTERN
 from apache_beam.transforms.enrichment_handlers.bigquery import TABLE_NAME_PATTERN
+from apache_beam.transforms.enrichment_handlers.bigquery import TemplateSpecResolver
 from apache_beam.transforms.enrichment_handlers.bigquery import scan_sql_template
 from apache_beam.transforms.enrichment_handlers.bigquery import to_query_parameter
 from apache_beam.transforms.enrichment_handlers.bigquery import validate_bigquery_identifier
@@ -50,8 +51,7 @@ def _format_sql_string_literal(value: str) -> str:
 def _extract_metadata_template_keys(template: str) -> tuple[str, ...]:
   keys: list[str] = []
 
-  def _collect(kind: str, spec: str, in_string: bool) -> str:
-    del in_string
+  def _collect(kind: str, spec: str) -> str:
     if kind == 'qmark' or (kind == 'brace' and (spec == '' or spec.isdigit())):
       raise ValueError(
           "String metadata_restriction_template only supports named metadata "
@@ -70,8 +70,7 @@ def _parameterize_callable_tuple(
 ) -> tuple[str, list[Any]]:
   if not raw_params:
 
-    def _reject_unbound(kind: str, spec: str, in_string: bool) -> str:
-      del in_string
+    def _reject_unbound(kind: str, spec: str) -> str:
       raise ValueError(
           f"Unbound placeholder ({kind}:{spec!r}) in callable "
           f"metadata_restriction_template with empty parameters: {cond_sql!r}")
@@ -92,8 +91,7 @@ def _parameterize_callable_tuple(
     orig_by_name = {p.name: p for p in raw_params}
     renamed_map: dict[str, str] = {}
 
-    def _render_named(kind: str, spec: str, in_string: bool) -> str:
-      del in_string
+    def _render_named(kind: str, spec: str) -> str:
       if kind == 'qmark' or (kind == 'brace' and
                              (spec == '' or spec.isdigit())):
         raise ValueError(
@@ -114,34 +112,12 @@ def _parameterize_callable_tuple(
     rewritten_sql = scan_sql_template(cond_sql, _render_named)
     return rewritten_sql, cond_params
 
-  seq_idx = 0
-  has_auto = False
-  has_manual = False
+  resolver = TemplateSpecResolver(allow_named=False)
   slot_param_names: dict[int, str] = {}
 
-  def _render_positional(kind: str, spec: str, in_string: bool) -> str:
-    del in_string
-    nonlocal seq_idx, has_auto, has_manual
-    if kind == 'qmark' or (kind == 'brace' and spec == ''):
-      has_auto = True
-      if has_manual:
-        raise ValueError(
-            "Cannot mix automatic positional placeholders with manual "
-            "placeholders in callable metadata_restriction_template.")
-      idx = seq_idx
-      seq_idx += 1
-    elif kind == 'brace' and spec.isdigit():
-      has_manual = True
-      if has_auto:
-        raise ValueError(
-            "Cannot mix automatic positional placeholders with manual "
-            "placeholders in callable metadata_restriction_template.")
-      idx = int(spec)
-    else:
-      raise ValueError(
-          f"Named placeholder {spec!r} used with positional parameters in "
-          f"callable metadata_restriction_template: {cond_sql!r}")
-
+  def _render_positional(kind: str, spec: str) -> str:
+    idx = resolver.resolve(kind, spec)
+    assert isinstance(idx, int)
     if idx >= len(raw_params):
       raise ValueError(
           f"Placeholder index {idx} out of range for {len(raw_params)} "
@@ -154,10 +130,11 @@ def _parameterize_callable_tuple(
     return f"@{slot_param_names[idx]}"
 
   rewritten_sql = scan_sql_template(cond_sql, _render_positional)
-  if has_auto and seq_idx != len(raw_params):
+  if resolver.has_auto and resolver.seq_idx != len(raw_params):
     raise ValueError(
         f"Callable metadata_restriction_template provided {len(raw_params)} "
-        f"positional parameter(s), but SQL contains {seq_idx} placeholder(s).")
+        f"positional parameter(s), but SQL contains {resolver.seq_idx} "
+        "placeholder(s).")
   return rewritten_sql, cond_params
 
 
@@ -368,8 +345,8 @@ class BigQueryVectorSearchParameters:
     params: list[Any] = []
     group_key_to_param: dict[str, str] = {}
 
-    def _render_meta(kind: str, spec: str, in_string: bool) -> str:
-      del kind, in_string
+    def _render_meta(kind: str, spec: str) -> str:
+      del kind
       if spec not in group_key_to_param:
         val = item.metadata[spec]
         param_name = f"_bq_meta_{param_counter[0]}"

@@ -38,7 +38,7 @@ __all__ = ['BigQueryEnrichmentHandler']
 
 QueryFn = Callable[[beam.Row], Union[str, tuple[str, Sequence[Any]]]]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
-PlaceholderRenderer = Callable[[str, str, bool], str]
+PlaceholderRenderer = Callable[[str, str], str]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +71,17 @@ def _validate_brace_spec(raw_spec: str, sql: str) -> str:
       f"Invalid placeholder {{{raw_spec}}} in SQL template: {sql!r}")
 
 
+def _parse_brace_placeholder(text: str, open_pos: int,
+                             full_sql: str) -> tuple[str, int]:
+  close_pos = text.find('}', open_pos + 1)
+  if close_pos == -1:
+    raise ValueError(f"Unclosed '{{' in SQL template: {full_sql!r}")
+  raw_spec = text[open_pos + 1:close_pos]
+  if '{' in raw_spec:
+    raise ValueError(f"Nested '{{' in SQL template placeholder: {full_sql!r}")
+  return _validate_brace_spec(raw_spec, full_sql), close_pos + 1
+
+
 def _find_closing_quote(sql: str, start: int, quote: str) -> int:
   n = len(sql)
   j = start
@@ -89,7 +100,7 @@ def _find_closing_quote(sql: str, start: int, quote: str) -> int:
 def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
   """Scans a GoogleSQL template while respecting strings, comments, and quotes.
 
-  Calls ``render_placeholder(kind, spec, in_string)`` for each placeholder:
+  Calls ``render_placeholder(kind, spec)`` for each placeholder:
     * ``kind == 'brace'`` for ``{}``, ``{0}``, or ``{field}`` (both unquoted and
       inside plain single- or double-quoted SQL string literals).
     * ``kind == 'qmark'`` for unquoted ``?`` positional parameters.
@@ -189,18 +200,10 @@ def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
         elif body[k] == '}':
           raise ValueError(f"Single '}}' encountered in SQL template: {sql!r}")
         elif body[k] == '{':
-          close_k = body.find('}', k + 1)
-          if close_k == -1:
-            raise ValueError(f"Unclosed '{{' in SQL template: {sql!r}")
-          raw_spec = body[k + 1:close_k]
-          if '{' in raw_spec:
-            raise ValueError(
-                f"Nested '{{' in SQL template placeholder: {sql!r}")
-          spec = _validate_brace_spec(raw_spec, sql)
+          spec, k = _parse_brace_placeholder(body, k, sql)
           segments.append(''.join(buf))
           buf = []
           placeholders.append(spec)
-          k = close_k + 1
         else:
           buf.append(body[k])
           k += 1
@@ -209,13 +212,13 @@ def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
       if not placeholders:
         out.append(f"{quote}{segments[0]}{quote}")
       elif len(placeholders) == 1 and segments[0] == '' and segments[1] == '':
-        out.append(render_placeholder('brace', placeholders[0], False))
+        out.append(render_placeholder('brace', placeholders[0]))
       else:
         concat_parts: list[str] = []
         for idx, ph_spec in enumerate(placeholders):
           if segments[idx]:
             concat_parts.append(f"{quote}{segments[idx]}{quote}")
-          rendered = render_placeholder('brace', ph_spec, True)
+          rendered = render_placeholder('brace', ph_spec)
           concat_parts.append(f"CAST({rendered} AS STRING)")
         if segments[-1]:
           concat_parts.append(f"{quote}{segments[-1]}{quote}")
@@ -236,19 +239,12 @@ def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
       raise ValueError(f"Single '}}' encountered in SQL template: {sql!r}")
 
     if sql[i] == '{':
-      close_i = sql.find('}', i + 1)
-      if close_i == -1:
-        raise ValueError(f"Unclosed '{{' in SQL template: {sql!r}")
-      raw_spec = sql[i + 1:close_i]
-      if '{' in raw_spec:
-        raise ValueError(f"Nested '{{' in SQL template placeholder: {sql!r}")
-      spec = _validate_brace_spec(raw_spec, sql)
-      out.append(render_placeholder('brace', spec, False))
-      i = close_i + 1
+      spec, i = _parse_brace_placeholder(sql, i, sql)
+      out.append(render_placeholder('brace', spec))
       continue
 
     if sql[i] == '?':
-      out.append(render_placeholder('qmark', '', False))
+      out.append(render_placeholder('qmark', ''))
       i += 1
       continue
 
@@ -266,7 +262,7 @@ def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
       if not at_match:
         raise ValueError(
             f"Invalid '@' parameter syntax in SQL template: {sql!r}")
-      out.append(render_placeholder('at', at_match.group(0), False))
+      out.append(render_placeholder('at', at_match.group(0)))
       i = at_match.end()
       continue
 
@@ -274,6 +270,39 @@ def scan_sql_template(sql: str, render_placeholder: PlaceholderRenderer) -> str:
     i += 1
 
   return ''.join(out)
+
+
+class TemplateSpecResolver:
+  """Tracks automatic vs. manual placeholder numbering in a SQL template."""
+  def __init__(self, allow_named: bool = True) -> None:
+    self.seq_idx = 0
+    self.has_auto = False
+    self.has_manual = False
+    self._allow_named = allow_named
+
+  def resolve(self, kind: str, spec: str) -> Union[int, str]:
+    if kind == 'qmark' or (kind == 'brace' and spec == ''):
+      self.has_auto = True
+      if self.has_manual:
+        raise ValueError(
+            "Cannot mix automatic positional placeholders ('{}' or '?') with "
+            "numbered or named placeholders.")
+      idx = self.seq_idx
+      self.seq_idx += 1
+      return idx
+
+    if not self._allow_named and not (kind == 'brace' and spec.isdigit()):
+      raise ValueError(
+          f"Named placeholder {spec!r} used with positional query parameters.")
+
+    self.has_manual = True
+    if self.has_auto:
+      raise ValueError(
+          "Cannot mix automatic positional placeholders ('{}' or '?') with "
+          "numbered or named placeholders.")
+    if kind == 'brace' and spec.isdigit():
+      return int(spec)
+    return spec
 
 
 def _parse_restriction_template(
@@ -289,32 +318,10 @@ def _parse_restriction_template(
     return '', []
 
   specs: list[Union[int, str]] = []
-  seq_idx = 0
-  has_auto = False
-  has_manual = False
+  resolver = TemplateSpecResolver(allow_named=True)
 
-  def _render(kind: str, spec: str, in_string: bool) -> str:
-    del in_string
-    nonlocal seq_idx, has_auto, has_manual
-    if kind == 'qmark' or (kind == 'brace' and spec == ''):
-      has_auto = True
-      if has_manual:
-        raise ValueError(
-            "Cannot mix automatic positional placeholders ('{}' or '?') with "
-            "numbered or named placeholders in row_restriction_template.")
-      specs.append(seq_idx)
-      seq_idx += 1
-      return '?'
-
-    has_manual = True
-    if has_auto:
-      raise ValueError(
-          "Cannot mix automatic positional placeholders ('{}' or '?') with "
-          "numbered or named placeholders in row_restriction_template.")
-    if kind == 'brace' and spec.isdigit():
-      specs.append(int(spec))
-    else:
-      specs.append(spec)
+  def _render(kind: str, spec: str) -> str:
+    specs.append(resolver.resolve(kind, spec))
     return '?'
 
   normalized = scan_sql_template(row_restriction_template, _render)
@@ -604,15 +611,10 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       self,
       current_values: Sequence[Any],
       request_dict: Optional[Mapping[str, Any]] = None,
-      fallback_types: Optional[Sequence[Optional[str]]] = None,
   ) -> list[Any]:
-    slot_values = self._resolve_row_slot_values(current_values, request_dict)
     return [
-        to_query_parameter(
-            val,
-            fallback_type=(
-                fallback_types[idx] if fallback_types is not None else None),
-        ) for idx, val in enumerate(slot_values)
+        to_query_parameter(val)
+        for val in self._resolve_row_slot_values(current_values, request_dict)
     ]
 
   def _build_batch_query(self, chunk_size: int) -> str:
@@ -701,23 +703,19 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         if chunk_resp:
           responses_dict.extend(chunk_resp)
 
-      unmatched_requests = {
-          key: list(reqs)
-          for key, reqs in requests_map.items()
-      }
       if responses_dict:
         for response in responses_dict:
           response_row = beam.Row(**response)
           response_key = self.create_row_key(response_row)
-          if response_key in unmatched_requests:
-            for req in unmatched_requests.pop(response_key):
+          if response_key in requests_map:
+            for req in requests_map.pop(response_key):
               responses.append((req, response_row))
-      if unmatched_requests:
+      if requests_map:
         if self.throw_exception_on_empty_results:
           raise ValueError(f"no matching row found for query: {last_query}")
         else:
           _LOGGER.warning('no matching row found for query: %s', last_query)
-          for reqs in unmatched_requests.values():
+          for reqs in requests_map.values():
             for req in reqs:
               responses.append((req, beam.Row()))
       return responses
@@ -759,33 +757,18 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
 
   def get_cache_key(self, request: Union[beam.Row, list[beam.Row]]):
     if isinstance(request, list):
-      cache_keys = []
-      for req in request:
-        req_dict = req._asdict()
-        try:
-          current_values = (
-              self.condition_value_fn(req) if self.condition_value_fn else
-              [req_dict[field] for field in self.fields])
-          key = ";".join(["%s"] * len(current_values))
-          cache_keys.extend([key % tuple(current_values)])
-        except KeyError as e:
-          raise KeyError(
-              "Make sure the values passed in `fields` are the "
-              "keys in the input `beam.Row`." + str(e))
-      return cache_keys
-    else:
-      req_dict = request._asdict()
-      try:
-        current_values = (
-            self.condition_value_fn(request) if self.condition_value_fn else
-            [req_dict[field] for field in self.fields])
-        key = ";".join(["%s"] * len(current_values))
-        cache_key = key % tuple(current_values)
-      except KeyError as e:
-        raise KeyError(
-            "Make sure the values passed in `fields` are the "
-            "keys in the input `beam.Row`." + str(e))
-      return cache_key
+      return [self.get_cache_key(req) for req in request]
+    req_dict = request._asdict()
+    try:
+      current_values = (
+          self.condition_value_fn(request) if self.condition_value_fn else
+          [req_dict[field] for field in self.fields])
+      key = ";".join(["%s"] * len(current_values))
+      return key % tuple(current_values)
+    except KeyError as e:
+      raise KeyError(
+          "Make sure the values passed in `fields` are the "
+          "keys in the input `beam.Row`." + str(e))
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns a kwargs suitable for `beam.BatchElements`."""
