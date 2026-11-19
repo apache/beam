@@ -345,6 +345,34 @@ class TestBigQueryVectorSearchEnrichment(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.ml.rag.enrichment.bigquery_vector_search.bigquery.Client')
+  def test_context_manager_creates_and_closes_client(self, mock_client_cls):
+    mock_client = mock.MagicMock()
+    mock_client_cls.return_value = mock_client
+    params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=2,
+    )
+    handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=params,
+        min_batch_size=5,
+        max_batch_size=50,
+        location='US',
+    )
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 5, 'max_batch_size': 50
+        })
+    with handler:
+      mock_client_cls.assert_called_once_with(
+          project=self.project, location='US')
+      mock_client.close.assert_not_called()
+    mock_client.close.assert_called_once()
+
+  @mock.patch(
+      'apache_beam.ml.rag.enrichment.bigquery_vector_search.bigquery.Client')
   def test_pipeline_end_to_end_vector_search_enrichment(self, mock_client_cls):
     class _FakeRow:
       def __init__(self, row_id, data):
@@ -400,14 +428,158 @@ class TestBigQueryVectorSearchEnrichment(unittest.TestCase):
     )
 
     with TestPipeline() as p:
-      res = p | beam.Create([input_chunk]) | Enrichment(handler)
+      res = p | beam.Create([input_chunk],
+                            reshuffle=False) | Enrichment(handler)
       assert_that(res, equal_to([expected_chunk]))
 
     mock_client.query.assert_called_once()
     query_str = mock_client.query.call_args.args[0]
     self.assertNotIn('DROP TABLE', query_str)
     self.assertNotIn("OR '1'='1", query_str)
-    mock_client.close.assert_called_once()
+
+  def test_callable_validation_format_query_and_subchunking(self):
+    with self.assertRaises(ValueError):
+      _ = BigQueryVectorSearchParameters(
+          project=self.project,
+          table_name=self.table_name,
+          embedding_column='embedding',
+          columns=['content'],
+          neighbor_count=2,
+          metadata_restriction_template='language = ?',
+      )
+    with self.assertRaises(ValueError):
+      _ = BigQueryVectorSearchParameters(
+          project=self.project,
+          table_name=self.table_name,
+          embedding_column='embedding',
+          columns=['content'],
+          neighbor_count=2,
+          distance_type='COSINE; DROP TABLE x',
+      )
+
+    base_chunk = Chunk(
+        id='q1',
+        embedding=Embedding(dense_embedding=[0.1, 0.2]),
+        content=Content(text='query'),
+        metadata={'p': 10},
+    )
+
+    raw_str_params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=2,
+        distance_type='COSINE',
+        include_distance=True,
+        metadata_restriction_template=lambda item: 'price > 0',
+    )
+    formatted_sql = raw_str_params.format_query([base_chunk])
+    self.assertIn("distance_type => 'COSINE'", formatted_sql)
+    self.assertIn('WHERE price > 0', formatted_sql)
+    with self.assertRaises(ValueError):
+      _ = raw_str_params.build_query([])
+    with self.assertRaisesRegex(ValueError, 'missing embedding'):
+      _ = raw_str_params.build_query(
+          [Chunk(id='empty', embedding=None, content=Content(text='q'))])
+
+    def _numbered_fn(item):
+      return ('price >= {0} AND price <= {0}', [item.metadata['p']])
+
+    numbered_params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=2,
+        metadata_restriction_template=_numbered_fn,
+    )
+    num_sql, num_qparams = numbered_params.build_query([base_chunk])
+    self.assertIn(
+        'WHERE price >= @_bq_meta_0 AND price <= @_bq_meta_0', num_sql)
+    self.assertEqual(len(num_qparams), 3)
+
+    empty_tuple_params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=2,
+        metadata_restriction_template=lambda item: ('price > 0', []),
+    )
+    empty_sql, _ = empty_tuple_params.build_query([base_chunk])
+    self.assertIn('WHERE price > 0', empty_sql)
+
+    named_a = bigquery.ScalarQueryParameter('a', 'INT64', 1)
+    bad_results = [
+        ('price > ?', []),
+        ('a = @a AND b = ?', [named_a, 2]),
+        ('a = ?', [named_a]),
+        ('a = @missing', [named_a]),
+        ('a = {0} AND b = ?', [1, 2]),
+        ('a = ? AND b = {0}', [1, 2]),
+        ('a = {named}', [1]),
+        ('a = {5}', [1]),
+        ('a = ?', [1, 2]),
+    ]
+    for bad_res in bad_results:
+      bad_params = BigQueryVectorSearchParameters(
+          project=self.project,
+          table_name=self.table_name,
+          embedding_column='embedding',
+          columns=['content'],
+          neighbor_count=2,
+          metadata_restriction_template=lambda item, r=bad_res: r,
+      )
+      with self.assertRaises(ValueError):
+        _ = bad_params.build_query([base_chunk])
+
+    # Verify _execute_chunk splitting when query_parameters exceed limit
+    # and log_query=True path.
+    class _RowObj:
+      def __init__(self, row_id):
+        self.id = row_id
+
+      def items(self):
+        return [('id', self.id)]
+
+    split_params = BigQueryVectorSearchParameters(
+        project=self.project,
+        table_name=self.table_name,
+        embedding_column='embedding',
+        columns=['content'],
+        neighbor_count=1,
+    )
+    split_handler = BigQueryVectorSearchEnrichmentHandler(
+        vector_search_parameters=split_params, log_query=True)
+    split_handler.client = mock.MagicMock()
+    split_handler.client.query.side_effect = [
+        mock.MagicMock(result=mock.MagicMock(return_value=[_RowObj('c1')])),
+        mock.MagicMock(result=mock.MagicMock(return_value=[_RowObj('c2')])),
+    ]
+    three_chunks = [
+        Chunk(
+            id=f'c{i}',
+            embedding=Embedding(dense_embedding=[0.1, 0.2]),
+            content=Content(text='q'),
+        ) for i in (1, 2, 3)
+    ]
+    with mock.patch('apache_beam.ml.rag.enrichment.bigquery_vector_search.'
+                    'MAX_BQ_QUERY_PARAMETERS',
+                    4):
+      res = split_handler(three_chunks)
+    self.assertEqual(split_handler.client.query.call_count, 2)
+    self.assertEqual(
+        res,
+        [
+            (three_chunks[0], {
+                'id': 'c1'
+            }),
+            (three_chunks[1], {
+                'id': 'c2'
+            }),
+            (three_chunks[2], {}),
+        ])
 
 
 if __name__ == '__main__':

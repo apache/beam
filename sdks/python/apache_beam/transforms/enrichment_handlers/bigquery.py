@@ -367,6 +367,22 @@ def to_query_parameter(
   return bigquery.ScalarQueryParameter(name, param_type, value)
 
 
+def _make_hashable(value: Any) -> Any:
+  if hasattr(value, 'to_api_repr'):
+    if hasattr(value, 'value'):
+      return _make_hashable(value.value)
+    if hasattr(value, 'values'):
+      return _make_hashable(value.values)
+    return repr(value.to_api_repr())
+  if isinstance(value, (list, tuple)):
+    return tuple(_make_hashable(v) for v in value)
+  if isinstance(value, dict):
+    return tuple(sorted((k, _make_hashable(v)) for k, v in value.items()))
+  if isinstance(value, bytearray):
+    return bytes(value)
+  return value
+
+
 def _infer_slot_fallback_types(
     all_row_slot_values: Sequence[Sequence[Any]],
     num_slots: int,
@@ -634,10 +650,10 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
 
   def create_row_key(self, row: beam.Row):
     if self.condition_value_fn:
-      return tuple(self.condition_value_fn(row))
+      return tuple(_make_hashable(v) for v in self.condition_value_fn(row))
     if self.fields:
       row_dict = row._asdict()
-      return (tuple(row_dict[field] for field in self.fields))
+      return tuple(_make_hashable(row_dict[field]) for field in self.fields)
     raise ValueError("Either fields or condition_value_fn must be specified")
 
   def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):

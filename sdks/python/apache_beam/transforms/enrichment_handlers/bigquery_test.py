@@ -14,8 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
+import decimal
 import pickle
 import unittest
+import uuid
 from unittest import mock
 
 from parameterized import parameterized
@@ -27,10 +30,12 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.api_core.exceptions import BadRequest
   from google.cloud import bigquery
 
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigquery import BigQueryEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.bigquery import to_query_parameter
 except ImportError:
   raise unittest.SkipTest(
       'Google Cloud BigQuery dependencies are not installed.')
@@ -572,6 +577,23 @@ class TestBigQueryEnrichment(unittest.TestCase):
     self.assertEqual(unpickled.query_template, handler.query_template)
 
   @mock.patch('apache_beam.transforms.enrichment_handlers.bigquery.bigquery')
+  def test_context_manager_creates_and_closes_client(self, mock_bq):
+    mock_client = mock.MagicMock()
+    mock_bq.Client.return_value = mock_client
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template='id = ?',
+        fields=['id'],
+        location='US',
+    )
+    with handler:
+      mock_bq.Client.assert_called_once_with(
+          project=self.project, location='US')
+      mock_client.close.assert_not_called()
+    mock_client.close.assert_called_once()
+
+  @mock.patch('apache_beam.transforms.enrichment_handlers.bigquery.bigquery')
   def test_pipeline_end_to_end_enrichment_with_mocked_bigquery(self, mock_bq):
     mock_bq.ScalarQueryParameter = bigquery.ScalarQueryParameter
     mock_bq.ArrayQueryParameter = bigquery.ArrayQueryParameter
@@ -606,7 +628,7 @@ class TestBigQueryEnrichment(unittest.TestCase):
     )
 
     with TestPipeline() as p:
-      res = p | beam.Create(inputs) | Enrichment(handler)
+      res = p | beam.Create(inputs, reshuffle=False) | Enrichment(handler)
       assert_that(res, equal_to(expected))
 
     mock_client.query.assert_called_once()
@@ -618,7 +640,206 @@ class TestBigQueryEnrichment(unittest.TestCase):
             bigquery.ScalarQueryParameter(None, 'STRING', "1' OR '1'='1"),
             bigquery.ScalarQueryParameter(None, 'STRING', '2'),
         ])
-    mock_client.close.assert_called_once()
+
+  @parameterized.expand([
+      ("id = 'unclosed", ),
+      ("id = 'abc\\", ),
+      ("/* unclosed comment", ),
+      ("`unclosed_ident = ?", ),
+      ("id = {bad-name!}", ),
+      ("id = 'a}b'", ),
+      ("id = }", ),
+      ("id = '{unclosed'", ),
+      ("id = {unclosed", ),
+      ("id = '{a{b}}'", ),
+      ("id = {a{b}}", ),
+      ("proj = @@123", ),
+      ("id = @123", ),
+      ("id = ? AND center_id = {0}", ),
+  ])
+  def test_malformed_sql_templates_raise_value_error(self, bad_template):
+    with self.assertRaises(ValueError):
+      _ = BigQueryEnrichmentHandler(
+          project=self.project,
+          table_name='project.dataset.table',
+          row_restriction_template=bad_template,
+          fields=['id', 'center_id'],
+      )
+
+  def test_sql_line_comments_escaped_quotes_and_unquoted_double_braces(self):
+    template = (
+        "-- header comment?\n"
+        "# hash comment?\n"
+        "`col\\`name` = '{{v}}' AND label LIKE 'O\\'Brien_{0}'\n"
+        "-- trailing comment?")
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template=template,
+        fields=['id'],
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = []
+
+    _ = handler(beam.Row(id='x'))
+    query_sent = handler.client.query.call_args.kwargs['query']
+    self.assertIn("-- header comment?\n", query_sent)
+    self.assertIn("# hash comment?\n", query_sent)
+    self.assertIn("`col\\`name` = '{v}'", query_sent)
+    self.assertIn("CONCAT('O\\'Brien_', CAST(? AS STRING))", query_sent)
+    self.assertTrue(query_sent.endswith("-- trailing comment?"))
+
+    handler_hash_eof = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id = {{}} OR id = ? # trailing hash?",
+        fields=['id'],
+    )
+    self.assertIn(
+        "WHERE id = {} OR id = ? # trailing hash?",
+        handler_hash_eof.query_template)
+
+  def test_scalar_and_array_parameter_type_inference_and_slot_fallbacks(self):
+    uid = uuid.UUID('12345678-1234-5678-1234-567812345678')
+    aware_dt = datetime.datetime(
+        2026, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc)
+    naive_dt = datetime.datetime(2026, 1, 2, 3, 4, 5)
+    d_val = datetime.date(2026, 1, 2)
+    t_val = datetime.time(3, 4, 5)
+
+    self.assertEqual(
+        to_query_parameter(3.5),
+        bigquery.ScalarQueryParameter(None, 'FLOAT64', 3.5))
+    self.assertEqual(
+        to_query_parameter(decimal.Decimal('9.99')),
+        bigquery.ScalarQueryParameter(None, 'NUMERIC', decimal.Decimal('9.99')))
+    self.assertEqual(
+        to_query_parameter(b'raw'),
+        bigquery.ScalarQueryParameter(None, 'BYTES', b'raw'))
+    self.assertEqual(
+        to_query_parameter(aware_dt),
+        bigquery.ScalarQueryParameter(None, 'TIMESTAMP', aware_dt))
+    self.assertEqual(
+        to_query_parameter(naive_dt),
+        bigquery.ScalarQueryParameter(None, 'DATETIME', naive_dt))
+    self.assertEqual(
+        to_query_parameter(d_val),
+        bigquery.ScalarQueryParameter(None, 'DATE', d_val))
+    self.assertEqual(
+        to_query_parameter(t_val),
+        bigquery.ScalarQueryParameter(None, 'TIME', t_val))
+    self.assertEqual(
+        to_query_parameter(uid),
+        bigquery.ScalarQueryParameter(None, 'STRING', str(uid)))
+    self.assertEqual(
+        to_query_parameter([1, 2]),
+        bigquery.ArrayQueryParameter(None, 'INT64', [1, 2]))
+
+    existing = bigquery.ScalarQueryParameter('p1', 'INT64', 7)
+    self.assertIs(to_query_parameter(existing, name='p1'), existing)
+
+    def _cond_fn(row: beam.Row):
+      return [row.prebuilt, row.tags]
+
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template='score = ? AND ? IS NOT NULL',
+        condition_value_fn=_cond_fn,
+        min_batch_size=2,
+        max_batch_size=4,
+        throw_exception_on_empty_results=False,
+    )
+    handler.client = mock.MagicMock()
+    handler.client.query.return_value.result.return_value = []
+
+    reqs = [
+        beam.Row(prebuilt=None, tags=[]),
+        beam.Row(
+            prebuilt=bigquery.ScalarQueryParameter(None, 'FLOAT64', 1.25),
+            tags=[10, 20]),
+    ]
+    _ = handler(reqs)
+    sent_params = list(
+        handler.client.query.call_args.kwargs['job_config'].query_parameters)
+    self.assertEqual(
+        sent_params,
+        [
+            bigquery.ScalarQueryParameter(None, 'FLOAT64', None),
+            bigquery.ArrayQueryParameter(None, 'INT64', []),
+            bigquery.ScalarQueryParameter(None, 'FLOAT64', 1.25),
+            bigquery.ArrayQueryParameter(None, 'INT64', [10, 20]),
+        ])
+
+  def test_query_fn_raw_string_and_error_paths_and_cache_keys(self):
+    raw_handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        query_fn=lambda row: 'SELECT * FROM project.dataset.table WHERE id = 1',
+    )
+    raw_handler.client = mock.MagicMock()
+    raw_handler.client.query.return_value.result.return_value = [{
+        'id': 1, 'name': 'ok'
+    }]
+    req = beam.Row(id=1)
+    self.assertEqual(raw_handler(req), (req, beam.Row(id=1, name='ok')))
+    with self.assertRaises(ValueError):
+      raw_handler.create_row_key(req)
+
+    raw_handler.client.query.return_value.result.return_value = []
+    with self.assertRaisesRegex(ValueError, 'no matching row found'):
+      _ = raw_handler(req)
+
+    raw_handler.client.query.side_effect = BadRequest('invalid syntax')
+    with self.assertRaisesRegex(BadRequest, 'Could not execute the query'):
+      _ = raw_handler(req)
+
+    raw_handler.client.query.side_effect = RuntimeError('connection lost')
+    with self.assertRaisesRegex(RuntimeError,
+                                'Could not complete the query request'):
+      _ = raw_handler(req)
+
+    strict_batch_handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id = '{id}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=4,
+        throw_exception_on_empty_results=True,
+    )
+    strict_batch_handler.client = mock.MagicMock()
+    strict_batch_handler.client.query.return_value.result.return_value = []
+
+    self.assertEqual(
+        strict_batch_handler._build_row_parameters([42], request_dict=None),
+        [bigquery.ScalarQueryParameter(None, 'INT64', 42)])
+
+    with self.assertRaisesRegex(ValueError, 'no matching row found'):
+      _ = strict_batch_handler([beam.Row(id=1)])
+
+    with self.assertRaises(KeyError):
+      _ = strict_batch_handler([beam.Row(other=1)])
+
+    self.assertEqual(strict_batch_handler.get_cache_key(beam.Row(id=7)), '7')
+    self.assertEqual(
+        strict_batch_handler.get_cache_key([beam.Row(id=7), beam.Row(id=8)]),
+        ['7', '8'])
+    with self.assertRaises(KeyError):
+      _ = strict_batch_handler.get_cache_key(beam.Row(other=7))
+    with self.assertRaises(KeyError):
+      _ = strict_batch_handler.get_cache_key([beam.Row(other=7)])
+
+    short_cond_handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template='id = ? AND center = ?',
+        condition_value_fn=_condition_value_fn,
+    )
+    short_cond_handler.client = mock.MagicMock()
+    self.assertEqual(short_cond_handler.create_row_key(beam.Row(id=9)), (9, ))
+    with self.assertRaisesRegex(ValueError, 'Placeholder index 1 out of range'):
+      _ = short_cond_handler(beam.Row(id=9))
 
 
 if __name__ == '__main__':
