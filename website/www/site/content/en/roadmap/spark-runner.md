@@ -17,13 +17,15 @@ limitations under the License.
 
 # Apache Spark Runner Roadmap
 
-_Last updated on Aug 2026._
+_Last updated on Nov 2026._
 
 ## Spark 4
 
 Support for Spark 4 in Beam's Spark runner is ongoing.
 
 As of Beam 2.74.0, Spark 4 is supported by Classic Spark runner in batch mode.
+
+As of Beam 2.79.0, the Structured Streaming runner on Spark 4 also runs streaming pipelines, verified by a streaming ValidatesRunner suite. Side inputs, ParDo with additional outputs, splittable DoFn, processing time timers, merging windows and triggers other than the default are not supported in streaming yet.
 
 As of Spark 4, DStream API is deprecated and community interest is around Structured Streaming. We are working on improving the Structured Streaming support in Beam's Spark runner, this includes
 - Complete streaming support for Spark 4 based on Structured Streaming
