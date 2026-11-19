@@ -1612,7 +1612,7 @@ capability-matrix:
       color-nb: "bcbcbc"
       rows:
         - name: Drain
-          description: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incompleted.
+          description: Stops reading new input, finishes processing data already in the pipeline, and emits windows that are still open. See the programming guide sections on truncating restrictions and looping timers during drain.
           values:
             - class: dataflow
               l1: "Partially"

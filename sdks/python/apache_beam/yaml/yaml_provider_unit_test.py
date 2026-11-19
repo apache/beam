@@ -20,6 +20,9 @@ import os
 import sys
 import tempfile
 import unittest
+from typing import Any
+from typing import NamedTuple
+from typing import Optional
 
 import mock
 import yaml
@@ -361,11 +364,6 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
         yaml_provider._join_url_or_filepath(None, 'a/b.yaml'), 'a/b.yaml')
 
 
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
-
-
 class YamlProvidersCreateTest(unittest.TestCase):
   def test_create_mixed_types(self):
     with beam.Pipeline() as p:
@@ -421,3 +419,67 @@ class YamlProvidersAssertEqualTest(unittest.TestCase):
                   }
               }
           }])
+
+
+class FlattenSchemaUnificationTest(unittest.TestCase):
+  def test_identical_schemas_return_none(self):
+    RowType = NamedTuple('RowType', [('a', int), ('b', str)])
+    pcoll1 = mock.MagicMock(element_type=RowType)
+    pcoll2 = mock.MagicMock(element_type=RowType)
+    flatten = YamlProviders.Flatten()
+    self.assertIsNone(flatten._merge_schemas((pcoll1, pcoll2)))
+
+  def test_deterministic_field_ordering(self):
+    RowType1 = NamedTuple('RowType1', [('alpha', int), ('beta', str)])
+    RowType2 = NamedTuple('RowType2', [('gamma', float), ('alpha', int)])
+    pcoll1 = mock.MagicMock(element_type=RowType1)
+    pcoll2 = mock.MagicMock(element_type=RowType2)
+    flatten = YamlProviders.Flatten()
+    unified = flatten._merge_schemas((pcoll1, pcoll2))
+    self.assertIsNotNone(unified)
+    self.assertEqual(list(unified._fields), ['alpha', 'beta', 'gamma'])
+
+  def test_unwrap_optional_preserves_concrete_type(self):
+    RowType1 = NamedTuple('RowType1', [('id', int)])
+    RowType2 = NamedTuple('RowType2', [('id', Optional[int])])
+    pcoll1 = mock.MagicMock(element_type=RowType1)
+    pcoll2 = mock.MagicMock(element_type=RowType2)
+    flatten = YamlProviders.Flatten()
+    unified = flatten._merge_schemas((pcoll1, pcoll2))
+    self.assertIsNotNone(unified)
+    from apache_beam.typehints.schemas import named_fields_from_element_type
+    fields_dict = dict(named_fields_from_element_type(unified))
+    import numpy as np
+    self.assertIn(fields_dict['id'], (Optional[int], Optional[np.int64]))
+
+  def test_required_field_preservation(self):
+    RowType1 = NamedTuple('RowType1', [('id', int), ('a', str)])
+    RowType2 = NamedTuple('RowType2', [('id', int), ('b', float)])
+    pcoll1 = mock.MagicMock(element_type=RowType1)
+    pcoll2 = mock.MagicMock(element_type=RowType2)
+    flatten = YamlProviders.Flatten()
+    unified = flatten._merge_schemas((pcoll1, pcoll2))
+    self.assertIsNotNone(unified)
+    from apache_beam.typehints.schemas import named_fields_from_element_type
+    fields_dict = dict(named_fields_from_element_type(unified))
+    import numpy as np
+    self.assertIn(fields_dict['id'], (int, np.int64))
+    self.assertEqual(fields_dict['a'], Optional[str])
+    self.assertIn(fields_dict['b'], (Optional[float], Optional[np.float64]))
+
+  def test_conflicting_types_fallback_to_optional_any(self):
+    RowType1 = NamedTuple('RowType1', [('id', int)])
+    RowType2 = NamedTuple('RowType2', [('id', str)])
+    pcoll1 = mock.MagicMock(element_type=RowType1)
+    pcoll2 = mock.MagicMock(element_type=RowType2)
+    flatten = YamlProviders.Flatten()
+    unified = flatten._merge_schemas((pcoll1, pcoll2))
+    self.assertIsNotNone(unified)
+    from apache_beam.typehints.schemas import named_fields_from_element_type
+    fields_dict = dict(named_fields_from_element_type(unified))
+    self.assertIn(fields_dict['id'], (Any, Optional[Any]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

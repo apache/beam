@@ -153,7 +153,7 @@ else:
     # Generally try to cover versions released in the last two years.
     # Update python/sdks/tox.ini to cover the same pyarrow versions
     # when updating the bounds here.
-    'pyarrow>=14.0.1,<26.0.0',
+    'pyarrow>=14.0.1,<27.0.0',
   ]
 
 # must update the below "docs" and "test" for extras_require
@@ -476,7 +476,7 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
-          'beartype>=0.21.0,<0.23.0',
+          'beartype>=0.21.0,<0.24.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -726,7 +726,7 @@ if __name__ == '__main__':
           ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'vllm': ['openai>=2.25.0,<3.0.0', 'vllm==0.32.0']
       },
       zip_safe=False,
       # PyPI package information.

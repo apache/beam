@@ -91,11 +91,11 @@ The PR bot will only process comments in the main thread (not review comments).`
 }
 
 export function failingChecksCantAssign(): string {
-  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers`";
+  return "Checks are failing. Will not request review until checks are succeeding. If you'd like to override that behavior, comment `assign set of reviewers` (or comment `/summarize-failures` for a summary of the failing checks).";
 }
 
 export function someChecksFailing(reviewersToNotify: string[]): string {
-  return `Some checks have failed: @${reviewersToNotify.join(" ")}`;
+  return `Some checks have failed: @${reviewersToNotify.join(" ")} (comment \`/summarize-failures\` for a summary of the failing checks)`;
 }
 
 export function stopNotifications(reason: string): string {

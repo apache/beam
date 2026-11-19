@@ -1634,7 +1634,7 @@ class RestrictionTracker(object):
 
     The boundedness of the restriction is used to determine the default behavior
     of how to truncate restrictions when a pipeline is being
-    `drained <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#>`_.  # pylint: disable=line-too-long
+    `drained <https://beam.apache.org/documentation/programming-guide/#truncating-during-drain>`_.  # pylint: disable=line-too-long
     If the restriction is bounded, then the entire restriction will be processed
     otherwise the restriction will be processed till a checkpoint is possible.
 

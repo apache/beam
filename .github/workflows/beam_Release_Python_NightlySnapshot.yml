@@ -70,6 +70,6 @@ jobs:
           gradle-command: :sdks:python:buildSnapshot
       - name: Publish Python Artifacts
         run: |
-          bash sdks/python/scripts/run_snapshot_publish.sh
+          bash scripts/ci/run_snapshot_publish.sh snapshot
         env:
           WORKSPACE: ${{ github.workspace }}

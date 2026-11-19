@@ -18,6 +18,7 @@
 """Tests for generating stable identifiers to use for Pickle serialization."""
 
 import functools
+import importlib.util
 import sys
 import types
 import unittest
@@ -229,6 +230,26 @@ class _InstanceOnlyDescriptor:
 class ClassWithLambdaAndRaisingAttribute:
   a_setting = _InstanceOnlyDescriptor()
   fn = lambda self, x: x + 1
+
+
+class _BrokenSubmoduleFinder:
+  def __init__(self, target_fullname, exc):
+    self._target_fullname = target_fullname
+    self._exc = exc
+
+  def find_spec(self, fullname, path=None, target=None):
+    del path, target
+    if fullname == self._target_fullname:
+      return importlib.util.spec_from_loader(fullname, self)
+    return None
+
+  def create_module(self, spec):
+    del spec
+    return None
+
+  def exec_module(self, module):
+    del module
+    raise self._exc
 
 
 prefix = __name__
@@ -500,6 +521,57 @@ class CodeObjectIdentifierGenerationTest(unittest.TestCase):
         sys.modules[mod_name] = saved
       else:
         sys.modules.pop(mod_name, None)
+
+  def test_get_code_from_identifier_propagates_inner_module_not_found(self):
+    parent_mod = types.ModuleType("_fake_pkg")
+    parent_mod.__path__ = []
+    parent_mod.sub = ClassWithFunction()
+    finder = _BrokenSubmoduleFinder(
+        "_fake_pkg.sub",
+        ModuleNotFoundError(
+            "No module named '_missing_dep'", name="_missing_dep"),
+    )
+    sys.modules["_fake_pkg"] = parent_mod
+    sys.meta_path.insert(0, finder)
+    try:
+      with self.assertRaisesRegex(ModuleNotFoundError, "_missing_dep"):
+        code_object_pickler.get_code_from_identifier(
+            "_fake_pkg.sub.process.__code__")
+    finally:
+      sys.meta_path.remove(finder)
+      sys.modules.pop("_fake_pkg", None)
+      sys.modules.pop("_fake_pkg.sub", None)
+
+  def test_get_code_from_identifier_propagates_inner_import_error(self):
+    parent_mod = types.ModuleType("_fake_pkg")
+    parent_mod.__path__ = []
+    parent_mod.sub = ClassWithFunction()
+    finder = _BrokenSubmoduleFinder(
+        "_fake_pkg.sub",
+        ImportError("cannot import name 'missing_symbol' from '_fake_pkg'"),
+    )
+    sys.modules["_fake_pkg"] = parent_mod
+    sys.meta_path.insert(0, finder)
+    try:
+      with self.assertRaisesRegex(ImportError, "missing_symbol"):
+        code_object_pickler.get_code_from_identifier(
+            "_fake_pkg.sub.process.__code__")
+    finally:
+      sys.meta_path.remove(finder)
+      sys.modules.pop("_fake_pkg", None)
+      sys.modules.pop("_fake_pkg.sub", None)
+
+  def test_get_code_from_identifier_resolves_nested_class_in_package(self):
+    parent_mod = types.ModuleType("_fake_pkg")
+    parent_mod.__path__ = []
+    parent_mod.ClassWithNestedClass = ClassWithNestedClass
+    sys.modules["_fake_pkg"] = parent_mod
+    try:
+      actual = code_object_pickler.get_code_from_identifier(
+          "_fake_pkg.ClassWithNestedClass.InnerClass.process.__code__")
+      self.assertEqual(actual, ClassWithNestedClass.InnerClass.process.__code__)
+    finally:
+      sys.modules.pop("_fake_pkg", None)
 
   def test_closures_with_different_param_kinds_have_distinct_identifiers(self):
     lambda_pos, lambda_vararg = get_same_named_lambdas_different_param_kinds()
