@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
  * single class, so the size of this class bounds that cost. All tests run concurrently under {@link
  * BeamParallelJunit4Runner} so that they do end up in the same batch.
  *
- * <p>When batching is disabled ({@code -PtestBatching=false}, {@code
- * -PstreamingTestBatching=false}) every test here runs standalone and simply passes.
+ * <p>When batching is disabled ({@code -PtestBatching=false}}) every test here runs standalone and
+ * simply passes.
  */
 @RunWith(BeamParallelJunit4Runner.class)
 public class DataflowTestBatchFallbackTest {
