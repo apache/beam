@@ -46,7 +46,7 @@ import org.joda.time.Duration;
 })
 public abstract class SpannerConfig implements Serializable {
   // A default host name for batch traffic.
-  private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
+  static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
   // Deadline for Commit API call.
   private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
   // Total allowable backoff time.
@@ -258,13 +258,23 @@ public abstract class SpannerConfig implements Serializable {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
-  /** Specifies the Cloud Spanner host. */
+  /**
+   * Specifies the Cloud Spanner host.
+   *
+   * <p>Setting a non-default host overrides any {@code SPANNER_EMULATOR_HOST} environment variable.
+   */
   public SpannerConfig withHost(ValueProvider<String> host) {
     checkNotNull(host, "withHost(host) called with null input.");
     return toBuilder().setHost(host).build();
   }
 
-  /** Specifies the Cloud Spanner host, when an emulator is used. */
+  /**
+   * Specifies the Cloud Spanner host, when an emulator is used.
+   *
+   * <p>If not set (or empty), {@code SpannerIO} falls back to the {@code SPANNER_EMULATOR_HOST}
+   * environment variable when neither an experimental host nor a non-default host is configured. An
+   * explicit non-empty value set here takes precedence over {@code SPANNER_EMULATOR_HOST}.
+   */
   public SpannerConfig withEmulatorHost(ValueProvider<String> emulatorHost) {
     return toBuilder().setEmulatorHost(emulatorHost).build();
   }
