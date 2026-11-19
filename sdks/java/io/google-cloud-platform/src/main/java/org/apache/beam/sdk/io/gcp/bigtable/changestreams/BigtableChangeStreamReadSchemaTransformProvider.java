@@ -435,7 +435,6 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
         .addValue(entryIndex)
         .addValue(entryRow.getString("type"))
-        .addValue(entryRow.getString("type"))
         .addValue(entryRow.getString("family_name"))
         .addValue(entryRow.getBytes("column_qualifier"))
         .addValue(entryRow.getInt64("timestamp_micros"))
