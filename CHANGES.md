@@ -172,6 +172,7 @@
 * (Python) Dataflow runner: artifacts from different environments that share a name but have different content (for example each environment's `requirements.txt` in a Beam YAML pipeline with a `pythonPackage` provider) are now staged to distinct objects in the staging location instead of overwriting each other, which made workers fail the staged-file integrity check ([#40699](https://github.com/apache/beam/issues/40699)).
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
+* (Go) Dataflow job monitoring retries transient status request failures instead of immediately reporting a pipeline failure ([#23452](https://github.com/apache/beam/issues/23452)).
 
 ## Security Fixes
 

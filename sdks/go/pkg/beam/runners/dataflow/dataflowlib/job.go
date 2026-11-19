@@ -17,7 +17,9 @@ package dataflowlib
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -28,7 +30,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcpx"
+	"github.com/avast/retry-go/v4"
+	"golang.org/x/oauth2"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/proto"
 
@@ -276,9 +281,22 @@ func Submit(ctx context.Context, client *df.Service, project, region string, job
 // and state changes received.
 func WaitForCompletion(ctx context.Context, client *df.Service, project, region, jobID string) error {
 	for {
-		j, err := client.Projects.Locations.Jobs.Get(project, region, jobID).Do()
+		j, err := retry.DoWithData(func() (*df.Job, error) {
+			return client.Projects.Locations.Jobs.Get(project, region, jobID).Context(ctx).Do()
+		}, retry.Attempts(5), retry.Delay(time.Second), retry.DelayType(retry.BackOffDelay),
+			retry.Context(ctx), retry.LastErrorOnly(true), retry.RetryIf(func(err error) bool {
+				var apiError *googleapi.Error
+				if stderrors.As(err, &apiError) {
+					return apiError.Code == http.StatusTooManyRequests || apiError.Code >= http.StatusInternalServerError
+				}
+				var tokenError *oauth2.RetrieveError
+				if stderrors.As(err, &tokenError) {
+					return tokenError.Response != nil && (tokenError.Response.StatusCode == http.StatusTooManyRequests || tokenError.Response.StatusCode >= http.StatusInternalServerError)
+				}
+				return true
+			}))
 		if err != nil {
-			return errors.Wrap(err, "failed to get job")
+			return errors.Wrapf(err, "failed to poll job %s; the job may still be running", jobID)
 		}
 
 		terminal, msg, err := currentStateMessage(j.CurrentState, jobID)
