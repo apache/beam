@@ -393,7 +393,7 @@ class InMemoryDataChannel(DataChannel):
     for element in self._inputs:
       if element.instruction_id == instruction_id:
         if isinstance(element, beam_fn_api_pb2.Elements.Timers):
-          if not element.is_last:
+          if element.timers or not element.is_last:
             yield element
         if isinstance(element, beam_fn_api_pb2.Elements.Data):
           if element.data or element.is_last:
@@ -615,13 +615,14 @@ class _GrpcDataChannel(DataChannel):
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
               done_inputs.add((element.transform_id, element.timer_family_id))
-            else:
+            if element.timers or not element.is_last:
               yield element
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             if element.is_last:
               done_inputs.add(element.transform_id)
             else:
               assert element.transform_id not in done_inputs
+            if element.data or not element.is_last:
               yield element
           else:
             raise ValueError('Unexpected input element type %s' % type(element))
