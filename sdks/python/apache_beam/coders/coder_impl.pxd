@@ -150,13 +150,17 @@ cdef class SingletonCoderImpl(CoderImpl):
 
 cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cdef tuple _coder_impls
+  cdef int _num_coders
+  cdef bint _is_kv
+  cdef CoderImpl _coder_0
+  cdef CoderImpl _coder_1
 
   cpdef _extract_components(self, value)
   cpdef _construct_from_components(self, components)
 
-  @cython.locals(c=CoderImpl)
+  @cython.locals(c=CoderImpl, i=int, last=int)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
-  @cython.locals(c=CoderImpl)
+  @cython.locals(c=CoderImpl, i=int, last=int)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
 
   @cython.locals(c=CoderImpl)
