@@ -22,7 +22,22 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/inference"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python"
 )
+
+// stagedSklearnModelHandler loads the model the test expansion service stages
+// with the Python environment as "sklearn_model". Staged files are only
+// reachable on the worker, so the path is resolved in load_model().
+const stagedSklearnModelHandler = `import os
+from apache_beam.ml.inference.sklearn_inference import SklearnModelHandlerNumpy
+
+class StagedSklearnModelHandlerNumpy(SklearnModelHandlerNumpy):
+  def load_model(self):
+    self.update_model_path(os.path.join(
+        os.environ['SEMI_PERSISTENT_DIRECTORY'], 'staged',
+        os.path.basename(self._model_uri)))
+    return super().load_model()
+`
 
 func SklearnInference(expansionAddr string) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
@@ -39,7 +54,9 @@ func SklearnInference(expansionAddr string) *beam.Pipeline {
 			Inference: 1,
 		},
 	}
-	outCol := inference.SklearnModel("/tmp/staged/sklearn_model").RunInference(s, input, inference.WithExpansionAddr(expansionAddr))
+	model := inference.SklearnModel("sklearn_model")
+	model.ModelHandlerProvider = python.CallableSource(stagedSklearnModelHandler)
+	outCol := model.RunInference(s, input, inference.WithExpansionAddr(expansionAddr))
 	passert.Equals(s, outCol, output[0], output[1])
 	return p
 }
