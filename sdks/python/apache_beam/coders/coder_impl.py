@@ -1720,14 +1720,8 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
       # Should never be here.
       # TODO(robertwb): Remove when coders are set correctly.
       return 0, [(value, self._value_coder)]
-    estimated_size = 0
-    observables = []
-    value_estimated_size, value_observables = (
-        self._value_coder.get_estimated_size_and_observables(
-            value.value, nested=nested))
-    estimated_size += value_estimated_size
-    observables += value_observables
-    return estimated_size, observables
+    return self._value_coder.get_estimated_size_and_observables(
+        value.value, nested=nested)
 
 
 class LengthPrefixCoderImpl(StreamCoderImpl):
@@ -1789,6 +1783,9 @@ class ShardedKeyCoderImpl(StreamCoderImpl):
     return estimated_size
 
 
+_TIMESTAMP_CODER_IMPL = TimestampCoderImpl()
+
+
 class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -1803,17 +1800,16 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     self._window_coder_impl = window_coder_impl
 
   def encode_to_stream(self, value, stream, nested):
-    TimestampCoderImpl().encode_to_stream(value.max_timestamp(), stream, nested)
+    _TIMESTAMP_CODER_IMPL.encode_to_stream(
+        value.max_timestamp(), stream, nested)
     self._window_coder_impl.encode_to_stream(value, stream, nested)
 
   def decode_from_stream(self, stream, nested):
-    TimestampCoderImpl().decode_from_stream(stream, nested)
+    stream.read_bigendian_int64()
     return self._window_coder_impl.decode_from_stream(stream, nested)
 
   def estimate_size(self, value: Any, nested: bool = False) -> int:
-    return (
-        TimestampCoderImpl().estimate_size(value.max_timestamp()) +
-        self._window_coder_impl.estimate_size(value, nested))
+    return 8 + self._window_coder_impl.estimate_size(value, nested)
 
 
 _OpaqueWindow = None
@@ -1858,18 +1854,16 @@ class TimestampPrefixingOpaqueWindowCoderImpl(StreamCoderImpl):
     pass
 
   def encode_to_stream(self, value, stream, nested):
-    TimestampCoderImpl().encode_to_stream(value.max_timestamp(), stream, True)
+    _TIMESTAMP_CODER_IMPL.encode_to_stream(value.max_timestamp(), stream, True)
     stream.write(value.encoded_window, True)
 
   def decode_from_stream(self, stream, nested):
-    max_timestamp = TimestampCoderImpl().decode_from_stream(stream, True)
+    max_timestamp = _TIMESTAMP_CODER_IMPL.decode_from_stream(stream, True)
     return _create_opaque_window(
         max_timestamp.successor(), stream.read_all(True))
 
   def estimate_size(self, value: Any, nested: bool = False) -> int:
-    return (
-        TimestampCoderImpl().estimate_size(value.max_timestamp()) +
-        len(value.encoded_window))
+    return 8 + len(value.encoded_window)
 
 
 row_coders_registered = False
