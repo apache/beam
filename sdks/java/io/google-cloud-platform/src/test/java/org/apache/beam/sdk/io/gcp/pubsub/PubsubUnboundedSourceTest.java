@@ -139,6 +139,47 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
+  public void pullsTheConfiguredBatchSize() throws Exception {
+    List<IncomingMessage> incoming = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      incoming.add(
+          IncomingMessage.of(
+              PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8("data_" + i)).build(),
+              TIMESTAMP + i,
+              0,
+              "ack_" + i,
+              "id_" + i));
+    }
+    setupOneMessage(incoming);
+    PubsubUnboundedSource source =
+        new PubsubUnboundedSource(
+            clock,
+            factory,
+            null,
+            null,
+            StaticValueProvider.of(SUBSCRIPTION),
+            TIMESTAMP_ATTRIBUTE,
+            ID_ATTRIBUTE,
+            true /* needsAttributes */,
+            false /* needsMessageId */,
+            false /* needsOrderingKey */,
+            2 /* pullBatchSize */);
+
+    try (PubsubReader reader = new PubsubSource(source).createReader(p.getOptions(), null)) {
+      assertTrue(reader.start());
+      // First pull requested at most 2 messages: 1 is current, 1 remains buffered in notYetRead.
+      PubsubCheckpoint firstCheckpoint = reader.getCheckpointMark();
+      assertThat(firstCheckpoint.notYetReadIds, hasSize(1));
+      firstCheckpoint.finalizeCheckpoint();
+
+      assertTrue(reader.advance());
+      assertTrue(reader.advance());
+      assertFalse(reader.advance());
+      reader.getCheckpointMark().finalizeCheckpoint();
+    }
+  }
+
+  @Test
   public void readOneMessage() throws Exception {
     setupOneMessage();
     PubsubReader reader = primSource.createReader(p.getOptions(), null);
