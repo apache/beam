@@ -754,10 +754,16 @@ public class Create<T> {
       this.typeDescriptor = typeDescriptor;
     }
 
-    private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
-      @ProcessElement
-      public void processElement(@Element TimestampedValue<T> element, OutputReceiver<T> r) {
-        r.outputWithTimestamp(element.getValue(), element.getTimestamp());
+    private static class ConvertTimestamps<T>
+        extends OutputWithTimestampDoFn<TimestampedValue<T>, T> {
+      @Override
+      T getOutput(TimestampedValue<T> element) {
+        return element.getValue();
+      }
+
+      @Override
+      Instant getTimestamp(TimestampedValue<T> element) {
+        return element.getTimestamp();
       }
     }
   }
