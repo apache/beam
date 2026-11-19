@@ -333,7 +333,9 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
 
     Row row =
         BigtableChangeStreamReadSchemaTransformProvider.flattenedMutationEntryToRow(
-            mutation, setCell);
+            mutation, setCell, 0);
+
+    assertEquals(Integer.valueOf(0), row.getInt32("entry_index"));
 
     assertArrayEquals("key".getBytes(UTF_8), row.getBytes("key"));
     assertEquals("USER", row.getString("mutation_type"));
@@ -359,7 +361,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
   }
 
   @Test
-  public void testFlattenDefaultsToTrue() {
+  public void testFlattenDefaultsToFalse() {
     BigtableChangeStreamReadConfiguration configuration =
         BigtableChangeStreamReadConfiguration.builder()
             .setProjectId("project")
@@ -367,7 +369,7 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
             .setTableId("table")
             .build();
 
-    assertEquals(Boolean.TRUE, configuration.getFlatten());
+    assertEquals(Boolean.FALSE, configuration.getFlatten());
   }
 
   @Test

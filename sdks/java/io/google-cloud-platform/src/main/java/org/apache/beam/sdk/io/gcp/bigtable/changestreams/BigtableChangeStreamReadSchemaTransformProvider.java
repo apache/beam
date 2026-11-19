@@ -114,6 +114,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
           .addInt32Field("tie_breaker")
           .addStringField("token")
           .addDateTimeField("estimated_low_watermark")
+          .addInt32Field("entry_index")
           .addStringField("type")
           .addStringField("family_name")
           .addNullableByteArrayField("column_qualifier")
@@ -145,14 +146,16 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     return "Reads change stream records from a Google Cloud Bigtable table.\n"
         + "The transform requires the project ID, instance ID, and table ID parameters.\n"
         + "Optionally, an app profile, start timestamp, change stream name, and flatten mode can be provided.\n"
-        + "By default, the output is flattened to one row per change stream entry.\n"
+        + "By default, the output contains one row per mutation with ordered nested entries.\n"
+        + "Set flatten to true to output one row per entry with its zero-based entry index.\n"
+        + "Flattened output does not preserve row-level atomicity or guarantee entry ordering.\n"
         + "Example usage:\n"
         + "  - type: ReadFromBigtableCDC\n"
         + "    config:\n"
         + "      project: \"my-gcp-project\"\n"
         + "      instance: \"my-bigtable-instance\"\n"
         + "      table: \"my-table\"\n"
-        + "      flatten: true\n";
+        + "      flatten: false\n";
   }
 
   @Override
@@ -199,8 +202,9 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     public abstract @Nullable String getEndAtTimestamp();
 
     @SchemaFieldDescription(
-        "If true or omitted, outputs one row per change stream entry. "
-            + "If false, outputs one row per mutation with nested entries.")
+        "If true, outputs one row per change stream entry with its zero-based entry index. "
+            + "This mode does not preserve row-level atomicity or guarantee entry ordering. "
+            + "If false or omitted, outputs one row per mutation with ordered nested entries.")
     public abstract @Nullable Boolean getFlatten();
 
     public static Builder builder() {
@@ -281,7 +285,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
 
       PCollection<Row> rows;
 
-      if (Boolean.FALSE.equals(configuration.getFlatten())) {
+      if (!Boolean.TRUE.equals(configuration.getFlatten())) {
         rows =
             mutations
                 .apply("ConvertToBeamRows", ParDo.of(new ChangeStreamMutationToRowDoFn()))
@@ -318,8 +322,9 @@ public class BigtableChangeStreamReadSchemaTransformProvider
 
       ChangeStreamMutation mutation = element.getValue();
 
+      int entryIndex = 0;
       for (Entry entry : mutation.getEntries()) {
-        out.output(flattenedMutationEntryToRow(mutation, entry));
+        out.output(flattenedMutationEntryToRow(mutation, entry, entryIndex++));
       }
     }
   }
@@ -343,7 +348,8 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .build();
   }
 
-  static Row flattenedMutationEntryToRow(ChangeStreamMutation mutation, Entry entry) {
+  static Row flattenedMutationEntryToRow(
+      ChangeStreamMutation mutation, Entry entry, int entryIndex) {
 
     Row entryRow = entryToRow(entry);
 
@@ -355,6 +361,8 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .addValue(mutation.getTieBreaker())
         .addValue(mutation.getToken())
         .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
+        .addValue(entryIndex)
+        .addValue(entryRow.getString("type"))
         .addValue(entryRow.getString("type"))
         .addValue(entryRow.getString("family_name"))
         .addValue(entryRow.getBytes("column_qualifier"))
