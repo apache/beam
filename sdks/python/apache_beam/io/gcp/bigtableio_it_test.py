@@ -127,10 +127,14 @@ class TestReadFromBigtableIT(unittest.TestCase):
           col_fam = self.table.column_family(fam_name)
           col_fam.create()
         for k in range(1, num_columns_per_family + 1):
-          row.set_cell(fam_name, f'col-{j}-{k}', f'value-{i}-{j}-{k}')
+          row.set_cell(
+              fam_name,
+              f'col-{j}-{k}',
+              f'value-{i}-{j}-{k}',
+              datetime.now(timezone.utc))
 
       # after all mutations on the row are done, commit to Bigtable
-      row.commit()
+      self.assertEqual(0, row.commit().code)
       # read the same row back from Bigtable to get the expected data
       # accumulate rows in `cells`
       read_row: PartialRowData = self.table.read_row(key)
@@ -291,9 +295,10 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     col_fam.create()
     # write a row with two columns to the table beforehand.
     write_row: DirectRow = DirectRow('key-1', self.table)
-    write_row.set_cell('col_fam', b'col-1', b'val-1')
-    write_row.set_cell('col_fam', b'col-2', b'val-2')
-    write_row.commit()
+    now = datetime.now(timezone.utc)
+    write_row.set_cell('col_fam', b'col-1', b'val-1', now)
+    write_row.set_cell('col_fam', b'col-2', b'val-2', now)
+    self.assertEqual(0, write_row.commit().code)
 
     # prepare a row that will delete cells in one of the columns.
     delete_row: DirectRow = DirectRow('key-1')
@@ -323,13 +328,13 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         b'col',
         b'val',
         datetime.fromtimestamp(100_000_000, tz=timezone.utc))
-    write_row.commit()
+    self.assertEqual(0, write_row.commit().code)
     write_row.set_cell(
         'col_fam',
         b'col',
         b'new-val',
         datetime.fromtimestamp(200_000_000, tz=timezone.utc))
-    write_row.commit()
+    self.assertEqual(0, write_row.commit().code)
 
     # prepare a row that will delete cells within a timestamp range.
     delete_row: DirectRow = DirectRow('key-1')
@@ -362,9 +367,10 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     col_fam.create()
     # write a row with values in both column families to the table beforehand.
     write_row: DirectRow = DirectRow('key-1', self.table)
-    write_row.set_cell('col_fam-1', b'col', b'val')
-    write_row.set_cell('col_fam-2', b'col', b'val')
-    write_row.commit()
+    now = datetime.now(timezone.utc)
+    write_row.set_cell('col_fam-1', b'col', b'val', now)
+    write_row.set_cell('col_fam-2', b'col', b'val', now)
+    self.assertEqual(0, write_row.commit().code)
 
     # prepare a row that will delete a column family from the row
     delete_row: DirectRow = DirectRow('key-1')
@@ -389,10 +395,11 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     col_fam = self.table.column_family('col_fam')
     col_fam.create()
     # write a couple of rows to the table beforehand
-    write_row1.set_cell('col_fam', b'col', b'val-1')
-    write_row1.commit()
-    write_row2.set_cell('col_fam', b'col', b'val-2')
-    write_row2.commit()
+    now = datetime.now(timezone.utc)
+    write_row1.set_cell('col_fam', b'col', b'val-1', now)
+    self.assertEqual(0, write_row1.commit().code)
+    write_row2.set_cell('col_fam', b'col', b'val-2', now)
+    self.assertEqual(0, write_row2.commit().code)
 
     # prepare a row that will delete itself
     delete_row: DirectRow = DirectRow('key-1')
