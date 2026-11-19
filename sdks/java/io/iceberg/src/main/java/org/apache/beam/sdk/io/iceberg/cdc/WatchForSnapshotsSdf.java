@@ -219,7 +219,7 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     @Nullable Snapshot current = table.currentSnapshot();
     if (current == null) {
       // no snapshots yet.
-      LOG.info("Skipping scan: table is empty with no snapshots yet");
+      LOG.debug("Skipping scan: table is empty with no snapshots yet");
       return endPassed ? finish(tracker) : pauseOrStop(watermark, bounded);
     }
 
@@ -242,14 +242,14 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     long nextSeqInclusive = tracker.currentRestriction().getFrom();
     if (toSnapshotSeq < nextSeqInclusive) {
       // Nothing new since last poll.
-      LOG.info("Skipping scan: nothing new since last poll.");
+      LOG.debug("Skipping scan: nothing new since last poll.");
       return endPassed ? finish(tracker) : pauseOrStop(watermark, bounded);
     }
 
     // Collect snapshots in [nextSeqInclusive, toSnapshotSeq] chronologically
     String tableId = scanConfig.getTableIdentifier();
     List<SnapshotInfo> fresh = snapshotsAfter(table, tableId, nextSeqInclusive, toSnapshotId);
-    LOG.info("Collected snapshots: {}", fresh);
+    LOG.debug("Collected snapshots: {}", fresh);
 
     @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
     for (SnapshotInfo snap : fresh) {
@@ -310,7 +310,7 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
       ManualWatermarkEstimator<Instant> watermark, boolean bounded) {
     Instant idleWatermark = Instant.now().minus(pollInterval);
     if (watermark.currentWatermark().isBefore(idleWatermark)) {
-      LOG.info(
+      LOG.debug(
           "Sitting idle for {} seconds. Bumping watermark to {}",
           TimeUnit.MILLISECONDS.toSeconds(
               Instant.now().getMillis() - watermark.currentWatermark().getMillis()),

@@ -35,6 +35,11 @@ ext.summary = """Apache Beam Java SDK examples using IcebergIO."""
 
 apply from: "$project.rootDir/examples/java/common.gradle"
 
+configurations {
+  // Runtime classpath plus DataflowRunner for building Dataflow Flex Template uber-JARs.
+  flexTemplateRuntime.extendsFrom runtimeClasspath
+}
+
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   runtimeOnly project(":sdks:java:io:iceberg")
@@ -75,6 +80,32 @@ dependencies {
   // Add dependency if requested on command line for runner
   if (project.hasProperty("runnerDependency")) {
     runtimeOnly project(path: project.getProperty("runnerDependency"))
+  }
+
+  flexTemplateRuntime project(":runners:google-cloud-dataflow-java")
+}
+
+tasks.register(
+    'deltaLakeToLakehouseCdcFlexTemplateJar',
+    com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  group = 'Build'
+  description = 'Builds a Dataflow Flex Template uber-JAR for DeltaLakeToLakehouseCdcExample.'
+  // Avoid duplicating the large shaded uber-JAR in the Gradle build cache.
+  outputs.cacheIf { false }
+  archiveBaseName.set('delta-lake-to-lakehouse-cdc-flex-template')
+  archiveClassifier.set('bundled')
+  from sourceSets.main.output
+  configurations = [project.configurations.flexTemplateRuntime]
+  mergeServiceFiles()
+  append 'reference.conf'
+  zip64 = true
+  exclude 'META-INF/INDEX.LIST'
+  exclude 'META-INF/*.SF'
+  exclude 'META-INF/*.DSA'
+  exclude 'META-INF/*.RSA'
+  exclude 'META-INF/versions/**/module-info.class'
+  manifest {
+    attributes 'Main-Class': 'org.apache.beam.examples.iceberg.DeltaLakeToLakehouseCdcExample'
   }
 }
 
