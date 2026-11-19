@@ -239,7 +239,7 @@ final class IdTracker {
       Map<Range<Instant>, RangeSet<Long>> idsAvailable,
       Map<Range<Instant>, RangeSet<Instant>> subRangeDeletions) {
     if (idsAvailable.isEmpty()) {
-      idsAvailable.clear();
+      idsAvailableValue.clear();
     } else {
       idsAvailableValue.write(idsAvailable);
     }
