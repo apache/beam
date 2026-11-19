@@ -117,6 +117,9 @@ class ShortIdCache(object):
     not assigned already.
     """
     key = monitoring_infos.to_key(monitoring_info)
+    short_id = self._info_key_to_short_id.get(key)
+    if short_id is not None:
+      return short_id
     with self._lock:
       try:
         return self._info_key_to_short_id[key]
@@ -130,8 +133,8 @@ class ShortIdCache(object):
         payload_cleared.CopyFrom(monitoring_info)
         payload_cleared.ClearField('payload')
 
-        self._info_key_to_short_id[key] = shortId
         self._short_id_to_info[shortId] = payload_cleared
+        self._info_key_to_short_id[key] = shortId
         return shortId
 
   def get_infos(self, short_ids):
