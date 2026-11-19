@@ -417,6 +417,23 @@ class TriggerTest(unittest.TestCase):
         1,
         3)
 
+  def test_after_each_advances_after_parallel_trigger_fires(self):
+    for parallel in (AfterAny, AfterAll):
+      with self.subTest(parallel=parallel.__name__):
+        self.run_trigger_simple(
+            FixedWindows(10),
+            AfterEach(
+                parallel(trigger.Always(), trigger.Always()), AfterCount(2)),
+            AccumulationMode.DISCARDING, [(1, 'a'), (2, 'b'), (3, 'c')],
+            {IntervalWindow(0, 10): [set('a'), set('bc')]})
+
+  def test_or_finally_can_fire_before_finishing(self):
+    self.run_trigger_simple(
+        FixedWindows(10),
+        trigger.OrFinally(trigger.Always(), AfterCount(2)),
+        AccumulationMode.DISCARDING, [(1, 'a'), (2, 'b'), (3, 'c')],
+        {IntervalWindow(0, 10): [set('a'), set('b')]})
+
   def test_sessions_after_each(self):
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
@@ -507,17 +524,15 @@ class MayLoseDataTest(unittest.TestCase):
         0,
         DataLossReason.MAY_FINISH)
 
-  def test_after_any_all_safe(self):
+  def test_after_any_finishes_with_non_finishing_children(self):
     self._test(
         AfterAny(Repeatedly(AfterCount(42)), DefaultTrigger()),
         0,
-        DataLossReason.NO_POTENTIAL_LOSS)
+        DataLossReason.MAY_FINISH)
 
-  def test_after_all_some_may_finish(self):
+  def test_after_all_finishes_with_non_finishing_child(self):
     self._test(
-        AfterAll(AfterCount(1), DefaultTrigger()),
-        0,
-        DataLossReason.NO_POTENTIAL_LOSS)
+        AfterAll(AfterCount(1), DefaultTrigger()), 0, DataLossReason.MAY_FINISH)
 
   def test_afer_all_all_may_finish(self):
     self._test(
